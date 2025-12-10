@@ -8,13 +8,7 @@
     "dark": "#0384C3"
   },
   "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity"
-    ]
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity"]
   },
   "background": {
     "decoration": "gradient"
@@ -327,9 +321,7 @@
             "groups": [
               {
                 "group": "Phoenix Cloud",
-                "pages": [
-                  "docs/phoenix/phoenix-cloud"
-                ]
+                "pages": ["docs/phoenix/phoenix-cloud"]
               }
             ]
           },
@@ -959,16 +951,12 @@
               {
                 "group": "Upgrade",
                 "icon": "angles-up",
-                "pages": [
-                  "docs/phoenix/self-hosting/upgrade/migrations"
-                ]
+                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
               },
               {
                 "group": "Security",
                 "icon": "user-shield",
-                "pages": [
-                  "docs/phoenix/settings/access-control-rbac"
-                ]
+                "pages": ["docs/phoenix/settings/access-control-rbac"]
               },
               {
                 "group": "Misc",
@@ -987,6 +975,15 @@
                 "group": " ",
                 "pages": [
                   "docs/phoenix/release-notes",
+                  {
+                    "group": "12.2025",
+                    "pages": [
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-span-notes-api",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-evaluator-message-formats",
+                      "docs/phoenix/release-notes/12-2025/12-10-2025-typescript-create-evaluator"
+                    ]
+                  },
                   {
                     "group": "11.2025",
                     "pages": [
@@ -1163,9 +1160,7 @@
         "groups": [
           {
             "group": " ",
-            "pages": [
-              "docs/phoenix/documentation/jp"
-            ]
+            "pages": ["docs/phoenix/documentation/jp"]
           }
         ]
       },
@@ -1174,9 +1169,7 @@
         "groups": [
           {
             "group": " ",
-            "pages": [
-              "docs/phoenix/documentation/zh"
-            ]
+            "pages": ["docs/phoenix/documentation/zh"]
           }
         ]
       }
@@ -1695,6 +1688,10 @@
     {
       "source": "/docs/phoenix/tracing/llm-traces-1",
       "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
+      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
     }
   ]
 }

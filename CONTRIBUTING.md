@@ -8,7 +8,7 @@ This project has adopted the [Contributor Covenant Code of Conduct](./CODE_OF_CO
 
 ## Branch Organization
 
-Submit all code changes to `main` and documentation changes to the `docs` branch.
+Submit all changes to `main`.
 
 Code that lands in `main` must be compatible with the latest stable release. It may contain additional features but no breaking changes. We should be able to release a new minor version from the tip of `main` at any time.
 

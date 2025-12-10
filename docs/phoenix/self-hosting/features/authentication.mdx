@@ -268,7 +268,7 @@ The following optional environment variables provide additional control over OAu
     </tr>
     <tr>
       <td><strong>PHOENIX\_OAUTH2\_&lt;IDP&gt;\_USE\_PKCE</strong></td>
-      <td>Enable PKCE (Proof Key for Code Exchange) with S256 code challenge method for enhanced security. PKCE protects the authorization code from interception and can be used with both public clients and confidential clients. This setting is orthogonal to client authentication—whether <code>CLIENT_SECRET</code> is required is determined solely by <code>TOKEN_ENDPOINT_AUTH_METHOD</code>, not by <code>USE_PKCE</code>. Defaults to <code>False</code>.</td>
+      <td>Enable PKCE (Proof Key for Code Exchange) with S256 code challenge method for enhanced security. PKCE protects the authorization code from interception and can be used with both public clients and confidential clients. This setting is orthogonal to client authentication—whether <code>CLIENT_SECRET</code> is required is determined solely by <code>TOKEN_ENDPOINT_AUTH_METHOD</code>, not by <code>USE_PKCE</code>. Defaults to <code>False</code>.<br /><br /><strong>Note:</strong> PKCE support was added in Phoenix 12.4.0.</td>
     </tr>
     <tr>
       <td><strong>PHOENIX\_OAUTH2\_&lt;IDP&gt;\_TOKEN\_ENDPOINT\_AUTH\_METHOD</strong></td>
@@ -337,6 +337,10 @@ export PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="engineering,platform-team"
 ### Common OAuth2 Configuration Examples
 
 **Public client with PKCE (no client secret):**
+
+<Info>
+PKCE support requires Phoenix 12.4.0 or later.
+</Info>
 
 ```bash
 export PHOENIX_OAUTH2_MOBILE_CLIENT_ID=mobile_app_id

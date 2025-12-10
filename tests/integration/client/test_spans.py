@@ -1668,6 +1668,91 @@ class TestClientForSpanCreation:
         assert rest_attrs["documents.1.content"] == "Second document"
 
 
+class TestClientForSpanNotes:
+    """Test the add_span_note method."""
+
+    # Use GraphQL to verify each note was stored correctly
+    QUERY = """
+        query GetSpanAnnotation($annotationId: ID!) {
+            node(id: $annotationId) {
+                ... on SpanAnnotation {
+                    name
+                    score
+                    label
+                    explanation
+                    annotatorKind
+                    identifier
+                }
+            }
+        }
+    """
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_span_note(
+        self,
+        is_async: bool,
+        _existing_spans: Sequence[_ExistingSpan],
+        _app: _AppInfo,
+    ) -> None:
+        """Test multiple notes can be added to a span and verify content via GraphQL.
+
+        Notes are a special type of annotation that allow multiple entries per span
+        (unlike regular annotations which are unique by name and identifier).
+        """
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span = choice(_existing_spans)
+        span_id = existing_span.span_id
+
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        num_notes = 3
+        note_texts: dict[str, str] = {}
+
+        # Add multiple notes to the same span
+        for _ in range(num_notes):
+            note_text = f" Test note {token_hex(8)} "
+            result = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.add_span_note(
+                    span_id=span_id,
+                    note=note_text,
+                )
+            )
+
+            assert isinstance(result, dict)
+            assert "id" in result
+            annotation_global_id = result["id"]
+            assert annotation_global_id, "Note should have a non-empty ID"
+            note_texts[annotation_global_id] = note_text
+
+        # Verify all notes have unique IDs (key property of notes vs regular annotations)
+        assert len(note_texts) == num_notes, "Each note should have a unique ID"
+
+        for annotation_global_id, note_text in note_texts.items():
+            gql_result, _ = _gql(
+                _app,
+                _app.admin_secret,
+                query=self.QUERY,
+                operation_name="GetSpanAnnotation",
+                variables={"annotationId": annotation_global_id},
+            )
+            assert not gql_result.get("errors"), f"GraphQL errors: {gql_result.get('errors')}"
+
+            annotation_data = gql_result["data"]["node"]
+            assert annotation_data is not None, "Annotation should exist"
+
+            # Verify the note properties
+            assert annotation_data["name"] == "note"
+            assert annotation_data["score"] is None
+            assert annotation_data["label"] is None
+            assert annotation_data["explanation"] == note_text.strip()
+            assert annotation_data["annotatorKind"] == "HUMAN"
+
+
 class TestClientForSpanDeletion:
     """Test the delete_span method with various span identifiers."""
 
