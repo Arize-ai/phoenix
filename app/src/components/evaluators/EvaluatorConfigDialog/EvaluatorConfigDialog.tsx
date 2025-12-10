@@ -154,7 +154,7 @@ function EvaluatorConfigDialogContent({
 
   const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
     dataset.id,
-    "DatasetEvaluatorsTable_evaluators"
+    "DatasetEvaluatorsTable_datasetEvaluators"
   );
   const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
     useMutation<EvaluatorConfigDialogAssignEvaluatorToDatasetMutation>(graphql`
@@ -166,9 +166,9 @@ function EvaluatorConfigDialogContent({
           evaluator
             @appendNode(
               connections: $connectionIds
-              edgeTypeName: "EvaluatorEdge"
+              edgeTypeName: "DatasetEvaluatorEdge"
             ) {
-            ...EvaluatorsTable_row
+            ...DatasetEvaluatorsTable_row
           }
         }
       }

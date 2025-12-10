@@ -27,7 +27,7 @@ import type { UnassignDatasetEvaluatorDialogUnassignMutation } from "@phoenix/pa
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export type UnassignDatasetEvaluatorDialogProps = {
-  evaluatorId: string;
+  datasetEvaluatorId: string;
   evaluatorName: string;
   datasetId: string;
   isOpen: boolean;
@@ -36,7 +36,7 @@ export type UnassignDatasetEvaluatorDialogProps = {
 };
 
 export function UnassignDatasetEvaluatorDialog({
-  evaluatorId,
+  datasetEvaluatorId,
   evaluatorName,
   datasetId,
   isOpen,
@@ -75,7 +75,7 @@ export function UnassignDatasetEvaluatorDialog({
             }
           }
           evaluator @deleteEdge(connections: $connectionIds) {
-            ...EvaluatorsTable_row
+            id
           }
         }
       }
@@ -106,8 +106,7 @@ export function UnassignDatasetEvaluatorDialog({
         variables: {
           input: {
             datasetId,
-            evaluatorId,
-            displayName: evaluatorName,
+            datasetEvaluatorId,
           },
           connectionIds: [
             datasetEvaluatorsTableConnection,
@@ -135,8 +134,7 @@ export function UnassignDatasetEvaluatorDialog({
   }, [
     unassignEvaluatorFromDataset,
     datasetId,
-    evaluatorId,
-    evaluatorName,
+    datasetEvaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,
@@ -148,7 +146,7 @@ export function UnassignDatasetEvaluatorDialog({
       deleteEvaluators({
         variables: {
           input: {
-            evaluatorIds: [evaluatorId],
+            evaluatorIds: [datasetEvaluatorId],
           },
           connectionIds: [datasetEvaluatorsTableConnection],
           datasetId,
@@ -173,7 +171,7 @@ export function UnassignDatasetEvaluatorDialog({
   }, [
     deleteEvaluators,
     datasetId,
-    evaluatorId,
+    datasetEvaluatorId,
     datasetEvaluatorsTableConnection,
     notifySuccess,
     onOpenChange,

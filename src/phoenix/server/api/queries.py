@@ -76,6 +76,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
+    DatasetEvaluator,
     Evaluator,
     LLMEvaluator,
 )
@@ -1217,6 +1218,8 @@ class Query:
             return CodeEvaluator(id=node_id)
         elif type_name == BuiltInEvaluator.__name__:
             return BuiltInEvaluator(id=node_id)
+        elif type_name == DatasetEvaluator.__name__:
+            return DatasetEvaluator(id=node_id)
         if type_name == GenerativeModelCustomProviderOpenAI.__name__:
             return GenerativeModelCustomProviderOpenAI(id=node_id)
         if type_name == GenerativeModelCustomProviderAzureOpenAI.__name__:

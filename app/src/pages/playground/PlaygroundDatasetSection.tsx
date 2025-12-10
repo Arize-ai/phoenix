@@ -13,6 +13,8 @@ import {
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
+import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
+import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
 
@@ -39,19 +41,21 @@ export function PlaygroundDatasetSection({
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            evaluators(first: 100) {
+            datasetEvaluators(first: 100) {
               edges {
                 node {
                   id
-                  name
-                  kind
-                  datasetInputMapping {
+                  displayName
+                  inputMapping {
                     literalMapping
                     pathMapping
                   }
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
+                  evaluator {
+                    kind
+                    ... on LLMEvaluator {
+                      outputConfig {
+                        name
+                      }
                     }
                   }
                 }
@@ -72,16 +76,18 @@ export function PlaygroundDatasetSection({
 
   const evaluators = useMemo(
     () =>
-      data.dataset.evaluators?.edges?.map((edge) => ({
+      data.dataset.datasetEvaluators?.edges?.map((edge) => ({
         ...edge.node,
         isAssignedToDataset: true,
-        annotationName: edge.node?.outputConfig?.name,
+        annotationName: edge.node?.evaluator?.outputConfig?.name,
       })) ?? [],
-    [data.dataset.evaluators]
+    [data.dataset.datasetEvaluators]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () =>
-      data.dataset.evaluators?.edges.map((evaluator) => evaluator.node.id) ?? []
+      data.dataset.datasetEvaluators?.edges.map(
+        (evaluator) => evaluator.node.id
+      ) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators
@@ -89,7 +95,7 @@ export function PlaygroundDatasetSection({
       .reduce(
         (acc, evaluator) => {
           acc[evaluator.id] =
-            evaluator.datasetInputMapping as Mutable<EvaluatorInputMappingInput>;
+            evaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
           return acc;
         },
         {} as Record<string, EvaluatorInputMappingInput>
@@ -145,7 +151,11 @@ export function PlaygroundDatasetSection({
                   .flatMap((e, index, array) => [
                     <AnnotationNameAndValue
                       key={e.id}
-                      annotation={e}
+                      annotation={{
+                        id: e.id,
+                        name: e.displayName,
+                        label: e.annotationName,
+                      }}
                       displayPreference="none"
                       minWidth="auto"
                     />,

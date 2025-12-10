@@ -38,38 +38,39 @@ const sampleEvaluators: ComponentProps<
 >["evaluators"] = [
   {
     id: "1",
-    name: "Correctness Evaluator",
+    displayName: "Correctness Evaluator",
   },
   {
     id: "2",
-    name: "Creativity Evaluator",
+    displayName: "Creativity Evaluator",
     annotationName: "creativity_score",
   },
   {
     id: "3",
-    name: "Relevance Evaluator",
+    displayName: "Relevance Evaluator",
   },
   {
     id: "4",
-    name: "An evaluator that has a really really really really really really really really long name",
+    displayName:
+      "An evaluator that has a really really really really really really really really long name",
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
   },
   {
     id: "5",
-    name: "Accuracy Evaluator",
+    displayName: "Accuracy Evaluator",
   },
   {
     id: "6",
-    name: "Hallucination Evaluator",
+    displayName: "Hallucination Evaluator",
     annotationName: "hallucination",
   },
   {
     id: "7",
-    name: "Jaccard Similarity Evaluator",
+    displayName: "Jaccard Similarity Evaluator",
   },
   {
     id: "8",
-    name: "Short",
+    displayName: "Short",
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
   },
 ];

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, case, func, or_, select
+from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
@@ -14,13 +14,11 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluators
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
+from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
-from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
-from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
@@ -28,14 +26,8 @@ from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import (
-    DatasetBuiltInEvaluator,
-    DatasetCodeEvaluator,
-    DatasetLLMEvaluator,
-    Evaluator,
-)
+from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -469,76 +461,38 @@ class Dataset(Node):
         ]
 
     @strawberry.field
-    async def evaluator(
-        self, info: Info[Context, None], evaluator_id: GlobalID, display_name: Identifier
-    ) -> Evaluator:
+    async def dataset_evaluator(
+        self, info: Info[Context, None], dataset_evaluator_id: GlobalID
+    ) -> DatasetEvaluator:
         try:
-            _, evaluator_rowid = from_global_id(
-                global_id=evaluator_id,
+            _, dataset_evaluator_rowid = from_global_id(
+                global_id=dataset_evaluator_id,
             )
         except ValueError:
-            raise BadRequest(f"Invalid evaluator ID: {evaluator_id}")
-        display_name_model = IdentifierModel.model_validate(display_name)
+            raise BadRequest(f"Invalid dataset evaluator ID: {dataset_evaluator_id}")
 
-        is_builtin = evaluator_rowid < 0
-        if is_builtin:
-            builtin_existence_stmt = select(models.DatasetsEvaluators).where(
-                models.DatasetsEvaluators.builtin_evaluator_id == evaluator_rowid,
-                models.DatasetsEvaluators.dataset_id == self.id,
-                models.DatasetsEvaluators.display_name == display_name_model,
-            )
-            async with info.context.db() as session:
-                builtin_existence = await session.scalar(builtin_existence_stmt)
-                if builtin_existence is None:
-                    raise BadRequest(f"Builtin evaluator not found: {evaluator_id} {display_name}")
-            return DatasetBuiltInEvaluator(
-                id=evaluator_rowid,
-                dataset_id=self.id,
-                display_name=display_name,
-            )
-        else:
-            PolymorphicEvaluator = with_polymorphic(
-                models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
-            )
-            stmt = (
-                select(PolymorphicEvaluator)
-                .join(models.DatasetsEvaluators)
-                .where(PolymorphicEvaluator.id == evaluator_rowid)
-                .where(models.DatasetsEvaluators.display_name == display_name_model)
-                .where(models.DatasetsEvaluators.dataset_id == self.id)
-            )
-            async with info.context.db() as session:
-                evaluator = await session.scalar(stmt)
-                if evaluator is None:
-                    raise BadRequest(f"Evaluator not found: {evaluator_id} {display_name}")
-                if isinstance(evaluator, models.LLMEvaluator):
-                    return DatasetLLMEvaluator(
-                        id=evaluator.id,
-                        db_record=evaluator,
-                        dataset_id=self.id,
-                        display_name=display_name,
-                    )
-                elif isinstance(evaluator, models.CodeEvaluator):
-                    return DatasetCodeEvaluator(
-                        id=evaluator.id,
-                        db_record=evaluator,
-                        dataset_id=self.id,
-                        display_name=display_name,
-                    )
-                else:
-                    raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        stmt = select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id == dataset_evaluator_rowid,
+            models.DatasetEvaluators.dataset_id == self.id,
+        )
+
+        async with info.context.db() as session:
+            dataset_evaluator = await session.scalar(stmt)
+            if dataset_evaluator is None:
+                raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+            return DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator)
 
     @strawberry.field
-    async def evaluators(
+    async def dataset_evaluators(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-        sort: Optional[EvaluatorSort] = UNSET,
-        filter: Optional[EvaluatorFilter] = UNSET,
-    ) -> Connection[Evaluator]:
+        sort: Optional[DatasetEvaluatorSort] = UNSET,
+        filter: Optional[DatasetEvaluatorFilter] = UNSET,
+    ) -> Connection[DatasetEvaluator]:
         """Returns all evaluators associated with this dataset."""
         args = ConnectionArgs(
             first=first,
@@ -546,84 +500,39 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
-        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
-        # base `evaluators` table.
+
         PolymorphicEvaluator = with_polymorphic(
             models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
         )
         stmt = (
-            select(PolymorphicEvaluator, models.DatasetsEvaluators.display_name)
-            .join(models.DatasetsEvaluators)
-            .where(models.DatasetsEvaluators.dataset_id == self.id)
+            select(models.DatasetEvaluators)
+            .outerjoin(
+                PolymorphicEvaluator,
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+            )
+            .where(models.DatasetEvaluators.dataset_id == self.id)
         )
         if filter:
-            column = getattr(PolymorphicEvaluator, filter.col.value)
-            # Cast Identifier columns to String for ilike operations
-            if filter.col.value == "name":
+            column = getattr(models.DatasetEvaluators, filter.col.value)
+            if filter.col.value == "display_name":
                 column = sqlalchemy_cast(column, String)
             stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if sort:
-            if sort.col.value == "updated_at":
-                # updated_at exists in sub-tables, not base table
-                # Use case to pick the value based on kind
-                # this special case can be removed if we add updated_at to the base table
-                sort_col = case(
-                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
-                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
-                    else_=None,
-                )
+            if sort.col.value == "kind":
+                sort_col = PolymorphicEvaluator.kind
             else:
-                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+                sort_col = getattr(models.DatasetEvaluators, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         else:
-            stmt = stmt.order_by(PolymorphicEvaluator.name.asc())
+            stmt = stmt.order_by(models.DatasetEvaluators.display_name.asc())
 
         async with info.context.db() as session:
-            result = await session.execute(stmt)
-        data: list[Evaluator] = []
-        for evaluator, display_name in result:
-            if isinstance(evaluator, models.LLMEvaluator):
-                data.append(
-                    DatasetLLMEvaluator(
-                        id=evaluator.id,
-                        db_record=evaluator,
-                        dataset_id=self.id,
-                        display_name=display_name.root,
-                    )
-                )
-            elif isinstance(evaluator, models.CodeEvaluator):
-                data.append(
-                    DatasetCodeEvaluator(
-                        id=evaluator.id,
-                        db_record=evaluator,
-                        dataset_id=self.id,
-                        display_name=display_name.root,
-                    )
-                )
-            else:
-                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
-
-        builtin_evaluators_ids = [builtin_id for builtin_id, _ in get_builtin_evaluators()]
-        builtin_stmt = select(models.DatasetsEvaluators).where(
-            models.DatasetsEvaluators.dataset_id == self.id,
-            models.DatasetsEvaluators.builtin_evaluator_id.is_not(None),
-        )
-        async with info.context.db() as session:
-            builtin_assigned_evaluators = await session.scalars(builtin_stmt)
-            for builtin_assigned_evaluator in builtin_assigned_evaluators:
-                if builtin_assigned_evaluator.builtin_evaluator_id in builtin_evaluators_ids:
-                    data.append(
-                        DatasetBuiltInEvaluator(
-                            # TODO: this is broken; if you have multiple builtin evaluators of the
-                            # same underlying type (e.g. two is_correct evaluators),
-                            # but with different names, the UI will get confused because they share
-                            # the same ID.
-                            id=builtin_assigned_evaluator.builtin_evaluator_id,
-                            dataset_id=self.id,
-                            display_name=builtin_assigned_evaluator.display_name.root,
-                        )
-                    )
+            result = await session.scalars(stmt)
+            data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
+        # TODO: we need to handle sorting for builtin evaluators as their "kind"
+        # (and other evaluator fields) are not part of the polymorphic table
+        # re-sort the final results by kind, this is necessary because builtin evaluators are not
+        #  part of the polymorphic table
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

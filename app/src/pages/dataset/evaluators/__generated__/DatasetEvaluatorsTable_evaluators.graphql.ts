@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b223810a970ddc099bcfb7dd0551524>>
+ * @generated SignedSource<<498d52d53ed61cef3aaf06301b2f97fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,11 +11,11 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_evaluators$data = {
-  readonly evaluators: {
+  readonly datasetEvaluators: {
     readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"EvaluatorsTable_row">;
+        readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
       };
     }>;
   };
@@ -31,7 +31,7 @@ import DatasetEvaluatorsTableEvaluatorsQuery_graphql from './DatasetEvaluatorsTa
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "evaluators"
+  "datasetEvaluators"
 ],
 v1 = {
   "alias": null,
@@ -44,36 +44,16 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "updatedAt",
   "storageKey": null
 },
-v3 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "Prompt",
-    "kind": "LinkedField",
-    "name": "prompt",
-    "plural": false,
-    "selections": [
-      (v1/*: any*/),
-      (v2/*: any*/)
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PromptVersionTag",
-    "kind": "LinkedField",
-    "name": "promptVersionTag",
-    "plural": false,
-    "selections": [
-      (v2/*: any*/)
-    ],
-    "storageKey": null
-  }
-];
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -129,7 +109,7 @@ return {
   "name": "DatasetEvaluatorsTable_evaluators",
   "selections": [
     {
-      "alias": "evaluators",
+      "alias": "datasetEvaluators",
       "args": [
         {
           "kind": "Variable",
@@ -142,15 +122,15 @@ return {
           "variableName": "sort"
         }
       ],
-      "concreteType": "EvaluatorConnection",
+      "concreteType": "DatasetEvaluatorConnection",
       "kind": "LinkedField",
-      "name": "__DatasetEvaluatorsTable_evaluators_connection",
+      "name": "__DatasetEvaluatorsTable_datasetEvaluators_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "EvaluatorEdge",
+          "concreteType": "DatasetEvaluatorEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
@@ -158,56 +138,90 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
+              "concreteType": "DatasetEvaluator",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
               "selections": [
                 {
                   "kind": "InlineDataFragmentSpread",
-                  "name": "EvaluatorsTable_row",
+                  "name": "DatasetEvaluatorsTable_row",
                   "selections": [
                     (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "displayName",
+                      "storageKey": null
+                    },
                     (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "kind",
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "evaluator",
+                      "plural": false,
+                      "selections": [
+                        (v1/*: any*/),
+                        (v3/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "kind",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "description",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "createdAt",
+                          "storageKey": null
+                        },
+                        (v2/*: any*/),
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Prompt",
+                              "kind": "LinkedField",
+                              "name": "prompt",
+                              "plural": false,
+                              "selections": [
+                                (v1/*: any*/),
+                                (v3/*: any*/)
+                              ],
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptVersionTag",
+                              "kind": "LinkedField",
+                              "name": "promptVersionTag",
+                              "plural": false,
+                              "selections": [
+                                (v3/*: any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "LLMEvaluator",
+                          "abstractKey": null
+                        }
+                      ],
                       "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "description",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "createdAt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "updatedAt",
-                      "storageKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": (v3/*: any*/),
-                      "type": "LLMEvaluator",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": (v3/*: any*/),
-                      "type": "DatasetLLMEvaluator",
-                      "abstractKey": null
                     }
                   ],
                   "args": null,
@@ -280,6 +294,6 @@ return {
 };
 })();
 
-(node as any).hash = "a9111ba5da57dce0f340d503475c3459";
+(node as any).hash = "a8c96f9c66acdc2abd7f597e5ccd8355";
 
 export default node;

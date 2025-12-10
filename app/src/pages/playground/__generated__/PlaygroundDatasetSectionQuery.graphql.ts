@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7cd9d8d75e0308c79ea18b133cd5bcbd>>
+ * @generated SignedSource<<fb40f27281e2ecfda6af4fe71d5421ee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,18 +16,20 @@ export type PlaygroundDatasetSectionQuery$variables = {
 };
 export type PlaygroundDatasetSectionQuery$data = {
   readonly dataset: {
-    readonly evaluators?: {
+    readonly datasetEvaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
-          readonly datasetInputMapping: {
+          readonly displayName: string;
+          readonly evaluator: {
+            readonly kind: EvaluatorKind;
+            readonly outputConfig?: {
+              readonly name: string;
+            };
+          };
+          readonly id: string;
+          readonly inputMapping: {
             readonly literalMapping: any;
             readonly pathMapping: any;
-          } | null;
-          readonly id: string;
-          readonly kind: EvaluatorKind;
-          readonly name: string;
-          readonly outputConfig?: {
-            readonly name: string;
           };
         };
       }>;
@@ -73,22 +75,15 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "displayName",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "kind",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
   "concreteType": "EvaluatorInputMapping",
   "kind": "LinkedField",
-  "name": "datasetInputMapping",
+  "name": "inputMapping",
   "plural": false,
   "selections": [
     {
@@ -108,7 +103,21 @@ v6 = {
   ],
   "storageKey": null
 },
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
 v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -136,15 +145,15 @@ return {
               {
                 "alias": null,
                 "args": (v2/*: any*/),
-                "concreteType": "EvaluatorConnection",
+                "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "evaluators",
+                "name": "datasetEvaluators",
                 "plural": false,
                 "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "EvaluatorEdge",
+                    "concreteType": "DatasetEvaluatorEdge",
                     "kind": "LinkedField",
                     "name": "edges",
                     "plural": true,
@@ -152,7 +161,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": null,
+                        "concreteType": "DatasetEvaluator",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
@@ -160,25 +169,36 @@ return {
                           (v3/*: any*/),
                           (v4/*: any*/),
                           (v5/*: any*/),
-                          (v6/*: any*/),
                           {
-                            "kind": "InlineFragment",
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
                             "selections": [
+                              (v6/*: any*/),
                               {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "CategoricalAnnotationConfig",
-                                "kind": "LinkedField",
-                                "name": "outputConfig",
-                                "plural": false,
+                                "kind": "InlineFragment",
                                 "selections": [
-                                  (v4/*: any*/)
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "CategoricalAnnotationConfig",
+                                    "kind": "LinkedField",
+                                    "name": "outputConfig",
+                                    "plural": false,
+                                    "selections": [
+                                      (v7/*: any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
                                 ],
-                                "storageKey": null
+                                "type": "LLMEvaluator",
+                                "abstractKey": null
                               }
                             ],
-                            "type": "LLMEvaluator",
-                            "abstractKey": null
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -187,7 +207,7 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "evaluators(first:100)"
+                "storageKey": "datasetEvaluators(first:100)"
               }
             ],
             "type": "Dataset",
@@ -219,7 +239,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
+          (v8/*: any*/),
           (v3/*: any*/),
           {
             "kind": "InlineFragment",
@@ -227,15 +247,15 @@ return {
               {
                 "alias": null,
                 "args": (v2/*: any*/),
-                "concreteType": "EvaluatorConnection",
+                "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "evaluators",
+                "name": "datasetEvaluators",
                 "plural": false,
                 "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "EvaluatorEdge",
+                    "concreteType": "DatasetEvaluatorEdge",
                     "kind": "LinkedField",
                     "name": "edges",
                     "plural": true,
@@ -243,35 +263,47 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": null,
+                        "concreteType": "DatasetEvaluator",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v7/*: any*/),
                           (v3/*: any*/),
                           (v4/*: any*/),
                           (v5/*: any*/),
-                          (v6/*: any*/),
                           {
-                            "kind": "InlineFragment",
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
                             "selections": [
+                              (v8/*: any*/),
+                              (v6/*: any*/),
                               {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "CategoricalAnnotationConfig",
-                                "kind": "LinkedField",
-                                "name": "outputConfig",
-                                "plural": false,
+                                "kind": "InlineFragment",
                                 "selections": [
-                                  (v4/*: any*/),
-                                  (v3/*: any*/)
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "CategoricalAnnotationConfig",
+                                    "kind": "LinkedField",
+                                    "name": "outputConfig",
+                                    "plural": false,
+                                    "selections": [
+                                      (v7/*: any*/),
+                                      (v3/*: any*/)
+                                    ],
+                                    "storageKey": null
+                                  }
                                 ],
-                                "storageKey": null
-                              }
+                                "type": "LLMEvaluator",
+                                "abstractKey": null
+                              },
+                              (v3/*: any*/)
                             ],
-                            "type": "LLMEvaluator",
-                            "abstractKey": null
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -280,9 +312,9 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "evaluators(first:100)"
+                "storageKey": "datasetEvaluators(first:100)"
               },
-              (v4/*: any*/)
+              (v7/*: any*/)
             ],
             "type": "Dataset",
             "abstractKey": null
@@ -293,16 +325,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c0a8db468844a4544847f52566a41038",
+    "cacheID": "f7bbd1c277e893eb586a3c06d0e0fba3",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      evaluators(first: 100) {\n        edges {\n          node {\n            __typename\n            id\n            name\n            kind\n            datasetInputMapping {\n              literalMapping\n              pathMapping\n            }\n            ... on LLMEvaluator {\n              outputConfig {\n                name\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    ...EvaluatorConfigDialog_dataset\n    id\n  }\n}\n\nfragment EvaluatorConfigDialog_dataset on Dataset {\n  id\n  name\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4a11746734eb33ca8517fdd68e0325ce";
+(node as any).hash = "f6ad29de0f495cbcdac3db326b00e0ac";
 
 export default node;

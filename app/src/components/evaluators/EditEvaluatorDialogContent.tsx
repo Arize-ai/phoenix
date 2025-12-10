@@ -20,7 +20,6 @@ export const EditEvaluatorDialogContent = ({
   mode,
   error,
 }: {
-  evaluatorId?: string;
   onClose: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;

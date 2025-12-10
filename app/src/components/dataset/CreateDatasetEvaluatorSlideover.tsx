@@ -79,11 +79,11 @@ const CreateEvaluatorDialog = ({
             evaluator
               @appendNode(
                 connections: $connectionIds
-                edgeTypeName: "EvaluatorEdge"
+                edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
-              name
-              ...EvaluatorsTable_row
+              displayName
+              ...DatasetEvaluatorsTable_row
             }
           }
         }

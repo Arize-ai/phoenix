@@ -21,23 +21,24 @@ import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
-import {
-  EvaluatorFilter,
-  EvaluatorSort,
-} from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
-import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import type {
+  DatasetEvaluatorFilter,
+  DatasetEvaluatorSort,
+} from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTableEvaluatorsQuery.graphql";
+import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
+import type { DatasetEvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
+import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 
 export const convertEvaluatorSortToTanstackSort = (
-  sort: EvaluatorSort | null | undefined
+  sort: DatasetEvaluatorSort | null | undefined
 ): SortingState => {
   if (!sort) return [];
   return [{ id: sort.col, desc: sort.dir === "desc" }];
 };
 
-const EVALUATOR_SORT_COLUMNS: EvaluatorSort["col"][] = [
-  "name",
+const EVALUATOR_SORT_COLUMNS: DatasetEvaluatorSort["col"][] = [
+  "display_name",
   "kind",
   "createdAt",
   "updatedAt",
@@ -45,7 +46,7 @@ const EVALUATOR_SORT_COLUMNS: EvaluatorSort["col"][] = [
 
 export const convertTanstackSortToEvaluatorSort = (
   sorting: SortingState
-): EvaluatorSort | null | undefined => {
+): DatasetEvaluatorSort | null | undefined => {
   if (sorting.length === 0) return null;
   const col = sorting[0].id;
   if (
@@ -54,7 +55,7 @@ export const convertTanstackSortToEvaluatorSort = (
     )
   ) {
     return {
-      col: col as EvaluatorSort["col"],
+      col: col as DatasetEvaluatorSort["col"],
       dir: sorting[0].desc ? "desc" : "asc",
     };
   }
@@ -81,23 +82,28 @@ const EmptyState = () => {
   );
 };
 
-const readRow = (row: EvaluatorsTable_row$key) => {
+const readRow = (row: DatasetEvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment EvaluatorsTable_row on Evaluator @inline {
+      fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
         id
-        name
-        kind
-        description
-        createdAt
+        displayName
         updatedAt
-        ... on LLMEvaluator {
-          prompt {
-            id
-            name
-          }
-          promptVersionTag {
-            name
+        evaluator {
+          id
+          name
+          kind
+          description
+          createdAt
+          updatedAt
+          ... on LLMEvaluator {
+            prompt {
+              id
+              name
+            }
+            promptVersionTag {
+              name
+            }
           }
         }
       }
@@ -108,38 +114,34 @@ const readRow = (row: EvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
-type EvaluatorsTableProps = {
+type DatasetEvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
    *
    * To obtain row references, spread the EvaluatorsTable_row fragment into an Evaluators connection,
    * pass the resulting edges into this prop.
    */
-  rowReferences: EvaluatorsTable_row$key[];
+  rowReferences: DatasetEvaluatorsTable_row$key[];
   emptyState?: React.ReactNode;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
-    sort?: EvaluatorSort | null;
-    filter?: EvaluatorFilter | null;
+    sort?: DatasetEvaluatorSort | null;
+    filter?: DatasetEvaluatorFilter | null;
   }) => void;
   refetch: (variables: {
-    sort?: EvaluatorSort | null;
-    filter?: EvaluatorFilter | null;
+    sort?: DatasetEvaluatorSort | null;
+    filter?: DatasetEvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
-  /**
-   * If datasetId is provided, the table will include an action menu with
-   * the ability to unassign the evaluator from the dataset.
-   */
-  datasetId?: string;
+  datasetId: string;
   /**
    * If provided, these connections will be updated when a row is edited or deleted.
    */
   updateConnectionIds?: string[];
 };
 
-export const EvaluatorsTable = ({
+export const DatasetEvaluatorsTable = ({
   rowReferences,
   emptyState,
   isLoadingNext,
@@ -147,9 +149,11 @@ export const EvaluatorsTable = ({
   loadNext,
   refetch,
   onRowClick,
-}: EvaluatorsTableProps) => {
+  datasetId,
+  updateConnectionIds,
+}: DatasetEvaluatorsTableProps) => {
   "use no memo";
-  const { sort, setSort, filter } = useEvaluatorsFilterContext();
+  const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
     () => convertEvaluatorSortToTanstackSort(sort),
@@ -176,16 +180,16 @@ export const EvaluatorsTable = ({
     const cols: ColumnDef<TableRow>[] = [
       {
         header: "name",
-        accessorKey: "name",
+        accessorKey: "displayName",
       },
       {
         header: "kind",
-        accessorKey: "kind",
+        accessorKey: "evaluator.kind",
         cell: ({ getValue }) => <Token>{getValue() as string}</Token>,
       },
       {
         header: "description",
-        accessorKey: "description",
+        accessorKey: "evaluator.description",
         cell: TextCell,
         enableSorting: false,
       },
@@ -195,8 +199,8 @@ export const EvaluatorsTable = ({
         enableSorting: false,
         cell: ({ row }) => (
           <PromptCell
-            prompt={row.original.prompt}
-            promptVersionTag={row.original.promptVersionTag?.name}
+            prompt={row.original.evaluator.prompt}
+            promptVersionTag={row.original.evaluator.promptVersionTag?.name}
           />
         ),
       },
@@ -206,8 +210,23 @@ export const EvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
+    if (datasetId) {
+      cols.push({
+        header: "",
+        id: "actions",
+        cell: ({ row }) => (
+          <DatasetEvaluatorActionMenu
+            datasetEvaluatorId={row.original.id}
+            evaluatorDisplayName={row.original.displayName}
+            datasetId={datasetId}
+            evaluatorKind={row.original.evaluator.kind}
+            updateConnectionIds={updateConnectionIds}
+          />
+        ),
+      });
+    }
     return cols;
-  }, []);
+  }, [datasetId, updateConnectionIds]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -234,7 +253,7 @@ export const EvaluatorsTable = ({
       ) {
         loadNext({
           sort: sort,
-          filter: filter ? { col: "name", value: filter } : null,
+          filter: filter ? { col: "display_name", value: filter } : null,
         });
       }
     }
@@ -246,7 +265,7 @@ export const EvaluatorsTable = ({
         sort: sort,
         filter: filter
           ? {
-              col: "name",
+              col: "display_name",
               value: filter,
             }
           : null,
