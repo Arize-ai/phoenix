@@ -165,6 +165,7 @@ const EditEvaluatorDialog = ({
                   label
                   score
                 }
+                includeExplanation
               }
             }
           }
@@ -220,6 +221,8 @@ const EditEvaluatorDialog = ({
           { label: "", score: undefined },
           { label: "", score: undefined },
         ],
+        includeExplanation:
+          datasetEvaluator.evaluator.outputConfig?.includeExplanation ?? true,
       },
       dataset: {
         readonly: true,
