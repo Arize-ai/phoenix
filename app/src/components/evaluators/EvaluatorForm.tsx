@@ -80,6 +80,7 @@ export const DEFAULT_LLM_FORM_VALUES: EvaluatorFormValues = {
       { label: "", score: undefined },
       { label: "", score: undefined },
     ],
+    includeExplanation: true,
   },
 };
 

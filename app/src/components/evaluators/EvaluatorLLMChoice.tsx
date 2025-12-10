@@ -13,6 +13,7 @@ import {
   NumberField,
   Radio,
   RadioGroup,
+  Switch,
   Text,
   TextField,
 } from "@phoenix/components";
@@ -181,6 +182,15 @@ export const EvaluatorLLMChoice = () => {
             Add choice
           </Button>
         </Flex>
+        <Controller
+          control={control}
+          name="choiceConfig.includeExplanation"
+          render={({ field }) => (
+            <Switch isSelected={field.value} onChange={field.onChange}>
+              <Text>Include explanation</Text>
+            </Switch>
+          )}
+        />
       </Flex>
     </div>
   );
