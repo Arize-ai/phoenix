@@ -42,12 +42,17 @@ fi
 if [ ! -d "$HOME/.nvm" ]; then
     echo "Installing nvm..."
     # nvm installer may return non-zero exit code even on success (e.g., if already in .bashrc)
-    # Download to temp file first, then run it, ignoring exit code
+    # Download to temp file first, then run it in a subshell that always succeeds
     NVM_INSTALLER=$(mktemp)
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
-    set +e
-    bash "$NVM_INSTALLER"
-    set -e
+    if ! curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"; then
+        echo "Error: Failed to download nvm installer"
+        rm -f "$NVM_INSTALLER"
+        exit 1
+    fi
+    # Run installer - nvm installer exits with code 3 even on success
+    # We'll verify success by checking if directory was created, not by exit code
+    # Command group ensures this block always succeeds
+    { bash "$NVM_INSTALLER"; true; }
     rm -f "$NVM_INSTALLER"
     
     # Check if installation actually succeeded by verifying the directory exists
