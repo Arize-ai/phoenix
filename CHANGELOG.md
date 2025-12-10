@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.22.0...arize-phoenix-v12.23.0) (2025-12-10)
+
+
+### Features
+
+* make email optional for LDAP ([#10525](https://github.com/Arize-ai/phoenix/issues/10525)) ([916adb0](https://github.com/Arize-ai/phoenix/commit/916adb0184246c971b450055e503943ce549c8b3))
+
+
+### Documentation
+
+* december release notes ([#10537](https://github.com/Arize-ai/phoenix/issues/10537)) ([df67459](https://github.com/Arize-ai/phoenix/commit/df67459a4769da3057d63fe5bacb9995eb00eb49))
+
 ## [12.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.21.0...arize-phoenix-v12.22.0) (2025-12-09)
 
 
