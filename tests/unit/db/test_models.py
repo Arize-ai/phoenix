@@ -762,13 +762,13 @@ class TestEvaluatorPolymorphism:
 
             session.add_all(
                 [
-                    models.DatasetsEvaluators(
+                    models.DatasetEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_1.id,
                         display_name=eval_1.name,
                         input_mapping={},
                     ),
-                    models.DatasetsEvaluators(
+                    models.DatasetEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
                         display_name=eval_2.name,
@@ -873,18 +873,18 @@ class TestEvaluatorPolymorphism:
             dataset_result = await session.get(
                 models.Dataset,
                 dataset_id,
-                options=(selectinload(models.Dataset.datasets_evaluators),),
+                options=(selectinload(models.Dataset.dataset_evaluators),),
             )
             assert dataset_result is not None
             dataset = dataset_result
-            assert len(dataset.datasets_evaluators) == 2
+            assert len(dataset.dataset_evaluators) == 2
 
             # Verify evaluators via join query
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetsEvaluators)
-                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 2
@@ -917,7 +917,7 @@ class TestEvaluatorPolymorphism:
             new_eval_name = new_eval.name
 
             # Associate with dataset
-            dataset_evaluator = models.DatasetsEvaluators(
+            dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=new_eval_id,
                 display_name=new_eval_name,
@@ -938,8 +938,8 @@ class TestEvaluatorPolymorphism:
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetsEvaluators)
-                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 3
@@ -995,8 +995,8 @@ class TestEvaluatorPolymorphism:
             evaluators = (
                 await session.scalars(
                     select(models.LLMEvaluator)
-                    .join(models.DatasetsEvaluators)
-                    .where(models.DatasetsEvaluators.dataset_id == dataset_id)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
                 )
             ).all()
             assert len(evaluators) == 2

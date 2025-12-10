@@ -48,19 +48,21 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            evaluators(first: 100) {
+            datasetEvaluators(first: 100) {
               edges {
                 node {
                   id
-                  name
-                  kind
-                  datasetInputMapping {
+                  displayName
+                  inputMapping {
                     literalMapping
                     pathMapping
                   }
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
+                  evaluator {
+                    kind
+                    ... on LLMEvaluator {
+                      outputConfig {
+                        name
+                      }
                     }
                   }
                 }
@@ -96,16 +98,18 @@ export function PlaygroundDatasetSection({
 
   const evaluators = useMemo(
     () =>
-      data.dataset.evaluators?.edges?.map((edge) => ({
+      data.dataset.datasetEvaluators?.edges?.map((edge) => ({
         ...edge.node,
         isAssignedToDataset: true,
-        annotationName: edge.node?.outputConfig?.name,
+        annotationName: edge.node?.evaluator?.outputConfig?.name,
       })) ?? [],
-    [data.dataset.evaluators]
+    [data.dataset.datasetEvaluators]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
     () =>
-      data.dataset.evaluators?.edges.map((evaluator) => evaluator.node.id) ?? []
+      data.dataset.datasetEvaluators?.edges.map(
+        (evaluator) => evaluator.node.id
+      ) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators
@@ -113,7 +117,7 @@ export function PlaygroundDatasetSection({
       .reduce(
         (acc, evaluator) => {
           acc[evaluator.id] =
-            evaluator.datasetInputMapping as Mutable<EvaluatorInputMappingInput>;
+            evaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
           return acc;
         },
         {} as Record<string, EvaluatorInputMappingInput>
@@ -156,7 +160,11 @@ export function PlaygroundDatasetSection({
                   .flatMap((e, index, array) => [
                     <AnnotationNameAndValue
                       key={e.id}
-                      annotation={e}
+                      annotation={{
+                        id: e.id,
+                        name: e.displayName,
+                        label: e.annotationName,
+                      }}
                       displayPreference="none"
                       minWidth="auto"
                     />,
