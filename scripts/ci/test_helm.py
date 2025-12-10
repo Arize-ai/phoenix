@@ -1064,7 +1064,7 @@ class LDAPValidators:
     def ldap_no_email_mode(attr_unique_id: str, allow_sign_up: bool = True) -> Validator:
         """Validate LDAP no-email mode configuration.
 
-        In no-email mode, attrEmail is empty and attrUniqueId is required.
+        In no-email mode, attrEmail is "null" and attrUniqueId is required.
         """
 
         def validator(resources: list[dict[str, Any]]) -> bool:
@@ -1073,8 +1073,8 @@ class LDAPValidators:
                 return False
 
             data = configmap.get("data", {})
-            # attrEmail should be empty
-            if data.get("PHOENIX_LDAP_ATTR_EMAIL") != "":
+            # attrEmail should be "null" (sentinel value for no-email mode)
+            if data.get("PHOENIX_LDAP_ATTR_EMAIL") != "null":
                 return False
             # attrUniqueId should be set
             if data.get("PHOENIX_LDAP_ATTR_UNIQUE_ID") != attr_unique_id:
@@ -2596,10 +2596,10 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 ),
             ),
         ),
-        # LDAP No-Email Mode
+        # LDAP No-Email Mode (using "null" sentinel value)
         TestCase(
             "LDAP no-email mode (valid configuration)",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_no_email_mode(attr_unique_id="entryUUID", allow_sign_up=True),
@@ -2607,7 +2607,7 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         TestCase(
             "LDAP no-email mode with Active Directory",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=objectGUID --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.corp.com --set-json 'auth.ldap.userSearchBaseDns=["OU=Users,DC=corp,DC=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=objectGUID --set auth.ldap.allowSignUp=true""",
             all_of(
                 LDAPValidators.ldap_enabled(),
                 LDAPValidators.ldap_no_email_mode(attr_unique_id="objectGUID", allow_sign_up=True),
@@ -2615,17 +2615,17 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         ErrorTestCase(
             "LDAP no-email mode requires attrUniqueId",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.allowSignUp=true""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.allowSignUp=true""",
             "LDAP no-email mode requires attrUniqueId",
         ),
         ErrorTestCase(
             "LDAP no-email mode requires allowSignUp=true",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=false""",
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=false""",
             "LDAP no-email mode requires allowSignUp=true",
         ),
         ErrorTestCase(
             "LDAP no-email mode cannot use auth.admins",
-            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail="" --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
+            """--set auth.ldap.enabled=true --set auth.ldap.host=ldap.example.com --set-json 'auth.ldap.userSearchBaseDns=["ou=users,dc=example,dc=com"]' --set auth.ldap.attrEmail=null --set auth.ldap.attrUniqueId=entryUUID --set auth.ldap.allowSignUp=true --set auth.admins="Admin=admin@example.com" """,
             "LDAP no-email mode cannot use auth.admins",
         ),
         # Ingress

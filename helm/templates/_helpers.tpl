@@ -124,7 +124,7 @@ Validate external database configuration for consistency
 
 {{/*
 Validate LDAP no-email mode configuration
-When attrEmail is empty, attrUniqueId is required and allowSignUp must be true
+When attrEmail is "null", attrUniqueId is required and allowSignUp must be true
 */}}
 {{- define "phoenix.validateLdapNoEmail" -}}
 {{- if .Values.auth.ldap.enabled }}
@@ -132,16 +132,17 @@ When attrEmail is empty, attrUniqueId is required and allowSignUp must be true
 {{- $attrUniqueId := .Values.auth.ldap.attrUniqueId }}
 {{- $allowSignUp := .Values.auth.ldap.allowSignUp }}
 {{- $admins := .Values.auth.admins }}
-{{- /* Check if attrEmail is explicitly set to empty string */ -}}
-{{- if and (not $attrEmail) (eq ($attrEmail | toString) "") }}
+{{- /* Check if attrEmail is "null" sentinel value (no-email mode) */ -}}
+{{- $isNoEmailMode := eq ($attrEmail | toString) "null" }}
+{{- if $isNoEmailMode }}
 {{- if not $attrUniqueId }}
-{{- fail "ERROR: LDAP no-email mode requires attrUniqueId!\n\nWhen auth.ldap.attrEmail is empty (no-email mode), auth.ldap.attrUniqueId is REQUIRED.\n\nUsers are identified by their unique ID instead of email in this mode.\n\nTo fix this, set one of:\n  - Active Directory: auth.ldap.attrUniqueId: \"objectGUID\"\n  - OpenLDAP: auth.ldap.attrUniqueId: \"entryUUID\"\n  - 389 DS: auth.ldap.attrUniqueId: \"nsUniqueId\"" }}
+{{- fail "ERROR: LDAP no-email mode requires attrUniqueId!\n\nWhen auth.ldap.attrEmail is \"null\" (no-email mode), auth.ldap.attrUniqueId is REQUIRED.\n\nUsers are identified by their unique ID instead of email in this mode.\n\nTo fix this, set one of:\n  - Active Directory: auth.ldap.attrUniqueId: \"objectGUID\"\n  - OpenLDAP: auth.ldap.attrUniqueId: \"entryUUID\"\n  - 389 DS: auth.ldap.attrUniqueId: \"nsUniqueId\"" }}
 {{- end }}
 {{- if not $allowSignUp }}
-{{- fail "ERROR: LDAP no-email mode requires allowSignUp=true!\n\nWhen auth.ldap.attrEmail is empty (no-email mode), auth.ldap.allowSignUp must be true.\n\nUsers must be auto-provisioned on first login because admin cannot create LDAP users without email.\n\nTo fix this:\n  - Set auth.ldap.allowSignUp: true" }}
+{{- fail "ERROR: LDAP no-email mode requires allowSignUp=true!\n\nWhen auth.ldap.attrEmail is \"null\" (no-email mode), auth.ldap.allowSignUp must be true.\n\nUsers must be auto-provisioned on first login because admin cannot create LDAP users without email.\n\nTo fix this:\n  - Set auth.ldap.allowSignUp: true" }}
 {{- end }}
 {{- if $admins }}
-{{- fail "ERROR: LDAP no-email mode cannot use auth.admins!\n\nWhen auth.ldap.attrEmail is empty (no-email mode), auth.admins cannot be used.\n\nThis is because PHOENIX_ADMINS requires email addresses for pre-provisioning.\n\nTo assign admin roles, use auth.ldap.groupRoleMappings instead:\n  auth.ldap.groupRoleMappings: '[{\"group_dn\":\"CN=Admins,DC=corp,DC=com\",\"role\":\"ADMIN\"}]'" }}
+{{- fail "ERROR: LDAP no-email mode cannot use auth.admins!\n\nWhen auth.ldap.attrEmail is \"null\" (no-email mode), auth.admins cannot be used.\n\nThis is because PHOENIX_ADMINS requires email addresses for pre-provisioning.\n\nTo assign admin roles, use auth.ldap.groupRoleMappings instead:\n  auth.ldap.groupRoleMappings: '[{\"group_dn\":\"CN=Admins,DC=corp,DC=com\",\"role\":\"ADMIN\"}]'" }}
 {{- end }}
 {{- end }}
 {{- end }}
