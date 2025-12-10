@@ -61,15 +61,17 @@ class LLMEvaluator:
         llm_evaluator_orm: models.LLMEvaluator,
         prompt_version_orm: models.PromptVersion,
         llm_client: PlaygroundStreamingClient,
+        dataset_evaluator_id: int,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
         self._llm_client = llm_client
+        self._dataset_evaluator_id = dataset_evaluator_id
 
     @property
     def db_id(self) -> int:
-        return self._llm_evaluator_orm.id
+        return self._dataset_evaluator_id
 
     @property
     def name(self) -> str:
@@ -307,7 +309,14 @@ async def get_llm_evaluators(
             dataset_evaluator_node_id = dataset_evaluator_db_to_node_id[dataset_evaluator_id]
             raise NotFound(f"Prompt version not found for evaluator '{dataset_evaluator_node_id}'")
 
-        llm_evaluators.append(LLMEvaluator(llm_evaluator_orm, prompt_version, llm_client))
+        llm_evaluators.append(
+            LLMEvaluator(
+                llm_evaluator_orm=llm_evaluator_orm,
+                prompt_version_orm=prompt_version,
+                llm_client=llm_client,
+                dataset_evaluator_id=dataset_evaluator_id,
+            )
+        )
 
     return llm_evaluators
 
