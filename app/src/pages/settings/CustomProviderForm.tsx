@@ -1,4 +1,10 @@
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Control,
   Controller,
@@ -1055,22 +1061,31 @@ function TestConnectionButton({
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Watch only the credential-related fields, not the entire form
+  // Watch credential fields for button enablement check
   // The type cast is needed because ProviderFormData is a discriminated union,
   // and these fields exist across different SDK variants
   const watchedCredentials = useWatch({
     control,
-    name: CREDENTIAL_FIELDS as unknown as readonly (keyof ProviderFormData)[],
+    name: CREDENTIAL_FIELDS,
   });
 
-  // Build a lookup object from watched values
+  // Watch all form values to reset test status when any field changes
+  const watchedFormValues = useWatch({ control });
+
+  // Build a lookup object from watched credential values
   const credentialValues = useMemo(() => {
     const result: Record<string, string | undefined> = {};
     CREDENTIAL_FIELDS.forEach((field, index) => {
-      result[field] = watchedCredentials[index] as string | undefined;
+      result[field] = watchedCredentials[index];
     });
     return result;
   }, [watchedCredentials]);
+
+  // Reset test status when any form field changes
+  useEffect(() => {
+    setTestStatus("idle");
+    setErrorMessage(null);
+  }, [watchedFormValues]);
 
   const canTest = hasRequiredCredentials(sdk, credentialValues);
 
