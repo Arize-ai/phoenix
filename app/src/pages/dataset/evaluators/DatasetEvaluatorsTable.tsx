@@ -6,15 +6,15 @@ import invariant from "tiny-invariant";
 
 import { Empty } from "@phoenix/components";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
-import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
-import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
+import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
+import { DatasetEvaluatorsTable as BaseDatasetEvaluatorsTable } from "@phoenix/pages/evaluators/DatasetEvaluatorsTable";
 
 const PAGE_SIZE = 100;
 
 export const useDatasetEvaluatorsTable = (
   query: DatasetEvaluatorsTable_evaluators$key
 ) => {
-  const { filter } = useEvaluatorsFilterContext();
+  const { filter } = useDatasetEvaluatorsFilterContext();
   const {
     data,
     hasNext,
@@ -28,15 +28,19 @@ export const useDatasetEvaluatorsTable = (
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
-        sort: { type: "EvaluatorSort", defaultValue: null }
-        filter: { type: "EvaluatorFilter", defaultValue: null }
+        sort: { type: "DatasetEvaluatorSort", defaultValue: null }
+        filter: { type: "DatasetEvaluatorFilter", defaultValue: null }
       ) {
-        evaluators(first: $first, after: $after, sort: $sort, filter: $filter)
-          @connection(key: "DatasetEvaluatorsTable_evaluators") {
+        datasetEvaluators(
+          first: $first
+          after: $after
+          sort: $sort
+          filter: $filter
+        ) @connection(key: "DatasetEvaluatorsTable_datasetEvaluators") {
           __id
           edges {
             node {
-              ...EvaluatorsTable_row
+              ...DatasetEvaluatorsTable_row
             }
           }
         }
@@ -89,14 +93,14 @@ export const DatasetEvaluatorsTable = ({
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
   const connectionsToUpdate = useMemo(() => {
-    if (data.evaluators.__id) {
-      return [data.evaluators.__id];
+    if (data.datasetEvaluators.__id) {
+      return [data.datasetEvaluators.__id];
     }
     return EMPTY_CONNECTION_IDS;
   }, [data]);
   return (
-    <EvaluatorsTable
-      rowReferences={data.evaluators.edges.map((edge) => edge.node)}
+    <BaseDatasetEvaluatorsTable
+      rowReferences={data.datasetEvaluators.edges.map((edge) => edge.node)}
       isLoadingNext={isLoadingNext}
       hasNext={hasNext}
       loadNext={loadNext}

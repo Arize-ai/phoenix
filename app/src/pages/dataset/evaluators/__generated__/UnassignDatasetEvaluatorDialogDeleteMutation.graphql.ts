@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b010ee4d4f54054cbeb2d10f482d30b>>
+ * @generated SignedSource<<ab544fab4ca9b90619bbd92cbff637f4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -95,37 +95,16 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "updatedAt",
   "storageKey": null
 },
-v10 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "Prompt",
-    "kind": "LinkedField",
-    "name": "prompt",
-    "plural": false,
-    "selections": [
-      (v7/*: any*/),
-      (v9/*: any*/)
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PromptVersionTag",
-    "kind": "LinkedField",
-    "name": "promptVersionTag",
-    "plural": false,
-    "selections": [
-      (v9/*: any*/),
-      (v7/*: any*/)
-    ],
-    "storageKey": null
-  }
-];
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -222,15 +201,15 @@ return {
                       {
                         "alias": null,
                         "args": (v8/*: any*/),
-                        "concreteType": "EvaluatorConnection",
+                        "concreteType": "DatasetEvaluatorConnection",
                         "kind": "LinkedField",
-                        "name": "evaluators",
+                        "name": "datasetEvaluators",
                         "plural": false,
                         "selections": [
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "EvaluatorEdge",
+                            "concreteType": "DatasetEvaluatorEdge",
                             "kind": "LinkedField",
                             "name": "edges",
                             "plural": true,
@@ -238,58 +217,90 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": null,
+                                "concreteType": "DatasetEvaluator",
                                 "kind": "LinkedField",
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v6/*: any*/),
-                                  {
-                                    "kind": "TypeDiscriminator",
-                                    "abstractKey": "__isEvaluator"
-                                  },
                                   (v7/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "displayName",
+                                    "storageKey": null
+                                  },
                                   (v9/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "kind",
+                                    "concreteType": null,
+                                    "kind": "LinkedField",
+                                    "name": "evaluator",
+                                    "plural": false,
+                                    "selections": [
+                                      (v6/*: any*/),
+                                      (v7/*: any*/),
+                                      (v10/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "kind",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "description",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "createdAt",
+                                        "storageKey": null
+                                      },
+                                      (v9/*: any*/),
+                                      {
+                                        "kind": "InlineFragment",
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "Prompt",
+                                            "kind": "LinkedField",
+                                            "name": "prompt",
+                                            "plural": false,
+                                            "selections": [
+                                              (v7/*: any*/),
+                                              (v10/*: any*/)
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "PromptVersionTag",
+                                            "kind": "LinkedField",
+                                            "name": "promptVersionTag",
+                                            "plural": false,
+                                            "selections": [
+                                              (v10/*: any*/),
+                                              (v7/*: any*/)
+                                            ],
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "type": "LLMEvaluator",
+                                        "abstractKey": null
+                                      }
+                                    ],
                                     "storageKey": null
                                   },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "description",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "createdAt",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "updatedAt",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "kind": "InlineFragment",
-                                    "selections": (v10/*: any*/),
-                                    "type": "LLMEvaluator",
-                                    "abstractKey": null
-                                  },
-                                  {
-                                    "kind": "InlineFragment",
-                                    "selections": (v10/*: any*/),
-                                    "type": "DatasetLLMEvaluator",
-                                    "abstractKey": null
-                                  }
+                                  (v6/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -341,7 +352,7 @@ return {
                             ]
                           }
                         ],
-                        "storageKey": "evaluators(first:100)"
+                        "storageKey": "datasetEvaluators(first:100)"
                       },
                       {
                         "alias": null,
@@ -351,9 +362,9 @@ return {
                           "filter"
                         ],
                         "handle": "connection",
-                        "key": "DatasetEvaluatorsTable_evaluators",
+                        "key": "DatasetEvaluatorsTable_datasetEvaluators",
                         "kind": "LinkedHandle",
-                        "name": "evaluators"
+                        "name": "datasetEvaluators"
                       }
                     ],
                     "type": "Dataset",
@@ -388,12 +399,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "46fbd8980a16b19017f6d9fa0e871feb",
+    "cacheID": "0af488633d73809781ddc1f832cb48e9",
     "id": null,
     "metadata": {},
     "name": "UnassignDatasetEvaluatorDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  evaluators(first: 100) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n  ... on DatasetLLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation UnassignDatasetEvaluatorDialogDeleteMutation(\n  $input: DeleteEvaluatorsInput!\n  $datasetId: ID!\n) {\n  deleteEvaluators(input: $input) {\n    query {\n      dataset: node(id: $datasetId) {\n        __typename\n        ...DatasetEvaluatorsTable_evaluators\n        id\n      }\n    }\n    evaluatorIds\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

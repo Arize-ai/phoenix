@@ -13,16 +13,16 @@ import {
   DatasetEvaluatorsTable,
   useDatasetEvaluatorsTable,
 } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
-import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
-import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { DatasetEvaluatorsFilterBar } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterBar";
+import { DatasetEvaluatorsFilterProvider } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 
 export function DatasetEvaluatorsPage() {
   return (
-    <EvaluatorsFilterProvider>
+    <DatasetEvaluatorsFilterProvider>
       <Suspense fallback={<Loading />}>
         <DatasetEvaluatorsPageContent />
       </Suspense>
-    </EvaluatorsFilterProvider>
+    </DatasetEvaluatorsFilterProvider>
   );
 }
 
@@ -37,15 +37,15 @@ export function DatasetEvaluatorsPageContent() {
   const evaluatorsTableData = evaluatorsTableProps.data;
 
   const connectionsToUpdate = useMemo(() => {
-    if (evaluatorsTableData.evaluators.__id) {
-      return [evaluatorsTableData.evaluators.__id];
+    if (evaluatorsTableData.datasetEvaluators.__id) {
+      return [evaluatorsTableData.datasetEvaluators.__id];
     }
     return [];
   }, [evaluatorsTableData]);
 
   return (
     <main>
-      <EvaluatorsFilterBar
+      <DatasetEvaluatorsFilterBar
         padding="size-100"
         extraActions={
           <AddEvaluatorMenu

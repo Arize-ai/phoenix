@@ -19,15 +19,15 @@ enum DatasetEvaluatorAction {
 }
 
 export function DatasetEvaluatorActionMenu({
-  evaluatorId,
-  evaluatorName,
   datasetId,
+  evaluatorDisplayName,
+  datasetEvaluatorId,
   evaluatorKind,
   updateConnectionIds,
 }: {
-  evaluatorId: string;
-  evaluatorName: string;
   datasetId: string;
+  evaluatorDisplayName: string;
+  datasetEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE";
   updateConnectionIds?: string[];
 }) {
@@ -62,16 +62,15 @@ export function DatasetEvaluatorActionMenu({
         </Popover>
       </MenuTrigger>
       <UnassignDatasetEvaluatorDialog
-        evaluatorId={evaluatorId}
-        evaluatorName={evaluatorName}
+        evaluatorName={evaluatorDisplayName}
+        datasetEvaluatorId={datasetEvaluatorId}
         datasetId={datasetId}
         isOpen={isUnassignDialogOpen}
         onOpenChange={setIsUnassignDialogOpen}
         updateConnectionIds={updateConnectionIds}
       />
       <EditDatasetEvaluatorSlideover
-        evaluatorId={evaluatorId}
-        displayName={evaluatorName}
+        datasetEvaluatorId={datasetEvaluatorId}
         datasetId={datasetId}
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
