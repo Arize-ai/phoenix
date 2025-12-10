@@ -1,6 +1,6 @@
 import { type PropsWithChildren } from "react";
 
-import { EvaluatorsInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorsInputVariablesProvider";
+import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 
 export const LLMEvaluatorInputVariablesProvider = ({
@@ -9,8 +9,8 @@ export const LLMEvaluatorInputVariablesProvider = ({
   const { variableKeys: variables } = useDerivedPlaygroundVariables();
 
   return (
-    <EvaluatorsInputVariablesProvider variables={variables}>
+    <EvaluatorInputVariablesProvider variables={variables}>
       {children}
-    </EvaluatorsInputVariablesProvider>
+    </EvaluatorInputVariablesProvider>
   );
 };

@@ -1,10 +1,10 @@
 import { useContext } from "react";
 import { invariant } from "@apollo/client/utilities/globals";
 
-import { EvaluatorsInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorsInputVariablesContext";
+import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 
-export const useEvaluatorsInputVariables = () => {
-  const context = useContext(EvaluatorsInputVariablesContext);
+export const useEvaluatorInputVariables = () => {
+  const context = useContext(EvaluatorInputVariablesContext);
   invariant(
     context,
     "useEvaluatorsInputVariables must be used within LLMEvaluatorInputVariablesProvider or CodeEvaluatorInputVariablesProvider"

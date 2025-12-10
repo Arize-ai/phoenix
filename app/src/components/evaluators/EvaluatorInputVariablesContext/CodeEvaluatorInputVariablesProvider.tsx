@@ -1,6 +1,6 @@
 import { type PropsWithChildren, useMemo } from "react";
 
-import { EvaluatorsInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorsInputVariablesProvider";
+import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
 
 export const CodeEvaluatorInputVariablesProvider = ({
@@ -23,8 +23,8 @@ export const CodeEvaluatorInputVariablesProvider = ({
     return inputVariables;
   }, [evaluatorInputSchema]);
   return (
-    <EvaluatorsInputVariablesProvider variables={variables}>
+    <EvaluatorInputVariablesProvider variables={variables}>
       {children}
-    </EvaluatorsInputVariablesProvider>
+    </EvaluatorInputVariablesProvider>
   );
 };
