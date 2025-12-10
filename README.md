@@ -35,6 +35,7 @@
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJjb21tYW5kIjoibnB4IC15IEBhcml6ZWFpL3Bob2VuaXgtbWNwQGxhdGVzdCAtLWJhc2VVcmwgaHR0cHM6Ly9teS1waG9lbml4LmNvbSAtLWFwaUtleSB5b3VyLWFwaS1rZXkifQ%3D%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64" />
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
@@ -129,7 +130,7 @@ Normalize and convert data across other instrumentation libraries by adding span
 | [LangChain.js](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)      | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
 | [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
 | [BeeAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
-| [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)                    | `@mastra/arize`                                     | [![NPM Version](https://img.shields.io/npm/v/@mastra/arize.svg)](https://www.npmjs.com/package/@mastra/arize)                                                                     |
+| [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)                    | `@mastra/arize`                                    | [![NPM Version](https://img.shields.io/npm/v/@mastra/arize.svg)](https://www.npmjs.com/package/@mastra/arize)                                                                       |
 
 ### Java Integrations
 
