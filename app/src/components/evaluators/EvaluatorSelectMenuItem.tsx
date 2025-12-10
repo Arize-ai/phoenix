@@ -13,7 +13,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export type EvaluatorItem = {
   id: string;
-  name: string;
+  displayName: string;
   alreadyAdded?: boolean;
   annotationName?: string;
 };
@@ -29,7 +29,7 @@ export function EvaluatorSelectMenuItem({
   isSelected,
   onEdit,
 }: EvaluatorMenuItemProps) {
-  const { name, alreadyAdded } = evaluator;
+  const { displayName, alreadyAdded } = evaluator;
 
   const [isHovered, setIsHovered] = useState(false);
   const showAlreadyAddedState = Boolean(
@@ -46,7 +46,7 @@ export function EvaluatorSelectMenuItem({
   return (
     <GridListItem
       id={evaluator.id}
-      textValue={name}
+      textValue={displayName}
       isDisabled={alreadyAdded}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -73,7 +73,7 @@ export function EvaluatorSelectMenuItem({
       }
     >
       <StableWidthText
-        primaryText={name}
+        primaryText={displayName}
         secondaryText="Already added"
         showSecondary={showAlreadyAddedState}
       />
