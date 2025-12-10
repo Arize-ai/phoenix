@@ -265,7 +265,11 @@ export function buildClientConfig(formData: ProviderFormData) {
         },
       };
     case "AZURE_OPENAI": {
-      const authMethodType = formData.azure_auth_method || "api_key";
+      invariant(
+        formData.azure_auth_method,
+        "Azure authentication method is required but was empty"
+      );
+      const authMethodType = formData.azure_auth_method;
 
       // Build auth method based on selected type
       const authMethod =
