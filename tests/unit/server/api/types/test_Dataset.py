@@ -879,23 +879,28 @@ async def test_experiments_without_filter(
 
 
 class TestDatasetsEvaluatorsResolver:
-    async def test_returns_associated_evaluators(
+    async def test_returns_associated_dataset_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
         dataset_with_evaluators: Any,
     ) -> None:
-        """Test that evaluators associated with a dataset are returned."""
+        """Test that dataset evaluators associated with a dataset are returned."""
         query = """
           query ($datasetId: ID!) {
             node(id: $datasetId) {
               ... on Dataset {
-                evaluators {
+                datasetEvaluators {
                   edges {
                     node {
                       id
-                      name
-                      kind
-                      description
+                      displayName
+                      evaluator {
+                        ... on LLMEvaluator {
+                          name
+                          kind
+                          description
+                        }
+                      }
                     }
                   }
                 }
@@ -912,19 +917,19 @@ class TestDatasetsEvaluatorsResolver:
         assert not response.errors
         assert response.data is not None
 
-        # Should return 2 evaluators in descending ID order
-        edges = response.data["node"]["evaluators"]["edges"]
+        # Should return 2 evaluators
+        edges = response.data["node"]["datasetEvaluators"]["edges"]
         assert len(edges) == 2
-        assert edges[0]["node"]["name"] == "evaluator-1"
-        assert edges[0]["node"]["kind"] == "LLM"
-        assert edges[1]["node"]["name"] == "evaluator-2"
-        assert edges[1]["node"]["kind"] == "LLM"
+        assert edges[0]["node"]["evaluator"]["name"] == "evaluator-1"
+        assert edges[0]["node"]["evaluator"]["kind"] == "LLM"
+        assert edges[1]["node"]["evaluator"]["name"] == "evaluator-2"
+        assert edges[1]["node"]["evaluator"]["kind"] == "LLM"
 
 
 @pytest.fixture
 async def dataset_with_evaluators(db: DbSessionFactory) -> None:
     """
-    Creates a dataset with two evaluators associated via the datasets_evaluators junction table.
+    Creates a dataset with two evaluators associated via the dataset_evaluators junction table.
     """
     async with db() as session:
         # Create dataset
@@ -997,13 +1002,13 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         await session.flush()
 
         # Associate evaluators with dataset via junction table
-        dataset_evaluator_1 = models.DatasetsEvaluators(
+        dataset_evaluator_1 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
             display_name=Identifier(root="evaluator-1"),
             input_mapping={},
         )
-        dataset_evaluator_2 = models.DatasetsEvaluators(
+        dataset_evaluator_2 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
             display_name=Identifier(root="evaluator-2"),
