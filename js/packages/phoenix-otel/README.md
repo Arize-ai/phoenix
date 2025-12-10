@@ -18,6 +18,7 @@
     <a href="https://arize.com/docs/phoenix">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-otel/README.md" />
 </p>
 
 A lightweight wrapper around OpenTelemetry for Node.js applications that simplifies sending traces to [Arize Phoenix](https://github.com/Arize-ai/phoenix). This package provides an easy-to-use `register` function that handles all the boilerplate configuration for OpenTelemetry tracing.
