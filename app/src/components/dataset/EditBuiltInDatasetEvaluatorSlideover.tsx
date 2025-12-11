@@ -137,6 +137,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               ...DatasetEvaluatorsTable_row
+              ...PlaygroundDatasetSection_evaluator
             }
           }
         }
