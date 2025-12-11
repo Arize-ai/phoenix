@@ -127,7 +127,7 @@ export const ContainsEvaluatorForm = ({
           render={({ field, fieldState: { error } }) => (
             <TextField
               {...field}
-              value={String(field.value)}
+              value={String(field.value ?? "")}
               isInvalid={!!error}
             >
               <Label>Words</Label>

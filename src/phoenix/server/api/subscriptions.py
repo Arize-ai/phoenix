@@ -192,14 +192,12 @@ async def _stream_single_chat_completion(
                         dataset_example_id=None,
                         repetition_number=repetition_number,
                     )
-            input_mappings_by_dataset_evaluator_node_id = {
-                dataset_evaluator.id: dataset_evaluator.input_mapping
-                for dataset_evaluator in input.evaluators
+
+            input_mappings_by_evaluator_node_id = {
+                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_dataset_evaluator_node_id[
-                    llm_evaluator.dataset_evaluator_node_id
-                ]
+                input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=input_mapping,
@@ -280,7 +278,7 @@ class Subscription:
         llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
             llm_evaluators = await get_llm_evaluators(
-                dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 llm_client=llm_client,
             )
@@ -407,7 +405,7 @@ class Subscription:
         )
         async with info.context.db() as session:
             llm_evaluators = await get_llm_evaluators(
-                dataset_evaluator_ids=[evaluator.id for evaluator in input.evaluators],
+                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 llm_client=llm_client,
             )
@@ -637,13 +635,12 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        input_mappings_by_dataset_evaluator_node_id = {
-                            dataset_evaluator.id: dataset_evaluator.input_mapping
-                            for dataset_evaluator in input.evaluators
+                        input_mappings_by_evaluator_node_id = {
+                            evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
                         }
                         for llm_evaluator in llm_evaluators:
-                            input_mapping = input_mappings_by_dataset_evaluator_node_id[
-                                llm_evaluator.dataset_evaluator_node_id
+                            input_mapping = input_mappings_by_evaluator_node_id[
+                                llm_evaluator.node_id
                             ]
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
