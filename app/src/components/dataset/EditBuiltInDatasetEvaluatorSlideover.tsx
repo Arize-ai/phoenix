@@ -102,6 +102,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     id
                     name
                     kind
+                    description
                     ... on BuiltInEvaluator {
                       inputSchema
                     }
@@ -148,6 +149,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorId = evaluator.id;
   const evaluatorKind = evaluator.kind;
   const evaluatorName = evaluator.name;
+  const evaluatorDescription = evaluator.description;
   const defaultFormValues: EvaluatorFormValues | null = useMemo(() => {
     if (evaluatorKind === "CODE") {
       return {
@@ -160,7 +162,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
         evaluator: {
           ...DEFAULT_CODE_FORM_VALUES.evaluator,
           name: displayName ?? "",
-          description: "",
+          description: evaluatorDescription ?? "",
           kind: evaluatorKind,
           isBuiltin: true,
           builtInEvaluatorName: evaluatorName,
@@ -176,7 +178,14 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
       };
     }
     return null;
-  }, [datasetId, displayName, evaluatorKind, evaluatorName, inputMapping]);
+  }, [
+    datasetId,
+    displayName,
+    evaluatorKind,
+    evaluatorName,
+    inputMapping,
+    evaluatorDescription,
+  ]);
 
   if (!defaultFormValues) {
     throw new Error(

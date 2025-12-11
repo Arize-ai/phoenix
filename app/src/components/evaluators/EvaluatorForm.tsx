@@ -207,8 +207,13 @@ export const EvaluatorForm = () => {
               name="evaluator.description"
               control={control}
               render={({ field, fieldState: { error } }) => (
-                <TextField {...field} autoComplete="off" isInvalid={!!error}>
-                  <Label>Description (optional)</Label>
+                <TextField
+                  {...field}
+                  autoComplete="off"
+                  isInvalid={!!error}
+                  isDisabled={!!isBuiltin}
+                >
+                  <Label>Description{isBuiltin ? "" : " (optional)"}</Label>
                   <Input placeholder="e.g. rate the response on correctness" />
                   <FieldError>{error?.message}</FieldError>
                 </TextField>

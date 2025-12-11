@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed853989856960f12e4810f48c5ea6e8>>
+ * @generated SignedSource<<20408dd993bc693e762a49b9dbd606f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
     readonly datasetEvaluator?: {
       readonly displayName: string;
       readonly evaluator: {
+        readonly description: string | null;
         readonly id: string;
         readonly inputSchema?: any | null;
         readonly kind: EvaluatorKind;
@@ -119,6 +120,13 @@ v7 = {
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -132,7 +140,7 @@ v8 = {
   "type": "BuiltInEvaluator",
   "abstractKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -180,7 +188,8 @@ return {
                       (v2/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
-                      (v8/*: any*/)
+                      (v8/*: any*/),
+                      (v9/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -212,7 +221,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*: any*/),
+          (v10/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -236,11 +245,12 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v9/*: any*/),
+                      (v10/*: any*/),
                       (v2/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
-                      (v8/*: any*/)
+                      (v8/*: any*/),
+                      (v9/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -257,16 +267,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "55dd5d04d0932cb7fdb63f3027ebc22a",
+    "cacheID": "e669a984162e993b60a2d5812903389e",
     "id": null,
     "metadata": {},
     "name": "EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          ... on BuiltInEvaluator {\n            inputSchema\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on BuiltInEvaluator {\n            inputSchema\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "84440bcb9cf97b259c6f7899fa5a1737";
+(node as any).hash = "f7e389926ea2dca52030c98f71672562";
 
 export default node;
