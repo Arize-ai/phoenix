@@ -87,9 +87,14 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         for variable_name in variable_names:
+            replacement = str(variables[variable_name])
+            # Use a lambda instead of passing the replacement string directly. When re.sub
+            # receives a string as `repl`, it interprets backslash escape sequences like \u, \n,
+            # \1, etc. This causes errors when the replacement contains JSON with Unicode escapes
+            # (e.g., \u2019). A callable `repl` returns the string literally without processing.
             template = re.sub(
                 pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=str(variables[variable_name]),
+                repl=lambda _: replacement,
                 string=template,
             )
         return template
