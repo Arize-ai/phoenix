@@ -956,7 +956,10 @@
               {
                 "group": "Security",
                 "icon": "user-shield",
-                "pages": ["docs/phoenix/settings/access-control-rbac"]
+                "pages": [
+                  "docs/phoenix/settings/access-control-rbac",
+                  "docs/phoenix/self-hosting/security/privacy"
+                ]
               },
               {
                 "group": "Misc",

@@ -84,6 +84,12 @@ The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
 will be enabled in the Phoenix web interface.
 Note: This will automatically be be enabled in the future but it will always be possible to disable.
 """
+ENV_PHOENIX_TELEMETRY_ENABLED = "PHOENIX_TELEMETRY_ENABLED"
+"""
+Master toggle for telemetry pixels (FullStory and Scarf.sh).
+When set to False, disables both FullStory and Scarf.sh tracking regardless of their
+individual environment variable settings. Defaults to True.
+"""
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
 Allows calls to external resources, like Google Fonts in the web interface
@@ -3025,20 +3031,41 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     return allowed_origins.split(",")
 
 
+def get_env_telemetry_enabled() -> bool:
+    """
+    Gets whether telemetry is enabled from the PHOENIX_TELEMETRY_ENABLED environment variable.
+
+    When set to False, disables both FullStory and Scarf.sh tracking regardless of their
+    individual environment variable settings.
+
+    Returns:
+        bool: True if telemetry is enabled (default), False otherwise.
+    """
+    return _bool_val(ENV_PHOENIX_TELEMETRY_ENABLED, True)
+
+
 def get_env_fullstory_org() -> Optional[str]:
     """
     Get the FullStory organization ID from environment variables.
 
     Returns:
-        Optional[str]: The FullStory organization ID if set, None otherwise.
+        Optional[str]: The FullStory organization ID if set and telemetry is enabled,
+        None otherwise.
     """
+    if not get_env_telemetry_enabled():
+        return None
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
 
 
 def get_env_scarf_sh_pixel_id() -> Optional[str]:
     """
     Get the Scarf.sh pixel ID from environment variables.
+
+    Returns:
+        Optional[str]: The Scarf.sh pixel ID if set and telemetry is enabled, None otherwise.
     """
+    if not get_env_telemetry_enabled():
+        return None
     return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID)
 
 
