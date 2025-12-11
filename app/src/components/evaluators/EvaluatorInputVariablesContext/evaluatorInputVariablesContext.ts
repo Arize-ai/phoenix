@@ -1,3 +1,5 @@
 import { createContext } from "react";
 
-export const EvaluatorInputVariablesContext = createContext<string[]>([]);
+export const EvaluatorInputVariablesContext = createContext<string[] | null>(
+  null
+);
