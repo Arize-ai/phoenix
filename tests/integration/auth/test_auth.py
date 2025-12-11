@@ -1635,23 +1635,18 @@ class TestSecretsCRUDAndValueVisibility:
     """Tests for secret management access control and value visibility.
 
     Verifies that:
-    - Only admins can create/update secrets (upsertSecret mutation)
-    - Only admins can delete secrets (deleteSecret mutation)
+    - Only admins can create/update/delete secrets (upsertOrDeleteSecrets mutation)
     - Admins see decrypted secret values (DecryptedSecret)
-    - Non-admins (Members, Viewers) see masked values (MaskedSecret)
+    - Non-admins (Members, Viewers) cannot access secret values (Unauthorized)
     """
 
     QUERY = """
-      mutation UpsertSecret($input: UpsertSecretMutationInput!) {
-        upsertSecret(input: $input) {
-          secrets {
+      mutation UpsertOrDeleteSecrets($input: UpsertOrDeleteSecretsMutationInput!) {
+        upsertOrDeleteSecrets(input: $input) {
+          deletedIds
+          upsertedSecrets {
             id
           }
-        }
-      }
-      mutation DeleteSecret($input: DeleteSecretMutationInput!) {
-        deleteSecret(input: $input) {
-          ids
         }
       }
       query GetSecret($id: ID!) {
@@ -1662,9 +1657,6 @@ class TestSecretsCRUDAndValueVisibility:
               __typename
               ... on DecryptedSecret {
                 value
-              }
-              ... on MaskedSecret {
-                maskedValue
               }
               ... on UnparsableSecret {
                 parseError
@@ -1686,7 +1678,7 @@ class TestSecretsCRUDAndValueVisibility:
         - Members/Viewers cannot upsert or delete secrets (admin-only)
         - Admin can upsert and delete secrets
         - Admin sees DecryptedSecret with actual value
-        - Members/Viewers see MaskedSecret with masked value
+        - Members/Viewers cannot access secret value field (Unauthorized)
         """
         admin = _get_user(_app, _ADMIN)
         member = _get_user(_app, _MEMBER)
@@ -1706,7 +1698,7 @@ class TestSecretsCRUDAndValueVisibility:
                 logged_in_user.gql(
                     _app,
                     query=self.QUERY,
-                    operation_name="UpsertSecret",
+                    operation_name="UpsertOrDeleteSecrets",
                     variables={"input": {"secrets": [{"key": secret_key, "value": secret_value}]}},
                 )
 
@@ -1714,12 +1706,12 @@ class TestSecretsCRUDAndValueVisibility:
         response, _ = logged_in_admin.gql(
             _app,
             query=self.QUERY,
-            operation_name="UpsertSecret",
+            operation_name="UpsertOrDeleteSecrets",
             variables={
                 "input": {"secrets": [{"key": secret_key, "value": secret_value}]},
             },
         )
-        id_ = response["data"]["upsertSecret"]["secrets"][0]["id"]
+        id_ = response["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"][0]["id"]
 
         # Admin should see decrypted value
         response, _ = logged_in_admin.gql(
@@ -1733,18 +1725,15 @@ class TestSecretsCRUDAndValueVisibility:
         assert secret["value"]["__typename"] == "DecryptedSecret"
         assert secret["value"]["value"] == secret_value
 
-        # Member and Viewer should see hidden value
+        # Member and Viewer should get Unauthorized when accessing secret value field
         for logged_in_user in [logged_in_member, logged_in_viewer]:
-            response, _ = logged_in_user.gql(
-                _app,
-                query=self.QUERY,
-                operation_name="GetSecret",
-                variables={"id": id_},
-            )
-            secret = response["data"]["node"]
-            assert secret["key"] == secret_key
-            assert secret["value"]["__typename"] == "MaskedSecret"
-            assert secret["value"]["maskedValue"] == "*" * 32
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="GetSecret",
+                    variables={"id": id_},
+                )
 
         # Member and Viewer should not be able to delete the secret
         for logged_in_user in [logged_in_member, logged_in_viewer]:
@@ -1752,18 +1741,18 @@ class TestSecretsCRUDAndValueVisibility:
                 logged_in_user.gql(
                     _app,
                     query=self.QUERY,
-                    operation_name="DeleteSecret",
-                    variables={"input": {"keys": [secret_key]}},
+                    operation_name="UpsertOrDeleteSecrets",
+                    variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
                 )
 
         # Admin should be able to delete the secret
         response, _ = logged_in_admin.gql(
             _app,
             query=self.QUERY,
-            operation_name="DeleteSecret",
-            variables={"input": {"keys": [secret_key]}},
+            operation_name="UpsertOrDeleteSecrets",
+            variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
         )
-        assert response["data"]["deleteSecret"]["ids"] == [id_]
+        assert response["data"]["upsertOrDeleteSecrets"]["deletedIds"] == [id_]
 
 
 class TestApiAccessViaCookiesOrApiKeys:
