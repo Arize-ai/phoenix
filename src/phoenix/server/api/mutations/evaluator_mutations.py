@@ -533,6 +533,48 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_dataset_builtin_evaluator(
+        self, info: Info[Context, None], input: UpdateDatasetBuiltinEvaluatorInput
+    ) -> DatasetEvaluatorMutationPayload:
+        try:
+            dataset_evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.dataset_evaluator_id,
+                expected_type_name=DatasetEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
+
+        input_mapping: EvaluatorInputMappingInput = (
+            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
+        )
+
+        try:
+            async with info.context.db() as session:
+                dataset_evaluator = await session.get(
+                    models.DatasetEvaluators, dataset_evaluator_rowid
+                )
+                if dataset_evaluator is None:
+                    raise NotFound(
+                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                    )
+                if dataset_evaluator.builtin_evaluator_id is None:
+                    raise BadRequest("Cannot update a non-built-in evaluator")
+                dataset_evaluator.display_name = IdentifierModel.model_validate(input.display_name)
+                dataset_evaluator.input_mapping = input_mapping.to_dict()
+                dataset_evaluator.updated_at = datetime.now(timezone.utc)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "foreign" in str(e).lower():
+                raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
+            raise BadRequest(
+                f"DatasetEvaluator with display name {input.display_name} already exists"
+            )
+
+        return DatasetEvaluatorMutationPayload(
+            evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
+            query=Query(),
+        )
+
     # TODO: should this always just get deleted in favor of always calling
     # delete_evaluators for DatasetEvaluators?
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore

@@ -16,8 +16,8 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import type { CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation.graphql";
 import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
+import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import {
   DEFAULT_CODE_FORM_VALUES,
@@ -123,14 +123,14 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     dataset.id,
     "DatasetEvaluatorsTable_datasetEvaluators"
   );
-  const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
-    useMutation<CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation>(
+  const [updateDatasetBuiltinEvaluator, isUpdatingDatasetBuiltinEvaluator] =
+    useMutation<EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation>(
       graphql`
-        mutation EditBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation(
-          $input: AssignEvaluatorToDatasetInput!
+        mutation EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation(
+          $input: UpdateDatasetBuiltinEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
-          assignEvaluatorToDataset(input: $input) {
+          updateDatasetBuiltinEvaluator(input: $input) {
             evaluator
               @appendNode(
                 connections: $connectionIds
@@ -146,7 +146,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   invariant(evaluator, "evaluator is required");
   const displayName = datasetEvaluator.displayName;
   const inputMapping = datasetEvaluator.inputMapping;
-  const evaluatorId = evaluator.id;
   const evaluatorKind = evaluator.kind;
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
@@ -211,11 +210,10 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
       inputMapping,
       evaluator: { name },
     } = getValues();
-    assignEvaluatorToDataset({
+    updateDatasetBuiltinEvaluator({
       variables: {
         input: {
-          datasetId: datasetId,
-          evaluatorId: evaluatorId,
+          datasetEvaluatorId: datasetEvaluatorId,
           displayName: name,
           // deep clone the input mapping to ensure relay doesn't mutate the original object
           // TODO: remove this once we are using zustand
@@ -247,7 +245,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
         onClose={onClose}
         evaluatorInputSchema={evaluator.inputSchema}
         onSubmit={onAddEvaluator}
-        isSubmitting={isAssigningEvaluatorToDataset}
+        isSubmitting={isUpdatingDatasetBuiltinEvaluator}
         mode="update"
         error={error}
       />

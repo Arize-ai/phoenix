@@ -22,6 +22,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -950,6 +951,289 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             displayName="test-builtin-evaluator",  # Same as first one
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
+
+
+class TestUpdateDatasetBuiltinEvaluatorMutation:
+    _UPDATE_MUTATION = """
+      mutation($input: UpdateDatasetBuiltinEvaluatorInput!) {
+        updateDatasetBuiltinEvaluator(input: $input) {
+          evaluator {
+            id
+            displayName
+            evaluator {
+              ... on BuiltInEvaluator {
+                id
+                name
+                description
+                kind
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_update_dataset_builtin_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test updating a builtin evaluator via its DatasetEvaluator assignment."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Get a valid builtin evaluator ID
+        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
+        builtin_evaluator_id = builtin_evaluator_ids[0]
+        builtin_evaluator_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
+
+        # First, create a builtin evaluator to update
+        create_result = await gql_client.execute(
+            """
+            mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+              createDatasetBuiltinEvaluator(input: $input) {
+                evaluator {
+                  id
+                  displayName
+                }
+              }
+            }
+            """,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": builtin_evaluator_gid,
+                    "displayName": "original-name",
+                    "inputMapping": dict(
+                        literalMapping={"key": "original"},
+                        pathMapping={"input": "context.original"},
+                    ),
+                }
+            },
+        )
+        assert create_result.data and not create_result.errors
+        dataset_evaluator_id = create_result.data["createDatasetBuiltinEvaluator"]["evaluator"][
+            "id"
+        ]
+
+        # Update the evaluator with new display name
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "updated-name",
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        updated_evaluator = result.data["updateDatasetBuiltinEvaluator"]["evaluator"]
+        assert updated_evaluator["displayName"] == "updated-name"
+        builtin_data = updated_evaluator["evaluator"]
+        assert builtin_data["kind"] == "CODE"
+
+        # Verify database state
+        dataset_evaluator_rowid = int(GlobalID.from_id(dataset_evaluator_id).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_rowid
+            )
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.display_name.root == "updated-name"
+            # Input mapping should revert to default value when not provided
+            assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_dict()
+
+        # Update the evaluator with new input_mapping
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "updated-name",
+                    "inputMapping": dict(
+                        literalMapping={"new_key": "new_value"},
+                        pathMapping={"output": "context.output"},
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            db_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_rowid
+            )
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.input_mapping == {
+                "literal_mapping": {"new_key": "new_value"},
+                "path_mapping": {"output": "context.output"},
+            }
+
+        # Update both display name and input_mapping
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "final-name",
+                    "inputMapping": dict(
+                        literalMapping={"final": "value"},
+                        pathMapping={},
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        updated_evaluator = result.data["updateDatasetBuiltinEvaluator"]["evaluator"]
+        assert updated_evaluator["displayName"] == "final-name"
+
+        async with db() as session:
+            db_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_rowid
+            )
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.display_name.root == "final-name"
+            assert db_dataset_evaluator.input_mapping == {
+                "literal_mapping": {"final": "value"},
+                "path_mapping": {},
+            }
+
+        # Failure: Nonexistent dataset evaluator
+        nonexistent_id = str(GlobalID("DatasetEvaluator", "999999"))
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": nonexistent_id,
+                    "displayName": "test",
+                }
+            },
+        )
+        assert result.errors and "not found" in result.errors[0].message.lower()
+
+        # Failure: Try to update a non-builtin evaluator (LLM evaluator)
+        # First create an LLM evaluator
+        prompt = models.Prompt(
+            name=IdentifierModel.model_validate(f"test-prompt-{token_hex(4)}"),
+            description="test prompt",
+            prompt_versions=[
+                models.PromptVersion(
+                    template_type=PromptTemplateType.STRING,
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptStringTemplate(type="string", template="Test: {input}"),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    tools=None,
+                    response_format=None,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    metadata_={},
+                )
+            ],
+        )
+        llm_evaluator_name = IdentifierModel.model_validate(f"test-llm-eval-{token_hex(4)}")
+        llm_evaluator = models.LLMEvaluator(
+            name=llm_evaluator_name,
+            description="test llm evaluator",
+            kind="LLM",
+            annotation_name="test",
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="test description",
+                values=[
+                    CategoricalAnnotationValue(label="good", score=1.0),
+                    CategoricalAnnotationValue(label="bad", score=0.0),
+                ],
+            ),
+            prompt=prompt,
+            dataset_evaluators=[
+                models.DatasetEvaluators(
+                    dataset_id=empty_dataset.id,
+                    display_name=llm_evaluator_name,
+                    input_mapping={},
+                )
+            ],
+        )
+        async with db() as session:
+            session.add(llm_evaluator)
+            await session.flush()
+            llm_dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert llm_dataset_evaluator is not None
+            llm_dataset_evaluator_id = str(
+                GlobalID("DatasetEvaluator", str(llm_dataset_evaluator.id))
+            )
+
+        # Try to update the LLM evaluator (should fail)
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": llm_dataset_evaluator_id,
+                    "displayName": "updated-llm-name",
+                }
+            },
+        )
+        assert result.errors and "non-built-in evaluator" in result.errors[0].message.lower()
+
+        # Cleanup
+        async with db() as session:
+            await session.execute(
+                sa.delete(models.LLMEvaluator).where(models.LLMEvaluator.id == llm_evaluator.id)
+            )
+            await session.execute(
+                sa.delete(models.PromptVersion).where(models.PromptVersion.prompt_id == prompt.id)
+            )
+            await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
+
+        # Failure: Duplicate display name (create another builtin evaluator first)
+        if len(builtin_evaluator_ids) > 1:
+            second_builtin_evaluator_id = builtin_evaluator_ids[1]
+            second_builtin_evaluator_gid = str(
+                GlobalID("BuiltInEvaluator", str(second_builtin_evaluator_id))
+            )
+            create_result2 = await gql_client.execute(
+                """
+                mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+                  createDatasetBuiltinEvaluator(input: $input) {
+                    evaluator {
+                      id
+                      displayName
+                    }
+                  }
+                }
+                """,
+                {
+                    "input": {
+                        "datasetId": dataset_id,
+                        "evaluatorId": second_builtin_evaluator_gid,
+                        "displayName": "other-evaluator",
+                    }
+                },
+            )
+            assert create_result2.data and not create_result2.errors
+
+            # Try to update the first evaluator to have the same name as the second
+            result = await gql_client.execute(
+                self._UPDATE_MUTATION,
+                {
+                    "input": {
+                        "datasetEvaluatorId": dataset_evaluator_id,
+                        "displayName": "other-evaluator",  # Same as second evaluator
+                    }
+                },
+            )
+            assert result.errors and "already exists" in result.errors[0].message.lower()
 
 
 @pytest.fixture
