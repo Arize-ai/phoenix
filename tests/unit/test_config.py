@@ -1669,6 +1669,20 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                    "PHOENIX_ADMINS": "Admin User=admin@example.com",
+                    # No-email mode (via "null" sentinel) rejects PHOENIX_ADMINS
+                },
+                "PHOENIX_ADMINS is not supported",
+                id="attr_email_null_sentinel_rejects_phoenix_admins",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
                 },
                 "must contain at least one mapping",
