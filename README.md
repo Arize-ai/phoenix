@@ -129,7 +129,7 @@ Normalize and convert data across other instrumentation libraries by adding span
 | [LangChain.js](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)      | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
 | [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
 | [BeeAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
-| [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)                    | `@mastra/arize`                                     | [![NPM Version](https://img.shields.io/npm/v/@mastra/arize.svg)](https://www.npmjs.com/package/@mastra/arize)                                                                     |
+| [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)                    | `@mastra/arize`                                    | [![NPM Version](https://img.shields.io/npm/v/@mastra/arize.svg)](https://www.npmjs.com/package/@mastra/arize)                                                                       |
 
 ### Java Integrations
 
@@ -147,6 +147,23 @@ Normalize and convert data across other instrumentation libraries by adding span
 | [Envoy AI Gateway](https://github.com/envoyproxy/ai-gateway)                                             | AI Gateway built on Envoy Proxy for AI workloads               | [Integration Guide](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix) |
 | [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         |
 | [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)      |
+
+## Security & Privacy
+
+We take data security and privacy very seriously. For more details, see our [Security and Privacy documentation](https://arize.com/docs/phoenix/self-hosting/security/privacy).
+
+### Telemetry
+
+By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable analytics tracking for usage analytics.
+
+This helps us to:
+
+- Understand how Phoenix is used and improve the most relevant features
+- Track overall usage for internal and external reporting
+
+When telemetry is enabled, only basic web analytics are collected (e.g., page views, UI interactions). **None of your trace data, evaluation results, or any sensitive information is ever collected.**
+
+You can permanently opt-out of telemetry by setting the environment variable: `PHOENIX_TELEMETRY_ENABLED=false`
 
 ## Community
 
