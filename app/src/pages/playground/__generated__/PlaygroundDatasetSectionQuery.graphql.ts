@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eee08e807be26df6e3f88ad4270a54a5>>
+ * @generated SignedSource<<de1a62863e25a0bcc2c5bb163d0fcad8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type PlaygroundDatasetSectionQuery$data = {
         readonly node: {
           readonly displayName: string;
           readonly evaluator: {
+            readonly isBuiltin: boolean;
             readonly kind: EvaluatorKind;
             readonly outputConfig?: {
               readonly name: string;
@@ -165,6 +166,13 @@ v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 };
@@ -225,6 +233,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -281,7 +290,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v11/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -323,8 +332,9 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v10/*: any*/),
+                              (v11/*: any*/),
                               (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -369,16 +379,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "19d05a3ead8242521e97d3f15ad37604",
+    "cacheID": "d69a4679e3651eb9276120cbd3490970",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            id\n            displayName\n            inputMapping {\n              literalMapping\n              pathMapping\n            }\n            evaluator {\n              __typename\n              kind\n              isBuiltin\n              ... on LLMEvaluator {\n                outputConfig {\n                  name\n                  id\n                }\n              }\n              id\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3deb8ec8b2caab9e7c7d06c056da62c0";
+(node as any).hash = "44e01888082e665a5c9beaf44dad96c4";
 
 export default node;

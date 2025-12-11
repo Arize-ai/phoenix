@@ -180,7 +180,9 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
           displayName: name,
-          inputMapping,
+          // deep clone the input mapping to ensure relay doesn't mutate the original object
+          // TODO: remove this once we are using zustand
+          inputMapping: structuredClone(inputMapping),
         },
         connectionIds: [datasetEvaluatorsTableConnection],
       },

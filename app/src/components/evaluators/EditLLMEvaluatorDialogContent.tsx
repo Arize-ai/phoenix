@@ -15,7 +15,7 @@ import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluato
  * Embed this DialogContent component within a DatasetEvaluatorSlideover or an EvaluatorSlideover.
  * The mutation code is agnostic towards evaluator mutation, therefor this component can be used for both.
  */
-export const EditEvaluatorDialogContent = ({
+export const EditLLMEvaluatorDialogContent = ({
   onSubmit,
   isSubmitting,
   mode,

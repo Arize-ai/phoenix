@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
@@ -59,6 +60,7 @@ export function PlaygroundDatasetSection({
                   }
                   evaluator {
                     kind
+                    isBuiltin
                     ... on LLMEvaluator {
                       outputConfig {
                         name
@@ -94,11 +96,15 @@ export function PlaygroundDatasetSection({
         color: split.color ?? "#808080",
       }));
   }, [data, splitIds]);
-
-  const evaluators = useMemo(
+  type DatasetEvaluatorNode = NonNullable<
+    typeof data.dataset.datasetEvaluators
+  >["edges"][number]["node"];
+  const evaluators: (DatasetEvaluatorNode & EvaluatorItem)[] = useMemo(
     () =>
       data.dataset.datasetEvaluators?.edges?.map((edge) => ({
         ...edge.node,
+        kind: edge.node.evaluator.kind,
+        isBuiltIn: edge.node.evaluator.isBuiltin,
         isAssignedToDataset: true,
         annotationName: edge.node?.evaluator?.outputConfig?.name,
       })) ?? [],

@@ -10,7 +10,7 @@ import {
   Popover,
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
-import { EditDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDatasetEvaluatorSlideover";
+import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { UnassignDatasetEvaluatorDialog } from "@phoenix/pages/dataset/evaluators/UnassignDatasetEvaluatorDialog";
 
@@ -81,7 +81,7 @@ export function DatasetEvaluatorActionMenu({
           updateConnectionIds={updateConnectionIds}
         />
       ) : (
-        <EditDatasetEvaluatorSlideover
+        <EditLLMDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
           isOpen={isEditDialogOpen}

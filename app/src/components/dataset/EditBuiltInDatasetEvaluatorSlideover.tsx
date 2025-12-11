@@ -27,7 +27,7 @@ import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditBuiltInDatasetEvaluatorSlideoverProps = {
-  datasetEvaluatorId: string;
+  datasetEvaluatorId?: string | null;
   datasetId: string;
   updateConnectionIds?: string[];
 } & ModalOverlayProps;
@@ -165,10 +165,14 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           isBuiltin: true,
           builtInEvaluatorName: evaluatorName,
         },
-        inputMapping: inputMapping ?? {
-          literalMapping: {},
-          pathMapping: {},
-        },
+        inputMapping: inputMapping
+          ? // deep clone the input mapping to ensure relay doesn't mutate the original object
+            // TODO: remove this once we are using zustand
+            structuredClone(inputMapping)
+          : {
+              literalMapping: {},
+              pathMapping: {},
+            },
       };
     }
     return null;
@@ -204,7 +208,9 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           datasetId: datasetId,
           evaluatorId: evaluatorId,
           displayName: name,
-          inputMapping,
+          // deep clone the input mapping to ensure relay doesn't mutate the original object
+          // TODO: remove this once we are using zustand
+          inputMapping: structuredClone(inputMapping),
         },
         connectionIds: [
           datasetEvaluatorsTableConnection,

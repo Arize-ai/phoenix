@@ -10,7 +10,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
-import { CreateDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateDatasetEvaluatorSlideover";
+import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
 import { Icon, Icons } from "@phoenix/components/icon";
@@ -114,7 +114,7 @@ export const AddEvaluatorMenu = ({
         isOpen={createEvaluatorDialogOpen}
         onOpenChange={setCreateEvaluatorDialogOpen}
       >
-        <CreateDatasetEvaluatorSlideover
+        <CreateLLMDatasetEvaluatorSlideover
           datasetId={datasetId}
           updateConnectionIds={updateConnectionIds}
         />

@@ -1,7 +1,7 @@
 import { graphql, readInlineData } from "relay-runtime";
 
-import type { CreateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
-import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import type { CreateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
@@ -124,9 +124,13 @@ export const updateLLMEvaluatorPayload = ({
     description,
     datasetEvaluatorId,
     datasetId,
-    inputMapping,
+    // deep clone the input mapping to ensure relay doesn't mutate the original object
+    // TODO: remove this once we are using zustand
+    inputMapping: structuredClone(inputMapping),
     promptVersion,
-    outputConfig,
+    // deep clone the output config to ensure relay doesn't mutate the original object
+    // TODO: remove this once we are using zustand
+    outputConfig: structuredClone(outputConfig),
   };
 };
 /**
@@ -185,9 +189,13 @@ export const createLLMEvaluatorPayload = ({
     name,
     description,
     datasetId,
-    inputMapping,
+    // deep clone the input mapping to ensure relay doesn't mutate the original object
+    // TODO: remove this once we are using zustand
+    inputMapping: structuredClone(inputMapping),
     promptVersion,
-    outputConfig,
+    // deep clone the output config to ensure relay doesn't mutate the original object
+    // TODO: remove this once we are using zustand
+    outputConfig: structuredClone(outputConfig),
   };
 };
 
