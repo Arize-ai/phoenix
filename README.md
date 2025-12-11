@@ -149,6 +149,23 @@ Normalize and convert data across other instrumentation libraries by adding span
 | [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         |
 | [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)      |
 
+## Security & Privacy
+
+We take data security and privacy very seriously. For more details, see our [Security and Privacy documentation](https://arize.com/docs/phoenix/self-hosting/security/privacy).
+
+### Telemetry
+
+By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable tracking for usage analytics.
+
+This helps us to:
+
+- Understand how Phoenix is used and improve the most relevant features
+- Track overall usage for internal and external reporting
+
+When telemetry is enabled, only basic web analytics are collected (e.g., page views, UI interactions). **None of your trace data, evaluation results, or any sensitive information is ever collected.**
+
+You can permanently opt-out of telemetry by setting the environment variable: `PHOENIX_TELEMETRY_ENABLED=false`
+
 ## Community
 
 Join our community to connect with thousands of AI builders.

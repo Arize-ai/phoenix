@@ -164,6 +164,10 @@ server:
   # Set to false in air-gapped environments to prevent external requests that can cause UI loading delays
   allowExternalResources: true
 
+  # -- Enable telemetry for analytics tracking (PHOENIX_TELEMETRY_ENABLED)
+  # When set to false, disables all analytics tracking in the Phoenix
+  telemetryEnabled: true
+
   # -- Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE)
   # This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database.
   # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
