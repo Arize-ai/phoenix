@@ -3038,9 +3038,13 @@ def get_env_telemetry_enabled() -> bool:
     When set to False, disables both FullStory and Scarf.sh tracking regardless of their
     individual environment variable settings.
 
+    Returns False if external resources are disallowed.
+
     Returns:
         bool: True if telemetry is enabled (default), False otherwise.
     """
+    if not get_env_allow_external_resources():
+        return False
     return _bool_val(ENV_PHOENIX_TELEMETRY_ENABLED, True)
 
 

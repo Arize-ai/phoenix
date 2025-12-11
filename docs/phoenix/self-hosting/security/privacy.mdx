@@ -39,3 +39,12 @@ PHOENIX_TELEMETRY_ENABLED=false
 ```
 
 This will disable all analytics tracking in the Phoenix web interface, regardless of any other telemetry-related environment variable settings.
+
+### Air-gapped deployments
+
+If you are running Phoenix in an air-gapped environment, set `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`. This will:
+
+- Automatically disable all telemetry
+- Disable external Google Fonts (the UI will fall back to system fonts)
+
+This prevents any external network requests from the Phoenix web interface, avoiding connection timeouts and UI loading delays in environments without internet access.
