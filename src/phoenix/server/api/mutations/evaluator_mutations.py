@@ -118,6 +118,21 @@ class UnassignEvaluatorFromDatasetInput:
 
 
 @strawberry.input
+class CreateDatasetBuiltinEvaluatorInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    display_name: Identifier
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+
+
+@strawberry.input
+class UpdateDatasetBuiltinEvaluatorInput:
+    dataset_evaluator_id: GlobalID
+    display_name: Identifier
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+
+
+@strawberry.input
 class DeleteEvaluatorsInput:
     evaluator_ids: list[GlobalID]
 
@@ -462,6 +477,59 @@ class EvaluatorMutationMixin:
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_dataset_builtin_evaluator(
+        self, info: Info[Context, None], input: CreateDatasetBuiltinEvaluatorInput
+    ) -> DatasetEvaluatorMutationPayload:
+        try:
+            dataset_rowid = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+        try:
+            built_in_evaluator_id, _ = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as e:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+
+        input_mapping: EvaluatorInputMappingInput = (
+            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
+        )
+
+        if built_in_evaluator_id >= 0:  # built-in evaluator IDs are always negative
+            raise BadRequest(f"Invalid built-in evaluator id: {input.evaluator_id}")
+
+        builtin_evaluator = get_builtin_evaluator_by_id(built_in_evaluator_id)
+        if builtin_evaluator is None:
+            raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+        display_name = IdentifierModel.model_validate(input.display_name)
+
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset_rowid,
+            display_name=display_name,
+            input_mapping=input_mapping.to_dict(),
+            builtin_evaluator_id=built_in_evaluator_id,
+            evaluator_id=None,
+        )
+
+        try:
+            async with info.context.db() as session:
+                session.add(dataset_evaluator)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "foreign" in str(e).lower():
+                raise NotFound(f"Dataset with id {input.dataset_id} not found")
+            raise BadRequest(
+                f"DatasetEvaluator with display name {input.display_name} already exists"
+                f"for dataset {input.dataset_id}"
+            )
+
+        return DatasetEvaluatorMutationPayload(
+            evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
             query=Query(),
         )
 

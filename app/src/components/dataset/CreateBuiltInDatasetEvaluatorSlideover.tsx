@@ -9,7 +9,7 @@ import {
 } from "react-relay";
 
 import { Dialog, DialogContent, Flex, Loading } from "@phoenix/components";
-import type { CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation.graphql";
+import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_dataset$key } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_dataset.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
@@ -107,14 +107,14 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     dataset.id,
     "DatasetEvaluatorsTable_datasetEvaluators"
   );
-  const [assignEvaluatorToDataset, isAssigningEvaluatorToDataset] =
-    useMutation<CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation>(
+  const [createDatasetBuiltInEvaluator, isCreatingDatasetBuiltInEvaluator] =
+    useMutation<CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation>(
       graphql`
-        mutation CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation(
-          $input: AssignEvaluatorToDatasetInput!
+        mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(
+          $input: CreateDatasetBuiltinEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
-          assignEvaluatorToDataset(input: $input) {
+          createDatasetBuiltinEvaluator(input: $input) {
             evaluator
               @appendNode(
                 connections: $connectionIds
@@ -174,7 +174,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       inputMapping,
       evaluator: { name },
     } = getValues();
-    assignEvaluatorToDataset({
+    createDatasetBuiltInEvaluator({
       variables: {
         input: {
           datasetId: dataset.id,
@@ -209,7 +209,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
         onClose={onClose}
         evaluatorInputSchema={evaluator.inputSchema}
         onSubmit={onAddEvaluator}
-        isSubmitting={isAssigningEvaluatorToDataset}
+        isSubmitting={isCreatingDatasetBuiltInEvaluator}
         mode="create"
         error={error}
       />

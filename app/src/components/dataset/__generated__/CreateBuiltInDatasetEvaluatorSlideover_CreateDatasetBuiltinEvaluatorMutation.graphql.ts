@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd7f11928d78ca200569a867fcc89329>>
+ * @generated SignedSource<<f87ce6b695d7b2795b6436c6e9f80562>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AssignEvaluatorToDatasetInput = {
+export type CreateDatasetBuiltinEvaluatorInput = {
   datasetId: string;
-  displayName?: string | null;
+  displayName: string;
   evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
 };
@@ -20,20 +20,20 @@ export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$variables = {
+export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
-  input: AssignEvaluatorToDatasetInput;
+  input: CreateDatasetBuiltinEvaluatorInput;
 };
-export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$data = {
-  readonly assignEvaluatorToDataset: {
+export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$data = {
+  readonly createDatasetBuiltinEvaluator: {
     readonly evaluator: {
       readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
     };
   };
 };
-export type CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation = {
-  response: CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$data;
-  variables: CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation$variables;
+export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation = {
+  response: CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$data;
+  variables: CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -131,14 +131,14 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
         "concreteType": "DatasetEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "assignEvaluatorToDataset",
+        "name": "createDatasetBuiltinEvaluator",
         "plural": false,
         "selections": [
           {
@@ -215,14 +215,14 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
         "concreteType": "DatasetEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "assignEvaluatorToDataset",
+        "name": "createDatasetBuiltinEvaluator",
         "plural": false,
         "selections": [
           {
@@ -312,16 +312,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "32ad18f485d1a181a1cea7ac98767380",
+    "cacheID": "dce1f02b97e22da7624c2b837256ddc3",
     "id": null,
     "metadata": {},
-    "name": "CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation",
+    "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_AssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f51add18bda90413e14f4eb490bd6f72";
+(node as any).hash = "249829c3f4a0c6a7f32880a2f09f27e9";
 
 export default node;

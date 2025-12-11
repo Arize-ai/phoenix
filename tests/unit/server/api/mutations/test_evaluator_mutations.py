@@ -14,6 +14,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.evaluators import get_builtin_evaluator_ids
 from phoenix.server.api.helpers.prompts.models import (
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
@@ -788,6 +789,167 @@ class TestAssignUnassignEvaluatorMutations:
 
         for display_name in [default_name, "relevance"]:
             assert await self._is_assigned(db, empty_dataset.id, llm_evaluator.id, display_name)
+
+
+class TestCreateDatasetBuiltinEvaluatorMutation:
+    _MUTATION = """
+      mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+        createDatasetBuiltinEvaluator(input: $input) {
+          evaluator {
+            id
+            displayName
+            evaluator {
+              ... on BuiltInEvaluator {
+                id
+                name
+                description
+                kind
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def _create(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
+        """Private helper to execute create mutation with given input fields."""
+        return await gql_client.execute(self._MUTATION, {"input": input_fields})
+
+    async def test_create_dataset_builtin_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Get a valid builtin evaluator ID
+        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
+        builtin_evaluator_id = builtin_evaluator_ids[0]
+        builtin_evaluator_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
+
+        # Success: Create builtin evaluator with default input_mapping
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=builtin_evaluator_gid,
+            displayName="test-builtin-evaluator",
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
+        builtin_evaluator_data = dataset_evaluator["evaluator"]
+        assert dataset_evaluator["displayName"] == "test-builtin-evaluator"
+        assert builtin_evaluator_data["kind"] == "CODE"
+
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.builtin_evaluator_id == builtin_evaluator_id
+            assert db_dataset_evaluator.evaluator_id is None
+            assert db_dataset_evaluator.input_mapping == {
+                "literal_mapping": {},
+                "path_mapping": {},
+            }
+
+        # Success: Create builtin evaluator with custom input_mapping
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=builtin_evaluator_gid,
+            displayName="test-builtin-evaluator-2",
+            inputMapping=dict(
+                literalMapping={"key": "value"},
+                pathMapping={"input": "context.input"},
+            ),
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
+        assert dataset_evaluator["displayName"] == "test-builtin-evaluator-2"
+
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.input_mapping == {
+                "literal_mapping": {"key": "value"},
+                "path_mapping": {"input": "context.input"},
+            }
+
+        # Success: Multiple builtin evaluators for same dataset
+        if len(builtin_evaluator_ids) > 1:
+            second_builtin_evaluator_id = builtin_evaluator_ids[1]
+            second_builtin_evaluator_gid = str(
+                GlobalID("BuiltInEvaluator", str(second_builtin_evaluator_id))
+            )
+            result = await self._create(
+                gql_client,
+                datasetId=dataset_id,
+                evaluatorId=second_builtin_evaluator_gid,
+                displayName="test-builtin-evaluator-3",
+            )
+            assert result.data and not result.errors
+
+            async with db() as session:
+                evaluators = await session.scalars(
+                    select(models.DatasetEvaluators).where(
+                        models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                        models.DatasetEvaluators.builtin_evaluator_id.isnot(None),
+                    )
+                )
+                assert len(evaluators.all()) >= 2
+
+        # Failure: Nonexistent dataset
+        result = await self._create(
+            gql_client,
+            datasetId=str(GlobalID("Dataset", "999")),
+            evaluatorId=builtin_evaluator_gid,
+            displayName="test",
+        )
+        assert result.errors and "Dataset with id" in result.errors[0].message
+
+        # Failure: Invalid evaluator type (not BuiltInEvaluator)
+        invalid_evaluator_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=invalid_evaluator_id,
+            displayName="test",
+        )
+        assert result.errors and "Invalid evaluator" in result.errors[0].message
+
+        # Failure: Nonexistent builtin evaluator
+        nonexistent_builtin_id = -999999
+        nonexistent_builtin_gid = str(GlobalID("BuiltInEvaluator", str(nonexistent_builtin_id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=nonexistent_builtin_gid,
+            displayName="test",
+        )
+        assert result.errors and "not found" in result.errors[0].message.lower()
+
+        # Failure: Positive evaluator ID (builtin evaluator IDs must be negative)
+        positive_id = 123
+        positive_id_gid = str(GlobalID("BuiltInEvaluator", str(positive_id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=positive_id_gid,
+            displayName="test",
+        )
+        assert result.errors and "Invalid built-in evaluator id" in result.errors[0].message
+
+        # Failure: Duplicate display name for same dataset
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=builtin_evaluator_gid,
+            displayName="test-builtin-evaluator",  # Same as first one
+        )
+        assert result.errors and "already exists" in result.errors[0].message.lower()
 
 
 @pytest.fixture
