@@ -82,7 +82,7 @@ ENV_PHOENIX_SCARF_SH_PIXEL_ID = "PHOENIX_SCARF_SH_PIXEL_ID"
 """
 The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
 will be enabled in the Phoenix web interface.
-Note: This will automatically be be enabled in the future but it will always be possible to disable.
+Note: This will automatically be enabled in the future but it will always be possible to disable.
 """
 ENV_PHOENIX_TELEMETRY_ENABLED = "PHOENIX_TELEMETRY_ENABLED"
 """
