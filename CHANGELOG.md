@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.23.0...arize-phoenix-v12.24.0) (2025-12-11)
+
+
+### Features
+
+* optional scarf analytics ([#10563](https://github.com/Arize-ai/phoenix/issues/10563)) ([e5bd1ae](https://github.com/Arize-ai/phoenix/commit/e5bd1ae53909c76f4e9e0a3fcdd186eb4a3d74f1))
+* readme analytics ([#10564](https://github.com/Arize-ai/phoenix/issues/10564)) ([697fca8](https://github.com/Arize-ai/phoenix/commit/697fca89a12b25bc5cb9f2b37b8660253af88dca))
+
+
+### Documentation
+
+* reorganize sidebar navigation with Quick Start section ([#10561](https://github.com/Arize-ai/phoenix/issues/10561)) ([e4083c1](https://github.com/Arize-ai/phoenix/commit/e4083c115640091911bf09e8cf024d0f93eba0da))
+
 ## [12.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.22.0...arize-phoenix-v12.23.0) (2025-12-10)
 
 
