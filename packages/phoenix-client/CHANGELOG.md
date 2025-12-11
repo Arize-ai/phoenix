@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.26.0...arize-phoenix-client-v1.27.0) (2025-12-11)
+
+
+### Features
+
+* Add span note function to python client ([#10521](https://github.com/Arize-ai/phoenix/issues/10521)) ([ddeff2b](https://github.com/Arize-ai/phoenix/commit/ddeff2b08cdedd18a6b1fccc090ab495849be598))
+* Add span notes endpoint ([#10508](https://github.com/Arize-ai/phoenix/issues/10508)) ([727cb23](https://github.com/Arize-ai/phoenix/commit/727cb234f822b992c2fa2a44f0f85d35a7de13a2))
+* Lightweight Directory Access Protocol (LDAP) ([#10420](https://github.com/Arize-ai/phoenix/issues/10420)) ([f6aff97](https://github.com/Arize-ai/phoenix/commit/f6aff97b9a563f3f3f87a9b5b8d969152bb4ba47))
+
 ## [1.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.25.0...arize-phoenix-client-v1.26.0) (2025-11-25)
 
 
