@@ -148,9 +148,15 @@ export const ContainsEvaluatorForm = ({
           render={({ field }) => (
             <Checkbox
               {...field}
-              value={String(field.value)}
+              value={String(field.value ?? "")}
               onChange={(value) => field.onChange(value)}
-              isSelected={Boolean(field.value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : false
+              )}
             >
               <Label>Case sensitive</Label>
               <Text slot="description">
