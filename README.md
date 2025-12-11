@@ -154,7 +154,7 @@ We take data security and privacy very seriously. For more details, see our [Sec
 
 ### Telemetry
 
-By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable analytics tracking for usage analytics.
+By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable tracking for usage analytics.
 
 This helps us to:
 
