@@ -125,7 +125,11 @@ export const ContainsEvaluatorForm = ({
           control={control}
           name="inputMapping.literalMapping.words"
           render={({ field, fieldState: { error } }) => (
-            <TextField {...field} isInvalid={!!error}>
+            <TextField
+              {...field}
+              value={String(field.value)}
+              isInvalid={!!error}
+            >
               <Label>Words</Label>
               <Input />
               {!error && (
@@ -140,11 +144,19 @@ export const ContainsEvaluatorForm = ({
         <Controller
           name="inputMapping.literalMapping.case_sensitive"
           control={control}
+          defaultValue={false}
           render={({ field }) => (
             <Checkbox
               {...field}
-              onChange={(value) => field.onChange(value.toString())}
-              isSelected={field.value?.toLowerCase() === "true"}
+              value={String(field.value ?? "")}
+              onChange={(value) => field.onChange(value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : false
+              )}
             >
               <Label>Case sensitive</Label>
               <Text slot="description">

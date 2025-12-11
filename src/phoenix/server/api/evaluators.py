@@ -346,8 +346,8 @@ def apply_input_mapping(
     # for any key in the input schema that is still not in result,
     # set result[input_schema_key] to context[input_schema_key]
     for key in input_schema.get("properties", {}).keys():
-        if key not in result:
-            result[key] = context.get(key, None)
+        if key not in result and key in context:
+            result[key] = context[key]
 
     try:
         validate(instance=result, schema=input_schema)
@@ -439,7 +439,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                 "description": "Whether to match the string case sensitive",
             },
         },
-        "required": ["words", "text", "case_sensitive"],
+        "required": ["words", "text"],
     }
 
     def evaluate(

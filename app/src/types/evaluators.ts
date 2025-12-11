@@ -54,7 +54,7 @@ export type EvaluatorParams = {
  *
  */
 export type EvaluatorInputMapping = {
-  literalMapping: Record<string, string>;
+  literalMapping: Record<string, boolean | string | number>;
   pathMapping: Record<string, string>;
 };
 
