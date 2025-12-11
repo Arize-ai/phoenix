@@ -1703,6 +1703,10 @@
     {
       "source": "/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
       "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+    },
+    {
+      "source": "/docs/phoenix/deployment",
+      "destination": "/docs/phoenix/self-hosting"
     }
   ]
 }
