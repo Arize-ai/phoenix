@@ -616,6 +616,13 @@ input CreateCodeEvaluatorInput {
   description: String
 }
 
+input CreateDatasetBuiltinEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  displayName: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -860,7 +867,7 @@ type DatasetEvaluator implements Node {
 }
 
 enum DatasetEvaluatorColumn {
-  display_name
+  displayName
   kind
   createdAt
   updatedAt
@@ -2476,6 +2483,8 @@ type Mutation {
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): DatasetEvaluatorMutationPayload!
+  createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): DatasetEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
@@ -4060,6 +4069,12 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
+}
+
+input UpdateDatasetBuiltinEvaluatorInput {
+  datasetEvaluatorId: ID!
+  displayName: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
 }
 
 input UpdateDatasetLLMEvaluatorInput {
