@@ -61,17 +61,20 @@ class LLMEvaluator:
         llm_evaluator_orm: models.LLMEvaluator,
         prompt_version_orm: models.PromptVersion,
         llm_client: PlaygroundStreamingClient,
-        dataset_evaluator_node_id: GlobalID,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
         self._llm_evaluator_orm = llm_evaluator_orm
         self._prompt_version_orm = prompt_version_orm
         self._llm_client = llm_client
-        self._dataset_evaluator_node_id = dataset_evaluator_node_id
 
     @property
-    def dataset_evaluator_node_id(self) -> GlobalID:
-        return self._dataset_evaluator_node_id
+    def node_id(self) -> GlobalID:
+        """
+        The node ID of the corresponding LLM evaluator node.
+        """
+        from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+
+        return GlobalID(LLMEvaluatorNode.__name__, str(self._llm_evaluator_orm.id))
 
     @property
     def name(self) -> str:
@@ -254,40 +257,35 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 
 
 async def get_llm_evaluators(
-    dataset_evaluator_ids: list[GlobalID],
+    evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     llm_client: PlaygroundStreamingClient,
 ) -> list[LLMEvaluator]:
-    from phoenix.server.api.types.Evaluator import DatasetEvaluator
+    from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
-    if not dataset_evaluator_ids:
+    if not evaluator_node_ids:
         return []
 
-    dataset_evaluator_db_to_node_id: dict[int, GlobalID] = {}
-    for dataset_evaluator_node_id in dataset_evaluator_ids:
-        type_name, db_id = from_global_id(dataset_evaluator_node_id)
-        if type_name == DatasetEvaluator.__name__:
-            dataset_evaluator_db_to_node_id[db_id] = dataset_evaluator_node_id
+    llm_evaluator_db_to_node_id: dict[int, GlobalID] = {}
+    for evaluator_node_id in evaluator_node_ids:
+        type_name, evaluator_db_id = from_global_id(evaluator_node_id)
+        if type_name == LLMEvaluatorNode.__name__:
+            llm_evaluator_db_to_node_id[evaluator_db_id] = evaluator_node_id
 
-    if not dataset_evaluator_db_to_node_id:
+    if not llm_evaluator_db_to_node_id:
         return []
 
-    result = (
-        await session.execute(
+    llm_evaluator_orms = (
+        await session.scalars(
             select(
                 models.LLMEvaluator,
-                models.DatasetEvaluators.id,
-            )
-            .join(
-                models.DatasetEvaluators,
-                models.LLMEvaluator.id == models.DatasetEvaluators.evaluator_id,
-            )
-            .where(models.DatasetEvaluators.id.in_(dataset_evaluator_db_to_node_id.keys()))
+            ).where(models.LLMEvaluator.id.in_(llm_evaluator_db_to_node_id.keys()))
         )
     ).all()
+
     llm_evaluators: list[LLMEvaluator] = []
-    for llm_evaluator_orm, dataset_evaluator_id in result:
-        dataset_evaluator_node_id = dataset_evaluator_db_to_node_id[dataset_evaluator_id]
+    for llm_evaluator_orm in llm_evaluator_orms:
+        llm_evaluator_node_id = llm_evaluator_db_to_node_id[llm_evaluator_orm.id]
         prompt_id = llm_evaluator_orm.prompt_id
         prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
         if prompt_version_tag_id is not None:
@@ -307,14 +305,13 @@ async def get_llm_evaluators(
             )
         prompt_version = await session.scalar(prompt_version_query)
         if prompt_version is None:
-            raise NotFound(f"Prompt version not found for evaluator '{dataset_evaluator_node_id}'")
+            raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
 
         llm_evaluators.append(
             LLMEvaluator(
                 llm_evaluator_orm=llm_evaluator_orm,
                 prompt_version_orm=prompt_version,
                 llm_client=llm_client,
-                dataset_evaluator_node_id=dataset_evaluator_node_id,
             )
         )
 
