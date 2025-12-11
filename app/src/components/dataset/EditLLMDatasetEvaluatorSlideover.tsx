@@ -9,11 +9,11 @@ import {
 } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { EditDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluator.graphql";
-import { EditDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_evaluatorQuery.graphql";
-import { EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
+import type { EditLLMDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluator.graphql";
+import type { EditLLMDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluatorQuery.graphql";
+import type { EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import { Dialog } from "@phoenix/components/dialog";
-import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
+import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import {
   EvaluatorFormValues,
   useEvaluatorForm,
@@ -30,18 +30,18 @@ import {
 import { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-type EditDatasetEvaluatorSlideoverProps = {
+type EditLLMDatasetEvaluatorSlideoverProps = {
   datasetEvaluatorId?: string;
   datasetId: string;
   updateConnectionIds?: string[];
 } & ModalOverlayProps;
 
-export const EditDatasetEvaluatorSlideover = ({
+export const EditLLMDatasetEvaluatorSlideover = ({
   datasetEvaluatorId,
   datasetId,
   updateConnectionIds,
   ...props
-}: EditDatasetEvaluatorSlideoverProps) => {
+}: EditLLMDatasetEvaluatorSlideoverProps) => {
   return (
     <ModalOverlay {...props}>
       <Modal variant="slideover" size="fullscreen">
@@ -69,9 +69,9 @@ const EditEvaluatorPlaygroundProvider = (
 ) => {
   const { datasetEvaluatorId, datasetId } = props;
   const datasetEvaluatorQuery =
-    useLazyLoadQuery<EditDatasetEvaluatorSlideover_evaluatorQuery>(
+    useLazyLoadQuery<EditLLMDatasetEvaluatorSlideover_evaluatorQuery>(
       graphql`
-        query EditDatasetEvaluatorSlideover_evaluatorQuery(
+        query EditLLMDatasetEvaluatorSlideover_evaluatorQuery(
           $datasetId: ID!
           $datasetEvaluatorId: ID!
         ) {
@@ -92,13 +92,14 @@ const EditEvaluatorPlaygroundProvider = (
                     }
                   }
                 }
-                ...EditDatasetEvaluatorSlideover_evaluator
+                ...EditLLMDatasetEvaluatorSlideover_evaluator
               }
             }
           }
         }
       `,
-      { datasetEvaluatorId, datasetId }
+      { datasetEvaluatorId, datasetId },
+      { fetchPolicy: "network-only" }
     );
   const datasetEvaluator = datasetEvaluatorQuery.dataset.datasetEvaluator;
   invariant(datasetEvaluator != null, "datasetEvaluator is required");
@@ -119,7 +120,7 @@ type EditEvaluatorDialogProps = {
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
-  queryRef: EditDatasetEvaluatorSlideover_evaluator$key;
+  queryRef: EditLLMDatasetEvaluatorSlideover_evaluator$key;
 };
 
 const EditEvaluatorDialog = ({
@@ -137,9 +138,9 @@ const EditEvaluatorDialog = ({
   invariant(instanceId != null, "instanceId is required");
 
   const evaluatorFragment =
-    useFragment<EditDatasetEvaluatorSlideover_evaluator$key>(
+    useFragment<EditLLMDatasetEvaluatorSlideover_evaluator$key>(
       graphql`
-        fragment EditDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {
+        fragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {
           id
           displayName
           inputMapping {
@@ -176,9 +177,9 @@ const EditEvaluatorDialog = ({
   >;
   invariant(datasetEvaluator, "evaluator is required");
   const [updateLlmEvaluator, isUpdating] =
-    useMutation<EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation>(
+    useMutation<EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation>(
       graphql`
-        mutation EditDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(
+        mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(
           $input: UpdateDatasetLLMEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
@@ -191,7 +192,7 @@ const EditEvaluatorDialog = ({
               id
               displayName
               ...DatasetEvaluatorsTable_row
-              ...EditDatasetEvaluatorSlideover_evaluator
+              ...EditLLMDatasetEvaluatorSlideover_evaluator
             }
           }
         }
@@ -202,13 +203,15 @@ const EditEvaluatorDialog = ({
       evaluator: {
         name: datasetEvaluator.displayName ?? "",
         description: datasetEvaluator.evaluator.description ?? "",
+        kind: datasetEvaluator.evaluator.kind,
+        isBuiltin: false,
       },
-      choiceConfig: {
+      outputConfig: {
         name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
         optimizationDirection:
           datasetEvaluator.evaluator.outputConfig?.optimizationDirection ??
           "MAXIMIZE",
-        choices: datasetEvaluator.evaluator.outputConfig?.values.map(
+        values: datasetEvaluator.evaluator.outputConfig?.values.map(
           (value) => ({
             label: value.label,
             score: value.score ?? undefined,
@@ -234,16 +237,17 @@ const EditEvaluatorDialog = ({
     const {
       evaluator: { name, description },
       dataset,
-      choiceConfig,
+      outputConfig,
       inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
+    invariant(outputConfig, "outputConfig is required");
     const input = updateLLMEvaluatorPayload({
       playgroundStore,
       instanceId,
       name,
       description,
-      choiceConfig,
+      outputConfig,
       datasetId: dataset.id,
       datasetEvaluatorId,
       inputMapping,
@@ -277,7 +281,7 @@ const EditEvaluatorDialog = ({
 
   return (
     <FormProvider {...form}>
-      <EditEvaluatorDialogContent
+      <EditLLMEvaluatorDialogContent
         onClose={onClose}
         onSubmit={onSubmit}
         isSubmitting={isUpdating}
