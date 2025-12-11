@@ -31,5 +31,7 @@ export const CodeEvaluatorForm = ({
       }
     }
   }
-  return <div>CodeEvaluatorForm</div>;
+  throw new Error(
+    "Unknown built-in evaluator or code evaluator not implemented"
+  );
 };
