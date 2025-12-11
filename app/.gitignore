@@ -7,3 +7,4 @@ stats.html
 /playwright/.cache/
 
 *storybook.log
+mprocs.log

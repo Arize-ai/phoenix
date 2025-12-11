@@ -87,7 +87,7 @@ export function PlaygroundDatasetSection({
       }));
   }, [data, splitIds]);
   type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
-  const evaluators: (DatasetEvaluatorNode & EvaluatorItem)[] = useMemo(
+  const datasetEvaluators: (DatasetEvaluatorNode & EvaluatorItem)[] = useMemo(
     () =>
       data.dataset.datasetEvaluators?.edges?.map((edge) => {
         const evaluator =
@@ -102,6 +102,7 @@ export function PlaygroundDatasetSection({
                   pathMapping
                 }
                 evaluator {
+                  id
                   kind
                   isBuiltin
                   ... on LLMEvaluator {
@@ -124,21 +125,25 @@ export function PlaygroundDatasetSection({
       }) ?? [],
     [data.dataset.datasetEvaluators]
   );
-  const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    () => evaluators.map((evaluator) => evaluator.id) ?? []
-  );
+  const [selectedDatasetEvaluatorIds, setSelectedDatasetEvaluatorIds] =
+    useState<string[]>(
+      () =>
+        datasetEvaluators.map((datasetEvaluator) => datasetEvaluator.id) ?? []
+    );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
-    return evaluators
-      .filter((evaluator) => selectedEvaluatorIds.includes(evaluator.id))
+    return datasetEvaluators
+      .filter((datasetEvaluator) =>
+        selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
+      )
       .reduce(
-        (acc, evaluator) => {
-          acc[evaluator.id] =
-            evaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
+        (acc, datasetEvaluator) => {
+          acc[datasetEvaluator.evaluator.id] =
+            datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
           return acc;
         },
         {} as Record<string, EvaluatorInputMappingInput>
       );
-  }, [evaluators, selectedEvaluatorIds]);
+  }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
   return (
     <>
@@ -170,8 +175,8 @@ export function PlaygroundDatasetSection({
             </Flex>
             <Flex direction="row" gap="size-100" alignItems="center">
               <Flex direction="row" gap="size-100" alignItems="center">
-                {evaluators
-                  .filter((e) => selectedEvaluatorIds.includes(e.id))
+                {datasetEvaluators
+                  .filter((e) => selectedDatasetEvaluatorIds.includes(e.id))
                   .slice(0, 3)
                   .flatMap((e, index, array) => [
                     <AnnotationNameAndValue
@@ -185,11 +190,11 @@ export function PlaygroundDatasetSection({
                       minWidth="auto"
                     />,
                     ...(index === array.length - 1 &&
-                    selectedEvaluatorIds.length > 3
+                    selectedDatasetEvaluatorIds.length > 3
                       ? [
                           <Token key={`more`}>
                             <Text>
-                              + {selectedEvaluatorIds.length - 3} more
+                              + {selectedDatasetEvaluatorIds.length - 3} more
                             </Text>
                           </Token>,
                         ]
@@ -197,9 +202,9 @@ export function PlaygroundDatasetSection({
                   ])}
               </Flex>
               <PlaygroundEvaluatorSelect
-                evaluators={evaluators}
-                selectedIds={selectedEvaluatorIds}
-                onSelectionChange={setSelectedEvaluatorIds}
+                evaluators={datasetEvaluators}
+                selectedIds={selectedDatasetEvaluatorIds}
+                onSelectionChange={setSelectedDatasetEvaluatorIds}
                 datasetId={datasetId}
               />
               {experimentIds.length > 0 && (
