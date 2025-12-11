@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<49016dadbae7d943228c61e37af07f40>>
+ * @generated SignedSource<<f5d2eed5b964982e538e560e5b2a5cfc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type EditDatasetEvaluatorSlideover_evaluator$data = {
+export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
   readonly displayName: string;
   readonly evaluator: {
     readonly description: string | null;
@@ -38,11 +38,11 @@ export type EditDatasetEvaluatorSlideover_evaluator$data = {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
-  readonly " $fragmentType": "EditDatasetEvaluatorSlideover_evaluator";
+  readonly " $fragmentType": "EditLLMDatasetEvaluatorSlideover_evaluator";
 };
-export type EditDatasetEvaluatorSlideover_evaluator$key = {
-  readonly " $data"?: EditDatasetEvaluatorSlideover_evaluator$data;
-  readonly " $fragmentSpreads": FragmentRefs<"EditDatasetEvaluatorSlideover_evaluator">;
+export type EditLLMDatasetEvaluatorSlideover_evaluator$key = {
+  readonly " $data"?: EditLLMDatasetEvaluatorSlideover_evaluator$data;
+  readonly " $fragmentSpreads": FragmentRefs<"EditLLMDatasetEvaluatorSlideover_evaluator">;
 };
 
 const node: ReaderFragment = (function(){
@@ -87,7 +87,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "EditDatasetEvaluatorSlideover_evaluator",
+  "name": "EditLLMDatasetEvaluatorSlideover_evaluator",
   "selections": [
     (v0/*: any*/),
     {
@@ -430,6 +430,6 @@ return {
 };
 })();
 
-(node as any).hash = "65b2b6caceb99d78633b1cc56a6b1796";
+(node as any).hash = "bc3622f72020702141dcd12664b1ade5";
 
 export default node;

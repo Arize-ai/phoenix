@@ -1,10 +1,4 @@
-import {
-  PropsWithChildren,
-  Suspense,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { PropsWithChildren, Suspense, useMemo } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { css } from "@emotion/react";
 
@@ -18,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
 import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   EMPTY_EVALUATOR_INPUT,
   EvaluatorInput,
@@ -29,13 +24,12 @@ import { flattenObject } from "@phoenix/utils/jsonUtils";
 type EvaluatorInputMappingProps = {
   evaluatorInput: EvaluatorInput | null;
   exampleId?: string;
-  variables: string[];
 };
 
 export const EvaluatorInputMapping = ({
   evaluatorInput,
-  variables,
 }: EvaluatorInputMappingProps) => {
+  const variables = useEvaluatorInputVariables();
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>
@@ -68,14 +62,9 @@ const EvaluatorInputMappingControls = ({
   evaluatorInput: EvaluatorInput | null;
   variables: string[];
 }) => {
-  const { control, getValues } = useFormContext<EvaluatorFormValues>();
+  const { control, watch } = useFormContext<EvaluatorFormValues>();
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
-  const [inputValues, setInputValues] = useState<Record<string, string>>(() =>
-    getValues("inputMapping.pathMapping")
-  );
-  const setInputValue = useCallback((key: string, value: string) => {
-    setInputValues((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const inputValues = watch("inputMapping.pathMapping");
   // iterate over all keys in the control
   // each row should have a variable, an arrow pointing to the example field, and a select field
   // the variable should be the key, the select field should have all flattened example keys as options
@@ -102,11 +91,14 @@ const EvaluatorInputMappingControls = ({
                 placeholder="Select an example field"
                 defaultItems={allExampleKeys}
                 selectedKey={field.value ?? ""}
+                allowsCustomValue
                 onSelectionChange={(key) => {
+                  if (!key) {
+                    return;
+                  }
                   field.onChange(key);
-                  setInputValue(variable, key as string);
                 }}
-                onInputChange={(value) => setInputValue(variable, value)}
+                onInputChange={(value) => field.onChange(value)}
                 inputValue={inputValues[variable] ?? ""}
                 css={css`
                   width: 100%;
