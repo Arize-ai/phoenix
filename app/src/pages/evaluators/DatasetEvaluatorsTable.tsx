@@ -38,7 +38,7 @@ export const convertEvaluatorSortToTanstackSort = (
 };
 
 const EVALUATOR_SORT_COLUMNS: DatasetEvaluatorSort["col"][] = [
-  "display_name",
+  "displayName",
   "kind",
   "createdAt",
   "updatedAt",
@@ -96,6 +96,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           description
           createdAt
           updatedAt
+          isBuiltin
           ... on LLMEvaluator {
             prompt {
               id
@@ -184,7 +185,8 @@ export const DatasetEvaluatorsTable = ({
       },
       {
         header: "kind",
-        accessorKey: "evaluator.kind",
+        accessorKey: "kind", // special case for sorting that's handled by the backend
+        accessorFn: (row) => row.evaluator.kind,
         cell: ({ getValue }) => <Token>{getValue() as string}</Token>,
       },
       {
@@ -220,6 +222,7 @@ export const DatasetEvaluatorsTable = ({
             evaluatorDisplayName={row.original.displayName}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
+            isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
         ),
