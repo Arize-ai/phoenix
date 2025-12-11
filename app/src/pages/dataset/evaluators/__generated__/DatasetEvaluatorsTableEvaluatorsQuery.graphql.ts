@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4dae0251c99bbe4d4f85f6142b3e72e>>
+ * @generated SignedSource<<3e8e3114e3ab8cbd73801e8d5f67055f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetEvaluatorColumn = "createdAt" | "display_name" | "kind" | "updatedAt";
+export type DatasetEvaluatorColumn = "createdAt" | "displayName" | "kind" | "updatedAt";
 export type DatasetEvaluatorFilterColumn = "display_name";
 export type SortDir = "asc" | "desc";
 export type DatasetEvaluatorFilter = {

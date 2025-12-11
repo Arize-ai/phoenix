@@ -860,7 +860,7 @@ type DatasetEvaluator implements Node {
 }
 
 enum DatasetEvaluatorColumn {
-  display_name
+  displayName
   kind
   createdAt
   updatedAt
