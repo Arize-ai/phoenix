@@ -7,7 +7,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 @strawberry.enum
 class DatasetEvaluatorColumn(Enum):
-    display_name = "display_name"
+    displayName = "display_name"
     kind = "kind"
     createdAt = "created_at"
     updatedAt = "updated_at"
