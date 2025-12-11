@@ -8,8 +8,8 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsAdminIfAuthEnabled
 from phoenix.server.api.context import Context
-from phoenix.server.bearer_auth import PhoenixUser
 
 if TYPE_CHECKING:
     from .User import User
@@ -25,14 +25,9 @@ class UnparsableSecret:
     parse_error: str
 
 
-@strawberry.type
-class MaskedSecret:
-    masked_value: str = strawberry.field(default="*" * 32)
-
-
 ResolvedSecret: TypeAlias = Annotated[
-    DecryptedSecret | UnparsableSecret | MaskedSecret,
-    strawberry.union("ResolvedSecret", [DecryptedSecret, UnparsableSecret, MaskedSecret]),
+    DecryptedSecret | UnparsableSecret,
+    strawberry.union("ResolvedSecret", [DecryptedSecret, UnparsableSecret]),
 ]
 
 
@@ -49,7 +44,7 @@ class Secret(Node):
     async def key(self) -> str:
         return self.id
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])  # type: ignore
     async def value(self, info: Info[Context, None]) -> ResolvedSecret:
         if self.db_record:
             raw_bytes = self.db_record.value
@@ -61,11 +56,7 @@ class Secret(Node):
             decrypted_value = info.context.decrypt(raw_bytes).decode("utf-8")
         except Exception as e:
             return UnparsableSecret(parse_error=str(e))
-        if not info.context.auth_enabled or (
-            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
-        ):
-            return DecryptedSecret(value=decrypted_value)
-        return MaskedSecret()
+        return DecryptedSecret(value=decrypted_value)
 
     @strawberry.field
     async def updated_at(self, info: Info[Context, None]) -> datetime:

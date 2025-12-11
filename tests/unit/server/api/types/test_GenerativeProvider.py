@@ -78,12 +78,12 @@ class TestGenerativeProvider:
             }
         """
 
-        mutations = """
-            mutation Upsert($input: UpsertSecretMutationInput!) {
-                upsertSecret(input: $input) { secrets { key } }
-            }
-            mutation Delete($input: DeleteSecretMutationInput!) {
-                deleteSecret(input: $input) { ids }
+        mutation = """
+            mutation UpsertOrDelete($input: UpsertOrDeleteSecretsMutationInput!) {
+                upsertOrDeleteSecrets(input: $input) {
+                    upsertedSecrets { key }
+                    deletedIds
+                }
             }
         """
 
@@ -98,17 +98,15 @@ class TestGenerativeProvider:
 
         async def upsert_secret(key: str, value: str) -> None:
             result = await gql_client.execute(
-                query=mutations,
+                query=mutation,
                 variables={"input": {"secrets": [{"key": key, "value": value}]}},
-                operation_name="Upsert",
             )
             assert not result.errors, f"Upsert failed: {result.errors}"
 
         async def delete_secrets(keys: list[str]) -> None:
             result = await gql_client.execute(
-                query=mutations,
-                variables={"input": {"keys": keys}},
-                operation_name="Delete",
+                query=mutation,
+                variables={"input": {"secrets": [{"key": key, "value": None} for key in keys]}},
             )
             assert not result.errors, f"Delete failed: {result.errors}"
 
