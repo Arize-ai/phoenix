@@ -139,7 +139,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "Vertex AI",
     docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/vertex",
+      "https://arize.com/docs/phoenix/integrations/llm-providers/vertexai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
     icon: <VertexAISVG />,
@@ -234,8 +234,7 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   },
   {
     name: "Pydantic AI",
-    docsHref:
-      "https://arize.com/docs/phoenix/integrations/pydantic/pydantic-tracing",
+    docsHref: "https://arize.com/docs/phoenix/integrations/python/pydantic",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
     icon: <PydanticAISVG />,
@@ -250,15 +249,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   },
   {
     name: "PortKey",
-    docsHref: "https://arize.com/docs/phoenix/integrations/portkey",
+    docsHref: "https://arize.com/docs/phoenix/integrations/python/portkey",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey",
     icon: <IntegrationSVG />,
   },
   {
     name: "MCP",
-    docsHref:
-      "https://arize.com/docs/phoenix/integrations/model-context-protocol/mcp-tracing",
+    docsHref: "https://arize.com/docs/phoenix/integrations/python/mcp-tracing",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mcp",
     icon: <McpSVG />,

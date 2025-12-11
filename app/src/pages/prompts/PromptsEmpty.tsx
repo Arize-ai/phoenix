@@ -35,7 +35,7 @@ export function PromptsEmpty() {
             />
             <Flex direction="row" gap="size-200">
               <ExternalLinkButton
-                href="https://arize.com/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui"
+                href="https://arize.com/docs/phoenix/get-started/get-started-prompt-playground"
                 target="_blank"
                 leadingVisual={<Icon svg={<Icons.BookOutline />} />}
               >
