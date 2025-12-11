@@ -193,11 +193,11 @@ decorated_chain_with_json_output("input")
 **Overriding Span Name**
 
 ```python
-@tracer.chain(name="decorated-chain-with-overriden-name")
-def this_name_should_be_overriden(input: str) -> Dict[str, Any]:
+@tracer.chain(name="decorated-chain-with-overridden-name")
+def this_name_should_be_overridden(input: str) -> Dict[str, Any]:
     return {"output": "output"}
 
-this_name_should_be_overriden("input")
+this_name_should_be_overridden("input")
 ```
 </Tab>
 
@@ -260,14 +260,14 @@ decoratedChainWithJsonOutput("input");
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
 
-const thisNameShouldBeOverriden = traceChain(
+const thisNameShouldBeOverridden = traceChain(
   (input: string): Record<string, any> => {
     return { output: "output" };
   },
-  { name: "decorated-chain-with-overriden-name" }
+  { name: "decorated-chain-with-overridden-name" }
 );
 
-thisNameShouldBeOverriden("input");
+thisNameShouldBeOverridden("input");
 ```
 </Tab>
 </Tabs>
@@ -381,15 +381,15 @@ decorated_tool("input1", 1)
 
 ```python
 @tracer.tool(
-    name="decorated-tool-with-overriden-name",
-    description="overriden-tool-description",
+    name="decorated-tool-with-overridden-name",
+    description="overridden-tool-description",
 )
-def this_tool_name_should_be_overriden(input1: str, input2: int) -> None:
+def this_tool_name_should_be_overridden(input1: str, input2: int) -> None:
     """
-    this tool description should be overriden
+    this tool description should be overridden
     """
 
-this_tool_name_should_be_overriden("input1", 1)
+this_tool_name_should_be_overridden("input1", 1)
 ```
 </Tab>
 
@@ -418,19 +418,19 @@ decoratedTool("input1", 1);
 import { traceTool } from "@arizeai/openinference-core";
 
 /**
- * this tool description should be overriden
+ * this tool description should be overridden
  */
-const thisToolNameShouldBeOverriden = traceTool(
+const thisToolNameShouldBeOverridden = traceTool(
   (input1: string, input2: number): void => {
     // Tool implementation
   },
   {
-    name: "decorated-tool-with-overriden-name",
-    description: "overriden-tool-description",
+    name: "decorated-tool-with-overridden-name",
+    description: "overridden-tool-description",
   }
 );
 
-thisToolNameShouldBeOverriden("input1", 1);
+thisToolNameShouldBeOverridden("input1", 1);
 ```
 </Tab>
 </Tabs>
