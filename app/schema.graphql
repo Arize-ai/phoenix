@@ -1209,15 +1209,6 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
 }
 
-input DeleteSecretMutationInput {
-  keys: [String!]!
-}
-
-type DeleteSecretMutationPayload {
-  ids: [ID!]!
-  query: Query!
-}
-
 input DeleteUsersInput {
   userIds: [ID!]!
 }
@@ -2417,10 +2408,6 @@ type LabelFraction {
   fraction: Float!
 }
 
-type MaskedSecret {
-  maskedValue: String!
-}
-
 enum MimeType {
   text
   json
@@ -2521,8 +2508,7 @@ type Mutation {
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
-  upsertSecret(input: UpsertSecretMutationInput!): UpsertSecretMutationPayload!
-  deleteSecret(input: DeleteSecretMutationInput!): DeleteSecretMutationPayload!
+  upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -3274,7 +3260,7 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
-union ResolvedSecret = DecryptedSecret | UnparsableSecret | MaskedSecret
+union ResolvedSecret = DecryptedSecret | UnparsableSecret
 
 type ResponseFormat {
   definition: JSON!
@@ -3331,7 +3317,9 @@ type SecretEdge {
 
 input SecretKeyValueInput {
   key: String!
-  value: String!
+
+  """The value of the secret. If null, the secret will be deleted."""
+  value: String
 }
 
 type Segment {
@@ -4101,12 +4089,19 @@ type UpdateModelMutationPayload {
   query: Query!
 }
 
-input UpsertSecretMutationInput {
+input UpsertOrDeleteSecretsMutationInput {
+  """
+  A list of secret key-value pairs to upsert or delete. Must contain at least one secret. When the same key appears multiple times in the list, the last occurrence determines the final action (upsert with that value, or delete if value is null).
+  """
   secrets: [SecretKeyValueInput!]!
 }
 
-type UpsertSecretMutationPayload {
-  secrets: [Secret!]!
+type UpsertOrDeleteSecretsMutationPayload {
+  """List of secrets that were created or updated."""
+  upsertedSecrets: [Secret!]!
+
+  """List of GlobalIDs for secrets that were deleted."""
+  deletedIds: [ID!]!
   query: Query!
 }
 
