@@ -1,9 +1,9 @@
-#!/usr/bin/env python
 """
 Test script for chatCompletion GraphQL mutation.
 """
 
 import asyncio
+import base64
 import json
 
 from gql import Client, gql
@@ -44,7 +44,7 @@ async def main() -> None:
     transport = AIOHTTPTransport(url="http://localhost:6006/graphql")
 
     # The evaluator ID from test_create_llm_evaluator.py
-    llm_evaluator_id = "RGF0YXNldEV2YWx1YXRvcjoxCg=="
+    llm_evaluator_id = base64.b64encode(b"LLMEvaluator:1").decode("utf-8")
     built_in_evaluator_id = "QnVpbHRJbkV2YWx1YXRvcjotMjAwNTY2NTgzMgo="
 
     evaluators = [
