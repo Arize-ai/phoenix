@@ -39,9 +39,9 @@ class TestSecretMutations:
         }
       }
 
-      mutation UpsertSecretMutation($input: UpsertSecretMutationInput!) {
-        upsertSecret(input: $input) {
-          secrets {
+      mutation UpsertOrDeleteSecretsMutation($input: UpsertOrDeleteSecretsMutationInput!) {
+        upsertOrDeleteSecrets(input: $input) {
+          upsertedSecrets {
             id
             key
             value {
@@ -50,12 +50,7 @@ class TestSecretMutations:
               }
             }
           }
-        }
-      }
-
-      mutation DeleteSecretMutation($input: DeleteSecretMutationInput!) {
-        deleteSecret(input: $input) {
-          ids
+          deletedIds
         }
       }
     """
@@ -71,6 +66,7 @@ class TestSecretMutations:
         - Creating secrets (upsert with new key)
         - Updating secrets (upsert with existing key)
         - Retrieving secrets via node query
+        - Duplicate keys in same request (last value wins)
         - Deleting secrets (hard delete, single and batch)
         - Re-creating secrets after deletion via upsert
         - Error cases for upsert (empty keys, empty values)
@@ -92,11 +88,11 @@ class TestSecretMutations:
                     "secrets": [{"key": secret_key_1, "value": secret_value_1}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not create_result.errors
         assert create_result.data is not None
-        created_secrets = create_result.data["upsertSecret"]["secrets"]
+        created_secrets = create_result.data["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(created_secrets) == 1
         assert created_secrets[0]["key"] == secret_key_1
         assert created_secrets[0]["value"]["value"] == secret_value_1
@@ -117,11 +113,11 @@ class TestSecretMutations:
                     "secrets": [{"key": secret_key_1, "value": secret_value_1_updated}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not update_result.errors
         assert update_result.data is not None
-        updated_secrets = update_result.data["upsertSecret"]["secrets"]
+        updated_secrets = update_result.data["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(updated_secrets) == 1
         assert updated_secrets[0]["key"] == secret_key_1
         assert updated_secrets[0]["value"]["value"] == secret_value_1_updated
@@ -149,22 +145,65 @@ class TestSecretMutations:
                     ],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not batch_result.errors
         assert batch_result.data is not None
-        batch_secrets = batch_result.data["upsertSecret"]["secrets"]
+        batch_secrets = batch_result.data["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(batch_secrets) == 2
-        # Check first secret (special characters)
-        assert batch_secrets[0]["key"] == secret_key_2
-        assert batch_secrets[0]["value"]["value"] == secret_value_2
-        # Check second secret (whitespace trimmed)
-        assert batch_secrets[1]["key"] == secret_key_3
-        assert batch_secrets[1]["value"]["value"] == secret_value_3
+        # Check secrets (order is reversed due to deduplication logic)
+        batch_secrets_by_key = {s["key"]: s for s in batch_secrets}
+        # Check secret with special characters
+        assert batch_secrets_by_key[secret_key_2]["value"]["value"] == secret_value_2
+        # Check secret with whitespace trimmed
+        assert batch_secrets_by_key[secret_key_3]["value"]["value"] == secret_value_3
+
+        # Test 4: Duplicate keys in same request (last value wins)
+        secret_key_4 = f"test-secret-duplicate-{token_hex(4)}"
+        first_value = "first-value"
+        last_value = "last-value-wins"
+
+        duplicate_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "secrets": [
+                        {"key": secret_key_4, "value": first_value},
+                        {"key": secret_key_4, "value": last_value},
+                    ],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
+        )
+        assert not duplicate_result.errors
+        assert duplicate_result.data is not None
+        duplicate_secrets = duplicate_result.data["upsertOrDeleteSecrets"]["upsertedSecrets"]
+        # Only one secret should be returned (deduplicated)
+        assert len(duplicate_secrets) == 1
+        assert duplicate_secrets[0]["key"] == secret_key_4
+        # The last value in the input list should win
+        assert duplicate_secrets[0]["value"]["value"] == last_value
+
+        # Verify via node query that the last value was persisted
+        fetched_duplicate = await _fetch_secret_via_node_query(gql_client, secret_key_4, self.QUERY)
+        assert fetched_duplicate is not None
+        assert fetched_duplicate["value"]["value"] == last_value
+
+        # Clean up the duplicate test secret
+        cleanup_duplicate = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "secrets": [{"key": secret_key_4, "value": None}],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
+        )
+        assert not cleanup_duplicate.errors
 
         # ===== ERROR CASE TESTS =====
 
-        # Test 4: Empty secrets list (should fail)
+        # Test 5: Empty secrets list (should fail)
         empty_list_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -172,14 +211,14 @@ class TestSecretMutations:
                     "secrets": [],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert empty_list_result.errors is not None
         assert any(
             "at least one secret is required" in e.message.lower() for e in empty_list_result.errors
         )
 
-        # Test 5: Empty key (should fail)
+        # Test 6: Empty key (should fail)
         empty_key_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -187,12 +226,12 @@ class TestSecretMutations:
                     "secrets": [{"key": "", "value": "some-value"}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert empty_key_result.errors is not None
         assert any("key cannot be empty" in e.message.lower() for e in empty_key_result.errors)
 
-        # Test 6: Key with only whitespace (should fail)
+        # Test 7: Key with only whitespace (should fail)
         whitespace_key_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -200,12 +239,12 @@ class TestSecretMutations:
                     "secrets": [{"key": "   ", "value": "some-value"}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert whitespace_key_result.errors is not None
         assert any("key cannot be empty" in e.message.lower() for e in whitespace_key_result.errors)
 
-        # Test 7: Empty value (should fail)
+        # Test 8: Empty value (should fail)
         empty_value_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -213,12 +252,12 @@ class TestSecretMutations:
                     "secrets": [{"key": "valid-key", "value": ""}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert empty_value_result.errors is not None
         assert any("value cannot be empty" in e.message.lower() for e in empty_value_result.errors)
 
-        # Test 8: Value with only whitespace (should fail)
+        # Test 9: Value with only whitespace (should fail)
         whitespace_value_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -226,7 +265,7 @@ class TestSecretMutations:
                     "secrets": [{"key": "valid-key", "value": "   "}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert whitespace_value_result.errors is not None
         assert any(
@@ -235,15 +274,19 @@ class TestSecretMutations:
 
         # ===== DELETE TESTS =====
 
-        # Test 9: Delete existing secret
+        # Test 10: Delete existing secret (by passing value: null)
         delete_result = await gql_client.execute(
             query=self.QUERY,
-            variables={"input": {"keys": [secret_key_1]}},
-            operation_name="DeleteSecretMutation",
+            variables={
+                "input": {
+                    "secrets": [{"key": secret_key_1, "value": None}],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not delete_result.errors
         assert delete_result.data is not None
-        deleted_ids = delete_result.data["deleteSecret"]["ids"]
+        deleted_ids = delete_result.data["upsertOrDeleteSecrets"]["deletedIds"]
         expected_id = str(GlobalID("Secret", secret_key_1))
         assert deleted_ids == [expected_id]
 
@@ -252,7 +295,7 @@ class TestSecretMutations:
             deleted_secret = await session.get(models.Secret, secret_key_1)
         assert deleted_secret is None  # Hard deleted, secret no longer exists
 
-        # Test 10: Re-create secret after deletion by upserting
+        # Test 11: Re-create secret after deletion by upserting
         secret_value_1_recreated = "recreated-value-789"
         recreate_result = await gql_client.execute(
             query=self.QUERY,
@@ -261,11 +304,11 @@ class TestSecretMutations:
                     "secrets": [{"key": secret_key_1, "value": secret_value_1_recreated}],
                 }
             },
-            operation_name="UpsertSecretMutation",
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not recreate_result.errors
         assert recreate_result.data is not None
-        recreated_secrets = recreate_result.data["upsertSecret"]["secrets"]
+        recreated_secrets = recreate_result.data["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(recreated_secrets) == 1
         assert recreated_secrets[0]["key"] == secret_key_1
         assert recreated_secrets[0]["value"]["value"] == secret_value_1_recreated
@@ -275,27 +318,41 @@ class TestSecretMutations:
         assert fetched_recreated is not None
         assert fetched_recreated["value"]["value"] == secret_value_1_recreated
 
-        # Test 11: Delete non-existent secret (idempotent - should succeed)
+        # Test 12: Delete non-existent secret (idempotent - should succeed)
         nonexistent_key = f"nonexistent-secret-{token_hex(4)}"
         nonexistent_delete_result = await gql_client.execute(
             query=self.QUERY,
-            variables={"input": {"keys": [nonexistent_key]}},
-            operation_name="DeleteSecretMutation",
+            variables={
+                "input": {
+                    "secrets": [{"key": nonexistent_key, "value": None}],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not nonexistent_delete_result.errors
         assert nonexistent_delete_result.data is not None
         expected_nonexistent_id = str(GlobalID("Secret", nonexistent_key))
-        assert nonexistent_delete_result.data["deleteSecret"]["ids"] == [expected_nonexistent_id]
+        assert nonexistent_delete_result.data["upsertOrDeleteSecrets"]["deletedIds"] == [
+            expected_nonexistent_id
+        ]
 
-        # Test 12: Batch delete multiple secrets to clean up
+        # Test 13: Batch delete multiple secrets to clean up
         batch_delete_result = await gql_client.execute(
             query=self.QUERY,
-            variables={"input": {"keys": [secret_key_1, secret_key_2, secret_key_3]}},
-            operation_name="DeleteSecretMutation",
+            variables={
+                "input": {
+                    "secrets": [
+                        {"key": secret_key_1, "value": None},
+                        {"key": secret_key_2, "value": None},
+                        {"key": secret_key_3, "value": None},
+                    ],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
         )
         assert not batch_delete_result.errors
         assert batch_delete_result.data is not None
-        batch_deleted_ids = set(batch_delete_result.data["deleteSecret"]["ids"])
+        batch_deleted_ids = set(batch_delete_result.data["upsertOrDeleteSecrets"]["deletedIds"])
         expected_batch_ids = {
             str(GlobalID("Secret", secret_key_1)),
             str(GlobalID("Secret", secret_key_2)),
