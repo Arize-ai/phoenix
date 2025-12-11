@@ -39,39 +39,55 @@ const sampleEvaluators: ComponentProps<
   {
     id: "1",
     displayName: "Correctness Evaluator",
+    kind: "LLM",
+    isBuiltIn: false,
   },
   {
     id: "2",
     displayName: "Creativity Evaluator",
+    kind: "LLM",
+    isBuiltIn: false,
     annotationName: "creativity_score",
   },
   {
     id: "3",
     displayName: "Relevance Evaluator",
+    kind: "LLM",
+    isBuiltIn: false,
   },
   {
     id: "4",
     displayName:
       "An evaluator that has a really really really really really really really really long name",
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
+    kind: "LLM",
+    isBuiltIn: false,
   },
   {
     id: "5",
     displayName: "Accuracy Evaluator",
+    kind: "CODE",
+    isBuiltIn: true,
   },
   {
     id: "6",
     displayName: "Hallucination Evaluator",
     annotationName: "hallucination",
+    kind: "LLM",
+    isBuiltIn: false,
   },
   {
     id: "7",
     displayName: "Jaccard Similarity Evaluator",
+    kind: "CODE",
+    isBuiltIn: true,
   },
   {
     id: "8",
     displayName: "Short",
     annotationName: "annotation_name_that_is_very_long_and_should_be_truncated",
+    kind: "LLM",
+    isBuiltIn: false,
   },
 ];
 

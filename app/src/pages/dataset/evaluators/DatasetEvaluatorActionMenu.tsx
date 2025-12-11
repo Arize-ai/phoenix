@@ -9,7 +9,8 @@ import {
   MenuTrigger,
   Popover,
 } from "@phoenix/components";
-import { EditDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDatasetEvaluatorSlideover";
+import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
+import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { UnassignDatasetEvaluatorDialog } from "@phoenix/pages/dataset/evaluators/UnassignDatasetEvaluatorDialog";
 
@@ -23,12 +24,14 @@ export function DatasetEvaluatorActionMenu({
   evaluatorDisplayName,
   datasetEvaluatorId,
   evaluatorKind,
+  isBuiltIn,
   updateConnectionIds,
 }: {
   datasetId: string;
   evaluatorDisplayName: string;
   datasetEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE";
+  isBuiltIn: boolean;
   updateConnectionIds?: string[];
 }) {
   const [isUnassignDialogOpen, setIsUnassignDialogOpen] = useState(false);
@@ -54,7 +57,7 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            {evaluatorKind === "LLM" && (
+            {(evaluatorKind === "LLM" || isBuiltIn) && (
               <MenuItem id={DatasetEvaluatorAction.EDIT}>Edit</MenuItem>
             )}
             <MenuItem id={DatasetEvaluatorAction.UNASSIGN}>Unlink</MenuItem>
@@ -69,13 +72,23 @@ export function DatasetEvaluatorActionMenu({
         onOpenChange={setIsUnassignDialogOpen}
         updateConnectionIds={updateConnectionIds}
       />
-      <EditDatasetEvaluatorSlideover
-        datasetEvaluatorId={datasetEvaluatorId}
-        datasetId={datasetId}
-        isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        updateConnectionIds={updateConnectionIds}
-      />
+      {isBuiltIn ? (
+        <EditBuiltInDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluatorId}
+          datasetId={datasetId}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          updateConnectionIds={updateConnectionIds}
+        />
+      ) : (
+        <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluatorId}
+          datasetId={datasetId}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          updateConnectionIds={updateConnectionIds}
+        />
+      )}
     </StopPropagation>
   );
 }

@@ -1,5 +1,5 @@
 import { PropsWithChildren } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
+import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
@@ -27,14 +27,11 @@ const optimizationDirections = [
   "NONE",
 ] satisfies EvaluatorOptimizationDirection[];
 
-type EvaluatorLLMChoiceProps = {
-  control: Control<EvaluatorFormValues, unknown>;
-};
-
-export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
+export const EvaluatorLLMChoice = () => {
+  const { control } = useFormContext<EvaluatorFormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "choiceConfig.choices",
+    name: "outputConfig.values",
   });
   return (
     <div
@@ -49,7 +46,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
       <Flex direction="column" gap="size-200">
         <Controller
           control={control}
-          name="choiceConfig.name"
+          name="outputConfig.name"
           rules={{
             required: "Name is required",
           }}
@@ -63,7 +60,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
         />
         <Controller
           control={control}
-          name="choiceConfig.optimizationDirection"
+          name="outputConfig.optimizationDirection"
           render={({ field }) => (
             <RadioGroup
               {...field}
@@ -101,7 +98,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
             <GridRow key={item.id}>
               <Controller
                 control={control}
-                name={`choiceConfig.choices.${index}.label`}
+                name={`outputConfig.values.${index}.label`}
                 rules={{
                   required: "Choice label is required",
                 }}
@@ -125,7 +122,7 @@ export const EvaluatorLLMChoice = ({ control }: EvaluatorLLMChoiceProps) => {
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Controller
                   control={control}
-                  name={`choiceConfig.choices.${index}.score`}
+                  name={`outputConfig.values.${index}.score`}
                   render={({ field, fieldState: { error } }) => (
                     <NumberField
                       {...field}

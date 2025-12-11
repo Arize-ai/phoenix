@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5f20b52362a7a1771bcf21423741c06>>
+ * @generated SignedSource<<be79b82c33bc07d1af75999d9aafdfba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -79,11 +79,11 @@ export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables = {
+export type CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
   input: CreateDatasetLLMEvaluatorInput;
 };
-export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
+export type CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
   readonly createDatasetLlmEvaluator: {
     readonly evaluator: {
       readonly displayName: string;
@@ -92,9 +92,9 @@ export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data = {
     };
   };
 };
-export type CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation = {
-  response: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data;
-  variables: CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables;
+export type CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation = {
+  response: CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation$data;
+  variables: CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -167,6 +167,13 @@ v9 = {
 v10 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
@@ -185,7 +192,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
+    "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
@@ -226,10 +233,11 @@ return {
                       (v8/*: any*/),
                       (v9/*: any*/),
                       (v5/*: any*/),
+                      (v10/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v10/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -270,7 +278,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
+    "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "selections": [
       {
         "alias": null,
@@ -312,10 +320,11 @@ return {
                   (v8/*: any*/),
                   (v9/*: any*/),
                   (v5/*: any*/),
+                  (v10/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v10/*: any*/),
+                      (v11/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -366,16 +375,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ea7bb8db925077c194034fa4ca5a8fa8",
+    "cacheID": "bc36c0f756bf92d114b9b614424cd39b",
     "id": null,
     "metadata": {},
-    "name": "CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
+    "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5fc170683838c75bc05fcf9b1357083b";
+(node as any).hash = "469cce237db81e49aefaf26310681dc0";
 
 export default node;

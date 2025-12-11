@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -11,8 +11,13 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
+import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
+import {
+  PlaygroundDatasetSection_evaluator$data,
+  PlaygroundDatasetSection_evaluator$key,
+} from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
@@ -44,25 +49,11 @@ export function PlaygroundDatasetSection({
             datasetEvaluators(first: 100) {
               edges {
                 node {
-                  id
-                  displayName
-                  inputMapping {
-                    literalMapping
-                    pathMapping
-                  }
-                  evaluator {
-                    kind
-                    ... on LLMEvaluator {
-                      outputConfig {
-                        name
-                      }
-                    }
-                  }
+                  ...PlaygroundDatasetSection_evaluator
                 }
               }
             }
           }
-          ...EvaluatorConfigDialog_dataset
         }
       }
     `,
@@ -70,24 +61,50 @@ export function PlaygroundDatasetSection({
       datasetId,
     },
     {
-      fetchPolicy: "store-and-network",
+      fetchPolicy: "network-only",
     }
   );
 
-  const evaluators = useMemo(
+  type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
+  const evaluators: (DatasetEvaluatorNode & EvaluatorItem)[] = useMemo(
     () =>
-      data.dataset.datasetEvaluators?.edges?.map((edge) => ({
-        ...edge.node,
-        isAssignedToDataset: true,
-        annotationName: edge.node?.evaluator?.outputConfig?.name,
-      })) ?? [],
+      data.dataset.datasetEvaluators?.edges?.map((edge) => {
+        const evaluator =
+          readInlineData<PlaygroundDatasetSection_evaluator$key>(
+            graphql`
+              fragment PlaygroundDatasetSection_evaluator on DatasetEvaluator
+              @inline {
+                id
+                displayName
+                inputMapping {
+                  literalMapping
+                  pathMapping
+                }
+                evaluator {
+                  kind
+                  isBuiltin
+                  ... on LLMEvaluator {
+                    outputConfig {
+                      name
+                    }
+                  }
+                }
+              }
+            `,
+            edge.node
+          );
+        return {
+          ...evaluator,
+          kind: evaluator.evaluator.kind,
+          isBuiltIn: evaluator.evaluator.isBuiltin,
+          isAssignedToDataset: true,
+          annotationName: evaluator?.evaluator?.outputConfig?.name,
+        };
+      }) ?? [],
     [data.dataset.datasetEvaluators]
   );
   const [selectedEvaluatorIds, setSelectedEvaluatorIds] = useState<string[]>(
-    () =>
-      data.dataset.datasetEvaluators?.edges.map(
-        (evaluator) => evaluator.node.id
-      ) ?? []
+    () => evaluators.map((evaluator) => evaluator.id) ?? []
   );
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return evaluators

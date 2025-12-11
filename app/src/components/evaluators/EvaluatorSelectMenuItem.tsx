@@ -10,9 +10,12 @@ import {
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import type { EvaluatorKind } from "@phoenix/types";
 
 export type EvaluatorItem = {
   id: string;
+  kind: EvaluatorKind;
+  isBuiltIn: boolean;
   displayName: string;
   alreadyAdded?: boolean;
   annotationName?: string;

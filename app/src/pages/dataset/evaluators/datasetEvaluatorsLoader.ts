@@ -12,7 +12,7 @@ export const datasetEvaluatorsLoaderGQL = graphql`
       id
       ... on Dataset {
         id
-        ...EvaluatorConfigDialog_dataset
+        ...CreateBuiltInDatasetEvaluatorSlideover_dataset
         ...DatasetEvaluatorsTable_evaluators
       }
     }

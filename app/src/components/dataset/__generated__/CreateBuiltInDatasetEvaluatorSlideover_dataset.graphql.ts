@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cda352f99f5bccbfd8756cfd4b9c3852>>
+ * @generated SignedSource<<ca7bb7e4bf298bedf58e3c1affd15f21>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,21 +10,21 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluatorConfigDialog_dataset$data = {
+export type CreateBuiltInDatasetEvaluatorSlideover_dataset$data = {
   readonly id: string;
   readonly name: string;
-  readonly " $fragmentType": "EvaluatorConfigDialog_dataset";
+  readonly " $fragmentType": "CreateBuiltInDatasetEvaluatorSlideover_dataset";
 };
-export type EvaluatorConfigDialog_dataset$key = {
-  readonly " $data"?: EvaluatorConfigDialog_dataset$data;
-  readonly " $fragmentSpreads": FragmentRefs<"EvaluatorConfigDialog_dataset">;
+export type CreateBuiltInDatasetEvaluatorSlideover_dataset$key = {
+  readonly " $data"?: CreateBuiltInDatasetEvaluatorSlideover_dataset$data;
+  readonly " $fragmentSpreads": FragmentRefs<"CreateBuiltInDatasetEvaluatorSlideover_dataset">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "EvaluatorConfigDialog_dataset",
+  "name": "CreateBuiltInDatasetEvaluatorSlideover_dataset",
   "selections": [
     {
       "alias": null,
@@ -45,6 +45,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "c2917bc095b524fb72c13017c63cf995";
+(node as any).hash = "5986509e6cf8e563520d7adaca6bc75e";
 
 export default node;

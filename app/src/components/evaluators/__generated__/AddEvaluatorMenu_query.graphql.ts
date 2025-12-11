@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12dffaec02e562ca219627412404a1e5>>
+ * @generated SignedSource<<67768619aa47a5545d0c35fea7fa3e17>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AddEvaluatorMenu_query$data = {
   readonly dataset: {
-    readonly " $fragmentSpreads": FragmentRefs<"EvaluatorConfigDialog_dataset">;
+    readonly " $fragmentSpreads": FragmentRefs<"CreateBuiltInDatasetEvaluatorSlideover_dataset">;
   };
   readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates">;
   readonly " $fragmentType": "AddEvaluatorMenu_query";
@@ -59,7 +59,7 @@ const node: ReaderFragment = {
             {
               "args": null,
               "kind": "FragmentSpread",
-              "name": "EvaluatorConfigDialog_dataset"
+              "name": "CreateBuiltInDatasetEvaluatorSlideover_dataset"
             }
           ],
           "type": "Dataset",
@@ -73,6 +73,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "b0b3693e930c9de36cfc141dd6035dca";
+(node as any).hash = "9c49e8af38d061309b98643b63cc067d";
 
 export default node;

@@ -4,10 +4,11 @@ import { FormProvider } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { Dialog } from "@phoenix/components/dialog";
-import { EditEvaluatorDialogContent } from "@phoenix/components/evaluators/EditEvaluatorDialogContent";
+import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import {
+  DEFAULT_LLM_FORM_VALUES,
   EvaluatorFormValues,
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
@@ -22,7 +23,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-export const CreateDatasetEvaluatorSlideover = ({
+export const CreateLLMDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
   ...props
@@ -69,9 +70,9 @@ const CreateEvaluatorDialog = ({
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
   const [createLlmEvaluator, isCreating] =
-    useMutation<CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation>(
+    useMutation<CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation>(
       graphql`
-        mutation CreateDatasetEvaluatorSlideover_createLLMEvaluatorMutation(
+        mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(
           $input: CreateDatasetLLMEvaluatorInput!
           $connectionIds: [ID!]!
         ) {
@@ -91,6 +92,7 @@ const CreateEvaluatorDialog = ({
     );
   const defaultValues: Partial<EvaluatorFormValues> = useMemo(() => {
     return {
+      ...DEFAULT_LLM_FORM_VALUES,
       dataset: {
         readonly: true,
         id: datasetId,
@@ -103,16 +105,17 @@ const CreateEvaluatorDialog = ({
     const {
       evaluator: { name, description },
       dataset,
-      choiceConfig,
+      outputConfig,
       inputMapping,
     } = form.getValues();
     invariant(dataset, "dataset is required");
+    invariant(outputConfig, "outputConfig is required");
     const input = createLLMEvaluatorPayload({
       playgroundStore,
       instanceId,
       name,
       description,
-      choiceConfig,
+      outputConfig,
       datasetId: dataset.id,
       inputMapping,
     });
@@ -143,7 +146,7 @@ const CreateEvaluatorDialog = ({
   ]);
   return (
     <FormProvider {...form}>
-      <EditEvaluatorDialogContent
+      <EditLLMEvaluatorDialogContent
         onClose={onClose}
         onSubmit={onSubmit}
         isSubmitting={isCreating}

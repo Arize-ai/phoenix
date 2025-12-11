@@ -95,5 +95,10 @@ export type ClassificationEvaluatorAnnotationConfig = {
   /**
    * The choices that the evaluator may choose from
    */
-  choices: ClassificationChoice[];
+  values: ClassificationChoice[];
 };
+
+/**
+ * The kind of evaluator
+ */
+export type EvaluatorKind = "LLM" | "CODE";

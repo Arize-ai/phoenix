@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab4820b50777a6e93968760aebdb6970>>
+ * @generated SignedSource<<a9c0e1467882e54e179cd9ea24833e01>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EditDatasetEvaluatorSlideover_evaluatorQuery$variables = {
+export type EditLLMDatasetEvaluatorSlideover_evaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
 };
-export type EditDatasetEvaluatorSlideover_evaluatorQuery$data = {
+export type EditLLMDatasetEvaluatorSlideover_evaluatorQuery$data = {
   readonly dataset: {
     readonly datasetEvaluator?: {
       readonly evaluator: {
@@ -29,13 +29,13 @@ export type EditDatasetEvaluatorSlideover_evaluatorQuery$data = {
           readonly name: string;
         } | null;
       };
-      readonly " $fragmentSpreads": FragmentRefs<"EditDatasetEvaluatorSlideover_evaluator">;
+      readonly " $fragmentSpreads": FragmentRefs<"EditLLMDatasetEvaluatorSlideover_evaluator">;
     };
   };
 };
-export type EditDatasetEvaluatorSlideover_evaluatorQuery = {
-  response: EditDatasetEvaluatorSlideover_evaluatorQuery$data;
-  variables: EditDatasetEvaluatorSlideover_evaluatorQuery$variables;
+export type EditLLMDatasetEvaluatorSlideover_evaluatorQuery = {
+  response: EditLLMDatasetEvaluatorSlideover_evaluatorQuery$data;
+  variables: EditLLMDatasetEvaluatorSlideover_evaluatorQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -317,7 +317,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
+    "name": "EditLLMDatasetEvaluatorSlideover_evaluatorQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -390,7 +390,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "EditDatasetEvaluatorSlideover_evaluator"
+                    "name": "EditLLMDatasetEvaluatorSlideover_evaluator"
                   }
                 ],
                 "storageKey": null
@@ -413,7 +413,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
+    "name": "EditLLMDatasetEvaluatorSlideover_evaluatorQuery",
     "selections": [
       {
         "alias": "dataset",
@@ -585,16 +585,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "89404fbd30987b11ec4e82843b86610a",
+    "cacheID": "fa4e7208a5d72ee75733e3fb2bafc035",
     "id": null,
     "metadata": {},
-    "name": "EditDatasetEvaluatorSlideover_evaluatorQuery",
+    "name": "EditLLMDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        evaluator {\n          __typename\n          ... on LLMEvaluator {\n            prompt {\n              id\n              name\n            }\n            promptVersion {\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n            promptVersionTag {\n              name\n              id\n            }\n          }\n          id\n        }\n        ...EditDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query EditLLMDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        evaluator {\n          __typename\n          ... on LLMEvaluator {\n            prompt {\n              id\n              name\n            }\n            promptVersion {\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n            promptVersionTag {\n              name\n              id\n            }\n          }\n          id\n        }\n        ...EditLLMDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c8794a847ed7920cf015eb8bc484a8dd";
+(node as any).hash = "6015731b37158741b6d6aa759223acc2";
 
 export default node;

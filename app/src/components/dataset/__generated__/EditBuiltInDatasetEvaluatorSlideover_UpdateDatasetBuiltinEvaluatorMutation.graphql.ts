@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f10edc8624290188816b91a797674f2>>
+ * @generated SignedSource<<fb50ec6b308d035ce4f33b335674c823>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,30 +10,29 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type AssignEvaluatorToDatasetInput = {
-  datasetId: string;
-  displayName?: string | null;
-  evaluatorId: string;
+export type UpdateDatasetBuiltinEvaluatorInput = {
+  datasetEvaluatorId: string;
+  displayName: string;
   inputMapping?: EvaluatorInputMappingInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables = {
+export type EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
-  input: AssignEvaluatorToDatasetInput;
+  input: UpdateDatasetBuiltinEvaluatorInput;
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$data = {
-  readonly assignEvaluatorToDataset: {
+export type EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation$data = {
+  readonly updateDatasetBuiltinEvaluator: {
     readonly evaluator: {
-      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
+      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row" | "PlaygroundDatasetSection_evaluator">;
     };
   };
 };
-export type EvaluatorConfigDialogAssignEvaluatorToDatasetMutation = {
-  response: EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$data;
-  variables: EvaluatorConfigDialogAssignEvaluatorToDatasetMutation$variables;
+export type EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation = {
+  response: EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation$data;
+  variables: EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -106,6 +105,13 @@ v9 = {
 v10 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
@@ -115,7 +121,39 @@ v10 = {
     (v6/*: any*/)
   ],
   "storageKey": null
-};
+},
+v12 = [
+  (v6/*: any*/)
+],
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EvaluatorInputMapping",
+  "kind": "LinkedField",
+  "name": "inputMapping",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "literalMapping",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pathMapping",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v14 = [
+  (v6/*: any*/),
+  (v3/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -124,14 +162,14 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
         "concreteType": "DatasetEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "assignEvaluatorToDataset",
+        "name": "updateDatasetBuiltinEvaluator",
         "plural": false,
         "selections": [
           {
@@ -163,10 +201,11 @@ return {
                       (v8/*: any*/),
                       (v9/*: any*/),
                       (v5/*: any*/),
+                      (v10/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v10/*: any*/),
+                          (v11/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -174,9 +213,48 @@ return {
                             "kind": "LinkedField",
                             "name": "promptVersionTag",
                             "plural": false,
-                            "selections": [
-                              (v6/*: any*/)
-                            ],
+                            "selections": (v12/*: any*/),
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "LLMEvaluator",
+                        "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "PlaygroundDatasetSection_evaluator",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v13/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v7/*: any*/),
+                      (v10/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "CategoricalAnnotationConfig",
+                            "kind": "LinkedField",
+                            "name": "outputConfig",
+                            "plural": false,
+                            "selections": (v12/*: any*/),
                             "storageKey": null
                           }
                         ],
@@ -207,14 +285,14 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation",
     "selections": [
       {
         "alias": null,
         "args": (v2/*: any*/),
         "concreteType": "DatasetEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "assignEvaluatorToDataset",
+        "name": "updateDatasetBuiltinEvaluator",
         "plural": false,
         "selections": [
           {
@@ -249,10 +327,11 @@ return {
                   (v8/*: any*/),
                   (v9/*: any*/),
                   (v5/*: any*/),
+                  (v10/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v10/*: any*/),
+                      (v11/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -260,10 +339,17 @@ return {
                         "kind": "LinkedField",
                         "name": "promptVersionTag",
                         "plural": false,
-                        "selections": [
-                          (v6/*: any*/),
-                          (v3/*: any*/)
-                        ],
+                        "selections": (v14/*: any*/),
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "CategoricalAnnotationConfig",
+                        "kind": "LinkedField",
+                        "name": "outputConfig",
+                        "plural": false,
+                        "selections": (v14/*: any*/),
                         "storageKey": null
                       }
                     ],
@@ -272,7 +358,8 @@ return {
                   }
                 ],
                 "storageKey": null
-              }
+              },
+              (v13/*: any*/)
             ],
             "storageKey": null
           },
@@ -303,16 +390,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ba8e68452914917efc7913d3ea3ef643",
+    "cacheID": "5909e550c0df24e4442eed8c022c2d89",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorConfigDialogAssignEvaluatorToDatasetMutation",
+    "name": "EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorConfigDialogAssignEvaluatorToDatasetMutation(\n  $input: AssignEvaluatorToDatasetInput!\n) {\n  assignEvaluatorToDataset(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation(\n  $input: UpdateDatasetBuiltinEvaluatorInput!\n) {\n  updateDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "421d4fcd9e7ef60820a3c858363e7af5";
+(node as any).hash = "583d08d1c97a5ac672578817068b8c31";
 
 export default node;
