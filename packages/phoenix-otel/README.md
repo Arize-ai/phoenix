@@ -19,6 +19,7 @@
     <a href="https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-otel/README.md" />
 </p>
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults. Phoenix OTEL also gives you access to tracing decorators for common GenAI patterns.

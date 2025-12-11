@@ -23,8 +23,11 @@ This agent is designed to generate, refine, and validate code using OpenAI model
 
 ## Installation
 
-1. Install the required libraries by running `pip install -r requirements.txt`
-2. Run app.py and input the required Keys(OpenAI, Phoenix API Key)
+If you are running this code from inside the `phoenix` repository, we recommend
+running it with `uv` to avoid dependency issues.
+
+1. Install `uv`
+2. Run `uv run --isolated --with-requirements requirements.txt python app.py`
 
 ## Usage
 

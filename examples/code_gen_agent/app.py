@@ -106,7 +106,7 @@ with gr.Blocks() as demo:
         with gr.Column(scale=4):
             gr.Markdown("### Chat with Copilot Agent 💬")
 
-            chat_display = gr.Chatbot(label="Chat History", type="messages", height=400)
+            chat_display = gr.Chatbot(label="Chat History", height=400)
 
             user_input = gr.Textbox(label="Your Message", placeholder="Type your message here...")
             submit_button = gr.Button("Send")
