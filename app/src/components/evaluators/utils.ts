@@ -43,10 +43,8 @@ const createPromptVersionInput = ({
    */
   datasetId?: string;
 }) => {
-  const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
-    instanceId,
-    playgroundStore
-  );
+  const { promptInput, templateFormat, promptVersionId } =
+    getInstancePromptParamsFromStore(instanceId, playgroundStore);
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
@@ -86,7 +84,10 @@ const createPromptVersionInput = ({
     responseFormat: undefined,
   };
 
-  return prunedPromptInput;
+  return {
+    prunedPromptInput,
+    promptVersionId,
+  };
 };
 
 export const updateLLMEvaluatorPayload = ({
@@ -111,7 +112,7 @@ export const updateLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  const promptVersion = createPromptVersionInput({
+  const { prunedPromptInput: promptVersion } = createPromptVersionInput({
     playgroundStore,
     instanceId,
     name,
@@ -177,13 +178,14 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  const promptVersion = createPromptVersionInput({
-    playgroundStore,
-    instanceId,
-    name,
-    description,
-    outputConfig,
-  });
+  const { prunedPromptInput: promptVersion, promptVersionId } =
+    createPromptVersionInput({
+      playgroundStore,
+      instanceId,
+      name,
+      description,
+      outputConfig,
+    });
 
   return {
     name,
@@ -196,6 +198,7 @@ export const createLLMEvaluatorPayload = ({
     // deep clone the output config to ensure relay doesn't mutate the original object
     // TODO: remove this once we are using zustand
     outputConfig: structuredClone(outputConfig),
+    promptVersionId: promptVersionId ?? null,
   };
 };
 
