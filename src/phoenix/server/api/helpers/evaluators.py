@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import (
     BaseModel,
@@ -75,24 +75,41 @@ def validate_consistent_llm_evaluator_and_prompt_version(
                 validation_error=error,
             )
         )
-    function_property_name = next(iter(function_parameters.properties.keys()))
-    if function_property_name != evaluator.annotation_name:
+    function_label_property_description = function_parameters.properties["label"].description
+    if function_label_property_description != evaluator.annotation_name:
         raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION
         )
-    function_property_choices = function_parameters.properties[function_property_name].enum
+    # we support properties of two shapes:
+    # - string property with enum and description (for categorical evaluators)
+    # - string property with description (for evaluator explanations)
+
+    # validate that "label" exists, and that it is a string property with enum
+    function_property_choices = function_parameters.properties["label"].enum
+    if function_property_choices is None:
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_BE_CATEGORICAL)
     evaluator_choices = [value.label for value in evaluator.output_config.values]
     if set(function_property_choices) != set(evaluator_choices):
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM
         )
+    # validate that "explanation" exists, and that it is a string property with description
+    # only if output_config includes an explanation
+    if evaluator.output_config.include_explanation:
+        function_property_description = function_parameters.properties["explanation"].description
+        if function_property_description is None:
+            raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_EXPLANATION_MUST_BE_DEFINED)
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
     type: Literal["string"]
-    enum: list[str] = Field(
-        ...,
+    enum: Optional[list[str]] = Field(
+        default=None,
         min_length=2,
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
     )
 
 
@@ -101,7 +118,8 @@ class _EvaluatorPromptToolFunctionParameters(BaseModel):
     properties: dict[str, _EvaluatorPromptToolFunctionParametersProperty] = Field(
         ...,
         min_length=1,
-        max_length=1,  # this constraint can be lifted to add support for multi-criteria evaluators
+        # choice criteria property + explanation property
+        max_length=2,  # this constraint can be lifted to add support for multi-criteria evaluators
     )
     required: list[str]
 
@@ -159,9 +177,16 @@ class _LLMEvaluatorPromptErrorMessage:
     REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
     ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED = "All defined properties must be required"
     ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED = "All required properties must be defined"
-    EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME = (
-        "Evaluator annotation name must match function parameters property name"
+    EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION = (
+        "Evaluator annotation name must match function parameters label property description"
     )
     EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM = (
         "Evaluator choices must match function parameters property enum"
+    )
+    EVALUATOR_CHOICES_MUST_BE_CATEGORICAL = (
+        "Evaluator choices must be categorical (string property with enum and description)"
+    )
+    EVALUATOR_EXPLANATION_MUST_BE_DEFINED = (
+        "Evaluator explanation must be defined (string property with description)"
+        " when include_explanation is true in the output config"
     )
