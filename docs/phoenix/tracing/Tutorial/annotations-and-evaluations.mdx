@@ -3,7 +3,7 @@ title: "Annotations and Evaluation"
 description: "Is your agent actually good? Use annotations and LLM-as-Judge to find out."
 ---
 
-Our support agent is running, and traces are flowing into Phoenix. We can see every LLM call, tool execution, and retrieval. 
+Our support agent is running, and traces are flowing into Phoenix. We can see every LLM call, tool execution, and retrieval.
 
 Users are still complaining. Some responses are helpful, others are completely wrong. We need a way to measure quality - not just observe activity.
 
@@ -49,7 +49,7 @@ Manual annotation gives you ground truth, but it doesn't scale. We can review ma
 
 Sometimes, our users are already telling you what's working. Every thumbs up, thumbs down, "this wasn't helpful" click, or escalation to a human agent is feedback. Let's store that feedback in Phoenix, so that we can attach it to our traces!
 
-Let's simulate a thumbs up/thumbs down feature, and then store that as annotations to our traces in Phoenix. This will give us metrics on how satified our users are. 
+Let's simulate a thumbs up/thumbs down feature, and then store that as annotations to our traces in Phoenix. This will give us metrics on how satified our users are.
 
 ## Get the Span ID from Running Code
 
@@ -275,7 +275,7 @@ For this example, we see that the agent gives an unhelpful answer to the user re
 
 # Summary
 
-You now have a complete quality feedback loop:
+Congratulations! You now have a complete quality feedback loop:
 
 | Step                    | What You Do                              | What You Learn                                 |
 | ----------------------- | ---------------------------------------- | ---------------------------------------------- |
@@ -284,7 +284,7 @@ You now have a complete quality feedback loop:
 | **3. Analysis**         | Click into unhelpful traces              | Root cause (missing order, FAQ not in KB)      |
 | **4. Fix**              | Update prompts, knowledge base, or tools | Improve the agent                              |
 
-This is the debugging workflow that actually scales. Instead of manually reviewing every trace, you:
+This is the debugging workflow that actually scales! Instead of manually reviewing every trace, you:
 
 - Use feedback to identify failures
 - Use automated evaluation to diagnose them
