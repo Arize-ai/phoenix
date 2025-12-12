@@ -95,12 +95,18 @@ Add instrumentation to capture traces from your LLM calls:
 
 <Tabs>
   <Tab title="Python" icon="python">
-    If you set `auto_instrument=True`, any installed OpenInference instrumentor packages are automatically activated.
+    With `auto_instrument=True`, Phoenix automatically discovers and activates **all** OpenInference instrumentor packages installed in your Python environment—no additional code required.
 
     ```bash
-    # Install instrumentors for your framework
+    # Install instrumentors for your frameworks
     pip install openinference-instrumentation-openai
+    pip install openinference-instrumentation-langchain
+    # ... any other OpenInference packages you need
     ```
+
+    <Tip>
+    Just `pip install` the instrumentation packages you need and set `auto_instrument=True`. Phoenix handles the rest.
+    </Tip>
 
     See [Integrations](/docs/phoenix/integrations) for all available packages, or use [Tracing Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for manual instrumentation.
   </Tab>
