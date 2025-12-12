@@ -204,13 +204,14 @@ const ProviderQuery = graphql`
 function EditCustomProviderDialogContent({
   queryReference,
   onClose,
+  formRef,
 }: {
   queryReference: PreloadedQuery<EditCustomProviderButtonQuery>;
   onClose: () => void;
+  formRef: React.RefObject<ProviderFormRef | null>;
 }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const formRef = useRef<ProviderFormRef>(null);
   const data = usePreloadedQuery<EditCustomProviderButtonQuery>(
     ProviderQuery,
     queryReference
@@ -295,7 +296,7 @@ function EditCustomProviderDialogContent({
       if (!confirmed) return;
     }
     onClose();
-  }, [onClose]);
+  }, [formRef, onClose]);
 
   if (!providerData) {
     return <Alert variant="danger">Provider not found</Alert>;
@@ -339,6 +340,7 @@ export function EditCustomProviderButton({
   providerName: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const formRef = useRef<ProviderFormRef>(null);
   const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<EditCustomProviderButtonQuery>(ProviderQuery);
 
@@ -347,16 +349,26 @@ export function EditCustomProviderButton({
     setIsOpen(true);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsOpen(false);
     disposeQuery();
-  };
+  }, [disposeQuery]);
+
+  const handleCloseWithConfirmation = useCallback(() => {
+    if (formRef.current?.isDirty) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to close?"
+      );
+      if (!confirmed) return;
+    }
+    handleClose();
+  }, [handleClose]);
 
   return (
     <DialogTrigger
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) handleClose();
+        if (!open) handleCloseWithConfirmation();
       }}
     >
       <Button
@@ -381,6 +393,7 @@ export function EditCustomProviderButton({
                   <EditCustomProviderDialogContent
                     queryReference={queryReference}
                     onClose={handleClose}
+                    formRef={formRef}
                   />
                 ) : (
                   <Loading />
