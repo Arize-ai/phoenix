@@ -217,7 +217,7 @@ class GenerativeModelCustomProviderMutationMixin:
             if input.name and input.name != provider.name:
                 provider.name = input.name
 
-            if input.description and input.description != provider.description:
+            if input.description is not UNSET and input.description != provider.description:
                 provider.description = input.description
 
             if input.provider and input.provider != provider.provider:
