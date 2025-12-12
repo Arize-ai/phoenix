@@ -49,7 +49,7 @@ Traces let you see what's happening inside your application—LLM calls, tool in
   </Step>
 
   <Step title={<span className="step-title">Initialize Tracing</span>}>
-    Register Phoenix as your trace provider. This connects your app to Phoenix and instruments supported libraries.
+    Register Phoenix as your trace collector. The `register` function configures your application to export spans to Phoenix and auto-instruments supported libraries.
 
     <Tabs>
       <Tab title="Python" icon="python">
@@ -59,10 +59,11 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         tracer_provider = register(
             project_name="my-llm-app",
             auto_instrument=True,  # Auto-instruments OpenAI, LangChain, etc.
+            batch=False,  # Send spans immediately (recommended for local dev)
         )
         ```
 
-        See the [Python SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
+        See the [arize-phoenix-otel reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
       </Tab>
 
       <Tab title="TypeScript" icon="js">
@@ -73,7 +74,7 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
         import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-        register({ projectName: "my-llm-app" });
+        register({ projectName: "my-llm-app", batch: false });
 
         const instrumentation = new OpenAIInstrumentation();
         instrumentation.manuallyInstrument(OpenAI);
@@ -93,9 +94,13 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         TypeScript tracing setup varies based on your module system (ESM vs CommonJS), runtime (Node.js, Bun, Deno), and framework (Next.js, Express, etc.). For detailed configuration options including batching, gRPC, and advanced setups, see the [complete tracing setup guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel).
         </Info>
 
-        See the [TypeScript SDK reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
+        See the [@arizeai/phoenix-otel reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
       </Tab>
     </Tabs>
+
+    <Tip>
+    **Local vs Production:** We set `batch=False` here so traces appear immediately—ideal for local development. In production, use `batch=True` (the default) for better performance. See the [SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for configuration options like batching, gRPC transport, and custom headers.
+    </Tip>
   </Step>
 
   <Step title={<span className="step-title">Run Your Application</span>}>
@@ -130,9 +135,6 @@ Traces let you see what's happening inside your application—LLM calls, tool in
           messages: [{ role: "user", content: "Why is the sky blue?" }],
         });
         console.log(response.choices[0].message.content);
-
-        // Allow time for traces to flush
-        await new Promise((resolve) => setTimeout(resolve, 5000));
         ```
 
         <Tip>
