@@ -12,7 +12,7 @@ Phoenix evaluators now support flexible prompt formats in both Python and TypeSc
 **String Templates** - Simple templates with variable placeholders:
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     from phoenix.evals import ClassificationEvaluator, LLM
 
@@ -24,7 +24,7 @@ Phoenix evaluators now support flexible prompt formats in both Python and TypeSc
     )
     ```
   </Tab>
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
@@ -42,7 +42,7 @@ Phoenix evaluators now support flexible prompt formats in both Python and TypeSc
 **Message Lists** - OpenAI-style arrays with `role` and `content` fields for multi-turn prompts:
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     evaluator = ClassificationEvaluator(
         name="helpfulness",
@@ -55,7 +55,7 @@ Phoenix evaluators now support flexible prompt formats in both Python and TypeSc
     )
     ```
   </Tab>
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     const evaluator = createClassificationEvaluator({
       name: "helpfulness",

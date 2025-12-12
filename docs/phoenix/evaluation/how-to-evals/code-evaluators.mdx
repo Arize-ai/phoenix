@@ -13,7 +13,7 @@ For convenience, a simple (sync or async) function can be converted into an Eval
 In the following examples, our decorated evaluation function and coroutine return a boolean, which when used as an Evaluator, is converted into a `Score` with a score value of `1` or `0` and a corresponding label of `True` or `False`.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.evals import create_evaluator
 
@@ -44,7 +44,7 @@ async def contains_link(output: str) -> Score:
     return link in output
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
@@ -83,7 +83,7 @@ const containsLink = createEvaluator<{ output: string }>(
 Notice that the original functions can still be used as defined for testing purposes:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 exact_match("hello", "world")
 # False
@@ -95,7 +95,7 @@ await contains_link(
 # True
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 // The underlying function logic can be extracted for testing
 const exactMatchFn = (input: string, output: string) => input === output;
@@ -118,7 +118,7 @@ await containsLinkFn(
 #### Returning `Score` objects directly
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.evals import create_evaluator, Score
 from textdistance import levenshtein
@@ -137,7 +137,7 @@ def levenshtein(output: str, expected: str) -> Score:
     )
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
@@ -189,7 +189,7 @@ const levenshtein = createEvaluator<{ output: string; expected: string }>(
 The `create_evaluator` / `createEvaluator` function will convert many different function outputs into scores automatically:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 * A Score object (no conversion needed)
 * A number (converted to Score.score)
 * A boolean (converted to integer Score.score and string Score.label)
@@ -198,7 +198,7 @@ The `create_evaluator` / `createEvaluator` function will convert many different 
 * A dictionary with keys "score", "label", or "explanation"
 * A tuple of values (only bool, number, str types allowed)
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 * An EvaluationResult object (no conversion needed)
 * A number (converted to `{ score: number }`)
 * A string (converted to `{ label: string }`)

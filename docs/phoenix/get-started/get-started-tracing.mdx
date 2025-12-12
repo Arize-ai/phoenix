@@ -41,13 +41,13 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
     To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```bash
         pip install arize-phoenix-otel
         ```
       </Tab>
 
-      <Tab title="TypeScript">
+      <Tab title="TypeScript" icon="js">
         ```bash
         # npm, pnpm, yarn, etc
         npm install @arizeai/phoenix-otel
@@ -60,7 +60,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
     There are two ways to trace your application: manually, or automatically with an auto-instrumentor. OpenInference provides the auto-instrumenter option through ready-to-use integrations with popular frameworks, so you can capture traces without adding manual logging code.
 
     <Tabs>
-      <Tab title="OpenAI (Python)">
+      <Tab title="OpenAI (Python)" icon="python">
         Phoenix can capture all calls made to supported libraries automatically. Just install the [associated library](https://github.com/Arize-ai/openinference?tab=readme-ov-file#instrumentation).
 
         ```bash
@@ -68,7 +68,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
         ```
       </Tab>
 
-      <Tab title="OpenAI (TypeScript)">
+      <Tab title="OpenAI (TypeScript)" icon="js">
         Phoenix can capture all calls made to supported libraries automatically. Just install the [associated library](https://github.com/Arize-ai/openinference?tab=readme-ov-file#instrumentation).
 
         ```bash
@@ -160,7 +160,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
     In your Python code, register Phoenix as the trace provider. This connects your application to Phoenix, making a project in the UI after you send a trace, and optionally enables auto-instrumentation (automatic tracing for supported libraries like OpenAI).
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.otel import register
 
@@ -173,7 +173,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
         ```
       </Tab>
 
-      <Tab title="TypeScript">
+      <Tab title="TypeScript" icon="js">
         In a new file called `instrumentation.ts` (or .js if applicable)
 
         ```typescript
@@ -214,7 +214,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
     Now that you have set up tracing & your project in Phoenix, it's time to actually invoke your llm, agent, or application.
 
     <Tabs>
-      <Tab title="OpenAI (Python)">
+      <Tab title="OpenAI (Python)" icon="python">
         First add your OpenAI API Key & then invoke the model.
 
         ```python
@@ -240,7 +240,7 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
         ```
       </Tab>
 
-      <Tab title="OpenAI (TypeScript)">
+      <Tab title="OpenAI (TypeScript)" icon="js">
         In your app code, invoke OpenAI:
 
         ```typescript

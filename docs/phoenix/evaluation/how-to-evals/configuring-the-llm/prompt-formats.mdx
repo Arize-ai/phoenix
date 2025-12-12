@@ -11,7 +11,7 @@ Phoenix evaluators support multiple prompt formats, all compatible with supporte
 Simple string templates with variable placeholders.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     evaluator = ClassificationEvaluator(
         name="sentiment",
@@ -22,7 +22,7 @@ Simple string templates with variable placeholders.
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
@@ -44,7 +44,7 @@ Simple string templates with variable placeholders.
 Arrays of message objects with `role` and `content` fields.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     evaluator = ClassificationEvaluator(
         name="helpfulness",
@@ -64,7 +64,7 @@ Arrays of message objects with `role` and `content` fields.
     * `"assistant"` - Assistant/model responses (for multi-turn conversations or few-shot examples)
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
@@ -95,7 +95,7 @@ Arrays of message objects with `role` and `content` fields.
 Messages with multiple content parts, useful for separating different pieces of context.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     Only text content is supported at this time.
 
     ```python
@@ -116,7 +116,7 @@ Messages with multiple content parts, useful for separating different pieces of 
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     Structured content parts are not currently supported in the TypeScript library. Use message lists or string templates instead.
   </Tab>
 </Tabs>
@@ -126,7 +126,7 @@ Messages with multiple content parts, useful for separating different pieces of 
 All formats support variable substitution. Python supports both f-string (`{variable}`) and mustache (`{{variable}}`) syntax, while TypeScript supports mustache syntax only.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     # Variables are provided when calling .evaluate()
     result = evaluator.evaluate({
@@ -136,7 +136,7 @@ All formats support variable substitution. Python supports both f-string (`{vari
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     // Variables are provided when calling .evaluate()
     const result = await evaluator.evaluate({
@@ -152,7 +152,7 @@ All formats support variable substitution. Python supports both f-string (`{vari
 # Client-Specific Behavior
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     All clients accept the same message format as input. Adapters handle client-specific transformations internally as needed:
 
     ### OpenAI
@@ -181,7 +181,7 @@ All formats support variable substitution. Python supports both f-string (`{vari
     * OpenAI format messages are converted to LangChain message objects (`HumanMessage`, `AIMessage`, `SystemMessage`)
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     The TypeScript library uses the AI SDK which handles provider-specific message formatting automatically. The AI SDK normalizes the interface across providers, so you can use the same prompt templates regardless of which model provider you choose.
 
     For provider-specific details, refer to the [AI SDK documentation](https://sdk.vercel.ai/providers/ai-sdk-providers).
@@ -193,7 +193,7 @@ All formats support variable substitution. Python supports both f-string (`{vari
 A complete example showing evaluator setup and usage:
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     from phoenix.evals import ClassificationEvaluator, LLM
 
@@ -218,7 +218,7 @@ A complete example showing evaluator setup and usage:
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     ```typescript
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";

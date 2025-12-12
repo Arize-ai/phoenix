@@ -34,7 +34,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://app.phoenix.arize.com/s/your-space-name",
   apiKey: "your-api-key",
 });
 ```
@@ -51,7 +51,7 @@ The package automatically reads from the following environment variables if conf
 **Example:**
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT='https://app.phoenix.arize.com' \
+PHOENIX_COLLECTOR_ENDPOINT='https://app.phoenix.arize.com/s/your-space-name' \
 PHOENIX_API_KEY='your-api-key' \
 node your-app.js
 ```
@@ -96,7 +96,7 @@ import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 
 register({
   projectName: "my-express-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://app.phoenix.arize.com/s/your-space-name",
   apiKey: process.env.PHOENIX_API_KEY,
   instrumentations: [
     new HttpInstrumentation(),
@@ -114,7 +114,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://app.phoenix.arize.com/s/your-space-name",
   headers: {
     "X-Custom-Header": "custom-value",
   },
@@ -144,7 +144,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app-prod",
-  url: "https://app.phoenix.arize.com",
+  url: "https://app.phoenix.arize.com/s/your-space-name",
   apiKey: process.env.PHOENIX_API_KEY,
   batch: true, // Use batch processing for better performance
 });

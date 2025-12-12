@@ -43,14 +43,14 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     You'll need to install the evals library that's apart of Phoenix.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```bash
         pip install -q "arize-phoenix-evals>=2"
         pip install -q "arize-phoenix-client"
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript" icon="js">
         ```bash
         npm install @arizeai/phoenix-evals @arizeai/phoenix-client
         ```
@@ -62,7 +62,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     Since, we are running our evaluations on our trace data from our first project, we'll need to pull that data into our code.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.client import Client
 
@@ -71,7 +71,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { getSpans } from "@arizeai/phoenix-client/spans";
 
@@ -109,7 +109,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
 
         <Tabs>
-          <Tab title="Python">
+          <Tab title="Python" icon="python">
             ```python
             import os
             from getpass import getpass
@@ -124,7 +124,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript" icon="js">
             ```typescript
             // pnpm add @ai-sdk/openai
 
@@ -143,7 +143,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         We will set up a Q&A correctness Evaluator with the LLM of choice. I want to first define my LLM-as-a-Judge prompt template. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels.
 
         <Tabs>
-          <Tab title="Python">
+          <Tab title="Python" icon="python">
             ```python
             CORRECTNESS_TEMPLATE = """ 
             You are given a question and an answer. Decide if the answer is fully correct. 
@@ -165,7 +165,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript" icon="js">
             ```typescript
             const CORRECTNESS_TEMPLATE = `
             You are given a question and an answer. Decide if the answer is fully correct.
@@ -192,7 +192,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         Now we want to define our Classification Evaluator
 
         <Tabs>
-          <Tab title="Python">
+          <Tab title="Python" icon="python">
             ```python
             from phoenix.evals import create_classifier
 
@@ -205,7 +205,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
             ```
           </Tab>
 
-          <Tab title="TS">
+          <Tab title="TypeScript" icon="js">
             ```typescript
             import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
@@ -227,7 +227,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     Now that we have defined our evaluator, we're ready to evaluate our traces.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.evals import evaluate_dataframe
 
@@ -244,7 +244,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     You'll now be able to log your evaluations in your project view.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         px_client.log_span_annotations(
             dataframe=results_df,
@@ -254,7 +254,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         ```
       </Tab>
 
-      <Tab title="TS">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { logSpanAnnotations } from "@arizeai/phoenix-client/annotations";
 
