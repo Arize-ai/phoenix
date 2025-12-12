@@ -27,12 +27,12 @@ Traces let you see what's happening inside your application—LLM calls, tool in
   </Step>
 
   <Step title={<span className="step-title">Install Dependencies</span>}>
-    Install the Phoenix OTEL package and an instrumentation library for your framework. Phoenix provides [auto-instrumentation](/docs/phoenix/integrations) for [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Anthropic](/docs/phoenix/integrations/llm-providers/anthropic), [LangChain](/docs/phoenix/integrations/python/langchain), [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), and many more.
+    Install the Phoenix OTEL package and an instrumentation library. This quickstart uses OpenAI, but Phoenix supports [many providers and frameworks](/docs/phoenix/integrations) including Anthropic, LangChain, LlamaIndex, Vercel AI SDK, Mastra, and more.
 
     <Tabs>
       <Tab title="Python" icon="python">
         ```bash
-        pip install arize-phoenix-otel openinference-instrumentation-openai
+        pip install arize-phoenix-otel openinference-instrumentation-openai openai
         ```
 
         See [all Python integrations](/docs/phoenix/integrations#by-language).
@@ -40,7 +40,7 @@ Traces let you see what's happening inside your application—LLM calls, tool in
 
       <Tab title="TypeScript" icon="js">
         ```bash
-        npm install @arizeai/phoenix-otel @arizeai/openinference-core @arizeai/openinference-instrumentation-openai
+        npm install @arizeai/phoenix-otel @arizeai/openinference-core @arizeai/openinference-instrumentation-openai openai
         ```
 
         See [all TypeScript integrations](/docs/phoenix/integrations#by-language).
@@ -52,57 +52,36 @@ Traces let you see what's happening inside your application—LLM calls, tool in
     Register Phoenix as your trace provider. This connects your app to Phoenix and instruments supported libraries.
 
     <Tabs>
-      <Tab title="OpenAI (Python)" icon="python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.otel import register
 
         tracer_provider = register(
             project_name="my-llm-app",
-            auto_instrument=True,  # Automatically instruments OpenAI, LangChain, etc.
+            auto_instrument=True,  # Auto-instruments OpenAI, LangChain, etc.
         )
         ```
 
-        Set `auto_instrument=False` for manual control over which libraries to instrument. See the [Python OTEL SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
+        See the [Python SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
       </Tab>
 
-      <Tab title="OpenAI (TypeScript)" icon="js">
+      <Tab title="TypeScript" icon="js">
         Create an `instrumentation.ts` file:
 
-        <Tabs>
-          <Tab title="ESM Project">
-            ```typescript
-            import OpenAI from "openai";
-            import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
-            import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+        ```typescript
+        import OpenAI from "openai";
+        import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+        import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-            register({ projectName: "my-llm-app" });
+        register({ projectName: "my-llm-app" });
 
-            const instrumentation = new OpenAIInstrumentation();
-            instrumentation.manuallyInstrument(OpenAI);
+        const instrumentation = new OpenAIInstrumentation();
+        instrumentation.manuallyInstrument(OpenAI);
 
-            registerInstrumentations({
-              instrumentations: [instrumentation],
-            });
-            ```
-          </Tab>
-
-          <Tab title="CommonJS Project">
-            ```typescript
-            import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
-            import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
-
-            register({ projectName: "my-llm-app" });
-
-            registerInstrumentations({
-              instrumentations: [new OpenAIInstrumentation()],
-            });
-            ```
-          </Tab>
-        </Tabs>
-
-        <Info>
-        Your project can be configured for CommonJS or ESM via many methods. Consult your runtime documentation for details.
-        </Info>
+        registerInstrumentations({
+          instrumentations: [instrumentation],
+        });
+        ```
 
         Import this file at the top of your entrypoint:
 
@@ -110,56 +89,16 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         import "./instrumentation";
         ```
 
-        See the [TypeScript OTEL SDK reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
-      </Tab>
-
-      <Tab title="Manual (Python)" icon="python">
-        For custom tracing without auto-instrumentation:
-
-        ```python
-        from phoenix.otel import register
-
-        tracer_provider = register(project_name="my-llm-app")
-        tracer = tracer_provider.get_tracer(__name__)
-
-        @tracer.chain
-        def my_func(input: str) -> str:
-            return "output"
-        ```
-
-        See the [manual instrumentation guide](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) for more details.
-      </Tab>
-
-      <Tab title="Manual (TypeScript)" icon="js">
-        For custom tracing without auto-instrumentation:
-
-        ```typescript
-        import { register } from "@arizeai/phoenix-otel";
-        import { withSpan, traceAgent } from "@arizeai/openinference-core";
-
-        register({ projectName: "my-llm-app" });
-
-        const myFunc = withSpan(
-          (input: string) => "output",
-          { kind: "CHAIN", name: "myFunc" }
-        );
-
-        const agent = traceAgent(
-          async (question: string) => `Answer: ${question}`,
-          { name: "my-agent" }
-        );
-        ```
-
-        See the [manual instrumentation guide](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) for more details.
+        See the [TypeScript SDK reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
       </Tab>
     </Tabs>
   </Step>
 
   <Step title={<span className="step-title">Run Your Application</span>}>
-    Invoke your LLM to generate traces:
+    Make an LLM call to generate your first trace. OpenAI calls are automatically captured:
 
     <Tabs>
-      <Tab title="OpenAI (Python)" icon="python">
+      <Tab title="Python" icon="python">
         ```python
         import openai
 
@@ -170,24 +109,31 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         )
         print(response.choices[0].message.content)
         ```
+
+        <Tip>
+        Use `@tracer.agent`, `@tracer.tool`, and `@tracer.chain` decorators to create custom spans around your own functions. See the [tracing guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for details.
+        </Tip>
       </Tab>
 
-      <Tab title="OpenAI (TypeScript)" icon="js">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import "./instrumentation";
         import OpenAI from "openai";
 
         const openai = new OpenAI();
-
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
-          messages: [{ role: "user", content: "Write a haiku." }],
+          messages: [{ role: "user", content: "Why is the sky blue?" }],
         });
         console.log(response.choices[0].message.content);
 
         // Allow time for traces to flush
         await new Promise((resolve) => setTimeout(resolve, 5000));
         ```
+
+        <Tip>
+        Use `traceAgent`, `traceTool`, and `withSpan` wrappers to create custom spans around your own functions. See the [tracing guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for details.
+        </Tip>
       </Tab>
     </Tabs>
   </Step>

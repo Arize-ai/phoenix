@@ -48,7 +48,7 @@
               },
               {
                 "group": "Tracing",
-                "icon": "swap",
+                "icon": "telescope",
                 "pages": [
                   {
                     "group": "Overview: Tracing",
@@ -69,7 +69,6 @@
                         "pages": [
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
-                          "docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions"
@@ -120,7 +119,7 @@
               },
               {
                 "group": "Prompt Engineering",
-                "icon": "code",
+                "icon": "wand-magic-sparkles",
                 "pages": [
                   {
                     "group": "Tutorial",
@@ -428,7 +427,7 @@
               },
               {
                 "group": "Tracing",
-                "icon": "swap",
+                "icon": "telescope",
                 "pages": [
                   "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
                   "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
@@ -448,7 +447,7 @@
               },
               {
                 "group": "Prompt Engineering",
-                "icon": "code",
+                "icon": "wand-magic-sparkles",
                 "pages": [
                   "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
                   "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
@@ -497,7 +496,7 @@
           },
           {
             "tab": "Integrations",
-            "icon": "handshake",
+            "icon": "puzzle-piece",
             "groups": [
               {
                 "group": " ",
@@ -1244,6 +1243,14 @@
       "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing"
     },
     {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript",
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel"
+    },
+    {
       "source": "/docs/phoenix/deployment/deploying-phoenix",
       "destination": "/docs/phoenix/self-hosting"
     },
@@ -1293,7 +1300,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-ts",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript"
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel"
     },
     {
       "source": "/docs/phoenix/self-hosting/deploying-phoenix",

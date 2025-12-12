@@ -1,25 +1,50 @@
 ---
-title: "Setup tracing"
+title: "Setup Tracing"
 sidebarTitle: "Overview"
+description: "Configure tracing for your application"
 ---
 
-<Columns cols={2}>
-<Card title="Setup using Phoenix OTEL" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel" icon="angles-right" horizontal>
-Learn how to use the `phoenix.otel` library
-</Card>
-<Card title="Setup using base OTEL" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans" icon="angles-right" horizontal>
-Learn how you can use basic OpenTelemetry to instrument your application.
-</Card>
-<Card title="Using Phoenix Decorators" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument" icon="angles-right" horizontal>
-Learn how to use Phoenix's decorators to easily instrument specific methods or code blocks in your application.
-</Card>
-<Card title="Setup Tracing (TS)" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript" icon="angles-right" horizontal>
-Setup tracing for your TypeScript application.
-</Card>
-<Card title="Setup Projects" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects" icon="angles-right" horizontal>
-Learn about Projects in Phoenix, and how to use them.
-</Card>
-<Card title="Setup Sessions" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions" icon="angles-right" horizontal>
-Understand Sessions and how they can be used to group user conversations.
-</Card>
-</Columns>
+Get started sending traces to Phoenix from your application. Choose the approach that best fits your needs.
+
+## Quick Start
+
+The fastest way to get started is using the Phoenix OTEL wrapper, which provides sensible defaults and automatic configuration.
+
+<CardGroup cols={2}>
+  <Card title="Python Setup" icon="python" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Use `phoenix.otel` for automatic configuration with Phoenix-aware defaults
+  </Card>
+  <Card title="TypeScript Setup" icon="js" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel">
+    Use `@arizeai/phoenix-otel` to trace your Node.js applications
+  </Card>
+</CardGroup>
+
+---
+
+## Instrumentation Methods
+
+Choose how you want to instrument your code:
+
+<CardGroup cols={2}>
+  <Card title="Auto Instrumentation" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Automatically capture traces from popular frameworks and LLM providers with zero code changes
+  </Card>
+  <Card title="Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Use decorators and helpers to easily trace specific methods or code blocks in Python
+  </Card>
+</CardGroup>
+
+---
+
+## Organization
+
+Organize your traces for better visibility and analysis:
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+    Group traces by application or environment using projects
+  </Card>
+  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+    Track multi-turn conversations by grouping related traces into sessions
+  </Card>
+</CardGroup>
