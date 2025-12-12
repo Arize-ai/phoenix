@@ -568,28 +568,56 @@ async def test_google_tools_are_round_tripped_without_data_loss(
 
 
 @pytest.mark.parametrize(
-    "google_tool_choice",
+    (
+        "google_tool_choice",
+        "expected_denormalized_tool_choice",
+    ),
     (
         pytest.param(
             {"function_calling_config": {"mode": "auto"}},
-            id="mode-auto",
+            {"mode": "auto"},
+            id="mode-auto-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any"}},
-            id="mode-any",
+            {"mode": "any"},
+            id="mode-any-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "none"}},
-            id="mode-none",
+            {"mode": "none"},
+            id="mode-none-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "AUTO"}},
+            {"mode": "auto"},
+            id="mode-auto-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "ANY"}},
+            {"mode": "any"},
+            id="mode-any-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "NONE"}},
+            {"mode": "none"},
+            id="mode-none-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
-            id="specific-function",
+            {"mode": "any", "allowed_function_names": ["get_weather"]},
+            id="specific-function-name-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["get_weather"]}},
+            {"mode": "any", "allowed_function_names": ["get_weather"]},
+            id="specific-function-name-lowercase",
         ),
     ),
 )
 async def test_google_tool_choice_is_round_tripped_without_data_loss(
     google_tool_choice: dict[str, Any],
+    expected_denormalized_tool_choice: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
@@ -646,7 +674,6 @@ async def test_google_tool_choice_is_round_tripped_without_data_loss(
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
     _, denormalized_tool_choice = denormalize_tools(rehydrated_tools, model_provider)
-    expected_denormalized_tool_choice = google_tool_choice["function_calling_config"]
     assert denormalized_tool_choice == expected_denormalized_tool_choice
 
 
