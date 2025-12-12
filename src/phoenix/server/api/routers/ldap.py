@@ -45,7 +45,7 @@ async def get_or_create_ldap_user(
            - Simple setup for most organizations
 
     Null Email Marker Mode:
-        When PHOENIX_LDAP_ATTR_EMAIL is empty, the LDAP directory doesn't have
+        When PHOENIX_LDAP_ATTR_EMAIL is "null", the LDAP directory doesn't have
         email attributes. In this mode:
         - unique_id is required (enforced at config validation)
         - Lookup is by unique_id only (no email fallback)

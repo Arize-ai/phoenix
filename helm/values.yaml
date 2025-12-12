@@ -437,9 +437,11 @@ auth:
     userSearchFilter: "(&(objectClass=user)(sAMAccountName=%s))"
 
     # Attribute mapping
-    # -- LDAP attribute containing user's email address. Defaults to "mail".
-    # Set to empty string ("") to enable no-email mode for directories without email.
-    # When empty (no-email mode):
+    # -- LDAP attribute containing user's email address.
+    # Valid values:
+    #   - "mail" (or other attribute name): Use that LDAP attribute for email
+    #   - "null": No-email mode for directories without email
+    # When using no-email mode ("null"):
     #   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)
     #   - allowSignUp must be true (users auto-provisioned on first login)
     #   - auth.admins cannot be used (use groupRoleMappings for admin assignment)
@@ -454,7 +456,7 @@ auth:
     attrMemberOf: "memberOf"
 
     # -- LDAP attribute containing an immutable unique identifier.
-    # REQUIRED when attrEmail is empty (no-email mode).
+    # REQUIRED when attrEmail is "null" (no-email mode).
     # Also recommended if you expect user emails to change frequently.
     # Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId"
     attrUniqueId: ""
