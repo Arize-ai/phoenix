@@ -3,32 +3,28 @@ title: "Your First Traces"
 description: "Build a support agent and trace every LLM call, tool execution, and RAG retrieval"
 ---
 
-You're building a customer support bot. It needs to handle order status questions ("Where's my package?") and general FAQ queries ("How do I get a refund?"). But users are complaining: responses are slow, answers are wrong, and you have no idea why.
+Let's say we've built a customer support agent called SupportBot. We want it to answer questions regarding our customers' orders, like "Where's my package?" We also want to answer some general FAQ queries, like "How do I get a refund?".
 
-The problem? Your application is a black box. You can see what goes in and what comes out, but everything in between is invisible. Time to turn on the lights.
+But users are complaining: responses are slow, answers are wrong, but we have no idea why. Our agent is a black box - we can see what the user asked, and see how the agent replied, but we don't have visibility into the individual components of our agent that actually ran.
 
-In this chapter, you'll build a complete support agent with Phoenix tracing, giving you visibility into every LLM call, tool execution, and retrieval operation.
+In this chapter, we'll build a complete support agent with Phoenix tracing, giving you visibility into how SupportBot works. With just a few additional lines of code, we'll be able to monitor every LLM call, tool execution, and retrieval operation that lead to the answers our customers are not satified with. You'll learn how to debug, monitor, and analyze your agents more effectively and efficieently, transforming them from personal projects to production ready applications.
 
 > **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
 
-# What We're Building
+# What SupportBot Can Do
 
-Our support agent will:
+Our sample support agent for this tutorial:
 
-1. **Classify** incoming queries (order status vs. FAQ)
-2. **Route** to the appropriate handler:
+1. **Classifies** incoming queries (order status vs. FAQ)
+2. **Routes** to the appropriate handler:
    - **Order Status**: Use a tool to look up order information, then summarize for the customer
    - **FAQ**: Search a knowledge base with embeddings, then generate an answer using RAG
 
-We'll test the agent with 7 simulated user requests - some straightforward, some edge cases that expose the agent's limitations. Each query creates a single trace in Phoenix showing the complete flow: classification, routing, and response generation.
+# Building SupportBot with Tracing
 
-# Setting Up Tracing
+Without tracing, when SupportBot answers something wrong, we're stuck adding `console.log` statements, re-running the code, and hoping we logged the right thing. In this section, we'll build SupportBot using the [**AI SDK**](https://ai-sdk.dev/) and add a few lines of code at each step so that we can trace it as well.
 
-Right now, when something goes wrong in your agent, you're stuck adding `console.log` statements, re-running the code, and hoping you logged the right thing. It's slow, frustrating, and you never have enough context.
-
-Tracing changes that completely. Once set up, every LLM call, tool execution, and embedding operation is automatically captured - inputs, outputs, latency, token counts, everything. When a user reports a bad response, you don't guess what happened. You open Phoenix, find that exact request, and see the complete execution flow. The classification LLM said "faq" when it should have said "order_status"? You'll see it immediately. The retrieval returned irrelevant documents? It's right there in the trace.
-
-This is a one-time 5-minute setup. After that, observability is automatic - just add `experimental_telemetry: { isEnabled: true }` to your AI SDK calls.
+Once we set up tracing, every LLM call, tool execution, and embedding operation is automatically captured - inputs, outputs, latency, token counts, everything. When a user reports a bad response, you don't guess what happened. You open Phoenix, find that exact request, and see the complete execution flow. You can see when tool calls failed, when your RAG system retrieved irrelevant data, or your LLMs didn't understand the user's query.
 
 ## Install Dependencies
 
@@ -39,7 +35,7 @@ npm install ai @ai-sdk/openai @arizeai/openinference-vercel \
   @opentelemetry/resources @opentelemetry/semantic-conventions zod
 ```
 
-## Configure OpenTelemetry
+## Initialize Tracing and Export Traces to Phoenix
 
 Create an `instrumentation.ts` file that sends traces to Phoenix:
 
@@ -80,11 +76,13 @@ This instrumentation:
 - Exports traces to Phoenix via OTLP
 - Automatically traces all AI SDK calls with `experimental_telemetry: { isEnabled: true }`
 
-# Step 1: Query Classification
+# Step 1: Tracing Query Classification
 
-The first decision your agent makes is often the most important. Get classification wrong, and everything downstream fails - order questions go to the FAQ handler, FAQ questions trigger useless tool calls. Without tracing, these misroutes are invisible. The user just gets a bad answer and you have no idea why.
+The first step SupportBot takes is classifying the user's query. Is the user asking about the status of an order, or are they more interested in a general FAQ?
 
-With tracing, you can see exactly how the classifier is reasoning. What prompt did it receive? What did it output? Was the confidence high or low? When classification goes wrong, you'll know immediately - and you'll have the context to fix it.
+This first decision SupportBot makes is crucial - it decides how SupportBot will handle the user's request.
+
+With tracing, you can see exactly how the classifier is reasoning. What prompt did it receive? What did it output? Was the confidence high or low? When classification goes wrong, you'll have the context to fix it.
 
 ```typescript
 import "./instrumentation.js";
@@ -123,9 +121,9 @@ The key is `experimental_telemetry: { isEnabled: true }` - this tells the AI SDK
 
 # Step 2: Order Status with Tool Calls
 
-Tools are where LLM applications interact with the real world - databases, APIs, external systems. They're also where things go wrong in ways that are hard to debug. Did the LLM extract the order ID correctly? Did the tool return the right data? Did the LLM interpret the result properly?
+Tools are where LLM applications interact with databases, APIs, and external systems. They're also where things go wrong in ways that are hard to debug. Did the LLM extract the order ID correctly? Did the tool return the right data? Did the LLM interpret the result properly?
 
-Without visibility, a wrong answer could be caused by any of these steps. With tracing, you see the complete chain: the LLM's decision to call the tool, the exact parameters it passed, the tool's response, and how the LLM used that response. When a customer says "you gave me the wrong order status," you can trace back through every step and find exactly where things broke.
+Without visibility, a wrong answer could be caused by any of these steps. With tracing, you'll see the LLM's decision to call the tool, the exact parameters it passed, the tool's response, and how the LLM used that response. When a customer says "you gave me the wrong order status," you can trace back through every step and find exactly where things broke.
 
 ```typescript
 import { provider } from "./instrumentation.js";
@@ -231,9 +229,9 @@ This reveals exactly where time is spent. Is the tool slow? Is the model taking 
 
 # Step 3: FAQ with RAG
 
-RAG pipelines have a dirty secret: most bad answers aren't the LLM's fault. They're retrieval failures. The user asks about refunds, but your semantic search returns documents about shipping. The LLM dutifully answers based on the wrong context, and the user gets garbage.
+SupportBot also uses a RAG system for FAQ. Given a user's query, it has a list of FAQ that it references, using vector embedding search, to give the proper response.
 
-This is nearly impossible to debug without tracing. You'd have to log embeddings, log similarity scores, log retrieved documents, log the final prompt... it's a mess. With tracing, every step is captured automatically. You can see exactly which documents were retrieved, what context was injected into the prompt, and how the LLM used it. When answers are wrong, you can immediately tell if it's a retrieval problem or a generation problem.
+This is nearly impossible to debug without tracing. You'd have to log embeddings, log similarity scores, log retrieved documents, log the final prompt. With tracing, every step is captured automatically. You can see exactly which documents were retrieved, what context was injected into the prompt, and how the LLM used it. When answers are wrong, you can immediately tell if it's a retrieval problem or a generation problem.
 
 ```typescript
 import { embed, generateText } from "ai";
@@ -298,7 +296,13 @@ You can immediately see if retrieval is finding the right documents by checking 
 
 # Putting It All Together: The Complete Agent
 
-Now let's combine everything into a unified agent with a parent span that groups all operations:
+Now let's combine everything into a unified agent with a parent span that groups all operations.
+
+1. The classifier LLM call differentiates user queries between order_status queries or FAQ.
+2. Depending on the classification, either the lookupOrderStatus tool is called, or the FAQ context is retrieved.
+3. The final LLM call gives a response to the user based on the info its given from step 2.
+
+We'll trace our final agent so that we can see how support bot holistically handles different user requests!
 
 ```typescript
 import { provider } from "./instrumentation.js";
@@ -385,6 +389,7 @@ Open Phoenix at `http://localhost:6006`. You'll see 7 `support-agent` traces - o
 ## Trace 1: "Can you help me with something random?"
 
 Our support query classifier gave the following classification:
+
 ```
 {
   "category": "faq",
@@ -392,9 +397,11 @@ Our support query classifier gave the following classification:
   "reasoning": "The query is vague and doesn't specify a relevant topic, but it suggests a need for assistance, placing it within a general support context."
 }
 ```
-Confidence: low is a huge red flag! This tells us that our support query classifier was unable to confidently classify the user's support query, indicating the query may be out of scope for our agent. 
+
+Confidence: low is a huge red flag! This tells us that our support query classifier was unable to confidently classify the user's support query, indicating the query may be out of scope for our agent.
 
 The last span shows the most relevant context retrieved, which is
+
 ```
 Context:
 Q: How do I reset my password?
@@ -404,9 +411,10 @@ Q: How do I update my profile information?
 A: Go to Account Settings > Profile. You can update your name, email, phone number, and address there.
 ```
 
-This context is not relevant to the user's question at all. 
+This context is not relevant to the user's question at all.
 
 Therefore, our traces have given us proper insight into why the final answer was:
+
 ```
 I’d be happy to help, but I can only assist with questions related to account settings, passwords, and profile information. Let me know if you need help with those!
 ```
@@ -414,6 +422,7 @@ I’d be happy to help, but I can only assist with questions related to account 
 ## Trace 2: "What's the status of order ORD-99999?"
 
 Our support query classifier gave us the following classification:
+
 ```
 {
   "category": "order_status",
@@ -421,9 +430,11 @@ Our support query classifier gave us the following classification:
   "reasoning": "The query directly asks about the status of a specific order, indicating it is related to order tracking."
 }
 ```
-Hmm. Seems like our classifier thinks this question accurately falls within the scope of our agent. Let's keep going. 
+
+Hmm. Seems like our classifier thinks this question accurately falls within the scope of our agent. Let's keep going.
 
 Our support agent LLM span chose the following tool call:
+
 ```
 lookupOrderStatus("{\"orderId\":\"ORD-99999\"}")
 ```
@@ -431,6 +442,7 @@ lookupOrderStatus("{\"orderId\":\"ORD-99999\"}")
 Seems good...
 
 The lookOrderStatus tool call gave us:
+
 ```
 {"error":"Order ORD-99999 not found in our system"}
 ```
@@ -438,6 +450,7 @@ The lookOrderStatus tool call gave us:
 Aha! Seems like ORD-99999 is an invalid order number!
 
 That's why the final output was:
+
 ```
 Hi there! I checked on your order with the ID ORD-99999, but it seems that I couldn't find any details at the moment. If you could provide me with more information or check back later, I'd be happy to assist you further!
 ```
@@ -455,7 +468,7 @@ Every LLM call, tool execution, and embedding operation is visible in Phoenix. N
 
 # Next Steps
 
-You can see inside your application now - every LLM call, tool execution, and retrieval is visible. We spent some time manually analyzing traces. But how can we **automate** this analysis, over thousands of traces? How can we store this analysis in Phoenix, so that we can build **metrics** that measure our application? 
+You can see inside your application now - every LLM call, tool execution, and retrieval is visible. We spent some time manually analyzing traces. But how can we **automate** this analysis, over thousands of traces? How can we store this analysis in Phoenix, so that we can build **metrics** that measure our application?
 
 In the [next chapter](/phoenix/tracing/tutorial/annotations-and-evaluation), you'll learn to:
 
