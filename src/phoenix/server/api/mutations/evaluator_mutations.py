@@ -39,6 +39,7 @@ from phoenix.server.api.types.Evaluator import (
 )
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -68,6 +69,7 @@ class CreateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
     name: Identifier
     description: Optional[str] = UNSET
+    prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
     output_config: CategoricalAnnotationConfigInput
     input_mapping: Optional[EvaluatorInputMappingInput] = None
@@ -207,12 +209,6 @@ class EvaluatorMutationMixin:
             prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
         except ValidationError as error:
             raise BadRequest(str(error))
-        prompt_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
-        prompt = models.Prompt(
-            name=prompt_name,
-            description=input.description or None,
-            prompt_versions=[prompt_version],
-        )
         config = _to_pydantic_categorical_annotation_config(input.output_config)
         try:
             evaluator_name = IdentifierModel.model_validate(input.name)
@@ -223,31 +219,81 @@ class EvaluatorMutationMixin:
             display_name=evaluator_name,
             input_mapping=input.input_mapping or {"literal_mapping": {}, "path_mapping": {}},
         )
-        llm_evaluator = models.LLMEvaluator(
-            name=evaluator_name,
-            description=input.description or None,
-            kind="LLM",
-            annotation_name=input.output_config.name,
-            output_config=config,
-            user_id=user_id,
-            prompt=prompt,
-            dataset_evaluators=[dataset_evaluator_record],
-        )
-        llm_evaluator.updated_at = datetime.now(timezone.utc)
 
         try:
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
-        except ValueError as error:
-            raise BadRequest(str(error))
-        try:
             async with info.context.db() as session:
+                # Handle prompt version ID if provided
+                target_prompt_version_id: Optional[int] = None
+                prompt: models.Prompt | None = None
+
+                if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
+                    prompt_version_id = from_global_id_with_expected_type(
+                        global_id=input.prompt_version_id, expected_type_name=PromptVersion.__name__
+                    )
+                    existing_prompt_version = await session.get(
+                        models.PromptVersion, prompt_version_id
+                    )
+                    if existing_prompt_version is None:
+                        raise NotFound(
+                            f"Prompt version with id {input.prompt_version_id} not found"
+                        )
+                    existing_prompt_id = existing_prompt_version.prompt_id
+
+                    # Fetch the existing prompt
+                    prompt = await session.get(models.Prompt, existing_prompt_id)
+                    if prompt is None:
+                        raise NotFound(f"Prompt with id {existing_prompt_id} not found")
+
+                    # Always create a new prompt version for the existing prompt
+                    prompt_version.prompt_id = existing_prompt_id
+                    session.add(prompt_version)
+                    await session.flush()
+                    target_prompt_version_id = prompt_version.id
+                else:
+                    # No prompt version ID provided: create new prompt and prompt version
+                    prompt_name = IdentifierModel.model_validate(
+                        f"{input.name}-evaluator-{token_hex(4)}"
+                    )
+                    prompt = models.Prompt(
+                        name=prompt_name,
+                        description=input.description or None,
+                        prompt_versions=[prompt_version],
+                    )
+                    target_prompt_version_id = None  # Will use prompt_version.id after flush
+
+                llm_evaluator = models.LLMEvaluator(
+                    name=evaluator_name,
+                    description=input.description or None,
+                    kind="LLM",
+                    annotation_name=input.output_config.name,
+                    output_config=config,
+                    user_id=user_id,
+                    prompt=prompt,
+                    dataset_evaluators=[dataset_evaluator_record],
+                )
+                llm_evaluator.updated_at = datetime.now(timezone.utc)
+
+                try:
+                    validate_consistent_llm_evaluator_and_prompt_version(
+                        prompt_version, llm_evaluator
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error))
+
                 session.add(llm_evaluator)
                 await session.flush()
                 tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
+                # Use the target prompt version ID (newly created if prompt_version_id
+                # provided, otherwise the new prompt version)
+                final_prompt_version_id = (
+                    target_prompt_version_id
+                    if target_prompt_version_id is not None
+                    else prompt_version.id
+                )
                 prompt_tag = models.PromptVersionTag(
                     name=tag_name,
                     prompt_id=prompt.id,
-                    prompt_version_id=prompt_version.id,
+                    prompt_version_id=final_prompt_version_id,
                 )
                 llm_evaluator.prompt_version_tag = prompt_tag
                 # Manually update the updated_at field because updating the description
