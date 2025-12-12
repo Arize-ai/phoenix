@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.22](https://img.shields.io/badge/Version-4.0.22-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.24.0](https://img.shields.io/badge/AppVersion-12.24.0-informational?style=flat-square)
+![Version: 4.0.23](https://img.shields.io/badge/Version-4.0.23-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.25.0](https://img.shields.io/badge/AppVersion-12.25.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -46,7 +46,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
 | auth.ldap.allowSignUp | bool | `true` | Allow automatic user creation on first LDAP login. Set to false to require pre-provisioned users. |
 | auth.ldap.attrDisplayName | string | `"displayName"` | LDAP attribute containing user's display name. |
-| auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Valid values: "mail" (or other attribute name) to use that LDAP attribute for email, or "null" for no-email mode. When using no-email mode ("null"): attrUniqueId is REQUIRED, allowSignUp must be true, auth.admins cannot be used. DEPRECATION: Not setting this value (relying on implicit "mail" default) is deprecated and will be required in the next major version. |
+| auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Valid values:   - "mail" (or other attribute name): Use that LDAP attribute for email   - "null": No-email mode for directories without email When using no-email mode ("null"):   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)   - allowSignUp must be true (users auto-provisioned on first login)   - auth.admins cannot be used (use groupRoleMappings for admin assignment) |
 | auth.ldap.attrMemberOf | string | `"memberOf"` | LDAP attribute containing group memberships (default: "memberOf"). Used when groupSearchFilter is not set (Active Directory mode). Typical values: "memberOf" (AD, OpenLDAP with memberOf overlay) |
 | auth.ldap.attrUniqueId | string | `""` | LDAP attribute containing an immutable unique identifier. REQUIRED when attrEmail is "null" (no-email mode). Also recommended if you expect user emails to change frequently. Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId" |
 | auth.ldap.bindDn | string | `""` | Service account DN for binding to LDAP server. Example: "CN=svc-phoenix,OU=Service Accounts,DC=corp,DC=com" |
@@ -121,7 +121,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.24.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.25.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
