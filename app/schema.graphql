@@ -633,6 +633,7 @@ input CreateDatasetLLMEvaluatorInput {
   datasetId: ID!
   name: Identifier!
   description: String
+  promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
   outputConfig: CategoricalAnnotationConfigInput!
   inputMapping: EvaluatorInputMappingInput = null
