@@ -575,43 +575,43 @@ async def test_google_tools_are_round_tripped_without_data_loss(
     (
         pytest.param(
             {"function_calling_config": {"mode": "auto"}},
-            {"mode": "auto"},
+            {"function_calling_config": {"mode": "auto"}},
             id="mode-auto-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any"}},
-            {"mode": "any"},
+            {"function_calling_config": {"mode": "any"}},
             id="mode-any-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "none"}},
-            {"mode": "none"},
+            {"function_calling_config": {"mode": "none"}},
             id="mode-none-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "AUTO"}},
-            {"mode": "auto"},
-            id="mode-auto-lowercase",
+            {"function_calling_config": {"mode": "auto"}},
+            id="mode-AUTO-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "ANY"}},
-            {"mode": "any"},
-            id="mode-any-lowercase",
+            {"function_calling_config": {"mode": "any"}},
+            id="mode-ANY-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "NONE"}},
-            {"mode": "none"},
-            id="mode-none-lowercase",
+            {"function_calling_config": {"mode": "none"}},
+            id="mode-NONE-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
-            {"mode": "any", "allowed_function_names": ["get_weather"]},
+            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
             id="specific-function-name-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["get_weather"]}},
-            {"mode": "any", "allowed_function_names": ["get_weather"]},
-            id="specific-function-name-lowercase",
+            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            id="specific-function-name-uppercase",
         ),
     ),
 )

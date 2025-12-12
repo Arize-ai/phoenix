@@ -11,13 +11,21 @@ if TYPE_CHECKING:
     )
 
 
-class GoogleToolChoice(TypedDict, total=False):
+class GoogleFunctionCallingConfig(TypedDict, total=False):
     """
     Based on https://github.com/googleapis/python-genai/blob/97cc7e4eafbee4fa4035e7420170ab6a2c9da7fb/google/genai/types.py#L4245
     """
 
     mode: NotRequired[Literal["auto", "any", "none"]]
     allowed_function_names: NotRequired[list[str]]
+
+
+class GoogleToolChoice(TypedDict):
+    """
+    Based on https://github.com/googleapis/python-genai/blob/97cc7e4eafbee4fa4035e7420170ab6a2c9da7fb/google/genai/types.py#L4341
+    """
+
+    function_calling_config: GoogleFunctionCallingConfig
 
 
 class GoogleToolChoiceConversion:
@@ -31,13 +39,18 @@ class GoogleToolChoiceConversion:
         ],
     ) -> GoogleToolChoice:
         if obj.type == "none":
-            return {"mode": "none"}
+            return {"function_calling_config": {"mode": "none"}}
         if obj.type == "zero_or_more":
-            return {"mode": "auto"}
+            return {"function_calling_config": {"mode": "auto"}}
         if obj.type == "one_or_more":
-            return {"mode": "any"}
+            return {"function_calling_config": {"mode": "any"}}
         if obj.type == "specific_function":
-            return {"mode": "any", "allowed_function_names": [obj.function_name]}
+            return {
+                "function_calling_config": {
+                    "mode": "any",
+                    "allowed_function_names": [obj.function_name],
+                }
+            }
         assert_never(obj)
 
     @staticmethod
