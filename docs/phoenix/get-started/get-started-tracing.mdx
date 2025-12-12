@@ -89,6 +89,10 @@ Traces let you see what's happening inside your application—LLM calls, tool in
         import "./instrumentation";
         ```
 
+        <Info>
+        TypeScript tracing setup varies based on your module system (ESM vs CommonJS), runtime (Node.js, Bun, Deno), and framework (Next.js, Express, etc.). For detailed configuration options including batching, gRPC, and advanced setups, see the [complete tracing setup guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel).
+        </Info>
+
         See the [TypeScript SDK reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
       </Tab>
     </Tabs>
@@ -147,7 +151,23 @@ Traces let you see what's happening inside your application—LLM calls, tool in
 
 ## Next Steps
 
-<Columns cols={2}>
-  <Card title="Tracing Concepts" href="/docs/phoenix/tracing/concepts-tracing" />
-  <Card title="Add Metadata & Tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans" />
-</Columns>
+<CardGroup cols={2}>
+  <Card title="Tracing Concepts" icon="book" href="/docs/phoenix/tracing/concepts-tracing">
+    Understand spans, traces, and how observability works
+  </Card>
+  <Card title="Add Metadata & Tags" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
+    Enrich traces with custom attributes for filtering and analysis
+  </Card>
+  <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
+    Connect LangChain, LlamaIndex, Anthropic, and 20+ frameworks
+  </Card>
+  <Card title="Manual Instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Add custom spans with decorators and wrappers
+  </Card>
+  <Card title="Run Evaluations" icon="chart-line" href="/docs/phoenix/get-started/get-started-evaluations">
+    Score your traces with LLM-as-a-judge evaluators
+  </Card>
+  <Card title="Advanced Setup" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Configure batching, gRPC, headers, and more
+  </Card>
+</CardGroup>
