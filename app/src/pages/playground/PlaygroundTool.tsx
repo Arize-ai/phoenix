@@ -20,6 +20,7 @@ import {
 import {
   anthropicToolDefinitionJSONSchema,
   awsToolDefinitionJSONSchema,
+  geminiToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
@@ -128,7 +129,7 @@ export function PlaygroundTool({
       case "AWS":
         return awsToolDefinitionJSONSchema as JSONSchema7;
       case "GOOGLE":
-        return null;
+        return geminiToolDefinitionJSONSchema as JSONSchema7;
     }
   }, [instance.model.provider]);
 
