@@ -1,5 +1,26 @@
 # Changelog
 
+## [12.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.24.0...arize-phoenix-v12.25.0) (2025-12-12)
+
+
+### Features
+
+* Lazy load embeddings/dimension features ([#10583](https://github.com/Arize-ai/phoenix/issues/10583)) ([b29cac8](https://github.com/Arize-ai/phoenix/commit/b29cac8c39989484fca0727708560d0aa0d78dd6))
+* **ldap:** use `null` as sentinel value for `PHOENIX_LDAP_ATTR_EMAIL` ([#10560](https://github.com/Arize-ai/phoenix/issues/10560)) ([2e121cd](https://github.com/Arize-ai/phoenix/commit/2e121cdbc5b5df0dad6807f60369c99679b8333e))
+* support gemini tool calls ([#10358](https://github.com/Arize-ai/phoenix/issues/10358)) ([db5f9e6](https://github.com/Arize-ai/phoenix/commit/db5f9e669cd02a57a860fe9f786ba2109dd02fe6))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.27.0 ([#10569](https://github.com/Arize-ai/phoenix/issues/10569)) ([6ddcd9e](https://github.com/Arize-ai/phoenix/commit/6ddcd9ed16c6df7e944c2c2bdfecdf29445d71f8))
+* **deps:** update arize-phoenix-evals to 2.7.1 ([#10581](https://github.com/Arize-ai/phoenix/issues/10581)) ([bf77f69](https://github.com/Arize-ai/phoenix/commit/bf77f69f053dd1796179452e7452eb5d2aab7b1e))
+
+
+### Documentation
+
+* add icons and missing integrations ([#10582](https://github.com/Arize-ai/phoenix/issues/10582)) ([c6d6cf3](https://github.com/Arize-ai/phoenix/commit/c6d6cf3b371928626cf6c33a23296a1ac33c05cd))
+* rest api updates ([#10580](https://github.com/Arize-ai/phoenix/issues/10580)) ([ce7c1b2](https://github.com/Arize-ai/phoenix/commit/ce7c1b250b080a521d9717a17d9766f81e015b5d))
+
 ## [12.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.23.0...arize-phoenix-v12.24.0) (2025-12-11)
 
 
