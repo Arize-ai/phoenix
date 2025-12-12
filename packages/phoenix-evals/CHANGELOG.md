@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.0...arize-phoenix-evals-v2.7.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* **evals:** rate limiter fixes ([#10576](https://github.com/Arize-ai/phoenix/issues/10576)) ([5bbd5de](https://github.com/Arize-ai/phoenix/commit/5bbd5de427c8b33e0c48dab0f00e526f71561e43))
+
 ## [2.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.6.1...arize-phoenix-evals-v2.7.0) (2025-12-04)
 
 
