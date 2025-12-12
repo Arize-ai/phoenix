@@ -33,10 +33,7 @@
             "groups": [
               {
                 "group": " ",
-                "pages": [
-                  "docs/phoenix",
-                  "docs/phoenix/phoenix-demo"
-                ]
+                "pages": ["docs/phoenix", "docs/phoenix/phoenix-demo"]
               },
               {
                 "group": "Quick Start",
