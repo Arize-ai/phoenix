@@ -6,7 +6,7 @@ description: Guides on how to use traces
 
 ## Setup Tracing
 
-- Setup Tracing in [Python](/docs/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) or [Typescript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
+- Setup Tracing in [Python](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python) or [Typescript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
 - Add Integrations via [Auto Instrumentation](/docs/phoenix/integrations)
 - [Manually Instrument](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) your application
 
@@ -17,17 +17,17 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 <Columns cols={2}>
 <Card title="How to track sessions" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions" icon="angles-right" horizontal/>
 <Card title="How to create custom spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans" icon="angles-right" horizontal/>
-<Card title="Setting metadata" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_metadata" icon="angles-right" horizontal/>
+<Card title="Setting metadata" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-metadata" icon="angles-right" horizontal/>
 <Card title="Setting tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-tags" icon="angles-right" horizontal/>
-<Card title="Setting a user" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_user" icon="angles-right" horizontal/>
-<Card title="Setting prompt template attributes" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-the-prompt-template" icon="angles-right" horizontal/>
-<Card title="How to read attributes from context" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_attributes" icon="angles-right" horizontal/>
+<Card title="Setting a user" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-users" icon="angles-right" horizontal/>
+<Card title="Setting prompt template attributes" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables" icon="angles-right" horizontal/>
+<Card title="How to read attributes from context" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#customizing-attributes" icon="angles-right" horizontal/>
 <Card title="Masking attributes on spans" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="angles-right" horizontal/>
 </Columns>
 
 ## [Auto Instrumentation](/docs/phoenix/integrations)
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](/docs/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) and [JavaScript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](/docs/phoenix/integrations/platforms/langflow/langflow-tracing) and [LiteLLM proxy](/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing).
+Phoenix natively works with a variety of frameworks and SDKs across [Python](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python) and [JavaScript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](/docs/phoenix/integrations/platforms/langflow/langflow-tracing) and [LiteLLM proxy](/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing).
 
 # Manual Instrumentation
 
@@ -35,10 +35,10 @@ Create and customize spans for your use-case
 
 ### [Instrument: Python using OpenInference Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python)
 <br />
-### [Instrument: Python using Base OTEL](/docs/phoenix/tracing/how-to-tracing#instrument-python-using-base-otel)
+### [Instrument: Python using Base OTEL](/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans)
 
 <Columns cols={2}>
-<Card title="How to acquire a Tracer" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#acquire-tracer" icon="angles-right" horizontal/>
+<Card title="How to configure a Tracer" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#configuring-a-tracer" icon="angles-right" horizontal/>
 <Card title="How to create spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans" icon="angles-right" horizontal/>
 <Card title="How to create nested spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-nested-spans" icon="angles-right" horizontal/>
 <Card title="How to create spans with decorators" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans-with-decorators" icon="angles-right" horizontal/>
@@ -57,13 +57,13 @@ Create and customize spans for your use-case
 How to query spans to construct DataFrames to use for evaluation
 
 <Columns cols={2}>
-<Card title="How to run a query" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-run-a-query" icon="angles-right" horizontal/>
+<Card title="How to run a query" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries" icon="angles-right" horizontal/>
 <Card title="How to specify a project" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-specify-a-project" icon="angles-right" horizontal/>
 <Card title="How to query for documents" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents" icon="angles-right" horizontal/>
-<Card title="How to apply filters" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#filtering-spans" icon="angles-right" horizontal/>
-<Card title="How to extract attributes" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extracting-span-attributes" icon="angles-right" horizontal/>
+<Card title="How to apply filters" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters" icon="angles-right" horizontal/>
+<Card title="How to extract attributes" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-extract-attributes" icon="angles-right" horizontal/>
 <Card title="How to use data for evaluation" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-use-data-for-evaluation" icon="angles-right" horizontal/>
-<Card title="How to use pre-defined queries" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#predefined-queries" icon="angles-right" horizontal/>
+<Card title="How to use pre-defined queries" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#pre-defined-queries" icon="angles-right" horizontal/>
 </Columns>
 
 ## [Annotate Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations)
@@ -80,7 +80,7 @@ How to log evaluation results to annotate traces with evals
 <Columns cols={2}>
 <Card title="How to log span evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#span-evaluations" icon="angles-right" horizontal/>
 <Card title="How to log document evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#document-evaluations" icon="angles-right" horizontal/>
-<Card title="How to specify a project for logging evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#specifying-a-project-for-the-evaluations" icon="angles-right" horizontal/>
+<Card title="How to connect to Phoenix" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#connect-to-phoenix" icon="angles-right" horizontal/>
 </Columns>
 
 
