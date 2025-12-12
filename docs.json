@@ -763,6 +763,13 @@
                   },
                   "docs/phoenix/integrations/python/mcp-tracing",
                   {
+                    "group": "NVIDIA",
+                    "pages": [
+                      "docs/phoenix/integrations/python/nvidia",
+                      "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing"
+                    ]
+                  },
+                  {
                     "group": "Portkey",
                     "pages": [
                       "docs/phoenix/integrations/python/portkey",

@@ -1,0 +1,70 @@
+---
+title: "NeMo Agent Toolkit Tracing"
+description: Instrument and observe NVIDIA NeMo Agent Toolkit workflows
+---
+
+Phoenix provides seamless observability and tracing for NVIDIA NeMo Agent Toolkit workflows. This guide walks you through setting up telemetry to view traces in the Phoenix UI.
+
+## Install
+
+Install the Phoenix subpackage to enable tracing capabilities:
+
+```bash
+uv pip install -e '.[phoenix]'
+```
+
+## Setup
+
+### Step 1: Start the Phoenix Server
+
+Run the following command to start Phoenix server locally:
+
+```bash
+phoenix serve
+```
+
+Phoenix should now be accessible at `http://0.0.0.0:6006`.
+
+### Step 2: Configure Your Workflow
+
+Update your workflow configuration file to include the telemetry settings. Add the following to your workflow configuration:
+
+```yaml
+general:
+  telemetry:
+    tracing:
+      phoenix:
+        _type: phoenix
+        endpoint: http://localhost:6006/v1/traces
+        project: my_workflow_project
+```
+
+This setup enables tracing through Phoenix at `http://localhost:6006/v1/traces`, with traces grouped into your specified project.
+
+## Run Your Workflow
+
+From the root directory of the NeMo Agent toolkit library, install dependencies and run your workflow:
+
+```bash
+# Install the workflow and plugins
+uv pip install -e examples/observability/simple_calculator_observability/
+
+# Run the workflow with Phoenix telemetry settings
+nat run --config_file examples/observability/simple_calculator_observability/configs/config-phoenix.yml --input "What is 1*2?"
+```
+
+As the workflow runs, trace data will show up in Phoenix.
+
+## Observe
+
+Open your browser and navigate to `http://0.0.0.0:6006` to view your workflow traces:
+
+* Locate your workflow traces under your project name in projects
+* Inspect execution details (latency, tokens, etc.) and run evaluations on your traces
+
+## Resources
+
+<CardGroup>
+  <Card title="NVIDIA NeMo Agent Toolkit Documentation" href="https://docs.nvidia.com/nemo/agent-toolkit/latest/workflows/observe/observe-workflow-with-phoenix.html" icon="globe" horizontal/>
+  <Card title="NeMo Agent Toolkit Overview" href="https://docs.nvidia.com/nemo/agent-toolkit/latest/index.html" icon="globe" horizontal/>
+</CardGroup>
