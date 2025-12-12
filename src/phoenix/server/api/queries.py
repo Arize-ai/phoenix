@@ -1490,7 +1490,10 @@ class Query:
                     # Default to USER if unknown role
                     role = PromptMessageRole.USER
 
-                content = [TextContentPart(text=TextContentValue(text=msg.content))]
+                content = type_cast(
+                    list[ContentPart],
+                    [TextContentPart(text=TextContentValue(text=msg.content))],
+                )
 
                 gql_messages.append(PromptMessage(role=role, content=content))
 
