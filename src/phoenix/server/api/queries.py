@@ -30,6 +30,7 @@ from phoenix.db.helpers import (
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
+from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -40,6 +41,9 @@ from phoenix.server.api.evaluators import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.classification_evaluator_configs import (
+    get_classification_evaluator_configs,
+)
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
@@ -66,6 +70,7 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
+from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -1454,6 +1459,51 @@ class Query:
             )
             data = [to_gql_annotation_config(config) async for config in configs]
             return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def classification_evaluator_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[ClassificationEvaluatorConfig]:
+        pydantic_configs = get_classification_evaluator_configs()
+
+        gql_configs: list[ClassificationEvaluatorConfig] = []
+        for config in pydantic_configs:
+            optimization_direction = (
+                OptimizationDirection.MAXIMIZE
+                if config.optimization_direction == "maximize"
+                else OptimizationDirection.MINIMIZE
+            )
+
+            gql_messages: list[PromptMessage] = []
+            for msg in config.messages:
+                role_str = msg.role.lower()
+                if role_str == "user":
+                    role = PromptMessageRole.USER
+                elif role_str == "system":
+                    role = PromptMessageRole.SYSTEM
+                elif role_str in ("ai", "assistant"):
+                    role = PromptMessageRole.AI
+                elif role_str == "tool":
+                    role = PromptMessageRole.TOOL
+                else:
+                    # Default to USER if unknown role
+                    role = PromptMessageRole.USER
+
+                content = [TextContentPart(text=TextContentValue(text=msg.content))]
+
+                gql_messages.append(PromptMessage(role=role, content=content))
+
+            gql_config = ClassificationEvaluatorConfig(
+                name=config.name,
+                description=config.description,
+                optimization_direction=optimization_direction,
+                messages=gql_messages,
+                choices=config.choices,
+            )
+            gql_configs.append(gql_config)
+
+        return gql_configs
 
     @strawberry.field
     def clusters(
