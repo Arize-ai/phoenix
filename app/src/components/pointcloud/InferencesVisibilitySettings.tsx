@@ -5,7 +5,7 @@ import {
   ColoringStrategy,
   FALLBACK_COLOR,
 } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 import { useDefaultColorScheme } from "@phoenix/pages/embedding/useDefaultColorScheme";
 import { assertUnreachable } from "@phoenix/typeUtils";
 

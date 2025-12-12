@@ -14,7 +14,7 @@ import {
   Text,
   TooltipTrigger,
 } from "@phoenix/components";
-import { useInferences } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 

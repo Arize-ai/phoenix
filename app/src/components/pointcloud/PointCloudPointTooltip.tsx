@@ -2,7 +2,8 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { css } from "@emotion/react";
 
-import { useInferences, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 import { getInferencesRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventItem } from "./EventItem";

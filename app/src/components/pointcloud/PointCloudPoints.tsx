@@ -5,8 +5,9 @@ import { lighten, shade } from "polished";
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext, useTheme } from "@phoenix/contexts";
-import { Point } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import { useTheme } from "@phoenix/contexts/ThemeContext";
+import type { Point } from "@phoenix/store/pointCloudStore";
 
 import { PointColor } from "./types";
 

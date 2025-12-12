@@ -8,7 +8,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { CanvasMode } from "@phoenix/store";
+import { CanvasMode } from "@phoenix/store/pointCloudStore";
 
 const radioItemCSS = css`
   display: flex;

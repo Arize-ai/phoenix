@@ -3,7 +3,8 @@ import { css } from "@emotion/react";
 import { Alert } from "@phoenix/components";
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { useInferences, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 import { Loading } from "../loading/Loading";
 
