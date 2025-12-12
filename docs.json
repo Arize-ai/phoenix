@@ -51,13 +51,21 @@
                 "icon": "swap",
                 "pages": [
                   {
-                    "group": "Overview: Tracing",
+                    "group": "Tutorial",
                     "pages": [
                       "docs/phoenix/tracing/llm-traces",
                       "docs/phoenix/tracing/llm-traces/projects",
                       "docs/phoenix/tracing/llm-traces/sessions",
                       "docs/phoenix/tracing/llm-traces/how-to-annotate-traces",
                       "docs/phoenix/tracing/llm-traces/metrics"
+                    ]
+                  },
+                  {
+                    "group": "Overview: Tracing",
+                    "pages": [
+                      "docs/phoenix/tracing/Tutorial/your-first-traces",
+                      "docs/phoenix/tracing/Tutorial/annotations-and-evaluations",
+                      "docs/phoenix/tracing/Tutorial/sessions"
                     ]
                   },
                   {
