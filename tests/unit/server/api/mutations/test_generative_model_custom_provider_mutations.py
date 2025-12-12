@@ -33,91 +33,73 @@ class TestGenerativeModelCustomProviderMutations:
             provider
             createdAt
             updatedAt
-            ... on GenerativeModelCustomProviderOpenAI {
-              config {
-                ... on OpenAICustomProviderConfig {
-                  openaiClientInterface
-                  supportsStreaming
-                  openaiAuthenticationMethod {
-                    apiKey
+            config {
+              ... on OpenAICustomProviderConfig {
+                openaiClientInterface
+                supportsStreaming
+                openaiAuthenticationMethod {
+                  apiKey
+                }
+                openaiClientKwargs {
+                  baseUrl
+                  organization
+                  project
+                  defaultHeaders
+                }
+              }
+              ... on AzureOpenAICustomProviderConfig {
+                azureOpenaiClientInterface
+                supportsStreaming
+                azureOpenaiAuthenticationMethod {
+                  apiKey
+                  azureAdTokenProvider {
+                    azureTenantId
+                    azureClientId
+                    azureClientSecret
+                    scope
                   }
-                  openaiClientKwargs {
+                }
+                azureOpenaiClientKwargs {
+                  apiVersion
+                  azureEndpoint
+                  azureDeployment
+                  defaultHeaders
+                }
+              }
+              ... on AnthropicCustomProviderConfig {
+                anthropicClientInterface
+                supportsStreaming
+                anthropicAuthenticationMethod {
+                  apiKey
+                }
+                anthropicClientKwargs {
+                  baseUrl
+                  defaultHeaders
+                }
+              }
+              ... on AWSBedrockCustomProviderConfig {
+                awsBedrockClientInterface
+                supportsStreaming
+                awsBedrockAuthenticationMethod {
+                  awsAccessKeyId
+                  awsSecretAccessKey
+                  awsSessionToken
+                }
+                awsBedrockClientKwargs {
+                  regionName
+                  endpointUrl
+                }
+              }
+              ... on GoogleGenAICustomProviderConfig {
+                googleGenaiClientInterface
+                supportsStreaming
+                googleGenaiAuthenticationMethod {
+                  apiKey
+                }
+                googleGenaiClientKwargs {
+                  httpOptions {
                     baseUrl
-                    organization
-                    project
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAzureOpenAI {
-              config {
-                ... on AzureOpenAICustomProviderConfig {
-                  azureOpenaiClientInterface
-                  supportsStreaming
-                  azureOpenaiAuthenticationMethod {
-                    apiKey
-                    azureAdTokenProvider {
-                      azureTenantId
-                      azureClientId
-                      azureClientSecret
-                      scope
-                    }
-                  }
-                  azureOpenaiClientKwargs {
-                    apiVersion
-                    azureEndpoint
-                    azureDeployment
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAnthropic {
-              config {
-                ... on AnthropicCustomProviderConfig {
-                  anthropicClientInterface
-                  supportsStreaming
-                  anthropicAuthenticationMethod {
-                    apiKey
-                  }
-                  anthropicClientKwargs {
-                    baseUrl
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAWSBedrock {
-              config {
-                ... on AWSBedrockCustomProviderConfig {
-                  awsBedrockClientInterface
-                  supportsStreaming
-                  awsBedrockAuthenticationMethod {
-                    awsAccessKeyId
-                    awsSecretAccessKey
-                    awsSessionToken
-                  }
-                  awsBedrockClientKwargs {
-                    regionName
-                    endpointUrl
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderGoogleGenAI {
-              config {
-                ... on GoogleGenAICustomProviderConfig {
-                  googleGenaiClientInterface
-                  supportsStreaming
-                  googleGenaiAuthenticationMethod {
-                    apiKey
-                  }
-                  googleGenaiClientKwargs {
-                    httpOptions {
-                      baseUrl
-                      headers
-                    }
+                    headers
                   }
                 }
               }

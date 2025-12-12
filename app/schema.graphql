@@ -38,8 +38,6 @@ input AWSBedrockCustomProviderConfigInput {
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
 }
 
-union AWSBedrockCustomProviderConfigUnparsableConfig = AWSBedrockCustomProviderConfig | UnparsableConfig
-
 input AddAnnotationConfigToProjectInput {
   projectId: ID!
   annotationConfigId: ID!
@@ -207,8 +205,6 @@ input AnthropicCustomProviderConfigInput {
   anthropicClientKwargs: AnthropicClientKwargsInput
 }
 
-union AnthropicCustomProviderConfigUnparsableConfig = AnthropicCustomProviderConfig | UnparsableConfig
-
 interface ApiKey {
   """Name of the API key."""
   name: String!
@@ -285,8 +281,6 @@ input AzureOpenAICustomProviderConfigInput {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
 }
-
-union AzureOpenAICustomProviderConfigUnparsableConfig = AzureOpenAICustomProviderConfig | UnparsableConfig
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
@@ -788,6 +782,8 @@ input CreateUserInput {
 }
 
 scalar CronExpression
+
+union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
 
 enum DataQualityMetric {
   cardinality
@@ -1957,7 +1953,7 @@ type GenerativeModelConnection {
   edges: [GenerativeModelEdge!]!
 }
 
-interface GenerativeModelCustomProvider implements Node {
+type GenerativeModelCustomProvider implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
 
@@ -1978,96 +1974,12 @@ interface GenerativeModelCustomProvider implements Node {
 
   """The SDK of this provider."""
   sdk: GenerativeModelSDK!
-
-  """The user that created this provider."""
-  user: User
-}
-
-type GenerativeModelCustomProviderAWSBedrock implements GenerativeModelCustomProvider & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of this provider."""
-  name: String!
-
-  """The description of this provider."""
-  description: String
-
-  """The provider of this provider."""
-  provider: String!
-
-  """The creation timestamp of this provider."""
-  createdAt: DateTime!
-
-  """The last updated timestamp of this provider."""
-  updatedAt: DateTime!
-
-  """The SDK of this provider."""
-  sdk: GenerativeModelSDK!
-
-  """The user that created this provider."""
-  user: User
 
   """The config of this provider."""
-  config: AWSBedrockCustomProviderConfigUnparsableConfig!
-}
-
-type GenerativeModelCustomProviderAnthropic implements GenerativeModelCustomProvider & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of this provider."""
-  name: String!
-
-  """The description of this provider."""
-  description: String
-
-  """The provider of this provider."""
-  provider: String!
-
-  """The creation timestamp of this provider."""
-  createdAt: DateTime!
-
-  """The last updated timestamp of this provider."""
-  updatedAt: DateTime!
-
-  """The SDK of this provider."""
-  sdk: GenerativeModelSDK!
+  config: CustomProviderConfig!
 
   """The user that created this provider."""
   user: User
-
-  """The config of this provider."""
-  config: AnthropicCustomProviderConfigUnparsableConfig!
-}
-
-type GenerativeModelCustomProviderAzureOpenAI implements GenerativeModelCustomProvider & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of this provider."""
-  name: String!
-
-  """The description of this provider."""
-  description: String
-
-  """The provider of this provider."""
-  provider: String!
-
-  """The creation timestamp of this provider."""
-  createdAt: DateTime!
-
-  """The last updated timestamp of this provider."""
-  updatedAt: DateTime!
-
-  """The SDK of this provider."""
-  sdk: GenerativeModelSDK!
-
-  """The user that created this provider."""
-  user: User
-
-  """The config of this provider."""
-  config: AzureOpenAICustomProviderConfigUnparsableConfig!
 }
 
 """A connection to a list of items."""
@@ -2088,69 +2000,11 @@ type GenerativeModelCustomProviderEdge {
   node: GenerativeModelCustomProvider!
 }
 
-type GenerativeModelCustomProviderGoogleGenAI implements GenerativeModelCustomProvider & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of this provider."""
-  name: String!
-
-  """The description of this provider."""
-  description: String
-
-  """The provider of this provider."""
-  provider: String!
-
-  """The creation timestamp of this provider."""
-  createdAt: DateTime!
-
-  """The last updated timestamp of this provider."""
-  updatedAt: DateTime!
-
-  """The SDK of this provider."""
-  sdk: GenerativeModelSDK!
-
-  """The user that created this provider."""
-  user: User
-
-  """The config of this provider."""
-  config: GoogleGenAICustomProviderConfigUnparsableConfig!
-}
-
 input GenerativeModelCustomProviderInput {
   providerId: ID!
   provider: String!
   modelName: String!
   extraHeaders: JSON
-}
-
-type GenerativeModelCustomProviderOpenAI implements GenerativeModelCustomProvider & Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of this provider."""
-  name: String!
-
-  """The description of this provider."""
-  description: String
-
-  """The provider of this provider."""
-  provider: String!
-
-  """The creation timestamp of this provider."""
-  createdAt: DateTime!
-
-  """The last updated timestamp of this provider."""
-  updatedAt: DateTime!
-
-  """The SDK of this provider."""
-  sdk: GenerativeModelSDK!
-
-  """The user that created this provider."""
-  user: User
-
-  """The config of this provider."""
-  config: OpenAICustomProviderConfigUnparsableConfig!
 }
 
 input GenerativeModelCustomerProviderConfigInput @oneOf {
@@ -2248,8 +2102,6 @@ input GoogleGenAICustomProviderConfigInput {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
   googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
 }
-
-union GoogleGenAICustomProviderConfigUnparsableConfig = GoogleGenAICustomProviderConfig | UnparsableConfig
 
 type GoogleGenAIHttpOptions {
   baseUrl: String
@@ -2591,8 +2443,6 @@ input OpenAICustomProviderConfigInput {
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
   openaiClientKwargs: OpenAIClientKwargsInput
 }
-
-union OpenAICustomProviderConfigUnparsableConfig = OpenAICustomProviderConfig | UnparsableConfig
 
 enum OptimizationDirection {
   MINIMIZE

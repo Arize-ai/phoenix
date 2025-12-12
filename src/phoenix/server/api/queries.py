@@ -104,11 +104,6 @@ from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
-    GenerativeModelCustomProviderAnthropic,
-    GenerativeModelCustomProviderAWSBedrock,
-    GenerativeModelCustomProviderAzureOpenAI,
-    GenerativeModelCustomProviderGoogleGenAI,
-    GenerativeModelCustomProviderOpenAI,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
@@ -281,29 +276,7 @@ class Query:
         cursors_and_nodes: list[tuple[Cursor, GenerativeModelCustomProvider]] = []
 
         for provider in providers:
-            gql_provider: GenerativeModelCustomProvider
-            if provider.sdk == "openai":
-                gql_provider = GenerativeModelCustomProviderOpenAI(
-                    id=provider.id, db_record=provider
-                )
-            elif provider.sdk == "azure_openai":
-                gql_provider = GenerativeModelCustomProviderAzureOpenAI(
-                    id=provider.id, db_record=provider
-                )
-            elif provider.sdk == "anthropic":
-                gql_provider = GenerativeModelCustomProviderAnthropic(
-                    id=provider.id, db_record=provider
-                )
-            elif provider.sdk == "aws_bedrock":
-                gql_provider = GenerativeModelCustomProviderAWSBedrock(
-                    id=provider.id, db_record=provider
-                )
-            elif provider.sdk == "google_genai":
-                gql_provider = GenerativeModelCustomProviderGoogleGenAI(
-                    id=provider.id, db_record=provider
-                )
-            else:
-                assert_never(provider.sdk)
+            gql_provider = GenerativeModelCustomProvider(id=provider.id, db_record=provider)
             cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
 
         return connection_from_cursors_and_nodes(
@@ -1235,18 +1208,7 @@ class Query:
                 orm_provider = await session.get(models.GenerativeModelCustomProvider, node_id)
             if not orm_provider:
                 raise NotFound(f"Unknown provider: {node_id}")
-            if orm_provider.sdk == "openai":
-                return GenerativeModelCustomProviderOpenAI(id=node_id, db_record=orm_provider)
-            elif orm_provider.sdk == "azure_openai":
-                return GenerativeModelCustomProviderAzureOpenAI(id=node_id, db_record=orm_provider)
-            elif orm_provider.sdk == "anthropic":
-                return GenerativeModelCustomProviderAnthropic(id=node_id, db_record=orm_provider)
-            elif orm_provider.sdk == "aws_bedrock":
-                return GenerativeModelCustomProviderAWSBedrock(id=node_id, db_record=orm_provider)
-            elif orm_provider.sdk == "google_genai":
-                return GenerativeModelCustomProviderGoogleGenAI(id=node_id, db_record=orm_provider)
-            else:
-                assert_never(orm_provider.sdk)
+            return GenerativeModelCustomProvider(id=node_id, db_record=orm_provider)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

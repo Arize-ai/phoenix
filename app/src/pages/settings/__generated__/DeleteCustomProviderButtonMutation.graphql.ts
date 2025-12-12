@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f89a0d05e60b03e97b96447ea49aa93a>>
+ * @generated SignedSource<<ba789dc9ace5f0e52f1917b98edaa729>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -68,35 +68,7 @@ v5 = {
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
-},
-v6 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "config",
-    "plural": false,
-    "selections": [
-      (v5/*: any*/),
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "parseError",
-            "storageKey": null
-          }
-        ],
-        "type": "UnparsableConfig",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -206,12 +178,11 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": null,
+                        "concreteType": "GenerativeModelCustomProvider",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
                           (v3/*: any*/),
                           {
                             "alias": null,
@@ -282,35 +253,32 @@ return {
                             "storageKey": null
                           },
                           {
-                            "kind": "InlineFragment",
-                            "selections": (v6/*: any*/),
-                            "type": "GenerativeModelCustomProviderOpenAI",
-                            "abstractKey": null
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "config",
+                            "plural": false,
+                            "selections": [
+                              (v5/*: any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "parseError",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "UnparsableConfig",
+                                "abstractKey": null
+                              }
+                            ],
+                            "storageKey": null
                           },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": (v6/*: any*/),
-                            "type": "GenerativeModelCustomProviderAzureOpenAI",
-                            "abstractKey": null
-                          },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": (v6/*: any*/),
-                            "type": "GenerativeModelCustomProviderAnthropic",
-                            "abstractKey": null
-                          },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": (v6/*: any*/),
-                            "type": "GenerativeModelCustomProviderAWSBedrock",
-                            "abstractKey": null
-                          },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": (v6/*: any*/),
-                            "type": "GenerativeModelCustomProviderGoogleGenAI",
-                            "abstractKey": null
-                          }
+                          (v5/*: any*/)
                         ],
                         "storageKey": null
                       },
@@ -370,12 +338,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5add157a01c334492461cb31162a2e7d",
+    "cacheID": "f9e6a6a12696ab87c70910b2f6573186",
     "id": null,
     "metadata": {},
     "name": "DeleteCustomProviderButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteCustomProviderButtonMutation(\n  $input: DeleteGenerativeModelCustomProviderMutationInput!\n) {\n  deleteGenerativeModelCustomProvider(input: $input) {\n    id\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeleteCustomProviderButtonMutation(\n  $input: DeleteGenerativeModelCustomProviderMutationInput!\n) {\n  deleteGenerativeModelCustomProvider(input: $input) {\n    id\n    query {\n      ...CustomProvidersCard_data\n    }\n  }\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

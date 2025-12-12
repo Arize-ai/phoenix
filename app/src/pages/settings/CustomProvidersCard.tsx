@@ -209,39 +209,9 @@ export function CustomProvidersCard({
               }
               # Only fetch parseError to detect unparseable configs
               # Full config is fetched by EditCustomProviderButton when editing
-              ... on GenerativeModelCustomProviderOpenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAzureOpenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAnthropic {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAWSBedrock {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderGoogleGenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
+              config {
+                ... on UnparsableConfig {
+                  parseError
                 }
               }
             }

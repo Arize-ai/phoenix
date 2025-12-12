@@ -43,7 +43,7 @@ import {
 const ProviderQuery = graphql`
   query EditCustomProviderButtonQuery($id: ID!) {
     node(id: $id) {
-      ... on GenerativeModelCustomProviderOpenAI {
+      ... on GenerativeModelCustomProvider {
         id
         name
         description
@@ -71,25 +71,6 @@ const ProviderQuery = graphql`
               defaultHeaders
             }
           }
-        }
-      }
-      ... on GenerativeModelCustomProviderAzureOpenAI {
-        id
-        name
-        description
-        sdk
-        provider
-        createdAt
-        updatedAt
-        user {
-          id
-          username
-          profilePictureUrl
-        }
-        config {
-          ... on UnparsableConfig {
-            parseError
-          }
           ... on AzureOpenAICustomProviderConfig {
             azureOpenaiAuthenticationMethod {
               apiKey
@@ -107,25 +88,6 @@ const ProviderQuery = graphql`
               defaultHeaders
             }
           }
-        }
-      }
-      ... on GenerativeModelCustomProviderAnthropic {
-        id
-        name
-        description
-        sdk
-        provider
-        createdAt
-        updatedAt
-        user {
-          id
-          username
-          profilePictureUrl
-        }
-        config {
-          ... on UnparsableConfig {
-            parseError
-          }
           ... on AnthropicCustomProviderConfig {
             anthropicAuthenticationMethod {
               apiKey
@@ -134,25 +96,6 @@ const ProviderQuery = graphql`
               baseUrl
               defaultHeaders
             }
-          }
-        }
-      }
-      ... on GenerativeModelCustomProviderAWSBedrock {
-        id
-        name
-        description
-        sdk
-        provider
-        createdAt
-        updatedAt
-        user {
-          id
-          username
-          profilePictureUrl
-        }
-        config {
-          ... on UnparsableConfig {
-            parseError
           }
           ... on AWSBedrockCustomProviderConfig {
             awsBedrockAuthenticationMethod {
@@ -164,25 +107,6 @@ const ProviderQuery = graphql`
               regionName
               endpointUrl
             }
-          }
-        }
-      }
-      ... on GenerativeModelCustomProviderGoogleGenAI {
-        id
-        name
-        description
-        sdk
-        provider
-        createdAt
-        updatedAt
-        user {
-          id
-          username
-          profilePictureUrl
-        }
-        config {
-          ... on UnparsableConfig {
-            parseError
           }
           ... on GoogleGenAICustomProviderConfig {
             googleGenaiAuthenticationMethod {

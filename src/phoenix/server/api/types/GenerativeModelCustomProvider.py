@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Callable, Union
 
 import strawberry
 from pydantic import ValidationError
@@ -328,49 +328,68 @@ class GoogleGenAICustomProviderConfig:
         )
 
 
-@strawberry.interface
+# Union type for polymorphic config field
+CustomProviderConfig = Annotated[
+    Union[
+        OpenAICustomProviderConfig,
+        AzureOpenAICustomProviderConfig,
+        AnthropicCustomProviderConfig,
+        AWSBedrockCustomProviderConfig,
+        GoogleGenAICustomProviderConfig,
+        UnparsableConfig,
+    ],
+    strawberry.union("CustomProviderConfig"),
+]
+
+
+def _parse_config(
+    sdk: models.GenerativeModelSDK,
+    encrypted_config: bytes,
+    decrypt: Callable[[bytes], bytes],
+) -> (
+    OpenAICustomProviderConfig
+    | AzureOpenAICustomProviderConfig
+    | AnthropicCustomProviderConfig
+    | AWSBedrockCustomProviderConfig
+    | GoogleGenAICustomProviderConfig
+    | UnparsableConfig
+):
+    """Parse the encrypted config based on the SDK type."""
+    try:
+        data = decrypt(encrypted_config)
+    except ValueError:
+        return UnparsableConfig(parse_error="Config cannot be decrypted")
+
+    try:
+        if sdk == "openai":
+            openai_config = mp.OpenAICustomProviderConfig.model_validate_json(data)
+            return OpenAICustomProviderConfig.from_orm(openai_config)
+        elif sdk == "azure_openai":
+            azure_config = mp.AzureOpenAICustomProviderConfig.model_validate_json(data)
+            return AzureOpenAICustomProviderConfig.from_orm(azure_config)
+        elif sdk == "anthropic":
+            anthropic_config = mp.AnthropicCustomProviderConfig.model_validate_json(data)
+            return AnthropicCustomProviderConfig.from_orm(anthropic_config)
+        elif sdk == "aws_bedrock":
+            bedrock_config = mp.AWSBedrockCustomProviderConfig.model_validate_json(data)
+            return AWSBedrockCustomProviderConfig.from_orm(bedrock_config)
+        elif sdk == "google_genai":
+            google_config = mp.GoogleGenAICustomProviderConfig.model_validate_json(data)
+            return GoogleGenAICustomProviderConfig.from_orm(google_config)
+        else:
+            assert_never(sdk)
+    except ValidationError:
+        return UnparsableConfig(parse_error="Config cannot be parsed")
+
+
+@strawberry.type
 class GenerativeModelCustomProvider(Node):
-    @strawberry.field(description="The name of this provider.")  # type: ignore
-    async def name(self) -> str:
-        raise NotImplementedError
-
-    @strawberry.field(description="The description of this provider.")  # type: ignore
-    async def description(self) -> str | None:
-        raise NotImplementedError
-
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
-    async def provider(self) -> str:
-        raise NotImplementedError
-
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
-    async def created_at(self) -> datetime:
-        raise NotImplementedError
-
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
-    async def updated_at(self) -> datetime:
-        raise NotImplementedError
-
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        raise NotImplementedError
-
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
-    async def user(self) -> Annotated["User", strawberry.lazy(".User")] | None:
-        raise NotImplementedError
-
-
-@strawberry.type
-class GenerativeModelCustomProviderOpenAI(GenerativeModelCustomProvider):
     id: NodeID[int]
     db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
-
-    @classmethod
-    def resolve_typename(cls, root: Self, info: Info) -> str:
-        return GenerativeModelCustomProvider.__name__
 
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
@@ -422,445 +441,32 @@ class GenerativeModelCustomProviderOpenAI(GenerativeModelCustomProvider):
             )
         return val
 
-    @strawberry.field(description="The config of this provider.")  # type: ignore
-    async def config(
-        self, info: Info[Context, None]
-    ) -> OpenAICustomProviderConfig | UnparsableConfig:
-        if self.db_record:
-            val = self.db_record.config
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.config),
-            )
-        try:
-            data = info.context.decrypt(val)
-        except ValueError:
-            return UnparsableConfig(parse_error="Config cannot be decrypted")
-        try:
-            config = mp.OpenAICustomProviderConfig.model_validate_json(data)
-        except ValidationError:
-            return UnparsableConfig(parse_error="Config cannot be parsed")
-        return OpenAICustomProviderConfig.from_orm(config)
-
     @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        return GenerativeModelSDK.OPENAI
-
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
-    async def user(
-        self, info: Info[Context, None]
-    ) -> Annotated["User", strawberry.lazy(".User")] | None:
+    async def sdk(self, info: Info[Context, None]) -> GenerativeModelSDK:
         if self.db_record:
-            user_id = self.db_record.user_id
+            sdk = self.db_record.sdk
         else:
-            user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
+            sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
+                (self.id, models.GenerativeModelCustomProvider.sdk),
             )
-        if user_id is None:
-            return None
-        from .User import User
-
-        return User(id=user_id)
-
-
-@strawberry.type
-class GenerativeModelCustomProviderAzureOpenAI(GenerativeModelCustomProvider):
-    id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
-
-    def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
-            raise ValueError("GenerativeModelCustomProvider ID mismatch")
-
-    @classmethod
-    def resolve_typename(cls, root: Self, info: Info) -> str:
-        return GenerativeModelCustomProvider.__name__
-
-    @strawberry.field(description="The name of this provider.")  # type: ignore
-    async def name(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.name
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
-            )
-        return val
-
-    @strawberry.field(description="The description of this provider.")  # type: ignore
-    async def description(self, info: Info[Context, None]) -> str | None:
-        if self.db_record:
-            val = self.db_record.description
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
-            )
-        return val
-
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
-    async def provider(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.provider
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
-            )
-        return val
-
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
-    async def created_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.created_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
-            )
-        return val
-
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
-    async def updated_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.updated_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
-            )
-        return val
+        return GenerativeModelSDK(sdk)
 
     @strawberry.field(description="The config of this provider.")  # type: ignore
-    async def config(
-        self, info: Info[Context, None]
-    ) -> AzureOpenAICustomProviderConfig | UnparsableConfig:
+    async def config(self, info: Info[Context, None]) -> CustomProviderConfig:
         if self.db_record:
-            val = self.db_record.config
+            encrypted_config = self.db_record.config
+            sdk = self.db_record.sdk
         else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.config),
+            # Load both config and sdk fields
+            encrypted_config = (
+                await info.context.data_loaders.generative_model_custom_provider_fields.load(
+                    (self.id, models.GenerativeModelCustomProvider.config),
+                )
             )
-        try:
-            data = info.context.decrypt(val)
-        except ValueError:
-            return UnparsableConfig(parse_error="Config cannot be decrypted")
-        try:
-            config = mp.AzureOpenAICustomProviderConfig.model_validate_json(data)
-        except ValidationError:
-            return UnparsableConfig(parse_error="Config cannot be parsed")
-        return AzureOpenAICustomProviderConfig.from_orm(config)
-
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        return GenerativeModelSDK.AZURE_OPENAI
-
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
-    async def user(
-        self, info: Info[Context, None]
-    ) -> Annotated["User", strawberry.lazy(".User")] | None:
-        if self.db_record:
-            user_id = self.db_record.user_id
-        else:
-            user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
+            sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
+                (self.id, models.GenerativeModelCustomProvider.sdk),
             )
-        if user_id is None:
-            return None
-        from .User import User
-
-        return User(id=user_id)
-
-
-@strawberry.type
-class GenerativeModelCustomProviderAnthropic(GenerativeModelCustomProvider):
-    id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
-
-    def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
-            raise ValueError("GenerativeModelCustomProvider ID mismatch")
-
-    @classmethod
-    def resolve_typename(cls, root: Self, info: Info) -> str:
-        return GenerativeModelCustomProvider.__name__
-
-    @strawberry.field(description="The name of this provider.")  # type: ignore
-    async def name(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.name
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
-            )
-        return val
-
-    @strawberry.field(description="The description of this provider.")  # type: ignore
-    async def description(self, info: Info[Context, None]) -> str | None:
-        if self.db_record:
-            val = self.db_record.description
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
-            )
-        return val
-
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
-    async def provider(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.provider
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
-            )
-        return val
-
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
-    async def created_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.created_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
-            )
-        return val
-
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
-    async def updated_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.updated_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
-            )
-        return val
-
-    @strawberry.field(description="The config of this provider.")  # type: ignore
-    async def config(
-        self, info: Info[Context, None]
-    ) -> AnthropicCustomProviderConfig | UnparsableConfig:
-        if self.db_record:
-            val = self.db_record.config
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.config),
-            )
-        try:
-            data = info.context.decrypt(val)
-        except ValueError:
-            return UnparsableConfig(parse_error="Config cannot be decrypted")
-        try:
-            config = mp.AnthropicCustomProviderConfig.model_validate_json(data)
-        except ValidationError:
-            return UnparsableConfig(parse_error="Config cannot be parsed")
-        return AnthropicCustomProviderConfig.from_orm(config)
-
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        return GenerativeModelSDK.ANTHROPIC
-
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
-    async def user(
-        self, info: Info[Context, None]
-    ) -> Annotated["User", strawberry.lazy(".User")] | None:
-        if self.db_record:
-            user_id = self.db_record.user_id
-        else:
-            user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
-            )
-        if user_id is None:
-            return None
-        from .User import User
-
-        return User(id=user_id)
-
-
-@strawberry.type
-class GenerativeModelCustomProviderAWSBedrock(GenerativeModelCustomProvider):
-    id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
-
-    def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
-            raise ValueError("GenerativeModelCustomProvider ID mismatch")
-
-    @classmethod
-    def resolve_typename(cls, root: Self, info: Info) -> str:
-        return GenerativeModelCustomProvider.__name__
-
-    @strawberry.field(description="The name of this provider.")  # type: ignore
-    async def name(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.name
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
-            )
-        return val
-
-    @strawberry.field(description="The description of this provider.")  # type: ignore
-    async def description(self, info: Info[Context, None]) -> str | None:
-        if self.db_record:
-            val = self.db_record.description
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
-            )
-        return val
-
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
-    async def provider(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.provider
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
-            )
-        return val
-
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
-    async def created_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.created_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
-            )
-        return val
-
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
-    async def updated_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.updated_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
-            )
-        return val
-
-    @strawberry.field(description="The config of this provider.")  # type: ignore
-    async def config(
-        self, info: Info[Context, None]
-    ) -> AWSBedrockCustomProviderConfig | UnparsableConfig:
-        if self.db_record:
-            val = self.db_record.config
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.config),
-            )
-        try:
-            data = info.context.decrypt(val)
-        except ValueError:
-            return UnparsableConfig(parse_error="Config cannot be decrypted")
-        try:
-            config = mp.AWSBedrockCustomProviderConfig.model_validate_json(data)
-        except ValidationError:
-            return UnparsableConfig(parse_error="Config cannot be parsed")
-        return AWSBedrockCustomProviderConfig.from_orm(config)
-
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        return GenerativeModelSDK.AWS_BEDROCK
-
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
-    async def user(
-        self, info: Info[Context, None]
-    ) -> Annotated["User", strawberry.lazy(".User")] | None:
-        if self.db_record:
-            user_id = self.db_record.user_id
-        else:
-            user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
-            )
-        if user_id is None:
-            return None
-        from .User import User
-
-        return User(id=user_id)
-
-
-@strawberry.type
-class GenerativeModelCustomProviderGoogleGenAI(GenerativeModelCustomProvider):
-    id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
-
-    def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
-            raise ValueError("GenerativeModelCustomProvider ID mismatch")
-
-    @classmethod
-    def resolve_typename(cls, root: Self, info: Info) -> str:
-        return GenerativeModelCustomProvider.__name__
-
-    @strawberry.field(description="The name of this provider.")  # type: ignore
-    async def name(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.name
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
-            )
-        return val
-
-    @strawberry.field(description="The description of this provider.")  # type: ignore
-    async def description(self, info: Info[Context, None]) -> str | None:
-        if self.db_record:
-            val = self.db_record.description
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
-            )
-        return val
-
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
-    async def provider(self, info: Info[Context, None]) -> str:
-        if self.db_record:
-            val = self.db_record.provider
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
-            )
-        return val
-
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
-    async def created_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.created_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
-            )
-        return val
-
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
-    async def updated_at(self, info: Info[Context, None]) -> datetime:
-        if self.db_record:
-            val = self.db_record.updated_at
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
-            )
-        return val
-
-    @strawberry.field(description="The config of this provider.")  # type: ignore
-    async def config(
-        self, info: Info[Context, None]
-    ) -> GoogleGenAICustomProviderConfig | UnparsableConfig:
-        if self.db_record:
-            val = self.db_record.config
-        else:
-            val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.config),
-            )
-        try:
-            data = info.context.decrypt(val)
-        except ValueError:
-            return UnparsableConfig(parse_error="Config cannot be decrypted")
-        try:
-            config = mp.GoogleGenAICustomProviderConfig.model_validate_json(data)
-        except ValidationError:
-            return UnparsableConfig(parse_error="Config cannot be parsed")
-        return GoogleGenAICustomProviderConfig.from_orm(config)
-
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
-    async def sdk(self) -> GenerativeModelSDK:
-        return GenerativeModelSDK.GOOGLE_GENAI
+        return _parse_config(sdk, encrypted_config, info.context.decrypt)
 
     @strawberry.field(description="The user that created this provider.")  # type: ignore
     async def user(

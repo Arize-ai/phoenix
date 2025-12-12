@@ -27,11 +27,6 @@ from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput i
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
-    GenerativeModelCustomProviderAnthropic,
-    GenerativeModelCustomProviderAWSBedrock,
-    GenerativeModelCustomProviderAzureOpenAI,
-    GenerativeModelCustomProviderGoogleGenAI,
-    GenerativeModelCustomProviderOpenAI,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
@@ -52,28 +47,6 @@ def _get_sdk_from_config(
     if isinstance(config.root, AzureOpenAICustomProviderConfig):
         return "azure_openai"
     assert_never(config.root)
-
-
-def _get_provider_class_from_sdk(
-    sdk: models.GenerativeModelSDK,
-) -> (
-    type[GenerativeModelCustomProviderOpenAI]
-    | type[GenerativeModelCustomProviderAzureOpenAI]
-    | type[GenerativeModelCustomProviderAnthropic]
-    | type[GenerativeModelCustomProviderAWSBedrock]
-    | type[GenerativeModelCustomProviderGoogleGenAI]
-):
-    if sdk == "aws_bedrock":
-        return GenerativeModelCustomProviderAWSBedrock
-    if sdk == "google_genai":
-        return GenerativeModelCustomProviderGoogleGenAI
-    if sdk == "anthropic":
-        return GenerativeModelCustomProviderAnthropic
-    if sdk == "openai":
-        return GenerativeModelCustomProviderOpenAI
-    if sdk == "azure_openai":
-        return GenerativeModelCustomProviderAzureOpenAI
-    assert_never(sdk)
 
 
 @strawberry.input
@@ -185,10 +158,8 @@ class GenerativeModelCustomProviderMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict(f"Provider with name '{input.name}' already exists")
 
-        provider_class = _get_provider_class_from_sdk(provider.sdk)
-
         return CreateGenerativeModelCustomProviderMutationPayload(
-            provider=provider_class(id=provider.id, db_record=provider),
+            provider=GenerativeModelCustomProvider(id=provider.id, db_record=provider),
             query=Query(),
         )
 
@@ -223,16 +194,12 @@ class GenerativeModelCustomProviderMutationMixin:
             if input.provider and input.provider != provider.provider:
                 provider.provider = input.provider
 
-            provider_class = _get_provider_class_from_sdk(provider.sdk)
-
             if input.client_config:
                 new_config = input.client_config.to_orm()
                 # Update SDK if client config changes (allows switching SDK types)
                 new_sdk = _get_sdk_from_config(new_config)
                 if new_sdk != provider.sdk:
                     provider.sdk = new_sdk
-                # Update provider class to match new config
-                provider_class = _get_provider_class_from_sdk(new_sdk)
                 # Serialize and encrypt the config
                 config_json = new_config.model_dump_json().encode("utf-8")
                 provider.config = info.context.encrypt(config_json)
@@ -245,7 +212,7 @@ class GenerativeModelCustomProviderMutationMixin:
                     raise Conflict(f"Provider with name '{input.name}' already exists")
 
         return PatchGenerativeModelCustomProviderMutationPayload(
-            provider=provider_class(id=provider.id, db_record=provider),
+            provider=GenerativeModelCustomProvider(id=provider.id, db_record=provider),
             query=Query(),
         )
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a98766a66ed0129c6a404fee34fa3779>>
+ * @generated SignedSource<<bda95d746ad215ef779f43af18a96e7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,44 +38,16 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "id",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
-},
-v4 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "config",
-    "plural": false,
-    "selections": [
-      (v2/*: any*/),
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "parseError",
-            "storageKey": null
-          }
-        ],
-        "type": "UnparsableConfig",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -187,13 +159,12 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": null,
+                "concreteType": "GenerativeModelCustomProvider",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
                   (v2/*: any*/),
-                  (v3/*: any*/),
                   (v0/*: any*/),
                   {
                     "alias": null,
@@ -238,7 +209,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v2/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -257,35 +228,32 @@ return {
                     "storageKey": null
                   },
                   {
-                    "kind": "InlineFragment",
-                    "selections": (v4/*: any*/),
-                    "type": "GenerativeModelCustomProviderOpenAI",
-                    "abstractKey": null
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "config",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "parseError",
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "UnparsableConfig",
+                        "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
                   },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": (v4/*: any*/),
-                    "type": "GenerativeModelCustomProviderAzureOpenAI",
-                    "abstractKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": (v4/*: any*/),
-                    "type": "GenerativeModelCustomProviderAnthropic",
-                    "abstractKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": (v4/*: any*/),
-                    "type": "GenerativeModelCustomProviderAWSBedrock",
-                    "abstractKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": (v4/*: any*/),
-                    "type": "GenerativeModelCustomProviderGoogleGenAI",
-                    "abstractKey": null
-                  }
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -339,12 +307,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "66d9915100a6268f8106ff5d58791cdd",
+    "cacheID": "7d24a9b375274a1fcd4573005daf1438",
     "id": null,
     "metadata": {},
     "name": "settingsAIProvidersPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        ... on GenerativeModelCustomProviderOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAzureOpenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAnthropic {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderAWSBedrock {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n        ... on GenerativeModelCustomProviderGoogleGenAI {\n          config {\n            __typename\n            ... on UnparsableConfig {\n              parseError\n            }\n          }\n        }\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
   }
 };
 })();

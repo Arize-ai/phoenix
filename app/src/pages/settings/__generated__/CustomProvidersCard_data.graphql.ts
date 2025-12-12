@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5d657c45ddd7c8eaaef5c6f5f801e04>>
+ * @generated SignedSource<<d88a3dd5e29a69e0bdf013bbd0b1a929>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type CustomProvidersCard_data$data = {
   readonly generativeModelCustomProviders: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly config?: {
+        readonly config: {
           readonly parseError?: string;
         };
         readonly createdAt: string;
@@ -52,34 +52,7 @@ v1 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v2 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "config",
-    "plural": false,
-    "selections": [
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "parseError",
-            "storageKey": null
-          }
-        ],
-        "type": "UnparsableConfig",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+};
 return {
   "argumentDefinitions": [
     {
@@ -137,7 +110,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
+              "concreteType": "GenerativeModelCustomProvider",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -212,34 +185,29 @@ return {
                   "storageKey": null
                 },
                 {
-                  "kind": "InlineFragment",
-                  "selections": (v2/*: any*/),
-                  "type": "GenerativeModelCustomProviderOpenAI",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": (v2/*: any*/),
-                  "type": "GenerativeModelCustomProviderAzureOpenAI",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": (v2/*: any*/),
-                  "type": "GenerativeModelCustomProviderAnthropic",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": (v2/*: any*/),
-                  "type": "GenerativeModelCustomProviderAWSBedrock",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": (v2/*: any*/),
-                  "type": "GenerativeModelCustomProviderGoogleGenAI",
-                  "abstractKey": null
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "config",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "parseError",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "UnparsableConfig",
+                      "abstractKey": null
+                    }
+                  ],
+                  "storageKey": null
                 },
                 {
                   "alias": null,
@@ -295,6 +263,6 @@ return {
 };
 })();
 
-(node as any).hash = "aa58663ec66ed9f78983e8cbb3e6d1cf";
+(node as any).hash = "c29e85fe3f8eb2ea260fdc204f7f5ada";
 
 export default node;
