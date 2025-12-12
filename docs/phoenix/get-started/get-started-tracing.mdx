@@ -2,93 +2,80 @@
 title: "Tracing"
 ---
 
-Now that you have Phoenix up and running, the next step is to start sending **traces** from your Python application. Traces let you see what's happening inside your system, including function calls, LLM requests, tool calls, and other operations.
+Traces let you see what's happening inside your application—LLM calls, tool invocations, retrieval steps, and more. This guide walks you through sending your first traces to Phoenix.
 
 <Steps>
-  <Step title={<span className="step-title">Launch Phoenix</span>}>
-    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started).
+  <Step title={<span className="step-title">Configure Your Environment</span>}>
+    Set environment variables to connect to your Phoenix instance:
 
-    <Tabs>
-      <Tab title="Phoenix Cloud">
-        Log in, create a space, navigate to the settings page in your space, and create your API keys.
+    ```bash
+    export PHOENIX_API_KEY="your-api-key"
 
-        In your code, set your environment variables.
+    # Local (default, no API key required)
+    export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-        ```python
-        import os
-        os.environ["PHOENIX_API_KEY"] = "ADD YOUR PHOENIX API KEY"
-        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "ADD YOUR PHOENIX Collector endpoint"
-        ```
+    # Phoenix Cloud
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
 
-        You can find your collector endpoint here:
+    # Self-hosted
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
+    ```
 
-        <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." /></Frame>
-
-        Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
-      </Tab>
-
-      <Tab title="Local (Self-hosted)">
-        If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://arize.com/docs/phoenix/self-hosting))
-
-        To host on your local machine, run `phoenix serve` in your terminal.
-
-        Navigate to your localhost in your browser. (example localhost:6006)
-      </Tab>
-    </Tabs>
+    <Tip>
+    You can find your collector endpoint and API key in the **Settings** page of your Phoenix instance.
+    </Tip>
   </Step>
 
-  <Step title={<span className="step-title">Install the Phoenix OTEL Package</span>}>
-    To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix.
+  <Step title={<span className="step-title">Install Dependencies</span>}>
+    Install the Phoenix OTEL package and an instrumentation library for your framework. Phoenix provides [auto-instrumentation](/docs/phoenix/integrations) for [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Anthropic](/docs/phoenix/integrations/llm-providers/anthropic), [LangChain](/docs/phoenix/integrations/python/langchain), [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), and many more.
 
     <Tabs>
       <Tab title="Python" icon="python">
         ```bash
-        pip install arize-phoenix-otel
+        pip install arize-phoenix-otel openinference-instrumentation-openai
         ```
+
+        See [all Python integrations](/docs/phoenix/integrations#by-language).
       </Tab>
 
       <Tab title="TypeScript" icon="js">
         ```bash
-        # npm, pnpm, yarn, etc
-        npm install @arizeai/phoenix-otel
+        npm install @arizeai/phoenix-otel @arizeai/openinference-core @arizeai/openinference-instrumentation-openai
         ```
+
+        See [all TypeScript integrations](/docs/phoenix/integrations#by-language).
       </Tab>
     </Tabs>
   </Step>
 
-  <Step title={<span className="step-title">Set-Up Tracing</span>}>
-    There are two ways to trace your application: manually, or automatically with an auto-instrumentor. OpenInference provides the auto-instrumenter option through ready-to-use integrations with popular frameworks, so you can capture traces without adding manual logging code.
+  <Step title={<span className="step-title">Initialize Tracing</span>}>
+    Register Phoenix as your trace provider. This connects your app to Phoenix and instruments supported libraries.
 
     <Tabs>
       <Tab title="OpenAI (Python)" icon="python">
-        Phoenix can capture all calls made to supported libraries automatically. Just install the [associated library](https://github.com/Arize-ai/openinference?tab=readme-ov-file#instrumentation).
+        ```python
+        from phoenix.otel import register
 
-        ```bash
-        pip install openinference-instrumentation-openai
+        tracer_provider = register(
+            project_name="my-llm-app",
+            auto_instrument=True,  # Automatically instruments OpenAI, LangChain, etc.
+        )
         ```
+
+        Set `auto_instrument=False` for manual control over which libraries to instrument. See the [Python OTEL SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
       </Tab>
 
       <Tab title="OpenAI (TypeScript)" icon="js">
-        Phoenix can capture all calls made to supported libraries automatically. Just install the [associated library](https://github.com/Arize-ai/openinference?tab=readme-ov-file#instrumentation).
-
-        ```bash
-        # npm, pnpm, yarn, etc
-        npm install openai @arizeai/openinference-instrumentation-openai
-        ```
-
-        Update your `instrumentation.ts` file, registering the instrumentation. Steps will vary depending on if your project is configured for CommonJS or ESM style module resolution.
+        Create an `instrumentation.ts` file:
 
         <Tabs>
           <Tab title="ESM Project">
             ```typescript
-            // instrumentation.ts
-
-            // ... rest of imports
-            import OpenAI from "openai"
-            import { registerInstrumentations } from "@arizeai/phoenix-otel";
+            import OpenAI from "openai";
+            import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
             import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-            // ... previous code
+            register({ projectName: "my-llm-app" });
 
             const instrumentation = new OpenAIInstrumentation();
             instrumentation.manuallyInstrument(OpenAI);
@@ -101,13 +88,10 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
 
           <Tab title="CommonJS Project">
             ```typescript
-            // instrumentation.ts
-
-            // ... rest of imports
-            import { registerInstrumentations } from "@arizeai/phoenix-otel";
+            import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
             import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-            // ... previous code
+            register({ projectName: "my-llm-app" });
 
             registerInstrumentations({
               instrumentations: [new OpenAIInstrumentation()],
@@ -117,118 +101,66 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
         </Tabs>
 
         <Info>
-        Your project can be configured for CommonJS or ESM via many methods. It can depend on your installed runtime (Node, Deno, etc), as well as configuration within your `package.json`. Consult your runtime documentation for more details.
+        Your project can be configured for CommonJS or ESM via many methods. Consult your runtime documentation for details.
         </Info>
+
+        Import this file at the top of your entrypoint:
+
+        ```typescript
+        import "./instrumentation";
+        ```
+
+        See the [TypeScript OTEL SDK reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
       </Tab>
 
-      <Tab title="Other Integrations">
-        Phoenix supports a variety of frameworks, model providers, and other integrations. For Example:
-
-        <Columns cols={3}>
-          <Card title="Anthropic" href="https://arize.com/docs/phoenix/integrations/llm-providers/anthropic" />
-          <Card title="Google" href="https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai" />
-          <Card title="LiteLLM" href="https://arize.com/docs/phoenix/integrations/llm-providers/litellm" />
-          <Card title="CrewAI" href="https://arize.com/docs/phoenix/integrations/python/crewai" />
-          <Card title="DSPy" href="https://arize.com/docs/phoenix/integrations/python/dspy" />
-          <Card title="Mastra" href="https://arize.com/docs/phoenix/integrations/typescript/mastra" />
-        </Columns>
-
-        <Info>
-        Check out our [Integrations page](https://arize.com/docs/phoenix/integrations) for all Integrations
-        </Info>
-      </Tab>
-
-      <Tab title="Manual">
-        Trace your own functions using OpenInference/OpenTelemetry.
-
-        Functions can be traced using decorators:
+      <Tab title="Manual (Python)" icon="python">
+        For custom tracing without auto-instrumentation:
 
         ```python
+        from phoenix.otel import register
+
+        tracer_provider = register(project_name="my-llm-app")
+        tracer = tracer_provider.get_tracer(__name__)
+
         @tracer.chain
         def my_func(input: str) -> str:
             return "output"
         ```
 
-        Input and output attributes are set automatically based on `my_func`'s parameters and return.
-
-        For Manually tracing your whole application, check out [our guide on manual tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) using OpenInference/OpenTelemetry.
-      </Tab>
-    </Tabs>
-  </Step>
-
-  <Step title={<span className="step-title">Register a Tracer</span>}>
-    In your Python code, register Phoenix as the trace provider. This connects your application to Phoenix, making a project in the UI after you send a trace, and optionally enables auto-instrumentation (automatic tracing for supported libraries like OpenAI).
-
-    <Tabs>
-      <Tab title="Python" icon="python">
-        ```python
-        from phoenix.otel import register
-
-        tracer_provider = register(
-            project_name="my-llm-app",
-            auto_instrument=True,
-        )
-
-        tracer = tracer_provider.get_tracer(__name__)
-        ```
+        See the [manual instrumentation guide](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) for more details.
       </Tab>
 
-      <Tab title="TypeScript" icon="js">
-        In a new file called `instrumentation.ts` (or .js if applicable)
+      <Tab title="Manual (TypeScript)" icon="js">
+        For custom tracing without auto-instrumentation:
 
         ```typescript
-        // instrumentation.ts
         import { register } from "@arizeai/phoenix-otel";
+        import { withSpan, traceAgent } from "@arizeai/openinference-core";
 
-        const provider = register({
-          projectName: "my-llm-app", // Sets the project name in Phoenix UI
-        });
+        register({ projectName: "my-llm-app" });
+
+        const myFunc = withSpan(
+          (input: string) => "output",
+          { kind: "CHAIN", name: "myFunc" }
+        );
+
+        const agent = traceAgent(
+          async (question: string) => `Answer: ${question}`,
+          { name: "my-agent" }
+        );
         ```
 
-        The `register` function automatically:
-
-        * Reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from environment variables
-        * Configures the collector endpoint (defaults to `http://localhost:6006`)
-        * Sets up batch span processing for production use
-        * Registers the provider globally
-
-        <Info>
-        **Environment Variables:**
-
-        * `PHOENIX_COLLECTOR_ENDPOINT` - The URL to your Phoenix instance (e.g., `https://app.phoenix.arize.com`)
-        * `PHOENIX_API_KEY` - Your Phoenix API key for authentication
-        </Info>
-
-        Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `--require` flag:
-
-        * Import Method:
-          * In main.ts or similar: `import "./instrumentation.ts"`
-          * In your CLI, script, Dockerfile, etc: `node main.ts`
-        * --require Method:
-          * In your CLI, script, Dockerfile, etc: `node --require ./instrumentation.ts main.ts`
+        See the [manual instrumentation guide](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) for more details.
       </Tab>
     </Tabs>
   </Step>
 
-  <Step title={<span className="step-title">Start Your Application</span>}>
-    Now that you have set up tracing & your project in Phoenix, it's time to actually invoke your llm, agent, or application.
+  <Step title={<span className="step-title">Run Your Application</span>}>
+    Invoke your LLM to generate traces:
 
     <Tabs>
       <Tab title="OpenAI (Python)" icon="python">
-        First add your OpenAI API Key & then invoke the model.
-
         ```python
-        import os
-        from getpass import getpass
-
-        if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-            openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-        os.environ["OPENAI_API_KEY"] = openai_api_key
-        ```
-
-        ```python
-        # Add OpenAI API Key
         import openai
 
         client = openai.OpenAI()
@@ -241,63 +173,35 @@ Now that you have Phoenix up and running, the next step is to start sending **tr
       </Tab>
 
       <Tab title="OpenAI (TypeScript)" icon="js">
-        In your app code, invoke OpenAI:
-
         ```typescript
-        // main.ts
+        import "./instrumentation";
         import OpenAI from "openai";
 
-        // set OPENAI_API_KEY in environment, or pass it in arguments
         const openai = new OpenAI();
 
-        openai.chat.completions
-          .create({
-            model: "gpt-4o",
-            messages: [{ role: "user", content: "Write a haiku." }],
-          })
-          .then((response) => {
-            console.log(response.choices[0].message.content);
-          })
-          // for demonstration purposes, keep the node process alive long
-          // enough for BatchSpanProcessor to flush Trace to Phoenix
-          // with its default flush time of 5 seconds
-          .then(() => new Promise((resolve) => setTimeout(resolve, 6000)));
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: "Write a haiku." }],
+        });
+        console.log(response.choices[0].message.content);
+
+        // Allow time for traces to flush
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         ```
-      </Tab>
-
-      <Tab title="Other Integrations">
-        Phoenix supports a variety of frameworks, model providers, and other integrations. After downloading any of these auto-instrumenters, the next step is to invoke them & see your traces populate in the Phoenix UI.
-
-        <Columns cols={3}>
-          <Card title="Anthropic" href="https://arize.com/docs/phoenix/integrations/llm-providers/anthropic" />
-          <Card title="Google" href="https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai" />
-          <Card title="LiteLLM" href="https://arize.com/docs/phoenix/integrations/llm-providers/litellm" />
-          <Card title="CrewAI" href="https://arize.com/docs/phoenix/integrations/python/crewai" />
-          <Card title="DSPy" href="https://arize.com/docs/phoenix/integrations/python/dspy" />
-          <Card title="Mastra" href="https://arize.com/docs/phoenix/integrations/typescript/mastra" />
-        </Columns>
-
-        <Info>
-        Check out our [Integrations page](https://arize.com/docs/phoenix/integrations) for all Integrations
-        </Info>
-      </Tab>
-
-      <Tab title="Manual">
-        After setting up all your functions to be traced using OpenInference/OpenTelemetry, now just call your application to start & you should be able to see your traces populate in the Phoenix UI.
       </Tab>
     </Tabs>
   </Step>
 
-  <Step title={<span className="step-title">View your Traces in Phoenix</span>}>
-    You should now see traces in Phoenix!
+  <Step title={<span className="step-title">View Your Traces</span>}>
+    Open Phoenix to see your traces:
 
     <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-get-started-tracing.avif" alt="Phoenix Traces View" /></Frame>
   </Step>
 </Steps>
 
-## Learn More:
+## Next Steps
 
 <Columns cols={2}>
   <Card title="Tracing Concepts" href="/docs/phoenix/tracing/concepts-tracing" />
-  <Card title="Tracing in Phoenix" href="/docs/phoenix/tracing/llm-traces" />
+  <Card title="Add Metadata & Tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans" />
 </Columns>
