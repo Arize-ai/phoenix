@@ -130,22 +130,22 @@ def _to_config_kwargs(
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "google"
         else {}
     )
-    ans: _GenerateContentConfigKwargs = {}
+    config_kwargs: _GenerateContentConfigKwargs = {}
     if "temperature" in invocation_parameters:
-        ans["temperature"] = invocation_parameters["temperature"]
+        config_kwargs["temperature"] = invocation_parameters["temperature"]
     if "max_output_tokens" in invocation_parameters:
-        ans["max_output_tokens"] = invocation_parameters["max_output_tokens"]
+        config_kwargs["max_output_tokens"] = invocation_parameters["max_output_tokens"]
     if "stop_sequences" in invocation_parameters:
-        ans["stop_sequences"] = list(invocation_parameters["stop_sequences"])
+        config_kwargs["stop_sequences"] = list(invocation_parameters["stop_sequences"])
     if "presence_penalty" in invocation_parameters:
-        ans["presence_penalty"] = invocation_parameters["presence_penalty"]
+        config_kwargs["presence_penalty"] = invocation_parameters["presence_penalty"]
     if "frequency_penalty" in invocation_parameters:
-        ans["frequency_penalty"] = invocation_parameters["frequency_penalty"]
+        config_kwargs["frequency_penalty"] = invocation_parameters["frequency_penalty"]
     if "top_p" in invocation_parameters:
-        ans["top_p"] = invocation_parameters["top_p"]
+        config_kwargs["top_p"] = invocation_parameters["top_p"]
     if "top_k" in invocation_parameters:
-        ans["top_k"] = invocation_parameters["top_k"]
-    return ans
+        config_kwargs["top_k"] = invocation_parameters["top_k"]
+    return config_kwargs
 
 
 class _ToolKwargsConversion:
@@ -232,24 +232,26 @@ class _ToolConfigConversion:
         v1.PromptToolChoiceOneOrMore,
         v1.PromptToolChoiceSpecificFunctionTool,
     ]:
-        fcc = obj.function_calling_config
-        if fcc is None:
+        function_calling_config = obj.function_calling_config
+        if function_calling_config is None:
             return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
 
         # Normalize mode to lowercase string
-        mode = fcc.mode.value.lower() if fcc.mode else "auto"
+        mode = (
+            function_calling_config.mode.value.lower() if function_calling_config.mode else "auto"
+        )
 
         if mode == "none":
             return v1.PromptToolChoiceNone(type="none")
         if mode == "auto":
             return v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
         if mode == "any":
-            if fcc.allowed_function_names:
-                if len(fcc.allowed_function_names) != 1:
+            if function_calling_config.allowed_function_names:
+                if len(function_calling_config.allowed_function_names) != 1:
                     raise ValueError("Only single allowed function name is currently supported")
                 return v1.PromptToolChoiceSpecificFunctionTool(
                     type="specific_function",
-                    function_name=fcc.allowed_function_names[0],
+                    function_name=function_calling_config.allowed_function_names[0],
                 )
             return v1.PromptToolChoiceOneOrMore(type="one_or_more")
         assert_never(mode)
