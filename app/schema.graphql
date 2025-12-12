@@ -1,8 +1,8 @@
 directive @oneOf on INPUT_OBJECT
 
 type AWSBedrockAuthenticationMethod {
-  awsAccessKeyId: String
-  awsSecretAccessKey: String
+  awsAccessKeyId: String!
+  awsSecretAccessKey: String!
   awsSessionToken: String
 }
 
@@ -17,7 +17,7 @@ enum AWSBedrockClientInterface {
 }
 
 type AWSBedrockClientKwargs {
-  regionName: String
+  regionName: String!
   endpointUrl: String
 }
 
@@ -29,7 +29,7 @@ input AWSBedrockClientKwargsInput {
 type AWSBedrockCustomProviderConfig {
   supportsStreaming: Boolean!
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
-  awsBedrockClientKwargs: AWSBedrockClientKwargs
+  awsBedrockClientKwargs: AWSBedrockClientKwargs!
   awsBedrockClientInterface: AWSBedrockClientInterface!
 }
 
@@ -237,10 +237,10 @@ enum AuthMethod {
 }
 
 type AzureADTokenProvider {
-  azureTenantId: String
-  azureClientId: String
-  azureClientSecret: String
-  scope: String
+  azureTenantId: String!
+  azureClientId: String!
+  azureClientSecret: String!
+  scope: String!
 }
 
 input AzureOpenAIADTokenProviderInput {
@@ -261,9 +261,9 @@ input AzureOpenAIAuthenticationMethodInput @oneOf {
 }
 
 type AzureOpenAIClientKwargs {
-  apiVersion: String
-  azureEndpoint: String
-  azureDeployment: String
+  apiVersion: String!
+  azureEndpoint: String!
+  azureDeployment: String!
   defaultHeaders: JSON
 }
 
@@ -277,7 +277,7 @@ input AzureOpenAIClientKwargsInput {
 type AzureOpenAICustomProviderConfig {
   supportsStreaming: Boolean!
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
-  azureOpenaiClientKwargs: AzureOpenAIClientKwargs
+  azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
   azureOpenaiClientInterface: OpenAIClientInterface!
 }
 

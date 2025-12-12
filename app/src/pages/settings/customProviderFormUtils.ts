@@ -16,7 +16,8 @@ import {
 } from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
-import type { CustomProvidersCard_data$data } from "./__generated__/CustomProvidersCard_data.graphql";
+import type { GenerativeModelSDK as GraphQLGenerativeModelSDK } from "./__generated__/CustomProvidersCard_data.graphql";
+import type { PatchGenerativeModelCustomProviderMutationInput } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
 import type { CreateGenerativeModelCustomProviderMutationInput } from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
 import type {
   AnthropicFormData,
@@ -28,10 +29,68 @@ import type {
 } from "./CustomProviderForm";
 
 /**
- * GraphQL provider node type alias for better readability
+ * Type for provider config data needed by form utilities.
+ * This is a minimal type that works with both fragment data and query data.
  */
-type ProviderNode =
-  CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
+export type ProviderNode = {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly provider: string;
+  readonly sdk: GraphQLGenerativeModelSDK;
+  readonly config?: {
+    readonly parseError?: string | undefined;
+    readonly openaiAuthenticationMethod?: {
+      readonly apiKey: string | null;
+    };
+    readonly openaiClientKwargs?: {
+      readonly baseUrl: string | null;
+      readonly organization: string | null;
+      readonly project: string | null;
+      readonly defaultHeaders: unknown;
+    } | null;
+    readonly azureOpenaiAuthenticationMethod?: {
+      readonly apiKey: string | null;
+      readonly azureAdTokenProvider?: {
+        readonly azureTenantId: string;
+        readonly azureClientId: string;
+        readonly azureClientSecret: string;
+        readonly scope: string;
+      } | null;
+    };
+    readonly azureOpenaiClientKwargs?: {
+      readonly apiVersion: string;
+      readonly azureEndpoint: string;
+      readonly azureDeployment: string;
+      readonly defaultHeaders: unknown;
+    };
+    readonly anthropicAuthenticationMethod?: {
+      readonly apiKey: string | null;
+    };
+    readonly anthropicClientKwargs?: {
+      readonly baseUrl: string | null;
+      readonly defaultHeaders: unknown;
+    } | null;
+    readonly awsBedrockAuthenticationMethod?: {
+      readonly awsAccessKeyId: string;
+      readonly awsSecretAccessKey: string;
+      readonly awsSessionToken: string | null;
+    };
+    readonly awsBedrockClientKwargs?: {
+      readonly regionName: string;
+      readonly endpointUrl: string | null;
+    };
+    readonly googleGenaiAuthenticationMethod?: {
+      readonly apiKey: string | null;
+    };
+    readonly googleGenaiClientKwargs?: {
+      readonly httpOptions?: {
+        readonly baseUrl: string | null;
+        readonly headers: unknown;
+      } | null;
+    } | null;
+  };
+};
 
 // =============================================================================
 // Form Default Values
@@ -131,10 +190,12 @@ export function createDefaultFormData(
  *
  * Uses the `sdk` field for type detection rather than inferring from config
  * properties, which is more robust for polymorphic types.
+ *
+ * Returns a complete ProviderFormData with all required fields filled in.
  */
 export function transformConfigToFormValues(
   provider: ProviderNode
-): Partial<ProviderFormData> {
+): ProviderFormData {
   const baseValues = {
     name: provider.name,
     description: provider.description || "",
@@ -407,4 +468,116 @@ export function transformToCreateInput(
       formData
     ) as CreateGenerativeModelCustomProviderMutationInput["clientConfig"],
   };
+}
+
+/**
+ * Transforms form data into the GraphQL mutation input for patching/updating a provider.
+ *
+ * Compares new values with original values and only includes changed fields in the patch.
+ * The `id` field is always included as it's required by the mutation.
+ */
+export function transformToPatchInput(
+  formData: ProviderFormData,
+  providerId: string,
+  originalValues: ProviderFormData
+): PatchGenerativeModelCustomProviderMutationInput {
+  const input: PatchGenerativeModelCustomProviderMutationInput = {
+    id: providerId,
+  };
+
+  // Check base fields for changes
+  if (formData.name !== originalValues.name) {
+    input.name = formData.name;
+  }
+
+  if (formData.description !== originalValues.description) {
+    input.description = formData.description || null;
+  }
+
+  if (formData.provider !== originalValues.provider) {
+    input.provider = formData.provider;
+  }
+
+  // For clientConfig, we always send the full config if any SDK-specific field changed.
+  // This is simpler and safer than trying to diff nested config structures.
+  const configChanged = hasConfigChanged(formData, originalValues);
+  if (configChanged) {
+    input.clientConfig = buildClientConfig(
+      formData
+    ) as PatchGenerativeModelCustomProviderMutationInput["clientConfig"];
+  }
+
+  return input;
+}
+
+/**
+ * Checks if any SDK-specific configuration fields have changed.
+ * Returns true if any field in the config section differs from the original.
+ */
+function hasConfigChanged(
+  formData: ProviderFormData,
+  originalValues: ProviderFormData
+): boolean {
+  // If SDK changed, config definitely changed
+  if (formData.sdk !== originalValues.sdk) {
+    return true;
+  }
+
+  // Compare SDK-specific fields based on the SDK type
+  switch (formData.sdk) {
+    case "OPENAI": {
+      const orig = originalValues as OpenAIFormData;
+      return (
+        formData.openai_api_key !== orig.openai_api_key ||
+        formData.openai_base_url !== orig.openai_base_url ||
+        formData.openai_organization !== orig.openai_organization ||
+        formData.openai_project !== orig.openai_project ||
+        formData.openai_default_headers !== orig.openai_default_headers
+      );
+    }
+    case "AZURE_OPENAI": {
+      const orig = originalValues as AzureOpenAIFormData;
+      return (
+        formData.azure_endpoint !== orig.azure_endpoint ||
+        formData.azure_deployment_name !== orig.azure_deployment_name ||
+        formData.azure_api_version !== orig.azure_api_version ||
+        formData.azure_auth_method !== orig.azure_auth_method ||
+        formData.azure_api_key !== orig.azure_api_key ||
+        formData.azure_tenant_id !== orig.azure_tenant_id ||
+        formData.azure_client_id !== orig.azure_client_id ||
+        formData.azure_client_secret !== orig.azure_client_secret ||
+        formData.azure_scope !== orig.azure_scope ||
+        formData.azure_default_headers !== orig.azure_default_headers
+      );
+    }
+    case "ANTHROPIC": {
+      const orig = originalValues as AnthropicFormData;
+      return (
+        formData.anthropic_api_key !== orig.anthropic_api_key ||
+        formData.anthropic_base_url !== orig.anthropic_base_url ||
+        formData.anthropic_default_headers !== orig.anthropic_default_headers
+      );
+    }
+    case "AWS_BEDROCK": {
+      const orig = originalValues as AWSBedrockFormData;
+      return (
+        formData.aws_region !== orig.aws_region ||
+        formData.aws_access_key_id !== orig.aws_access_key_id ||
+        formData.aws_secret_access_key !== orig.aws_secret_access_key ||
+        formData.aws_session_token !== orig.aws_session_token ||
+        formData.aws_endpoint_url !== orig.aws_endpoint_url
+      );
+    }
+    case "GOOGLE_GENAI": {
+      const orig = originalValues as GoogleGenAIFormData;
+      return (
+        formData.google_api_key !== orig.google_api_key ||
+        formData.google_base_url !== orig.google_base_url ||
+        formData.google_headers !== orig.google_headers
+      );
+    }
+    default: {
+      assertUnreachable(formData);
+    }
+  }
 }

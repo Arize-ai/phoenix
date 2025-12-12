@@ -1,19 +1,18 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Type
+from typing import TYPE_CHECKING, Annotated
 
 import strawberry
 from pydantic import ValidationError
 from strawberry import UNSET
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from typing_extensions import Self, TypeAlias, assert_never
+from typing_extensions import Self, assert_never
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.node import from_global_id
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.User import User
@@ -50,10 +49,10 @@ class UnparsableConfig:
 
 @strawberry.type
 class AzureADTokenProvider:
-    azure_tenant_id: str | None = UNSET
-    azure_client_id: str | None = UNSET
-    azure_client_secret: str | None = UNSET
-    scope: str | None = UNSET
+    azure_tenant_id: str
+    azure_client_id: str
+    azure_client_secret: str
+    scope: str
 
     @classmethod
     def from_orm(cls, provider: mp.AuthenticationMethodAzureADTokenProvider) -> Self:
@@ -134,15 +133,13 @@ class AzureOpenAIAuthenticationMethod:
 
 @strawberry.type
 class AzureOpenAIClientKwargs:
-    api_version: str | None = UNSET
-    azure_endpoint: str | None = UNSET
-    azure_deployment: str | None = UNSET
+    api_version: str
+    azure_endpoint: str
+    azure_deployment: str
     default_headers: JSON | None = UNSET
 
     @classmethod
-    def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs | None) -> Self | None:
-        if not kwargs:
-            return None
+    def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs) -> Self:
         return cls(
             api_version=kwargs.api_version,
             azure_endpoint=kwargs.azure_endpoint,
@@ -155,7 +152,7 @@ class AzureOpenAIClientKwargs:
 class AzureOpenAICustomProviderConfig:
     supports_streaming: bool
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
-    azure_openai_client_kwargs: AzureOpenAIClientKwargs | None = UNSET
+    azure_openai_client_kwargs: AzureOpenAIClientKwargs
     azure_openai_client_interface: OpenAIClientInterface
 
     @classmethod
@@ -221,8 +218,8 @@ class AnthropicCustomProviderConfig:
 
 @strawberry.type
 class AWSBedrockAuthenticationMethod:
-    aws_access_key_id: str | None = UNSET
-    aws_secret_access_key: str | None = UNSET
+    aws_access_key_id: str
+    aws_secret_access_key: str
     aws_session_token: str | None = UNSET
 
     @classmethod
@@ -236,13 +233,11 @@ class AWSBedrockAuthenticationMethod:
 
 @strawberry.type
 class AWSBedrockClientKwargs:
-    region_name: str | None = UNSET
+    region_name: str
     endpoint_url: str | None = UNSET
 
     @classmethod
-    def from_orm(cls, kwargs: mp.AWSBedrockClientKwargs | None) -> Self | None:
-        if not kwargs:
-            return None
+    def from_orm(cls, kwargs: mp.AWSBedrockClientKwargs) -> Self:
         return cls(
             region_name=kwargs.region_name,
             endpoint_url=kwargs.endpoint_url,
@@ -253,7 +248,7 @@ class AWSBedrockClientKwargs:
 class AWSBedrockCustomProviderConfig:
     supports_streaming: bool
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethod
-    aws_bedrock_client_kwargs: AWSBedrockClientKwargs | None = UNSET
+    aws_bedrock_client_kwargs: AWSBedrockClientKwargs
     aws_bedrock_client_interface: AWSBedrockClientInterface
 
     @classmethod
@@ -373,6 +368,10 @@ class GenerativeModelCustomProviderOpenAI(GenerativeModelCustomProvider):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
 
+    @classmethod
+    def resolve_typename(cls, root: Self, info: Info) -> str:
+        return GenerativeModelCustomProvider.__name__
+
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
         if self.db_record:
@@ -472,6 +471,10 @@ class GenerativeModelCustomProviderAzureOpenAI(GenerativeModelCustomProvider):
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
+
+    @classmethod
+    def resolve_typename(cls, root: Self, info: Info) -> str:
+        return GenerativeModelCustomProvider.__name__
 
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
@@ -573,6 +576,10 @@ class GenerativeModelCustomProviderAnthropic(GenerativeModelCustomProvider):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
 
+    @classmethod
+    def resolve_typename(cls, root: Self, info: Info) -> str:
+        return GenerativeModelCustomProvider.__name__
+
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
         if self.db_record:
@@ -672,6 +679,10 @@ class GenerativeModelCustomProviderAWSBedrock(GenerativeModelCustomProvider):
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
+
+    @classmethod
+    def resolve_typename(cls, root: Self, info: Info) -> str:
+        return GenerativeModelCustomProvider.__name__
 
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
@@ -773,6 +784,10 @@ class GenerativeModelCustomProviderGoogleGenAI(GenerativeModelCustomProvider):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
 
+    @classmethod
+    def resolve_typename(cls, root: Self, info: Info) -> str:
+        return GenerativeModelCustomProvider.__name__
+
     @strawberry.field(description="The name of this provider.")  # type: ignore
     async def name(self, info: Info[Context, None]) -> str:
         if self.db_record:
@@ -862,39 +877,3 @@ class GenerativeModelCustomProviderGoogleGenAI(GenerativeModelCustomProvider):
         from .User import User
 
         return User(id=user_id)
-
-
-GenerativeModelCustomProviderType: TypeAlias = (
-    Type[GenerativeModelCustomProviderOpenAI]
-    | Type[GenerativeModelCustomProviderAzureOpenAI]
-    | Type[GenerativeModelCustomProviderAnthropic]
-    | Type[GenerativeModelCustomProviderAWSBedrock]
-    | Type[GenerativeModelCustomProviderGoogleGenAI]
-)
-
-
-def parse_custom_provider_id(global_id: GlobalID) -> tuple[int, GenerativeModelCustomProviderType]:
-    """
-    Parse provider ID accepting any concrete GenerativeModelCustomProvider type.
-
-    Returns:
-        A tuple containing the provider ID as an integer and the provider class.
-    """
-    type_name, provider_id = from_global_id(global_id)
-
-    # Map type names to provider classes
-    provider_classes: dict[str, GenerativeModelCustomProviderType] = {
-        GenerativeModelCustomProviderOpenAI.__name__: GenerativeModelCustomProviderOpenAI,
-        GenerativeModelCustomProviderAzureOpenAI.__name__: GenerativeModelCustomProviderAzureOpenAI,
-        GenerativeModelCustomProviderAnthropic.__name__: GenerativeModelCustomProviderAnthropic,
-        GenerativeModelCustomProviderAWSBedrock.__name__: GenerativeModelCustomProviderAWSBedrock,
-        GenerativeModelCustomProviderGoogleGenAI.__name__: GenerativeModelCustomProviderGoogleGenAI,
-    }
-
-    cls = provider_classes.get(type_name)
-    if cls is None:
-        raise ValueError(
-            f"Invalid provider type: {type_name}. Expected one of "
-            f"{', '.join(provider_classes.keys())}"
-        )
-    return provider_id, cls

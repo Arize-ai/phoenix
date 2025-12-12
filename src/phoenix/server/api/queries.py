@@ -1230,16 +1230,23 @@ class Query:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
-        if type_name == GenerativeModelCustomProviderOpenAI.__name__:
-            return GenerativeModelCustomProviderOpenAI(id=node_id)
-        if type_name == GenerativeModelCustomProviderAzureOpenAI.__name__:
-            return GenerativeModelCustomProviderAzureOpenAI(id=node_id)
-        if type_name == GenerativeModelCustomProviderAnthropic.__name__:
-            return GenerativeModelCustomProviderAnthropic(id=node_id)
-        if type_name == GenerativeModelCustomProviderGoogleGenAI.__name__:
-            return GenerativeModelCustomProviderGoogleGenAI(id=node_id)
-        if type_name == GenerativeModelCustomProviderAWSBedrock.__name__:
-            return GenerativeModelCustomProviderAWSBedrock(id=node_id)
+        if type_name == GenerativeModelCustomProvider.__name__:
+            async with info.context.db() as session:
+                orm_provider = await session.get(models.GenerativeModelCustomProvider, node_id)
+            if not orm_provider:
+                raise NotFound(f"Unknown provider: {node_id}")
+            if orm_provider.sdk == "openai":
+                return GenerativeModelCustomProviderOpenAI(id=node_id, db_record=orm_provider)
+            elif orm_provider.sdk == "azure_openai":
+                return GenerativeModelCustomProviderAzureOpenAI(id=node_id, db_record=orm_provider)
+            elif orm_provider.sdk == "anthropic":
+                return GenerativeModelCustomProviderAnthropic(id=node_id, db_record=orm_provider)
+            elif orm_provider.sdk == "aws_bedrock":
+                return GenerativeModelCustomProviderAWSBedrock(id=node_id, db_record=orm_provider)
+            elif orm_provider.sdk == "google_genai":
+                return GenerativeModelCustomProviderGoogleGenAI(id=node_id, db_record=orm_provider)
+            else:
+                assert_never(orm_provider.sdk)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
