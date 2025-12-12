@@ -12,6 +12,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -75,6 +76,14 @@ class LLMEvaluator:
         from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
         return GlobalID(LLMEvaluatorNode.__name__, str(self._llm_evaluator_orm.id))
+
+    @property
+    def llm_evaluator_orm(self) -> models.LLMEvaluator:
+        return self._llm_evaluator_orm
+
+    @property
+    def prompt_version_orm(self) -> models.PromptVersion:
+        return self._prompt_version_orm
 
     @property
     def name(self) -> str:
@@ -412,6 +421,37 @@ def evaluation_result_to_span_annotation(
         created_at=result["start_time"],
         updated_at=result["end_time"],
         user_id=None,
+    )
+
+
+def create_llm_evaluator_from_inline(
+    *,
+    prompt_version_orm: models.PromptVersion,
+    annotation_name: str,
+    output_config: CategoricalAnnotationConfig,
+    llm_client: PlaygroundStreamingClient,
+    description: Optional[str] = None,
+) -> LLMEvaluator:
+    """
+    Creates an LLMEvaluator instance from inline definition without database persistence.
+    Used for evaluator preview functionality.
+    """
+    from phoenix.db.types.identifier import Identifier as IdentifierModel
+
+    llm_evaluator_orm = models.LLMEvaluator.__new__(models.LLMEvaluator)
+    object.__setattr__(llm_evaluator_orm, "name", IdentifierModel.model_validate("preview"))
+    object.__setattr__(llm_evaluator_orm, "description", description)
+    object.__setattr__(llm_evaluator_orm, "metadata_", {})
+    object.__setattr__(llm_evaluator_orm, "annotation_name", annotation_name)
+    object.__setattr__(llm_evaluator_orm, "output_config", output_config)
+
+    dummy_node_id = GlobalID(type_name="PreviewEvaluator", node_id="0")
+
+    return LLMEvaluator(
+        llm_evaluator_orm=llm_evaluator_orm,
+        prompt_version_orm=prompt_version_orm,
+        llm_client=llm_client,
+        dataset_evaluator_node_id=dummy_node_id,
     )
 
 
