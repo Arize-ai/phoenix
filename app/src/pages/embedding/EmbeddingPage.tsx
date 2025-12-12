@@ -49,12 +49,12 @@ import {
   compactResizeHandleCSS,
   resizeHandleCSS,
 } from "@phoenix/components/resize/styles";
+import { useNotifyError } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
 import {
   PointCloudProvider,
-  useInferences,
-  useNotifyError,
   usePointCloudContext,
-} from "@phoenix/contexts";
+} from "@phoenix/contexts/PointCloudContext";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
@@ -68,7 +68,7 @@ import {
   getDefaultSingleInferenceSetPointCloudProps,
   MetricDefinition,
   PointCloudProps,
-} from "@phoenix/store";
+} from "@phoenix/store/pointCloudStore";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
 

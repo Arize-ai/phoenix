@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
 import { Checkbox } from "@phoenix/components/checkbox";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 

@@ -21,7 +21,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { useInferences, useTimeRange } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 import { dimensionLoader } from "@phoenix/pages/dimension/dimensionLoader";
 

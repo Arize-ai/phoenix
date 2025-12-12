@@ -8,7 +8,7 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import { useInferences } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 
 type ReferenceInferencesTimeRangeProps = {
