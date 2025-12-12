@@ -9,7 +9,7 @@ Phoenix OTEL provides a lightweight, vendor-agnostic way to instrument your serv
 To begin sending traces to Phoenix using OpenTelemetry, install the Phoenix OTEL packages for your environment and configure a basic tracer. Below are quick-start examples for both Python and TypeScript users
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 `phoenix.otel` is a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
 ```bash
@@ -25,7 +25,7 @@ These defaults are aware of environment variables you may have set to configure 
 * `PHOENIX_GRPC_PORT`
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 Install OpenTelemetry API packages:
 
 ```shell
@@ -56,7 +56,7 @@ If you're using Phoenix Cloud, you'll need your API Key & your space endpoint. I
 Once the Phoenix OTEL packages are installed, initialize a tracer so your spans can be collected and viewed in Phoenix.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry tracing by setting a global `TracerProvider`. The register function can also configure headers and whether or not to process spans one by one or by batch.
 
 ```python
@@ -84,7 +84,7 @@ If you're setting the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, `regist
 * `batch`: Whether or not to process spans in batch
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 // instrumentation.ts
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";

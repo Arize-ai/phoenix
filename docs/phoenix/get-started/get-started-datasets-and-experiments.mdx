@@ -58,7 +58,7 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
         </Frame>
       </Tab>
 
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         To create a Dataset in Phoenix, you will use the `datasets.create_dataset()` function. This can take in either a CSV file, Pandas DataFrame, or dataset Examples.
 
         If you have already downloaded the sample.csv, you can create this dataset via this code snippet:
@@ -76,7 +76,7 @@ Now that you have Phoenix up and running, one of the next steps you can take is 
         ```
       </Tab>
 
-      <Tab title="TypeScript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { createDataset } from "@arizeai/phoenix-client/datasets";
 
@@ -123,7 +123,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
     If you made your dataset in the UI, you can follow this code snippet:
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.client import AsyncClient
 
@@ -134,7 +134,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         To get the `version_id` of your dataset, please navigate to the Versions tab and copy the version you want to run an experiment on.
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { getDataset } from "@arizeai/phoenix-client/datasets";
 
@@ -160,7 +160,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
 
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.experiments.types import Example
 
@@ -176,7 +176,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { OpenAI } from "openai";
         import { type RunExperimentParams } from "@arizeai/phoenix-client/experiments";
@@ -209,7 +209,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
     Next step is to create your Evaluator. If you have already defined your Q&A Correctness eval from the last quick start, you won't need to redefine it. If not, you can follow along with these code snippets.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.evals.llm import LLM
         from phoenix.evals import create_classifier
@@ -243,7 +243,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { openai } from "@ai-sdk/openai";
         import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
@@ -282,7 +282,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
     You can run multiple evaluators at once. Let's define a custom Completeness Eval.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.evals import ClassificationEvaluator
 
@@ -308,7 +308,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
         import { openai } from "@ai-sdk/openai";
@@ -347,7 +347,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
     Now that we have defined our Task & our Evaluators, we're now ready to run our experiment.
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.client.experiments import async_run_experiment
 
@@ -358,7 +358,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="Typescript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
@@ -381,7 +381,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
     **Optional:** If you wanted to run even more evaluators after this experiment, you can do so following this code:
 
     <Tabs>
-      <Tab title="Python">
+      <Tab title="Python" icon="python">
         ```python
         from phoenix.client.experiments import evaluate_experiment
 
@@ -389,7 +389,7 @@ Once you have a dataset, you're now able to run experiments. Experiments are mad
         ```
       </Tab>
 
-      <Tab title="TypeScript">
+      <Tab title="TypeScript" icon="js">
         ```typescript
         import { evaluateExperiment } from "@arizeai/phoenix-client/experiments";
 

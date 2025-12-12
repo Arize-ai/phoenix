@@ -16,13 +16,13 @@ If you'd prefer to use pure OTEL instead, see [Setup using base OTEL](/docs/phoe
 Ensure you have OpenInference and Phoenix OTEL installed:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```bash
 pip install arize-phoenix-otel
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```bash
 npm install @arizeai/phoenix-otel @arizeai/openinference-core
 ```
@@ -37,7 +37,7 @@ For detailed API documentation, consult the respective documentation sites.
 ## Setting Up Tracing
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.otel import register
 
@@ -46,7 +46,7 @@ tracer = tracer_provider.get_tracer(__name__)
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 
@@ -68,7 +68,7 @@ Your tracer object can now be used in two primary ways:
 ## 1. Tracing a function
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 @tracer.chain
 def my_func(input: str) -> str:
@@ -76,7 +76,7 @@ def my_func(input: str) -> str:
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
 
@@ -96,7 +96,7 @@ This entire function will appear as a Span in Phoenix. Input and output attribut
 ## 2. As a with clause to trace specific code blocks
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 with tracer.start_as_current_span(
     "my-span-name",
@@ -108,7 +108,7 @@ with tracer.start_as_current_span(
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";
@@ -157,7 +157,7 @@ The `openinference.span.kind` attribute is required for all OpenInference spans 
 # Chains
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 #### Using Context Managers
 
 ```python
@@ -201,7 +201,7 @@ this_name_should_be_overridden("input")
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 #### Using Wrappers
 
 ```typescript
@@ -277,7 +277,7 @@ thisNameShouldBeOverridden("input");
 # Agents
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 #### Using Context Managers
 
 ```python
@@ -301,7 +301,7 @@ decorated_agent("input")
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 #### Using Function Wrappers
 
 ```typescript
@@ -347,7 +347,7 @@ decoratedAgent("input");
 # Tools
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 #### Using Context Managers
 
 ```python
@@ -393,7 +393,7 @@ this_tool_name_should_be_overridden("input1", 1)
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 #### Using Function Wrappers
 
 ```typescript
@@ -444,7 +444,7 @@ While this guide uses the OpenAI Python client for illustration, in practice, yo
 To run the snippets in this section, set your `OPENAI_API_KEY` environment variable.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 #### Context Manager
 
 ```python
@@ -944,7 +944,7 @@ openai_client.chat.completions.create(
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 #### Function Wrapper
 
 ```typescript
@@ -1102,7 +1102,7 @@ The OpenInference Tracer shown above respects context Managers for [Suppressing 
 ### Suppress Tracing
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 with suppress_tracing():
     # this trace will not be recorded
@@ -1116,7 +1116,7 @@ with suppress_tracing():
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { suppressTracing } from "@opentelemetry/core";
 import { withSpan } from "@arizeai/openinference-core";
@@ -1147,7 +1147,7 @@ await context.with(suppressTracing(context.active()), async () => {
 ### Using Context Attributes
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 with using_attributes(session_id="123"):
     # this trace has session id "123"
@@ -1161,7 +1161,7 @@ with using_attributes(session_id="123"):
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { context } from "@opentelemetry/api";
 import { setSession } from "@arizeai/openinference-core";
@@ -1198,7 +1198,7 @@ await context.with(
 OpenInference includes message types that can be useful in composing text and image or other file inputs and outputs:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python expandable
 import openinference.instrumentation as oi
 
@@ -1245,7 +1245,7 @@ with tracer.start_as_current_span(
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { withSpan, getLLMAttributes } from "@arizeai/openinference-core";
 import { trace } from "@arizeai/phoenix-otel";

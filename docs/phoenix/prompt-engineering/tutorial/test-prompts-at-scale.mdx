@@ -34,7 +34,7 @@ Let's upload a dataset of support queries and run our new classification prompt 
     </Frame>
   </Tab>
 
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 import pandas as pd
 from phoenix.client import Client
@@ -54,7 +54,7 @@ support_query_dataset = px_client.datasets.create_dataset(
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import { parse } from "csv-parse/sync";
@@ -96,7 +96,7 @@ With a dataset in place, the next step is to measure how our prompt performs acr
 The **task** function specifies how to generate output for every input in the dataset. For us, we generate output by asking our LLM to classify a support query.&#x20;
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 ## Feel free to use any LLM provider. To run experiments asynchronously, use an async client.
 from openai import AsyncOpenAI()
@@ -121,7 +121,7 @@ async def task(input):
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import OpenAI from "openai";
 import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
@@ -178,7 +178,7 @@ See the full eval prompt we use for analysis\_evaluator in the Define Evaluators
 By leveraging the reasoning abilities of LLMs, we can automatically annotate our failure cases with rich diagnostic information—helping us identify weaknesses and iteratively improve our prompt.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 def normalize(label):
     return label.strip().strip('"').strip("'").lower()
@@ -237,7 +237,7 @@ def output_evaluator(query: str, ground_truth: str, output: str):
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 
   </Tab>
 </Tabs>
@@ -247,7 +247,7 @@ def output_evaluator(query: str, ground_truth: str, output: str):
 The **task** function specifies how to generate output for every input in the dataset. For us, we generate output by asking our LLM to classify a support query.&#x20;
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 from phoenix.client.experiments import async_run_experiment
 
@@ -269,7 +269,7 @@ Experiment completed: 154 task runs, 2 evaluator runs, 308 evaluations
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 

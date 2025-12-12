@@ -321,6 +321,68 @@
             ]
           },
           {
+            "tab": "Self-Hosting",
+            "icon": "server",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "docs/phoenix/self-hosting",
+                  "docs/phoenix/self-hosting/license",
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "docs/phoenix/self-hosting/configuration",
+                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deployment Options",
+                "icon": "rocket-launch",
+                "pages": [
+                  "docs/phoenix/self-hosting/deployment-options/docker",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
+                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
+                  "docs/phoenix/self-hosting/deployment-options/railway"
+                ]
+              },
+              {
+                "group": "Features",
+                "icon": "layer-group",
+                "pages": [
+                  "docs/phoenix/self-hosting/features/provisioning",
+                  "docs/phoenix/self-hosting/features/authentication",
+                  "docs/phoenix/self-hosting/features/email",
+                  "docs/phoenix/self-hosting/features/management",
+                  "docs/phoenix/settings/data-retention"
+                ]
+              },
+              {
+                "group": "Upgrade",
+                "icon": "angles-up",
+                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
+              },
+              {
+                "group": "Security",
+                "icon": "user-shield",
+                "pages": [
+                  "docs/phoenix/settings/access-control-rbac",
+                  "docs/phoenix/self-hosting/security/privacy"
+                ]
+              },
+              {
+                "group": "Misc",
+                "icon": "boxes-stacked",
+                "pages": [
+                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
+                ]
+              }
+            ]
+          },
+          {
             "tab": "Phoenix Cloud",
             "icon": "cloud",
             "groups": [
@@ -453,8 +515,10 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock",
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing"
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals"
                     ]
                   },
                   {
@@ -462,6 +526,7 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/anthropic",
                       "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
+                      "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
                       "docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals"
                     ]
                   },
@@ -536,6 +601,13 @@
                     ]
                   },
                   {
+                    "group": "LangChain",
+                    "pages": [
+                      "docs/phoenix/integrations/typescript/langchain",
+                      "docs/phoenix/integrations/typescript/langchain/langchain-js"
+                    ]
+                  },
+                  {
                     "group": "Mastra",
                     "pages": [
                       "docs/phoenix/integrations/typescript/mastra",
@@ -543,10 +615,10 @@
                     ]
                   },
                   {
-                    "group": "LangChain",
+                    "group": "MCP",
                     "pages": [
-                      "docs/phoenix/integrations/typescript/langchain",
-                      "docs/phoenix/integrations/typescript/langchain/langchain-js"
+                      "docs/phoenix/integrations/typescript/mcp",
+                      "docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript"
                     ]
                   },
                   {
@@ -788,7 +860,7 @@
               },
               {
                 "group": "TypeScript",
-                "icon": "brackets-curly",
+                "icon": "js",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/overview",
                   "docs/phoenix/sdk-api-reference/typescript/reference",
@@ -909,68 +981,6 @@
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python",
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java",
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Self-Hosting",
-            "icon": "server",
-            "groups": [
-              {
-                "group": " ",
-                "pages": [
-                  "docs/phoenix/self-hosting",
-                  "docs/phoenix/self-hosting/license",
-                  {
-                    "group": "Configuration",
-                    "pages": [
-                      "docs/phoenix/self-hosting/configuration",
-                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "Deployment Options",
-                "icon": "rocket-launch",
-                "pages": [
-                  "docs/phoenix/self-hosting/deployment-options/docker",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
-                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-                  "docs/phoenix/self-hosting/deployment-options/railway"
-                ]
-              },
-              {
-                "group": "Features",
-                "icon": "layer-group",
-                "pages": [
-                  "docs/phoenix/self-hosting/features/provisioning",
-                  "docs/phoenix/self-hosting/features/authentication",
-                  "docs/phoenix/self-hosting/features/email",
-                  "docs/phoenix/self-hosting/features/management",
-                  "docs/phoenix/settings/data-retention"
-                ]
-              },
-              {
-                "group": "Upgrade",
-                "icon": "angles-up",
-                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
-              },
-              {
-                "group": "Security",
-                "icon": "user-shield",
-                "pages": [
-                  "docs/phoenix/settings/access-control-rbac",
-                  "docs/phoenix/self-hosting/security/privacy"
-                ]
-              },
-              {
-                "group": "Misc",
-                "icon": "boxes-stacked",
-                "pages": [
-                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
                 ]
               }
             ]

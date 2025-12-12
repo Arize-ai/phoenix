@@ -9,12 +9,12 @@ Evaluators are a way of validating that your AI task is running as expected. Sim
 Phoenix is vendor agnostic and thus doesn't require you to use any particular evals library. Because of this, the eval libraries for Phoenix are distributed as separate packages. The Phoenix eval libraries are very lightweight and provide many utilities to make evaluation simpler.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```sh
 pip install arize-phoenix-evals arize-phoenix-client
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```sh
 npm install @arizeai/phoenix-evals @arizeai/phoenix-client
 ```
@@ -36,7 +36,7 @@ LLM Evaluators are functions where an LLM as a judge performs the scoring of you
 Phoenix provides LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with any LLM provider:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 from phoenix.evals import LLM
@@ -44,7 +44,7 @@ from phoenix.evals import LLM
 hallucination_evaluator = HallucinationEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
@@ -64,7 +64,7 @@ Note that pre-built evaluators rarely will work well for your specific AI task a
 Phoenix eval libraries provide building blocks for you to build your own LLM-as-a-judge evaluators. You can create custom classification evaluators that use an LLM to classify outputs into categories with optional scores.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.evals import ClassificationEvaluator
 from phoenix.evals import LLM
@@ -90,7 +90,7 @@ helpfulness_evaluator = ClassificationEvaluator(
 )
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
@@ -127,7 +127,7 @@ The simplest way to create a code evaluator is to write a function. By default, 
 ### Simple Code Evaluators
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 Imagine our experiment is testing a `task` that is intended to output a numeric value from 1-100. We can write a simple evaluator to check if the output is within the allowed range:
 
 ```python
@@ -137,7 +137,7 @@ def in_bounds(x):
 
 By simply passing the `in_bounds` function to `run_experiment`, we will automatically generate evaluations for each experiment run for whether or not the output is in the allowed range.
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 Imagine our experiment is testing a `task` that is intended to output a numeric value from 1-100. We can write a simple evaluator to check if the output is within the allowed range:
 
 ```typescript
@@ -170,7 +170,7 @@ More complex evaluations can use additional information. These values can be acc
 These parameters can be used in any combination and any order to write custom complex evaluators!
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 import json
 import editdistance  # pip install editdistance
@@ -182,7 +182,7 @@ def edit_distance(output, expected) -> int:
     )
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 import { distance } from "fastest-levenshtein"; // npm install fastest-levenshtein
@@ -200,7 +200,7 @@ const editDistance = createEvaluator<{ output: string; expected: string }>(
 For better integration with the Experiments UI, use the `create_evaluator` function (or decorator in Python) to set display properties like the evaluator name and kind.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.evals import create_evaluator
 import re
@@ -215,7 +215,7 @@ def wordiness(expected, output):
     return len(output.split()) < len(expected.split())
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
@@ -238,7 +238,7 @@ const wordiness = createEvaluator<{ expected: string; output: string }>(
 Evaluators are passed as a list to the `evaluators` parameter in `run_experiment`. You can use any combination of LLM evaluators, code evaluators, or simple functions.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 from phoenix.experiments import run_experiment
 from phoenix.evals import create_evaluator
@@ -257,7 +257,7 @@ experiment = run_experiment(
 )
 ```
 </Tab>
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import { createEvaluator } from "@arizeai/phoenix-evals";

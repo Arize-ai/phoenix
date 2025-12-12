@@ -6,7 +6,7 @@ Instrumenting prompt templates and variables allows you to track and visualize p
 
 <Tabs>
 
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 
     We provide a `using_prompt_template` context manager to add a prompt template (including its version and variables) to the current OpenTelemetry Context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the prompt template fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its inputs must be of the following type:
 
@@ -53,7 +53,7 @@ Instrumenting prompt templates and variables allows you to track and visualize p
 
   </Tab> 
 
-  <Tab title="JS">
+  <Tab title="TypeScript" icon="js">
 
     We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
 
