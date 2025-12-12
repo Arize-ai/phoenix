@@ -84,6 +84,13 @@ const CreateEvaluatorDialog = ({
               ) {
               id
               displayName
+              evaluator {
+                ... on LLMEvaluator {
+                  prompt {
+                    ...PromptVersionsList__main
+                  }
+                }
+              }
               ...DatasetEvaluatorsTable_row
             }
           }

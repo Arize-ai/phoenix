@@ -6,7 +6,7 @@ import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgro
  * Converts a playground instance to a prompt version.
  * @param instanceId - The instance ID
  * @param store - The playground store
- * @returns The prompt input and template format
+ * @returns The prompt input, template format, and prompt version ID if available
  */
 export const getInstancePromptParamsFromStore = (
   instanceId: number,
@@ -29,8 +29,10 @@ export const getInstancePromptParamsFromStore = (
     throw new Error(`Could not convert instance ${instanceId} to prompt`);
   }
   const templateFormat = state.templateFormat;
+  const promptVersionId = instance.prompt?.version ?? null;
   return {
     promptInput,
     templateFormat,
+    promptVersionId,
   };
 };
