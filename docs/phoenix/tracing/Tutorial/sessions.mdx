@@ -343,9 +343,26 @@ Now that we've ran our session level evaluators, let's see how our support bot p
 
 <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-evals.mp4" />
 
+**Turn 1**: The user asks about order ORD-67890. The agent correctly looks up the order and reports it's processing with a December 15 ETA.
+
+**Turn 2**: The user switches topics entirely - "How do I cancel my subscription?" This is a FAQ question, not an order question. The agent handles it via RAG, providing the correct cancellation instructions.
+
+**Turn 3**: Here's the real test. The user says "Back to my order - what's the carrier?" They don't repeat the order ID. They just say "my order."
+
+Did the agent remember? Yes. It correctly referenced ORD-67890 and provided the carrier status (pending) without asking the user to repeat themselves.
+
+The session-level annotations confirm what we see:
+
+- **conversation_coherence: coherent (score: 1.0)** - The explanation notes that "the agent correctly referenced the order ID and consistent details across turns... and also handled the separate subscription question without losing track."
+
+
+- **resolution_status: resolved (score: 1.0)** - The explanation confirms "the agent answered the user's questions: provided order status and ETA, explained cancellation steps, and clarified that the carrier is currently pending."
+
+This is exactly what session evaluation gives you. Instead of manually reviewing each turn, you can scan the coherence and resolution scores across all sessions. When you find one marked "incoherent" or "unresolved," click in to see the explanation and understand what went wrong.
+
 # Summary
 
-Sessions transform your tracing data from isolated queries into conversation threads:
+You've used sessions transform your tracing data from isolated queries into conversation threads. Here are the benefits you've realized by using sessions:
 
 | Without Sessions                | With Sessions                       |
 | ------------------------------- | ----------------------------------- |
@@ -363,6 +380,8 @@ The workflow:
 5. **Debug patterns** by clicking into problematic sessions
 
 # Next Steps
+
+**Congratulations!** This marks the end of the tracing tutorial.
 
 You've now built a fully observable support agent:
 
