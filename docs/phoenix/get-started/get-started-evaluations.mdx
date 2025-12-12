@@ -93,20 +93,13 @@ Now that you have Phoenix up and running, and sent traces to your first project,
 
     We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/).
 
-    If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
+    Make sure your `OPENAI_API_KEY` environment variable is set, then create the LLM judge:
 
     <Tabs>
       <Tab title="Python" icon="python">
         ```python
-        import os
-        from getpass import getpass
-
-        if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-            openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-        os.environ["OPENAI_API_KEY"] = openai_api_key
-
         from phoenix.evals import LLM
+
         llm = LLM(model="gpt-4o", provider="openai")
         ```
       </Tab>
