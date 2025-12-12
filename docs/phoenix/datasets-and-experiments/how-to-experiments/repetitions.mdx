@@ -46,7 +46,7 @@ const task = async (example) => `hello ${example.input.name}`;
 const experiment = await runExperiment({
   dataset: { datasetName: "greeting-dataset" },
   task,
-  repetitions=3
+  repetitions: 3,
 });
 ```
 </Tab>
@@ -54,7 +54,7 @@ const experiment = await runExperiment({
 
 ## Viewing Repetitions
 
-If you've run your experiments with repetitions, you will see arrow icons at the top of each output. At the bottom you will see the average of the evaluations as well as the score for the evaluation you are looking at. You can click on the arrows to cycle through the repetions or click on the expand icon to view the full details.
+If you've run your experiments with repetitions, you will see arrow icons at the top of each output. At the bottom you will see the average of the evaluations as well as the score for the evaluation you are looking at. You can click on the arrows to cycle through the repetitions or click on the expand icon to view the full details.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/repetitions_on_grid.png" alt="repetition carousel"/>
