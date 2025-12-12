@@ -3,21 +3,23 @@ title: "Annotations and Evaluation"
 description: "Is your agent actually good? Use annotations and LLM-as-Judge to find out."
 ---
 
-Your support agent is running. Traces are flowing into Phoenix. You can see every LLM call, tool execution, and retrieval. But here's the uncomfortable truth: a trace showing "200 OK" doesn't mean the answer was right.
+Our support agent is running, and traces are flowing into Phoenix. We can see every LLM call, tool execution, and retrieval. 
 
-Users are still complaining. Some responses are helpful, others are completely wrong. You need a way to measure quality - not just observe activity.
+Users are still complaining. Some responses are helpful, others are completely wrong. We need a way to measure quality - not just observe activity.
 
-In this chapter, you'll learn to annotate traces with human feedback, capture user reactions from your application, and run automated LLM-as-Judge evaluations to find patterns in what's failing.
+In this chapter, you'll learn to
+
+- **Annotate traces with human feedback**. This let's you label your traces, figuring out where you need to improve.
+- **Capture user reactions from your application**. When user's complain, attach that feedback to your data and use it to improve.
+- **Run automated LLM-as-Judge evaluations to find patterns in what's failing**. Scale your analysis over thousands of traces using an LLM, so that you can build confident and data-driven analysis of what improvements need to be made.
 
 > **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
 
 # 2.1 Human Annotations in the UI
 
-Before automating anything, you need to know what "good" actually looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These aren't universal truths - they depend on your users, your brand, and your use case.
+Before automating anything, we need to know what "good" actually looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These depend on our users, our brand, and our use case.
 
-Human annotation is how you build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, you create **ground truth** - the gold standard that everything else gets measured against. You'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
-
-This manual review might feel slow, but it's essential. You can't automate quality measurement until you know what quality means for your application.
+Human annotation is how we build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, we create **ground truth** - the gold standard that everything else gets measured against. We'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
 
 ## Create Annotation Config
 
@@ -39,17 +41,15 @@ Here's a breakdown of the different annotation configurations.
 
 Open a trace → click **Annotate** → fill out the form.
 
-Once you've annotated traces, you can filter by annotation values, export to datasets, and compare across annotators. Even 50 well-annotated traces teach you more about failure modes than weeks of guessing.
+Once we've annotated traces, we can filter by annotation values, export to datasets, and compare across annotators. Even 50 well-annotated traces teach you more about failure modes than weeks of guessing.
 
 # 2.2 Programmatic Annotations (User Feedback)
 
-Manual annotation gives you ground truth, but it doesn't scale. You can review maybe 50 traces a day - meanwhile, your agent is handling thousands of conversations.
+Manual annotation gives you ground truth, but it doesn't scale. We can review maybe 50 traces a day, but your agent is handling thousands of conversations.
 
-Here's the good news: your users are already telling you what's working. Every thumbs up, thumbs down, "this wasn't helpful" click, or escalation to a human agent is feedback. The problem is, that feedback lives in your application while your traces live in Phoenix. They're disconnected.
+Sometimes, our users are already telling you what's working. Every thumbs up, thumbs down, "this wasn't helpful" click, or escalation to a human agent is feedback. Let's store that feedback in Phoenix, so that we can attach it to our traces!
 
-Programmatic annotations bridge this gap. With a few lines of code, you can capture user reactions in your app and attach them directly to the corresponding traces. Now when you open Phoenix, you don't just see what happened - you see how users felt about it. That thumbs-down on a trace? Click in and see exactly what went wrong. A cluster of negative feedback on retrieval queries? Maybe your knowledge base needs updating.
-
-This is the feedback loop that actually matters: real users, real reactions, connected to the full context of what the agent did.
+Let's simulate a thumbs up/thumbs down feature, and then store that as annotations to our traces in Phoenix. This will give us metrics on how satified our users are. 
 
 ## Get the Span ID from Running Code
 
@@ -121,7 +121,7 @@ Your feedback is sent to Phoenix as annotations. Check the **Annotations** tab o
 
 # 2.3 LLM-as-Judge Evaluations
 
-You've collected user feedback and identified which responses were unhelpful. Now you need to understand _why_ they failed. Was the tool call returning errors? Was the retrieval pulling irrelevant context?
+We've collected user feedback and identified which responses were unhelpful. Now we need to understand _why_ they failed. Was the tool call returning errors? Was the retrieval pulling irrelevant context?
 
 Instead of manually clicking through each unhelpful trace, you can automate this analysis. We'll create two evaluators - one for our `lookupOrderStatus` tool, and the other for FAQ retrieval relevance. These evaluators annotate the child spans, so when you click into an unhelpful trace, you can immediately see what went wrong.
 
@@ -291,3 +291,11 @@ This is the debugging workflow that actually scales. Instead of manually reviewi
 - Use trace details to understand the root cause
 
 # Next Steps
+
+Your traces are now annotated with both human feedback and automated evaluations. You can identify which responses failed and diagnose why.
+
+But there's still a missing piece: real customer support isn't just single queries, but full conversations between SupportBot and the customer. "What's my order status?" followed by "When will it arrive?" followed by "Can I change the address?"
+
+In the next chapter, you'll learn to track multi-turn conversations as **sessions**, giving you visibility into the full customer journey, not just isolated queries.
+
+[**Continue to Chapter 3: Sessions →**](/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions)

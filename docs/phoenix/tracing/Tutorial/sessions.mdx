@@ -3,7 +3,7 @@ title: "Sessions"
 description: "Track multi-turn conversations as cohesive units in Phoenix"
 ---
 
-Your support agent handles single queries well. Classification works. Tool calls execute. RAG retrieves relevant documents. But real customer support isn't single queries - it's conversations.
+Your support agent handles single queries well. Classification works. Tool calls execute. RAG retrieves relevant documents. But real customer support isn't just single queries, it's full conversations.
 
 "What's my order status?" → "When will it arrive?" → "Can I change the address?"
 
@@ -354,8 +354,6 @@ Did the agent remember? Yes. It correctly referenced ORD-67890 and provided the 
 The session-level annotations confirm what we see:
 
 - **conversation_coherence: coherent (score: 1.0)** - The explanation notes that "the agent correctly referenced the order ID and consistent details across turns... and also handled the separate subscription question without losing track."
-
-
 - **resolution_status: resolved (score: 1.0)** - The explanation confirms "the agent answered the user's questions: provided order status and ETA, explained cancellation steps, and clarified that the carrier is currently pending."
 
 This is exactly what session evaluation gives you. Instead of manually reviewing each turn, you can scan the coherence and resolution scores across all sessions. When you find one marked "incoherent" or "unresolved," click in to see the explanation and understand what went wrong.
@@ -393,6 +391,6 @@ From here, you might want to explore:
 
 - [**Exporting Data**](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans): Export annotated traces for fine-tuning
 - [**Multimodal Tracing**](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Tracing for multimodal applications
-- [**Cost Tracking**](/docs/phoenix/tracing/how-to-tracing/cost-tracking)**: **Track LLM/Agent costs smartly
+- [**Cost Tracking**](/docs/phoenix/tracing/how-to-tracing/cost-tracking)\*\*: \*\*Track LLM/Agent costs smartly
 
 The patterns you've learned - tracing, annotation, evaluation, and sessions - apply to any LLM application. The specific evaluators and metrics will change, but the approach stays the same: observe everything, measure what matters, and use the data to improve.
