@@ -1,5 +1,13 @@
 # @arizeai/phoenix-mcp
 
+## 2.2.30
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+- Updated dependencies [4208604]
+  - @arizeai/phoenix-client@5.5.4
+
 ## 2.2.29
 
 ### Patch Changes

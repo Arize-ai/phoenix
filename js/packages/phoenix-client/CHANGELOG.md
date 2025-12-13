@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 5.5.4
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+- Updated dependencies [4208604]
+  - @arizeai/phoenix-otel@0.3.4
+
 ## 5.5.3
 
 ### Patch Changes
