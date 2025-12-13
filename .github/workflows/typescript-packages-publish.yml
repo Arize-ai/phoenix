@@ -2,6 +2,8 @@ name: Typescript Packages Publish
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
+
 on:
   push:
     branches:
@@ -43,8 +45,6 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: create and publish versions
-        # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
-        # can trigger subsequent workflows (like publish) when merged
         uses: changesets/action@06245a4e0a36c064a573d4150030f5ec548e4fcc
         with:
           version: pnpm ci:version
