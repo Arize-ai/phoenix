@@ -66,6 +66,14 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
   "devDependencies": {
     "@ai-sdk/openai": "^2.0.27",
     "@anthropic-ai/sdk": "^0.35.0",

@@ -21,6 +21,14 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.24.0",
