@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 0.0.3
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
 ## 0.0.2
 
 ### Patch Changes

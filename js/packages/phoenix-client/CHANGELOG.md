@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 5.5.3
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+- Updated dependencies [c96475c]
+  - @arizeai/phoenix-otel@0.3.3
+
 ## 5.5.2
 
 ### Patch Changes
