@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 5.5.2
+
+### Patch Changes
+
+- 857b617: add links to packages
+- Updated dependencies [857b617]
+  - @arizeai/phoenix-otel@0.3.2
+
 ## 5.5.1
 
 ### Patch Changes
