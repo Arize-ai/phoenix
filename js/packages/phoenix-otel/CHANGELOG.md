@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.3.3
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
 ## 0.3.2
 
 ### Patch Changes

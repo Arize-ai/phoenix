@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.6.4
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
 ## 0.6.3
 
 ### Patch Changes
