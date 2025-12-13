@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "5.5.3",
+  "version": "5.5.4",
   "description": "A client for the Phoenix API",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
