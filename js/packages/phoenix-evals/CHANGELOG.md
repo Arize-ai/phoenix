@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.6.3
+
+### Patch Changes
+
+- 857b617: add links to packages
+
 ## 0.6.2
 
 ### Patch Changes
