@@ -873,6 +873,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
                   "docs/phoenix/sdk-api-reference/typescript/mcp-server"
                 ]
               },

@@ -1,24 +1,199 @@
 ---
-title: "Overview"
-description: Overview of TypeScript packages for the Arize Phoenix API.
+title: "TypeScript SDK"
+description: "Lightweight TypeScript packages for tracing, evaluation, and platform interaction"
 ---
 
-The Arize Phoenix TypeScript SDKs provide packages for interacting with Phoenix, running evaluations, and sending traces.
+Phoenix's TypeScript SDK is modular by design, allowing you to install only what you need. Each package serves a specific purpose and can be used independently or together.
 
-## Packages
+<CardGroup cols={2}>
+  <Card title="@arizeai/phoenix-client" icon="code" href="https://www.npmjs.com/package/@arizeai/phoenix-client">
+    REST API interface for the Phoenix platform
+  </Card>
+  <Card title="@arizeai/phoenix-otel" icon="telescope" href="https://www.npmjs.com/package/@arizeai/phoenix-otel">
+    OpenTelemetry tracing for Node.js
+  </Card>
+  <Card title="@arizeai/phoenix-evals" icon="clipboard-check" href="https://www.npmjs.com/package/@arizeai/phoenix-evals">
+    LLM evaluation and metrics toolkit
+  </Card>
+  <Card title="@arizeai/openinference-core" icon="puzzle-piece" href="https://arize-ai.github.io/openinference/js/">
+    Instrumentation helpers
+  </Card>
+  <Card title="@arizeai/phoenix-mcp" icon="plug" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
+    Model Context Protocol server
+  </Card>
+</CardGroup>
 
-### [@arizeai/phoenix-client](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client)
+## Installation
 
-TypeScript client for the Phoenix REST API. Manage prompts, datasets, experiments, and access all Phoenix endpoints with TypeScript auto-completion.
+Install all packages together or individually based on your needs:
 
-### [@arizeai/phoenix-evals](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals)
+```bash
+# Install everything
+npm install @arizeai/phoenix-client @arizeai/phoenix-otel @arizeai/phoenix-evals
 
-Evaluation library for LLM applications. Create custom evaluators or use pre-built ones for hallucination detection, relevance scoring, and other evaluation tasks.
+# Or install individually
+npm install @arizeai/phoenix-client   # REST API client
+npm install @arizeai/phoenix-otel     # Tracing
+npm install @arizeai/phoenix-evals    # Evaluations
+npm install @arizeai/openinference-core  # Instrumentation core
+```
 
-### [@arizeai/phoenix-otel](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel)
+## Environment Variables
+
+All packages respect common Phoenix environment variables for seamless configuration:
+
+| Variable | Description | Used By |
+|----------|-------------|---------|
+| `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL | OTEL |
+| `PHOENIX_HOST` | Phoenix server URL | Client |
+| `PHOENIX_API_KEY` | API key for authentication | Client, OTEL, MCP |
+| `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers (JSON) | Client |
+| `PHOENIX_BASE_URL` | Phoenix base URL | MCP |
+
+---
+
+## @arizeai/phoenix-client
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client)
+
+TypeScript client for the Phoenix REST API. Manage prompts, datasets, experiments, and access all Phoenix endpoints with full TypeScript auto-completion.
+
+- **Prompts** — Create, version, and retrieve prompt templates with SDK helpers for OpenAI, Anthropic, and Vercel AI
+- **Datasets** — Create and manage datasets for experiments and evaluation
+- **Experiments** — Run evaluations and track experiment results with automatic tracing
+- **REST API** — Full access to all Phoenix endpoints with strongly-typed requests
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client">
+    Examples and getting started
+  </Card>
+  <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/phoenix-client">
+    Package on npm
+  </Card>
+</CardGroup>
+
+---
+
+## @arizeai/phoenix-otel
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel)
 
 OpenTelemetry wrapper for sending traces to Phoenix. Simplifies setup with automatic configuration and support for instrumenting Node.js applications.
 
-### [Phoenix MCP Server](/docs/phoenix/sdk-api-reference/typescript/mcp-server)
+- **Simple setup** — Single `register()` call to configure tracing
+- **Phoenix-aware defaults** — Reads `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and other environment variables
+- **Production ready** — Built-in batch processing and authentication support
+- **Auto-instrumentation** — Support for HTTP, Express, and other OpenTelemetry instrumentations
+- **Manual tracing** — Create custom spans using the OpenTelemetry API
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel">
+    Examples and getting started
+  </Card>
+  <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/phoenix-otel">
+    Package on npm
+  </Card>
+</CardGroup>
+
+---
+
+## @arizeai/phoenix-evals
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals)
+
+TypeScript evaluation library for LLM applications. Create custom evaluators or use pre-built ones for hallucination detection, relevance scoring, and other evaluation tasks.
+
+- **Vendor agnostic** — Works with any AI SDK provider (OpenAI, Anthropic, etc.)
+- **Pre-built evaluators** — Hallucination detection, relevance scoring, and more
+- **Custom classifiers** — Create your own evaluators with custom prompts
+- **Experiment integration** — Works seamlessly with `@arizeai/phoenix-client` for experiments
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals">
+    Examples and getting started
+  </Card>
+  <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/phoenix-evals">
+    Package on npm
+  </Card>
+</CardGroup>
+
+---
+
+## @arizeai/openinference-core
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fopeninference-core)](https://www.npmjs.com/package/@arizeai/openinference-core)
+
+OpenInference provides instrumentation utilities for tracing LLM applications. The core package (`@arizeai/openinference-core`) offers tracing helpers, decorators, and context attribute propagation.
+
+### Tracing Helpers
+
+Convenient wrappers to instrument your functions with OpenInference spans:
+
+- **`withSpan`** — Wrap any function (sync or async) with OpenTelemetry tracing
+- **`traceChain`** — Trace workflow sequences and pipelines
+- **`traceAgent`** — Trace autonomous agents
+- **`traceTool`** — Trace external tool calls
+
+### Decorators
+
+- **`@observe`** — Decorator for automatically tracing class methods with configurable span kinds
+
+### Attribute Helpers
+
+Generate properly formatted attributes for common LLM operations:
+
+- **`getLLMAttributes`** — Attributes for LLM inference (model, messages, tokens)
+- **`getEmbeddingAttributes`** — Attributes for embedding operations
+- **`getRetrieverAttributes`** — Attributes for document retrieval
+- **`getToolAttributes`** — Attributes for tool definitions
+
+### Context Propagation
+
+Track metadata across your traces with context setters:
+
+- **`setSession`** — Group multi-turn conversations with a session ID
+- **`setUser`** — Track conversations by user ID
+- **`setMetadata`** — Add custom metadata for operational needs
+- **`setTag`** — Add tags for filtering spans
+- **`setPromptTemplate`** — Track prompt templates, versions, and variables
+
+### Framework Instrumentors
+
+Install additional packages to auto-instrument popular AI frameworks:
+
+```bash
+npm install @arizeai/openinference-instrumentation-openai      # OpenAI
+npm install @arizeai/openinference-instrumentation-langchain   # LangChain
+npm install @arizeai/openinference-instrumentation-anthropic   # Anthropic
+```
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core">
+    Examples and getting started
+  </Card>
+  <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/openinference-core">
+    Package on npm
+  </Card>
+</CardGroup>
+
+---
+
+## @arizeai/phoenix-mcp
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp)
 
 Model Context Protocol (MCP) server for Phoenix. Provides access to prompts, datasets, and experiments through the MCP standard for integration with Claude Desktop, Cursor, and other MCP-compatible tools.
+
+- **Prompts management** — Create, list, update, and iterate on prompts
+- **Datasets** — Explore datasets and synthesize new examples
+- **Experiments** — Pull experiment results and visualize them
+- **MCP compatible** — Works with Claude Desktop, Cursor, and other MCP clients
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/mcp-server">
+    Examples and getting started
+  </Card>
+  <Card title="GitHub" icon="arrow-up-right-from-square" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
+    Source code and documentation
+  </Card>
+</CardGroup>
