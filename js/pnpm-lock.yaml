@@ -203,8 +203,8 @@ importers:
         specifier: ^5.0.76
         version: 5.0.76(zod@3.25.76)
       openai:
-        specifier: ^5.12.1
-        version: 5.23.2(zod@3.25.76)
+        specifier: ^6.10.0
+        version: 6.10.0(zod@3.25.76)
 
   packages/phoenix-evals:
     dependencies:
@@ -2671,12 +2671,12 @@ packages:
     resolution: {integrity: sha512-WWSxhC/69ZhYWxH/OBsLEirIjUcfpQ5+ihkXKp06hmeYXgBBIUCa9IptMzYx6NdkiOCsSGYCnTIsxaic3AjRCQ==}
     hasBin: true
 
-  openai@5.23.2:
-    resolution: {integrity: sha512-MQBzmTulj+MM5O8SKEk/gL8a7s5mktS9zUtAkU257WjvobGc9nKcBuVwjyEEcb9SI8a8Y2G/mzn3vm9n1Jlleg==}
+  openai@6.10.0:
+    resolution: {integrity: sha512-ITxOGo7rO3XRMiKA5l7tQ43iNNu+iXGFAcf2t+aWVzzqRaS0i7m1K2BhxNdaveB+5eENhO0VY1FkiZzhBk4v3A==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
-      zod: ^3.23.8
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -6051,7 +6051,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  openai@5.23.2(zod@3.25.76):
+  openai@6.10.0(zod@3.25.76):
     optionalDependencies:
       zod: 3.25.76
     optional: true

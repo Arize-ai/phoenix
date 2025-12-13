@@ -338,7 +338,7 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     presence_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     seed: int = UNDEFINED
-    reasoning_effort: Literal["minimal", "low", "medium", "high"] = UNDEFINED
+    reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] = UNDEFINED
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):

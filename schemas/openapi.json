@@ -7560,10 +7560,12 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "none",
               "minimal",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh"
             ],
             "title": "Reasoning Effort"
           }
@@ -7693,10 +7695,12 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "none",
               "minimal",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh"
             ],
             "title": "Reasoning Effort"
           }
@@ -7871,10 +7875,12 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "none",
               "minimal",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh"
             ],
             "title": "Reasoning Effort"
           }
@@ -7935,10 +7941,12 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "none",
               "minimal",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh"
             ],
             "title": "Reasoning Effort"
           }
@@ -8571,10 +8579,12 @@
           "reasoning_effort": {
             "type": "string",
             "enum": [
+              "none",
               "minimal",
               "low",
               "medium",
-              "high"
+              "high",
+              "xhigh"
             ],
             "title": "Reasoning Effort"
           }
