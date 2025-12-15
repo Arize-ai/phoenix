@@ -1,0 +1,335 @@
+---
+title: "Your First Traces"
+description: Make the invisible visible - trace LLM calls, tools, and RAG pipelines
+---
+
+You built a customer support bot. It classifies queries, looks up order information, and answers questions from your FAQ. But users are complaining: responses are slow, answers are wrong, and you have no idea why.
+
+The problem? Your application is a black box. You can see what goes in and what comes out, but everything in between is invisible. Time to turn on the lights.
+
+In this chapter, you'll learn to trace your LLM application with Phoenix, giving you complete visibility into every LLM call, tool execution, and retrieval operation.
+
+<Info>
+**Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+</Info>
+
+## 1.1 Tracing a Simple LLM Call
+
+Let's start with the basics: tracing a single LLM call. With just a few lines of setup, you'll see exactly what's happening inside your application.
+
+### Install Dependencies
+
+First, install the required packages:
+
+```bash
+npm install ai @arizeai/openinference-vercel @arizeai/openinference-semantic-conventions \
+  @opentelemetry/api @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto \
+  @opentelemetry/resources @opentelemetry/semantic-conventions zod
+```
+
+### Set Up Instrumentation
+
+Create an `instrumentation.ts` file that configures OpenTelemetry to send traces to Phoenix:
+
+```typescript
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
+
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
+
+const COLLECTOR_ENDPOINT = process.env.PHOENIX_COLLECTOR_ENDPOINT || "http://localhost:6006";
+const PROJECT_NAME = "support-bot";
+
+export const provider = new NodeTracerProvider({
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: PROJECT_NAME,
+    [SEMRESATTRS_PROJECT_NAME]: PROJECT_NAME,
+  }),
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
+      }),
+    }),
+  ],
+});
+
+provider.register();
+console.log("✅ Phoenix tracing enabled");
+```
+
+This instrumentation file:
+- Creates a tracer provider configured for your project
+- Sets up an exporter that sends traces to Phoenix
+- Registers the provider so all AI SDK calls are automatically traced
+
+### Make Your First Traced Call
+
+Now make an LLM call with telemetry enabled:
+
+```typescript
+import "./instrumentation.js";
+import { generateText } from "ai";
+
+const { text } = await generateText({
+  model: "openai/gpt-4o-mini",
+  system: `Classify support queries into one of these categories:
+    - Order Status
+    - Billing
+    - Technical Issue
+    - General`,
+  prompt: "My order hasn't arrived yet",
+  experimental_telemetry: { isEnabled: true },
+});
+
+console.log(`Classification: ${text}`);
+console.log("👀 Check Phoenix UI at http://localhost:6006 to see your trace!");
+```
+
+The key is `experimental_telemetry: { isEnabled: true }` - this tells the AI SDK to emit OpenTelemetry spans that Phoenix can capture.
+
+### Understanding the Trace UI
+
+Open Phoenix at `http://localhost:6006` and click on your trace. You'll see:
+
+- **Input Messages**: The system prompt and user message sent to the model
+- **Output**: The model's response (the classification)
+- **Latency**: How long the call took (start time, end time, duration)
+- **Token Counts**: Prompt tokens, completion tokens, and total tokens
+- **Model Info**: Which model was used (gpt-4o-mini) and the provider (OpenAI)
+
+This single view tells you exactly what happened during the LLM call - no more guessing why responses are slow or incorrect.
+
+## 1.2 Tracing Tool Calls
+
+Real support bots don't just classify queries - they take action. Let's add a tool that looks up order status and see how Phoenix traces tool executions.
+
+### Define a Tool
+
+With the AI SDK, tools are defined inline with your `generateText` call:
+
+```typescript
+import "./instrumentation.js";
+import { generateText, tool } from "ai";
+import { z } from "zod";
+
+const result = await generateText({
+  model: "openai/gpt-4o-mini",
+  system: "You are a helpful support agent. Use the lookupOrderStatus tool to check order status when customers ask.",
+  prompt: "What's the status of order ORD-12345?",
+  tools: {
+    lookupOrderStatus: tool({
+      description: "Look up the current status of a customer order",
+      parameters: z.object({
+        orderId: z.string().describe("The order ID to look up"),
+      }),
+      execute: async ({ orderId }) => {
+        // Simulate API call delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return {
+          orderId,
+          status: "shipped",
+          carrier: "FedEx",
+          trackingNumber: "1234567890",
+          eta: "December 11, 2025",
+        };
+      },
+    }),
+  },
+  maxSteps: 3,
+  experimental_telemetry: { isEnabled: true },
+});
+
+console.log("Response:", result.text);
+console.log("👀 Check Phoenix to see the tool call nested under the LLM span!");
+```
+
+The `maxSteps: 3` parameter allows the model to make multiple steps - first deciding to call the tool, then receiving the result, and finally generating a response.
+
+### Understanding Tool Spans
+
+In Phoenix, you'll now see a more complex trace:
+
+1. **LLM Span (Step 1)**: The initial call where the model decides to use the tool
+2. **Tool Span**: The `lookupOrderStatus` execution, showing:
+   - Tool name and description
+   - Input parameters (`orderId: "ORD-12345"`)
+   - Output (the order status object)
+   - Execution time (the 500ms simulated delay)
+3. **LLM Span (Step 2)**: The follow-up call where the model uses the tool result to generate a response
+
+This nested structure shows you exactly how the model reasons about tools and how long each step takes. If customers complain about slow responses, you can immediately see whether it's the LLM calls or the tool executions causing the delay.
+
+## 1.3 Tracing RAG Pipelines
+
+The most common pattern in LLM applications is Retrieval-Augmented Generation (RAG). Let's add a knowledge base to our support bot and trace the entire pipeline.
+
+### Set Up a Simple FAQ Database
+
+First, create a simulated FAQ database with embeddings:
+
+```typescript
+import "./instrumentation.js";
+import { embed, generateText } from "ai";
+
+// Simulated FAQ database with pre-computed embeddings
+const FAQ_DATABASE = [
+  {
+    id: 1,
+    question: "How do I reset my password?",
+    answer: "Go to Settings > Security > Reset Password. You'll receive an email with a reset link.",
+    embedding: null as number[] | null, // Will be computed
+  },
+  {
+    id: 2,
+    question: "What's your refund policy?",
+    answer: "We offer full refunds within 30 days of purchase. Contact support to initiate a refund.",
+    embedding: null as number[] | null,
+  },
+  {
+    id: 3,
+    question: "How do I track my order?",
+    answer: "Visit the Order Status page and enter your order ID. You'll see real-time tracking information.",
+    embedding: null as number[] | null,
+  },
+];
+
+// Compute embeddings for FAQ entries
+async function initializeFAQEmbeddings() {
+  for (const faq of FAQ_DATABASE) {
+    const { embedding } = await embed({
+      model: "openai/text-embedding-ada-002",
+      value: faq.question,
+      experimental_telemetry: { isEnabled: true },
+    });
+    faq.embedding = embedding;
+  }
+  console.log("✅ FAQ embeddings initialized");
+}
+```
+
+### Implement Semantic Search
+
+Add a function to find relevant FAQ entries:
+
+```typescript
+// Cosine similarity between two vectors
+function cosineSimilarity(a: number[], b: number[]): number {
+  const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+// Find relevant FAQ entries
+async function findRelevantFAQs(query: string, topK: number = 2) {
+  const { embedding: queryEmbedding } = await embed({
+    model: "openai/text-embedding-ada-002",
+    value: query,
+    experimental_telemetry: { isEnabled: true },
+  });
+
+  const results = FAQ_DATABASE
+    .map((faq) => ({
+      ...faq,
+      score: cosineSimilarity(queryEmbedding, faq.embedding!),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+
+  return results;
+}
+```
+
+### Build the RAG Pipeline
+
+Put it all together:
+
+```typescript
+async function answerWithContext(userQuery: string) {
+  // Step 1: Retrieve relevant FAQs
+  const relevantFAQs = await findRelevantFAQs(userQuery);
+
+  console.log("Retrieved FAQs:");
+  relevantFAQs.forEach((faq) => {
+    console.log(`  - [${faq.score.toFixed(3)}] ${faq.question}`);
+  });
+
+  // Step 2: Build context from retrieved documents
+  const context = relevantFAQs
+    .map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`)
+    .join("\n\n");
+
+  // Step 3: Generate answer using context
+  const { text } = await generateText({
+    model: "openai/gpt-4o-mini",
+    system: `You are a helpful support agent. Answer the user's question using ONLY the following context. If the context doesn't contain relevant information, say "I don't have information about that."
+
+Context:
+${context}`,
+    prompt: userQuery,
+    experimental_telemetry: { isEnabled: true },
+  });
+
+  return text;
+}
+
+// Run the RAG pipeline
+await initializeFAQEmbeddings();
+const answer = await answerWithContext("How can I get my money back?");
+console.log("\nAnswer:", answer);
+console.log("👀 Check Phoenix to see the full RAG pipeline!");
+```
+
+### Understanding RAG Traces
+
+In Phoenix, you'll now see the complete RAG pipeline:
+
+1. **Embedding Spans**: Each `embed` call shows:
+   - The input text being embedded
+   - The model used (text-embedding-ada-002)
+   - Embedding dimensions and latency
+
+2. **Retrieval Pattern**: While the AI SDK doesn't create explicit "retriever" spans, you can see:
+   - The query embedding call
+   - The subsequent LLM call with the retrieved context
+
+3. **Generation Span**: The final `generateText` call shows:
+   - The system prompt with injected context
+   - The user's query
+   - The generated answer
+
+This visibility helps you debug retrieval quality issues. If the answer is wrong, you can check:
+- Were the right documents retrieved? (Check the context in the system prompt)
+- Are the similarity scores too low? (Check your embedding model)
+- Is the context being used correctly? (Check the model's response)
+
+## Summary
+
+You've learned to trace the three fundamental building blocks of LLM applications:
+
+- **LLM Calls**: See inputs, outputs, tokens, and latency for every model interaction
+- **Tool Calls**: Understand how models use tools, with full visibility into parameters and execution time
+- **RAG Pipelines**: Trace embeddings, retrieval, and generation to debug context quality
+
+Each span type provides different insights:
+
+| Span Type | Key Attributes |
+|-----------|----------------|
+| **LLM** | Messages, tokens, latency, model info |
+| **Tool** | Function name, parameters, result, execution time |
+| **Embedding** | Input text, model, dimensions, latency |
+
+With tracing enabled, your application is no longer a black box. You can see exactly what's happening at every step, making it easy to identify and fix issues.
+
+## Next Steps
+
+Now that you can see inside your application, you're ready to start improving it. In the next chapter, we'll explore how to:
+- Add custom metadata to your traces
+- Debug slow responses and errors
+- Use annotations to mark and categorize issues

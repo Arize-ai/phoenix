@@ -1,9 +1,9 @@
 ---
 title: "Sessions"
-description: "Track multi-turn conversations as cohesive units in Phoenix"
+description: Track multi-turn conversations as cohesive units in Phoenix
 ---
 
-Your support agent handles single queries well. Classification works. Tool calls execute. RAG retrieves relevant documents. But real customer support isn't just single queries, it's full conversations.
+Your support agent handles single queries well. Classification works. Tool calls execute. RAG retrieves relevant documents. But real customer support isn't single queries - it's conversations.
 
 "What's my order status?" → "When will it arrive?" → "Can I change the address?"
 
@@ -144,16 +144,48 @@ pnpm sessions
 ```
 
 This runs three conversation scenarios:
-
 1. **Order Inquiry**: Customer asks about order, then asks follow-up questions
 2. **FAQ Conversation**: Multiple FAQ questions in one session
 3. **Mixed Conversation**: Switching between order and FAQ topics
 
 ## What You'll See in Phoenix
 
-<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/sessions.mp4" />
+Open Phoenix at `http://localhost:6006` and click the **Sessions** tab. You'll see:
 
-**Now you can view and analyze your traces, grouped by user session!**
+1. **Conversation List**: Each session as a row with turn count and total tokens
+2. **Chat View**: Click into a session to see the full conversation
+3. **Session Metrics**: Total tokens, latency per turn, time between turns
+
+The session view shows a chatbot-like history:
+
+```
+Session: abc123...
+Turns: 3 | Total Tokens: 1,247 | Duration: 4.2s
+
+Turn 1 (0.8s, 312 tokens)
+User: "What's the status of order ORD-12345?"
+Agent: "Your order ORD-12345 has shipped! It's being delivered by FedEx..."
+
+Turn 2 (0.6s, 198 tokens)
+User: "When will it arrive?"
+Agent: "Based on the tracking information, your order is expected to arrive..."
+
+Turn 3 (0.5s, 156 tokens)
+User: "What's the tracking number?"
+Agent: "The tracking number for your order is 1234567890..."
+```
+
+## Debugging "The Bot Forgot What I Said"
+
+Sessions make context loss immediately visible. If the agent asks for an order ID that was already provided, you'll see it right in the conversation history. Compare the user's message to the agent's response - did it use information from previous turns?
+
+Common patterns to look for:
+
+1. **Repeated clarification requests**: Agent asking for info already provided
+2. **Inconsistent answers**: Different responses to the same question
+3. **Topic drift**: Agent losing track of what the conversation is about
+
+Without sessions, these issues are invisible. The individual traces look fine - it's only in the context of the full conversation that you see the problem.
 
 # 3.3 Session-Level Evaluations
 
@@ -165,9 +197,7 @@ This is where LLM-as-Judge evaluation shines. Instead of clicking through sessio
 - **Are issues getting resolved?** Do conversations end with the customer's problem solved, or do they trail off unresolved?
 - **Where do conversations break down?** Which sessions show signs of confusion, repetition, or context loss?
 
-By running evaluators across all your sessions, you get aggregate metrics ("85% of conversations maintain coherence") and can quickly filter to the problematic ones.
-
-The evaluator also generates **explanations**, so you understand _why_ a session was marked as incoherent or unresolved.
+By running evaluators across all your sessions, you get aggregate metrics ("85% of conversations maintain coherence") and can quickly filter to the problematic ones. The evaluator also generates explanations, so you understand *why* a session was marked as incoherent or unresolved.
 
 ## Conversation Coherence Evaluator
 
@@ -238,10 +268,6 @@ Was the customer's issue resolved?
 ```
 
 ## Running Session Evaluations
-
-```bash
-pnpm evaluate:sessions
-```
 
 Here's the full evaluation flow. First, fetch spans from Phoenix and group them by session ID:
 
@@ -337,37 +363,44 @@ await logSessionAnnotations({
 console.log(`Logged ${sessionAnnotations.length} session-level annotations`);
 ```
 
-# Viewing and Analyzing Session Level Evals
+Run the evaluation:
 
-Now that we've ran our session level evaluators, let's see how our support bot performs across user sessions.
+```bash
+pnpm evaluate:sessions
+```
 
-<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/session-evals.mp4" />
+You'll see output like:
 
-**Turn 1**: The user asks about order ORD-67890. The agent correctly looks up the order and reports it's processing with a December 15 ETA.
+```
+📋 Session: abc12345...
+   Turns: 3
+   Coherence: ✅ COHERENT
+   Explanation: The agent successfully remembered the order ID from turn 1...
+   Resolution: ✅ RESOLVED
+   Explanation: The customer received all requested information about their order...
 
-**Turn 2**: The user switches topics entirely - "How do I cancel my subscription?" This is a FAQ question, not an order question. The agent handles it via RAG, providing the correct cancellation instructions.
+📋 Session: def67890...
+   Turns: 4
+   Coherence: ❌ INCOHERENT
+   Explanation: In turn 3, the agent asked for the order ID again despite...
+   Resolution: ❌ UNRESOLVED
+   Explanation: The conversation ended without the customer getting tracking info...
+```
 
-**Turn 3**: Here's the real test. The user says "Back to my order - what's the carrier?" They don't repeat the order ID. They just say "my order."
+## Analyzing Session Evaluations in Phoenix
 
-Did the agent remember? Yes. It correctly referenced ORD-67890 and provided the carrier status (pending) without asking the user to repeat themselves.
-
-The session-level annotations confirm what we see:
-
-- **conversation_coherence: coherent (score: 1.0)** - The explanation notes that "the agent correctly referenced the order ID and consistent details across turns... and also handled the separate subscription question without losing track."
-- **resolution_status: resolved (score: 1.0)** - The explanation confirms "the agent answered the user's questions: provided order status and ETA, explained cancellation steps, and clarified that the carrier is currently pending."
-
-This is exactly what session evaluation gives you. Instead of manually reviewing each turn, you can scan the coherence and resolution scores across all sessions. When you find one marked "incoherent" or "unresolved," click in to see the explanation and understand what went wrong.
+<!-- TODO: Add screenshots and walkthrough of Phoenix UI for session analysis -->
 
 # Summary
 
-You've used sessions transform your tracing data from isolated queries into conversation threads. Here are the benefits you've realized by using sessions:
+Sessions transform your tracing data from isolated queries into conversation threads:
 
-| Without Sessions                | With Sessions                       |
-| ------------------------------- | ----------------------------------- |
-| Individual traces, disconnected | Full conversation history           |
-| Can't see context loss          | "Bot forgot what I said" is visible |
-| Per-turn metrics only           | Total tokens, turns to resolution   |
-| Evaluate single responses       | Evaluate entire conversations       |
+| Without Sessions | With Sessions |
+|------------------|---------------|
+| Individual traces, disconnected | Full conversation history |
+| Can't see context loss | "Bot forgot what I said" is visible |
+| Per-turn metrics only | Total tokens, turns to resolution |
+| Evaluate single responses | Evaluate entire conversations |
 
 The workflow:
 
@@ -377,22 +410,18 @@ The workflow:
 4. **Evaluate conversations** with coherence and resolution evaluators
 5. **Debug patterns** by clicking into problematic sessions
 
-# **Congratulations!**
+# Next Steps
 
-**This marks the end of the tracing tutorial.**
-
-You've now learned how to gain observability into your LLM applications. You've learned how to:
+You've now built a fully observable support agent:
 
 - **Chapter 1**: Tracing every LLM call, tool execution, and retrieval
 - **Chapter 2**: Annotating traces with human feedback and LLM-as-Judge
 - **Chapter 3**: Tracking multi-turn conversations as sessions
 
-# Next Steps
-
 From here, you might want to explore:
 
-- [**Exporting Data**](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans): Export annotated traces for fine-tuning
-- [**Multimodal Tracing**](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Tracing for multimodal applications
-- [**Cost Tracking**](/docs/phoenix/tracing/how-to-tracing/cost-tracking): Track LLM/Agent costs smartly
+- **[Exporting Data](../how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans)**: Export annotated traces for fine-tuning
+- **[Custom Evaluators](../how-to-tracing/feedback-and-annotations/llm-evaluations)**: Build domain-specific evaluation criteria
+- **[Production Monitoring](../how-to-tracing/cost-tracking)**: Track costs and performance at scale
 
 The patterns you've learned - tracing, annotation, evaluation, and sessions - apply to any LLM application. The specific evaluators and metrics will change, but the approach stays the same: observe everything, measure what matters, and use the data to improve.

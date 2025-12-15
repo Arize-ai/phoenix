@@ -1,0 +1,279 @@
+---
+title: "Annotations and Evaluation"
+description: Is your agent actually good? Use annotations and LLM-as-Judge to find out.
+---
+
+Your support agent is running. Traces are flowing into Phoenix. You can see every LLM call, tool execution, and retrieval. But here's the uncomfortable truth: a trace showing "200 OK" doesn't mean the answer was right.
+
+Users are still complaining. Some responses are helpful, others are completely wrong. You need a way to measure quality - not just observe activity.
+
+In this chapter, you'll learn to annotate traces with human feedback, capture user reactions from your application, and run automated LLM-as-Judge evaluations to find patterns in what's failing.
+
+> **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+
+# 2.1 Human Annotations in the UI
+
+Before automating anything, you need to know what "good" actually looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These aren't universal truths - they depend on your users, your brand, and your use case.
+
+Human annotation is how you build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, you create **ground truth** - the gold standard that everything else gets measured against. You'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
+
+This manual review might feel slow, but it's essential. You can't automate quality measurement until you know what quality means for your application.
+
+## Configure Annotation Types
+
+Navigate to **Settings → Annotations** in Phoenix to create annotation types:
+
+| Type | Example | Use Case |
+|------|---------|----------|
+| Categorical | `correct` / `incorrect` | Yes/no or multi-class labels |
+| Continuous | 1-5 scale, 0-100% | Numeric scores |
+| Freeform | Any text | Open-ended notes |
+
+## Annotate in the UI
+
+Open a trace → click **Annotate** → fill out the form. Use number keys (1, 2, 3...) as hotkeys for faster annotation.
+
+Once you've annotated traces, you can filter by annotation values, export to datasets, and compare across annotators. Even 50 well-annotated traces teach you more about failure modes than weeks of guessing.
+
+# 2.2 Programmatic Annotations (User Feedback)
+
+Manual annotation gives you ground truth, but it doesn't scale. You can review maybe 50 traces a day - meanwhile, your agent is handling thousands of conversations.
+
+Here's the good news: your users are already telling you what's working. Every thumbs up, thumbs down, "this wasn't helpful" click, or escalation to a human agent is feedback. The problem is, that feedback lives in your application while your traces live in Phoenix. They're disconnected.
+
+Programmatic annotations bridge this gap. With a few lines of code, you can capture user reactions in your app and attach them directly to the corresponding traces. Now when you open Phoenix, you don't just see what happened - you see how users felt about it. That thumbs-down on a trace? Click in and see exactly what went wrong. A cluster of negative feedback on retrieval queries? Maybe your knowledge base needs updating.
+
+This is the feedback loop that actually matters: real users, real reactions, connected to the full context of what the agent did.
+
+## Get the Span ID from Running Code
+
+To attach feedback to a trace, you need the span ID. Here's how to capture it:
+
+```typescript
+import { trace } from "@opentelemetry/api";
+
+async function handleSupportQuery(userQuery: string) {
+  return tracer.startActiveSpan("support-agent", async (span) => {
+    // Capture the span ID for later feedback
+    const spanId = span.spanContext().spanId;
+    
+    // ... process query ...
+    
+    return {
+      response: "Your order has shipped!",
+      spanId, // Return this to your frontend
+    };
+  });
+}
+```
+
+In a web application, you'd return the `spanId` to your frontend along with the response, then send it back when the user clicks thumbs up/down.
+
+## Log Feedback via Phoenix Client
+
+Install the Phoenix client:
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+Then log annotations:
+
+```typescript
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+// When user clicks thumbs up
+await logSpanAnnotations({
+  spanAnnotations: [{
+    spanId: "abc123...",  // The span ID from your response
+    name: "user_feedback",
+    label: "thumbs-up",
+    score: 1,
+    annotatorKind: "HUMAN",
+    metadata: {
+      source: "web_app",
+      userId: "user_456",
+    },
+  }],
+  sync: true,
+});
+```
+
+## Interactive Feedback in the Tutorial
+
+Our tutorial code includes interactive feedback collection. After the agent processes all queries, it shows each query/response pair and asks for your feedback:
+
+```typescript
+async function collectUserFeedback(responses: AgentResponse[]): Promise<void> {
+  for (const resp of responses) {
+    console.log(`Query: "${resp.query}"`);
+    console.log(`Response: "${resp.response}"`);
+    
+    const answer = await prompt("Was this response helpful? (y/n/s): ");
+
+    if (answer === "y") {
+      annotations.push({
+        spanId: resp.spanId,
+        name: "user_feedback",
+        label: "thumbs-up",
+        score: 1,
+        annotatorKind: "HUMAN",
+      });
+    } else if (answer === "n") {
+      annotations.push({
+        spanId: resp.spanId,
+        name: "user_feedback",
+        label: "thumbs-down",
+        score: 0,
+        annotatorKind: "HUMAN",
+      });
+    }
+  }
+
+  await logSpanAnnotations({ spanAnnotations: annotations, sync: true });
+}
+```
+
+Run the support agent:
+
+```bash
+pnpm start
+```
+
+After the agent generates 7 responses, you'll be prompted to rate each one:
+- Enter `y` for thumbs-up (good response)
+- Enter `n` for thumbs-down (bad response)
+- Enter `s` to skip
+
+Your feedback is sent to Phoenix as annotations. Check the **Annotations** tab on each trace to see your ratings.
+
+# 2.3 LLM-as-Judge Evaluations
+
+You've collected user feedback and identified which responses were unhelpful. Now you need to understand *why* they failed. Was the tool call returning errors? Was the retrieval pulling irrelevant context?
+
+Instead of manually clicking through each unhelpful trace, you can automate this analysis. We'll create two evaluators - one for our `lookupOrderStatus` tool, and the other for FAQ retrieval relevance. These evaluators annotate the child spans, so when you click into an unhelpful trace, you can immediately see what went wrong.
+
+## Install the Phoenix Evals Package
+
+```bash
+npm install @arizeai/phoenix-evals
+```
+
+## Create Evaluators
+
+### Tool Result Evaluator
+
+Did the tool call succeed or return an error? This is a simple code-based check:
+
+```typescript
+// Filter for tool spans
+const toolSpans = spans.filter((span) => span.name === "lookupOrderStatus");
+
+for (const span of toolSpans) {
+  const output = JSON.stringify(span.attributes["output.value"] || "");
+  
+  // Check if output contains error indicators
+  const hasError = output.toLowerCase().includes("error") || 
+                   output.toLowerCase().includes("not found");
+  
+  annotations.push({
+    spanId: span.context.span_id,
+    name: "tool_result",
+    label: hasError ? "error" : "success",
+    score: hasError ? 0 : 1,
+    annotatorKind: "LLM",
+  });
+}
+```
+
+### Retrieval Relevance Evaluator
+
+Was the retrieved context actually relevant to the question?
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const retrievalRelevanceEvaluator = createClassificationEvaluator({
+  name: "retrieval_relevance",
+  model: openai("gpt-4o-mini"),
+  choices: { relevant: 1, irrelevant: 0 },
+  promptTemplate: `Was the retrieved context relevant to the question?
+
+[User Question]: {{input}}
+[Retrieved Context]: {{output}}
+
+Is this context relevant?`,
+});
+```
+
+## Fetch Spans and Run Evaluations
+
+```typescript
+import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const { spans } = await getSpans({
+  project: { projectName: "support-bot" },
+  limit: 50,
+});
+
+// Filter by span type
+const toolSpans = spans.filter((span) => span.name === "lookupOrderStatus");
+// ... evaluate and annotate
+```
+
+The full evaluation script in the tutorial handles both evaluators.
+
+## Run the Evaluation Script
+
+The tutorial includes a complete evaluation script:
+
+```bash
+pnpm evaluate
+```
+
+This will:
+1. Fetch tool and RAG spans from Phoenix
+2. Evaluate each:
+   - Tool spans: success vs. error (code-based check)
+   - Retrieval spans: relevant vs. irrelevant (LLM-based)
+3. Log results back as annotations on the child spans
+
+## The Debugging Workflow
+
+Now you have a complete debugging workflow:
+
+1. **Run the agent** (`pnpm start`) and provide feedback (thumbs up/down)
+2. **Run evaluations** (`pnpm evaluate`) to annotate child spans
+3. **Click into unhelpful traces** in Phoenix
+4. **Check the child span annotations:**
+   - `tool_result = error` → The order wasn't found
+   - `retrieval_relevance = irrelevant` → The FAQ wasn't in the knowledge base
+
+This tells you exactly *why* a trace failed, not just *that* it failed.
+
+# Summary
+
+You now have a complete quality feedback loop:
+
+| Step | What You Do | What You Learn |
+|------|-------------|----------------|
+| **1. User Feedback** | Rate responses as helpful/unhelpful | Which traces failed |
+| **2. Child Span Evals** | Run `pnpm evaluate` | *Why* they failed (tool error? bad retrieval?) |
+| **3. Analysis** | Click into unhelpful traces | Root cause (missing order, FAQ not in KB) |
+| **4. Fix** | Update prompts, knowledge base, or tools | Improve the agent |
+
+This is the debugging workflow that actually scales. Instead of manually reviewing every trace, you:
+- Use feedback to identify failures
+- Use automated evaluation to diagnose them
+- Use trace details to understand the root cause
+
+# Next Steps
+
+Your traces are now annotated with both human feedback and automated evaluations. You can identify which responses failed and diagnose why.
+
+But there's still a missing piece: real customer support isn't single queries - it's conversations. "What's my order status?" followed by "When will it arrive?" followed by "Can I change the address?"
+
+In the next chapter, you'll learn to track multi-turn conversations as **sessions**, giving you visibility into the full customer journey - not just isolated queries.
+
+**[Continue to Chapter 3: Sessions →](./sessions)**

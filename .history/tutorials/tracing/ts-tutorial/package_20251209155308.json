@@ -1,0 +1,29 @@
+{
+  "name": "phoenix-tracing-tutorial",
+  "version": "1.0.0",
+  "description": "Phoenix Tracing Tutorial - Learn to trace LLM applications with Phoenix",
+  "type": "module",
+  "scripts": {
+    "01": "npx tsx 01-simple-llm-call.ts",
+    "02": "npx tsx 02-tool-calls.ts",
+    "03": "npx tsx 03-rag-pipeline.ts",
+    "04": "npx tsx 04-support-agent.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.80",
+    "@arizeai/openinference-semantic-conventions": "^1.0.0",
+    "@arizeai/openinference-vercel": "^2.0.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.53.0",
+    "@opentelemetry/resources": "^1.26.0",
+    "@opentelemetry/sdk-trace-node": "^1.26.0",
+    "@opentelemetry/semantic-conventions": "^1.27.0",
+    "ai": "^5.0.108",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

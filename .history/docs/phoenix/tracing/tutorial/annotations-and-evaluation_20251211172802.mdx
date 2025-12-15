@@ -1,0 +1,315 @@
+---
+title: "Annotations and Evaluation"
+description: Is your agent actually good? Use annotations and LLM-as-Judge to find out.
+---
+
+Your support agent is running. Traces are flowing into Phoenix. You can see every LLM call, tool execution, and retrieval. But here's the uncomfortable truth: a trace showing "200 OK" doesn't mean the answer was right.
+
+Users are still complaining. Some responses are helpful, others are completely wrong. You need a way to measure quality - not just observe activity.
+
+In this chapter, you'll learn to annotate traces with human feedback, capture user reactions from your application, and run automated LLM-as-Judge evaluations to find patterns in what's failing.
+
+> **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+
+## 2.1 Human Annotations in the UI
+
+Before automating anything, you need to know what "good" actually looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These aren't universal truths - they depend on your users, your brand, and your use case.
+
+Human annotation is how you build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, you create **ground truth** - the gold standard that everything else gets measured against. You'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
+
+This manual review might feel slow, but it's essential. You can't automate quality measurement until you know what quality means for your application.
+
+### Configure Annotation Types
+
+Navigate to **Settings** in Phoenix and create annotation configurations. These define how you'll rate your traces.
+
+**Categorical Annotations** - For yes/no or multi-class labels:
+- **Correctness**: `correct` / `incorrect`
+- **Category**: `order_status` / `faq` / `other`
+
+**Continuous Annotations** - For numeric scores:
+- **Quality**: 1-5 scale
+- **Confidence**: 0-100%
+
+**Freeform Annotations** - For open-ended notes:
+- **Notes**: Any text explanation
+
+For each annotation, you can set an optimization direction:
+- **Maximize**: Higher is better (e.g., quality score)
+- **Minimize**: Lower is better (e.g., error count)
+- **None**: No direction (e.g., category labels)
+
+### Annotate Spans in the UI
+
+1. Open a trace in Phoenix
+2. Click the **Annotate** button
+3. Fill out the annotation form based on your configured types
+4. Optionally add an explanation for why you gave that rating
+
+**Pro tip**: Use hotkeys for faster annotation. Number keys (1, 2, 3...) select categorical options quickly.
+
+### Filter and Export by Annotations
+
+Once you've annotated several traces, you can:
+- **Filter traces** by annotation values (e.g., show only "incorrect" responses)
+- **Export to dataset** for fine-tuning or building evaluation sets
+- **Compare annotators** to see if different reviewers agree
+
+Every annotation you add becomes part of your ground truth dataset - the foundation for calibrating automated evaluations later. Even 50 well-annotated traces can teach you more about your agent's failure modes than weeks of guessing.
+
+## 2.2 Programmatic Annotations (User Feedback)
+
+Manual annotation gives you ground truth, but it doesn't scale. You can review maybe 50 traces a day - meanwhile, your agent is handling thousands of conversations.
+
+Here's the good news: your users are already telling you what's working. Every thumbs up, thumbs down, "this wasn't helpful" click, or escalation to a human agent is feedback. The problem is, that feedback lives in your application while your traces live in Phoenix. They're disconnected.
+
+Programmatic annotations bridge this gap. With a few lines of code, you can capture user reactions in your app and attach them directly to the corresponding traces. Now when you open Phoenix, you don't just see what happened - you see how users felt about it. That thumbs-down on a trace? Click in and see exactly what went wrong. A cluster of negative feedback on retrieval queries? Maybe your knowledge base needs updating.
+
+This is the feedback loop that actually matters: real users, real reactions, connected to the full context of what the agent did.
+
+### Get the Span ID from Running Code
+
+To attach feedback to a trace, you need the span ID. Here's how to capture it:
+
+```typescript
+import { trace } from "@opentelemetry/api";
+
+async function handleSupportQuery(userQuery: string) {
+  return tracer.startActiveSpan("support-agent", async (span) => {
+    // Capture the span ID for later feedback
+    const spanId = span.spanContext().spanId;
+    
+    // ... process query ...
+    
+    return {
+      response: "Your order has shipped!",
+      spanId, // Return this to your frontend
+    };
+  });
+}
+```
+
+In a web application, you'd return the `spanId` to your frontend along with the response, then send it back when the user clicks thumbs up/down.
+
+### Log Feedback via Phoenix Client
+
+Install the Phoenix client:
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+Then log annotations:
+
+```typescript
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+// When user clicks thumbs up
+await logSpanAnnotations({
+  spanAnnotations: [{
+    spanId: "abc123...",  // The span ID from your response
+    name: "user_feedback",
+    label: "thumbs-up",
+    score: 1,
+    annotatorKind: "HUMAN",
+    metadata: {
+      source: "web_app",
+      userId: "user_456",
+    },
+  }],
+  sync: true,
+});
+```
+
+### Interactive Feedback in the Tutorial
+
+Our tutorial code includes interactive feedback collection. After the agent processes all queries, it shows each query/response pair and asks for your feedback:
+
+```typescript
+async function collectUserFeedback(responses: AgentResponse[]): Promise<void> {
+  for (const resp of responses) {
+    console.log(`Query: "${resp.query}"`);
+    console.log(`Response: "${resp.response}"`);
+    
+    const answer = await prompt("Was this response helpful? (y/n/s): ");
+
+    if (answer === "y") {
+      annotations.push({
+        spanId: resp.spanId,
+        name: "user_feedback",
+        label: "thumbs-up",
+        score: 1,
+        annotatorKind: "HUMAN",
+      });
+    } else if (answer === "n") {
+      annotations.push({
+        spanId: resp.spanId,
+        name: "user_feedback",
+        label: "thumbs-down",
+        score: 0,
+        annotatorKind: "HUMAN",
+      });
+    }
+  }
+
+  await logSpanAnnotations({ spanAnnotations: annotations, sync: true });
+}
+```
+
+Run the support agent:
+
+```bash
+pnpm start
+```
+
+After the agent generates 7 responses, you'll be prompted to rate each one:
+- Enter `y` for thumbs-up (good response)
+- Enter `n` for thumbs-down (bad response)
+- Enter `s` to skip
+
+Your feedback is sent to Phoenix as annotations. Check the **Annotations** tab on each trace to see your ratings.
+
+## 2.3 LLM-as-Judge Evaluations
+
+User feedback is gold, but it's sparse. Most users don't click thumbs up or down - they just leave. And even engaged users can only tell you about their own experience. You might have a bug that affects 5% of queries, but if those users don't report it, you'll never know.
+
+LLM-as-Judge fills this gap by automatically evaluating every single trace. Instead of waiting for user complaints, you proactively check each response: Was it helpful? Did it actually answer the question? Was the tone appropriate?
+
+The power of this approach becomes clear at scale. Run evaluations on your last 1,000 traces and suddenly patterns emerge that no human reviewer would catch: "Order status queries have 95% helpfulness, but FAQ queries only hit 60%." Or "Responses are great during business hours but quality drops at night when the retrieval system gets stale data."
+
+You define what to measure (helpfulness, correctness, tone, safety - whatever matters for your use case), and the evaluator runs continuously. Problems get caught before users complain, and you have data to prioritize fixes.
+
+### Install the Phoenix Evals Package
+
+```bash
+npm install @arizeai/phoenix-evals
+```
+
+### Create an Evaluator
+
+The `@arizeai/phoenix-evals` package provides tools to build custom evaluators:
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const helpfulnessEvaluator = createClassificationEvaluator({
+  name: "helpfulness",
+  model: openai("gpt-4o-mini"),
+  choices: {
+    very_helpful: 1.0,
+    helpful: 0.75,
+    somewhat_helpful: 0.5,
+    not_helpful: 0.25,
+    unhelpful: 0,
+  },
+  promptTemplate: `You are evaluating a customer support agent's response for helpfulness.
+
+Rate the helpfulness of the agent's response:
+- VERY_HELPFUL: Response fully addresses the query with clear, actionable information
+- HELPFUL: Response addresses the query well with useful information
+- SOMEWHAT_HELPFUL: Response partially addresses the query but could be better
+- NOT_HELPFUL: Response barely addresses the query
+- UNHELPFUL: Response doesn't help at all or makes things worse
+
+[Customer Query]: {{input}}
+
+[Agent Response]: {{output}}
+
+How helpful is this response?
+`,
+});
+```
+
+### Fetch Spans and Run Evaluations
+
+```typescript
+import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+// 1. Fetch spans from your project
+const { spans } = await getSpans({
+  project: { projectName: "support-bot" },
+  limit: 50,
+});
+
+// 2. Filter for agent spans
+const agentSpans = spans.filter((span) => span.name === "support-agent");
+
+// 3. Evaluate each span
+const annotations = [];
+
+for (const span of agentSpans) {
+  const input = span.attributes["input.value"];
+  const output = span.attributes["output.value"];
+
+  const result = await helpfulnessEvaluator.evaluate({ input, output });
+  
+  annotations.push({
+    spanId: span.context.span_id,
+    name: "helpfulness",
+    label: result.label,
+    score: result.score,
+    explanation: result.explanation,
+    annotatorKind: "LLM",
+    metadata: { model: "gpt-4o-mini" },
+  });
+}
+
+// 4. Log results back to Phoenix
+await logSpanAnnotations({
+  spanAnnotations: annotations,
+});
+```
+
+### Run the Evaluation Script
+
+The tutorial includes a complete evaluation script:
+
+```bash
+pnpm evaluate
+```
+
+This will:
+1. Fetch recent spans from Phoenix
+2. Run helpfulness evaluations on each agent span
+3. Log the results back as annotations
+4. Print a summary of helpfulness scores
+
+### Find Patterns in Failures
+
+Once evaluation results are in Phoenix, the real detective work begins.
+
+Start by filtering to show only the worst responses - traces marked `not_helpful` or `unhelpful`. Don't just skim them; dig into the details. What do these failures have in common? Are they all about a specific topic? Do they share a particular retrieval pattern? Is there a prompt that's clearly confusing the LLM?
+
+Then zoom out. Compare evaluation scores across different query categories. Maybe order status queries are crushing it at 95% helpfulness, while FAQ queries languish at 60%. That's not a random bug - that's a signal that your knowledge base or retrieval strategy needs work.
+
+Finally, compare your LLM evaluations against actual user feedback. If the evaluator says a response was "very helpful" but the user gave it a thumbs-down, your evaluation criteria might be off. This calibration process - using human judgment to refine automated evaluation - is how you build evaluators you can actually trust.
+
+## Summary
+
+You now have three lenses for understanding quality, each with different strengths:
+
+| Method | Source | Scale | Best For |
+|--------|--------|-------|----------|
+| **UI Annotations** | Human reviewers | Low volume | Building ground truth, calibrating evaluators |
+| **User Feedback** | End users | High volume | Real-world quality signal, production monitoring |
+| **LLM-as-Judge** | Automated | Every trace | Comprehensive coverage, pattern detection |
+
+None of these alone is enough. Manual review builds understanding but doesn't scale. User feedback reflects reality but is sparse and biased toward extremes. Automated evaluation covers everything but needs calibration against human judgment.
+
+Together, they create a quality feedback loop:
+1. **Manual annotation** teaches you what "good" means for your application
+2. **User feedback** surfaces real problems in production
+3. **LLM-as-Judge** evaluates every trace against your criteria
+4. **Analysis** reveals patterns that point to root causes
+5. **Fixes** improve the agent, and the cycle continues
+
+## Next Steps
+
+With quality measurement in place, you're no longer flying blind. You know which responses work, which fail, and why. Here's where to go next:
+
+- **Set up monitoring**: Configure alerts when helpfulness scores drop below a threshold, so you catch regressions before users do
+- **Build evaluation datasets**: Export your annotated traces to create test sets for regression testing and prompt optimization
+- **Run experiments**: Compare different agent versions, prompts, or retrieval strategies with data instead of intuition
+- **Add custom evaluators**: Build evaluators for your specific needs - tone, safety, factual accuracy, whatever matters for your use case
+
