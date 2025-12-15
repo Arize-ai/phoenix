@@ -15,10 +15,8 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
-import {
-  GoogleGenAIThinkingLevelConfigField,
-  OpenAIReasoningEffortConfigField,
-} from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
+import { GoogleGenAIThinkingLevelConfigField } from "@phoenix/pages/playground/GoogleGenAIThinkingLevelConfigField";
+import { OpenAIReasoningEffortConfigField } from "@phoenix/pages/playground/OpenAIReasoningEffortConfigField";
 import { ModelInvocationParameterInput } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
@@ -74,8 +72,8 @@ const InvocationParameterFormField = ({
     return <AnthropicReasoningConfigField onChange={onChange} value={value} />;
   }
 
-  // special case for openai reasoning effort
   if (field.canonicalName === "REASONING_EFFORT") {
+    // special case for google gen ai thinking level
     if (field.invocationName === "thinking_level") {
       return (
         <GoogleGenAIThinkingLevelConfigField

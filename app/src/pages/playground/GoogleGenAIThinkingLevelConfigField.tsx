@@ -9,22 +9,22 @@ import {
   SelectValue,
 } from "@phoenix/components";
 
-type OpenAIReasoningEffortConfigFieldProps = {
+type GoogleGenAIThinkingLevelConfigFieldProps = {
   value: unknown;
   onChange: (value: unknown) => void;
   label?: string;
 };
 
-export const OpenAIReasoningEffortConfigField = ({
+export const GoogleGenAIThinkingLevelConfigField = ({
   value,
   onChange,
-  label = "Reasoning Effort",
-}: OpenAIReasoningEffortConfigFieldProps) => {
+  label = "Thinking Level",
+}: GoogleGenAIThinkingLevelConfigFieldProps) => {
   return (
     <Select
       value={typeof value === "string" ? value : null}
       onChange={(key) => onChange(key === "unset" ? undefined : key)}
-      placeholder="Select effort"
+      placeholder="Select level"
     >
       <Label>{label}</Label>
       <Button>
@@ -36,12 +36,6 @@ export const OpenAIReasoningEffortConfigField = ({
           <SelectItem id="unset" textValue="Unset">
             <em>Unset</em>
           </SelectItem>
-          <SelectItem id="none" textValue="None">
-            None
-          </SelectItem>
-          <SelectItem id="minimal" textValue="Minimal">
-            Minimal
-          </SelectItem>
           <SelectItem id="low" textValue="Low">
             Low
           </SelectItem>
@@ -50,9 +44,6 @@ export const OpenAIReasoningEffortConfigField = ({
           </SelectItem>
           <SelectItem id="high" textValue="High">
             High
-          </SelectItem>
-          <SelectItem id="xhigh" textValue="Extra High">
-            Extra High
           </SelectItem>
         </ListBox>
       </Popover>
