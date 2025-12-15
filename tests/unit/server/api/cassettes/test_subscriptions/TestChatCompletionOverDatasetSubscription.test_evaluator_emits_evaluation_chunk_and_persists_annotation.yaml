@@ -1,22 +1,23 @@
 interactions:
 - request:
-    body: '{"messages":[{"content":"What country is Tokyo in? Answer in one word,
-      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    body: '{"messages": [{"content": "What country is Paris in? Answer in one word,
+      no punctuation.", "role": "user"}], "model": "gpt-4", "stream": true, "stream_options":
+      {"include_usage": true}}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnAiFLEKXPcAH3PPEtu8vx2ZTHNty","object":"chat.completion.chunk","created":1765835287,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+      string: 'data: {"id":"chatcmpl-CnBPA2JTp9bfGUubZESeWrmhXZHS8","object":"chat.completion.chunk","created":1765837948,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
 
 
-        data: {"id":"chatcmpl-CnAiFLEKXPcAH3PPEtu8vx2ZTHNty","object":"chat.completion.chunk","created":1765835287,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Japan"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"UKpIc4jwfAJQL"}
+        data: {"id":"chatcmpl-CnBPA2JTp9bfGUubZESeWrmhXZHS8","object":"chat.completion.chunk","created":1765837948,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"France"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"aL7BOJIwsun5"}
 
 
-        data: {"id":"chatcmpl-CnAiFLEKXPcAH3PPEtu8vx2ZTHNty","object":"chat.completion.chunk","created":1765835287,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"3cOkXlQ4pKUc"}
+        data: {"id":"chatcmpl-CnBPA2JTp9bfGUubZESeWrmhXZHS8","object":"chat.completion.chunk","created":1765837948,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"UZkVE1riXMNa"}
 
 
-        data: {"id":"chatcmpl-CnAiFLEKXPcAH3PPEtu8vx2ZTHNty","object":"chat.completion.chunk","created":1765835287,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"5n"}
+        data: {"id":"chatcmpl-CnBPA2JTp9bfGUubZESeWrmhXZHS8","object":"chat.completion.chunk","created":1765837948,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"UC"}
 
 
         data: [DONE]
@@ -28,51 +29,56 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"messages":[{"content":"What country is Paris in? Answer in one word,
-      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    body: '{"messages": [{"content": "You are an evaluator that assesses the correctness
+      of outputs.", "role": "system"}, {"content": "Input: {\"city\": \"Paris\"}\n\nOutput:
+      {\"task_output\": {\"messages\": [{\"role\": \"assistant\", \"content\": \"France\"}]}}\n\nIs
+      this output correct?", "role": "user"}], "model": "gpt-4", "stream": true, "stream_options":
+      {"include_usage": true}, "tools": [{"function": {"name": "evaluate_correctness",
+      "description": "evaluates the correctness of the output", "parameters": {"type":
+      "object", "properties": {"correct": {"type": "string", "enum": ["correct", "incorrect"]}},
+      "required": ["correct"]}}, "type": "function"}]}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnAiHzDIHLWiQ8Wl7tAFFk5wvTGyu","object":"chat.completion.chunk","created":1765835289,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+      string: 'data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_1zzJDPfhhPv41tqfwLdUlr5n","type":"function","function":{"name":"evaluate_correctness","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"1Q"}
 
 
-        data: {"id":"chatcmpl-CnAiHzDIHLWiQ8Wl7tAFFk5wvTGyu","object":"chat.completion.chunk","created":1765835289,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"France"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"OzyhCgRn0mfa"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\n"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"MOHUi"}
 
 
-        data: {"id":"chatcmpl-CnAiHzDIHLWiQ8Wl7tAFFk5wvTGyu","object":"chat.completion.chunk","created":1765835289,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"4BXxdNG3aNq2"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"
+        "}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"pTalgrJ"}
 
 
-        data: {"id":"chatcmpl-CnAiHzDIHLWiQ8Wl7tAFFk5wvTGyu","object":"chat.completion.chunk","created":1765835289,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"dv"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"
+        \""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"qI8iT"}
 
 
-        data: [DONE]
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"correct"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"v"}
 
 
-        '
-    headers: {}
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"messages":[{"content":"What country is Toronto in? Answer in one word,
-      no punctuation.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
-    headers: {}
-    method: POST
-    uri: https://api.openai.com/v1/chat/completions
-  response:
-    body:
-      string: 'data: {"id":"chatcmpl-CnAiIWdlx0lXDuYz9MONDRnW4X72d","object":"chat.completion.chunk","created":1765835290,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"ueSS5"}
 
 
-        data: {"id":"chatcmpl-CnAiIWdlx0lXDuYz9MONDRnW4X72d","object":"chat.completion.chunk","created":1765835290,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Canada"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"TBRp9lONCqne"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"
+        \""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"LUiQi"}
 
 
-        data: {"id":"chatcmpl-CnAiIWdlx0lXDuYz9MONDRnW4X72d","object":"chat.completion.chunk","created":1765835290,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"mujyHDhPo1aG"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"correct"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"M"}
 
 
-        data: {"id":"chatcmpl-CnAiIWdlx0lXDuYz9MONDRnW4X72d","object":"chat.completion.chunk","created":1765835290,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"YC"}
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"\n"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"QNxT"}
+
+
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"2kuO45K"}
+
+
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"usage":null,"obfuscation":"pPD703"}
+
+
+        data: {"id":"chatcmpl-CnBPBS0VPBHAt3ov5gUdOg2MCq5II","object":"chat.completion.chunk","created":1765837949,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":100,"completion_tokens":16,"total_tokens":116,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"IoTSLh0jZESYxDH"}
 
 
         data: [DONE]

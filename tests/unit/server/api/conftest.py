@@ -917,6 +917,41 @@ async def assign_llm_evaluator_to_dataset(
 
 
 @pytest.fixture
+async def single_example_dataset(db: DbSessionFactory) -> models.Dataset:
+    """
+    A dataset with a single example.
+    """
+    async with db() as session:
+        dataset = models.Dataset(name="single-example-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+
+        example = models.DatasetExample(
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+        )
+        session.add(example)
+        await session.flush()
+
+        revision = models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"city": "Paris"},
+            output={"country": "France"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(revision)
+        await session.flush()
+
+    return dataset
+
+
+@pytest.fixture
 async def playground_dataset_with_splits(db: DbSessionFactory) -> models.Dataset:
     """
     A dataset with examples assigned to different splits for testing split-based filtering.

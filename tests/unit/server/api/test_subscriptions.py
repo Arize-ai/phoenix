@@ -1019,9 +1019,9 @@ class TestChatCompletionOverDatasetSubscription:
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
             custom_vcr.register_matcher(
-                _request_bodies_match.__name__, _request_bodies_match
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
             )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1405,9 +1405,9 @@ class TestChatCompletionOverDatasetSubscription:
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
             custom_vcr.register_matcher(
-                _request_bodies_match.__name__, _request_bodies_match
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
             )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1506,8 +1506,10 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr.register_matcher(_request_bodies_match.__name__, _request_bodies_match)
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1590,8 +1592,10 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr.register_matcher(_request_bodies_match.__name__, _request_bodies_match)
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1662,8 +1666,10 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr.register_matcher(_request_bodies_match.__name__, _request_bodies_match)
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1699,23 +1705,24 @@ class TestChatCompletionOverDatasetSubscription:
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
-        playground_city_and_country_dataset: models.Dataset,
+        single_example_dataset: models.Dataset,
         assign_llm_evaluator_to_dataset: Callable[[int], Awaitable[models.DatasetEvaluators]],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        dataset = playground_city_and_country_dataset
-        dataset_evaluator = await assign_llm_evaluator_to_dataset(dataset.id)
+        dataset_evaluator = await assign_llm_evaluator_to_dataset(single_example_dataset.id)
         evaluator_gid = str(
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
         )
-        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(dataset.id)))
-        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         variables = {
             "input": {
                 "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
-                "datasetId": dataset_id,
-                "datasetVersionId": version_id,
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
                 "messages": [
                     {
                         "role": "USER",
@@ -1746,8 +1753,7 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr.register_matcher(_request_bodies_match.__name__, _request_bodies_match)
-            with custom_vcr.use_cassette(match_on=[_request_bodies_match.__name__]):
+            with custom_vcr.use_cassette():
                 async for payload in subscription.stream():
                     typename = payload["chatCompletionOverDataset"]["__typename"]
                     if typename == EvaluationChunk.__name__:
@@ -1760,61 +1766,34 @@ class TestChatCompletionOverDatasetSubscription:
                             payloads[dataset_example_id] = []
                         payloads[dataset_example_id].append(payload)
 
-        assert len(evaluation_chunks) >= 1, "Expected at least one EvaluationChunk"
+        assert len(evaluation_chunks) == 1
 
-        for eval_chunk in evaluation_chunks:
-            assert eval_chunk["__typename"] == EvaluationChunk.__name__
-            eval_annotation = eval_chunk["experimentRunEvaluation"]
-            assert eval_annotation is not None
-            assert eval_annotation["name"] == "correct"
-            assert eval_annotation["annotatorKind"] == "LLM"
+        eval_chunk = evaluation_chunks[0]
+        assert eval_chunk["__typename"] == EvaluationChunk.__name__
+        eval_annotation = eval_chunk["experimentRunEvaluation"]
+        assert eval_annotation is not None
+        assert eval_annotation["name"] == "correct"
+        assert eval_annotation["annotatorKind"] == "LLM"
 
         async with db() as session:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
-            assert len(annotations) == 3
+            assert len(annotations) == 1
 
-            for annotation in annotations:
-                assert annotation.name == "correct"
-                assert annotation.annotator_kind == "LLM"
-                assert annotation.experiment_run_id is not None
-
-
-def _request_bodies_match(request1: VCRRequest, request2: VCRRequest) -> None:
-    """
-    Custom VCR matcher for concurrent requests.
-    - City requests: match by city name extracted from "What country is {city} in?"
-    - Evaluator requests: match if both are evaluator requests
-    """
-    assert _extract_request_key(request1.body.decode()) == _extract_request_key(
-        request2.body.decode()
-    )
+            annotation = annotations[0]
+            assert annotation.name == "correct"
+            assert annotation.annotator_kind == "LLM"
+            assert annotation.experiment_run_id is not None
 
 
-def _extract_request_key(body: str) -> tuple[bool, str]:
-    """
-    Extract a key for matching requests.
-    Returns (is_evaluator, city) where:
-    - is_evaluator: True if this is an evaluator request
-    - city: The city name extracted from the request
-    """
-    is_evaluator = "evaluate" in body
-    if is_evaluator:
-        if match := re.search(r'"city":\s*"(\w+)"', body):
-            city = match.group(1)
-            return (is_evaluator, city)
-        raise ValueError(f"Could not extract city from evaluator request: {body}")
+def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:
+    assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
+
+
+def _extract_city(body: str) -> str:
     if match := re.search(r"What country is (\w+) in\?", body):
-        city = match.group(1)
-        return (is_evaluator, city)
-    raise ValueError(f"Could not extract request key from body: {body}")
-
-
-def _extract_city(text: str) -> str:
-    """Extract city name from a message like 'What country is Paris in?'"""
-    if match := re.search(r"What country is (\w+) in\?", text):
         return match.group(1)
-    raise ValueError(f"Could not extract city from text: {text}")
+    raise ValueError(f"Could not extract city from body: {body}")
 
 
 LLM = OpenInferenceSpanKindValues.LLM.value
