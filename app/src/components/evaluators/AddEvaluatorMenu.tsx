@@ -7,11 +7,16 @@ import {
   SubmenuTriggerProps,
 } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
+import z from "zod";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
-import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
+import {
+  type CreateLLMDatasetEvaluatorInitialState,
+  CreateLLMDatasetEvaluatorSlideover,
+} from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
+import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
 import { Icon, Icons } from "@phoenix/components/icon";
 import {
@@ -35,8 +40,9 @@ export const AddEvaluatorMenu = ({
   updateConnectionIds: string[];
   query: AddEvaluatorMenu_query$key;
 } & Omit<MenuTriggerProps, "children">) => {
-  const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] =
-    useState(false);
+  const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] = useState<
+    CreateLLMDatasetEvaluatorInitialState | boolean | null
+  >(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
   const associateBuiltinEvaluatorDialogOpen =
@@ -54,6 +60,7 @@ export const AddEvaluatorMenu = ({
             ...CreateBuiltInDatasetEvaluatorSlideover_dataset
           }
         }
+        ...AddEvaluatorMenu_llmEvaluatorTemplates
       }
     `,
     query
@@ -86,6 +93,18 @@ export const AddEvaluatorMenu = ({
               >
                 Create new LLM evaluator
               </MenuItem>
+              <LLMEvaluatorTemplateSubmenu
+                query={data}
+                onAction={(evaluatorTemplate) =>
+                  setCreateEvaluatorDialogOpen(evaluatorTemplate)
+                }
+              >
+                <MenuItem
+                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
+                >
+                  Use LLM evaluator template
+                </MenuItem>
+              </LLMEvaluatorTemplateSubmenu>
             </MenuSection>
             <MenuSection>
               <MenuSectionTitle title="New code evaluator" />
@@ -111,12 +130,18 @@ export const AddEvaluatorMenu = ({
         </MenuContainer>
       </MenuTrigger>
       <DialogTrigger
-        isOpen={createEvaluatorDialogOpen}
+        isOpen={!!createEvaluatorDialogOpen}
         onOpenChange={setCreateEvaluatorDialogOpen}
       >
         <CreateLLMDatasetEvaluatorSlideover
           datasetId={datasetId}
           updateConnectionIds={updateConnectionIds}
+          initialState={
+            createEvaluatorDialogOpen &&
+            typeof createEvaluatorDialogOpen === "object"
+              ? createEvaluatorDialogOpen
+              : undefined
+          }
         />
       </DialogTrigger>
       <ModalOverlay
@@ -181,6 +206,88 @@ const CodeEvaluatorTemplateSubmenu = ({
         >
           {(evaluator) => (
             <MenuItem key={evaluator.id} id={evaluator.id}>
+              {evaluator.name}
+            </MenuItem>
+          )}
+        </Menu>
+      </MenuContainer>
+    </SubmenuTrigger>
+  );
+};
+
+type LLMEvaluatorTemplateSubmenuProps = Omit<
+  SubmenuTriggerProps,
+  "children"
+> & {
+  children: SubmenuTriggerProps["children"][number];
+  query: AddEvaluatorMenu_llmEvaluatorTemplates$key;
+  onAction: (
+    initialState: CreateLLMDatasetEvaluatorInitialState | null
+  ) => void;
+};
+
+const LLMEvaluatorTemplateSubmenu = ({
+  children,
+  query,
+  onAction,
+  ...props
+}: LLMEvaluatorTemplateSubmenuProps) => {
+  const data = useFragment<AddEvaluatorMenu_llmEvaluatorTemplates$key>(
+    graphql`
+      fragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {
+        classificationEvaluatorConfigs {
+          name
+          description
+          choices
+          optimizationDirection
+          messages {
+            ...CreateLLMDatasetEvaluatorSlideover_promptMessages
+          }
+        }
+      }
+    `,
+    query
+  );
+  const llmEvaluatorTemplates = data.classificationEvaluatorConfigs;
+  return (
+    <SubmenuTrigger {...props}>
+      {children}
+      <MenuContainer shouldFlip placement="start top" minHeight="auto">
+        <Menu
+          items={llmEvaluatorTemplates}
+          onAction={(key) => {
+            const evaluator = llmEvaluatorTemplates.find(
+              (evaluator) => evaluator.name === key
+            );
+            if (evaluator) {
+              const maybeValidatedChoices = z
+                .record(z.number())
+                .safeParse(evaluator.choices);
+              const validatedChoices = maybeValidatedChoices.success
+                ? maybeValidatedChoices.data
+                : {};
+              onAction({
+                name: evaluator.name,
+                description: evaluator.description ?? "",
+                outputConfig: {
+                  name: evaluator.name,
+                  optimizationDirection: evaluator.optimizationDirection,
+                  values: Object.entries(validatedChoices).map(
+                    ([label, score]) => ({
+                      label,
+                      score,
+                    })
+                  ),
+                },
+                promptMessages: evaluator.messages,
+              });
+            } else {
+              onAction(null);
+            }
+          }}
+        >
+          {(evaluator) => (
+            <MenuItem key={evaluator.name} id={evaluator.name}>
               {evaluator.name}
             </MenuItem>
           )}

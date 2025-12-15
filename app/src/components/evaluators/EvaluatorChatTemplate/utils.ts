@@ -8,29 +8,36 @@ import {
   generateInstanceId,
   generateMessageId,
   InitialPlaygroundState,
+  type PlaygroundChatTemplate,
 } from "@phoenix/store";
 import { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 
-export const makeLLMEvaluatorInstance = (
-  modelConfigByProvider: ModelConfigByProvider
-): InitialPlaygroundState["instances"] => [
+const DEFAULT_MESSAGES: PlaygroundChatTemplate["messages"] = [
+  {
+    id: generateMessageId(),
+    role: "system",
+    content: DEFAULT_EVALUATOR_TEMPLATE.systemPrompt,
+  },
+  {
+    id: generateMessageId(),
+    role: "user",
+    content: DEFAULT_EVALUATOR_TEMPLATE.userPrompt,
+  },
+];
+
+export const makeLLMEvaluatorInstance = ({
+  modelConfigByProvider,
+  defaultMessages = DEFAULT_MESSAGES,
+}: {
+  defaultMessages?: PlaygroundChatTemplate["messages"];
+  modelConfigByProvider: ModelConfigByProvider;
+}): InitialPlaygroundState["instances"] => [
   {
     id: generateInstanceId(),
     activeRunId: null,
     template: {
       __type: "chat",
-      messages: [
-        {
-          id: generateMessageId(),
-          role: "system",
-          content: DEFAULT_EVALUATOR_TEMPLATE.systemPrompt,
-        },
-        {
-          id: generateMessageId(),
-          role: "user",
-          content: DEFAULT_EVALUATOR_TEMPLATE.userPrompt,
-        },
-      ],
+      messages: defaultMessages,
     },
     tools: [],
     model: {
