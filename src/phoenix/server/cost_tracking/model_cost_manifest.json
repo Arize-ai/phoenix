@@ -2865,6 +2865,106 @@
       ]
     },
     {
+      "name": "gpt-5.2",
+      "name_pattern": "gpt-5\\.2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.75e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000014,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.2-2025-12-11",
+      "name_pattern": "gpt-5\\.2-2025-12-11",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.75e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000014,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.2-chat-latest",
+      "name_pattern": "gpt-5\\.2-chat-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.75e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000014,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.2-pro",
+      "name_pattern": "gpt-5\\.2-pro",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000021,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000168,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.2-pro-2025-12-11",
+      "name_pattern": "gpt-5\\.2-pro-2025-12-11",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000021,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000168,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "gpt-realtime",
       "name_pattern": "gpt-realtime",
       "source": "litellm",
