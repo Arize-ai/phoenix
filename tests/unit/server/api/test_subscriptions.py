@@ -1698,7 +1698,7 @@ class TestChatCompletionOverDatasetSubscription:
     async def test_evaluator_emits_evaluation_chunk_and_persists_annotation(
         self,
         gql_client: AsyncGraphQLClient,
-        # openai_api_key: str,
+        openai_api_key: str,
         playground_city_and_country_dataset: models.Dataset,
         assign_llm_evaluator_to_dataset: Callable[[int], Awaitable[models.DatasetEvaluators]],
         custom_vcr: CustomVCR,
