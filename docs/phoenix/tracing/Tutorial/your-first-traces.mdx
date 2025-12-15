@@ -80,7 +80,7 @@ Import this file at the top of your application to enable tracing.
 
 # Tracing LLM Calls
 
-Every LLM call is a decision point. What prompt did the model receive? What did it output? How long did it take, and how many tokens did it use? 
+Every LLM call is a decision point. What prompt did the model receive? What did it output? How long did it take, and how many tokens did it use?
 
 Without tracing, you're forced to build your own logging or debugging, and therefore miss out on key data that would block you from full observability. With tracing, you get a complete record of every LLM interaction, including
 
@@ -189,6 +189,10 @@ The generation span shows the retrieved context in the system prompt, so you can
 
 A single user request might trigger multiple LLM calls, tool executions, and retrievals. Let's allocate all of these under one parent span, so all operations for one request are nested together. Click on the parent span and see the entire execution tree: classification, tool calls, retrieval, generation, all in one view, with timing relationships visible at a glance.
 
+<Info>
+  See the entire agent with grouped tracing [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
+</Info>
+
 To see all operations for a single request as one trace, wrap them in a parent span using the OpenTelemetry API:
 
 ```typescript
@@ -246,7 +250,7 @@ The code will prompt for feedback on each response - you can skip this for now (
 
 # Viewing Your Traces
 
-Open Phoenix at `http://localhost:6006`. You'll see 7 `support-agent` traces - one for each query.
+Open your Phoenix Cloud space. You'll see 7 `support-agent` traces - one for each query.
 
 <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/final-first.mp4" />
 
