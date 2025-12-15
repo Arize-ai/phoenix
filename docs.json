@@ -21,6 +21,11 @@
       "family": "Roboto"
     }
   },
+  "integrations": {
+    "ga4": {
+        "measurementId": "G-V9Z9MCPE84"
+    }
+  },
   "favicon": "/docs/favicon.png",
   "navigation": {
     "languages": [
