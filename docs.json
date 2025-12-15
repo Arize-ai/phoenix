@@ -51,6 +51,15 @@
                 "icon": "telescope",
                 "pages": [
                   {
+                    "group": "Tutorial",
+                    "pages": [
+                      "docs/phoenix/tracing/tutorial",
+                      "docs/phoenix/tracing/Tutorial/your-first-traces",
+                      "docs/phoenix/tracing/Tutorial/annotations-and-evaluations",
+                      "docs/phoenix/tracing/Tutorial/sessions"
+                    ]
+                  },
+                  {
                     "group": "Overview: Tracing",
                     "pages": [
                       "docs/phoenix/tracing/llm-traces",
