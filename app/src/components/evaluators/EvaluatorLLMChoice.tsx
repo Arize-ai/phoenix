@@ -1,5 +1,6 @@
-import { PropsWithChildren } from "react";
-import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { PropsWithChildren, useEffect } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
@@ -17,7 +18,10 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -28,8 +32,44 @@ const optimizationDirections = [
   "NONE",
 ] satisfies EvaluatorOptimizationDirection[];
 
+const useEvaluatorLLMChoiceForm = () => {
+  // pull in zustand
+  const store = useEvaluatorStoreInstance();
+  const outputConfig = useEvaluatorStore((state) => state.outputConfig);
+  invariant(
+    outputConfig,
+    "outputConfig is required. Mount EvaluatorLLMChoice within an LLM Evaluator."
+  );
+  // make a small react hook form scoped down with validation rules
+  const form = useForm({ defaultValues: { outputConfig }, mode: "onChange" });
+  const subscribe = form.subscribe;
+  // watch form fields, push valid updates back to zustand
+  useEffect(() => {
+    return subscribe({
+      formState: { isValid: true, values: true },
+      callback({ values: { outputConfig }, isValid }) {
+        if (!isValid) {
+          return;
+        }
+        const {
+          setOutputConfigName,
+          setOutputConfigOptimizationDirection,
+          setOutputConfigValues,
+        } = store.getState();
+        setOutputConfigName(outputConfig.name);
+        setOutputConfigOptimizationDirection(
+          outputConfig.optimizationDirection
+        );
+        setOutputConfigValues(outputConfig.values);
+      },
+    });
+  }, [subscribe, store]);
+
+  return form;
+};
+
 export const EvaluatorLLMChoice = () => {
-  const { control } = useFormContext<EvaluatorFormValues>();
+  const { control } = useEvaluatorLLMChoiceForm();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "outputConfig.values",

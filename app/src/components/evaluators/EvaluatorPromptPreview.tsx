@@ -3,7 +3,6 @@
  **/
 
 import { Suspense, useMemo } from "react";
-import { useFormContext } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
@@ -15,10 +14,10 @@ import {
   PromptChatTemplateInput,
   PromptTemplateFormat,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
-import { EvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { Skeleton } from "@phoenix/components/loading/Skeleton";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { chatMessageRoleToPromptMessageRole } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
@@ -33,8 +32,6 @@ import {
   PlaygroundChatTemplate,
 } from "@phoenix/store/playground/types";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
-
-import { EvaluatorFormValues } from "./EvaluatorForm";
 
 /**
  * Converts a ChatMessage to an array of ContentPartInput.
@@ -118,10 +115,6 @@ export function playgroundChatTemplateToGqlPromptChatTemplate(
   };
 }
 
-type EvaluatorPromptPreviewProps = {
-  evaluatorInput: EvaluatorInput | null;
-};
-
 function EvaluatorPromptPreviewSkeleton({
   messageCount,
 }: {
@@ -159,7 +152,7 @@ function EvaluatorPromptPreviewErrorFallback(
   );
 }
 
-export function EvaluatorPromptPreview(props: EvaluatorPromptPreviewProps) {
+export function EvaluatorPromptPreview() {
   const instance = usePlaygroundContext((state) => state.instances[0]);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
@@ -197,7 +190,6 @@ export function EvaluatorPromptPreview(props: EvaluatorPromptPreviewProps) {
         <EvaluatorPromptPreviewContent
           gqlTemplate={gqlTemplate}
           templateFormat={templateFormat}
-          evaluatorInput={props.evaluatorInput}
         />
       </Suspense>
     </ErrorBoundary>
@@ -207,15 +199,16 @@ export function EvaluatorPromptPreview(props: EvaluatorPromptPreviewProps) {
 type EvaluatorPromptPreviewContentProps = {
   gqlTemplate: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
-  evaluatorInput: EvaluatorInput | null;
 };
 
 function EvaluatorPromptPreviewContent(
   props: EvaluatorPromptPreviewContentProps
 ) {
-  const { gqlTemplate, templateFormat, evaluatorInput } = props;
-  const { watch } = useFormContext<EvaluatorFormValues>();
-  const inputMappingRaw = watch("inputMapping");
+  const { gqlTemplate, templateFormat } = props;
+  const { inputMappingRaw, preMappedInput } = useEvaluatorStore((state) => ({
+    inputMappingRaw: state.evaluator.inputMapping,
+    preMappedInput: state.preMappedInput,
+  }));
   // When used as a query input, Relay mutates the object to make it read-only.
   // This causes downstream issues when react-hook-form tries to update the value.
   // To avoid this, we deep clone the object before using it as a query input.
@@ -249,7 +242,7 @@ function EvaluatorPromptPreviewContent(
     {
       template: gqlTemplate,
       templateOptions: {
-        variables: evaluatorInput ?? {},
+        variables: preMappedInput ?? {},
         format: templateFormat,
       },
       inputMapping,
