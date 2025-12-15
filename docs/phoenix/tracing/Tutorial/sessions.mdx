@@ -17,6 +17,10 @@ In this chapter, you'll add session tracking to your support agent, run multi-tu
 
 # 3.1 Setting Up Sessions
 
+<Info>
+  See the full session-enabled agent code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
+</Info>
+
 Adding session tracking to your agent is surprisingly simple. You need two things:
 
 1. **A session ID**: A unique identifier for each conversation (usually a UUID)
@@ -103,6 +107,10 @@ Between turns, append messages to the history and update any context the agent s
 
 # 3.2 Running Multi-Turn Conversations
 
+<Info>
+  See the multi-turn conversation demo code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
+</Info>
+
 Now let's see sessions in action. Here's a conversation scenario that tests the agent's ability to maintain context:
 
 ```typescript
@@ -156,6 +164,10 @@ This runs three conversation scenarios:
 **Now you can view and analyze your traces, grouped by user session!**
 
 # 3.3 Session-Level Evaluations
+
+<Info>
+  See the session evaluation code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/evaluate-traces.ts).
+</Info>
 
 You can now see full conversations in Phoenix, but manually reviewing every session doesn't scale. With hundreds of conversations happening daily, you need automated insights.
 
@@ -381,7 +393,7 @@ The workflow:
 
 **This marks the end of the tracing tutorial.**
 
-You've now built a fully observable support agent:
+You've now learned how to gain observability into your LLM applications. You've learned how to:
 
 - **Chapter 1**: Tracing every LLM call, tool execution, and retrieval
 - **Chapter 2**: Annotating traces with human feedback and LLM-as-Judge

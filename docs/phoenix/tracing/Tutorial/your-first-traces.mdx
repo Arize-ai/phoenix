@@ -49,31 +49,12 @@ In order to send traces to Phoenix, you must sign up for a free space and accoun
 Create an `instrumentation.ts` file that sends traces to Phoenix:
 
 ```typescript
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { Resource } from "@opentelemetry/resources";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
+import { register } from "@arizeai/phoenix-otel";
 
-// SEE PHOENIX CLOUD INSTRUCTIONS, LINKED ABOVE
-const COLLECTOR_ENDPOINT = process.env.PHOENIX_COLLECTOR_ENDPOINT
-const PROJECT_NAME = "support-bot";
-
-export const provider = new NodeTracerProvider({
-  resource: new Resource({
-    "service.name": PROJECT_NAME,
-    [SEMRESATTRS_PROJECT_NAME]: PROJECT_NAME,
-  }),
-  spanProcessors: [
-    new OpenInferenceSimpleSpanProcessor({
-      exporter: new OTLPTraceExporter({
-        url: `${COLLECTOR_ENDPOINT}/v1/traces`,
-      }),
-    }),
-  ],
+// Register with Phoenix - this handles all the OpenTelemetry boilerplate
+export const provider = register({
+  projectName: "support-bot",
 });
-
-provider.register();
 ```
 
 Import this file at the top of your application to enable tracing.
@@ -339,7 +320,7 @@ Congratulations! In this tutorial, you learned how to:
 
 You can see inside your application now - every LLM call, tool execution, and retrieval is visible. We spent some time manually analyzing traces. But how can we **automate** this analysis, over thousands of traces? How can we store this analysis in Phoenix, so that we can build **metrics** that measure our application?
 
-In the [next chapter](/phoenix/tracing/tutorial/annotations-and-evaluation), you'll learn to:
+In the [next chapter](/docs/phoenix/tracing/Tutorial/annotations-and-evaluations), you'll learn to:
 
 - Annotate traces to mark quality issues
 - Capture user feedback (thumbs up/down) and attach it to traces
