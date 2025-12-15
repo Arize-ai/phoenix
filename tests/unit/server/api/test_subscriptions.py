@@ -1772,7 +1772,7 @@ class TestChatCompletionOverDatasetSubscription:
         async with db() as session:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
-            assert len(annotations) >= 1, "Expected at least one ExperimentRunAnnotation in DB"
+            assert len(annotations) == 3
 
             for annotation in annotations:
                 assert annotation.name == "correct"
