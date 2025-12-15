@@ -1,10 +1,30 @@
 from datetime import datetime, timezone
-from typing import Any, NamedTuple
+from secrets import token_hex
+from typing import Any, Awaitable, Callable, NamedTuple
 
 import pytest
 from sqlalchemy import insert
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptToolChoiceOneOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -753,30 +773,15 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
 def cities_and_countries() -> list[tuple[str, str]]:
     return [
         ("Toronto", "Canada"),
-        ("Vancouver", "Canada"),
         ("Paris", "France"),
-        ("Lyon", "France"),
-        ("Berlin", "Germany"),
-        ("Munich", "Germany"),
         ("Tokyo", "Japan"),
-        ("Osaka", "Japan"),
-        ("Sydney", "Australia"),
-        ("Melbourne", "Australia"),
-        ("Guadalajara", "Mexico"),
-        ("Moscow", "Russia"),
-        ("Beijing", "China"),
-        ("Shanghai", "China"),
-        ("Mumbai", "India"),
-        ("Delhi", "India"),
-        ("Seoul", "South Korea"),
-        ("Busan", "South Korea"),
     ]
 
 
 @pytest.fixture
 async def playground_city_and_country_dataset(
     cities_and_countries: list[tuple[str, str]], db: DbSessionFactory
-) -> None:
+) -> models.Dataset:
     """
     A dataset with many example.
     """
@@ -817,9 +822,102 @@ async def playground_city_and_country_dataset(
         session.add_all(revisions)
         await session.flush()
 
+    return dataset
+
 
 @pytest.fixture
-async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
+async def assign_llm_evaluator_to_dataset(
+    db: DbSessionFactory,
+) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+    async def _assign_llm_evaluator_to_dataset(
+        dataset_id: int,
+    ) -> models.DatasetEvaluators:
+        async with db() as session:
+            evaluator_name = Identifier(f"correctness-evaluator-{token_hex(4)}")
+            prompt = models.Prompt(
+                name=Identifier(f"correctness-prompt-{token_hex(4)}"),
+                description="Prompt for correctness evaluation",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type=PromptTemplateType.CHAT,
+                        template_format=PromptTemplateFormat.MUSTACHE,
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="system",
+                                    content="You are an evaluator that assesses the correctness of outputs.",
+                                ),
+                                PromptMessage(
+                                    role="user",
+                                    content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                                ),
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai", openai=PromptOpenAIInvocationParametersContent()
+                        ),
+                        tools=PromptTools(
+                            type="tools",
+                            tools=[
+                                PromptToolFunction(
+                                    type="function",
+                                    function=PromptToolFunctionDefinition(
+                                        name="evaluate_correctness",
+                                        description="evaluates the correctness of the output",
+                                        parameters={
+                                            "type": "object",
+                                            "properties": {
+                                                "correct": {
+                                                    "type": "string",
+                                                    "enum": ["correct", "incorrect"],
+                                                },
+                                            },
+                                            "required": ["correct"],
+                                        },
+                                    ),
+                                )
+                            ],
+                            tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                        ),
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="evaluates the correctness of the output",
+                kind="LLM",
+                annotation_name="correct",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness evaluation",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
+                prompt=prompt,
+            )
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                evaluator=llm_evaluator,
+                display_name=evaluator_name,
+                input_mapping={},
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            return dataset_evaluator
+
+    return _assign_llm_evaluator_to_dataset
+
+
+@pytest.fixture
+async def playground_dataset_with_splits(db: DbSessionFactory) -> models.Dataset:
     """
     A dataset with examples assigned to different splits for testing split-based filtering.
 
@@ -900,6 +998,8 @@ async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
         await session.flush()
         session.add_all(split_assignments)
         await session.flush()
+
+    return dataset
 
 
 class ExperimentsWithIncompleteRuns(NamedTuple):

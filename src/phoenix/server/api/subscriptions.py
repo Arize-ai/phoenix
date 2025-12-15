@@ -652,7 +652,7 @@ class Subscription:
                             )
                             session.add(annotation_model)
                             await session.flush()
-                            yield EvaluationChunk(
+                            evaluation_chunk = EvaluationChunk(
                                 experiment_run_evaluation=ExperimentRunAnnotation(
                                     id=annotation_model.id,
                                     db_record=annotation_model,
@@ -661,6 +661,7 @@ class Subscription:
                                 dataset_example_id=example_id,
                                 repetition_number=repetition_number,
                             )
+                            yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
