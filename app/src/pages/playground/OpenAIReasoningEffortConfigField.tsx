@@ -1,13 +1,4 @@
-import {
-  Button,
-  Label,
-  ListBox,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
-} from "@phoenix/components";
+import { ClearableSelect, ListBox, SelectItem } from "@phoenix/components";
 
 type OpenAIReasoningEffortConfigFieldProps = {
   value: unknown;
@@ -21,41 +12,20 @@ export const OpenAIReasoningEffortConfigField = ({
   label = "Reasoning Effort",
 }: OpenAIReasoningEffortConfigFieldProps) => {
   return (
-    <Select
+    <ClearableSelect
       value={typeof value === "string" ? value : null}
-      onChange={(key) => onChange(key === "unset" ? undefined : key)}
+      onChange={onChange}
+      label={label}
       placeholder="Select effort"
     >
-      <Label>{label}</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          <SelectItem id="unset" textValue="Unset">
-            <em>Unset</em>
-          </SelectItem>
-          <SelectItem id="none" textValue="None">
-            None
-          </SelectItem>
-          <SelectItem id="minimal" textValue="Minimal">
-            Minimal
-          </SelectItem>
-          <SelectItem id="low" textValue="Low">
-            Low
-          </SelectItem>
-          <SelectItem id="medium" textValue="Medium">
-            Medium
-          </SelectItem>
-          <SelectItem id="high" textValue="High">
-            High
-          </SelectItem>
-          <SelectItem id="xhigh" textValue="Extra High">
-            Extra High
-          </SelectItem>
-        </ListBox>
-      </Popover>
-    </Select>
+      <ListBox>
+        <SelectItem id="none">none</SelectItem>
+        <SelectItem id="minimal">minimal</SelectItem>
+        <SelectItem id="low">low</SelectItem>
+        <SelectItem id="medium">medium</SelectItem>
+        <SelectItem id="high">high</SelectItem>
+        <SelectItem id="xhigh">xhigh</SelectItem>
+      </ListBox>
+    </ClearableSelect>
   );
 };
