@@ -485,6 +485,14 @@ input ChatPromptVersionInput {
   modelName: String!
 }
 
+type ClassificationEvaluatorConfig {
+  name: String!
+  description: String
+  optimizationDirection: OptimizationDirection!
+  messages: [PromptMessage!]!
+  choices: JSON!
+}
+
 input ClearProjectInput {
   id: ID!
 
@@ -3215,6 +3223,7 @@ type Query {
   builtInEvaluators: [BuiltInEvaluator!]!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  classificationEvaluatorConfigs: [ClassificationEvaluatorConfig!]!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
