@@ -45,6 +45,7 @@ const createPromptVersionInput = ({
 }) => {
   const { promptInput, templateFormat, promptVersionId } =
     getInstancePromptParamsFromStore(instanceId, playgroundStore);
+  const includeExplanation = outputConfig.includeExplanation;
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
@@ -63,17 +64,29 @@ const createPromptVersionInput = ({
           toolDefinition: CategoricalChoiceToolTypeSchema.parse({
             type: "function",
             function: {
-              name,
+              name: outputConfig.name,
               description,
               parameters: {
                 type: "object",
                 properties: {
-                  [outputConfig.name]: {
+                  label: {
                     type: "string",
                     enum: outputConfig.values.map((value) => value.label),
+                    description: outputConfig.name,
                   },
+                  ...(includeExplanation
+                    ? {
+                        explanation: {
+                          type: "string",
+                          description: `Explanation for choosing the label "${outputConfig.name}"`,
+                        },
+                      }
+                    : {}),
                 },
-                required: [outputConfig.name],
+                required: [
+                  "label",
+                  ...(includeExplanation ? ["explanation"] : []),
+                ],
               },
             },
           } satisfies CategoricalChoiceToolType),
