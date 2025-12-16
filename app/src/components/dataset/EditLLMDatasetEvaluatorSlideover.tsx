@@ -19,7 +19,10 @@ import {
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { updateLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  inferIncludeExplanationFromPrompt,
+  updateLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -156,6 +159,9 @@ const EditEvaluatorDialog = ({
                 name
               }
               promptVersion {
+                tools {
+                  definition
+                }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               }
               outputConfig {
@@ -199,12 +205,16 @@ const EditEvaluatorDialog = ({
       `
     );
   const defaultValues: EvaluatorFormValues = useMemo(() => {
+    const includeExplanation = inferIncludeExplanationFromPrompt(
+      datasetEvaluator.evaluator.promptVersion?.tools
+    );
     return {
       evaluator: {
         name: datasetEvaluator.displayName ?? "",
         description: datasetEvaluator.evaluator.description ?? "",
         kind: datasetEvaluator.evaluator.kind,
         isBuiltin: false,
+        includeExplanation,
       },
       outputConfig: {
         name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
@@ -230,12 +240,12 @@ const EditEvaluatorDialog = ({
         literalMapping: {},
         pathMapping: {},
       },
-    };
+    } satisfies EvaluatorFormValues;
   }, [datasetEvaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {
-      evaluator: { name, description },
+      evaluator: { name, description, includeExplanation = true },
       dataset,
       outputConfig,
       inputMapping,
@@ -251,6 +261,7 @@ const EditEvaluatorDialog = ({
       datasetId: dataset.id,
       datasetEvaluatorId,
       inputMapping,
+      includeExplanation,
     });
     updateLlmEvaluator({
       variables: {
