@@ -577,6 +577,84 @@ class TestChatCompletionMutationMixin:
             assert annotation.annotator_kind == "LLM"
             assert annotation.label == "correct"
 
+    async def test_evaluator_not_run_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that evaluators are not run when the chat completion errors out."""
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  name
+                  label
+                  score
+                }
+                span {
+                  id
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-nonexistent-model",  # use a non-existent model to trigger an error
+                    }
+                },
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2?",
+                    }
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
+
+            repetition = repetitions[0]
+            assert repetition["errorMessage"]  # verify the task errored out
+            assert repetition["content"] is None
+
+            assert repetition["evaluations"] == []  # verify no evaluations were run
+
+        async with db() as session:
+            result = await session.execute(select(models.SpanAnnotation))
+            annotations = result.scalars().all()
+            assert len(annotations) == 0  # verify no span annotations were persisted
+
     async def test_evaluator_over_dataset_returns_evaluations_and_persists_annotations(
         self,
         gql_client: AsyncGraphQLClient,
