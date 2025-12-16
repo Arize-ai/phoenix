@@ -1597,6 +1597,27 @@ enum EvaluatorKind {
   CODE
 }
 
+input EvaluatorPreviewInput @oneOf {
+  evaluatorId: ID
+  inlineLlmEvaluator: InlineLLMEvaluatorInput
+}
+
+input EvaluatorPreviewItemInput {
+  evaluator: EvaluatorPreviewInput!
+  contexts: [JSON!]!
+  inputMapping: EvaluatorInputMappingInput! = {}
+  model: GenerativeModelInput
+  generationConfig: GenerationConfigInput
+}
+
+type EvaluatorPreviewPayload {
+  results: [ExperimentRunAnnotation!]!
+}
+
+input EvaluatorPreviewsInput {
+  previews: [EvaluatorPreviewItemInput!]!
+}
+
 """The sort key and direction for evaluator connections"""
 input EvaluatorSort {
   col: EvaluatorColumn!
@@ -1913,6 +1934,14 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
+}
+
+input GenerationConfigInput {
+  model: GenerativeModelInput!
+  messages: [ChatCompletionMessageInput!]!
+  tools: [JSON!]
+  invocationParameters: [InvocationParameterInput!]! = []
+  templateFormat: PromptTemplateFormat! = MUSTACHE
 }
 
 input GenerativeCredentialInput {
@@ -2328,6 +2357,13 @@ enum InferencesRole {
   reference
 }
 
+input InlineLLMEvaluatorInput {
+  model: GenerativeModelInput!
+  promptVersion: ChatPromptVersionInput!
+  outputConfig: CategoricalAnnotationConfigInput!
+  description: String = null
+}
+
 input InputCoordinate2D {
   x: Float!
   y: Float!
@@ -2462,6 +2498,7 @@ type Mutation {
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
+  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
