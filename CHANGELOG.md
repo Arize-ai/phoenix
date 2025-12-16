@@ -1,5 +1,20 @@
 # Changelog
 
+## [12.25.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.25.0...arize-phoenix-v12.25.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10625](https://github.com/Arize-ai/phoenix/issues/10625)) ([7e227e6](https://github.com/Arize-ai/phoenix/commit/7e227e6f470d600b0d1cc600867616f7f1889a44))
+* update `reasoning_effort` options for openai ([#10620](https://github.com/Arize-ai/phoenix/issues/10620)) ([5132ce4](https://github.com/Arize-ai/phoenix/commit/5132ce4743d2e9aa0dd509b1c277f1eb800345aa))
+
+
+### Documentation
+
+* a lot of cleanup ([#10590](https://github.com/Arize-ai/phoenix/issues/10590)) ([59ff2f0](https://github.com/Arize-ai/phoenix/commit/59ff2f09e065d25dc764a149402068082d894b95))
+* SDK overviews ([#10612](https://github.com/Arize-ai/phoenix/issues/10612)) ([eb1602b](https://github.com/Arize-ai/phoenix/commit/eb1602bdab63f4b602fc244f8c294d04a3eb5b44))
+* Tracing narrative docs ([#10607](https://github.com/Arize-ai/phoenix/issues/10607)) ([ef84670](https://github.com/Arize-ai/phoenix/commit/ef846703d941a2675c7765c32b130d329019dd2a))
+
 ## [12.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.24.0...arize-phoenix-v12.25.0) (2025-12-12)
 
 
