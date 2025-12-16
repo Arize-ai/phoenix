@@ -2,6 +2,9 @@ import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import { AddDatasetExampleButton } from "@phoenix/pages/dataset/AddDatasetExampleButton";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { ExamplesSplitMenu } from "@phoenix/pages/examples/ExamplesSplitMenu";
 
@@ -17,6 +20,10 @@ export const ExamplesFilterBar = () => {
   } = useExamplesFilterContext();
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
+  const refreshLatestVersion = useDatasetContext(
+    (state) => state.refreshLatestVersion
+  );
+  const notifySuccess = useNotifySuccess();
   return (
     <View
       padding="size-100"
@@ -45,6 +52,17 @@ export const ExamplesFilterBar = () => {
           selectedSplitIds={selectedSplitIds}
           selectedExampleIds={selectedExampleIds}
           examplesCache={examplesCache}
+        />
+        <AddDatasetExampleButton
+          datasetId={datasetId}
+          onAddExampleCompleted={() => {
+            notifySuccess({
+              title: "Example added",
+              message:
+                "The example has been added successfully and the version has been updated.",
+            });
+            refreshLatestVersion();
+          }}
         />
       </Flex>
     </View>
