@@ -60,8 +60,7 @@ const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
           }
         `,
         message
-      ),
-    [promptMessagesRefs]
+      )
   );
 
   const instanceMessages = promptMessages.map((message) => ({
