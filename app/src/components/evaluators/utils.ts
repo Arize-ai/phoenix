@@ -5,7 +5,10 @@ import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset
 import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
-import { fromOpenAIToolDefinition } from "@phoenix/schemas";
+import {
+  fromOpenAIToolDefinition,
+  toOpenAIToolDefinition,
+} from "@phoenix/schemas";
 import {
   CategoricalChoiceToolType,
   CategoricalChoiceToolTypeSchema,
@@ -283,18 +286,15 @@ export const inferIncludeExplanationFromPrompt = (
         ? JSON.parse(tool.definition)
         : tool.definition;
 
-    const functionParams = definition?.function?.parameters;
-    if (!functionParams) {
+    const toolDefinitionAsOpenAI = toOpenAIToolDefinition(definition);
+
+    if (!toolDefinitionAsOpenAI) {
       return false;
     }
 
-    const properties = functionParams.properties;
-    const required = functionParams.required;
-
     return (
-      properties?.explanation !== undefined &&
-      Array.isArray(required) &&
-      required.includes("explanation")
+      toolDefinitionAsOpenAI.function.parameters?.properties?.explanation !==
+      undefined
     );
   } catch {
     return false;
