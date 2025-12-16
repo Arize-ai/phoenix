@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5d2eed5b964982e538e560e5b2a5cfc>>
+ * @generated SignedSource<<ebd651403683c6b13dc5d3f4498e3ad2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,9 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
       readonly name: string;
     };
     readonly promptVersion?: {
+      readonly tools: ReadonlyArray<{
+        readonly definition: any;
+      }>;
       readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
     };
   };
@@ -72,11 +75,21 @@ v2 = [
 v3 = {
   "alias": null,
   "args": null,
+  "concreteType": "ToolDefinition",
+  "kind": "LinkedField",
+  "name": "tools",
+  "plural": true,
+  "selections": (v2/*: any*/),
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -168,6 +181,7 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
+                (v3/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -212,7 +226,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v3/*: any*/),
+                        (v4/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -239,7 +253,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v3/*: any*/),
+                                    (v4/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -276,7 +290,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v4/*: any*/),
+                                            (v5/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -314,7 +328,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v4/*: any*/),
+                                            (v5/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -356,16 +370,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "ToolDefinition",
-                      "kind": "LinkedField",
-                      "name": "tools",
-                      "plural": true,
-                      "selections": (v2/*: any*/),
-                      "storageKey": null
-                    }
+                    (v3/*: any*/)
                   ],
                   "args": null,
                   "argumentDefinitions": []
@@ -430,6 +435,6 @@ return {
 };
 })();
 
-(node as any).hash = "bc3622f72020702141dcd12664b1ade5";
+(node as any).hash = "6b663c48cdddcf258eed156b0c05b7ae";
 
 export default node;

@@ -39,6 +39,7 @@ export type EvaluatorFormValues = {
     description: string;
     isBuiltin?: boolean | null;
     builtInEvaluatorName?: string | null;
+    includeExplanation?: boolean;
   };
   outputConfig?: ClassificationEvaluatorAnnotationConfig;
   // TODO: this makes very little sense in react hook form state, but will make more sense when we move to zustand
@@ -72,6 +73,7 @@ export const DEFAULT_LLM_FORM_VALUES: EvaluatorFormValues = {
   evaluator: {
     ...DEFAULT_FORM_VALUES.evaluator,
     kind: "LLM",
+    includeExplanation: true,
   },
   outputConfig: {
     name: "",
