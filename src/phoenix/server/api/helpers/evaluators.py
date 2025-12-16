@@ -75,6 +75,8 @@ def validate_consistent_llm_evaluator_and_prompt_version(
                 validation_error=error,
             )
         )
+    if "label" not in function_parameters.properties:
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_SCHEMA_LABEL_PROPERTY_MISSING)
     function_label_property_description = function_parameters.properties["label"].description
     if function_label_property_description != evaluator.annotation_name:
         raise ValueError(
@@ -163,6 +165,9 @@ class _LLMEvaluatorPromptErrorMessage:
         "Evaluator tool choice specific function name must match defined function name"
     )
     TOOL_MUST_BE_FUNCTION = "Evaluator prompts require a function tool"
+    TOOL_SCHEMA_LABEL_PROPERTY_MISSING = (
+        "Tool schema for categorical evaluators must define a 'label' property."
+    )
     EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME = "Evaluator name must match the function name"
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (
         "Evaluator description must match the function description"
