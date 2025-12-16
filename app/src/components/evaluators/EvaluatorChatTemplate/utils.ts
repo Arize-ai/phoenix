@@ -12,7 +12,7 @@ import {
 } from "@phoenix/store";
 import { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 
-const DEFAULT_MESSAGES: PlaygroundChatTemplate["messages"] = [
+const getDefaultMessages: () => PlaygroundChatTemplate["messages"] = () => [
   {
     id: generateMessageId(),
     role: "system",
@@ -27,7 +27,7 @@ const DEFAULT_MESSAGES: PlaygroundChatTemplate["messages"] = [
 
 export const makeLLMEvaluatorInstance = ({
   modelConfigByProvider,
-  defaultMessages = DEFAULT_MESSAGES,
+  defaultMessages,
 }: {
   defaultMessages?: PlaygroundChatTemplate["messages"];
   modelConfigByProvider: ModelConfigByProvider;
@@ -37,7 +37,7 @@ export const makeLLMEvaluatorInstance = ({
     activeRunId: null,
     template: {
       __type: "chat",
-      messages: defaultMessages,
+      messages: defaultMessages ?? getDefaultMessages(),
     },
     tools: [],
     model: {
