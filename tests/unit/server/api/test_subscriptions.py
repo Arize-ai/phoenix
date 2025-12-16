@@ -943,6 +943,75 @@ class TestChatCompletionSubscription:
         assert eval_annotation["annotatorKind"] == "LLM"
         assert eval_annotation["label"] == "correct"
 
+    async def test_evaluator_not_emitted_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test that no evaluation chunks are emitted when the chat completion errors out."""
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2? Answer with just the number.",
+                    }
+                ],
+                "model": {
+                    "builtin": {
+                        "name": "gpt-nonexistent-model",  # non-existent model triggers an error
+                        "providerKey": "OPENAI",
+                    }
+                },
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            },
+        }
+
+        error_chunks: list[dict[str, Any]] = []
+        evaluation_chunks: list[dict[str, Any]] = []
+        result_chunk: dict[str, Any] = {}
+
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                async for payload in subscription.stream():
+                    typename = payload["chatCompletion"]["__typename"]
+                    if typename == ChatCompletionSubscriptionError.__name__:
+                        error_chunks.append(payload["chatCompletion"])
+                    elif typename == EvaluationChunk.__name__:
+                        evaluation_chunks.append(payload["chatCompletion"])
+                    elif typename == ChatCompletionSubscriptionResult.__name__:
+                        result_chunk = payload["chatCompletion"]
+
+        # Verify we got an error chunk
+        assert len(error_chunks) == 1
+        assert "model" in error_chunks[0]["message"].lower()
+
+        # Verify we got a result chunk with a span (span is still recorded on error)
+        assert result_chunk["span"]["id"]
+
+        # Verify NO evaluation chunks were emitted
+        assert len(evaluation_chunks) == 0
+
 
 class TestChatCompletionOverDatasetSubscription:
     QUERY = """
