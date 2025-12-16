@@ -138,12 +138,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                     parameters={
                         "type": "object",
                         "properties": {
-                            "hallucination": {
+                            "label": {
                                 "type": "string",
                                 "enum": ["hallucinated", "not_hallucinated"],
+                                "description": "hallucination",
                             }
                         },
-                        "required": ["hallucination"],
+                        "required": ["label"],
                     },
                 ),
             )
@@ -228,11 +229,11 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters["properties"] = {}
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties': Dictionary should have at least 1 item after validation, not 0.$",
+            match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_multiple_function_parameters_properties_raises(
+    def test_missing_label_property_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -241,24 +242,21 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "other_property": {
                     "type": "string",
-                    "enum": ["correct", "incorrect"],
-                },
-                "confidence": {
-                    "type": "string",
-                    "enum": ["low", "high"],
-                },
+                    "enum": ["a", "b"],
+                    "description": "some description",
+                }
             },
-            "required": ["correctness", "confidence"],
+            "required": ["other_property"],
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties': Dictionary should have at most 1 item after validation, not 2.$",
+            match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_function_parameters_property_type_not_string_raises(
+    def test_label_property_type_not_string_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -267,20 +265,21 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "label": {
                     "type": "number",
                     "enum": ["0", "1"],
+                    "description": "correctness",
                 }
             },
-            "required": ["correctness"],
+            "required": ["label"],
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.correctness.type': Input should be 'string'.$",
+            match="^'correctness_evaluator' function has errors. At 'properties.label.type': Input should be 'string'.$",
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_function_parameters_enum_less_than_two_items_raises(
+    def test_label_enum_less_than_two_items_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -289,20 +288,21 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "label": {
                     "type": "string",
                     "enum": ["correct"],
+                    "description": "correctness",
                 }
             },
-            "required": ["correctness"],
+            "required": ["label"],
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.correctness.enum': List should have at least 2 items after validation, not 1.$",
+            match="^'correctness_evaluator' function has errors. At 'properties.label.enum': List should have at least 2 items after validation, not 1.$",
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_function_parameters_missing_enum_field_raises(
+    def test_label_missing_enum_field_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -311,15 +311,38 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "label": {
                     "type": "string",
+                    "description": "correctness",
                 }
             },
-            "required": ["correctness"],
+            "required": ["label"],
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.correctness.enum': Field required.$",
+            match="^'correctness_evaluator' function has errors. At 'properties.label.enum': Field required.$",
+        ):
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_label_missing_description_field_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters = {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": ["correct", "incorrect"],
+                }
+            },
+            "required": ["label"],
+        }
+        with pytest.raises(
+            ValueError,
+            match="^'correctness_evaluator' function has errors. At 'properties.label.description': Field required.$",
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -330,8 +353,8 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
     ) -> None:
         assert prompt_version.tools is not None
         prompt_version.tools.tools[0].function.parameters["required"] = [
-            "correctness",
-            "correctness",
+            "label",
+            "label",
         ]
         with pytest.raises(
             ValueError,
@@ -339,7 +362,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_defined_but_not_required_function_parameters_property_raises(
+    def test_label_defined_but_not_required_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -348,20 +371,23 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "label": {
                     "type": "string",
                     "enum": ["correct", "incorrect"],
+                    "description": "correctness",
                 }
             },
             "required": [],
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED,
+            match=_LLMEvaluatorPromptErrorMessage.MISSING_REQUIRED_PROPERTIES.format(
+                properties="label",
+            ),
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_required_but_not_defined_function_parameters_property_raises(
+    def test_label_and_explanation_defined_but_only_label_required_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -370,20 +396,27 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "correctness": {
+                "label": {
                     "type": "string",
                     "enum": ["correct", "incorrect"],
-                }
+                    "description": "correctness",
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": "explanation for the label",
+                },
             },
-            "required": ["correctness", "confidence"],
+            "required": ["label"],
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED,
+            match=_LLMEvaluatorPromptErrorMessage.MISSING_REQUIRED_PROPERTIES.format(
+                properties="explanation",
+            ),
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
-    def test_annotation_name_mismatch_raises(
+    def test_unexpected_required_property_raises(
         self,
         llm_evaluator: models.LLMEvaluator,
         prompt_version: models.PromptVersion,
@@ -392,16 +425,40 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters = {
             "type": "object",
             "properties": {
-                "different_name": {
+                "label": {
                     "type": "string",
                     "enum": ["correct", "incorrect"],
+                    "description": "correctness",
                 }
             },
-            "required": ["different_name"],
+            "required": ["label", "confidence"],
         }
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_PROPERTY_NAME,
+            match="Found unexpected required properties: confidence",
+        ):
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_label_description_mismatch_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters = {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": ["correct", "incorrect"],
+                    "description": "different_name",
+                }
+            },
+            "required": ["label"],
+        }
+        with pytest.raises(
+            ValueError,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -411,12 +468,59 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
-        prompt_version.tools.tools[0].function.parameters["properties"]["correctness"][
-            "enum"
-        ].append("neutral")
+        prompt_version.tools.tools[0].function.parameters["properties"]["label"]["enum"].append(
+            "neutral"
+        )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM,
+            match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS,
+        ):
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_with_explanation_property_does_not_raise(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters = {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": ["correct", "incorrect"],
+                    "description": "correctness",
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": "explanation for the label",
+                },
+            },
+            "required": ["label", "explanation"],
+        }
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+    def test_explanation_property_explicitly_set_to_none_raises(
+        self,
+        llm_evaluator: models.LLMEvaluator,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools[0].function.parameters = {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "enum": ["correct", "incorrect"],
+                    "description": "correctness",
+                },
+                "explanation": None,
+            },
+            "required": ["label"],
+        }
+        with pytest.raises(
+            ValueError,
+            match=_LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
 
@@ -476,12 +580,13 @@ def prompt_version() -> models.PromptVersion:
                         parameters={
                             "type": "object",
                             "properties": {
-                                "correctness": {
+                                "label": {
                                     "type": "string",
                                     "enum": ["correct", "incorrect"],
+                                    "description": "correctness",
                                 }
                             },
-                            "required": ["correctness"],
+                            "required": ["label"],
                         },
                     ),
                 )
