@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd728573bc728df833023b926544edb9>>
+ * @generated SignedSource<<3c5326112b81409638c35b19fb6e308b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ModelConfigButtonDialogQuery$variables = Record<PropertyKey, never>;
-export type ModelConfigButtonDialogQuery$data = {
+export type ModelConfigFormFieldsQuery$variables = Record<PropertyKey, never>;
+export type ModelConfigFormFieldsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelProviderSelectFragment">;
 };
-export type ModelConfigButtonDialogQuery = {
-  response: ModelConfigButtonDialogQuery$data;
-  variables: ModelConfigButtonDialogQuery$variables;
+export type ModelConfigFormFieldsQuery = {
+  response: ModelConfigFormFieldsQuery$data;
+  variables: ModelConfigFormFieldsQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,7 +24,7 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ModelConfigButtonDialogQuery",
+    "name": "ModelConfigFormFieldsQuery",
     "selections": [
       {
         "args": null,
@@ -39,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ModelConfigButtonDialogQuery",
+    "name": "ModelConfigFormFieldsQuery",
     "selections": [
       {
         "alias": null,
@@ -83,15 +83,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "f6e033b9adc17b674922615d30065fbc",
+    "cacheID": "40d355a118248a8543daad15e9fe4d9b",
     "id": null,
     "metadata": {},
-    "name": "ModelConfigButtonDialogQuery",
+    "name": "ModelConfigFormFieldsQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelProviderSelectFragment\n}\n\nfragment ModelProviderSelectFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
+    "text": "query ModelConfigFormFieldsQuery {\n  ...ModelProviderSelectFragment\n}\n\nfragment ModelProviderSelectFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
   }
 };
 
-(node as any).hash = "83e31e404724e5fcdf80a5361325f537";
+(node as any).hash = "d63ce0e6beceb87081792c8e99b6db3d";
 
 export default node;

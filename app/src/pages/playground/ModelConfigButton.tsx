@@ -1,6 +1,4 @@
 import { memo, Suspense, useCallback, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -21,22 +19,13 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import {
-  AWSModelConfigFormFields,
-  AzureOpenAIModelConfigFormFields,
-  CustomHeadersModelConfigFormField,
-  InvocationParametersFormFields,
-  ModelComboBox,
-  OpenAIModelConfigFormFields,
-} from "@phoenix/components/playground/model";
+import { ModelConfigFormFields } from "@phoenix/components/playground/model";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import { ModelProviderSelect } from "./ModelProviderSelect";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -46,28 +35,10 @@ import { PlaygroundInstanceProps } from "./types";
  */
 const MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH = 150;
 
-const modelConfigFormCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
-  .ac-field,
-  .ac-dropdown,
-  .ac-dropdown-button,
-  .ac-slider {
-    width: 100%;
-  }
-  .ac-slider-controls > .ac-slider-track:first-child::before {
-    background: var(--ac-global-color-primary);
-  }
-  padding: var(--ac-global-dimension-size-200);
-  overflow: auto;
-`;
-
-function providerSupportsOpenAIConfig(provider: ModelProvider) {
-  return provider === "OPENAI" || provider === "OLLAMA";
-}
-
-type ModelConfigButtonProps = PlaygroundInstanceProps;
+type ModelConfigButtonProps = Pick<
+  PlaygroundInstanceProps,
+  "playgroundInstanceId"
+>;
 
 function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
@@ -192,8 +163,8 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
           </DialogTitleExtra>
         </DialogHeader>
         <Suspense>
-          <ModelConfigDialogContent
-            {...props}
+          <ModelConfigFormFields
+            playgroundInstanceId={props.playgroundInstanceId}
             onCustomHeadersErrorChange={setHasCustomHeadersError}
           />
         </Suspense>
@@ -205,103 +176,3 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
 const MemoizedModelConfigButton = memo(ModelConfigButton);
 
 export { MemoizedModelConfigButton as ModelConfigButton };
-
-function ModelConfigDialogContent(
-  props: ModelConfigButtonProps & {
-    onCustomHeadersErrorChange?: (hasError: boolean) => void;
-  }
-) {
-  const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((instance) => instance.id === playgroundInstanceId)
-  );
-
-  if (!instance) {
-    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
-  }
-  const modelConfigByProvider = usePreferencesContext(
-    (state) => state.modelConfigByProvider
-  );
-
-  const updateProvider = usePlaygroundContext((state) => state.updateProvider);
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
-
-  const modelSupportedInvocationParameters =
-    instance.model.supportedInvocationParameters;
-  const configuredInvocationParameters = instance.model.invocationParameters;
-  const requiredInvocationParametersConfigured =
-    areRequiredInvocationParametersConfigured(
-      configuredInvocationParameters,
-      modelSupportedInvocationParameters
-    );
-
-  const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
-    graphql`
-      query ModelConfigButtonDialogQuery {
-        ...ModelProviderSelectFragment
-      }
-    `,
-    {}
-  );
-
-  const onModelNameChange = useCallback(
-    (modelName: string) => {
-      updateModel({
-        instanceId: playgroundInstanceId,
-        patch: {
-          modelName,
-        },
-      });
-    },
-    [playgroundInstanceId, updateModel]
-  );
-
-  return (
-    <form css={modelConfigFormCSS}>
-      {!requiredInvocationParametersConfigured ? (
-        <Flex direction="row" gap="size-100">
-          <Icon color="danger" svg={<Icons.InfoOutline />} />
-          <Text color="danger">
-            Some required invocation parameters are not configured.
-          </Text>
-        </Flex>
-      ) : null}
-      <ModelProviderSelect
-        provider={instance.model.provider}
-        query={query}
-        onChange={(provider) => {
-          updateProvider({
-            instanceId: playgroundInstanceId,
-            provider,
-            modelConfigByProvider,
-          });
-        }}
-      />
-      {providerSupportsOpenAIConfig(instance.model.provider) ? (
-        <OpenAIModelConfigFormFields instance={instance} />
-      ) : instance.model.provider === "AZURE_OPENAI" ? (
-        <AzureOpenAIModelConfigFormFields instance={instance} />
-      ) : (
-        <ModelComboBox
-          modelName={instance.model.modelName}
-          provider={instance.model.provider}
-          onChange={onModelNameChange}
-        />
-      )}
-      {instance.model.provider === "AWS" ? (
-        <AWSModelConfigFormFields instance={instance} />
-      ) : null}
-      <Suspense>
-        <InvocationParametersFormFields instanceId={playgroundInstanceId} />
-      </Suspense>
-
-      {instance.model.provider !== "GOOGLE" && (
-        <CustomHeadersModelConfigFormField
-          key={instance.model.provider}
-          instance={instance}
-          onErrorChange={onCustomHeadersErrorChange}
-        />
-      )}
-    </form>
-  );
-}
