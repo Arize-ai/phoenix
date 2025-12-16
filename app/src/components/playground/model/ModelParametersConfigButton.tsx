@@ -36,7 +36,7 @@ export function ModelParametersConfigButton(
       <Popover>
         <PopoverArrow />
         <Dialog>
-          <View padding="size-200" overflow="auto">
+          <View padding="size-200" overflow="auto" width="400px">
             <Suspense>
               <ModelInvocationParametersFormFields
                 playgroundInstanceId={playgroundInstanceId}
