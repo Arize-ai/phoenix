@@ -21,16 +21,38 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import {
+  convertPromptVersionMessagesToPlaygroundInstanceMessages,
+  type PromptVersionMessageFragments,
+} from "@phoenix/utils/promptUtils";
+
+export type CreateLLMDatasetEvaluatorInitialState = {
+  name: string;
+  description: string;
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  promptMessages: PromptVersionMessageFragments;
+};
 
 export const CreateLLMDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
+  initialState,
   ...props
 }: {
   datasetId: string;
   updateConnectionIds?: string[];
+  initialState?: CreateLLMDatasetEvaluatorInitialState;
 } & ModalOverlayProps) => {
+  const defaultMessages = useMemo(() => {
+    if (initialState?.promptMessages) {
+      return convertPromptVersionMessagesToPlaygroundInstanceMessages({
+        promptMessagesRefs: initialState?.promptMessages ?? [],
+      });
+    }
+    return undefined;
+  }, [initialState]);
   return (
     <ModalOverlay {...props}>
       <Modal variant="slideover" size="fullscreen">
@@ -38,11 +60,12 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               {datasetId && (
-                <EvaluatorPlaygroundProvider>
+                <EvaluatorPlaygroundProvider defaultMessages={defaultMessages}>
                   <CreateEvaluatorDialog
                     onClose={close}
                     datasetId={datasetId}
                     updateConnectionIds={updateConnectionIds}
+                    initialState={initialState}
                   />
                 </EvaluatorPlaygroundProvider>
               )}
@@ -58,10 +81,12 @@ const CreateEvaluatorDialog = ({
   onClose,
   datasetId,
   updateConnectionIds,
+  initialState,
 }: {
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
+  initialState?: CreateLLMDatasetEvaluatorInitialState;
 }) => {
   const playgroundStore = usePlaygroundStore();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -100,13 +125,20 @@ const CreateEvaluatorDialog = ({
   const defaultValues: Partial<EvaluatorFormValues> = useMemo(() => {
     return {
       ...DEFAULT_LLM_FORM_VALUES,
+      evaluator: {
+        ...DEFAULT_LLM_FORM_VALUES.evaluator,
+        name: initialState?.name ?? "",
+        description: initialState?.description ?? "",
+      },
+      outputConfig:
+        initialState?.outputConfig ?? DEFAULT_LLM_FORM_VALUES.outputConfig,
       dataset: {
         readonly: true,
         id: datasetId,
         assignEvaluatorToDataset: true,
       },
     };
-  }, [datasetId]);
+  }, [datasetId, initialState]);
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {
