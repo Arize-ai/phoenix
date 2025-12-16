@@ -20,7 +20,7 @@ Expected return:
  */
 async function createRunLLMClient(): Promise<Client> {
   const transport = new StreamableHTTPClientTransport(
-    new URL("https://mcp.runllm.com/mcp/"),
+    new URL("https://mcp.runllm.com/mcp"),
     {
       requestInit: {
         headers: {
