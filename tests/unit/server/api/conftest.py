@@ -826,94 +826,111 @@ async def playground_city_and_country_dataset(
 
 
 @pytest.fixture
-async def assign_llm_evaluator_to_dataset(
+async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator:
+    """
+    An LLM evaluator that assesses correctness.
+    """
+    async with db() as session:
+        evaluator_name = Identifier(f"correctness-evaluator-{token_hex(4)}")
+        prompt = models.Prompt(
+            name=Identifier(f"correctness-prompt-{token_hex(4)}"),
+            description="Prompt for correctness evaluation",
+            prompt_versions=[
+                models.PromptVersion(
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template=PromptChatTemplate(
+                        type="chat",
+                        messages=[
+                            PromptMessage(
+                                role="system",
+                                content="You are an evaluator that assesses the correctness of outputs.",
+                            ),
+                            PromptMessage(
+                                role="user",
+                                content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                            ),
+                        ],
+                    ),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    tools=PromptTools(
+                        type="tools",
+                        tools=[
+                            PromptToolFunction(
+                                type="function",
+                                function=PromptToolFunctionDefinition(
+                                    name="evaluate_correctness",
+                                    description="evaluates the correctness of the output",
+                                    parameters={
+                                        "type": "object",
+                                        "properties": {
+                                            "correct": {
+                                                "type": "string",
+                                                "enum": ["correct", "incorrect"],
+                                            },
+                                        },
+                                        "required": ["correct"],
+                                    },
+                                ),
+                            )
+                        ],
+                        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                    ),
+                    response_format=None,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    metadata_={},
+                )
+            ],
+        )
+        llm_evaluator = models.LLMEvaluator(
+            name=evaluator_name,
+            description="evaluates the correctness of the output",
+            kind="LLM",
+            annotation_name="correct",
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="correctness evaluation",
+                values=[
+                    CategoricalAnnotationValue(label="correct", score=1.0),
+                    CategoricalAnnotationValue(label="incorrect", score=0.0),
+                ],
+            ),
+            prompt=prompt,
+        )
+        session.add(llm_evaluator)
+        await session.flush()
+        return llm_evaluator
+
+
+@pytest.fixture
+async def assign_correctnesss_llm_evaluator_to_dataset(
     db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
 ) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
-    async def _assign_llm_evaluator_to_dataset(
+    """
+    Factory fixture to assign the correctness LLM evaluator to a dataset.
+    Reuses the correctness_llm_evaluator fixture.
+    """
+
+    async def _assign_correctnesss_llm_evaluator_to_dataset(
         dataset_id: int,
     ) -> models.DatasetEvaluators:
         async with db() as session:
-            evaluator_name = Identifier(f"correctness-evaluator-{token_hex(4)}")
-            prompt = models.Prompt(
-                name=Identifier(f"correctness-prompt-{token_hex(4)}"),
-                description="Prompt for correctness evaluation",
-                prompt_versions=[
-                    models.PromptVersion(
-                        template_type=PromptTemplateType.CHAT,
-                        template_format=PromptTemplateFormat.MUSTACHE,
-                        template=PromptChatTemplate(
-                            type="chat",
-                            messages=[
-                                PromptMessage(
-                                    role="system",
-                                    content="You are an evaluator that assesses the correctness of outputs.",
-                                ),
-                                PromptMessage(
-                                    role="user",
-                                    content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
-                                ),
-                            ],
-                        ),
-                        invocation_parameters=PromptOpenAIInvocationParameters(
-                            type="openai", openai=PromptOpenAIInvocationParametersContent()
-                        ),
-                        tools=PromptTools(
-                            type="tools",
-                            tools=[
-                                PromptToolFunction(
-                                    type="function",
-                                    function=PromptToolFunctionDefinition(
-                                        name="evaluate_correctness",
-                                        description="evaluates the correctness of the output",
-                                        parameters={
-                                            "type": "object",
-                                            "properties": {
-                                                "correct": {
-                                                    "type": "string",
-                                                    "enum": ["correct", "incorrect"],
-                                                },
-                                            },
-                                            "required": ["correct"],
-                                        },
-                                    ),
-                                )
-                            ],
-                            tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
-                        ),
-                        response_format=None,
-                        model_provider=ModelProvider.OPENAI,
-                        model_name="gpt-4",
-                        metadata_={},
-                    )
-                ],
-            )
-            llm_evaluator = models.LLMEvaluator(
-                name=evaluator_name,
-                description="evaluates the correctness of the output",
-                kind="LLM",
-                annotation_name="correct",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness evaluation",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
-                prompt=prompt,
-            )
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_id,
-                evaluator=llm_evaluator,
-                display_name=evaluator_name,
+                evaluator_id=correctness_llm_evaluator.id,
+                display_name=correctness_llm_evaluator.name,
                 input_mapping={},
             )
             session.add(dataset_evaluator)
             await session.flush()
             return dataset_evaluator
 
-    return _assign_llm_evaluator_to_dataset
+    return _assign_correctnesss_llm_evaluator_to_dataset
 
 
 @pytest.fixture

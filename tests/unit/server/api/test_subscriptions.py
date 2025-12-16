@@ -86,6 +86,15 @@ class TestChatCompletionSubscription:
           ... on ChatCompletionSubscriptionError {
             message
           }
+          ... on EvaluationChunk {
+            experimentRunEvaluation {
+              name
+              label
+              score
+              explanation
+              annotatorKind
+            }
+          }
         }
       }
 
@@ -861,6 +870,78 @@ class TestChatCompletionSubscription:
         assert attributes.pop(URL_FULL) == "https://api.anthropic.com/v1/messages"
         assert attributes.pop(URL_PATH) == "v1/messages"
         assert not attributes
+
+    async def test_evaluator_emits_evaluation_chunk(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2? Answer with just the number.",
+                    }
+                ],
+                "model": {"builtin": {"name": "gpt-4o-mini", "providerKey": "OPENAI"}},
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            },
+        }
+
+        text_chunks: list[dict[str, Any]] = []
+        evaluation_chunks: list[dict[str, Any]] = []
+        result_chunk: dict[str, Any] = {}
+
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                async for payload in subscription.stream():
+                    typename = payload["chatCompletion"]["__typename"]
+                    if typename == TextChunk.__name__:
+                        text_chunks.append(payload["chatCompletion"])
+                    elif typename == EvaluationChunk.__name__:
+                        evaluation_chunks.append(payload["chatCompletion"])
+                    elif typename == ChatCompletionSubscriptionResult.__name__:
+                        result_chunk = payload["chatCompletion"]
+
+        # Verify we got text chunks with content
+        assert len(text_chunks) >= 1
+        response_text = "".join(chunk["content"] for chunk in text_chunks)
+        assert "4" in response_text
+
+        # Verify we got a result chunk with a span
+        assert result_chunk["span"]["id"]
+
+        # Verify we got exactly 1 evaluation chunk
+        assert len(evaluation_chunks) == 1
+        eval_chunk = evaluation_chunks[0]
+        eval_annotation = eval_chunk["experimentRunEvaluation"]
+        assert eval_annotation["name"] == "correct"
+        assert eval_annotation["annotatorKind"] == "LLM"
+        assert eval_annotation["label"] == "correct"
 
 
 class TestChatCompletionOverDatasetSubscription:
@@ -1706,11 +1787,15 @@ class TestChatCompletionOverDatasetSubscription:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
-        assign_llm_evaluator_to_dataset: Callable[[int], Awaitable[models.DatasetEvaluators]],
+        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        dataset_evaluator = await assign_llm_evaluator_to_dataset(single_example_dataset.id)
+        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+            single_example_dataset.id
+        )
         evaluator_gid = str(
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
         )
