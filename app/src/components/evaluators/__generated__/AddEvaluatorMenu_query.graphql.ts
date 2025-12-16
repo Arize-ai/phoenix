@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67768619aa47a5545d0c35fea7fa3e17>>
+ * @generated SignedSource<<a31160c3d830c0ce954cf2c4b67ce6f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type AddEvaluatorMenu_query$data = {
   readonly dataset: {
     readonly " $fragmentSpreads": FragmentRefs<"CreateBuiltInDatasetEvaluatorSlideover_dataset">;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates">;
+  readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates" | "AddEvaluatorMenu_llmEvaluatorTemplates">;
   readonly " $fragmentType": "AddEvaluatorMenu_query";
 };
 export type AddEvaluatorMenu_query$key = {
@@ -67,12 +67,17 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "AddEvaluatorMenu_llmEvaluatorTemplates"
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "9c49e8af38d061309b98643b63cc067d";
+(node as any).hash = "6c8e5e9487e8292c5ddb8685431a5a05";
 
 export default node;
