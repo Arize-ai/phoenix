@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -142,6 +143,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
+            <ModelParametersConfigButton playgroundInstanceId={instanceId} />
             {!disablePromptSave ? (
               <SaveButton instanceId={instanceId} dirty={dirty} />
             ) : null}
