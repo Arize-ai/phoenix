@@ -602,7 +602,7 @@ class Subscription:
                                 models.ExperimentRun.repetition_number == repetition_number,
                             )
                         )
-                        if run is None:
+                        if run is None or run.error is not None:
                             continue
                         context_dict: dict[str, Any] = {
                             "input": json.dumps(revision.input),

@@ -1939,6 +1939,89 @@ class TestChatCompletionOverDatasetSubscription:
             assert annotation.annotator_kind == "LLM"
             assert annotation.experiment_run_id is not None
 
+    async def test_evaluator_not_emitted_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that no evaluation chunks are emitted when chat completion over dataset errors."""
+        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+            single_example_dataset.id
+        )
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+        )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-nonexistent-model",  # non-existent model triggers an error
+                    }
+                },
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        error_chunks: list[Any] = []
+        evaluation_chunks: list[Any] = []
+
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                async for payload in subscription.stream():
+                    typename = payload["chatCompletionOverDataset"]["__typename"]
+                    if typename == ChatCompletionSubscriptionError.__name__:
+                        error_chunks.append(payload["chatCompletionOverDataset"])
+                    elif typename == EvaluationChunk.__name__:
+                        evaluation_chunks.append(payload["chatCompletionOverDataset"])
+
+        # Verify we got an error chunk
+        assert len(error_chunks) == 1
+        assert "model" in error_chunks[0]["message"].lower()
+
+        # Verify NO evaluation chunks were emitted
+        assert len(evaluation_chunks) == 0
+
+        # Verify no experiment run annotations were persisted
+        async with db() as session:
+            result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = result.scalars().all()
+            assert len(annotations) == 0
+
 
 def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
