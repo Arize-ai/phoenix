@@ -1386,6 +1386,13 @@ export function areRequiredInvocationParametersConfigured(
 }
 
 /**
+ * Checks if a provider supports OpenAI-style configuration (model combobox + base URL)
+ */
+export function providerSupportsOpenAIConfig(provider: ModelProvider) {
+  return provider === "OPENAI" || provider === "OLLAMA";
+}
+
+/**
  * Extracts the default value for the invocation parameter definition
  * And the key name that should be used in the invocation parameter input if we need to make a new one
  *

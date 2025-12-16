@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import {
   Button,
   Dialog,
@@ -6,9 +8,23 @@ import {
   Icons,
   Popover,
   PopoverArrow,
+  View,
 } from "@phoenix/components";
 
-export function ModelParametersConfigButton() {
+import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
+
+export type ModelParametersConfigButtonProps = {
+  /**
+   * The playground instance ID to configure
+   */
+  playgroundInstanceId: number;
+};
+
+export function ModelParametersConfigButton(
+  props: ModelParametersConfigButtonProps
+) {
+  const { playgroundInstanceId } = props;
+
   return (
     <DialogTrigger>
       <Button
@@ -19,7 +35,15 @@ export function ModelParametersConfigButton() {
       />
       <Popover>
         <PopoverArrow />
-        <Dialog>Parameters</Dialog>
+        <Dialog>
+          <View padding="size-200" overflow="auto">
+            <Suspense>
+              <ModelInvocationParametersFormFields
+                playgroundInstanceId={playgroundInstanceId}
+              />
+            </Suspense>
+          </View>
+        </Dialog>
       </Popover>
     </DialogTrigger>
   );

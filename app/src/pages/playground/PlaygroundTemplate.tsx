@@ -143,7 +143,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
-            <ModelParametersConfigButton />
+            <ModelParametersConfigButton playgroundInstanceId={instanceId} />
             {!disablePromptSave ? (
               <SaveButton instanceId={instanceId} dirty={dirty} />
             ) : null}
