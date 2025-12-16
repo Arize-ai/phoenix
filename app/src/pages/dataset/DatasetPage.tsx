@@ -50,6 +50,7 @@ export const DatasetPageQueryNode = graphql`
         description
         exampleCount
         experimentCount
+        evaluatorCount
         labels {
           id
           name
@@ -320,7 +321,7 @@ function DatasetPageContent({
           <Tab id="versions">Versions</Tab>
           {isEvaluatorsEnabled ? (
             <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
-              Evaluators
+              Evaluators <Counter>{dataset.evaluatorCount}</Counter>
             </Tab>
           ) : null}
         </TabList>
