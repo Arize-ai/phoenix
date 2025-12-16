@@ -7,7 +7,7 @@ single-tier system we would need to check all the keys to see if they are in the
 subset that we want to invalidate.
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from asyncio import Future
 from collections.abc import Callable
 from typing import Any, Generic, Optional, TypeVar
@@ -25,7 +25,6 @@ _SubKey = TypeVar("_SubKey")
 class TwoTierCache(
     AbstractCache[_Key, _Result],
     Generic[_Key, _Result, _Section, _SubKey],
-    ABC,
 ):
     def __init__(
         self,

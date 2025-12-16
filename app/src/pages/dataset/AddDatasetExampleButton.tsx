@@ -20,9 +20,10 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   return (
     <DialogTrigger>
       <Button
-        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-        size="S"
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        size="M"
         aria-label="Add Dataset Example"
+        variant="primary"
       >
         Add Example
       </Button>

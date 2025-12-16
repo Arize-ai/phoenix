@@ -12,7 +12,7 @@ from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -394,7 +394,10 @@ class ThreadSession(Session):
         )
         # Initialize an app service that keeps the server running
         engine = create_engine_and_run_migrations(database_url)
-        instrumentation_cleanups = instrument_engine_if_enabled(engine)
+        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+        shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+        # Ensure engine is disposed on shutdown to properly close database connections
+        shutdown_callbacks.append(engine.dispose)
         factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
@@ -409,7 +412,7 @@ class ThreadSession(Session):
                 if (trace_dataset and (initial_evaluations := trace_dataset.evaluations))
                 else None
             ),
-            shutdown_callbacks=instrumentation_cleanups,
+            shutdown_callbacks=shutdown_callbacks,
         )
         self.server = ThreadServer(
             app=self.app,

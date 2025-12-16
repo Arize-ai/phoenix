@@ -25,18 +25,13 @@ import {
 } from "@phoenix/components";
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifySuccess } from "@phoenix/contexts";
-import {
-  DatasetProvider,
-  useDatasetContext,
-} from "@phoenix/contexts/DatasetContext";
+import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
-import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
@@ -160,10 +155,6 @@ function DatasetPageContent({
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
-  const refreshLatestVersion = useDatasetContext(
-    (state) => state.refreshLatestVersion
-  );
-  const notifySuccess = useNotifySuccess();
 
   const navigate = useNavigate();
   const onTabChange = useCallback(
@@ -276,17 +267,6 @@ function DatasetPageContent({
             </MenuTrigger>
             <DatasetCodeButton />
             <RunExperimentButton />
-            <AddDatasetExampleButton
-              datasetId={dataset.id}
-              onAddExampleCompleted={() => {
-                notifySuccess({
-                  title: "Example added",
-                  message:
-                    "The example has been added successfully and the version has been updated.",
-                });
-                refreshLatestVersion();
-              }}
-            />
             <DatasetLabelConfigButton datasetId={dataset.id} />
             <Button
               isDisabled={!datasetHasVersions}
