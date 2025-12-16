@@ -6,6 +6,7 @@ import type { EvaluatorFormValues } from "@phoenix/components/evaluators/Evaluat
 import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import type { EvaluatorInput } from "@phoenix/components/evaluators/utils";
+import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
 /**
  * TODO: move all of these into zustand
@@ -33,9 +34,18 @@ export const LLMEvaluatorForm = ({
         <Text color="text-500">
           Define or load a prompt for your evaluator.
         </Text>
-        <Switch isSelected={showPromptPreview} onChange={setShowPromptPreview}>
-          <Label>Preview</Label>
-        </Switch>
+        <Flex direction="row" justifyContent="space-between">
+          <TemplateFormatRadioGroup size="S" showNoneOption={false} />
+          <Switch
+            isSelected={showPromptPreview}
+            onChange={setShowPromptPreview}
+            labelPlacement="start"
+          >
+            <Label>Preview</Label>
+          </Switch>
+        </Flex>
+      </Flex>
+      <Flex direction="column" gap="size-100">
         {showPromptPreview ? (
           <EvaluatorPromptPreview evaluatorInput={evaluatorInputObject} />
         ) : (
