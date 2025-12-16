@@ -256,7 +256,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
             <Flex direction="row" justifyContent="end" gap="size-100">
               <Button
                 variant="primary"
-                size="S"
+                size="M"
                 isDisabled={!isValid || isCommitting}
                 leadingVisual={
                   isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
