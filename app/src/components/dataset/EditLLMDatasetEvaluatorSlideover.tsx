@@ -19,7 +19,10 @@ import {
   useEvaluatorForm,
 } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { updateLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  inferIncludeExplanationFromPrompt,
+  updateLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -156,6 +159,9 @@ const EditEvaluatorDialog = ({
                 name
               }
               promptVersion {
+                tools {
+                  definition
+                }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               }
               outputConfig {
@@ -199,14 +205,16 @@ const EditEvaluatorDialog = ({
       `
     );
   const defaultValues: EvaluatorFormValues = useMemo(() => {
+    const includeExplanation = inferIncludeExplanationFromPrompt(
+      datasetEvaluator.evaluator.promptVersion?.tools
+    );
     return {
       evaluator: {
         name: datasetEvaluator.displayName ?? "",
         description: datasetEvaluator.evaluator.description ?? "",
         kind: datasetEvaluator.evaluator.kind,
         isBuiltin: false,
-        // TODO: pull default value from prompt
-        includeExplanation: true,
+        includeExplanation,
       },
       outputConfig: {
         name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
