@@ -142,7 +142,7 @@ const CreateEvaluatorDialog = ({
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {
-      evaluator: { name, description },
+      evaluator: { name, description, includeExplanation = true },
       dataset,
       outputConfig,
       inputMapping,
@@ -157,6 +157,7 @@ const CreateEvaluatorDialog = ({
       outputConfig,
       datasetId: dataset.id,
       inputMapping,
+      includeExplanation,
     });
     createLlmEvaluator({
       variables: {
