@@ -19,9 +19,9 @@ import type {
 const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
-  name,
   description,
   outputConfig,
+  includeExplanation,
 }: {
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
@@ -34,6 +34,10 @@ const createPromptVersionInput = ({
    * The choice config of the evaluator.
    */
   outputConfig: ClassificationEvaluatorAnnotationConfig;
+  /**
+   * Whether to include an explanation for the evaluation score.
+   */
+  includeExplanation: boolean;
   /**
    * The input mapping of the evaluator.
    */
@@ -112,6 +116,7 @@ export const updateLLMEvaluatorPayload = ({
   datasetId,
   datasetEvaluatorId,
   inputMapping,
+  includeExplanation,
 }: {
   datasetEvaluatorId: string;
   datasetId: string;
@@ -121,6 +126,7 @@ export const updateLLMEvaluatorPayload = ({
   description: string;
   outputConfig: ClassificationEvaluatorAnnotationConfig;
   inputMapping?: EvaluatorInputMapping;
+  includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
@@ -131,6 +137,7 @@ export const updateLLMEvaluatorPayload = ({
     name,
     description,
     outputConfig,
+    includeExplanation,
   });
 
   return {
@@ -158,6 +165,7 @@ export const createLLMEvaluatorPayload = ({
   outputConfig,
   datasetId,
   inputMapping,
+  includeExplanation,
 }: {
   /**
    * The playground store to use to get the instance prompt params.
@@ -184,6 +192,10 @@ export const createLLMEvaluatorPayload = ({
    */
   inputMapping?: EvaluatorInputMapping;
   /**
+   * Whether to include an explanation for the evaluation score.
+   */
+  includeExplanation: boolean;
+  /**
    * The dataset ID to assign the evaluator to.
    */
   datasetId: string;
@@ -191,6 +203,7 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
+<<<<<<< HEAD
   const { prunedPromptInput: promptVersion, promptVersionId } =
     createPromptVersionInput({
       playgroundStore,
@@ -199,6 +212,16 @@ export const createLLMEvaluatorPayload = ({
       description,
       outputConfig,
     });
+=======
+  const promptVersion = createPromptVersionInput({
+    playgroundStore,
+    instanceId,
+    name,
+    description,
+    outputConfig,
+    includeExplanation,
+  });
+>>>>>>> 6fc73318c (remove include explanation field from categorical annotation config)
 
   return {
     name,

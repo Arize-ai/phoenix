@@ -55,7 +55,6 @@ class CategoricalAnnotationConfigInput:
     name: str
     description: Optional[str] = None
     optimization_direction: OptimizationDirection
-    include_explanation: bool = True
     values: list[CategoricalAnnotationConfigValueInput]
 
 
@@ -160,7 +159,6 @@ def _to_pydantic_categorical_annotation_config(
             type=AnnotationType.CATEGORICAL.value,
             description=input.description,
             optimization_direction=input.optimization_direction,
-            include_explanation=input.include_explanation,
             values=[
                 CategoricalAnnotationValue(label=value.label, score=value.score)
                 for value in input.values

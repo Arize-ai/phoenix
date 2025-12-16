@@ -476,7 +476,6 @@ def _to_gql_categorical_annotation_config(
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
         description=config.description,
-        include_explanation=config.include_explanation,
         values=values,
     )
 

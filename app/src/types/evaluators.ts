@@ -96,10 +96,6 @@ export type ClassificationEvaluatorAnnotationConfig = {
    * The choices that the evaluator may choose from
    */
   values: ClassificationChoice[];
-  /**
-   * Whether to include an explanation for the evaluation score
-   */
-  includeExplanation: boolean;
 };
 
 /**

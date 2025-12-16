@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e458e00c9ce10075be8ea28d0586bb3>>
+ * @generated SignedSource<<f5d2eed5b964982e538e560e5b2a5cfc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,6 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly description: string | null;
     readonly kind: EvaluatorKind;
     readonly outputConfig?: {
-      readonly includeExplanation: boolean;
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
       readonly values: ReadonlyArray<{
@@ -414,13 +413,6 @@ return {
                     }
                   ],
                   "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "includeExplanation",
-                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -438,6 +430,6 @@ return {
 };
 })();
 
-(node as any).hash = "9d0e809e3cb6dcd19c5e5acfdd2e6205";
+(node as any).hash = "bc3622f72020702141dcd12664b1ade5";
 
 export default node;

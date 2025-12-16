@@ -93,12 +93,6 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM
         )
-    # validate that "explanation" exists, and that it is a string property with description
-    # only if output_config includes an explanation
-    if evaluator.output_config.include_explanation:
-        function_property_description = function_parameters.properties["explanation"].description
-        if function_property_description is None:
-            raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_EXPLANATION_MUST_BE_DEFINED)
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
@@ -185,8 +179,4 @@ class _LLMEvaluatorPromptErrorMessage:
     )
     EVALUATOR_CHOICES_MUST_BE_CATEGORICAL = (
         "Evaluator choices must be categorical (string property with enum and description)"
-    )
-    EVALUATOR_EXPLANATION_MUST_BE_DEFINED = (
-        "Evaluator explanation must be defined (string property with description)"
-        " when include_explanation is true in the output config"
     )

@@ -126,7 +126,6 @@ class LLMEvaluator:
         template = prompt_version.template
         assert isinstance(template, PromptChatTemplate)
         output_config = evaluator.output_config
-        include_explanation = output_config.include_explanation
         template_variables = apply_input_mapping(
             input_schema=self.input_schema,
             input_mapping=input_mapping,
@@ -189,7 +188,7 @@ class LLMEvaluator:
 
         tool_call = next(iter(tool_call_by_id.values()))
         args = json.loads(tool_call["arguments"])
-        assert len(args) == (2 if include_explanation else 1)
+        assert len(args) >= 1
         label = args.get("label", None)
         assert label is not None
         scores_by_label = {

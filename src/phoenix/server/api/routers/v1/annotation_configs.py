@@ -56,7 +56,6 @@ class CategoricalAnnotationConfigData(V1RoutesBaseModel):
     type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
     description: Optional[str] = None
     optimization_direction: OptimizationDirection
-    include_explanation: bool = True
     values: List[CategoricalAnnotationValue]
 
 
@@ -131,7 +130,6 @@ def db_to_api_annotation_config(
             type=type_,
             description=description,
             optimization_direction=config.optimization_direction,
-            include_explanation=config.include_explanation,
             values=[
                 CategoricalAnnotationValue(label=val.label, score=val.score)
                 for val in config.values
@@ -430,7 +428,6 @@ def _to_db_categorical_annotation_config(
         type=AnnotationType.CATEGORICAL.value,
         description=input_config.description,
         optimization_direction=input_config.optimization_direction,
-        include_explanation=input_config.include_explanation,
         values=values,
     )
 

@@ -59,7 +59,6 @@ def _categorical_values_have_unique_labels(
 class CategoricalAnnotationConfig(_BaseAnnotationConfig):
     type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
     optimization_direction: OptimizationDirection
-    include_explanation: bool = True
     values: Annotated[
         list[CategoricalAnnotationValue],
         AfterValidator(_categorical_values_are_non_empty_list),

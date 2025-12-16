@@ -165,7 +165,6 @@ const EditEvaluatorDialog = ({
                   label
                   score
                 }
-                includeExplanation
               }
             }
           }
@@ -206,6 +205,8 @@ const EditEvaluatorDialog = ({
         description: datasetEvaluator.evaluator.description ?? "",
         kind: datasetEvaluator.evaluator.kind,
         isBuiltin: false,
+        // TODO: pull default value from prompt
+        includeExplanation: true,
       },
       outputConfig: {
         name: datasetEvaluator.evaluator.outputConfig?.name ?? "",
@@ -221,8 +222,6 @@ const EditEvaluatorDialog = ({
           { label: "", score: undefined },
           { label: "", score: undefined },
         ],
-        includeExplanation:
-          datasetEvaluator.evaluator.outputConfig?.includeExplanation ?? true,
       },
       dataset: {
         readonly: true,
@@ -233,12 +232,12 @@ const EditEvaluatorDialog = ({
         literalMapping: {},
         pathMapping: {},
       },
-    };
+    } satisfies EvaluatorFormValues;
   }, [datasetEvaluator, datasetId]);
   const form = useEvaluatorForm(defaultValues);
   const onSubmit = useCallback(() => {
     const {
-      evaluator: { name, description },
+      evaluator: { name, description, includeExplanation = true },
       dataset,
       outputConfig,
       inputMapping,
@@ -254,6 +253,7 @@ const EditEvaluatorDialog = ({
       datasetId: dataset.id,
       datasetEvaluatorId,
       inputMapping,
+      includeExplanation,
     });
     updateLlmEvaluator({
       variables: {

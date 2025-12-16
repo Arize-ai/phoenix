@@ -184,7 +184,7 @@ export const EvaluatorLLMChoice = () => {
         </Flex>
         <Controller
           control={control}
-          name="outputConfig.includeExplanation"
+          name="evaluator.includeExplanation"
           render={({ field }) => (
             <Switch isSelected={field.value} onChange={field.onChange}>
               <Text>Include explanation</Text>
