@@ -7,7 +7,7 @@ from pathlib import Path
 from ssl import CERT_REQUIRED
 from threading import Thread
 from time import sleep, time
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 from urllib.parse import urljoin
 
 from jinja2 import BaseLoader, Environment
@@ -372,7 +372,10 @@ def main() -> None:
         start_prometheus()
 
     engine = create_engine_and_run_migrations(db_connection_str)
-    instrumentation_cleanups = instrument_engine_if_enabled(engine)
+    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+    shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
+    # Ensure engine is disposed on shutdown to properly close database connections
+    shutdown_callbacks.append(engine.dispose)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
@@ -449,7 +452,7 @@ def main() -> None:
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
-        shutdown_callbacks=instrumentation_cleanups,
+        shutdown_callbacks=shutdown_callbacks,
         secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
