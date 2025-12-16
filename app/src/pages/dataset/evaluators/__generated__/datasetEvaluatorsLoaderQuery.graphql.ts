@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24b471e42a87a6ff03cfdf6bea52b5d3>>
+ * @generated SignedSource<<56169baadb1565fadedfde4ad6e4ef19>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -429,12 +429,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2d92ba3ec95f0b72ae040e59016c3855",
+    "cacheID": "6673a58a5aa4271d7945d705d53af685",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...CreateLLMDatasetEvaluatorSlideover_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n    }\n    id\n  }\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {\n  id\n  name\n}\n\nfragment CreateLLMDatasetEvaluatorSlideover_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n    }\n    id\n  }\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {\n  id\n  name\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();

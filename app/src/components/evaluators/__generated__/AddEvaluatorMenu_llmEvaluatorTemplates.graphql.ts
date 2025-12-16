@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6717111982ddf22dd79ca15791e86bc>>
+ * @generated SignedSource<<af5e1236a5f806989eccc7e2c7891543>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type AddEvaluatorMenu_llmEvaluatorTemplates$data = {
     readonly choices: any;
     readonly description: string | null;
     readonly messages: ReadonlyArray<{
-      readonly " $fragmentSpreads": FragmentRefs<"CreateLLMDatasetEvaluatorSlideover_promptMessages">;
+      readonly " $fragmentSpreads": FragmentRefs<"promptUtils_promptMessages">;
     }>;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
@@ -80,7 +80,7 @@ const node: ReaderFragment = {
           "selections": [
             {
               "kind": "InlineDataFragmentSpread",
-              "name": "CreateLLMDatasetEvaluatorSlideover_promptMessages",
+              "name": "promptUtils_promptMessages",
               "selections": [
                 {
                   "alias": null,
@@ -140,6 +140,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "1b37bfe02d69daa78a9a542db73a2a92";
+(node as any).hash = "36d578faaa06a1ab03b0f7bcdd3fc363";
 
 export default node;

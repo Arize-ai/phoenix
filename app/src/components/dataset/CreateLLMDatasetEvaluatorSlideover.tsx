@@ -1,11 +1,10 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { ModalOverlayProps } from "react-aria-components";
 import { FormProvider } from "react-hook-form";
-import { graphql, readInlineData, useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
-import type { CreateLLMDatasetEvaluatorSlideover_promptMessages$key } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_promptMessages.graphql";
 import { Dialog } from "@phoenix/components/dialog";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import {
@@ -22,57 +21,18 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { getChatRole } from "@phoenix/pages/playground/playgroundUtils";
-import { generateMessageId } from "@phoenix/store";
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import {
+  convertPromptVersionMessagesToPlaygroundInstanceMessages,
+  type PromptVersionMessageFragments,
+} from "@phoenix/utils/promptUtils";
 
 export type CreateLLMDatasetEvaluatorInitialState = {
   name: string;
   description: string;
   outputConfig: ClassificationEvaluatorAnnotationConfig;
-  promptMessages: Readonly<
-    CreateLLMDatasetEvaluatorSlideover_promptMessages$key[]
-  >;
-};
-
-const convertPromptVersionMessagesToPlaygroundInstanceMessages = ({
-  promptMessagesRefs,
-}: {
-  promptMessagesRefs: Readonly<
-    CreateLLMDatasetEvaluatorSlideover_promptMessages$key[]
-  >;
-}) => {
-  const promptMessages = promptMessagesRefs.map(
-    (message) =>
-      readInlineData<CreateLLMDatasetEvaluatorSlideover_promptMessages$key>(
-        graphql`
-          fragment CreateLLMDatasetEvaluatorSlideover_promptMessages on PromptMessage
-          @inline {
-            content {
-              ... on TextContentPart {
-                text {
-                  text
-                }
-              }
-            }
-            role
-          }
-        `,
-        message
-      )
-  );
-
-  const instanceMessages = promptMessages.map((message) => ({
-    id: generateMessageId(),
-    content: message.content
-      .map((content) => content.text?.text ?? "")
-      .filter(Boolean)
-      .join("\n"),
-    role: getChatRole(message.role),
-  }));
-
-  return instanceMessages;
+  promptMessages: PromptVersionMessageFragments;
 };
 
 export const CreateLLMDatasetEvaluatorSlideover = ({

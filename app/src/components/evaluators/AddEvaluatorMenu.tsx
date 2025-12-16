@@ -241,7 +241,7 @@ const LLMEvaluatorTemplateSubmenu = ({
           choices
           optimizationDirection
           messages {
-            ...CreateLLMDatasetEvaluatorSlideover_promptMessages
+            ...promptUtils_promptMessages
           }
         }
       }
