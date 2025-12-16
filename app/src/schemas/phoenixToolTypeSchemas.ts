@@ -23,11 +23,18 @@ export const CategoricalChoiceToolTypeSchema =
       parameters: z.object({
         type: z.literal("object"),
         properties: z.record(
-          z.string(),
-          z.object({
-            type: z.literal("string"),
-            enum: z.array(z.string()),
-          })
+          z.union([z.literal("label"), z.literal("explanation")]),
+          z.union([
+            z.object({
+              type: z.literal("string"),
+              enum: z.array(z.string()),
+              description: z.string(),
+            }),
+            z.object({
+              type: z.literal("string"),
+              description: z.string(),
+            }),
+          ])
         ),
         required: z.array(z.string()),
       }),
