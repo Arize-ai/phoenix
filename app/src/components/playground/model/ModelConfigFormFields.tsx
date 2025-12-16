@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { providerSupportsOpenAIConfig } from "@phoenix/pages/playground/playgroundUtils";
 import { PlaygroundNormalizedInstance } from "@phoenix/store";
 
 import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
@@ -109,6 +108,10 @@ export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
       />
     </form>
   );
+}
+
+function providerSupportsOpenAIConfig(provider: ModelProvider) {
+  return provider === "OPENAI" || provider === "OLLAMA";
 }
 
 /**
