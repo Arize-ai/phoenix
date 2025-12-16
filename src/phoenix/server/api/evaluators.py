@@ -438,20 +438,19 @@ def create_llm_evaluator_from_inline(
     """
     from phoenix.db.types.identifier import Identifier as IdentifierModel
 
+    dummy_node_id = GlobalID(type_name="PreviewEvaluator", node_id="0")
     llm_evaluator_orm = models.LLMEvaluator.__new__(models.LLMEvaluator)
     object.__setattr__(llm_evaluator_orm, "name", IdentifierModel.model_validate("preview"))
     object.__setattr__(llm_evaluator_orm, "description", description)
     object.__setattr__(llm_evaluator_orm, "metadata_", {})
     object.__setattr__(llm_evaluator_orm, "annotation_name", annotation_name)
     object.__setattr__(llm_evaluator_orm, "output_config", output_config)
-
-    dummy_node_id = GlobalID(type_name="PreviewEvaluator", node_id="0")
+    object.__setattr__(llm_evaluator_orm, "id", dummy_node_id)
 
     return LLMEvaluator(
         llm_evaluator_orm=llm_evaluator_orm,
         prompt_version_orm=prompt_version_orm,
         llm_client=llm_client,
-        dataset_evaluator_node_id=dummy_node_id,
     )
 
 

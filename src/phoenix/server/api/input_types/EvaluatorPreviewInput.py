@@ -25,9 +25,7 @@ class GenerationConfigInput:
     model: GenerativeModelInput
     messages: list[ChatCompletionMessageInput]
     tools: Optional[list[JSON]] = UNSET
-    invocation_parameters: list[InvocationParameterInput] = strawberry.field(
-        default_factory=list
-    )
+    invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE
 
 
@@ -70,4 +68,3 @@ class EvaluatorPreviewItemInput:
     )
     model: Optional[GenerativeModelInput] = UNSET
     generation_config: Optional[GenerationConfigInput] = UNSET
-

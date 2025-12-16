@@ -650,10 +650,7 @@ class ChatCompletionMutationMixin:
             prepared_contexts: list[Any] = []
             for ctx in raw_contexts:
                 if isinstance(ctx, dict) and "output" not in ctx:
-                    if (
-                        generation_config is strawberry.UNSET
-                        or generation_config is None
-                    ):
+                    if generation_config is strawberry.UNSET or generation_config is None:
                         raise BadRequest(
                             "Context is missing 'output' field and no generation_config was "
                             "provided. Either include 'output' in the context or provide a "
@@ -692,10 +689,7 @@ class ChatCompletionMutationMixin:
                         context_results.append(_to_annotation(eval_result))
 
                 elif type_name == LLMEvaluator.__name__:
-                    if (
-                        preview_item.model is strawberry.UNSET
-                        or preview_item.model is None
-                    ):
+                    if preview_item.model is strawberry.UNSET or preview_item.model is None:
                         raise BadRequest(
                             "Model configuration is required when previewing an existing "
                             "LLM evaluator. Please provide the 'model' field."
@@ -738,7 +732,6 @@ class ChatCompletionMutationMixin:
                             llm_evaluator_orm=llm_evaluator_orm,
                             prompt_version_orm=prompt_version,
                             llm_client=llm_client,
-                            dataset_evaluator_node_id=evaluator_id,
                         )
 
                         for context in prepared_contexts:
@@ -793,9 +786,7 @@ class ChatCompletionMutationMixin:
                     context_results.append(_to_annotation(eval_result))
 
             else:
-                raise BadRequest(
-                    "Either evaluator_id or inline_llm_evaluator must be provided"
-                )
+                raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
 
             all_results.extend(context_results)
 
