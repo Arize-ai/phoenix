@@ -49,7 +49,6 @@ const createPromptVersionInput = ({
 }) => {
   const { promptInput, templateFormat, promptVersionId } =
     getInstancePromptParamsFromStore(instanceId, playgroundStore);
-  const includeExplanation = outputConfig.includeExplanation;
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
@@ -203,7 +202,6 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-<<<<<<< HEAD
   const { prunedPromptInput: promptVersion, promptVersionId } =
     createPromptVersionInput({
       playgroundStore,
@@ -211,17 +209,8 @@ export const createLLMEvaluatorPayload = ({
       name,
       description,
       outputConfig,
+      includeExplanation,
     });
-=======
-  const promptVersion = createPromptVersionInput({
-    playgroundStore,
-    instanceId,
-    name,
-    description,
-    outputConfig,
-    includeExplanation,
-  });
->>>>>>> 6fc73318c (remove include explanation field from categorical annotation config)
 
   return {
     name,
