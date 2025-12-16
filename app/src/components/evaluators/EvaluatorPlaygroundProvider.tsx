@@ -8,7 +8,10 @@ import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
-import { generateInstanceId } from "@phoenix/store";
+import {
+  generateInstanceId,
+  type PlaygroundChatTemplate,
+} from "@phoenix/store";
 
 export const EvaluatorPlaygroundProvider = ({
   children,
@@ -16,11 +19,13 @@ export const EvaluatorPlaygroundProvider = ({
   promptVersionTag,
   promptName,
   promptId,
+  defaultMessages,
 }: PropsWithChildren<{
   promptId?: string;
   promptName?: string;
   promptVersionRef?: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
   promptVersionTag?: string;
+  defaultMessages?: PlaygroundChatTemplate["messages"];
 }>) => {
   const { modelProviders } = useLazyLoadQuery<EvaluatorPlaygroundProviderQuery>(
     graphql`
@@ -57,13 +62,14 @@ export const EvaluatorPlaygroundProvider = ({
         },
       ];
     }
-    return makeLLMEvaluatorInstance(modelConfigByProvider);
+    return makeLLMEvaluatorInstance({ modelConfigByProvider, defaultMessages });
   }, [
     modelConfigByProvider,
     promptId,
     promptName,
     promptVersionRef,
     promptVersionTag,
+    defaultMessages,
   ]);
 
   if (!hasInstalledProvider) {
