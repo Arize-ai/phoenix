@@ -48,7 +48,7 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.evaluators import (
-    validate_consistent_llm_evaluator_and_prompt_version,
+    validate_evaluator_prompt_and_config,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -728,7 +728,7 @@ class ChatCompletionMutationMixin:
                             info.context.decrypt,
                         )
 
-                        evaluator = LLMEvaluatorRunner(
+                        evaluator = LLMEvaluatorRunner.from_orm(
                             llm_evaluator_orm=llm_evaluator_orm,
                             prompt_version_orm=prompt_version,
                             llm_client=llm_client,
@@ -772,8 +772,12 @@ class ChatCompletionMutationMixin:
                 )
 
                 try:
-                    validate_consistent_llm_evaluator_and_prompt_version(
-                        prompt_version_orm, evaluator.llm_evaluator_orm
+                    validate_evaluator_prompt_and_config(
+                        prompt_tools=prompt_version_orm.tools,
+                        prompt_response_format=prompt_version_orm.response_format,
+                        evaluator_annotation_name=inline_def.output_config.name,
+                        evaluator_output_config=output_config,
+                        evaluator_description=inline_def.description,
                     )
                 except ValueError as error:
                     raise BadRequest(str(error))

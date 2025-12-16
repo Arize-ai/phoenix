@@ -3,16 +3,25 @@ import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Heading, Skeleton, Text } from "@phoenix/components";
 import {
-  type Annotation,
-  AnnotationNameAndValue,
-} from "@phoenix/components/annotation";
+  Button,
+  DialogTrigger,
+  Flex,
+  Heading,
+  Loading,
+  Popover,
+  Skeleton,
+  Text,
+  View,
+} from "@phoenix/components";
+import { type Annotation } from "@phoenix/components/annotation";
+import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import type {
   EvaluatorOutputPreviewMutation,
   InlineLLMEvaluatorInput,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 
@@ -53,6 +62,8 @@ const EvaluatorOutputPreviewContent = () => {
       }
     `);
   const onTestEvaluator = () => {
+    setError(null);
+    setPreviewAnnotations([]);
     const { instances } = playgroundStore.getState();
     const instanceId = instances[0].id;
     invariant(instanceId != null, "instanceId is required");
@@ -136,21 +147,30 @@ const EvaluatorOutputPreviewContent = () => {
   return (
     <Flex direction="column" gap="size-100">
       <Flex direction="row" gap="size-100">
-        <Button onPress={onTestEvaluator} isPending={isLoadingEvaluatorPreview}>
-          Test
+        <Button
+          onPress={onTestEvaluator}
+          isPending={isLoadingEvaluatorPreview}
+          css={css`
+            min-width: 64px;
+          `}
+        >
+          {isLoadingEvaluatorPreview ? <Loading size="S" /> : "Test"}
         </Button>
         {isLoadingEvaluatorPreview ? (
+          <Skeleton width="100%" height="100%" animation="wave" />
+        ) : (
           <Flex direction="row" gap="size-100">
-            {previewAnnotations.map((annotation) => (
-              <AnnotationNameAndValue
-                key={annotation.id}
-                annotation={annotation}
-                displayPreference="label"
-              />
+            {previewAnnotations.map((annotation, i) => (
+              <DialogTrigger key={`${annotation.id}-${i}`}>
+                <ExperimentAnnotationButton annotation={annotation} />
+                <Popover>
+                  <View padding="size-200">
+                    <AnnotationDetailsContent annotation={annotation} />
+                  </View>
+                </Popover>
+              </DialogTrigger>
             ))}
           </Flex>
-        ) : (
-          <Skeleton width="100%" height="100%" />
         )}
       </Flex>
       {error && (
