@@ -1,0 +1,18 @@
+interactions:
+- request:
+    body: '{"messages": [{"content": "What country is Paris in? Answer in one word,
+      no punctuation.", "role": "user"}], "model": "gpt-nonexistent-model", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n    \"error\": {\n        \"message\": \"The model `gpt-nonexistent-model`
+        does not exist or you do not have access to it.\",\n        \"type\": \"invalid_request_error\",\n
+        \       \"param\": null,\n        \"code\": \"model_not_found\"\n    }\n}\n"
+    headers: {}
+    status:
+      code: 404
+      message: Not Found
+version: 1

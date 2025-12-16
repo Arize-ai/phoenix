@@ -772,6 +772,117 @@ class TestChatCompletionMutationMixin:
             assert annotation.annotator_kind == "LLM"
             assert annotation.experiment_run_id is not None
 
+    async def test_evaluator_over_dataset_not_run_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that evaluators are not run when the chat completion over dataset task errors."""
+        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+            single_example_dataset.id
+        )
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+        )
+
+        # Get dataset version ID
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    name
+                    label
+                    score
+                  }
+                  span {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-nonexistent-model",  # triggers an error
+                    }
+                },
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            # Verify the task errored
+            assert repetition["errorMessage"]
+            assert repetition["content"] is None
+
+            # Verify no evaluations were run
+            assert repetition["evaluations"] == []
+
+        # Verify no experiment run annotations were persisted
+        async with db() as session:
+            result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = result.scalars().all()
+            assert len(annotations) == 0
+
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
