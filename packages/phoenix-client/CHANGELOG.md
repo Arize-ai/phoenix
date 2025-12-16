@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.0...arize-phoenix-client-v1.27.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* update `reasoning_effort` options for openai ([#10620](https://github.com/Arize-ai/phoenix/issues/10620)) ([5132ce4](https://github.com/Arize-ai/phoenix/commit/5132ce4743d2e9aa0dd509b1c277f1eb800345aa))
+
 ## [1.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.26.0...arize-phoenix-client-v1.27.0) (2025-12-11)
 
 
