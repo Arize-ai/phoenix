@@ -188,14 +188,12 @@ class LLMEvaluator:
 
         tool_call = next(iter(tool_call_by_id.values()))
         args = json.loads(tool_call["arguments"])
-        assert len(args) >= 1
-        label = args.get("label", None)
-        assert label is not None
+        label = args["label"]
         scores_by_label = {
             config_value.label: config_value.score for config_value in output_config.values
         }
         score = scores_by_label.get(label)
-        explanation = args.get("explanation", None)
+        explanation = args.get("explanation")
 
         return EvaluationResult(
             name=evaluator.annotation_name,

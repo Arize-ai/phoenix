@@ -75,48 +75,49 @@ def validate_consistent_llm_evaluator_and_prompt_version(
                 validation_error=error,
             )
         )
-    if "label" not in function_parameters.properties:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_SCHEMA_LABEL_PROPERTY_MISSING)
-    function_label_property_description = function_parameters.properties["label"].description
+    function_label_property_description = function_parameters.properties.label.description
     if function_label_property_description != evaluator.annotation_name:
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION
         )
-    # we support properties of two shapes:
-    # - string property with enum and description (for categorical evaluators)
-    # - string property with description (for evaluator explanations)
-
-    # validate that "label" exists, and that it is a string property with enum
-    function_property_choices = function_parameters.properties["label"].enum
-    if function_property_choices is None:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_BE_CATEGORICAL)
+    labels = function_parameters.properties.label.enum
     evaluator_choices = [value.label for value in evaluator.output_config.values]
-    if set(function_property_choices) != set(evaluator_choices):
+    if set(labels) != set(evaluator_choices):
         raise ValueError(
-            _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM
+            _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS
         )
 
 
-class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
+class _EvaluatorPromptToolFunctionParametersLabelProperty(BaseModel):
     type: Literal["string"]
-    enum: Optional[list[str]] = Field(
-        default=None,
+    enum: list[str] = Field(
         min_length=2,
     )
-    description: str = Field(
-        ...,
-        min_length=1,
-    )
+    description: str
+
+
+class _EvaluatorPromptToolFunctionParametersExplanationProperty(BaseModel):
+    type: Literal["string"]
+    description: str
+
+
+class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
+    label: _EvaluatorPromptToolFunctionParametersLabelProperty
+    explanation: Optional[_EvaluatorPromptToolFunctionParametersExplanationProperty] = None
+
+    @model_validator(mode="after")
+    def check_explanation_property_is_string_or_omitted(self) -> Self:
+        explanation_explicitly_set = "explanation" in self.model_fields_set
+        if explanation_explicitly_set and self.explanation is None:
+            raise ValueError(
+                _LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED
+            )
+        return self
 
 
 class _EvaluatorPromptToolFunctionParameters(BaseModel):
     type: Literal["object"]
-    properties: dict[str, _EvaluatorPromptToolFunctionParametersProperty] = Field(
-        ...,
-        min_length=1,
-        # choice criteria property + explanation property
-        max_length=2,  # this constraint can be lifted to add support for multi-criteria evaluators
-    )
+    properties: _EvaluatorPromptToolFunctionParametersProperty
     required: list[str]
 
     @field_validator("required")
@@ -128,16 +129,21 @@ class _EvaluatorPromptToolFunctionParameters(BaseModel):
 
     @model_validator(mode="after")
     def check_all_properties_are_required(self) -> Self:
-        defined_properties = set(self.properties)
-        required_properties = set(self.required)
-        if defined_properties - required_properties:
+        has_explanation = self.properties.explanation is not None
+        expected = {"label", "explanation"} if has_explanation else {"label"}
+        if unexpected := (set(self.required) - expected):
             raise ValueError(
-                _LLMEvaluatorPromptErrorMessage.ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED
+                _LLMEvaluatorPromptErrorMessage.UNEXPECTED_REQUIRED_PROPERTIES.format(
+                    properties=", ".join(sorted(unexpected))
+                )
             )
-        if required_properties - defined_properties:
+        if missing := (expected - set(self.required)):
             raise ValueError(
-                _LLMEvaluatorPromptErrorMessage.ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED
+                _LLMEvaluatorPromptErrorMessage.MISSING_REQUIRED_PROPERTIES.format(
+                    properties=", ".join(sorted(missing))
+                )
             )
+
         return self
 
 
@@ -164,24 +170,18 @@ class _LLMEvaluatorPromptErrorMessage:
     TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
         "Evaluator tool choice specific function name must match defined function name"
     )
-    TOOL_MUST_BE_FUNCTION = "Evaluator prompts require a function tool"
-    TOOL_SCHEMA_LABEL_PROPERTY_MISSING = (
-        "Tool schema for categorical evaluators must define a 'label' property."
-    )
-    EVALUATOR_NAME_MUST_MATCH_FUNCTION_NAME = "Evaluator name must match the function name"
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (
         "Evaluator description must match the function description"
     )
-    EVALUATOR_PARAMETERS_MUST_BE_VALID = "Evaluator parameters must be a valid JSON schema"
     REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
-    ALL_DEFINED_PROPERTIES_MUST_BE_REQUIRED = "All defined properties must be required"
-    ALL_REQUIRED_PROPERTIES_SHOULD_BE_DEFINED = "All required properties must be defined"
+    MISSING_REQUIRED_PROPERTIES = "The following properties must be required: {properties}"
+    UNEXPECTED_REQUIRED_PROPERTIES = "Found unexpected required properties: {properties}"
     EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION = (
         "Evaluator annotation name must match function parameters label property description"
     )
-    EVALUATOR_CHOICES_MUST_MATCH_FUNCTION_PROPERTY_ENUM = (
-        "Evaluator choices must match function parameters property enum"
+    EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS = (
+        "Evaluator choices must match tool function label property enum"
     )
-    EVALUATOR_CHOICES_MUST_BE_CATEGORICAL = (
-        "Evaluator choices must be categorical (string property with enum and description)"
+    EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED = (
+        "The 'explanation' property must be omitted or set to a string."
     )
