@@ -75,8 +75,8 @@ def generate_sitemap_xml(urls: list[str], base_url: str = "https://arize.com") -
     urlset = ET.Element("urlset")
     urlset.set("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9")
 
-    # Get current date for lastmod
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Get current timestamp for lastmod (ISO 8601 format)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
     # Add each URL
     for path in urls:
@@ -88,7 +88,7 @@ def generate_sitemap_xml(urls: list[str], base_url: str = "https://arize.com") -
         loc.text = full_url
 
         lastmod = ET.SubElement(url_element, "lastmod")
-        lastmod.text = today
+        lastmod.text = now
 
     # Pretty print the XML
     indent_xml(urlset)
