@@ -285,6 +285,7 @@ export function EditCustomProviderButton({
 
   const handleOpen = () => {
     loadQuery({ id: providerId }, { fetchPolicy: "network-only" });
+    setShouldShowConfirmation(false); // Reset stale dirty state from previous session
     setIsOpen(true);
   };
 
