@@ -1,24 +1,15 @@
 import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { debounce } from "lodash";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";
-import {
-  datasetExampleToEvaluatorInput,
-  EMPTY_EVALUATOR_INPUT,
-  EvaluatorInput,
-} from "@phoenix/components/evaluators/utils";
-
-type EvaluatorInputPreviewProps = {
-  datasetId?: string | null;
-  splitIds?: string[];
-  exampleId?: string | null;
-  onSelectExampleId: (exampleId: string | null) => void;
-  setEvaluatorInputObject: (evaluatorInput: EvaluatorInput | null) => void;
-};
+import { datasetExampleToEvaluatorInput } from "@phoenix/components/evaluators/utils";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
+import { EVALUATOR_PRE_MAPPED_INPUT_DEFAULT } from "@phoenix/store/evaluatorStore";
 
 /**
  * Given a datasetId, splitIds, and optional exampleId, this component will
@@ -26,7 +17,7 @@ type EvaluatorInputPreviewProps = {
  *
  * It will display the hypothetical input for the evaluator, given the dataset example.
  */
-export const EvaluatorInputPreview = (props: EvaluatorInputPreviewProps) => {
+export const EvaluatorInputPreview = () => {
   return (
     <div
       css={css`
@@ -40,19 +31,33 @@ export const EvaluatorInputPreview = (props: EvaluatorInputPreviewProps) => {
       `}
     >
       <Suspense fallback={<Loading />}>
-        <EvaluatorInputPreviewContent {...props} />
+        <EvaluatorInputPreviewContent />
       </Suspense>
     </div>
   );
 };
 
-const EvaluatorInputPreviewContent = ({
-  datasetId,
-  splitIds,
-  exampleId,
-  onSelectExampleId: _onSelectExampleId,
-  setEvaluatorInputObject: _setEvaluatorInputObject,
-}: EvaluatorInputPreviewProps) => {
+const EvaluatorInputPreviewContent = () => {
+  const {
+    datasetId,
+    splitIds,
+    exampleId,
+    setSelectedExampleId,
+    setPreMappedInput,
+  } = useEvaluatorStore(
+    useShallow((state) => {
+      if (!state.dataset) {
+        throw new Error("Dataset is required to preview the evaluator input");
+      }
+      return {
+        datasetId: state.dataset.id,
+        splitIds: state.dataset.selectedSplitIds,
+        exampleId: state.dataset.selectedExampleId,
+        setSelectedExampleId: state.setSelectedExampleId,
+        setPreMappedInput: state.setPreMappedInput,
+      };
+    })
+  );
   const data = useLazyLoadQuery<EvaluatorInputPreviewContentQuery>(
     graphql`
       query EvaluatorInputPreviewContentQuery(
@@ -89,7 +94,7 @@ const EvaluatorInputPreviewContent = ({
       (edge) => edge.example.id === exampleId
     )?.example;
   }, [data, exampleId]);
-  const onSelectExampleId = useEffectEvent(_onSelectExampleId);
+  const onSelectExampleId = useEffectEvent(setSelectedExampleId);
   useEffect(() => {
     onSelectExampleId(example?.id ?? null);
   }, [example]);
@@ -97,7 +102,7 @@ const EvaluatorInputPreviewContent = ({
   // this is derived from the example in the dataset
   const defaultValue = useMemo(() => {
     if (!example) {
-      return EMPTY_EVALUATOR_INPUT;
+      return EVALUATOR_PRE_MAPPED_INPUT_DEFAULT;
     }
     try {
       const evaluatorInput = datasetExampleToEvaluatorInput({
@@ -105,7 +110,7 @@ const EvaluatorInputPreviewContent = ({
       });
       return evaluatorInput;
     } catch {
-      return EMPTY_EVALUATOR_INPUT;
+      return EVALUATOR_PRE_MAPPED_INPUT_DEFAULT;
     }
   }, [example]);
   // convert the default value to a string for usage in the json editor
@@ -114,7 +119,7 @@ const EvaluatorInputPreviewContent = ({
   }, [defaultValue]);
   // if the default value changes, propagate the change upwards to parent
   // this value is the one that will actually be used when testing an evaluator
-  const setEvaluatorInputObject = useEffectEvent(_setEvaluatorInputObject);
+  const setEvaluatorInputObject = useEffectEvent(setPreMappedInput);
   useEffect(() => {
     setEvaluatorInputObject(defaultValue);
   }, [defaultValue]);
@@ -123,13 +128,13 @@ const EvaluatorInputPreviewContent = ({
     return debounce((evaluatorInput: string) => {
       try {
         const evaluatorInputObject = JSON.parse(evaluatorInput);
-        _setEvaluatorInputObject(evaluatorInputObject);
+        setPreMappedInput(evaluatorInputObject);
       } catch {
         // invalid json will be ignored, previous value will be maintained
         // noop
       }
     }, 500);
-  }, [_setEvaluatorInputObject]);
+  }, [setPreMappedInput]);
   return (
     <JSONEditor
       key={`${datasetId}-${exampleId}`}
