@@ -28,6 +28,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import { RunDatasetExperimentButton } from "@phoenix/pages/dataset/RunDatasetExperimentButton";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
