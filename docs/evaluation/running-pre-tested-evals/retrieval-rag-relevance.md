@@ -63,11 +63,13 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 
 This benchmark was obtained using notebook below. It was run using the [WikiQA dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/binary-relevance-classification/wiki_qa-train.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `RAG_RELEVANCY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the WikiQA dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb" %}
+Try it out!
+{% endembed %}
 
 #### GPT-4 Result
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.09.34 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.09.34 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
 
 <table><thead><tr><th width="116">RAG Eval</th><th>GPT-4o</th><th>GPT-4</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.60</mark></td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.67</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
 

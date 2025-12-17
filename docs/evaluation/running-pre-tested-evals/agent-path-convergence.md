@@ -2,7 +2,7 @@
 
 When your agents take multiple steps to get to an answer or resolution, it's important to evaluate the pathway it took to get there. You want most of your runs to be consistent and not take unnecessarily frivolous or wrong actions.
 
-<figure><img src="../../.gitbook/assets/image (4).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/image (4).png" alt=""><figcaption></figcaption></figure>
 
 One way of doing this is to calculate convergence:
 

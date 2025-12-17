@@ -8,19 +8,19 @@ Skip to [#prompt-learning-for-classification](prompt-learning-optimizing-prompts
 
 ## What is Prompt Learning?
 
-Prompt Learning is an algorithm developed by Arize to optimize prompts based on data.&#x20;
+Prompt Learning is an algorithm developed by Arize to optimize prompts based on data.
 
-See our [detailed blog on Prompt Learning](https://arize.com/blog/prompt-learning-using-english-feedback-to-optimize-llm-systems/), and/or a quick summary of the algorithm below.&#x20;
+See our [detailed blog on Prompt Learning](https://arize.com/blog/prompt-learning-using-english-feedback-to-optimize-llm-systems/), and/or a quick summary of the algorithm below.
 
-<figure><img src="../.gitbook/assets/What is Prompt Learning_ (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/What is Prompt Learning_ (1).png" alt=""><figcaption></figcaption></figure>
 
 The pipeline, which uses Phoenix extensively, works as follows:
 
 * Upload a dataset of inputs/queries to Phoenix
 * Run a Phoenix experiment on the dataset with your unoptimized, base prompt
-* Build LLM evals with Phoenix or human annotations to return **natural language feedback**&#x20;
+* Build LLM evals with Phoenix or human annotations to return **natural language feedback**
   * e.g. explanations -> why this output was correct/incorrect (most powerful)
-  * e.g. confusion reason -> why the model may have been confused&#x20;
+  * e.g. confusion reason -> why the model may have been confused
   * e.g. improvement suggestions -> where the prompt should be improved based on this input/output pair
 * Use meta-prompting to optimize the original prompt
   * feed prompt + inputs + outputs + evals + annotations to another LLM
@@ -37,13 +37,13 @@ To view and run the notebook, first clone the Prompt Learning repository.
 git clone https://github.com/Arize-ai/prompt-learning.git
 ```
 
-Navigate to `notebooks` -> `phoenix_support_query_classification.ipynb`.&#x20;
+Navigate to `notebooks` -> `phoenix_support_query_classification.ipynb`.
 
 You can see the notebook [here](https://github.com/Arize-ai/prompt-learning/blob/main/notebooks/phoenix_support_query_classification.ipynb). But keep in mind **you will have to clone the repositor**y and run the notebook within the `notebooks` folder for the notebook to run!
 
 ### Example Support Queries (our Dataset)
 
-Our dataset contains 154 synthetically generated support queries, each mapping to one of the 30 classes (also synthetically generated).&#x20;
+Our dataset contains 154 synthetically generated support queries, each mapping to one of the 30 classes (also synthetically generated).
 
 ```csv
 Signed up ages ago but never got around to logging in — now it says no account found. Do I start over?,Account Creation
@@ -60,7 +60,7 @@ my cc on file died, how fix", Payment Method Update
 
 ### Base Prompt
 
-Below is the base, unoptimized prompt we start off with.&#x20;
+Below is the base, unoptimized prompt we start off with.
 
 ```
 You are given a support query:
@@ -103,7 +103,7 @@ Return just the category, no other text.
 
 ### Evaluator
 
-In Prompt Learning, your evals/annotations really make or break the optimization. Good evals allow the meta prompt LLM to figure out what changes/improvements are needed to optimize the prompt. Bad evals, such as just correct/incorrect labels, don't actually guide the meta prompt LLM to making effective prompt updates.&#x20;
+In Prompt Learning, your evals/annotations really make or break the optimization. Good evals allow the meta prompt LLM to figure out what changes/improvements are needed to optimize the prompt. Bad evals, such as just correct/incorrect labels, don't actually guide the meta prompt LLM to making effective prompt updates.
 
 We build a complex evaluator as feedback for the prompt optimizer. Specifically, we use LLM-as-judge to return the following eval types:
 
@@ -119,7 +119,7 @@ prompt_fix_suggestion: One clear instruction to add to the classifier prompt to 
 
 Here we see strong results in one just loop of optimization, and stronger results in 5 loops. This is characteristic of Prompt Learning -> its both data efficient and epoch efficient, allowing you to achieve strong results quickly!
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-08-28 at 1.31.26 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/Screenshot 2025-08-28 at 1.31.26 PM.png" alt=""><figcaption></figcaption></figure>
 
 ### Results - New Prompt
 
@@ -129,7 +129,7 @@ In our optimized prompt, Prompt Learning added:
 * general rules (which generalize outside of the provided dataset)
 * common decision pivots
 * few shot guidance
-* much better prompt to the human eye&#x20;
+* much better prompt to the human eye
 
 ```
 You are a customer-support ticket classifier.
@@ -237,4 +237,4 @@ OUTPUT
 One exact category name from the list above.
 ```
 
-Keep in mind the new prompt is not deterministic. We are using an LLM to generate optimized prompts at every epoch and therefore the new prompts (and their accuracies) will not be the same, but you should consistently see improvements based on our testing.&#x20;
+Keep in mind the new prompt is not deterministic. We are using an LLM to generate optimized prompts at every epoch and therefore the new prompts (and their accuracies) will not be the same, but you should consistently see improvements based on our testing.

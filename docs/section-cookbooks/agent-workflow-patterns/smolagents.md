@@ -87,7 +87,7 @@ The orchestrator delegates resume review, culture fit assessment, and decision-m
 
 When you need to process many inputs using the same logic, parallel execution improves speed and resource efficiency. Agents can be launched concurrently without changing their individual behavior.
 
-**Notebook**: [_Reviewing Candidate Profiles in Parallel_](https://app.gitbook.com/s/yYiH3D9rUbrh3jUtdpK4/)\
+**Notebook**: [_Reviewing Candidate Profiles in Parallel_](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/yYiH3D9rUbrh3jUtdpK4/)\
 Candidate reviews are distributed using `asyncio`, enabling faster batch processing without compromising output quality.
 
 **How to evaluate**: Ensure results remain consistent with sequential runs and monitor for improvements in latency and throughput\

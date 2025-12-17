@@ -8,11 +8,11 @@ description: Evaluation model classes powering your LLM Evals
 
 We currently support the following LLM providers under `phoenix.evals`:
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#openaimodel">OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_openai.png">gitbook_openai.png</a></td><td><a href="evaluation-models.md#openaimodel">#openaimodel</a></td></tr><tr><td><a href="evaluation-models.md#anthropicmodel">Anthropic</a></td><td><a href="../../.gitbook/assets/gitbook_anthropic.png">gitbook_anthropic.png</a></td><td><a href="evaluation-models.md#anthropicmodel">#anthropicmodel</a></td></tr><tr><td><a href="evaluation-models.md#geminimodel">Gemini</a></td><td><a href="../../.gitbook/assets/gitbook_gemini.png">gitbook_gemini.png</a></td><td><a href="evaluation-models.md#geminimodel">#geminimodel</a></td></tr><tr><td><a href="evaluation-models.md#googlegenaimodel">Google GenAI</a></td><td><a href="../../.gitbook/assets/gitbook-gemini.png">gitbook-gemini.png</a></td><td><a href="evaluation-models.md#googlegenaimodel">#googlegenaimodel</a></td></tr><tr><td><a href="evaluation-models.md#vertexai">VertexAI</a></td><td><a href="../../.gitbook/assets/vertexai_gitbooks.png">vertexai_gitbooks.png</a></td><td><a href="evaluation-models.md#vertexai">#vertexai</a></td></tr><tr><td><a href="evaluation-models.md#bedrockmodel">Bedrock</a></td><td><a href="../../.gitbook/assets/gitbook_bedrock.png">gitbook_bedrock.png</a></td><td><a href="evaluation-models.md#bedrockmodel">#bedrockmodel</a></td></tr><tr><td><a href="evaluation-models.md#mistralaimodel">Mistral AI</a></td><td><a href="../../.gitbook/assets/gitbook_mistral.png">gitbook_mistral.png</a></td><td><a href="evaluation-models.md#mistralaimodel">#mistralaimodel</a></td></tr><tr><td><a href="evaluation-models.md#azure-openai">Azure OpenAI</a></td><td><a href="../../.gitbook/assets/gitbook_azureOpenai.png">gitbook_azureOpenai.png</a></td><td><a href="evaluation-models.md#azure-openai">#azure-openai</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#openaimodel">OpenAI</a></td><td></td><td><a href="evaluation-models.md#openaimodel">#openaimodel</a></td></tr><tr><td><a href="evaluation-models.md#anthropicmodel">Anthropic</a></td><td></td><td><a href="evaluation-models.md#anthropicmodel">#anthropicmodel</a></td></tr><tr><td><a href="evaluation-models.md#geminimodel">Gemini</a></td><td></td><td><a href="evaluation-models.md#geminimodel">#geminimodel</a></td></tr><tr><td><a href="evaluation-models.md#googlegenaimodel">Google GenAI</a></td><td></td><td><a href="evaluation-models.md#googlegenaimodel">#googlegenaimodel</a></td></tr><tr><td><a href="evaluation-models.md#vertexai">VertexAI</a></td><td></td><td><a href="evaluation-models.md#vertexai">#vertexai</a></td></tr><tr><td><a href="evaluation-models.md#bedrockmodel">Bedrock</a></td><td></td><td><a href="evaluation-models.md#bedrockmodel">#bedrockmodel</a></td></tr><tr><td><a href="evaluation-models.md#mistralaimodel">Mistral AI</a></td><td></td><td><a href="evaluation-models.md#mistralaimodel">#mistralaimodel</a></td></tr><tr><td><a href="evaluation-models.md#azure-openai">Azure OpenAI</a></td><td></td><td><a href="evaluation-models.md#azure-openai">#azure-openai</a></td></tr></tbody></table>
 
 ## LLM Wrappers
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#litellmmodel">LiteLLMModel</a></td><td><a href="../../.gitbook/assets/litellm logo.png">litellm logo.png</a></td><td><a href="evaluation-models.md#LiteLLMModel">#LiteLLMModel</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><a href="evaluation-models.md#litellmmodel">LiteLLMModel</a></td><td></td><td><a href="evaluation-models.md#LiteLLMModel">#LiteLLMModel</a></td></tr></tbody></table>
 
 ### OpenAIModel
 
@@ -435,9 +435,7 @@ os.environ["OLLAMA_API_BASE"] = "http://localhost:11434"
 model = LiteLLMModel(model="ollama/llama3")
 ```
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/local_llm.ipynb" %}
-How to use Ollama with LiteLLMModel
-{% endembed %}
+\{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/local\_llm.ipynb" %\} How to use Ollama with LiteLLMModel \{% endembed %\}
 
 ## **Usage**
 

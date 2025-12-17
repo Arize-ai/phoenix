@@ -8,7 +8,7 @@ description: Spans can be filtered via Python boolean expressions.
 
 ## Introduction
 
-Spans can be filtered using the UI search bar and by span [queries](extract-data-from-spans.md#filtering-spans). Both use the same syntax, i.e. Python boolean expressions involving the span attributes (e.g. `output.value`). The expression can be arbitrarily complex, but restrictions apply: e.g. arbitrary function calls are disabled.
+Spans can be filtered using the UI search bar and by span [queries](/broken/pages/9bpqrH1xaUKryghjvmMM#filtering-spans). Both use the same syntax, i.e. Python boolean expressions involving the span attributes (e.g. `output.value`). The expression can be arbitrarily complex, but restrictions apply: e.g. arbitrary function calls are disabled.
 
 ## Usage
 
@@ -20,7 +20,7 @@ The Phoenix UI has a search bar where the filter expression can be entered. Auto
 
 ### Span Queries
 
-See the [guide](extract-data-from-spans.md#filtering-spans) on span queries for more details. The `.where()` method of span query takes as input a string of Python boolean expression and converts it into a filter. The example below returns a dataframe containing the LLM spans (having input and output values as columns of the dataframe).
+See the [guide](/broken/pages/9bpqrH1xaUKryghjvmMM#filtering-spans) on span queries for more details. The `.where()` method of span query takes as input a string of Python boolean expression and converts it into a filter. The example below returns a dataframe containing the LLM spans (having input and output values as columns of the dataframe).
 
 ```python
 from phoenix.trace.dsl import SpanQuery

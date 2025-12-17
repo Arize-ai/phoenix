@@ -8,7 +8,7 @@ description: Use the phoenix client to capture end-user feedback
 This assumes annotations as of `arize-phoenix>=9.0.0`.
 {% endhint %}
 
-<figure><img src="../../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
 
 When building LLM applications, it is important to collect feedback to understand how your app is performing in production. Phoenix lets you attach feedback to spans and traces in the form of annotations.
 

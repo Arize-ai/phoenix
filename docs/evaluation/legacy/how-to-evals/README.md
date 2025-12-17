@@ -10,10 +10,10 @@
 * [Toxicity](running-pre-tested-evals/toxicity.md)
 * [AI vs Human](running-pre-tested-evals/ai-vs-human-groundtruth.md)
 * [Reference (Citation) Eval](running-pre-tested-evals/reference-link-evals.md)
-* [User Frustration ](running-pre-tested-evals/user-frustration.md)
-* [SQL Generation Eval](running-pre-tested-evals/sql-generation-eval.md)
+* [User Frustration](../../running-pre-tested-evals/user-frustration.md)
+* [SQL Generation Eval](../../running-pre-tested-evals/sql-generation-eval.md)
 * [Agent Function Calling Eval](running-pre-tested-evals/tool-calling-eval.md)
-* [Audio Emotion Detection](running-pre-tested-evals/audio-emotion-detection.md)
+* [Audio Emotion Detection](../../running-pre-tested-evals/audio-emotion-detection.md)
 
 ## [Bring Your Own Evaluator](bring-your-own-evaluator.md)
 
@@ -26,10 +26,8 @@ Run evaluations via a job to visualize in the UI as traces stream in.
 
 ## [Evaluating Phoenix Traces](../../tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
 
-Evaluate traces captured in Phoenix and export results to the Phoenix UI.&#x20;
+Evaluate traces captured in Phoenix and export results to the Phoenix UI.
 
 ## [Multimodal Evals](multimodal-evals.md)
 
-Evaluate tasks with multiple inputs/outputs (ex: text, audio, image) using versatile evaluation tasks.\
-
-
+Evaluate tasks with multiple inputs/outputs (ex: text, audio, image) using versatile evaluation tasks.\\

@@ -12,8 +12,8 @@ We've built evaluation templates for every step:
 
 * [Agent Function Calling](../how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
 * [Agent Path Convergence](../how-to-evals/running-pre-tested-evals/agent-path-convergence.md)
-* [Agent Planning](../how-to-evals/running-pre-tested-evals/agent-planning.md)
-* [Agent Reflection](../how-to-evals/running-pre-tested-evals/agent-reflection.md)
+* [Agent Planning](../../running-pre-tested-evals/agent-planning.md)
+* [Agent Reflection](../../running-pre-tested-evals/agent-reflection.md)
 
 You can evaluate the individual skills and response using normal LLM evaluation strategies, such as [Retrieval Evaluation](../how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md), Classification with [LLM Judges](https://app.gitbook.com/s/fqGNxHHFrgwnCxgUBNsJ/evaluation/llm-as-a-judge), [Hallucination](../how-to-evals/running-pre-tested-evals/hallucinations.md), or [Q\&A Correctness](../how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md).
 
@@ -23,7 +23,7 @@ Read more to see the breakdown of each component.
 
 Routers are one of the most common components of agents. While not every agent has a specific router node, function, or step, all agents have some method that chooses the next step to take. Routers and routing logic can be powered by intent classifiers, rules-based code, or most often, LLMs that use function calling.
 
-<figure><img src="../../.gitbook/assets/image (13).png" alt=""><figcaption><p>A common router architecture</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image%20(13).png" alt=""><figcaption><p>A common router architecture</p></figcaption></figure>
 
 To evaluate a router or router logic, you need to check:
 
@@ -60,11 +60,11 @@ For agents that use this approach, a common evaluation metric is the quality of 
 
 Given the more qualitative nature of these evaluations, they are usually performed by an LLM Judge.
 
-See our [Agent Planning evaluation template](../how-to-evals/running-pre-tested-evals/agent-planning.md) for a specific example.
+See our [Agent Planning evaluation template](../../running-pre-tested-evals/agent-planning.md) for a specific example.
 
 ## How to Evaluate Agent Skills
 
-<figure><img src="../../.gitbook/assets/image (14).png" alt=""><figcaption><p>An example agent skill</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image%20(14).png" alt=""><figcaption><p>An example agent skill</p></figcaption></figure>
 
 Skills are the individual logic blocks, workflows, or chains that an agent can call on. For example, a RAG retriever skill, or a skill to all a specific API. Skills may be written and defined by the agent's designer, however increasingly skills may be outside services connect to via protocols like Anthropic's MCP.
 
@@ -74,14 +74,14 @@ Some common skill evals are:
 
 * [Retrieval Relevance](../how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md) and [Hallucination](../how-to-evals/running-pre-tested-evals/hallucinations.md) for RAG skills
 * [Code Generation](../how-to-evals/running-pre-tested-evals/code-generation-eval.md)
-* [SQL Generation](../how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
-* [Toxicity](../how-to-evals/running-pre-tested-evals/toxicity.md) and [User Frustration](../how-to-evals/running-pre-tested-evals/user-frustration.md)
+* [SQL Generation](../../running-pre-tested-evals/sql-generation-eval.md)
+* [Toxicity](../how-to-evals/running-pre-tested-evals/toxicity.md) and [User Frustration](../../running-pre-tested-evals/user-frustration.md)
 
 Skills can be evaluated by LLM Judges, comparing against ground truth, or in code - depending on the skill.
 
 ## How to Evaluate an Agent's Path
 
-<figure><img src="../../.gitbook/assets/image (15).png" alt=""><figcaption><p>The steps an agent has taken, stored as messages</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image%20(15).png" alt=""><figcaption><p>The steps an agent has taken, stored as messages</p></figcaption></figure>
 
 Agent memory is used to store state between different components of an agent. You may store retrieved context, config variables, or any other info in agent memory. However, the most common information stored in agent memory is a long of the previous steps the agent has taken, typically formatted as LLM messages.
 
@@ -107,9 +107,9 @@ Reflection allows you to evaluate your agents at runtime to enhance their qualit
 
 See our Agent Reflection evaluation template for a more specific example.
 
-<figure><img src="../../.gitbook/assets/image (16).png" alt=""><figcaption><p>Source: <a href="https://www.anthropic.com/research/building-effective-agents">https://www.anthropic.com/research/building-effective-agents</a></p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image%20(16).png" alt=""><figcaption><p>Source: <a href="https://www.anthropic.com/research/building-effective-agents">https://www.anthropic.com/research/building-effective-agents</a></p></figcaption></figure>
 
-See our [Agent Reflection evaluation template](../how-to-evals/running-pre-tested-evals/agent-reflection.md) for a specific example.
+See our [Agent Reflection evaluation template](../../running-pre-tested-evals/agent-reflection.md) for a specific example.
 
 ## Putting it all Together
 

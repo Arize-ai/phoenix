@@ -93,11 +93,11 @@ print(scores[0])
 
 This benchmark was obtained using notebook below. It was run using the [HaluEval QA Dataset](https://github.com/RUCAIBox/HaluEval/blob/main/data/qa_data.json) as a ground truth dataset. Each example in the dataset was evaluating using the `HALLUCINATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the `is_hallucination` label in the HaluEval dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_hallucination_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
 
 #### GPT-4 Results
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.04 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.04 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
 
 <table><thead><tr><th width="117">Eval</th><th>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.93</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.72</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.82</mark></td></tr></tbody></table>
 

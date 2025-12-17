@@ -72,10 +72,10 @@ This benchmark was obtained using notebook below. It was run using a handcrafted
 
 Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPLATE_STR` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_reference_link_correctness_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/drive/1mAjcIYWCDi9TNFE3p7xRiw0L0hwHzk-q?usp=sharing" %}
 
 **GPT-4 Results**
 
-<figure><img src="../../.gitbook/assets/GPT-4 Ref Evals (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/GPT-4 Ref Evals (1).png" alt=""><figcaption></figcaption></figure>
 
 <table><thead><tr><th width="130">Reference Link Evals</th><th>GPT-4o</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.96</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.79</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>

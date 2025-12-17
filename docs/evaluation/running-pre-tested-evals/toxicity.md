@@ -65,11 +65,13 @@ toxic_classifications = llm_classify(
 
 This benchmark was obtained using notebook below. It was run using the [WikiToxic dataset ](https://huggingface.co/datasets/OxAISH-AL-LLM/wiki_toxic)as a ground truth dataset. Each example in the dataset was evaluating using the `TOXICITY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_toxicity_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
+Try it out!
+{% endembed %}
 
 #### GPT-4 Results
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 

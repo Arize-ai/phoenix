@@ -43,20 +43,16 @@ To collect traces from your application, you must configure an OpenTelemetry Tra
 
 {% tabs %}
 {% tab title="Python" %}
-
 ```bash
 pip install arize-phoenix-otel
 ```
-
 {% endtab %}
 
 {% tab title="TypeScript" %}
-
 ```bash
 # npm, pnpm, yarn, etc
 npm install @arizeai/phoenix-otel
 ```
-
 {% endtab %}
 {% endtabs %}
 {% endstep %}
@@ -73,7 +69,6 @@ Phoenix can capture all calls made to supported libraries automatically. Just in
 ```
 pip install openinference-instrumentation-openai
 ```
-
 {% endtab %}
 
 {% tab title="OpenAI (TypeScript)" %}
@@ -88,7 +83,6 @@ Update your `instrumentation.ts`file, registering the instrumentation. Steps wil
 
 {% tabs %}
 {% tab title="ESM Project" %}
-
 <pre class="language-typescript"><code class="lang-typescript"><strong>// instrumentation.ts
 </strong>
 // ... rest of imports
@@ -105,11 +99,9 @@ registerInstrumentations({
   instrumentations: [instrumentation],
 });
 </code></pre>
-
 {% endtab %}
 
 {% tab title="CommonJS Project" %}
-
 <pre class="language-typescript"><code class="lang-typescript"><strong>// instrumentation.ts
 </strong>
 // ... rest of imports
@@ -122,7 +114,6 @@ registerInstrumentations({
   instrumentations: [new OpenAIInstrumentation()],
 });
 </code></pre>
-
 {% endtab %}
 {% endtabs %}
 
@@ -160,13 +151,18 @@ For Manually tracing your whole application, check out [our guide on manual trac
 {% endstep %}
 
 {% step %}
+
+{% endstep %}
+
+{% step %}
 **Register a Tracer**
+{% endstep %}
 
+{% step %}
 In your Python code, register Phoenix as the trace provider. This connects your application to Phoenix, making a project in the UI after you send a trace, and optionally enables auto-instrumentation (automatic tracing for supported libraries like OpenAI).
+{% endstep %}
 
-{% tabs %}
-{% tab title="Python" %}
-
+{% step %}
 ```python
 from phoenix.otel import register
 
@@ -177,12 +173,17 @@ tracer_provider = register(
 
 tracer = tracer_provider.get_tracer(__name__)
 ```
+{% endstep %}
 
-{% endtab %}
+{% step %}
 
-{% tab title="TypeScript" %}
+{% endstep %}
+
+{% step %}
 In a new file called `instrumentation.ts` (or .js if applicable)
+{% endstep %}
 
+{% step %}
 ```typescript
 // instrumentation.ts
 import { register } from "@arizeai/phoenix-otel";
@@ -191,31 +192,39 @@ const provider = register({
   projectName: "my-llm-app", // Sets the project name in Phoenix UI
 });
 ```
+{% endstep %}
 
+{% step %}
 The `register` function automatically:
+{% endstep %}
 
-- Reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from environment variables
-- Configures the collector endpoint (defaults to `http://localhost:6006`)
-- Sets up batch span processing for production use
-- Registers the provider globally
+{% step %}
+* Reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from environment variables
+* Configures the collector endpoint (defaults to `http://localhost:6006`)
+* Sets up batch span processing for production use
+* Registers the provider globally
+{% endstep %}
 
+{% step %}
 {% hint style="info" %}
 **Environment Variables:**
 
-- `PHOENIX_COLLECTOR_ENDPOINT` - The URL to your Phoenix instance (e.g., `https://app.phoenix.arize.com`)
-- `PHOENIX_API_KEY` - Your Phoenix API key for authentication
-  {% endhint %}
+* `PHOENIX_COLLECTOR_ENDPOINT` - The URL to your Phoenix instance (e.g., `https://app.phoenix.arize.com`)
+* `PHOENIX_API_KEY` - Your Phoenix API key for authentication
+{% endhint %}
+{% endstep %}
 
+{% step %}
 Now, import this file at the top of your main program entrypoint, or invoke it with the node cli's `--require` flag:
+{% endstep %}
 
-- Import Method:
-  - In main.ts or similar: `import "./instrumentation.ts"`
-  - In your CLI, script, Dockerfile, etc: `node main.ts`
-- \--require Method:
-  - In your CLI, script, Dockerfile, etc: `node --require ./instrumentation.ts main.ts`
-    {% endtab %}
-    {% endtabs %}
-    {% endstep %}
+{% step %}
+* Import Method:
+  * In main.ts or similar: `import "./instrumentation.ts"`
+  * In your CLI, script, Dockerfile, etc: `node main.ts`
+* \--require Method:
+  * In your CLI, script, Dockerfile, etc: `node --require ./instrumentation.ts main.ts` \{% endtab %\} \{% endtabs %\} \{% endstep %\}
+{% endstep %}
 
 {% step %}
 **Start Your Application**
@@ -247,7 +256,6 @@ response = client.chat.completions.create(
 )
 print(response.choices[0].message.content)
 ```
-
 {% endtab %}
 
 {% tab title="OpenAI (TypeScript)" %}
@@ -273,7 +281,6 @@ openai.chat.completions
   // with its default flush time of 5 seconds
   .then(() => new Promise((resolve) => setTimeout(resolve, 6000)));
 ```
-
 {% endtab %}
 
 {% tab title="Other Integrations" %}
@@ -297,7 +304,7 @@ After setting up all your functions to be traced using OpenInference/OpenTelemet
 
 You should now see traces in Phoenix!
 
-<figure><img src="../.gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
 {% endstep %}
 {% endstepper %}
 

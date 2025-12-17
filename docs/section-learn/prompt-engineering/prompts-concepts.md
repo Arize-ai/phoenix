@@ -59,9 +59,7 @@ F-strings should be formatted with single `{`s:
 {question}
 ```
 
-{% hint style="info" %}
-To escape a `{` when using F-string, add a second `{` in front of it, e.g., \{{escaped\}} {not-escaped}. Escaping variables will remove them from inputs in the Playground.
-{% endhint %}
+\{% hint style="info" %\} To escape a `{` when using F-string, add a second `{` in front of it, e.g., \{{escaped\}} {not-escaped}. Escaping variables will remove them from inputs in the Playground. \{% endhint %\}
 
 Mustache should be formatted with double `{{`s:
 
@@ -69,9 +67,7 @@ Mustache should be formatted with double `{{`s:
 {{question}}
 ```
 
-{% hint style="info" %}
-We recommend using Mustache where possible, since it supports nested attributes, e.g. `attributes.input.value`, more seamlessly
-{% endhint %}
+\{% hint style="info" %\} We recommend using Mustache where possible, since it supports nested attributes, e.g. `attributes.input.value`, more seamlessly \{% endhint %\}
 
 ## Tools
 

@@ -8,7 +8,7 @@
 
 ## 🤖 Agents
 
-* [Evaluating Multi-Agent Systems](README.md)
+* [Evaluating Multi-Agent Systems](./)
 
 ## 🔭 Tracing
 
@@ -32,14 +32,14 @@
 ## 🧠 Evaluation
 
 * [Evaluators](evaluation/evaluators.md)
-* [Eval Data Types](evaluation/eval-data-types.md)
+* [Eval Data Types](/broken/pages/Y7oQtIEIxMym8Qf9N3eD)
 * [Evals With Explanations](evaluation/evals-with-explanations.md)
 * [LLM as a Judge](evaluation/llm-as-a-judge.md)
-* [Custom Task Evaluation](evaluation/custom-task-evaluation.md)
+* [Custom Task Evaluation](/broken/pages/dU0fekLLzt7L4N8fjOub)
 
 ## 🔍 Retrieval & Inferences
 
-* [Retrieval with Embeddings](retrieval-and-infrences/retrieval-with-embeddings.md)
+* [Retrieval with Embeddings](/broken/pages/XFHkSs8PHcmDoZpLtE5L)
 * [Benchmarking Retrieval](retrieval-and-infrences/benchmarking-retrieval.md)
 
 ***
@@ -49,7 +49,7 @@
 
 ## 📚 Resources
 
-* [Frequently Asked Questions](resources/faqs/README.md)
+* [Frequently Asked Questions](resources/faqs/)
   * [What is the difference between Phoenix and Arize?](resources/faqs/what-is-the-difference-between-phoenix-and-arize.md)
   * [What is my Phoenix Endpoint?](resources/faqs/what-is-my-phoenix-endpoint.md)
   * [What is LlamaTrace vs Phoenix Cloud?](resources/faqs/what-is-llamatrace-vs-phoenix-cloud.md)

@@ -8,7 +8,7 @@ Mastra is an agentic framework that simplifies building complex AI applications 
 
 ## Launch Phoenix
 
-{% include "../../.gitbook/includes/ts-launch-phoenix.md" %}
+{% include "../../.gitbook/includes/ts-launch-phoenix (1).md" %}
 
 ## Install
 

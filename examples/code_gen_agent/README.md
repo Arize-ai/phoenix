@@ -2,8 +2,8 @@
 
 ## Overview
 
-This folder contains examples for building a Code Generation (Code-Gen) agent using the LangChain library. 
-This agent is designed to generate, refine, and validate code using OpenAI models. 
+This folder contains examples for building a Code Generation (Code-Gen) agent using the LangChain library.\
+This agent is designed to generate, refine, and validate code using OpenAI models.
 
 ## Features
 
@@ -30,16 +30,16 @@ This agent is designed to generate, refine, and validate code using OpenAI model
 
 1. Run the `app.py` script to start the RAG agent.
 2. Click on the local host link provided in the output.
-3. Interact with the agent by entering prompts and receiving generated code responses. 
+3. Interact with the agent by entering prompts and receiving generated code responses.
 
 ## Files
 
 * `app.py`: The main script for starting the application, this will run the web server with default port(7860)
 * `agent.py`: The main script for the code generation agent
-* `tools.py`: Contains tools for code analysis, generation, execution, and merging 
+* `tools.py`: Contains tools for code analysis, generation, execution, and merging
 * `requirements.txt`: Lists the required libraries for the project
 
 ## Notes
 
 * All the Key's must be inputted from the UI application.
-* This application will support the HTML based sources. 
+* This application will support the HTML based sources.

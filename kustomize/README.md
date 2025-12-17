@@ -1,4 +1,6 @@
-This directory contains a set of manifests and overlays that describe our various kubernetes deployment options.
+# kustomize
+
+This directory contains a set of manifests and overlays that describe our various kubernetes deployment options.\
 These deployments can be invoked from the respository root.
 
 Examples:

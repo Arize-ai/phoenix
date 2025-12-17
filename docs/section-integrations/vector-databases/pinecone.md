@@ -6,7 +6,7 @@ description: >-
 
 # Pinecone
 
-<figure><picture><source srcset="../.gitbook/assets/pinecone_white_logo.webp" media="(prefers-color-scheme: dark)"><img src="../.gitbook/assets/pinecone_black_logo.webp" alt=""></picture><figcaption></figcaption></figure>
+<figure><picture><source srcset="../../../.gitbook/assets/pinecone_white_logo.webp" media="(prefers-color-scheme: dark)"><img src="../../../.gitbook/assets/pinecone_black_logo.webp" alt=""></picture><figcaption></figcaption></figure>
 
 **Website:** [pinecone.io](http://pinecone.io/)
 

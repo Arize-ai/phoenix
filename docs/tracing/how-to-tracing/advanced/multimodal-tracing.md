@@ -68,4 +68,4 @@ response = client.chat.completions.create(
 
 You should see your image appear in Phoenix:
 
-<figure><img src="../../../.gitbook/assets/image-trace.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../../.gitbook/assets/image-trace.png" alt=""><figcaption></figcaption></figure>

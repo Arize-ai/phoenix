@@ -28,7 +28,7 @@ The example code below uses OpenAI, which you can instrument using:
 npm install @arizeai/openinference-instrumentation-openai
 ```
 
-{% include "../.gitbook/includes/ts-launch-phoenix.md" %}
+{% include "../.gitbook/includes/ts-launch-phoenix (1).md" %}
 
 ## Add Tracing to your MCP Client
 
@@ -148,7 +148,7 @@ main().catch(console.error);
 
 Now that you have tracing setup, all invocations of your client and server will be streamed to Phoenix for observability and evaluation, and connected in the platform.
 
-<figure><img src="../.gitbook/assets/MCP tracing.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/MCP tracing.png" alt=""><figcaption></figcaption></figure>
 
 ### Resources
 

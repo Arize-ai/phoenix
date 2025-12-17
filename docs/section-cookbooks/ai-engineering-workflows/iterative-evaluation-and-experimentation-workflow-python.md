@@ -127,7 +127,7 @@ Our agent will have access to three tools. Use the stepper below to view each to
 
 {% stepper %}
 {% step %}
-### Essential Info Tool
+#### Essential Info Tool
 
 Provides key travel details about the destination, such as weather and general conditions.
 
@@ -157,7 +157,7 @@ def essential_info(destination: str) -> str:
 {% endstep %}
 
 {% step %}
-### Budget Basics Tool
+#### Budget Basics Tool
 
 Offers insights into travel costs and helps plan budgets based on selected activities.
 
@@ -174,7 +174,7 @@ def budget_basics(destination: str, duration: str) -> str:
 {% endstep %}
 
 {% step %}
-### Local Flavor Tool
+#### Local Flavor Tool
 
 Recommends unique local experiences and cultural highlights.
 

@@ -6,7 +6,7 @@ description: >-
 
 # AI vs Human (Groundtruth)
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_human_vs_ai_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_human_vs_ai_classifications.ipynb" %}
 
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
@@ -95,7 +95,7 @@ The follow benchmarking data was gathered by comparing various model results to 
 
 **GPT-4 Results**
 
-<figure><img src="../../.gitbook/assets/human_vs_ai_gpt-4.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/human_vs_ai_gpt-4.png" alt=""><figcaption></figcaption></figure>
 
 |           | GPT-4o                                 | GPT-4                                  |
 | --------- | -------------------------------------- | -------------------------------------- |

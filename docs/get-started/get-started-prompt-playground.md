@@ -38,7 +38,7 @@ Navigate to your localhost in your browser. (example localhost:6006)
 
 There's multiple ways to get around Prompts in Phoenix, choose the best path for you!
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Prompts (UI)</td><td><a href="../.gitbook/assets/prompt_playground.png">prompt_playground.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ui">#prompts-ui</a></td></tr><tr><td>Prompts (Python SDK)</td><td><a href="../.gitbook/assets/python.png">python.png</a></td><td><a href="get-started-prompt-playground.md#prompts-python-sdk">#prompts-python-sdk</a></td></tr><tr><td>Prompts (TS SDK)</td><td><a href="../.gitbook/assets/javascript.png">javascript.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ts-sdk">#prompts-ts-sdk</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>Prompts (UI)</td><td><a href="../../.gitbook/assets/prompt_playground.png">prompt_playground.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ui">#prompts-ui</a></td></tr><tr><td>Prompts (Python SDK)</td><td><a href="../../.gitbook/assets/python.png">python.png</a></td><td><a href="get-started-prompt-playground.md#prompts-python-sdk">#prompts-python-sdk</a></td></tr><tr><td>Prompts (TS SDK)</td><td><a href="../../.gitbook/assets/javascript.png">javascript.png</a></td><td><a href="get-started-prompt-playground.md#prompts-ts-sdk">#prompts-ts-sdk</a></td></tr></tbody></table>
 
 ## Prompts (UI)
 
@@ -82,7 +82,7 @@ In software engineering, more specifically in distributed computing, observabili
 
 Let's run it and compare results:
 
-<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.51.07 AM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2024-12-09 at 10.51.07 AM.png" alt=""><figcaption></figcaption></figure>
 
 ### Creating a Prompt
 
@@ -102,11 +102,11 @@ Often times, users want to run multiple inputs through an LLM with their prompts
 
 Phoenix has many options to [upload a dataset](../datasets-and-experiments/how-to-datasets/). To keep things simple here, we'll directly upload a CSV. Download the articles summaries file linked below.
 
-{% file src="../.gitbook/assets/news-article-summaries-2024-11-04 11_08_10.csv" %}
+{% file src="../../.gitbook/assets/news-article-summaries-2024-11-04 11_08_10.csv" %}
 
 Next, create a new dataset from the Datasets tab in Phoenix, and specify the input and output columns like so:
 
-<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.29.18 AM.png" alt=""><figcaption><p>Uploading a CSV dataset</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2024-12-09 at 11.29.18 AM.png" alt=""><figcaption><p>Uploading a CSV dataset</p></figcaption></figure>
 
 Now we can return to Prompt Playground, and this time choose our new dataset from the "Test over dataset" dropdown.
 
@@ -122,7 +122,7 @@ Now if we run our prompt(s), each row of the dataset will be run through each va
 
 And if you return to view your dataset, you'll see the details of that run saved as an experiment.
 
-<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.37.34 AM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2024-12-09 at 11.37.34 AM.png" alt=""><figcaption></figcaption></figure>
 
 From here, you could [evaluate that experiment](../datasets-and-experiments/how-to-experiments/#how-to-use-evaluators) to test its performance, or add complexity to your prompts to see which prompts performed better. You can also bolster your prompts with tools and output schemas, or experiment with different LLMs, for better alignment with your application/use case.
 

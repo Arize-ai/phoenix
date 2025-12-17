@@ -64,10 +64,12 @@ The above shows how to use the summarization Eval template.
 
 This benchmark was obtained using notebook below. It was run using a [Daily Mail CNN summarization dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/summarization-classification/summarization-test.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `SUMMARIZATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the summarization dataset to generate the confusion matrices below.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_summarization_classifications.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_summarization_classifications.ipynb" %}
+Try it out!
+{% endembed %}
 
 #### GPT-4 Results
 
-<div align="left"><figure><img src="../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure></div>
+<div align="left"><figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure></div>
 
 <table><thead><tr><th width="122">Eval</th><th>GPT-4o</th><th>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.79</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.63</mark></td><td><mark style="color:green;">0.88</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.73</mark></td><td><mark style="color:green;">0.83</mark></td></tr></tbody></table>

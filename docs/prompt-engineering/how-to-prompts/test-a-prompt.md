@@ -24,7 +24,7 @@ Playground integrates with [datasets and experiments](test-a-prompt.md#datasets-
 
 Prompt Playground supports **side-by-side comparisons** of multiple prompt variants. Click **+ Compare** to add a new variant. Whether using **Span Replay** or testing prompts over a **Dataset**, the Playground processes inputs through each variant and displays the results for easy comparison.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2024-12-02 at 9.55.26 AM.png" alt=""><figcaption><p>Testing multiple prompts simultaneously</p></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/Screenshot 2024-12-02 at 9.55.26 AM.png" alt=""><figcaption><p>Testing multiple prompts simultaneously</p></figcaption></figure>
 
 ## Testing a prompt using code
 

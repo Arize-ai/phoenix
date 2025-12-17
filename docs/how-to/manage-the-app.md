@@ -24,7 +24,7 @@ If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you c
 ref_ds = px.Inferences(ref_df, ref_schema, "reference")
 ```
 
-See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) if you have corpus data for an Information Retrieval use case.
+See [Corpus Data](/broken/pages/FR8yHQcXn75ZdiD4lF1u) if you have corpus data for an Information Retrieval use case.
 
 ## Launch the App
 
@@ -33,7 +33,7 @@ Use `phoenix.launch_app` to start your Phoenix session in the background. You ca
 <table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th></th><th></th></tr></thead><tbody><tr><td align="center"><strong>No Inferences</strong></td><td><pre class="language-python"><code class="lang-python">session = px.launch_app()
 </code></pre></td><td><ul><li>Run Phoenix in the background to collect OpenInference traces emitted by your instrumented LLM application.</li></ul></td></tr><tr><td align="center"><strong>Single Inference Set</strong></td><td><pre class="language-python"><code class="lang-python">session = px.launch_app(ds)
 </code></pre></td><td><ul><li>Analyze a single cohort of data, e.g., only training data.</li><li>Check model performance and data quality, but not drift.</li></ul></td></tr><tr><td align="center"><strong>Primary and Reference Inference Sets</strong></td><td><pre class="language-python" data-overflow="wrap"><code class="lang-python">session = px.launch_app(prim_ds, ref_ds)
-</code></pre></td><td><ul><li>Compare cohorts of data, e.g., training vs. production.</li><li>Analyze drift in addition to model performance and data quality.</li></ul></td></tr><tr><td align="center"><strong>Primary and</strong> <a href="../inferences/how-to-inferences/define-your-schema/corpus-data.md"><strong>Corpus</strong></a> <strong>Inference Sets</strong></td><td><pre class="language-python" data-overflow="wrap"><code class="lang-python">session = px.launch_app(query_ds, corpus=corpus_ds)
+</code></pre></td><td><ul><li>Compare cohorts of data, e.g., training vs. production.</li><li>Analyze drift in addition to model performance and data quality.</li></ul></td></tr><tr><td align="center"><strong>Primary and</strong> <a href="/broken/pages/FR8yHQcXn75ZdiD4lF1u"><strong>Corpus</strong></a> <strong>Inference Sets</strong></td><td><pre class="language-python" data-overflow="wrap"><code class="lang-python">session = px.launch_app(query_ds, corpus=corpus_ds)
 </code></pre></td><td><ul><li>Compare a query inference set to a corpus dataset to analyze your retrieval-augmented generation applications.</li></ul></td></tr></tbody></table>
 
 ## Open the UI
@@ -77,4 +77,3 @@ When you're done using Phoenix, gracefully shut down your running background ses
 ```python
 px.close_app()
 ```
-

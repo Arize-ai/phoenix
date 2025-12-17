@@ -68,7 +68,7 @@ Always use multiple tools in sequence to provide comprehensive recommendations. 
 
 {% stepper %}
 {% step %}
-### Install Dependencies
+#### Install Dependencies
 
 ```bash
 npm install
@@ -84,7 +84,7 @@ This installs all required dependencies including:
 {% endstep %}
 
 {% step %}
-### Configure Environment
+#### Configure Environment
 
 Create a `.env` file in the root directory:
 
@@ -100,7 +100,7 @@ PHOENIX_API_KEY=your-api-key  # Required for Phoenix Cloud
 {% endstep %}
 
 {% step %}
-### Run the Agent
+#### Run the Agent
 
 Start the Mastra dev server:
 
@@ -252,7 +252,7 @@ await runExperiment({
 });
 ```
 
-Run the experiment with this command:&#x20;
+Run the experiment with this command:
 
 ```bash
 npx tsx src/experiments/run-experiments.ts
@@ -275,8 +275,6 @@ Once the experiment completes, open Phoenix to explore the results. You'll be ab
 
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/ts-tutorial-first-experiment-run.mp4" %}
 
-
-
 ## Iterating on the Agent
 
 After analyzing the experiment results, you may identify areas for improvement. Let's walk through an iteration cycle.
@@ -293,7 +291,7 @@ For example, you might notice that the `MovieSelector` tool **isn't** returning 
 
 ### 2. Make Improvements
 
-Based on your analysis, update the agent code. In this case, let's enhance the `MovieSelector` tool's prompt to provide more relevant recommendations. Navigate to the file, `src/mastra/tools/movie-selector-tool.ts` , and find the prompt:&#x20;
+Based on your analysis, update the agent code. In this case, let's enhance the `MovieSelector` tool's prompt to provide more relevant recommendations. Navigate to the file, `src/mastra/tools/movie-selector-tool.ts` , and find the prompt:
 
 Before:
 

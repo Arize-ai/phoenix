@@ -1,3 +1,3 @@
 # Table of contents
 
-* [Arize Phoenix](README.md)
+* [Arize Phoenix](../zh/)
