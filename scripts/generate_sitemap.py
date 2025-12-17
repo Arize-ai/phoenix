@@ -8,7 +8,6 @@ docs/phoenix/ directories.
 """
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -152,4 +151,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
