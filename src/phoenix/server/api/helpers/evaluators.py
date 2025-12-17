@@ -103,16 +103,6 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
     evaluator: models.LLMEvaluator,
 ) -> None:
-    """
-    Checks that the LLM evaluator and prompt version are consistent.
-
-    This is a convenience wrapper around validate_evaluator_prompt_and_config that
-    extracts the necessary values from ORM instances.
-
-    Args:
-        prompt_version: The prompt version ORM instance
-        evaluator: The LLM evaluator ORM instance
-    """
     validate_evaluator_prompt_and_config(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
