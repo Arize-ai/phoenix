@@ -1119,6 +1119,14 @@
       "created_at": "2025-12-09T20:11:11Z",
       "repoId": 564072810,
       "pullRequestNo": 10527
+    },
+    {
+      "name": "jortizta",
+      "id": 24324470,
+      "comment_id": 3663094690,
+      "created_at": "2025-12-17T00:56:35Z",
+      "repoId": 564072810,
+      "pullRequestNo": 10667
     }
   ]
 }
