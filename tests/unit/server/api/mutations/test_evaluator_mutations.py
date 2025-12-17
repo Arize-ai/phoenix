@@ -120,12 +120,13 @@ class TestDatasetLLMEvaluatorMutations:
                                 parameters=dict(
                                     type="object",
                                     properties=dict(
-                                        correctness=dict(
+                                        label=dict(
                                             type="string",
                                             enum=["correct", "incorrect"],
+                                            description="correctness",
                                         )
                                     ),
-                                    required=["correctness"],
+                                    required=["label"],
                                 ),
                             ),
                         )
@@ -192,12 +193,13 @@ class TestDatasetLLMEvaluatorMutations:
                             input_schema=dict(
                                 type="object",
                                 properties=dict(
-                                    correctness=dict(
+                                    label=dict(
                                         type="string",
                                         enum=["correct", "incorrect"],
+                                        description="correctness",
                                     )
                                 ),
-                                required=["correctness"],
+                                required=["label"],
                             ),
                         )
                     )
@@ -249,12 +251,13 @@ class TestDatasetLLMEvaluatorMutations:
                             input_schema=dict(
                                 type="object",
                                 properties=dict(
-                                    correctness=dict(
+                                    label=dict(
                                         type="string",
                                         enum=["correct", "incorrect"],
+                                        description="correctness",
                                     )
                                 ),
-                                required=["correctness"],
+                                required=["label"],
                             ),
                         )
                     )
@@ -312,12 +315,13 @@ class TestDatasetLLMEvaluatorMutations:
                                 parameters=dict(
                                     type="object",
                                     properties=dict(
-                                        correctness=dict(
+                                        label=dict(
                                             type="string",
                                             enum=["correct", "incorrect"],
+                                            description="correctness",
                                         )
                                     ),
-                                    required=["correctness"],
+                                    required=["label"],
                                 ),
                             ),
                         )
@@ -471,12 +475,13 @@ class TestDatasetLLMEvaluatorMutations:
                                 parameters=dict(
                                     type="object",
                                     properties=dict(
-                                        correctness=dict(
+                                        label=dict(
                                             type="string",
                                             enum=["correct", "incorrect"],
+                                            description="correctness",
                                         )
                                     ),
-                                    required=["correctness"],
+                                    required=["label"],
                                 ),
                             ),
                         )
@@ -576,12 +581,13 @@ class TestDatasetLLMEvaluatorMutations:
                                 parameters=dict(
                                     type="object",
                                     properties=dict(
-                                        correctness=dict(
+                                        label=dict(
                                             type="string",
                                             enum=["correct", "incorrect"],
+                                            description="correctness",
                                         )
                                     ),
-                                    required=["correctness"],
+                                    required=["label"],
                                 ),
                             ),
                         )
@@ -669,12 +675,13 @@ class TestDatasetLLMEvaluatorMutations:
                                 parameters=dict(
                                     type="object",
                                     properties=dict(
-                                        correctness=dict(
+                                        label=dict(
                                             type="string",
                                             enum=["correct", "incorrect"],
+                                            description="correctness",
                                         )
                                     ),
-                                    required=["correctness"],
+                                    required=["label"],
                                 ),
                             ),
                         )
@@ -774,9 +781,13 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         parameters=dict(
                                             type="object",
                                             properties=dict(
-                                                result=dict(type="string", enum=["good", "bad"])
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["good", "bad"],
+                                                    description="result",
+                                                )
                                             ),
-                                            required=["result"],
+                                            required=["label"],
                                         ),
                                     ),
                                 )
