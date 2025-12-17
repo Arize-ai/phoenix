@@ -1,5 +1,16 @@
 # @arizeai/phoenix-mcp
 
+## 2.3.0
+
+### Minor Changes
+
+- 5362ed2: Fix support tool endpoint
+
+### Patch Changes
+
+- Updated dependencies [5132ce4]
+  - @arizeai/phoenix-client@5.5.5
+
 ## 2.2.30
 
 ### Patch Changes
