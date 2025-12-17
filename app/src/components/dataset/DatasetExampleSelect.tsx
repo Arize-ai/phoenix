@@ -26,7 +26,6 @@ export const DatasetExampleSelect = (props: DatasetExampleSelectProps) => {
       onChange={(value) => onSelectExampleId(value as string | null)}
       aria-label="Select an example"
       placeholder="Select an example"
-      minWidth="0"
     >
       <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
         <Truncate maxWidth="100%">
