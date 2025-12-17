@@ -1050,7 +1050,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     pass
 
 
-_OPENAI_REASONING_MODELS = [
+OPENAI_REASONING_MODELS = [
     "gpt-5.2",
     "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
