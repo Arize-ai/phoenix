@@ -156,6 +156,7 @@ export const createEvaluatorStore = (
     devtools(
       (set, get) => {
         const properties = merge(
+          {},
           DEFAULT_STORE_VALUES,
           props.evaluator.kind === "LLM"
             ? DEFAULT_LLM_EVALUATOR_STORE_VALUES
