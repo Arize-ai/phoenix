@@ -552,7 +552,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             matched = any(word.lower() in text.lower() for word in words)
         explanation = (
             f"one or more of the words {repr(words)} were {'found' if matched else 'not found'} "
-            "in the output"
+            "in the text"
         )
         return EvaluationResult(
             name=self.name,
