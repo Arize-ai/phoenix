@@ -9,6 +9,7 @@ import {
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { EditCustomProviderButtonQuery$data } from "@phoenix/pages/settings/__generated__/EditCustomProviderButtonQuery.graphql";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   safelyJSONStringify,
@@ -16,7 +17,6 @@ import {
 } from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
-import type { GenerativeModelSDK as GraphQLGenerativeModelSDK } from "./__generated__/CustomProvidersCard_data.graphql";
 import type { PatchGenerativeModelCustomProviderMutationInput } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
 import type { CreateGenerativeModelCustomProviderMutationInput } from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
 import type {
@@ -28,69 +28,7 @@ import type {
   ProviderFormData,
 } from "./CustomProviderForm";
 
-/**
- * Type for provider config data needed by form utilities.
- * This is a minimal type that works with both fragment data and query data.
- */
-export type ProviderNode = {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly provider: string;
-  readonly sdk: GraphQLGenerativeModelSDK;
-  readonly config?: {
-    readonly parseError?: string | undefined;
-    readonly openaiAuthenticationMethod?: {
-      readonly apiKey: string | null;
-    };
-    readonly openaiClientKwargs?: {
-      readonly baseUrl: string | null;
-      readonly organization: string | null;
-      readonly project: string | null;
-      readonly defaultHeaders: unknown;
-    } | null;
-    readonly azureOpenaiAuthenticationMethod?: {
-      readonly apiKey: string | null;
-      readonly azureAdTokenProvider?: {
-        readonly azureTenantId: string;
-        readonly azureClientId: string;
-        readonly azureClientSecret: string;
-        readonly scope: string;
-      } | null;
-    };
-    readonly azureOpenaiClientKwargs?: {
-      readonly apiVersion: string;
-      readonly azureEndpoint: string;
-      readonly azureDeployment: string;
-      readonly defaultHeaders: unknown;
-    };
-    readonly anthropicAuthenticationMethod?: {
-      readonly apiKey: string | null;
-    };
-    readonly anthropicClientKwargs?: {
-      readonly baseUrl: string | null;
-      readonly defaultHeaders: unknown;
-    } | null;
-    readonly awsBedrockAuthenticationMethod?: {
-      readonly awsAccessKeyId: string;
-      readonly awsSecretAccessKey: string;
-      readonly awsSessionToken: string | null;
-    };
-    readonly awsBedrockClientKwargs?: {
-      readonly regionName: string;
-      readonly endpointUrl: string | null;
-    };
-    readonly googleGenaiAuthenticationMethod?: {
-      readonly apiKey: string | null;
-    };
-    readonly googleGenaiClientKwargs?: {
-      readonly httpOptions?: {
-        readonly baseUrl: string | null;
-        readonly headers: unknown;
-      } | null;
-    } | null;
-  };
-};
+export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 
 // =============================================================================
 // Form Default Values
@@ -196,6 +134,10 @@ export function createDefaultFormData(
 export function transformConfigToFormValues(
   provider: ProviderNode
 ): ProviderFormData {
+  invariant(
+    provider.__typename === "GenerativeModelCustomProvider",
+    "Node is not a generative model custom provider"
+  );
   const baseValues = {
     name: provider.name,
     description: provider.description || "",

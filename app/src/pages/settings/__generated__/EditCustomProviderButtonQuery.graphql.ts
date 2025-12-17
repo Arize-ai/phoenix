@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84fc0aab878c83e686dfb2a0d87cdfce>>
+ * @generated SignedSource<<aeaab999cca471823ac4e0d0759d948e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,8 @@ export type EditCustomProviderButtonQuery$variables = {
 };
 export type EditCustomProviderButtonQuery$data = {
   readonly node: {
-    readonly config?: {
+    readonly __typename: "GenerativeModelCustomProvider";
+    readonly config: {
       readonly anthropicAuthenticationMethod?: {
         readonly apiKey: string | null;
       };
@@ -67,18 +68,22 @@ export type EditCustomProviderButtonQuery$data = {
       } | null;
       readonly parseError?: string;
     };
-    readonly createdAt?: string;
-    readonly description?: string | null;
-    readonly id?: string;
-    readonly name?: string;
-    readonly provider?: string;
-    readonly sdk?: GenerativeModelSDK;
-    readonly updatedAt?: string;
-    readonly user?: {
+    readonly createdAt: string;
+    readonly description: string | null;
+    readonly id: string;
+    readonly name: string;
+    readonly provider: string;
+    readonly sdk: GenerativeModelSDK;
+    readonly updatedAt: string;
+    readonly user: {
       readonly id: string;
       readonly profilePictureUrl: string | null;
       readonly username: string;
     } | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   };
 };
 export type EditCustomProviderButtonQuery = {
@@ -105,52 +110,59 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "name",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "sdk",
+  "name": "description",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "provider",
+  "name": "sdk",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "createdAt",
+  "name": "provider",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "createdAt",
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -158,7 +170,7 @@ v9 = {
   "name": "user",
   "plural": false,
   "selections": [
-    (v2/*: any*/),
+    (v3/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -176,7 +188,7 @@ v9 = {
   ],
   "storageKey": null
 },
-v10 = {
+v11 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -190,31 +202,31 @@ v10 = {
   "type": "UnparsableConfig",
   "abstractKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "apiKey",
   "storageKey": null
 },
-v12 = [
-  (v11/*: any*/)
+v13 = [
+  (v12/*: any*/)
 ],
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "baseUrl",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "defaultHeaders",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -224,7 +236,7 @@ v15 = {
       "kind": "LinkedField",
       "name": "openaiAuthenticationMethod",
       "plural": false,
-      "selections": (v12/*: any*/),
+      "selections": (v13/*: any*/),
       "storageKey": null
     },
     {
@@ -235,7 +247,7 @@ v15 = {
       "name": "openaiClientKwargs",
       "plural": false,
       "selections": [
-        (v13/*: any*/),
+        (v14/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -250,7 +262,7 @@ v15 = {
           "name": "project",
           "storageKey": null
         },
-        (v14/*: any*/)
+        (v15/*: any*/)
       ],
       "storageKey": null
     }
@@ -258,7 +270,7 @@ v15 = {
   "type": "OpenAICustomProviderConfig",
   "abstractKey": null
 },
-v16 = {
+v17 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -269,7 +281,7 @@ v16 = {
       "name": "azureOpenaiAuthenticationMethod",
       "plural": false,
       "selections": [
-        (v11/*: any*/),
+        (v12/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -341,7 +353,7 @@ v16 = {
           "name": "azureDeployment",
           "storageKey": null
         },
-        (v14/*: any*/)
+        (v15/*: any*/)
       ],
       "storageKey": null
     }
@@ -349,7 +361,7 @@ v16 = {
   "type": "AzureOpenAICustomProviderConfig",
   "abstractKey": null
 },
-v17 = {
+v18 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -359,7 +371,7 @@ v17 = {
       "kind": "LinkedField",
       "name": "anthropicAuthenticationMethod",
       "plural": false,
-      "selections": (v12/*: any*/),
+      "selections": (v13/*: any*/),
       "storageKey": null
     },
     {
@@ -370,8 +382,8 @@ v17 = {
       "name": "anthropicClientKwargs",
       "plural": false,
       "selections": [
-        (v13/*: any*/),
-        (v14/*: any*/)
+        (v14/*: any*/),
+        (v15/*: any*/)
       ],
       "storageKey": null
     }
@@ -379,7 +391,7 @@ v17 = {
   "type": "AnthropicCustomProviderConfig",
   "abstractKey": null
 },
-v18 = {
+v19 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -443,7 +455,7 @@ v18 = {
   "type": "AWSBedrockCustomProviderConfig",
   "abstractKey": null
 },
-v19 = {
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -453,7 +465,7 @@ v19 = {
       "kind": "LinkedField",
       "name": "googleGenaiAuthenticationMethod",
       "plural": false,
-      "selections": (v12/*: any*/),
+      "selections": (v13/*: any*/),
       "storageKey": null
     },
     {
@@ -472,7 +484,7 @@ v19 = {
           "name": "httpOptions",
           "plural": false,
           "selections": [
-            (v13/*: any*/),
+            (v14/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -489,13 +501,6 @@ v19 = {
   ],
   "type": "GoogleGenAICustomProviderConfig",
   "abstractKey": null
-},
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -512,10 +517,10 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
+          (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v2/*: any*/),
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
@@ -523,6 +528,7 @@ return {
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
+              (v10/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -531,12 +537,12 @@ return {
                 "name": "config",
                 "plural": false,
                 "selections": [
-                  (v10/*: any*/),
-                  (v15/*: any*/),
+                  (v11/*: any*/),
                   (v16/*: any*/),
                   (v17/*: any*/),
                   (v18/*: any*/),
-                  (v19/*: any*/)
+                  (v19/*: any*/),
+                  (v20/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -565,18 +571,18 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v20/*: any*/),
           (v2/*: any*/),
+          (v3/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
+              (v10/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -585,13 +591,13 @@ return {
                 "name": "config",
                 "plural": false,
                 "selections": [
-                  (v20/*: any*/),
-                  (v10/*: any*/),
-                  (v15/*: any*/),
+                  (v2/*: any*/),
+                  (v11/*: any*/),
                   (v16/*: any*/),
                   (v17/*: any*/),
                   (v18/*: any*/),
-                  (v19/*: any*/)
+                  (v19/*: any*/),
+                  (v20/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -615,6 +621,6 @@ return {
 };
 })();
 
-(node as any).hash = "c6dc1f82dda86d8c248a8c612e72224d";
+(node as any).hash = "b43fc8f39d3421abd2110a9b81af0ba8";
 
 export default node;

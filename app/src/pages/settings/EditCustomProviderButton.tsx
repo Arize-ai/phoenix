@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import {
   graphql,
   PreloadedQuery,
@@ -6,6 +6,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Alert,
@@ -29,13 +30,8 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import { EditCustomProviderButtonPatchMutation } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
 import { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
+import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
-  ProviderForm,
-  type ProviderFormData,
-  type ProviderFormRef,
-} from "./CustomProviderForm";
-import {
-  type ProviderNode,
   transformConfigToFormValues,
   transformToPatchInput,
 } from "./customProviderFormUtils";
@@ -43,6 +39,7 @@ import {
 const ProviderQuery = graphql`
   query EditCustomProviderButtonQuery($id: ID!) {
     node(id: $id) {
+      __typename
       ... on GenerativeModelCustomProvider {
         id
         name
@@ -128,11 +125,13 @@ const ProviderQuery = graphql`
 function EditCustomProviderDialogContent({
   queryReference,
   onClose,
-  formRef,
+  shouldShowConfirmation,
+  setShouldShowConfirmation,
 }: {
   queryReference: PreloadedQuery<EditCustomProviderButtonQuery>;
   onClose: () => void;
-  formRef: React.RefObject<ProviderFormRef | null>;
+  shouldShowConfirmation: boolean;
+  setShouldShowConfirmation: (shouldShowConfirmation: boolean) => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -169,13 +168,11 @@ function EditCustomProviderDialogContent({
       }
     `);
 
-  const nodeData = data?.node;
-
-  // Validate that we have a valid provider node with required fields
-  const providerData: ProviderNode | null =
-    nodeData?.id && nodeData?.name && nodeData?.sdk
-      ? (nodeData as ProviderNode)
-      : null;
+  invariant(
+    data.node.__typename === "GenerativeModelCustomProvider",
+    "Node is not a generative model custom provider"
+  );
+  const providerData = data.node;
 
   const handleSubmit = useCallback(
     (formData: ProviderFormData) => {
@@ -213,14 +210,14 @@ function EditCustomProviderDialogContent({
   );
 
   const handleCancel = useCallback(() => {
-    if (formRef.current?.isDirty) {
+    if (shouldShowConfirmation) {
       const confirmed = window.confirm(
         "You have unsaved changes. Are you sure you want to close?"
       );
       if (!confirmed) return;
     }
     onClose();
-  }, [formRef, onClose]);
+  }, [shouldShowConfirmation, onClose]);
 
   if (!providerData) {
     return <Alert variant="danger">Provider not found</Alert>;
@@ -246,11 +243,11 @@ function EditCustomProviderDialogContent({
   return (
     <View padding="size-200">
       <ProviderForm
-        ref={formRef}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         initialValues={transformConfigToFormValues(providerData)}
         isSubmitting={isCommitting}
+        onDirtyChange={setShouldShowConfirmation}
       />
     </View>
   );
@@ -264,7 +261,7 @@ export function EditCustomProviderButton({
   providerName: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const formRef = useRef<ProviderFormRef>(null);
+  const [shouldShowConfirmation, setShouldShowConfirmation] = useState(false);
   const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<EditCustomProviderButtonQuery>(ProviderQuery);
 
@@ -279,14 +276,14 @@ export function EditCustomProviderButton({
   }, [disposeQuery]);
 
   const handleCloseWithConfirmation = useCallback(() => {
-    if (formRef.current?.isDirty) {
+    if (shouldShowConfirmation) {
       const confirmed = window.confirm(
         "You have unsaved changes. Are you sure you want to close?"
       );
       if (!confirmed) return;
     }
     handleClose();
-  }, [handleClose]);
+  }, [handleClose, shouldShowConfirmation]);
 
   return (
     <DialogTrigger
@@ -317,7 +314,8 @@ export function EditCustomProviderButton({
                   <EditCustomProviderDialogContent
                     queryReference={queryReference}
                     onClose={handleClose}
-                    formRef={formRef}
+                    shouldShowConfirmation={shouldShowConfirmation}
+                    setShouldShowConfirmation={setShouldShowConfirmation}
                   />
                 ) : (
                   <Loading />

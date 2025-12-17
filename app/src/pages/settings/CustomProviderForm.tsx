@@ -1,9 +1,7 @@
 import {
-  forwardRef,
   type ReactNode,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -165,14 +163,7 @@ export interface ProviderFormProps {
   /** Initial values for editing an existing provider. If not provided, creates a new provider with OPENAI defaults. */
   initialValues?: ProviderFormData;
   isSubmitting?: boolean;
-}
-
-/**
- * Ref handle for ProviderForm, exposing form state for parent components.
- */
-export interface ProviderFormRef {
-  /** Whether the form has unsaved changes */
-  isDirty: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 const flexFieldCSS = css`
@@ -866,131 +857,134 @@ function SDKSelect({
   );
 }
 
-export const ProviderForm = forwardRef<ProviderFormRef, ProviderFormProps>(
-  function ProviderForm(
-    { onSubmit, onCancel, initialValues, isSubmitting = false },
-    ref
-  ) {
-    const defaultValues = initialValues ?? createDefaultFormData("OPENAI");
+export const ProviderForm = ({
+  onSubmit,
+  onCancel,
+  initialValues,
+  isSubmitting = false,
+  onDirtyChange,
+}: ProviderFormProps) => {
+  const defaultValues = initialValues ?? createDefaultFormData("OPENAI");
 
-    const {
-      control,
-      handleSubmit,
-      reset,
-      getValues,
-      formState: { isDirty },
-    } = useForm<ProviderFormData>({
-      defaultValues,
-      resolver: zodResolver(providerFormSchema),
-      mode: "onBlur", // Validate on blur for better UX
-    });
+  const {
+    control,
+    handleSubmit,
+    reset,
+    getValues,
+    formState: { isDirty },
+  } = useForm<ProviderFormData>({
+    defaultValues,
+    resolver: zodResolver(providerFormSchema),
+    mode: "onBlur", // Validate on blur for better UX
+  });
 
-    // Expose form state to parent via ref
-    useImperativeHandle(ref, () => ({ isDirty }), [isDirty]);
+  useEffect(() => {
+    console.log("isDirty", isDirty);
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
-    const sdk = useWatch({ control, name: "sdk" });
-    // SDK is guaranteed to exist because defaultValues is always a complete ProviderFormData
-    invariant(sdk, "SDK field must be defined in form state");
+  const sdk = useWatch({ control, name: "sdk" });
+  // SDK is guaranteed to exist because defaultValues is always a complete ProviderFormData
+  invariant(sdk, "SDK field must be defined in form state");
 
-    return (
-      <Form onSubmit={handleSubmit(onSubmit)}>
-        <Flex direction="column" gap="size-100">
-          <Controller
-            name="name"
+  return (
+    <Form onSubmit={handleSubmit(onSubmit)}>
+      <Flex direction="column" gap="size-100">
+        <Controller
+          name="name"
+          control={control}
+          rules={{ required: "Name is required" }}
+          render={({ field, fieldState: { invalid, error } }) => (
+            <TextField
+              isRequired
+              isInvalid={invalid}
+              {...field}
+              isDisabled={isSubmitting}
+            >
+              <Label>Provider Name</Label>
+              <Input placeholder="My Custom Provider" />
+              {error ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">
+                  A unique name to identify this provider configuration
+                </Text>
+              )}
+            </TextField>
+          )}
+        />
+
+        <Controller
+          name="description"
+          control={control}
+          render={({ field }) => (
+            <TextField {...field} isDisabled={isSubmitting}>
+              <Label>Description</Label>
+              <TextArea placeholder="Optional description for this provider" />
+            </TextField>
+          )}
+        />
+
+        <Flex direction="row" gap="size-100" alignItems="start">
+          <SDKSelect
             control={control}
-            rules={{ required: "Name is required" }}
+            reset={reset}
+            getValues={getValues}
+            isSubmitting={isSubmitting}
+          />
+          <Controller
+            name="provider"
+            control={control}
+            rules={{ required: "Provider is required" }}
             render={({ field, fieldState: { invalid, error } }) => (
               <TextField
                 isRequired
                 isInvalid={invalid}
                 {...field}
                 isDisabled={isSubmitting}
+                css={flexFieldCSS}
               >
-                <Label>Provider Name</Label>
-                <Input placeholder="My Custom Provider" />
-                {error ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    A unique name to identify this provider configuration
-                  </Text>
-                )}
+                <Label>Provider String</Label>
+                <Input placeholder="e.g., openai, azure, my-custom-provider" />
+                {error && <FieldError>{error.message}</FieldError>}
               </TextField>
             )}
           />
-
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} isDisabled={isSubmitting}>
-                <Label>Description</Label>
-                <TextArea placeholder="Optional description for this provider" />
-              </TextField>
-            )}
-          />
-
-          <Flex direction="row" gap="size-100" alignItems="start">
-            <SDKSelect
-              control={control}
-              reset={reset}
-              getValues={getValues}
-              isSubmitting={isSubmitting}
-            />
-            <Controller
-              name="provider"
-              control={control}
-              rules={{ required: "Provider is required" }}
-              render={({ field, fieldState: { invalid, error } }) => (
-                <TextField
-                  isRequired
-                  isInvalid={invalid}
-                  {...field}
-                  isDisabled={isSubmitting}
-                  css={flexFieldCSS}
-                >
-                  <Label>Provider String</Label>
-                  <Input placeholder="e.g., openai, azure, my-custom-provider" />
-                  {error && <FieldError>{error.message}</FieldError>}
-                </TextField>
-              )}
-            />
-          </Flex>
-
-          <SDKFieldsRenderer
-            sdk={sdk}
-            control={control}
-            isSubmitting={isSubmitting}
-          />
-
-          <TestConnectionButton
-            key={sdk}
-            control={control}
-            getValues={getValues}
-            sdk={sdk}
-          />
-
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <Button
-              variant="default"
-              onPress={onCancel}
-              isDisabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" isDisabled={isSubmitting}>
-              {isSubmitting
-                ? "Saving..."
-                : initialValues
-                  ? "Update Provider"
-                  : "Create Provider"}
-            </Button>
-          </Flex>
         </Flex>
-      </Form>
-    );
-  }
-);
+
+        <SDKFieldsRenderer
+          sdk={sdk}
+          control={control}
+          isSubmitting={isSubmitting}
+        />
+
+        <TestConnectionButton
+          key={sdk}
+          control={control}
+          getValues={getValues}
+          sdk={sdk}
+        />
+
+        <Flex direction="row" gap="size-100" justifyContent="end">
+          <Button
+            variant="default"
+            onPress={onCancel}
+            isDisabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" isDisabled={isSubmitting}>
+            {isSubmitting
+              ? "Saving..."
+              : initialValues
+                ? "Update Provider"
+                : "Create Provider"}
+          </Button>
+        </Flex>
+      </Flex>
+    </Form>
+  );
+};
 
 const testCredentialsQuery = graphql`
   query CustomProviderFormTestCredentialsQuery(
