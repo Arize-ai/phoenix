@@ -1,7 +1,6 @@
 import json
 import zlib
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional, TypeAlias, TypeVar
 
@@ -16,9 +15,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.evaluators import (
-    validate_consistent_llm_evaluator_and_prompt_version,
-)
+from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_config
 from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
@@ -59,33 +56,75 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
-@dataclass
 class LLMEvaluator:
-    """
-    An LLM-based evaluator that uses a prompt template to evaluate content.
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        metadata: dict[str, Any],
+        annotation_name: str,
+        output_config: CategoricalAnnotationConfig,
+        template: PromptChatTemplate,
+        template_format: PromptTemplateFormat,
+        tools: PromptTools,
+        model_provider: ModelProvider,
+        llm_client: PlaygroundStreamingClient,
+        id: Optional[int] = None,
+    ):
+        validate_evaluator_prompt_and_config(
+            prompt_tools=tools,
+            prompt_response_format=None,
+            evaluator_annotation_name=annotation_name,
+            evaluator_output_config=output_config,
+            evaluator_description=description,
+        )
+        self._name = name
+        self._description = description
+        self._metadata = metadata
+        self._annotation_name = annotation_name
+        self._output_config = output_config
+        self._template = template
+        self._template_format = template_format
+        self._tools = tools
+        self._model_provider = model_provider
+        self._id = id
+        self._llm_client = llm_client
 
-    Can be initialized directly with concrete values, or from ORM instances
-    using the `from_orm` static method.
-    """
+    @property
+    def name(self) -> str:
+        return self._name
 
-    # Evaluator identity (None for preview/inline evaluators not yet persisted)
-    id: Optional[int]
-    name: str
-    description: Optional[str]
-    metadata: dict[str, Any]
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
 
-    # Evaluation configuration
-    annotation_name: str
-    output_config: CategoricalAnnotationConfig
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._metadata
 
-    # Prompt configuration
-    template: PromptChatTemplate
-    template_format: PromptTemplateFormat
-    tools: PromptTools
-    model_provider: ModelProvider
+    @property
+    def annotation_name(self) -> str:
+        return self._annotation_name
 
-    # Runtime client
-    llm_client: PlaygroundStreamingClient
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
+        return self._output_config
+
+    @property
+    def template(self) -> PromptChatTemplate:
+        return self._template
+
+    @property
+    def template_format(self) -> PromptTemplateFormat:
+        return self._template_format
+
+    @property
+    def tools(self) -> PromptTools:
+        return self._tools
+
+    @property
+    def model_provider(self) -> ModelProvider:
+        return self._model_provider
 
     @staticmethod
     def from_orm(
@@ -93,13 +132,6 @@ class LLMEvaluator:
         prompt_version_orm: models.PromptVersion,
         llm_client: PlaygroundStreamingClient,
     ) -> "LLMEvaluator":
-        """
-        Creates an LLMEvaluator instance from ORM models.
-
-        Validates that the evaluator and prompt version are consistent.
-        """
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
-
         template = prompt_version_orm.template
         assert isinstance(template, PromptChatTemplate)
         tools = prompt_version_orm.tools
@@ -120,16 +152,14 @@ class LLMEvaluator:
         )
 
     @property
-    def node_id(self) -> Optional[GlobalID]:
-        """
-        The node ID of the corresponding LLM evaluator node.
-        Returns None for evaluators not yet persisted to the database.
-        """
-        if self.id is None:
-            return None
+    def node_id(self) -> GlobalID:
+        if self._id is None:
+            raise ValueError(
+                "LLMEvaluator has not yet been persisted to the database and hence has no node ID"
+            )
         from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
-        return GlobalID(LLMEvaluatorNode.__name__, str(self.id))
+        return GlobalID(LLMEvaluatorNode.__name__, str(self._id))
 
     @property
     def input_schema(self) -> dict[str, Any]:
@@ -182,14 +212,14 @@ class LLMEvaluator:
             messages.append((role, formatted_content, None, None))
 
         denormalized_tools, _ = denormalize_tools(
-            self.tools, self.model_provider
+            self._tools, self._model_provider
         )  # todo: denormalize tool choice and pass as part of invocation parameters
 
         tool_call_by_id: dict[ToolCallId, ToolCall] = {}
         error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
         try:
-            async for chunk in self.llm_client.chat_completion_create(
+            async for chunk in self._llm_client.chat_completion_create(
                 messages=messages,
                 tools=denormalized_tools,
             ):
