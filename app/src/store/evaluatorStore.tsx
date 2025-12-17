@@ -39,26 +39,43 @@ export type EvaluatorStoreProps = {
 };
 
 export type EvaluatorStoreActions = {
+  /** Sets the internal name (slug) of the evaluator. */
   setEvaluatorName: (name: string) => void;
+  /** Sets the user-facing display name of the evaluator. */
   setEvaluatorDisplayName: (displayName: string) => void;
+  /** Sets the description of the evaluator. */
   setEvaluatorDescription: (description: string) => void;
+  /** Sets whether the evaluator should include an explanation in its output. */
   setIncludeExplanation: (includeExplanation: boolean) => void;
+  /** Sets the name of the output configuration (annotation name). */
   setOutputConfigName: (name: string) => void;
+  /** Sets the optimization direction (MAXIMIZE or MINIMIZE) for the output config. */
   setOutputConfigOptimizationDirection: (
     optimizationDirection: EvaluatorOptimizationDirection
   ) => void;
+  /** Sets the classification choices for the output configuration. */
   setOutputConfigValues: (values: ClassificationChoice[]) => void;
+  /** Sets a single path mapping entry by key. */
   setInputMappingPath: (path: string, value: string) => void;
+  /** Sets a single literal mapping entry by key. */
   setInputMappingLiteral: (literal: string, value: string) => void;
+  /** Replaces the entire path mapping object. */
   setPathMapping: (pathMapping: EvaluatorInputMapping["pathMapping"]) => void;
+  /** Replaces the entire literal mapping object. */
   setLiteralMapping: (
     literalMapping: EvaluatorInputMapping["literalMapping"]
   ) => void;
+  /** Sets the dataset configuration for the evaluator. */
   setDataset: (dataset: EvaluatorStoreProps["dataset"]) => void;
+  /** Sets the dataset ID, or clears the dataset if null. */
   setDatasetId: (datasetId: string | null) => void;
+  /** Sets the pre-mapped input data (input, output, expected). */
   setPreMappedInput: (preMappedInput: EvaluatorPreMappedInput) => void;
+  /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
+  /** Sets the selected split IDs for filtering dataset examples. */
   setSelectedSplitIds: (selectedSplitIds: string[]) => void;
+  /** Sets whether to show the prompt preview panel. */
   setShowPromptPreview: (showPromptPreview: boolean) => void;
 };
 
