@@ -256,7 +256,10 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    [path]: value,
+                    pathMapping: {
+                      ...get().evaluator.inputMapping.pathMapping,
+                      [path]: value,
+                    },
                   },
                 },
               },
@@ -271,7 +274,10 @@ export const createEvaluatorStore = (
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    [literal]: value,
+                    literalMapping: {
+                      ...get().evaluator.inputMapping.literalMapping,
+                      [literal]: value,
+                    },
                   },
                 },
               },
