@@ -1,5 +1,12 @@
 # demo-document-relevancy-experiment
 
+## 1.0.4
+
+### Patch Changes
+
+- Updated dependencies [5132ce4]
+  - @arizeai/phoenix-client@5.5.5
+
 ## 1.0.3
 
 ### Patch Changes

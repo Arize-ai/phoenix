@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 5.5.5
+
+### Patch Changes
+
+- 5132ce4: update openai to latest version
+
 ## 5.5.4
 
 ### Patch Changes
