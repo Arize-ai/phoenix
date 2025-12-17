@@ -50,8 +50,12 @@ export function NewDatasetActionMenu({
   return (
     <StopPropagation>
       <MenuTrigger>
-        <Button leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}>
-          Create Dataset
+        <Button
+          variant="primary"
+          size="M"
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        >
+          New Dataset
         </Button>
         <Popover>
           <Menu
