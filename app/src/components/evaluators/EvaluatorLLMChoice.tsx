@@ -35,19 +35,25 @@ const optimizationDirections = [
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
-  const outputConfig = useEvaluatorStore((state) => state.outputConfig);
+  const { outputConfig, includeExplanation } = useEvaluatorStore((state) => ({
+    outputConfig: state.outputConfig,
+    includeExplanation: state.evaluator.includeExplanation,
+  }));
   invariant(
     outputConfig,
     "outputConfig is required. Mount EvaluatorLLMChoice within an LLM Evaluator."
   );
   // make a small react hook form scoped down with validation rules
-  const form = useForm({ defaultValues: { outputConfig }, mode: "onChange" });
+  const form = useForm({
+    defaultValues: { outputConfig, includeExplanation },
+    mode: "onChange",
+  });
   const subscribe = form.subscribe;
   // watch form fields, push valid updates back to zustand
   useEffect(() => {
     return subscribe({
       formState: { isValid: true, values: true },
-      callback({ values: { outputConfig }, isValid }) {
+      callback({ values: { outputConfig, includeExplanation }, isValid }) {
         if (!isValid) {
           return;
         }
@@ -55,12 +61,14 @@ const useEvaluatorLLMChoiceForm = () => {
           setOutputConfigName,
           setOutputConfigOptimizationDirection,
           setOutputConfigValues,
+          setIncludeExplanation,
         } = store.getState();
         setOutputConfigName(outputConfig.name);
         setOutputConfigOptimizationDirection(
           outputConfig.optimizationDirection
         );
         setOutputConfigValues(outputConfig.values);
+        setIncludeExplanation(includeExplanation);
       },
     });
   }, [subscribe, store]);
@@ -224,7 +232,7 @@ export const EvaluatorLLMChoice = () => {
         </Flex>
         <Controller
           control={control}
-          name="evaluator.includeExplanation"
+          name="includeExplanation"
           render={({ field }) => (
             <Switch isSelected={field.value} onChange={field.onChange}>
               <Text>Include explanation</Text>
