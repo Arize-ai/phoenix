@@ -34,8 +34,10 @@ import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
-import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
-import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
+import {
+  DatasetPageQuery,
+  DatasetPageQuery$data,
+} from "./__generated__/DatasetPageQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeButton } from "./DatasetCodeButton";
 import { RunExperimentButton } from "./RunExperimentButton";
@@ -157,7 +159,7 @@ function getTabIndexFromPathname(pathname: string): number {
 function DatasetPageContent({
   dataset,
 }: {
-  dataset: datasetLoaderQuery$data["dataset"];
+  dataset: DatasetPageQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
