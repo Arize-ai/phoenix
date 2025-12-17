@@ -1,5 +1,5 @@
 ---
-"@arizeai/phoenix-mcp": major
+"@arizeai/phoenix-mcp": minor
 ---
 
 Fix support tool endpoint
