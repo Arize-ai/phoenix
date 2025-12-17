@@ -5,6 +5,7 @@
 import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
@@ -205,10 +206,12 @@ function EvaluatorPromptPreviewContent(
   props: EvaluatorPromptPreviewContentProps
 ) {
   const { gqlTemplate, templateFormat } = props;
-  const { inputMappingRaw, preMappedInput } = useEvaluatorStore((state) => ({
-    inputMappingRaw: state.evaluator.inputMapping,
-    preMappedInput: state.preMappedInput,
-  }));
+  const { inputMappingRaw, preMappedInput } = useEvaluatorStore(
+    useShallow((state) => ({
+      inputMappingRaw: state.evaluator.inputMapping,
+      preMappedInput: state.preMappedInput,
+    }))
+  );
   // When used as a query input, Relay mutates the object to make it read-only.
   // This causes downstream issues when react-hook-form tries to update the value.
   // To avoid this, we deep clone the object before using it as a query input.

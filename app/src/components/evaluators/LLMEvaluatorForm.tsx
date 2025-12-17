@@ -1,3 +1,5 @@
+import { useShallow } from "zustand/react/shallow";
+
 import { Flex, Heading, Label, Switch, Text } from "@phoenix/components";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
@@ -11,10 +13,10 @@ export const LLMEvaluatorForm = () => {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
   }
   const { showPromptPreview, setShowPromptPreview } = useEvaluatorStore(
-    (state) => ({
+    useShallow((state) => ({
       showPromptPreview: state.showPromptPreview,
       setShowPromptPreview: state.setShowPromptPreview,
-    })
+    }))
   );
   return (
     <>

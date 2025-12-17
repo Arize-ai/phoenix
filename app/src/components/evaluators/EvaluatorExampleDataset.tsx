@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@phoenix/components";
@@ -16,20 +17,22 @@ export const EvaluatorExampleDataset = () => {
     setSelectedSplitIds,
     setDatasetId,
     datasetSelectIsDisabled,
-  } = useEvaluatorStore((state) => {
-    if (!state.dataset) {
-      throw new Error("Dataset is required to preview the evaluator input");
-    }
-    return {
-      selectedDatasetId: state.dataset.id,
-      selectedSplitIds: state.dataset.selectedSplitIds,
-      selectedExampleId: state.dataset.selectedExampleId,
-      setSelectedExampleId: state.setSelectedExampleId,
-      setSelectedSplitIds: state.setSelectedSplitIds,
-      setDatasetId: state.setDatasetId,
-      datasetSelectIsDisabled: state.dataset.readonly,
-    };
-  });
+  } = useEvaluatorStore(
+    useShallow((state) => {
+      if (!state.dataset) {
+        throw new Error("Dataset is required to preview the evaluator input");
+      }
+      return {
+        selectedDatasetId: state.dataset.id,
+        selectedSplitIds: state.dataset.selectedSplitIds,
+        selectedExampleId: state.dataset.selectedExampleId,
+        setSelectedExampleId: state.setSelectedExampleId,
+        setSelectedSplitIds: state.setSelectedSplitIds,
+        setDatasetId: state.setDatasetId,
+        datasetSelectIsDisabled: state.dataset.readonly,
+      };
+    })
+  );
   const [datasetSelectIsOpen, setDatasetSelectIsOpen] = useState(false);
   return (
     <>

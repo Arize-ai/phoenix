@@ -1,6 +1,7 @@
 import { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@phoenix/components";
@@ -13,7 +14,10 @@ import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/Eval
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
+import {
+  DEFAULT_STORE_VALUES,
+  type EvaluatorStore,
+} from "@phoenix/store/evaluatorStore";
 import {
   ClassificationEvaluatorAnnotationConfig,
   type EvaluatorInputMapping as EvaluatorInputMappingType,
@@ -89,6 +93,11 @@ export const EvaluatorFormProvider = ({
   );
 };
 
+const evaluatorFormSelector = (state: EvaluatorStore) => ({
+  evaluatorKind: state.evaluator.kind,
+  isBuiltin: state.evaluator.isBuiltin,
+});
+
 /**
  * A form for configuring evaluators.
  * Depends on the EvaluatorFormProvider to provide the react-hook-form instance for the evaluator form and new
@@ -105,10 +114,9 @@ export const EvaluatorFormProvider = ({
  * ```
  */
 export const EvaluatorForm = () => {
-  const { evaluatorKind, isBuiltin } = useEvaluatorStore((state) => ({
-    evaluatorKind: state.evaluator.kind,
-    isBuiltin: state.evaluator.isBuiltin,
-  }));
+  const { evaluatorKind, isBuiltin } = useEvaluatorStore(
+    useShallow(evaluatorFormSelector)
+  );
   return (
     <PanelGroup direction="horizontal">
       <Panel defaultSize={65} css={panelCSS} style={panelStyle}>

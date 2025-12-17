@@ -1,6 +1,7 @@
 import { PropsWithChildren, useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import {
@@ -35,10 +36,12 @@ const optimizationDirections = [
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
-  const { outputConfig, includeExplanation } = useEvaluatorStore((state) => ({
-    outputConfig: state.outputConfig,
-    includeExplanation: state.evaluator.includeExplanation,
-  }));
+  const { outputConfig, includeExplanation } = useEvaluatorStore(
+    useShallow((state) => ({
+      outputConfig: state.outputConfig,
+      includeExplanation: state.evaluator.includeExplanation,
+    }))
+  );
   invariant(
     outputConfig,
     "outputConfig is required. Mount EvaluatorLLMChoice within an LLM Evaluator."

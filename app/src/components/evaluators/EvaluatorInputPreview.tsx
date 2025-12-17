@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { debounce } from "lodash";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
@@ -43,18 +44,20 @@ const EvaluatorInputPreviewContent = () => {
     exampleId,
     setSelectedExampleId,
     setPreMappedInput,
-  } = useEvaluatorStore((state) => {
-    if (!state.dataset) {
-      throw new Error("Dataset is required to preview the evaluator input");
-    }
-    return {
-      datasetId: state.dataset.id,
-      splitIds: state.dataset.selectedSplitIds,
-      exampleId: state.dataset.selectedExampleId,
-      setSelectedExampleId: state.setSelectedExampleId,
-      setPreMappedInput: state.setPreMappedInput,
-    };
-  });
+  } = useEvaluatorStore(
+    useShallow((state) => {
+      if (!state.dataset) {
+        throw new Error("Dataset is required to preview the evaluator input");
+      }
+      return {
+        datasetId: state.dataset.id,
+        splitIds: state.dataset.selectedSplitIds,
+        exampleId: state.dataset.selectedExampleId,
+        setSelectedExampleId: state.setSelectedExampleId,
+        setPreMappedInput: state.setPreMappedInput,
+      };
+    })
+  );
   const data = useLazyLoadQuery<EvaluatorInputPreviewContentQuery>(
     graphql`
       query EvaluatorInputPreviewContentQuery(
