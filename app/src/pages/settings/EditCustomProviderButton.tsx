@@ -32,6 +32,7 @@ import { EditCustomProviderButtonPatchMutation } from "./__generated__/EditCusto
 import { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
 import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
+  createDefaultFormData,
   transformConfigToFormValues,
   transformToPatchInput,
 } from "./customProviderFormUtils";
@@ -178,7 +179,16 @@ function EditCustomProviderDialogContent({
     (formData: ProviderFormData) => {
       if (!providerData) return;
 
-      const originalValues = transformConfigToFormValues(providerData);
+      // When config has a parse error, use default form values as the baseline
+      // so that transformToPatchInput will include all the new config fields
+      const originalValues = providerData.config?.parseError
+        ? {
+            ...createDefaultFormData(providerData.sdk),
+            name: providerData.name,
+            description: providerData.description || "",
+            provider: providerData.provider,
+          }
+        : transformConfigToFormValues(providerData);
       const input = transformToPatchInput(
         formData,
         providerData.id,
@@ -224,28 +234,36 @@ function EditCustomProviderDialogContent({
   }
 
   // Check if config has a parse error (corrupted/invalid config)
-  if (providerData.config?.parseError) {
-    return (
-      <View padding="size-200">
-        <Alert variant="danger">
-          This provider&apos;s configuration could not be parsed and cannot be
-          edited. Please delete this provider and create a new one.
-          {providerData.config.parseError && (
-            <div style={{ marginTop: 8, fontSize: "0.875em" }}>
-              Error: {providerData.config.parseError}
-            </div>
-          )}
-        </Alert>
-      </View>
-    );
-  }
+  // In this case, show a blank form with default values for the SDK type
+  const hasParseError = Boolean(providerData.config?.parseError);
+  const initialValues = hasParseError
+    ? {
+        ...createDefaultFormData(providerData.sdk),
+        name: providerData.name,
+        description: providerData.description || "",
+        provider: providerData.provider,
+      }
+    : transformConfigToFormValues(providerData);
 
   return (
     <View padding="size-200">
+      {hasParseError && (
+        <View paddingBottom="size-200">
+          <Alert variant="warning">
+            This provider&apos;s configuration could not be parsed. Please enter
+            a new configuration below.
+            {providerData.config?.parseError && (
+              <div style={{ marginTop: 8, fontSize: "0.875em" }}>
+                Error: {providerData.config.parseError}
+              </div>
+            )}
+          </Alert>
+        </View>
+      )}
       <ProviderForm
         onSubmit={handleSubmit}
         onCancel={handleCancel}
-        initialValues={transformConfigToFormValues(providerData)}
+        initialValues={initialValues}
         isSubmitting={isCommitting}
         onDirtyChange={setShouldShowConfirmation}
       />
