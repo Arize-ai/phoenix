@@ -476,7 +476,7 @@ class GoogleGenAICustomProviderConfig(BaseModel):
     def get_client(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "genai.client.AsyncClient":
+    ) -> "genai.Client":
         try:
             from google.genai.client import Client
             from google.genai.types import HttpOptions
@@ -513,7 +513,7 @@ class GoogleGenAICustomProviderConfig(BaseModel):
             return Client(
                 api_key=api_key,
                 http_options=http_options,
-            ).aio
+            )
 
 
 GenerativeModelCustomerProviderConfigType = Annotated[

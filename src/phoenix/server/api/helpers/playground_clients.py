@@ -2063,7 +2063,7 @@ async def _get_builtin_provider_client(
         if not api_key:
             raise BadRequest("An API key is required for Google GenAI models")
 
-        google_client = GoogleGenAIClient(api_key=api_key).aio
+        google_client = GoogleGenAIClient(api_key=api_key)
         return GoogleStreamingClient(
             client=google_client,
             model_name=model_name,
