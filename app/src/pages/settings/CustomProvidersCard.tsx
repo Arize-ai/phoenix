@@ -18,6 +18,7 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
+  TriggerWrap,
 } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
@@ -142,14 +143,16 @@ function NameCell({
     <Flex direction="row" gap="size-50" alignItems="center">
       <span>{name}</span>
       <TooltipTrigger>
-        <Icon
-          svg={<Icons.AlertTriangleOutline />}
-          color="warning"
-          aria-label="Configuration error"
-        />
+        <TriggerWrap>
+          <Icon
+            svg={<Icons.AlertTriangleOutline />}
+            color="warning"
+            aria-label="Configuration error"
+          />
+        </TriggerWrap>
         <Tooltip>
-          This provider&apos;s configuration could not be parsed and cannot be
-          edited.
+          This provider&apos;s configuration could not be parsed. Use edit to
+          enter a new configuration.
         </Tooltip>
       </TooltipTrigger>
     </Flex>
