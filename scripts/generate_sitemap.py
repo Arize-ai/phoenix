@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""
+Generate sitemap.xml files from docs.json navigation structure.
+
+This script parses docs.json and extracts all page URLs to create a standard
+sitemap.xml file. The sitemap is written to both the repository root and
+docs/phoenix/ directories.
+"""
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from xml.etree import ElementTree as ET
+
+
+def extract_pages(item: Any) -> list[str]:
+    """
+    Recursively extract page paths from the docs.json navigation structure.
+
+    Pages can be:
+    - A string (direct page path)
+    - An object with "group" and "pages" keys (nested group)
+    - An object with "tab" and "groups" keys (tab containing groups)
+    """
+    pages: list[str] = []
+
+    if isinstance(item, str):
+        # Direct page path
+        pages.append(item)
+    elif isinstance(item, dict):
+        # Check for nested pages
+        if "pages" in item:
+            for page in item["pages"]:
+                pages.extend(extract_pages(page))
+        # Check for groups (in tabs)
+        if "groups" in item:
+            for group in item["groups"]:
+                pages.extend(extract_pages(group))
+        # Check for tabs (in languages)
+        if "tabs" in item:
+            for tab in item["tabs"]:
+                pages.extend(extract_pages(tab))
+    elif isinstance(item, list):
+        for sub_item in item:
+            pages.extend(extract_pages(sub_item))
+
+    return pages
+
+
+def indent_xml(elem: ET.Element, level: int = 0) -> None:
+    """
+    Add indentation to XML elements for pretty printing.
+    """
+    indent = "\n" + "  " * level
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = indent + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = indent
+        for child in elem:
+            indent_xml(child, level + 1)
+        if not child.tail or not child.tail.strip():
+            child.tail = indent
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = indent
+
+
+def generate_sitemap_xml(urls: list[str], base_url: str = "https://arize.com") -> str:
+    """
+    Generate a standard sitemap.xml string from a list of URL paths.
+    """
+    # Create the root element with proper namespace
+    urlset = ET.Element("urlset")
+    urlset.set("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9")
+
+    # Get current date for lastmod
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Add each URL
+    for path in urls:
+        url_element = ET.SubElement(urlset, "url")
+
+        # Create the full URL - paths already include "docs/phoenix" prefix
+        full_url = f"{base_url}/{path}"
+        loc = ET.SubElement(url_element, "loc")
+        loc.text = full_url
+
+        lastmod = ET.SubElement(url_element, "lastmod")
+        lastmod.text = today
+
+    # Pretty print the XML
+    indent_xml(urlset)
+
+    # Convert to string with XML declaration
+    xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_body = ET.tostring(urlset, encoding="unicode")
+
+    return xml_declaration + xml_body
+
+
+def main() -> None:
+    # Determine paths
+    script_dir = Path(__file__).parent
+    repo_root = script_dir.parent
+    docs_json_path = repo_root / "docs.json"
+    docs_phoenix_dir = repo_root / "docs" / "phoenix"
+
+    # Read docs.json
+    with open(docs_json_path, encoding="utf-8") as f:
+        docs_config = json.load(f)
+
+    # Extract all pages from navigation
+    navigation = docs_config.get("navigation", {})
+    languages = navigation.get("languages", [])
+
+    all_pages: list[str] = []
+    for language in languages:
+        pages = extract_pages(language)
+        all_pages.extend(pages)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_pages = []
+    for page in all_pages:
+        if page not in seen:
+            seen.add(page)
+            unique_pages.append(page)
+
+    print(f"Found {len(unique_pages)} unique pages")
+
+    # Generate sitemap XML
+    sitemap_xml = generate_sitemap_xml(unique_pages)
+
+    # Write to both locations
+    output_paths = [
+        repo_root / "sitemap.xml",
+        docs_phoenix_dir / "sitemap.xml",
+    ]
+
+    for output_path in output_paths:
+        # Ensure parent directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(sitemap_xml)
+
+        print(f"Wrote sitemap to {output_path}")
+
+
+if __name__ == "__main__":
+    main()
