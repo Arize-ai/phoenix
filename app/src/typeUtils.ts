@@ -90,3 +90,22 @@ export const schemaForType =
   <S extends z.ZodType<T>>(arg: S) => {
     return arg;
   };
+
+/**
+ * A type utility that deeply makes a type partially optional.
+ * @see https://www.totaltypescript.com/tips/use-deep-partials-to-help-with-mocking-an-entity
+ */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+export type DeepPartial<T> = T extends Function
+  ? T
+  : T extends Array<infer InferredArrayMember>
+    ? DeepPartialArray<InferredArrayMember>
+    : T extends object
+      ? DeepPartialObject<T>
+      : T | undefined;
+
+interface DeepPartialArray<T> extends Array<DeepPartial<T>> {}
+
+type DeepPartialObject<T> = {
+  [Key in keyof T]?: DeepPartial<T[Key]>;
+};
