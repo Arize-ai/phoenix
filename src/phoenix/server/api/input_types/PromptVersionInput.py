@@ -132,6 +132,7 @@ class ChatPromptVersionInput:
             response_format=response_format,
             model_provider=ModelProvider(self.model_provider),
             model_name=self.model_name,
+            metadata_={},
         )
 
 

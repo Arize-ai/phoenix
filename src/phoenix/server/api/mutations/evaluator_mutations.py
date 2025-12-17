@@ -88,6 +88,7 @@ class UpdateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
     name: Identifier
     description: Optional[str] = None
+    prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
     output_config: CategoricalAnnotationConfigInput
     input_mapping: Optional[EvaluatorInputMappingInput] = None
@@ -355,18 +356,61 @@ class EvaluatorMutationMixin:
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
 
-            # todo: compare against active prompt version as determined by prompt tag or version
-            # https://github.com/Arize-ai/phoenix/issues/10142
-            active_prompt_version = await session.scalar(
-                select(models.PromptVersion)
-                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
-                .order_by(models.PromptVersion.id.desc())
-                .limit(1)
-            )
-            if active_prompt_version is None:
-                raise NotFound(
-                    f"No prompt versions found for evaluator {input.dataset_evaluator_id}"
+            # Handle prompt_version_id if provided
+            target_prompt_id = llm_evaluator.prompt_id
+            provided_prompt_version_id: Optional[int] = None
+            new_prompt: Optional[models.Prompt] = None
+            if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
+                provided_prompt_version_id = from_global_id_with_expected_type(
+                    global_id=input.prompt_version_id, expected_type_name=PromptVersion.__name__
                 )
+                provided_prompt_version = await session.get(
+                    models.PromptVersion, provided_prompt_version_id
+                )
+                if provided_prompt_version is None:
+                    raise NotFound(f"Prompt version with id {input.prompt_version_id} not found")
+                # If the provided prompt_version points to a different prompt, update the evaluator
+                # to point to the new prompt
+                if provided_prompt_version.prompt_id != llm_evaluator.prompt_id:
+                    target_prompt_id = provided_prompt_version.prompt_id
+                    llm_evaluator.prompt_id = target_prompt_id
+                # Update the prompt_version_tag to point to the provided prompt_version
+                if llm_evaluator.prompt_version_tag_id is not None:
+                    prompt_version_tag = await session.get(
+                        models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
+                    )
+                    if prompt_version_tag is not None:
+                        prompt_version_tag.prompt_id = target_prompt_id
+                        prompt_version_tag.prompt_version_id = provided_prompt_version_id
+                    else:
+                        raise NotFound(
+                            f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id}"
+                            "not found"
+                        )
+
+            # Retrieve the active prompt version for comparison
+            if provided_prompt_version_id is not None:
+                active_prompt_version = await session.get(
+                    models.PromptVersion, provided_prompt_version_id
+                )
+                if active_prompt_version is None:
+                    raise NotFound(f"Prompt version with id {provided_prompt_version_id} not found")
+            else:
+                # No prompt_version_id provided: create new prompt and prompt version
+                prompt_name = IdentifierModel.model_validate(
+                    f"{input.name}-evaluator-{token_hex(4)}"
+                )
+                new_prompt = models.Prompt(
+                    name=prompt_name,
+                    description=input.description or None,
+                    prompt_versions=[prompt_version],
+                )
+                session.add(new_prompt)
+                await session.flush()
+                target_prompt_id = new_prompt.id
+                llm_evaluator.prompt_id = target_prompt_id
+                # Use the newly created prompt_version for comparison (it will always be "new")
+                active_prompt_version = prompt_version
 
             dataset_evaluator.display_name = evaluator_name
             dataset_evaluator.input_mapping = (
@@ -385,12 +429,17 @@ class EvaluatorMutationMixin:
             llm_evaluator.annotation_name = input.output_config.name
             llm_evaluator.updated_at = datetime.now(timezone.utc)
 
-            create_new_prompt_version = not active_prompt_version.has_identical_content(
-                prompt_version
-            )
-            if create_new_prompt_version:
-                prompt_version.prompt_id = llm_evaluator.prompt_id
-                session.add(prompt_version)
+            if new_prompt is not None:
+                # We already created a new prompt above
+                create_new_prompt_version = False
+            else:
+                # Check if prompt contents have changed and create new version if needed
+                create_new_prompt_version = not active_prompt_version.has_identical_content(
+                    prompt_version
+                )
+                if create_new_prompt_version:
+                    prompt_version.prompt_id = target_prompt_id
+                    session.add(prompt_version)
 
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
@@ -402,13 +451,22 @@ class EvaluatorMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("An evaluator with this name already exists")
 
-            # Update prompt_version_tag to point to the new prompt version if one was created
-            if create_new_prompt_version and llm_evaluator.prompt_version_tag_id is not None:
-                prompt_version_tag = await session.get(
-                    models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
-                )
-                if prompt_version_tag is not None:
-                    prompt_version_tag.prompt_version_id = prompt_version.id
+            # Update prompt_version_tag to point to the final prompt version
+            final_prompt_version_id = None
+            if new_prompt is not None or create_new_prompt_version:
+                final_prompt_version_id = prompt_version.id
+            elif provided_prompt_version_id is not None:
+                final_prompt_version_id = provided_prompt_version_id
+
+            if final_prompt_version_id is not None:
+                if llm_evaluator.prompt_version_tag_id is not None:
+                    prompt_version_tag = await session.get(
+                        models.PromptVersionTag, llm_evaluator.prompt_version_tag_id
+                    )
+                    if prompt_version_tag is not None:
+                        prompt_version_tag.prompt_version_id = final_prompt_version_id
+                        # Ensure prompt_id matches
+                        prompt_version_tag.prompt_id = target_prompt_id
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),
