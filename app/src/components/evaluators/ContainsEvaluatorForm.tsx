@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import React, { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
@@ -19,9 +19,11 @@ import {
   CodeLanguageRadioGroup,
 } from "@phoenix/components/code";
 import { CodeBlock } from "@phoenix/components/CodeBlock";
-import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import type { EvaluatorInput } from "@phoenix/components/evaluators/utils";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
 
 const PYTHON_CODE = `
 def contains(
@@ -50,19 +52,40 @@ function contains(
 }
 `.trim();
 
-type ContainsEvaluatorFormProps = {
-  evaluatorInputObject: EvaluatorInput | null;
+const useContainsEvaluatorForm = () => {
+  const store = useEvaluatorStoreInstance();
+  const { pathMapping, literalMapping } = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  const form = useForm({
+    defaultValues: { pathMapping, literalMapping },
+    mode: "onChange",
+  });
+  const subscribe = form.subscribe;
+  useEffect(() => {
+    return subscribe({
+      formState: { isValid: true, values: true },
+      callback({ values: { pathMapping, literalMapping }, isValid }) {
+        if (!isValid) {
+          return;
+        }
+        const { setPathMapping, setLiteralMapping } = store.getState();
+        setPathMapping({ ...pathMapping });
+        setLiteralMapping({ ...literalMapping });
+      },
+    });
+  }, [subscribe, store]);
+  return form;
 };
 
-export const ContainsEvaluatorForm = ({
-  evaluatorInputObject,
-}: ContainsEvaluatorFormProps) => {
-  const { control, getValues } = useFormContext<EvaluatorFormValues>();
+export const ContainsEvaluatorForm = () => {
+  const { control, getValues } = useContainsEvaluatorForm();
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   const [containsTextPath, setContainsTextPath] = useState<string>(
-    () => getValues("inputMapping.pathMapping.text") ?? ""
+    () => getValues("pathMapping.text") ?? ""
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInputObject);
+  const preMappedInput = useEvaluatorStore((state) => state.preMappedInput);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
       <Card
@@ -84,7 +107,7 @@ export const ContainsEvaluatorForm = ({
       </Card>
       <Flex direction="column" gap="size-100">
         <Controller
-          name={`inputMapping.pathMapping.text`}
+          name={`pathMapping.text`}
           control={control}
           render={({ field }) => (
             <ComboBox
@@ -123,7 +146,7 @@ export const ContainsEvaluatorForm = ({
         />
         <Controller
           control={control}
-          name="inputMapping.literalMapping.words"
+          name="literalMapping.words"
           render={({ field, fieldState: { error } }) => (
             <TextField
               {...field}
@@ -142,7 +165,7 @@ export const ContainsEvaluatorForm = ({
           )}
         />
         <Controller
-          name="inputMapping.literalMapping.case_sensitive"
+          name="literalMapping.case_sensitive"
           control={control}
           defaultValue={false}
           render={({ field }) => (

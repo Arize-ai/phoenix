@@ -1,32 +1,23 @@
-import { useFormContext } from "react-hook-form";
+import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Heading, Label, Switch, Text } from "@phoenix/components";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
-import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
-import type { EvaluatorInput } from "@phoenix/components/evaluators/utils";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
-/**
- * TODO: move all of these into zustand
- */
-type LLMEvaluatorFormProps = {
-  showPromptPreview: boolean;
-  setShowPromptPreview: (showPromptPreview: boolean) => void;
-  evaluatorInputObject: EvaluatorInput | null;
-};
-
-export const LLMEvaluatorForm = ({
-  showPromptPreview,
-  setShowPromptPreview,
-  evaluatorInputObject,
-}: LLMEvaluatorFormProps) => {
-  const { watch } = useFormContext<EvaluatorFormValues>();
-  const evaluatorKind = watch("evaluator.kind");
+export const LLMEvaluatorForm = () => {
+  const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "LLM") {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
   }
+  const { showPromptPreview, setShowPromptPreview } = useEvaluatorStore(
+    useShallow((state) => ({
+      showPromptPreview: state.showPromptPreview,
+      setShowPromptPreview: state.setShowPromptPreview,
+    }))
+  );
   return (
     <>
       <Flex direction="column" gap="size-100">
@@ -47,7 +38,7 @@ export const LLMEvaluatorForm = ({
       </Flex>
       <Flex direction="column" gap="size-100">
         {showPromptPreview ? (
-          <EvaluatorPromptPreview evaluatorInput={evaluatorInputObject} />
+          <EvaluatorPromptPreview />
         ) : (
           <EvaluatorChatTemplate />
         )}

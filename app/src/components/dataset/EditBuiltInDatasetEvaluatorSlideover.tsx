@@ -1,6 +1,5 @@
 import { Suspense, useMemo, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import { FormProvider, useForm } from "react-hook-form";
 import {
   ConnectionHandler,
   graphql,
@@ -19,11 +18,13 @@ import {
 import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
-import {
-  DEFAULT_CODE_FORM_VALUES,
-  EvaluatorFormValues,
-} from "@phoenix/components/evaluators/EvaluatorForm";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import {
+  DEFAULT_CODE_EVALUATOR_STORE_VALUES,
+  type EvaluatorStoreInstance,
+  type EvaluatorStoreProps,
+} from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditBuiltInDatasetEvaluatorSlideoverProps = {
@@ -150,32 +151,29 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorKind = evaluator.kind;
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
-  const defaultFormValues: EvaluatorFormValues | null = useMemo(() => {
+  const initialState = useMemo(() => {
     if (evaluatorKind === "CODE") {
       return {
-        ...DEFAULT_CODE_FORM_VALUES,
+        ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
           readonly: true,
           id: datasetId,
-          assignEvaluatorToDataset: true,
+          selectedExampleId: null,
+          selectedSplitIds: [],
+        },
+        datasetEvaluator: {
+          id: datasetEvaluatorId,
         },
         evaluator: {
-          ...DEFAULT_CODE_FORM_VALUES.evaluator,
-          name: displayName ?? "",
+          ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
+          name: evaluatorName ?? "",
+          displayName: displayName ?? "",
           description: evaluatorDescription ?? "",
           kind: evaluatorKind,
           isBuiltin: true,
-          builtInEvaluatorName: evaluatorName,
+          inputMapping,
         },
-        inputMapping: inputMapping
-          ? // deep clone the input mapping to ensure relay doesn't mutate the original object
-            // TODO: remove this once we are using zustand
-            structuredClone(inputMapping)
-          : {
-              literalMapping: {},
-              pathMapping: {},
-            },
-      };
+      } satisfies EvaluatorStoreProps;
     }
     return null;
   }, [
@@ -184,41 +182,27 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     evaluatorKind,
     evaluatorName,
     inputMapping,
+    datasetEvaluatorId,
     evaluatorDescription,
   ]);
 
-  if (!defaultFormValues) {
+  if (!initialState) {
     throw new Error(
       `EvaluatorConfigDialogContent: unexpected evaluator kind: ${evaluator?.kind}`
     );
   }
 
-  const form = useForm<EvaluatorFormValues>({
-    mode: "onChange",
-    defaultValues: defaultFormValues,
-  });
-  const {
-    getValues,
-    formState: { isValid: isFormValid },
-  } = form;
-
-  const onAddEvaluator = () => {
-    if (!isFormValid) {
-      return;
-    }
+  const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      inputMapping,
-      evaluator: { name },
-    } = getValues();
+      evaluator: { inputMapping, displayName },
+    } = store.getState();
     updateDatasetBuiltinEvaluator({
       variables: {
         input: {
           datasetEvaluatorId: datasetEvaluatorId,
-          displayName: name,
-          // deep clone the input mapping to ensure relay doesn't mutate the original object
-          // TODO: remove this once we are using zustand
-          inputMapping: structuredClone(inputMapping),
+          displayName,
+          inputMapping,
         },
         connectionIds: [
           datasetEvaluatorsTableConnection,
@@ -241,15 +225,17 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   };
 
   return (
-    <FormProvider {...form}>
-      <EditBuiltInEvaluatorDialogContent
-        onClose={onClose}
-        evaluatorInputSchema={evaluator.inputSchema}
-        onSubmit={onAddEvaluator}
-        isSubmitting={isUpdatingDatasetBuiltinEvaluator}
-        mode="update"
-        error={error}
-      />
-    </FormProvider>
+    <EvaluatorStoreProvider initialState={initialState}>
+      {({ store }) => (
+        <EditBuiltInEvaluatorDialogContent
+          onClose={onClose}
+          evaluatorInputSchema={evaluator.inputSchema}
+          onSubmit={() => onAddEvaluator(store)}
+          isSubmitting={isUpdatingDatasetBuiltinEvaluator}
+          mode="update"
+          error={error}
+        />
+      )}
+    </EvaluatorStoreProvider>
   );
 }

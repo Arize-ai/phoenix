@@ -102,3 +102,14 @@ export type ClassificationEvaluatorAnnotationConfig = {
  * The kind of evaluator
  */
 export type EvaluatorKind = "LLM" | "CODE";
+
+/**
+ * The pre-mapped input to an evaluator
+ *
+ * This object contains all of the context necessary to apply input mapping and run an evaluator.
+ */
+export type EvaluatorPreMappedInput = {
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  expected: Record<string, unknown>;
+};

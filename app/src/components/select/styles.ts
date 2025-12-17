@@ -11,6 +11,7 @@ export const selectCSS = css`
     justify-content: space-between;
     min-width: inherit;
     width: 100%;
+    text-wrap: nowrap;
 
     &[data-pressed],
     &:hover {

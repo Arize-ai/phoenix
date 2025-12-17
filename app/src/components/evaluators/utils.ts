@@ -17,6 +17,7 @@ import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
+  EvaluatorPreMappedInput,
 } from "@phoenix/types";
 
 const createPromptVersionInput = ({
@@ -112,7 +113,7 @@ const createPromptVersionInput = ({
 export const updateLLMEvaluatorPayload = ({
   playgroundStore,
   instanceId,
-  name: rawName,
+  displayName: rawDisplayName,
   description: rawDescription,
   outputConfig,
   datasetId,
@@ -124,26 +125,26 @@ export const updateLLMEvaluatorPayload = ({
   datasetId: string;
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
-  name: string;
+  displayName: string;
   description: string;
   outputConfig: ClassificationEvaluatorAnnotationConfig;
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
-  const name = rawName.trim();
+  const displayName = rawDisplayName.trim();
   const description = rawDescription.trim() || undefined;
 
   const { prunedPromptInput: promptVersion } = createPromptVersionInput({
     playgroundStore,
     instanceId,
-    name,
+    name: displayName,
     description,
     outputConfig,
     includeExplanation,
   });
 
   return {
-    name,
+    name: displayName,
     description,
     datasetEvaluatorId,
     datasetId,
@@ -234,19 +235,13 @@ export type CreateLLMEvaluatorPayload = ReturnType<
   typeof createLLMEvaluatorPayload
 >;
 
-export type EvaluatorInput = {
-  input: Record<string, unknown>;
-  output: Record<string, unknown>;
-  expected: Record<string, unknown>;
-};
-
 export const datasetExampleToEvaluatorInput = ({
   exampleRef,
   taskOutput = {},
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorInput => {
+}): EvaluatorPreMappedInput => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
@@ -300,15 +295,3 @@ export const inferIncludeExplanationFromPrompt = (
     return false;
   }
 };
-
-export const EMPTY_EVALUATOR_INPUT: EvaluatorInput = {
-  input: {},
-  output: {},
-  expected: {},
-};
-
-export const EMPTY_EVALUATOR_INPUT_STRING = JSON.stringify(
-  EMPTY_EVALUATOR_INPUT,
-  null,
-  2
-);

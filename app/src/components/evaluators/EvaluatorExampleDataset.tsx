@@ -1,35 +1,38 @@
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { DatasetExampleSelect } from "@phoenix/components/dataset/DatasetExampleSelect";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
-import { EvaluatorParams } from "@phoenix/types";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
-type EvaluatorExampleDatasetProps = {
-  selectedDatasetId: string | null;
-  onSelectDataset: (datasetId: string | null) => void;
-  selectedSplitIds: string[];
-  onSelectSplits: (splitIds: string[]) => void;
-  selectedExampleId: string | null;
-  onSelectExampleId: (exampleId: string | null) => void;
-  datasetSelectIsDisabled?: boolean;
-  onEvaluatorInputObjectChange: (
-    evaluatorInputObject: EvaluatorParams | null
-  ) => void;
-};
-
-export const EvaluatorExampleDataset = ({
-  selectedDatasetId,
-  onSelectDataset,
-  selectedSplitIds,
-  onSelectSplits,
-  selectedExampleId,
-  onSelectExampleId,
-  datasetSelectIsDisabled,
-  onEvaluatorInputObjectChange,
-}: EvaluatorExampleDatasetProps) => {
+export const EvaluatorExampleDataset = () => {
+  const {
+    selectedDatasetId,
+    selectedSplitIds,
+    selectedExampleId,
+    setSelectedExampleId,
+    setSelectedSplitIds,
+    setDatasetId,
+    datasetSelectIsDisabled,
+  } = useEvaluatorStore(
+    useShallow((state) => {
+      if (!state.dataset) {
+        throw new Error("Dataset is required to preview the evaluator input");
+      }
+      return {
+        selectedDatasetId: state.dataset.id,
+        selectedSplitIds: state.dataset.selectedSplitIds,
+        selectedExampleId: state.dataset.selectedExampleId,
+        setSelectedExampleId: state.setSelectedExampleId,
+        setSelectedSplitIds: state.setSelectedSplitIds,
+        setDatasetId: state.setDatasetId,
+        datasetSelectIsDisabled: state.dataset.readonly,
+      };
+    })
+  );
   const [datasetSelectIsOpen, setDatasetSelectIsOpen] = useState(false);
   return (
     <>
@@ -52,8 +55,8 @@ export const EvaluatorExampleDataset = ({
             shouldFlip
             value={{ datasetId: selectedDatasetId, splitIds: selectedSplitIds }}
             onSelectionChange={({ datasetId, splitIds }) => {
-              onSelectDataset(datasetId);
-              onSelectSplits(splitIds);
+              setDatasetId(datasetId);
+              setSelectedSplitIds(splitIds);
               setDatasetSelectIsOpen(false);
             }}
             hideSplits
@@ -64,7 +67,7 @@ export const EvaluatorExampleDataset = ({
           <DatasetExampleSelect
             datasetId={selectedDatasetId}
             selectedExampleId={selectedExampleId}
-            onSelectExampleId={onSelectExampleId}
+            onSelectExampleId={setSelectedExampleId}
           />
         </div>
       </Flex>
@@ -76,13 +79,7 @@ export const EvaluatorExampleDataset = ({
           context is derived from the connected dataset.
         </Text>
       </Flex>
-      <EvaluatorInputPreview
-        datasetId={selectedDatasetId}
-        splitIds={selectedSplitIds}
-        exampleId={selectedExampleId}
-        onSelectExampleId={onSelectExampleId}
-        setEvaluatorInputObject={onEvaluatorInputObjectChange}
-      />
+      <EvaluatorInputPreview />
     </>
   );
 };
