@@ -194,11 +194,11 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
-        template_formatter = get_template_formatter(self.template_format)
+        template_formatter = get_template_formatter(self._template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
         ] = []
-        for msg in self.template.messages:
+        for msg in self._template.messages:
             role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
             if isinstance(msg.content, str):
                 formatted_content = template_formatter.format(msg.content, **template_variables)
@@ -235,7 +235,7 @@ class LLMEvaluator:
             error_message = str(e)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.annotation_name,
+                name=self._annotation_name,
                 annotator_kind="LLM",
                 label=None,
                 score=None,
@@ -253,13 +253,13 @@ class LLMEvaluator:
         args = json.loads(tool_call["arguments"])
         label = args["label"]
         scores_by_label = {
-            config_value.label: config_value.score for config_value in self.output_config.values
+            config_value.label: config_value.score for config_value in self._output_config.values
         }
         score = scores_by_label.get(label)
         explanation = args.get("explanation")
 
         return EvaluationResult(
-            name=self.annotation_name,
+            name=self._annotation_name,
             annotator_kind="LLM",
             label=label,
             score=score,
