@@ -96,16 +96,16 @@ export const schemaForType =
  * @see https://www.totaltypescript.com/tips/use-deep-partials-to-help-with-mocking-an-entity
  */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-export type DeepPartial<Thing> = Thing extends Function
-  ? Thing
-  : Thing extends Array<infer InferredArrayMember>
+export type DeepPartial<T> = T extends Function
+  ? T
+  : T extends Array<infer InferredArrayMember>
     ? DeepPartialArray<InferredArrayMember>
-    : Thing extends object
-      ? DeepPartialObject<Thing>
-      : Thing | undefined;
+    : T extends object
+      ? DeepPartialObject<T>
+      : T | undefined;
 
-interface DeepPartialArray<Thing> extends Array<DeepPartial<Thing>> {}
+interface DeepPartialArray<T> extends Array<DeepPartial<T>> {}
 
-type DeepPartialObject<Thing> = {
-  [Key in keyof Thing]?: DeepPartial<Thing[Key]>;
+type DeepPartialObject<T> = {
+  [Key in keyof T]?: DeepPartial<T[Key]>;
 };
