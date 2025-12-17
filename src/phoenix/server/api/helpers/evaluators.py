@@ -12,6 +12,7 @@ from typing_extensions import Self, assert_never
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.server.api.helpers.prompts.models import (
+    PromptResponseFormat,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolFunction,
@@ -22,24 +23,11 @@ from phoenix.server.api.helpers.prompts.models import (
 def validate_evaluator_prompt_and_config(
     *,
     prompt_tools: Optional[PromptTools],
-    prompt_response_format: object,
+    prompt_response_format: Optional[PromptResponseFormat],
     evaluator_annotation_name: str,
     evaluator_output_config: CategoricalAnnotationConfig,
     evaluator_description: Optional[str] = None,
 ) -> None:
-    """
-    Validates that the prompt configuration and evaluator configuration are consistent.
-
-    This function validates using concrete values rather than ORM instances,
-    enabling validation of evaluators that may not be persisted to the database.
-
-    Args:
-        tools: The prompt tools configuration
-        response_format: The response format (must be None for evaluators)
-        annotation_name: The evaluator annotation name
-        output_config: The evaluator output configuration
-        description: Optional evaluator description
-    """
     if prompt_response_format is not None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED)
     if prompt_tools is None:
