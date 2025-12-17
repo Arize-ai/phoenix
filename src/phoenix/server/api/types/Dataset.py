@@ -460,6 +460,17 @@ class Dataset(Node):
             for label in await info.context.data_loaders.dataset_labels.load(self.id)
         ]
 
+    @strawberry.field(description="Number of evaluators associated with this dataset.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(count(models.DatasetEvaluators.id)).where(
+            models.DatasetEvaluators.dataset_id == self.id
+        )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
+
     @strawberry.field
     async def dataset_evaluator(
         self, info: Info[Context, None], dataset_evaluator_id: GlobalID
