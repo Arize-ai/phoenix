@@ -18,7 +18,7 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
-import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import type { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
@@ -49,10 +49,6 @@ import {
   DatasetsPage,
   datasetVersionsLoader,
   DatasetVersionsPage,
-  dimensionLoader,
-  DimensionPage,
-  embeddingLoader,
-  EmbeddingPage,
   ErrorElement,
   ExamplePage,
   examplesLoader,
@@ -63,8 +59,6 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
-  ModelInferencesPage,
-  ModelRoot,
   PlaygroundPage,
   ProfilePage,
   ProjectIndexPage,
@@ -130,32 +124,53 @@ const router = createBrowserRouter(
           <Route index loader={homeLoader} />
           <Route
             path="/model"
-            handle={{ crumb: () => "model" }}
-            element={<ModelRoot />}
+            lazy={() =>
+              import("./pages/ModelRoot").then((module) => ({
+                handle: { crumb: () => "model" },
+                element: <module.ModelRoot />,
+              }))
+            }
           >
-            <Route index element={<ModelInferencesPage />} />
-            <Route element={<ModelInferencesPage />}>
+            <Route
+              index
+              lazy={() =>
+                import("./pages/model/ModelInferencesPage").then((module) => ({
+                  element: <module.ModelInferencesPage />,
+                }))
+              }
+            />
+            <Route
+              lazy={() =>
+                import("./pages/model/ModelInferencesPage").then((module) => ({
+                  element: <module.ModelInferencesPage />,
+                }))
+              }
+            >
               <Route path="dimensions">
                 <Route
                   path=":dimensionId"
-                  element={<DimensionPage />}
-                  loader={dimensionLoader}
+                  lazy={() =>
+                    import("./pages/dimension").then((module) => ({
+                      element: <module.DimensionPage />,
+                      loader: module.dimensionLoader,
+                    }))
+                  }
                 />
               </Route>
             </Route>
             <Route path="embeddings">
               <Route
                 path=":embeddingDimensionId"
-                element={<EmbeddingPage />}
-                loader={embeddingLoader}
-                handle={{
-                  // `crumb` is your own abstraction, we decided
-                  // to make this one a function so we can pass
-                  // the data from the loader to it so that our
-                  // breadcrumb is made up of dynamic content
-                  crumb: (data: embeddingLoaderQuery$data) =>
-                    data.embedding.name,
-                }}
+                lazy={() =>
+                  import("./pages/embedding").then((module) => ({
+                    element: <module.EmbeddingPage />,
+                    loader: module.embeddingLoader,
+                    handle: {
+                      crumb: (data: embeddingLoaderQuery$data) =>
+                        data.embedding.name,
+                    },
+                  }))
+                }
               />
             </Route>
           </Route>

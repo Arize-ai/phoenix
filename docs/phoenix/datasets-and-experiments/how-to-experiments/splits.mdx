@@ -102,7 +102,7 @@ To run an experiment over the "train" split, we can select the dataset by the tr
 </Tabs>
 
 </Tab>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 Splits are implicitly configured when a dataset is pulled from the Phoenix server using the `get_dataset` client method. Subsequent invocations of `run_experiment` only run on the examples belonging to the split(s).
 
 ```python
@@ -127,7 +127,7 @@ experiment = client.experiments.run_experiment(
 ```
 </Tab>
 
-<Tab title="TypeScript">
+<Tab title="TypeScript" icon="js">
 Splits can be configured within a DatasetSelector, when fetching datasets. Dataset examples contained within the selected splits will be used in experiment runs, or evaluations.
 
 ```typescript

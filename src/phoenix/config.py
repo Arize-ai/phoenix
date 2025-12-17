@@ -78,6 +78,18 @@ ENV_PHOENIX_FULLSTORY_ORG = "PHOENIX_FULLSTORY_ORG"
 The FullStory organization ID for web analytics tracking. When set, FullStory tracking
 will be enabled in the Phoenix web interface.
 """
+ENV_PHOENIX_SCARF_SH_PIXEL_ID = "PHOENIX_SCARF_SH_PIXEL_ID"
+"""
+The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
+will be enabled in the Phoenix web interface.
+Note: This will automatically be enabled in the future but it will always be possible to disable.
+"""
+ENV_PHOENIX_TELEMETRY_ENABLED = "PHOENIX_TELEMETRY_ENABLED"
+"""
+Master toggle for telemetry pixels (FullStory and Scarf.sh).
+When set to False, disables both FullStory and Scarf.sh tracking regardless of their
+individual environment variable settings. Defaults to True.
+"""
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
 Allows calls to external resources, like Google Fonts in the web interface
@@ -368,23 +380,24 @@ Example: "(&(objectClass=user)(sAMAccountName=%s))"
 """
 ENV_PHOENIX_LDAP_ATTR_EMAIL = "PHOENIX_LDAP_ATTR_EMAIL"
 """
-LDAP attribute containing user's email address. Defaults to "mail".
+LDAP attribute containing user's email address. Required.
 
-Set to an empty value (PHOENIX_LDAP_ATTR_EMAIL=) to enable authentication without email
-for directories that don't populate the mail attribute. When empty:
+Set to the attribute name (e.g., "mail") if your LDAP directory has email addresses.
+The attribute must be present in LDAP or login fails.
+
+Set to "null" if your LDAP directory does not have email addresses. When set to "null":
   - PHOENIX_LDAP_ATTR_UNIQUE_ID is required (users are identified by unique_id instead)
   - PHOENIX_LDAP_ALLOW_SIGN_UP must be true (users are auto-provisioned on first login)
   - PHOENIX_ADMINS is not supported (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS instead)
   - Users will appear in Phoenix without email addresses
 
-When configured (non-empty), the attribute must be present in LDAP or login fails.
 https://www.rfc-editor.org/rfc/rfc2798#section-9.1.3
 """
 ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID = "PHOENIX_LDAP_ATTR_UNIQUE_ID"
 """
 LDAP attribute containing an immutable unique identifier.
 
-REQUIRED when PHOENIX_LDAP_ATTR_EMAIL is empty (users are identified by this ID
+REQUIRED when PHOENIX_LDAP_ATTR_EMAIL is "null" (users are identified by this ID
 instead of email).
 
 Also recommended if you expect user emails to change (company rebranding, M&A,
@@ -525,7 +538,7 @@ Set to "false" to require pre-provisioned users (created via PHOENIX_ADMINS
 env var or the application's user management UI before first login).
 Pre-provisioned users are matched by email on first LDAP login.
 
-MUST be "true" when PHOENIX_LDAP_ATTR_EMAIL is empty, since pre-provisioning
+MUST be "true" when PHOENIX_LDAP_ATTR_EMAIL is "null", since pre-provisioning
 by email is not possible without email addresses in LDAP.
 """
 
@@ -550,7 +563,7 @@ Notes:
   modified, e.g., changed from non-admin to admin.
 - Changing this environment variable for the next startup will not undo any records created in
   previous startups.
-- NOT supported when PHOENIX_LDAP_ATTR_EMAIL is empty (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+- NOT supported when PHOENIX_LDAP_ATTR_EMAIL is "null" (use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
   to assign admin roles instead when LDAP doesn't have email addresses).
 """
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
@@ -1611,10 +1624,10 @@ class LDAPConfig:
                 389 DS:   "(&(objectClass=person)(uid=%s))"
 
     Attribute Mapping (RFC 2256, RFC 4524):
-        attr_email: Email attribute name (default: "mail", can be empty)
-            - If set: MUST be present in LDAP or login fails
-            - If empty (PHOENIX_LDAP_ATTR_EMAIL=): generates null email marker
-              from unique_id (requires attr_unique_id to be set)
+        attr_email: Email attribute name (required, e.g., "mail" or "null")
+            - If set to attribute name: MUST be present in LDAP or login fails
+            - If "null": generates null email marker from unique_id
+              (requires attr_unique_id to be set)
         attr_display_name: Display name attribute (default: "displayName")
             - Fallback: Uses email prefix if missing
         attr_member_of: Group membership attribute (default: "memberOf")
@@ -1995,22 +2008,19 @@ class LDAPConfig:
 
         # Parse attribute names
         # attr_email behavior:
-        #   - Not set at all → "mail" (backwards compatibility)
+        #   - Not set at all → "mail" (backwards compatibility, with deprecation warning)
+        #   - "null" sentinel → None (null email marker mode, platform-safe)
         #   - Explicitly empty (PHOENIX_LDAP_ATTR_EMAIL=) → None (null email marker mode)
         #   - Set to value → use that value
         attr_email_raw = getenv(ENV_PHOENIX_LDAP_ATTR_EMAIL)
         if attr_email_raw is None:
             logger.warning(
-                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is not set. "
-                f"Defaulting to 'mail' for backwards compatibility, "
-                f"but this behavior will be removed in a future version. "
-                f"Please set {ENV_PHOENIX_LDAP_ATTR_EMAIL} explicitly: "
-                f"use 'mail' (or your LDAP email attribute) if email is available, "
-                f"or use '' (empty string) if email is not available in your LDAP directory."
+                f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is not set and will be required in the next "
+                f"major version. Set to 'mail' if your LDAP has email, or 'null' if not."
             )
             attr_email: str | None = "mail"  # Default for backwards compatibility
-        elif attr_email_raw == "":
-            attr_email = None  # Explicitly empty → null email marker mode
+        elif attr_email_raw == "" or attr_email_raw.lower() == "null":
+            attr_email = None  # Empty or "null" sentinel → null email marker mode
         else:
             attr_email = attr_email_raw
         attr_display_name = (
@@ -2019,27 +2029,27 @@ class LDAPConfig:
         attr_unique_id = getenv(ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID, "").strip() or None
 
         # Validate null email marker mode constraints
-        # When attr_email is empty, we generate markers from unique_id instead
+        # When attr_email is "null", we generate markers from unique_id instead
         if not attr_email:
             # Constraint 1: unique_id is required for user lookup and marker generation
             if not attr_unique_id:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_ATTR_UNIQUE_ID} is required when "
-                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is 'null'. "
                     f"Without email, unique_id is needed to identify returning users."
                 )
             # Constraint 2: allow_sign_up must be True (can't pre-provision without unique_id)
             if not allow_sign_up:
                 raise ValueError(
                     f"{ENV_PHOENIX_LDAP_ALLOW_SIGN_UP} must be True when "
-                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
+                    f"{ENV_PHOENIX_LDAP_ATTR_EMAIL} is 'null'. "
                     f"Null email markers require auto-provisioning on first login."
                 )
             # Constraint 3: PHOENIX_ADMINS is not supported (can't compute marker without unique_id)
             if get_env_admins():
                 raise ValueError(
-                    f"PHOENIX_ADMINS is not supported when {ENV_PHOENIX_LDAP_ATTR_EMAIL} is empty. "
-                    f"Users are auto-provisioned on first login with roles from LDAP group mapping."
+                    f"PHOENIX_ADMINS is not supported when {ENV_PHOENIX_LDAP_ATTR_EMAIL} "
+                    f"is 'null'. Use PHOENIX_LDAP_GROUP_ROLE_MAPPINGS to assign roles."
                 )
 
         # Validate attribute names don't contain spaces
@@ -3019,14 +3029,46 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     return allowed_origins.split(",")
 
 
+def get_env_telemetry_enabled() -> bool:
+    """
+    Gets whether telemetry is enabled from the PHOENIX_TELEMETRY_ENABLED environment variable.
+
+    When set to False, disables both FullStory and Scarf.sh tracking regardless of their
+    individual environment variable settings.
+
+    Returns False if external resources are disallowed.
+
+    Returns:
+        bool: True if telemetry is enabled (default), False otherwise.
+    """
+    if not get_env_allow_external_resources():
+        return False
+    return _bool_val(ENV_PHOENIX_TELEMETRY_ENABLED, True)
+
+
 def get_env_fullstory_org() -> Optional[str]:
     """
     Get the FullStory organization ID from environment variables.
 
     Returns:
-        Optional[str]: The FullStory organization ID if set, None otherwise.
+        Optional[str]: The FullStory organization ID if set and telemetry is enabled,
+        None otherwise.
     """
+    if not get_env_telemetry_enabled():
+        return None
     return getenv(ENV_PHOENIX_FULLSTORY_ORG)
+
+
+def get_env_scarf_sh_pixel_id() -> Optional[str]:
+    """
+    Get the Scarf.sh pixel ID from environment variables.
+
+    Returns:
+        Optional[str]: The Scarf.sh pixel ID if set and telemetry is enabled, None otherwise.
+    """
+    if not get_env_telemetry_enabled():
+        return None
+    return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID)
 
 
 def get_env_management_url() -> Optional[str]:

@@ -6,7 +6,7 @@ sidebarTitle: "Overview"
 LLM Evaluators require an LLM in order to score an evaluation input. Phoenix evals are provider agnostic and work with virtually any foundation model.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     Given the wide range of providers and SDKs, `arize-phoenix-evals` provides an `LLM` abstraction that delegates LLM calls to an appropriate SDK/API that is already available in your Python environment. The configuration arguments of the SDK client and LLM call invocation parameters will be the same as the target SDK so you won't have to learn another API.
 
     To see the currently supported LLM providers, use the `show_provider_availability` function.
@@ -38,7 +38,7 @@ LLM Evaluators require an LLM in order to score an evaluation input. Phoenix eva
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     The TypeScript evaluation library `@arizeai/phoenix-evals` uses the [AI SDK](https://sdk.vercel.ai/docs) model abstraction. This allows you to use any model provider supported by the AI SDK ecosystem. Model providers are installed separately, giving you flexibility to use only the providers you need.
 
     ### Installation
@@ -76,7 +76,7 @@ LLM Evaluators require an LLM in order to score an evaluation input. Phoenix eva
 # Client Configuration
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     The `LLM` wrappers can be configured the same way you'd configure the underlying client SDK. For example, when using the OpenAI Python Client:
 
     ```python
@@ -100,7 +100,7 @@ LLM Evaluators require an LLM in order to score an evaluation input. Phoenix eva
     ```
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     Model providers can be configured with custom settings:
 
     ```typescript
@@ -129,11 +129,11 @@ LLM Evaluators require an LLM in order to score an evaluation input. Phoenix eva
 # Unified Interface
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     The `LLM` wrapper provides a unified interface to common LLM operations: generating text and structured outputs. For more information, refer to the [API Documentation](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llm).
   </Tab>
 
-  <Tab title="TypeScript">
+  <Tab title="TypeScript" icon="js">
     The AI SDK provides a unified interface for text generation and structured outputs across all providers. Models are passed directly to evaluators:
 
     ```typescript

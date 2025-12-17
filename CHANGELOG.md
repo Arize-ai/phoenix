@@ -1,5 +1,54 @@
 # Changelog
 
+## [12.25.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.25.0...arize-phoenix-v12.25.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10625](https://github.com/Arize-ai/phoenix/issues/10625)) ([7e227e6](https://github.com/Arize-ai/phoenix/commit/7e227e6f470d600b0d1cc600867616f7f1889a44))
+* update `reasoning_effort` options for openai ([#10620](https://github.com/Arize-ai/phoenix/issues/10620)) ([5132ce4](https://github.com/Arize-ai/phoenix/commit/5132ce4743d2e9aa0dd509b1c277f1eb800345aa))
+
+
+### Documentation
+
+* a lot of cleanup ([#10590](https://github.com/Arize-ai/phoenix/issues/10590)) ([59ff2f0](https://github.com/Arize-ai/phoenix/commit/59ff2f09e065d25dc764a149402068082d894b95))
+* SDK overviews ([#10612](https://github.com/Arize-ai/phoenix/issues/10612)) ([eb1602b](https://github.com/Arize-ai/phoenix/commit/eb1602bdab63f4b602fc244f8c294d04a3eb5b44))
+* Tracing narrative docs ([#10607](https://github.com/Arize-ai/phoenix/issues/10607)) ([ef84670](https://github.com/Arize-ai/phoenix/commit/ef846703d941a2675c7765c32b130d329019dd2a))
+
+## [12.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.24.0...arize-phoenix-v12.25.0) (2025-12-12)
+
+
+### Features
+
+* Lazy load embeddings/dimension features ([#10583](https://github.com/Arize-ai/phoenix/issues/10583)) ([b29cac8](https://github.com/Arize-ai/phoenix/commit/b29cac8c39989484fca0727708560d0aa0d78dd6))
+* **ldap:** use `null` as sentinel value for `PHOENIX_LDAP_ATTR_EMAIL` ([#10560](https://github.com/Arize-ai/phoenix/issues/10560)) ([2e121cd](https://github.com/Arize-ai/phoenix/commit/2e121cdbc5b5df0dad6807f60369c99679b8333e))
+* support gemini tool calls ([#10358](https://github.com/Arize-ai/phoenix/issues/10358)) ([db5f9e6](https://github.com/Arize-ai/phoenix/commit/db5f9e669cd02a57a860fe9f786ba2109dd02fe6))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.27.0 ([#10569](https://github.com/Arize-ai/phoenix/issues/10569)) ([6ddcd9e](https://github.com/Arize-ai/phoenix/commit/6ddcd9ed16c6df7e944c2c2bdfecdf29445d71f8))
+* **deps:** update arize-phoenix-evals to 2.7.1 ([#10581](https://github.com/Arize-ai/phoenix/issues/10581)) ([bf77f69](https://github.com/Arize-ai/phoenix/commit/bf77f69f053dd1796179452e7452eb5d2aab7b1e))
+
+
+### Documentation
+
+* add icons and missing integrations ([#10582](https://github.com/Arize-ai/phoenix/issues/10582)) ([c6d6cf3](https://github.com/Arize-ai/phoenix/commit/c6d6cf3b371928626cf6c33a23296a1ac33c05cd))
+* rest api updates ([#10580](https://github.com/Arize-ai/phoenix/issues/10580)) ([ce7c1b2](https://github.com/Arize-ai/phoenix/commit/ce7c1b250b080a521d9717a17d9766f81e015b5d))
+
+## [12.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.23.0...arize-phoenix-v12.24.0) (2025-12-11)
+
+
+### Features
+
+* optional scarf analytics ([#10563](https://github.com/Arize-ai/phoenix/issues/10563)) ([e5bd1ae](https://github.com/Arize-ai/phoenix/commit/e5bd1ae53909c76f4e9e0a3fcdd186eb4a3d74f1))
+* readme analytics ([#10564](https://github.com/Arize-ai/phoenix/issues/10564)) ([697fca8](https://github.com/Arize-ai/phoenix/commit/697fca89a12b25bc5cb9f2b37b8660253af88dca))
+
+
+### Documentation
+
+* reorganize sidebar navigation with Quick Start section ([#10561](https://github.com/Arize-ai/phoenix/issues/10561)) ([e4083c1](https://github.com/Arize-ai/phoenix/commit/e4083c115640091911bf09e8cf024d0f93eba0da))
+
 ## [12.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.22.0...arize-phoenix-v12.23.0) (2025-12-10)
 
 

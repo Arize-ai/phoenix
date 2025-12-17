@@ -16,7 +16,7 @@ Different evaluators require different keyword arguments to operate. These argum
 Let's say our example looks like this, where the inputs and outputs contain nested values:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 eval_input = {
 	"input": {
@@ -29,7 +29,7 @@ eval_input = {
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 type EvalInput = {
   input: {
@@ -64,7 +64,7 @@ Binding an `input_mapping` enables the evaluators to run on the same payload - t
 
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 # define an input_mapping to map inputs required by hallucination evaluator to our data
 input_mapping = {
@@ -79,7 +79,7 @@ result = hallucination_evaluator.evaluate(eval_input, input_mapping)
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
@@ -129,7 +129,7 @@ The `input_mapping` parameter accepts several types of mappings:
 #### Path Mapping Examples
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 # Nested dictionary access
 input_mapping = {
@@ -151,7 +151,7 @@ input_mapping = {
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 // Nested dictionary access
 const inputMapping = {
@@ -179,7 +179,7 @@ const inputMapping = {
 For complex transformations, use callable functions that accept an `eval_input` payload:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 # Callable example
 def extract_context(eval_input):
@@ -200,7 +200,7 @@ input_mapping = {
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 type EvalInput = {
   input: {
@@ -259,7 +259,7 @@ Most evaluators automatically infer schemas if not provided at instantiation.
 LLM evaluators infer schemas from prompt templates:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 # This creates a schema with required str fields: query, context, response
 evaluator = LLMEvaluator(
@@ -270,7 +270,7 @@ evaluator = LLMEvaluator(
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
@@ -311,7 +311,7 @@ const myCustomEvaluator = createClassificationEvaluator<MyEvalInput>({
 Decorated function evaluators infer schemas from the function signature:
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 ```python
 @create_evaluator(name="exact_match")
 def exact_match(output: str, expected: str) -> Score:
@@ -326,7 +326,7 @@ def exact_match(output: str, expected: str) -> Score:
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
@@ -375,7 +375,7 @@ const result = await boundExactMatch.evaluate({
 
 
 <Tabs>
-<Tab title="Python">
+<Tab title="Python" icon="python">
 Use `bind_evaluator` or `.bind` to create a pre-configured evaluator with a fixed input mapping. At evaluation time, you only need to provide the `eval_input` and the mapping is handled internally.
 
 ```python
@@ -399,7 +399,7 @@ scores = bound_evaluator({
 ```
 </Tab>
 
-<Tab title="Typescript">
+<Tab title="TypeScript" icon="js">
 ```typescript
 import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";

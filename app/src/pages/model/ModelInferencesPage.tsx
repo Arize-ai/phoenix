@@ -22,7 +22,8 @@ import {
   ModelEmbeddingsTable,
   ModelSchemaTable,
 } from "@phoenix/components/model";
-import { useInferences, useTimeRange } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 
 import { ModelInferencesPageQuery } from "./__generated__/ModelInferencesPageQuery.graphql";
 

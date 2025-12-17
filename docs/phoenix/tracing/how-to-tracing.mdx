@@ -6,100 +6,140 @@ description: Guides on how to use traces
 
 ## Setup Tracing
 
-- Setup Tracing in [Python](/docs/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) or [Typescript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
-- Add Integrations via [Auto Instrumentation](/docs/phoenix/integrations)
-- [Manually Instrument](/docs/phoenix/tracing/how-to-tracing#manual-instrumentation) your application
+Get started sending traces to Phoenix from your application.
 
-## [Customize Traces & Spans](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans)
+<CardGroup cols={2}>
+  <Card title="Setup Tracing" icon="telescope" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Configure tracing for Python and TypeScript applications
+  </Card>
+  <Card title="Auto Instrumentation" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Automatically capture traces from popular frameworks and LLM providers
+  </Card>
+  <Card title="Setup Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+    Organize traces into projects for different applications
+  </Card>
+  <Card title="Setup Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+    Group related traces into sessions for conversation tracking
+  </Card>
+</CardGroup>
 
-How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
+---
 
-<Columns cols={2}>
-<Card title="How to track sessions" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions" icon="angles-right" horizontal/>
-<Card title="How to create custom spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans" icon="angles-right" horizontal/>
-<Card title="Setting metadata" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_metadata" icon="angles-right" horizontal/>
-<Card title="Setting tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-tags" icon="angles-right" horizontal/>
-<Card title="Setting a user" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_user" icon="angles-right" horizontal/>
-<Card title="Setting prompt template attributes" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#specifying-the-prompt-template" icon="angles-right" horizontal/>
-<Card title="How to read attributes from context" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans#using_attributes" icon="angles-right" horizontal/>
-<Card title="Masking attributes on spans" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="angles-right" horizontal/>
-</Columns>
+## Customize Traces & Spans
 
-## [Auto Instrumentation](/docs/phoenix/integrations)
+Add metadata, tags, and custom attributes to your traces for better organization and filtering.
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](/docs/phoenix/tracing/how-to-tracing#instrument:-python-using-openinference-helpers) and [JavaScript](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](/docs/phoenix/integrations/platforms/langflow/langflow-tracing) and [LiteLLM proxy](/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing).
+<CardGroup cols={2}>
+  <Card title="Add Metadata, Tags & Users" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
+    Set custom attributes on spans created by auto-instrumentors
+  </Card>
+  <Card title="Prompt Templates" icon="file-code" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables">
+    Track prompt templates and variables in your traces
+  </Card>
+</CardGroup>
 
-# Manual Instrumentation
+---
 
-Create and customize spans for your use-case
+## Manual Instrumentation
 
-### [Instrument: Python using OpenInference Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python)
-<br />
-### [Instrument: Python using Base OTEL](/docs/phoenix/tracing/how-to-tracing#instrument-python-using-base-otel)
+Create and customize spans for full control over your tracing.
 
-<Columns cols={2}>
-<Card title="How to acquire a Tracer" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#acquire-tracer" icon="angles-right" horizontal/>
-<Card title="How to create spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans" icon="angles-right" horizontal/>
-<Card title="How to create nested spans" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-nested-spans" icon="angles-right" horizontal/>
-<Card title="How to create spans with decorators" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#creating-spans-with-decorators" icon="angles-right" horizontal/>
-<Card title="How to get the current span" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#get-the-current-span" icon="angles-right" horizontal/>
-<Card title="How to add attributes to a span" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#add-attributes-to-a-span" icon="angles-right" horizontal/>
-<Card title="How to add semantic attributes" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#add-semantic-attributes" icon="angles-right" horizontal/>
-<Card title="How to add events" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#adding-events" icon="angles-right" horizontal/>
-<Card title="How to set a span's status" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#set-span-status" icon="angles-right" horizontal/>
-<Card title="How to record exceptions" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans#record-exceptions-in-spans" icon="angles-right" horizontal/>
-</Columns>
+<Card title="Using Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+  Use decorators and helpers to easily instrument specific methods in Python
+</Card>
 
-## [Setup Tracing (TS)](/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript)
-<br />
-# [Querying Spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+---
 
-How to query spans to construct DataFrames to use for evaluation
+## Querying Spans
 
-<Columns cols={2}>
-<Card title="How to run a query" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-run-a-query" icon="angles-right" horizontal/>
-<Card title="How to specify a project" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-specify-a-project" icon="angles-right" horizontal/>
-<Card title="How to query for documents" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents" icon="angles-right" horizontal/>
-<Card title="How to apply filters" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#filtering-spans" icon="angles-right" horizontal/>
-<Card title="How to extract attributes" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extracting-span-attributes" icon="angles-right" horizontal/>
-<Card title="How to use data for evaluation" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-use-data-for-evaluation" icon="angles-right" horizontal/>
-<Card title="How to use pre-defined queries" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#predefined-queries" icon="angles-right" horizontal/>
-</Columns>
+Extract span data for analysis, evaluation, or export.
 
-## [Annotate Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations)
+<Card title="Extract Data from Spans" icon="database" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+  Query spans to construct DataFrames for evaluation and analysis
+</Card>
 
 <Columns cols={2}>
-<Card title="Annotating in the UI" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui" icon="angles-right" horizontal/>
-<Card title="Annotating via the Client" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback" icon="angles-right" horizontal/>
+  <Card title="Run a Query" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries" icon="angles-right" horizontal/>
+  <Card title="Specify a Project" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-specify-a-project" icon="angles-right" horizontal/>
+  <Card title="Query for Documents" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents" icon="angles-right" horizontal/>
+  <Card title="Apply Filters" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters" icon="angles-right" horizontal/>
+  <Card title="Extract Attributes" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-extract-attributes" icon="angles-right" horizontal/>
+  <Card title="Use Pre-defined Queries" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#pre-defined-queries" icon="angles-right" horizontal/>
 </Columns>
 
-## [Log Evaluation Results](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+---
 
-How to log evaluation results to annotate traces with evals
+## Annotate Traces
+
+Add feedback, labels, and evaluation results to your traces.
+
+<CardGroup cols={2}>
+  <Card title="Annotating in the UI" icon="browser" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui">
+    Manually annotate traces through the Phoenix interface
+  </Card>
+  <Card title="Annotating via Code" icon="code" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback">
+    Programmatically log annotations using the Phoenix client
+  </Card>
+  <Card title="Log Evaluation Results" icon="chart-simple" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations">
+    Attach LLM evaluation scores to spans and documents
+  </Card>
+  <Card title="Evaluating Traces" icon="magnifying-glass-chart" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
+    Run evaluations on trace data
+  </Card>
+</CardGroup>
+
+---
+
+## Import & Export Traces
+
+Save, load, and transfer trace data.
+
+<CardGroup cols={2}>
+  <Card title="Export Traces" icon="file-export" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    Export trace data for analysis or backup
+  </Card>
+  <Card title="Import Traces" icon="file-import" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces">
+    Load existing traces into Phoenix
+  </Card>
+  <Card title="Export Annotated Spans" icon="file-arrow-down" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans">
+    Export spans with their annotations
+  </Card>
+</CardGroup>
+
+---
+
+## Cost Tracking
+
+Monitor token usage and costs for your LLM applications.
+
+<Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+  Track token-based costs across your traces
+</Card>
 
 <Columns cols={2}>
-<Card title="How to log span evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#span-evaluations" icon="angles-right" horizontal/>
-<Card title="How to log document evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#document-evaluations" icon="angles-right" horizontal/>
-<Card title="How to specify a project for logging evaluations" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations#specifying-a-project-for-the-evaluations" icon="angles-right" horizontal/>
+  <Card title="Setup Cost Tracking" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#send-token-counts" icon="angles-right" horizontal/>
+  <Card title="Model Pricing" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#model-pricing-configuration" icon="angles-right" horizontal/>
+  <Card title="Viewing Costs" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#viewing-cost-data" icon="angles-right" horizontal/>
+  <Card title="Session & Experiment Costs" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#session-level-costs" icon="angles-right" horizontal/>
 </Columns>
 
+---
 
-## [Save and Load Traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)
+## Advanced
 
-<Columns cols={2}>
-<Card title="Saving Traces" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans" icon="angles-right" horizontal/>
-<Card title="Loading Traces" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces" icon="angles-right" horizontal/>
-</Columns>
+Advanced tracing configuration and techniques.
 
-
-## [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking)
-
-How to track token-based costs for your LLM applications
-
-<Columns cols={2}>
-<Card title="Setting up cost tracking" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#send-token-counts" icon="angles-right" horizontal/>
-<Card title="Model pricing configuration" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#model-pricing-configuration" icon="angles-right" horizontal/>
-<Card title="Viewing cost data" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#viewing-cost-data" icon="angles-right" horizontal/>
-<Card title="Session and experiment costs" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking#session-level-costs" icon="angles-right" horizontal/>
-</Columns>
-
+<CardGroup cols={2}>
+  <Card title="Mask Span Attributes" icon="eye-slash" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes">
+    Hide sensitive data in your traces
+  </Card>
+  <Card title="Modify Spans" icon="pen" href="/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans">
+    Transform spans before they are exported
+  </Card>
+  <Card title="Multimodal Tracing" icon="images" href="/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing">
+    Trace applications with images and other media
+  </Card>
+  <Card title="Suppress Tracing" icon="ban" href="/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing">
+    Disable tracing for specific code blocks
+  </Card>
+</CardGroup>

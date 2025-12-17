@@ -25,20 +25,14 @@ import {
 } from "@phoenix/components";
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifySuccess } from "@phoenix/contexts";
-import {
-  DatasetProvider,
-  useDatasetContext,
-} from "@phoenix/contexts/DatasetContext";
+import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
-import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
-import { DatasetCodeButton } from "./DatasetCodeButton";
-import { RunExperimentButton } from "./RunExperimentButton";
+import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
 
 export const DatasetPageQueryNode = graphql`
   query DatasetPageQuery($id: ID!) {
@@ -160,10 +154,6 @@ function DatasetPageContent({
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
-  const refreshLatestVersion = useDatasetContext(
-    (state) => state.refreshLatestVersion
-  );
-  const notifySuccess = useNotifySuccess();
 
   const navigate = useNavigate();
   const onTabChange = useCallback(
@@ -175,7 +165,6 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
-  const datasetHasVersions = (dataset.latestVersions?.edges.length ?? 0) > 0;
 
   // Set the initial tab
   const location = useLocation();
@@ -231,12 +220,12 @@ function DatasetPageContent({
           <Flex direction="row" gap="size-100" alignItems="center">
             <MenuTrigger>
               <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+                size="M"
+                leadingVisual={<Icon svg={<Icons.DownloadOutline />} />}
               />
               <Popover>
                 <Menu
-                  aria-label="Dataset action menu"
+                  aria-label="Dataset download"
                   onAction={(action) => {
                     switch (action) {
                       case "csv":
@@ -274,31 +263,8 @@ function DatasetPageContent({
                 </Menu>
               </Popover>
             </MenuTrigger>
-            <DatasetCodeButton />
-            <RunExperimentButton />
-            <AddDatasetExampleButton
-              datasetId={dataset.id}
-              onAddExampleCompleted={() => {
-                notifySuccess({
-                  title: "Example added",
-                  message:
-                    "The example has been added successfully and the version has been updated.",
-                });
-                refreshLatestVersion();
-              }}
-            />
             <DatasetLabelConfigButton datasetId={dataset.id} />
-            <Button
-              isDisabled={!datasetHasVersions}
-              size="S"
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={() => {
-                navigate(`/playground?datasetId=${dataset.id}`);
-              }}
-            >
-              Playground
-            </Button>
+            <RunDatasetExperimentButton variant="primary" size="M" />
           </Flex>
         </Flex>
       </View>

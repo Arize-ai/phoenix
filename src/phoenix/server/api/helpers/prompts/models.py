@@ -8,6 +8,7 @@ from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion
+from phoenix.server.api.helpers.prompts.conversions.google import GoogleToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
@@ -319,6 +320,16 @@ class BedrockToolDefinition(DBBaseModel):
     toolSpec: dict[str, Any]
 
 
+class GeminiToolDefinition(DBBaseModel):
+    """
+    Based on https://github.com/googleapis/python-genai/blob/c0b175a0ca20286db419390031a2239938d0c0b7/google/genai/types.py#L2792
+    """
+
+    name: str
+    description: str = UNDEFINED
+    parameters: dict[str, Any]
+
+
 class PromptOpenAIInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
@@ -327,7 +338,7 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     presence_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     seed: int = UNDEFINED
-    reasoning_effort: Literal["minimal", "low", "medium", "high"] = UNDEFINED
+    reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] = UNDEFINED
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):
@@ -563,6 +574,9 @@ def normalize_tools(
     elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
+    elif model_provider is ModelProvider.GOOGLE:
+        gemini_tools = [GeminiToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_gemini_to_prompt_tool(gemini_tool) for gemini_tool in gemini_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
@@ -585,6 +599,8 @@ def normalize_tools(
             ans.tool_choice = choice
             if disable_parallel_tool_calls is not None:
                 ans.disable_parallel_tool_calls = disable_parallel_tool_calls
+        elif model_provider is ModelProvider.GOOGLE:
+            ans.tool_choice = GoogleToolChoiceConversion.from_google(tool_choice)
     return ans
 
 
@@ -612,6 +628,10 @@ def denormalize_tools(
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
         if tools.tool_choice and tools.tool_choice.type != "none":
             tool_choice = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
+    elif model_provider is ModelProvider.GOOGLE:
+        denormalized_tools = [_prompt_to_gemini_tool(tool) for tool in tools.tools]
+        if tools.tool_choice:
+            tool_choice = GoogleToolChoiceConversion.to_google(tools.tool_choice)
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     return [tool.model_dump() for tool in denormalized_tools], tool_choice
@@ -700,4 +720,28 @@ def _prompt_to_bedrock_tool(
                 "json": function.parameters,
             },
         }
+    )
+
+
+def _gemini_to_prompt_tool(
+    tool: GeminiToolDefinition,
+) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name=tool.name,
+            description=tool.description,
+            parameters=tool.parameters,
+        ),
+    )
+
+
+def _prompt_to_gemini_tool(
+    tool: PromptToolFunction,
+) -> GeminiToolDefinition:
+    function = tool.function
+    return GeminiToolDefinition(
+        name=function.name,
+        description=function.description,
+        parameters=function.parameters,
     )

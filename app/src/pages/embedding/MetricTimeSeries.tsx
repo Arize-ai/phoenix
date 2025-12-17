@@ -33,11 +33,11 @@ import {
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
-import { MetricDefinition } from "@phoenix/store";
+import type { MetricDefinition } from "@phoenix/store/pointCloudStore";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   getMetricDescriptionByMetricKey,

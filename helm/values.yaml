@@ -164,6 +164,10 @@ server:
   # Set to false in air-gapped environments to prevent external requests that can cause UI loading delays
   allowExternalResources: true
 
+  # -- Enable telemetry for analytics tracking (PHOENIX_TELEMETRY_ENABLED)
+  # When set to false, disables all analytics tracking in the Phoenix
+  telemetryEnabled: true
+
   # -- Maximum number of spans to hold in the processing queue before rejecting new requests (PHOENIX_MAX_SPANS_QUEUE_SIZE)
   # This is a heuristic to prevent memory issues when spans accumulate faster than they can be written to the database.
   # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
@@ -433,9 +437,11 @@ auth:
     userSearchFilter: "(&(objectClass=user)(sAMAccountName=%s))"
 
     # Attribute mapping
-    # -- LDAP attribute containing user's email address. Defaults to "mail".
-    # Set to empty string ("") to enable no-email mode for directories without email.
-    # When empty (no-email mode):
+    # -- LDAP attribute containing user's email address.
+    # Valid values:
+    #   - "mail" (or other attribute name): Use that LDAP attribute for email
+    #   - "null": No-email mode for directories without email
+    # When using no-email mode ("null"):
     #   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)
     #   - allowSignUp must be true (users auto-provisioned on first login)
     #   - auth.admins cannot be used (use groupRoleMappings for admin assignment)
@@ -450,7 +456,7 @@ auth:
     attrMemberOf: "memberOf"
 
     # -- LDAP attribute containing an immutable unique identifier.
-    # REQUIRED when attrEmail is empty (no-email mode).
+    # REQUIRED when attrEmail is "null" (no-email mode).
     # Also recommended if you expect user emails to change frequently.
     # Active Directory: "objectGUID", OpenLDAP: "entryUUID", 389 DS: "nsUniqueId"
     attrUniqueId: ""
@@ -650,7 +656,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-12.23.0-nonroot
+  tag: version-12.25.1-nonroot
 
 # -- Resource configuration
 resources:

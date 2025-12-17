@@ -1011,7 +1011,7 @@ export function PlaygroundDatasetExamplesTable({
         id: `instance-${instance.id}`,
         header: () => (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <AlphabeticIndexIcon index={index} />
+            <AlphabeticIndexIcon index={index} size="XS" />
             <span>Output</span>
           </Flex>
         ),

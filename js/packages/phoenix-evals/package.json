@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "0.6.2",
+  "version": "0.6.5",
   "description": "A library for running evaluations for AI use cases",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -56,6 +56,14 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
   "devDependencies": {
     "@ai-sdk/google": "^2.0.40",
     "@ai-sdk/openai": "^2.0.0",

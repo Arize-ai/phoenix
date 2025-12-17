@@ -7,6 +7,7 @@ import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
 import {
   AnthropicToolChoice,
+  GoogleToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
 
@@ -151,7 +152,7 @@ export interface PlaygroundInstance {
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
+  toolChoice?: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice;
   model: ModelConfig;
   repetitions: Record<number, PlaygroundRepetition | undefined>;
   activeRunId: number | null;

@@ -1,0 +1,89 @@
+---
+title: "Amazon Bedrock Agent Runtime JavaScript"
+description: Instrument and observe AWS Bedrock Agent Runtime calls in JavaScript/Node.js
+---
+
+This module provides automatic instrumentation for the [AWS SDK for JavaScript Bedrock Agent Runtime Client](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/bedrock-agent-runtime/), which may be used in conjunction with [@arizeai/phoenix-otel](https://www.npmjs.com/package/@arizeai/phoenix-otel).
+
+## Install
+
+```bash
+npm install @arizeai/openinference-instrumentation-bedrock-agent-runtime @aws-sdk/client-bedrock-agent-runtime @arizeai/phoenix-otel
+```
+
+## Setup
+
+To instrument your application, use the `register` function from `@arizeai/phoenix-otel` and manually instrument the Bedrock Agent Runtime SDK.
+
+Create the `instrumentation.ts` file:
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import { BedrockAgentRuntimeClient } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockAgentRuntimeInstrumentation } from "@arizeai/openinference-instrumentation-bedrock-agent-runtime";
+
+// Initialize Phoenix tracing
+const tracerProvider = register({
+  projectName: "bedrock-agent-app",
+  // If using Phoenix Cloud:
+  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // apiKey: process.env.PHOENIX_API_KEY,
+  // If using self-hosted Phoenix:
+  // url: "http://localhost:6006",
+});
+
+// Set up Bedrock Agent Runtime instrumentation
+const instrumentation = new BedrockAgentRuntimeInstrumentation();
+instrumentation.manuallyInstrument(BedrockAgentRuntimeClient);
+
+console.log("Bedrock Agent Runtime instrumentation registered");
+```
+
+## Run Bedrock Agents
+
+Import the `instrumentation.ts` file first, then use Bedrock Agent Runtime as usual.
+
+```typescript expandable
+import "./instrumentation.js";
+import { BedrockAgentRuntimeClient, InvokeAgentCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+
+const client = new BedrockAgentRuntimeClient({ region: "us-east-1" });
+
+async function main() {
+  const command = new InvokeAgentCommand({
+    agentId: "YOUR_AGENT_ID",
+    agentAliasId: "YOUR_AGENT_ALIAS_ID",
+    sessionId: `session-${Date.now()}`,
+    inputText: "What's the weather like today?",
+  });
+
+  const response = await client.send(command);
+  
+  // Process streaming response
+  if (response.completion) {
+    for await (const event of response.completion) {
+      if (event.chunk?.bytes) {
+        const text = new TextDecoder().decode(event.chunk.bytes);
+        console.log(text);
+      }
+    }
+  }
+}
+
+main();
+```
+
+## Observe
+
+After setting up instrumentation and running your Bedrock Agent application, traces will appear in the Phoenix UI for visualization and analysis. This includes:
+
+- Agent invocations
+- Action group calls (as tools)
+- Knowledge base lookups
+- LLM calls within the agent
+
+## Resources
+
+* [NPM Package](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-bedrock-agent-runtime)
+
+* [OpenInference package for AWS Bedrock Agent Runtime](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-bedrock-agent-runtime)

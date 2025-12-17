@@ -29,8 +29,8 @@ import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext } from "@phoenix/contexts";
-import { EventData } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import type { EventData } from "@phoenix/store/pointCloudStore";
 
 import { PointSelectionPanelContentQuery } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 import { EventDetails } from "./EventDetails";

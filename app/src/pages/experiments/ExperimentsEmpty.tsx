@@ -8,7 +8,7 @@ import {
   View,
 } from "@phoenix/components";
 
-import { RunExperimentButton } from "../dataset/RunExperimentButton";
+import { RunDatasetExperimentButton } from "../dataset/RunDatasetExperimentButton";
 
 export function ExperimentsEmpty() {
   return (
@@ -45,7 +45,7 @@ export function ExperimentsEmpty() {
               >
                 Example
               </ExternalLinkButton>
-              <RunExperimentButton variant="primary" size="M" />
+              <RunDatasetExperimentButton variant="primary" size="M" />
             </Flex>
           </Flex>
         </View>

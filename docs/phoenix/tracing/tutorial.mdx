@@ -1,0 +1,84 @@
+---
+title: "Tracing Tutorial"
+description: "Build a fully observable AI agent from scratch - trace every operation, measure quality, and debug conversations"
+---
+
+AI applications are fundamentally different from traditional software. A REST API returns the same response for the same input. An LLM-powered agent reasons, retrieves, calls tools, and generates - with each step influenced by probabilities, context, and the interactions between components. When something goes wrong, the failure could be anywhere in that chain.
+
+**Observability** is the practice of instrumenting your application so you can understand its internal state from its external outputs. For AI applications, this means capturing every LLM call, tool execution, retrieval operation, and generation - along with their inputs, outputs, latency, and token usage. With proper observability, you don't guess why something failed. You look at the data and see exactly what happened.
+
+Phoenix provides the infrastructure for AI observability: **tracing** to capture execution flow, **annotations** to measure quality, and **sessions** to track conversations. In this tutorial, you'll learn to use all three by building a real application.
+
+# What You'll Build
+
+A typescript customer support agent that handles two types of queries:
+
+- **Order status questions** → Calls a tool to look up order information
+- **FAQ questions** → Searches a knowledge base using RAG
+
+The agent classifies incoming queries, routes them to the right handler, and generates helpful responses. It also handles multi-turn conversations, remembering context across turns.
+
+As you build each feature, you'll add the corresponding observability layer - so you can see exactly how classification decisions are made, why certain documents are retrieved, and whether conversations maintain context across turns.
+
+<Info>
+  **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+</Info>
+
+# Chapter 1: Your First Traces
+
+**The problem**: Your agent is a black box. When something goes wrong, you add `console.log` statements, re-run, and hope you logged the right thing.
+
+**What you'll learn**:
+
+- Instrument your agent with OpenTelemetry in 5 minutes
+- Trace LLM calls, tool executions, and RAG retrievals automatically
+- Group related operations under parent spans for complete request context
+- Navigate the Phoenix UI to explore traces
+
+**The payoff**: Click on any request and see the complete execution flow. The classification said "faq" when it should have said "order_status"? You'll see it. The retrieval returned irrelevant documents? It's right there. No more guessing.
+
+[**Start Chapter 1 →**](./your-first-traces)
+
+# Chapter 2: Annotations and Evaluation
+
+**The problem**: You can see what's happening, but you can't tell if responses are actually _good_. A trace showing "200 OK" doesn't mean the answer was right.
+
+**What you'll learn**:
+
+- Annotate traces with human feedback directly in the Phoenix UI
+- Capture user reactions (thumbs up/down) from your application and attach them to traces
+- Build LLM-as-Judge evaluators that automatically assess quality
+- Find patterns in what's failing across hundreds of traces
+
+**The payoff**: Instead of manually reviewing every response, you get aggregate metrics. "23% of FAQ queries have irrelevant retrieval." "Tool calls fail when the order ID format is wrong." You know what to fix, and you have the data to prove it worked.
+
+[**Start Chapter 2 →**](./annotations-and-evaluation)
+
+# Chapter 3: Sessions
+
+**The problem**: Your agent handles single queries fine, but real users have conversations. "What's my order status?" → "When will it arrive?" → "Can I change the address?" Without sessions, each query is isolated - you can't see if the agent remembered the order ID from the first turn.
+
+**What you'll learn**:
+
+- Add session tracking to group conversation turns together
+- View conversations as chat-like threads in Phoenix
+- Evaluate entire conversations for coherence and resolution
+- Debug "the bot forgot what I said" issues by seeing exactly where context was lost
+
+**The payoff**: You'll know that "17% of sessions longer than 4 turns show context loss" and be able to click directly into those sessions to see what went wrong. Conversation quality becomes measurable.
+
+[**Start Chapter 3 →**](./sessions)
+
+# Prerequisites
+
+- **Node.js 18+** installed
+- **Phoenix** running locally (`pip install arize-phoenix && phoenix serve`) or access to Phoenix Cloud
+- **OpenAI API key** for the LLM calls
+
+The tutorial uses TypeScript with the **Vercel AI SDK**, but the concepts apply to any language or framework.
+
+# Let's Get Started
+
+By the end of this tutorial, you'll have a working agent with complete observability - the same patterns used by teams running AI applications in production. The specific tools and evaluators will vary for your use case, but the approach stays the same: trace everything, measure what matters, and use the data to improve.
+
+[**Start with Chapter 1: Your First Traces →**](./your-first-traces)

@@ -1,7 +1,8 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { InferencesProvider, TimeRangeProvider } from "@phoenix/contexts";
+import { InferencesProvider } from "@phoenix/contexts/InferencesContext";
+import { TimeRangeProvider } from "@phoenix/contexts/TimeRangeContext";
 
 import { ModelRootQuery } from "./__generated__/ModelRootQuery.graphql";
 

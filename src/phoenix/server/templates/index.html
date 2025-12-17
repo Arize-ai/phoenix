@@ -121,6 +121,9 @@
           writable: false
       });
   })()</script>
+    {% if scarf_sh_pixel_id -%}
+      <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid={{scarf_sh_pixel_id}}" />
+    {%- endif %}
     {% if is_development -%}
       <script type="module">
         import RefreshRuntime from 'http://localhost:5173/@react-refresh'
@@ -134,5 +137,5 @@
     {%- else -%}
       {{- render_js() -}}
     {%- endif -%}
-  </body>
+   </body>
 </html>

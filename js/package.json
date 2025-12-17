@@ -3,9 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "description": "Monorepo for Arize Phoenix Javascript Tooling",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Arize-ai/phoenix.git"
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
   },
   "scripts": {
     "prettier:check": "prettier --check .",

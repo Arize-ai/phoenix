@@ -9,8 +9,9 @@ import {
   MenuTrigger,
   Popover,
 } from "@phoenix/components";
-import { useInferences, usePointCloudContext } from "@phoenix/contexts";
-import { ClusterSort } from "@phoenix/store";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import type { ClusterSort } from "@phoenix/store/pointCloudStore";
 
 type Item = {
   label: string;

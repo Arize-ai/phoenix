@@ -3,224 +3,142 @@ title: "Phoenix to Arize AX Migration"
 description: Seamlessly migrate your data from Phoenix to Arize AX
 ---
 
-## Overview
 
-This migration tool helps you move your data from Phoenix to Arize AX in just a few simple steps. It transfers:
 
-* 📊 **Projects and Traces** - Your observability data
+If you are looking to migrate to Arize AX but want to preserve your data, this tool will help migrate your traces, evaluations, annotations, datasets, and experiments from Phoenix.
 
-* 📝 **Annotations** - Feedback data
+<Card 
+  title="Migration Tool Repo" 
+  href="https://github.com/Arize-ai/phoenix-to-ax-migration"
+  icon="code"
+>
+</Card>
 
-* 🎯 **Datasets** - Training and test data
-
-* 🤖 **Prompts** - Prompt templates
-
-* 📈 **Evaluations** - Performance metrics
-
-<Info>
-The migration happens in two steps: first export from Phoenix, then import to Arize AX.
-
-</Info>
-
-## What You Need
-
-* Access to your Phoenix instance
-
-* An Arize AX Pro account
-
-* Python installed on your computer
-
-## Getting Started
+## Setup
 
 ### Step 1: Download the Migration Tool
 
 ```bash
-git clone https://github.com/Dylancouzon/phoenix2ax
-cd phoenix2ax
+git clone https://github.com/Arize-ai/phoenix-to-ax-migration
+cd phoenix-to-ax-migration
+```
+
+### Step 2: Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-**Note:** This migration tool was created by an Arize team member for the community, but it is **not an official Arize package**.
+### Step 3: Configure Environment
 
-### Step 2: Configure Your Settings
+Create a `.env` file with your configuration:
 
-1. Copy the example configuration file:
+```bash
+# Phoenix (include PHOENIX_API_KEY if using Phoenix Cloud)
+PHOENIX_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
+PHOENIX_API_KEY=your-phoenix-api-key 
 
-   ```bash
-   cp .env.example .env
-   ```
+# Arize
+ARIZE_API_KEY=your-arize-api-key
+ARIZE_SPACE_ID=your-arize-space-id
 
-2. Edit the `.env` file with your details:
-
-   ```python
-   # Your Phoenix instance
-   PHOENIX_ENDPOINT=https://your-phoenix-instance.com
-   PHOENIX_API_KEY=your-phoenix-api-key
-
-   # Your Arize AX account
-   ARIZE_API_KEY=your-arize-api-key
-   ARIZE_SPACE_ID=your-arize-space-id
-   ```
+# Export directory where Phoenix data will be saved locally
+PHOENIX_EXPORT_DIR="phoenix_export"
+```
 
 <Info>
 You can find your Arize API key and Space ID in your Arize AX account settings.
 
 </Info>
 
-### Step 3: Export Your Data from Phoenix
+## Supported Data Types
 
-Run this command to export all your data:
+| Data Type | Details |
+|-----------|------------------------|
+| **Datasets & Experiments** | • All datasets and their corresponding experiments<br/>• Experiment evaluations not yet migrated |
+| **Project Traces** | • Contains traces, evaluation, and human annotations |
 
-```python
+## ⚠️ Import Warning for Annotations ⚠️
+
+* **Wait for traces to be indexed**: After importing traces, you must wait a few minutes for them to be loaded and indexed in Arize AX before sending annotation data. The import process will prompt you to verify traces are available before proceeding with annotations.
+
+* **31-day window**: Only annotations for traces from the past 31 days can be logged to Arize. If your traces are older than 31 days, their annotations will be skipped with a warning message.
+
+
+## Usage
+
+### Export from Phoenix
+
+```bash
+# Export everything
 python export_all_projects.py --all
+
+# Export specific types
+python export_all_projects.py --de      # datasets and experiments
+python export_all_projects.py --traces   # traces with evaluations and annotations
 ```
 
-This creates a `phoenix_export` folder with all your data.
+### Import to Arize
 
-### Step 4: Import Your Data to Arize AX
-
-Run this command to import everything:
-
-```python
+```bash
+# Import everything
 python import_to_arize.py --all
+
+# Import specific types
+python import_to_arize.py --de      # datasets and experiments
+python import_to_arize.py --traces  # traces with evaluations and annotations
 ```
 
-<Warning>
-The import process will guide you through setting up annotations. Follow the prompts carefully.
+## Generated Files
 
-</Warning>
+After export and import, you'll see this structure:
 
-## Common Options
-
-### Export Specific Projects Only
-
-If you only want certain projects:
-
-```python
-python export_all_projects.py --all --project "my-important-project"
 ```
+phoenix_export/ # All data lives here
+├── datasets/
+│   ├── datasets.json
+│   ├── dataset_{id}_examples.json
+│   └── dataset_{id}_experiments.json
+└── projects/
+    └── {project_name}/
+        ├── project_metadata.json
+        ├── traces.json
+        ├── evaluations.json
+        └── annotations.json
 
-### Export Specific Data Types
-
-If you only need certain types of data:
-
-```python
-# Just datasets and prompts
-python export_all_projects.py --datasets --prompts
-
-# Just traces
-python export_all_projects.py --traces
+results/  # Overview of import and export jobs
+├── dataset_experiment_export_results.json
+├── dataset_experiment_import_results.json
+├── trace_export_results.json
+└── trace_import_results.json
 ```
-
-### Get More Details
-
-Add `--verbose` to see detailed progress:
-
-```python
-python export_all_projects.py --all --verbose
-python import_to_arize.py --all --verbose
-```
-
-## What Gets Created
-
-After export, you'll see this structure:
-
-```python
-phoenix_export/
-├── datasets/          # Your datasets
-├── prompts/           # Your prompt templates
-└── projects/          # Your projects and traces
-    ├── project-1/
-    └── project-2/
-```
-
-After import, check the `results/` folder for detailed logs.
 
 ## Troubleshooting
 
-### "Authentication failed"
+### Import issues with traces
 
-* Double-check your API keys in the `.env` file
+The formatting of some span attributes may not be compatible between Arize and Phoenix. We tried to cover as many cases as possible, but there may be some missing ones. If you encounter errors:
 
-* Make sure your keys have the right permissions
-
-### "Connection timeout"
-
-* Check your internet connection
-
-* Try exporting one project at a time for large datasets
+1. Check the `results/` folder to see what errors have occured
+2. Fix them in the project's `traces.json` file
+3. Re-import the data to Arize
 
 ### Import issues with annotations
 
-* Run the annotation setup first: `python import_to_arize.py --annotations`
+* Wait for traces to be fully indexed in Arize AX before importing annotations
+* Check that your traces are within the 31-day window
+* Review the `results/` folder for detailed error messages
 
-* Follow the setup guide in your Arize AX interface
-
-* Then re-run the full import
-
-### Getting more help
-
-* Use `--verbose` for detailed logs
-
-* Check the `results/` folder for error details
-
-* Visit the [GitHub repository](https://github.com/Dylancouzon/phoenix2ax) for issues
-
-## Important Notes
-
-### For Annotations
-
-Annotations require special setup:
-
-1. Run: `python import_to_arize.py --annotations`
-
-2. Configure annotation types in Arize AX (follow the prompts)
-
-3. Re-run the import after setup
-
-### For Large Datasets
-
-If you have lots of data:
-
-* Export one project at a time
-
-* Use `--verbose` to monitor progress
+### For Large Projects and Datasets
 
 * Be patient - large imports can take time
-
-### Data Safety
-
-* Your original Phoenix data stays unchanged
-
-* You can re-run commands safely (duplicates are skipped)
-
-* All data transfers are encrypted
-
-## Next Steps
-
-After migration:
-
-1. ✅ Check your data in Arize AX
-
-2. ✅ Verify key projects and datasets
-
-3. ✅ Test annotations and evaluations
-
-4. ✅ Set up your team's access in Arize AX
-
-***
+* Monitor the `results/` folder for progress
 
 <Check>
-🎉 Congratulations! Your Phoenix data is now available in Arize AX with all relationships preserved.
-
+🎉 Congratulations - Your Phoenix data is now available in Arize AX!
 </Check>
 
-## Need More Help?
+### More Support
 
-* **Detailed documentation**: Check the [GitHub repository](https://github.com/Dylancouzon/phoenix2ax)
-
-* **Report issues**: [GitHub Issues](https://github.com/Dylancouzon/phoenix2ax/issues)
-
-* **Arize support**: [Arize Documentation](https://docs.arize.com)
-
-
+* **Detailed documentation**: Check the [GitHub repository](https://github.com/Arize-ai/phoenix-to-ax-migration)
+* **Report issues**: [GitHub Issues](https://github.com/Arize-ai/phoenix-to-ax-migration/issues)

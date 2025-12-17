@@ -21,6 +21,11 @@
       "family": "Roboto"
     }
   },
+  "integrations": {
+    "ga4": {
+        "measurementId": "G-V9Z9MCPE84"
+    }
+  },
   "favicon": "/docs/favicon.png",
   "navigation": {
     "languages": [
@@ -33,29 +38,32 @@
             "groups": [
               {
                 "group": " ",
+                "pages": ["docs/phoenix", "docs/phoenix/phoenix-demo"]
+              },
+              {
+                "group": "Quick Start",
                 "pages": [
-                  "docs/phoenix",
-                  {
-                    "group": "Get Started",
-                    "pages": [
-                      "docs/phoenix/get-started",
-                      "docs/phoenix/get-started/get-started-tracing",
-                      "docs/phoenix/get-started/get-started-evaluations",
-                      "docs/phoenix/get-started/get-started-datasets-and-experiments",
-                      "docs/phoenix/get-started/get-started-prompt-playground"
-                    ]
-                  },
-                  "docs/phoenix/user-guide",
-                  "docs/phoenix/environments",
-                  "docs/phoenix/phoenix-demo",
-                  "docs/phoenix/end-to-end-features-notebook",
-                  "docs/phoenix/production-guide"
+                  "docs/phoenix/get-started",
+                  "docs/phoenix/get-started/get-started-tracing",
+                  "docs/phoenix/get-started/get-started-datasets-and-experiments",
+                  "docs/phoenix/get-started/get-started-evaluations",
+                  "docs/phoenix/get-started/get-started-prompt-playground",
+                  "docs/phoenix/end-to-end-features-notebook"
                 ]
               },
               {
                 "group": "Tracing",
-                "icon": "swap",
+                "icon": "telescope",
                 "pages": [
+                  {
+                    "group": "Tutorial",
+                    "pages": [
+                      "docs/phoenix/tracing/tutorial",
+                      "docs/phoenix/tracing/Tutorial/your-first-traces",
+                      "docs/phoenix/tracing/Tutorial/annotations-and-evaluations",
+                      "docs/phoenix/tracing/Tutorial/sessions"
+                    ]
+                  },
                   {
                     "group": "Overview: Tracing",
                     "pages": [
@@ -66,7 +74,6 @@
                       "docs/phoenix/tracing/llm-traces/metrics"
                     ]
                   },
-                  "docs/phoenix/get-started/get-started-tracing",
                   {
                     "group": "How-to: Tracing",
                     "pages": [
@@ -76,7 +83,6 @@
                         "pages": [
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
-                          "docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
                           "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions"
@@ -122,21 +128,12 @@
                         ]
                       }
                     ]
-                  },
-                  {
-                    "group": "Concepts: Tracing",
-                    "pages": [
-                      "docs/phoenix/tracing/concepts-tracing/what-are-traces",
-                      "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
-                      "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
-                      "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
-                    ]
                   }
                 ]
               },
               {
                 "group": "Prompt Engineering",
-                "icon": "code",
+                "icon": "wand-magic-sparkles",
                 "pages": [
                   {
                     "group": "Tutorial",
@@ -158,7 +155,6 @@
                       "docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code"
                     ]
                   },
-                  "docs/phoenix/get-started/get-started-prompt-playground",
                   {
                     "group": "How to: Prompts",
                     "pages": [
@@ -170,13 +166,6 @@
                       "docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt",
                       "docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt"
                     ]
-                  },
-                  {
-                    "group": "Concepts: Prompts",
-                    "pages": [
-                      "docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
-                      "docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
-                    ]
                   }
                 ]
               },
@@ -185,7 +174,6 @@
                 "icon": "flask",
                 "pages": [
                   "docs/phoenix/datasets-and-experiments/overview-datasets",
-                  "docs/phoenix/get-started/get-started-datasets-and-experiments",
                   {
                     "group": "How-to: Datasets",
                     "pages": [
@@ -203,8 +191,7 @@
                       "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
                       "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
                     ]
-                  },
-                  "docs/phoenix/datasets-and-experiments/concepts-datasets"
+                  }
                 ]
               },
               {
@@ -219,14 +206,6 @@
                       "docs/phoenix/evaluation/llm-evals",
                       "docs/phoenix/evaluation/llm-evals/executors",
                       "docs/phoenix/evaluation/llm-evals/evaluator-traces"
-                    ]
-                  },
-                  {
-                    "group": "Concepts: Evals",
-                    "pages": [
-                      "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
-                      "docs/phoenix/evaluation/concepts-evals/evaluators",
-                      "docs/phoenix/evaluation/concepts-evals/input-mapping"
                     ]
                   },
                   {
@@ -282,6 +261,45 @@
                 ]
               },
               {
+                "group": "Concepts",
+                "icon": "lightbulb",
+                "pages": [
+                  "docs/phoenix/user-guide",
+                  "docs/phoenix/production-guide",
+                  "docs/phoenix/environments",
+                  {
+                    "group": "Tracing",
+                    "pages": [
+                      "docs/phoenix/tracing/concepts-tracing/what-are-traces",
+                      "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
+                      "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
+                      "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Prompts",
+                    "pages": [
+                      "docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
+                      "docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
+                    ]
+                  },
+                  {
+                    "group": "Datasets & Experiments",
+                    "pages": [
+                      "docs/phoenix/datasets-and-experiments/concepts-datasets"
+                    ]
+                  },
+                  {
+                    "group": "Evals",
+                    "pages": [
+                      "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+                      "docs/phoenix/evaluation/concepts-evals/evaluators",
+                      "docs/phoenix/evaluation/concepts-evals/input-mapping"
+                    ]
+                  }
+                ]
+              },
+              {
                 "group": "Resources",
                 "icon": "books",
                 "pages": [
@@ -311,6 +329,68 @@
                   "docs/phoenix/resources/contribute-to-phoenix",
                   "docs/phoenix/resources/github",
                   "docs/phoenix/resources/openinference"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Self-Hosting",
+            "icon": "server",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "docs/phoenix/self-hosting",
+                  "docs/phoenix/self-hosting/license",
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "docs/phoenix/self-hosting/configuration",
+                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deployment Options",
+                "icon": "rocket-launch",
+                "pages": [
+                  "docs/phoenix/self-hosting/deployment-options/docker",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
+                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
+                  "docs/phoenix/self-hosting/deployment-options/railway"
+                ]
+              },
+              {
+                "group": "Features",
+                "icon": "layer-group",
+                "pages": [
+                  "docs/phoenix/self-hosting/features/provisioning",
+                  "docs/phoenix/self-hosting/features/authentication",
+                  "docs/phoenix/self-hosting/features/email",
+                  "docs/phoenix/self-hosting/features/management",
+                  "docs/phoenix/settings/data-retention"
+                ]
+              },
+              {
+                "group": "Upgrade",
+                "icon": "angles-up",
+                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
+              },
+              {
+                "group": "Security",
+                "icon": "user-shield",
+                "pages": [
+                  "docs/phoenix/settings/access-control-rbac",
+                  "docs/phoenix/self-hosting/security/privacy"
+                ]
+              },
+              {
+                "group": "Misc",
+                "icon": "boxes-stacked",
+                "pages": [
+                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
                 ]
               }
             ]
@@ -361,7 +441,7 @@
               },
               {
                 "group": "Tracing",
-                "icon": "swap",
+                "icon": "telescope",
                 "pages": [
                   "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
                   "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
@@ -381,7 +461,7 @@
               },
               {
                 "group": "Prompt Engineering",
-                "icon": "code",
+                "icon": "wand-magic-sparkles",
                 "pages": [
                   "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
                   "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
@@ -430,7 +510,7 @@
           },
           {
             "tab": "Integrations",
-            "icon": "handshake",
+            "icon": "puzzle-piece",
             "groups": [
               {
                 "group": " ",
@@ -448,8 +528,10 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock",
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing"
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js",
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals"
                     ]
                   },
                   {
@@ -457,6 +539,7 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/anthropic",
                       "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
+                      "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
                       "docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals"
                     ]
                   },
@@ -531,6 +614,13 @@
                     ]
                   },
                   {
+                    "group": "LangChain",
+                    "pages": [
+                      "docs/phoenix/integrations/typescript/langchain",
+                      "docs/phoenix/integrations/typescript/langchain/langchain-js"
+                    ]
+                  },
+                  {
                     "group": "Mastra",
                     "pages": [
                       "docs/phoenix/integrations/typescript/mastra",
@@ -538,10 +628,10 @@
                     ]
                   },
                   {
-                    "group": "LangChain",
+                    "group": "MCP",
                     "pages": [
-                      "docs/phoenix/integrations/typescript/langchain",
-                      "docs/phoenix/integrations/typescript/langchain/langchain-js"
+                      "docs/phoenix/integrations/typescript/mcp",
+                      "docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript"
                     ]
                   },
                   {
@@ -686,6 +776,13 @@
                   },
                   "docs/phoenix/integrations/python/mcp-tracing",
                   {
+                    "group": "NVIDIA",
+                    "pages": [
+                      "docs/phoenix/integrations/python/nvidia",
+                      "docs/phoenix/integrations/python/nvidia/nemo-agent-tracing"
+                    ]
+                  },
+                  {
                     "group": "Portkey",
                     "pages": [
                       "docs/phoenix/integrations/python/portkey",
@@ -783,13 +880,14 @@
               },
               {
                 "group": "TypeScript",
-                "icon": "brackets-curly",
+                "icon": "js",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/overview",
                   "docs/phoenix/sdk-api-reference/typescript/reference",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
                   "docs/phoenix/sdk-api-reference/typescript/mcp-server"
                 ]
               },
@@ -904,65 +1002,6 @@
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python",
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java",
                   "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Self-Hosting",
-            "icon": "server",
-            "groups": [
-              {
-                "group": " ",
-                "pages": [
-                  "docs/phoenix/self-hosting",
-                  "docs/phoenix/self-hosting/license",
-                  {
-                    "group": "Configuration",
-                    "pages": [
-                      "docs/phoenix/self-hosting/configuration",
-                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "Deployment Options",
-                "icon": "rocket-launch",
-                "pages": [
-                  "docs/phoenix/self-hosting/deployment-options/docker",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
-                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-                  "docs/phoenix/self-hosting/deployment-options/railway"
-                ]
-              },
-              {
-                "group": "Features",
-                "icon": "layer-group",
-                "pages": [
-                  "docs/phoenix/self-hosting/features/provisioning",
-                  "docs/phoenix/self-hosting/features/authentication",
-                  "docs/phoenix/self-hosting/features/email",
-                  "docs/phoenix/self-hosting/features/management",
-                  "docs/phoenix/settings/data-retention"
-                ]
-              },
-              {
-                "group": "Upgrade",
-                "icon": "angles-up",
-                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
-              },
-              {
-                "group": "Security",
-                "icon": "user-shield",
-                "pages": ["docs/phoenix/settings/access-control-rbac"]
-              },
-              {
-                "group": "Misc",
-                "icon": "boxes-stacked",
-                "pages": [
-                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
                 ]
               }
             ]
@@ -1226,6 +1265,14 @@
       "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing"
     },
     {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript",
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel"
+    },
+    {
       "source": "/docs/phoenix/deployment/deploying-phoenix",
       "destination": "/docs/phoenix/self-hosting"
     },
@@ -1275,7 +1322,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-ts",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/javascript"
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel"
     },
     {
       "source": "/docs/phoenix/self-hosting/deploying-phoenix",
@@ -1692,6 +1739,10 @@
     {
       "source": "/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
       "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+    },
+    {
+      "source": "/docs/phoenix/deployment",
+      "destination": "/docs/phoenix/self-hosting"
     }
   ]
 }

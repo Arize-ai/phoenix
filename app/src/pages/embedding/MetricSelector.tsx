@@ -17,13 +17,14 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import { useInferences, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 import {
   DriftMetricDefinition,
   MetricDefinition,
   PerformanceMetricDefinition,
   RetrievalMetricDefinition,
-} from "@phoenix/store";
+} from "@phoenix/store/pointCloudStore";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {

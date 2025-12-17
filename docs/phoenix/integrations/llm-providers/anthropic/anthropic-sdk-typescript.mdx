@@ -1,0 +1,105 @@
+---
+title: "Anthropic SDK TypeScript"
+description: Instrument and observe Anthropic calls in TypeScript/Node.js
+---
+
+This module provides automatic instrumentation for the [Anthropic SDK TypeScript](https://github.com/anthropics/anthropic-sdk-typescript), which may be used in conjunction with [@arizeai/phoenix-otel](https://www.npmjs.com/package/@arizeai/phoenix-otel).
+
+## Install
+
+```bash
+npm install @arizeai/openinference-instrumentation-anthropic @anthropic-ai/sdk @arizeai/phoenix-otel
+```
+
+## Setup
+
+To instrument your application, use the `register` function from `@arizeai/phoenix-otel` and manually instrument the Anthropic SDK.
+
+Create the `instrumentation.ts` file:
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
+
+// Initialize Phoenix tracing
+const tracerProvider = register({
+  projectName: "anthropic-app",
+  // If using Phoenix Cloud:
+  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // apiKey: process.env.PHOENIX_API_KEY,
+  // If using self-hosted Phoenix:
+  // url: "http://localhost:6006",
+});
+
+// Set up Anthropic instrumentation
+const instrumentation = new AnthropicInstrumentation();
+instrumentation.manuallyInstrument(Anthropic);
+
+console.log("Anthropic instrumentation registered");
+```
+
+## Run Anthropic
+
+Import the `instrumentation.ts` file first, then use Anthropic as usual.
+
+```typescript expandable
+import "./instrumentation.js";
+import Anthropic from "@anthropic-ai/sdk";
+
+// set ANTHROPIC_API_KEY in environment, or pass it in arguments
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+async function main() {
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: "Write a haiku about recursion." }],
+  });
+
+  console.log(message.content);
+}
+
+main();
+```
+
+## Observe
+
+After setting up instrumentation and running your Anthropic application, traces will appear in the Phoenix UI for visualization and analysis.
+
+## Custom Tracer Provider
+
+You can specify a custom tracer provider for Anthropic instrumentation:
+
+### Pass tracerProvider on instantiation
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
+
+const tracerProvider = register({
+  projectName: "anthropic-app",
+});
+
+const instrumentation = new AnthropicInstrumentation({
+  tracerProvider,
+});
+instrumentation.manuallyInstrument(Anthropic);
+```
+
+### Set tracerProvider after instantiation
+
+```typescript
+const instrumentation = new AnthropicInstrumentation();
+instrumentation.setTracerProvider(tracerProvider);
+instrumentation.manuallyInstrument(Anthropic);
+```
+
+## Resources
+
+* [NPM Package](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-anthropic)
+
+* [OpenInference package for Anthropic SDK TypeScript](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-anthropic)

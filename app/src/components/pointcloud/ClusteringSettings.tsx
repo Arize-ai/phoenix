@@ -17,7 +17,7 @@ import {
   MIN_CLUSTER_MIN_SAMPLES,
   MIN_MIN_CLUSTER_SIZE,
 } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 export default function ClusteringSettings() {
   const hdbscanParameters = usePointCloudContext(

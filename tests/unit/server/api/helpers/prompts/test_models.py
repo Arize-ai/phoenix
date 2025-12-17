@@ -437,6 +437,247 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
 
 
 @pytest.mark.parametrize(
+    (
+        "google_tool_dict",
+        "expected_normalized_tool_dict",
+    ),
+    (
+        pytest.param(
+            {
+                "name": "get_weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        },
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                    },
+                },
+            },
+            id="minimal-tool",
+        ),
+        pytest.param(
+            {
+                "name": "get_weather",
+                "description": "Gets the current weather for a given city",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        },
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Gets the current weather for a given city",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                    },
+                },
+            },
+            id="tool-with-description",
+        ),
+    ),
+)
+async def test_google_tools_are_round_tripped_without_data_loss(
+    google_tool_dict: dict[str, Any],
+    expected_normalized_tool_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    model_provider = ModelProvider.GOOGLE
+    normalized_tools = normalize_tools([google_tool_dict], model_provider)
+
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat",
+                messages=[],
+            ),
+            invocation_parameters=validate_invocation_parameters(
+                {"max_output_tokens": 1024}, model_provider
+            ),
+            tools=normalized_tools,
+            response_format=None,
+            model_provider=model_provider,
+            model_name="gemini-2.0-flash",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_tools = await session.scalar(
+            select(text("tools"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_tool_dict = json.loads(materialized_tools)
+    else:
+        materialized_tool_dict = materialized_tools
+
+    assert materialized_tool_dict == {
+        "type": "tools",
+        "tools": [expected_normalized_tool_dict],
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize tools and check they match the input tools
+    rehydrated_tools = rehydrated_prompt_version.tools
+    assert rehydrated_tools is not None
+    denormalized_tool_dicts, _ = denormalize_tools(rehydrated_tools, model_provider)
+    assert len(denormalized_tool_dicts) == 1
+    assert denormalized_tool_dicts[0] == google_tool_dict
+
+
+@pytest.mark.parametrize(
+    (
+        "google_tool_choice",
+        "expected_denormalized_tool_choice",
+    ),
+    (
+        pytest.param(
+            {"function_calling_config": {"mode": "auto"}},
+            {"function_calling_config": {"mode": "auto"}},
+            id="mode-auto-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "any"}},
+            {"function_calling_config": {"mode": "any"}},
+            id="mode-any-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "none"}},
+            {"function_calling_config": {"mode": "none"}},
+            id="mode-none-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "AUTO"}},
+            {"function_calling_config": {"mode": "auto"}},
+            id="mode-AUTO-uppercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "ANY"}},
+            {"function_calling_config": {"mode": "any"}},
+            id="mode-ANY-uppercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "NONE"}},
+            {"function_calling_config": {"mode": "none"}},
+            id="mode-NONE-uppercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            id="specific-function-name-lowercase",
+        ),
+        pytest.param(
+            {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["get_weather"]}},
+            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            id="specific-function-name-uppercase",
+        ),
+    ),
+)
+async def test_google_tool_choice_is_round_tripped_without_data_loss(
+    google_tool_choice: dict[str, Any],
+    expected_denormalized_tool_choice: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    model_provider = ModelProvider.GOOGLE
+    google_tool_dict = {
+        "name": "get_weather",
+        "description": "Gets the current weather for a given city",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                },
+            },
+        },
+    }
+    normalized_tools = normalize_tools(
+        [google_tool_dict], model_provider, tool_choice=google_tool_choice
+    )
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat",
+                messages=[],
+            ),
+            invocation_parameters=validate_invocation_parameters(
+                {"max_output_tokens": 1024}, model_provider
+            ),
+            tools=normalized_tools,
+            response_format=None,
+            model_provider=model_provider,
+            model_name="gemini-2.0-flash",
+        )
+        session.add(prompt_version)
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize tools and check tool choice matches input
+    rehydrated_tools = rehydrated_prompt_version.tools
+    assert rehydrated_tools is not None
+    _, denormalized_tool_choice = denormalize_tools(rehydrated_tools, model_provider)
+    assert denormalized_tool_choice == expected_denormalized_tool_choice
+
+
+@pytest.mark.parametrize(
     "openai_response_format_dict",
     [
         pytest.param(

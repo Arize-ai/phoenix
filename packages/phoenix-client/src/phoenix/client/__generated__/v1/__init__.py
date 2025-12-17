@@ -292,7 +292,7 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -303,7 +303,7 @@ class PromptDeepSeekInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptGoogleInvocationParametersContent(TypedDict):
@@ -324,7 +324,7 @@ class PromptOllamaInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptOpenAIInvocationParametersContent(TypedDict):
@@ -335,7 +335,7 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
@@ -393,7 +393,7 @@ class PromptXAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class SessionAnnotation(TypedDict):

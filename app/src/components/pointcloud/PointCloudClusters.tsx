@@ -3,8 +3,9 @@ import { interpolateSinebow } from "d3-scale-chromatic";
 
 import { Cluster, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
-import { usePointCloudContext, useTheme } from "@phoenix/contexts";
-import { CanvasTheme, ClusterColorMode } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import { useTheme } from "@phoenix/contexts/ThemeContext";
+import { CanvasTheme, ClusterColorMode } from "@phoenix/store/pointCloudStore";
 
 type PointCloudClustersProps = {
   /**

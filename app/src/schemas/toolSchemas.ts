@@ -3,7 +3,7 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaPropertiesSchema = z
   .object({
@@ -151,6 +151,27 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
+ * The zod schema for a Gemini tool definition
+ */
+export const geminiToolDefinitionSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  parameters: jsonSchemaZodSchema,
+});
+
+export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
+
+/**
+ * The JSON schema for a Gemini tool definition
+ */
+export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
+  geminiToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
+/**
  * --------------------------------
  * Conversion Schemas
  * --------------------------------
@@ -205,6 +226,31 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
 );
 
 /**
+ * Parse incoming object as a Gemini tool and immediately convert to OpenAI format
+ */
+export const geminiToolToOpenAI = geminiToolDefinitionSchema.transform(
+  (gemini): OpenAIToolDefinition => ({
+    type: "function",
+    function: {
+      name: gemini.name,
+      description: gemini.description,
+      parameters: gemini.parameters,
+    },
+  })
+);
+
+/**
+ * Parse incoming object as an OpenAI tool and immediately convert to Gemini format
+ */
+export const openAIToolToGemini = openAIToolDefinitionSchema.transform(
+  (openai): GeminiToolDefinition => ({
+    name: openai.function.name,
+    description: openai.function.description,
+    parameters: openai.function.parameters,
+  })
+);
+
+/**
  * --------------------------------
  * Conversion Helpers
  * --------------------------------
@@ -219,6 +265,7 @@ export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
+  geminiToolDefinitionSchema,
   jsonLiteralSchema,
 ]);
 
@@ -238,6 +285,10 @@ type ToolDefinitionWithProvider =
   | {
       provider: Extract<ModelProvider, "AWS">;
       validatedToolDefinition: AwsToolDefinition;
+    }
+  | {
+      provider: Extract<ModelProvider, "GOOGLE">;
+      validatedToolDefinition: GeminiToolDefinition;
     }
   | {
       provider: "UNKNOWN";
@@ -276,6 +327,16 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: awsData,
     };
   }
+
+  const { success: geminiSuccess, data: geminiData } =
+    geminiToolDefinitionSchema.safeParse(toolDefinition);
+  if (geminiSuccess) {
+    return {
+      provider: "GOOGLE",
+      validatedToolDefinition: geminiData,
+    };
+  }
+
   return { provider: "UNKNOWN", validatedToolDefinition: null };
 };
 
@@ -283,8 +344,7 @@ type ProviderToToolDefinitionMap = {
   OPENAI: OpenAIToolDefinition;
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
-  // Use generic JSON type for unknown tool formats / new providers
-  GOOGLE: JSONLiteral;
+  GOOGLE: GeminiToolDefinition;
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
@@ -307,6 +367,8 @@ export const toOpenAIToolDefinition = (
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
     case "AWS":
       return awsToolToOpenAI.parse(validatedToolDefinition);
+    case "GOOGLE":
+      return geminiToolToOpenAI.parse(validatedToolDefinition);
     case "UNKNOWN":
       return null;
     default:
@@ -339,9 +401,10 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAws.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
     case "GOOGLE":
-      return toolDefinition as ProviderToToolDefinitionMap[T];
+      return openAIToolToGemini.parse(
+        toolDefinition
+      ) as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);
   }
@@ -412,6 +475,24 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
           required: [],
         },
       },
+    },
+  };
+}
+
+export function createGeminiToolDefinition(
+  toolNumber: number
+): GeminiToolDefinition {
+  return {
+    name: `new_function_${toolNumber}`,
+    description: "a description",
+    parameters: {
+      type: "object",
+      properties: {
+        new_arg: {
+          type: "string",
+        },
+      },
+      required: [],
     },
   };
 }
