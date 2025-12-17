@@ -562,7 +562,7 @@ class TestChatCompletionMutationMixin:
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
             eval_result = evaluations[0]
-            assert eval_result["name"] == "correct"
+            assert eval_result["name"] == "correctness"
             assert eval_result["annotatorKind"] == "LLM"
             assert eval_result["label"] == "correct"
 
@@ -573,7 +573,7 @@ class TestChatCompletionMutationMixin:
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == "correct"
+            assert annotation.name == "correctness"
             assert annotation.annotator_kind == "LLM"
             assert annotation.label == "correct"
 
@@ -758,7 +758,7 @@ class TestChatCompletionMutationMixin:
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
             eval_result = evaluations[0]
-            assert eval_result["name"] == "correct"
+            assert eval_result["name"] == "correctness"
             assert eval_result["annotatorKind"] == "LLM"
 
         # Verify experiment run annotation was persisted in DB
@@ -768,7 +768,7 @@ class TestChatCompletionMutationMixin:
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == "correct"
+            assert annotation.name == "correctness"
             assert annotation.annotator_kind == "LLM"
             assert annotation.experiment_run_id is not None
 

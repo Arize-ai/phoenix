@@ -939,7 +939,7 @@ class TestChatCompletionSubscription:
         assert len(evaluation_chunks) == 1
         eval_chunk = evaluation_chunks[0]
         eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation["name"] == "correct"
+        assert eval_annotation["name"] == "correctness"
         assert eval_annotation["annotatorKind"] == "LLM"
         assert eval_annotation["label"] == "correct"
 
@@ -1926,7 +1926,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert eval_chunk["__typename"] == EvaluationChunk.__name__
         eval_annotation = eval_chunk["experimentRunEvaluation"]
         assert eval_annotation is not None
-        assert eval_annotation["name"] == "correct"
+        assert eval_annotation["name"] == "correctness"
         assert eval_annotation["annotatorKind"] == "LLM"
 
         async with db() as session:
@@ -1935,7 +1935,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == "correct"
+            assert annotation.name == "correctness"
             assert annotation.annotator_kind == "LLM"
             assert annotation.experiment_run_id is not None
 

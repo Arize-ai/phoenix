@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from secrets import token_hex
 from typing import Any, Awaitable, Callable, NamedTuple
 
 import pytest
@@ -831,9 +830,9 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
     An LLM evaluator that assesses correctness.
     """
     async with db() as session:
-        evaluator_name = Identifier(f"correctness-evaluator-{token_hex(4)}")
+        evaluator_name = Identifier("correctness-evaluator")
         prompt = models.Prompt(
-            name=Identifier(f"correctness-prompt-{token_hex(4)}"),
+            name=Identifier("correctness-prompt"),
             description="Prompt for correctness evaluation",
             prompt_versions=[
                 models.PromptVersion(
@@ -866,12 +865,12 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                                     parameters={
                                         "type": "object",
                                         "properties": {
-                                            "correct": {
+                                            "correctness": {
                                                 "type": "string",
                                                 "enum": ["correct", "incorrect"],
                                             },
                                         },
-                                        "required": ["correct"],
+                                        "required": ["correctness"],
                                     },
                                 ),
                             )
@@ -889,7 +888,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
             name=evaluator_name,
             description="evaluates the correctness of the output",
             kind="LLM",
-            annotation_name="correct",
+            annotation_name="correctness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
