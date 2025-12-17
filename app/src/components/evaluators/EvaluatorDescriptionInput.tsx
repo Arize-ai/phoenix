@@ -22,8 +22,8 @@ const useEvaluatorDescriptionInputForm = () => {
         if (!isValid) {
           return;
         }
-        const { patchEvaluator } = store.getState();
-        patchEvaluator({ description });
+        const { setEvaluatorDescription } = store.getState();
+        setEvaluatorDescription(description);
       },
     });
   }, [subscribe, store]);

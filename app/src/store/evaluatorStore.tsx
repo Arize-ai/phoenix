@@ -39,9 +39,9 @@ export type EvaluatorStoreProps = {
 };
 
 export type EvaluatorStoreActions = {
-  patchEvaluator: (
-    partialEvaluator: Partial<EvaluatorStoreProps["evaluator"]>
-  ) => void;
+  setEvaluatorName: (name: string) => void;
+  setEvaluatorDisplayName: (displayName: string) => void;
+  setEvaluatorDescription: (description: string) => void;
   setIncludeExplanation: (includeExplanation: boolean) => void;
   setOutputConfigName: (name: string) => void;
   setOutputConfigOptimizationDirection: (
@@ -149,11 +149,25 @@ export const createEvaluatorStore = (
           props
         ) satisfies EvaluatorStoreProps;
         const actions = {
-          patchEvaluator(partialEvaluator) {
+          setEvaluatorName(name) {
             set(
-              { evaluator: { ...get().evaluator, ...partialEvaluator } },
+              { evaluator: { ...get().evaluator, name } },
               undefined,
-              "patchEvaluator"
+              "setEvaluatorName"
+            );
+          },
+          setEvaluatorDisplayName(displayName) {
+            set(
+              { evaluator: { ...get().evaluator, displayName } },
+              undefined,
+              "setEvaluatorDisplayName"
+            );
+          },
+          setEvaluatorDescription(description) {
+            set(
+              { evaluator: { ...get().evaluator, description } },
+              undefined,
+              "setEvaluatorDescription"
             );
           },
           setOutputConfigName(name) {

@@ -26,11 +26,12 @@ const useEvaluatorNameInputForm = () => {
         if (!isValid) {
           return;
         }
-        const { patchEvaluator, datasetEvaluator } = store.getState();
+        const { setEvaluatorName, setEvaluatorDisplayName, datasetEvaluator } =
+          store.getState();
         if (datasetEvaluator?.id) {
-          patchEvaluator({ displayName: name });
+          setEvaluatorDisplayName(name);
         } else {
-          patchEvaluator({ name });
+          setEvaluatorName(name);
         }
       },
     });
