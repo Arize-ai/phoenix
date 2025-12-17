@@ -161,7 +161,7 @@ function EditCustomProviderDialogContent({
               profilePictureUrl
             }
           }
-          # Refetch the list to ensure proper cache update when SDK/typename changes
+          # Refetch the list to update the providers table
           query {
             ...CustomProvidersCard_data
           }
