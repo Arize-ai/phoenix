@@ -1,5 +1,7 @@
-import { PropsWithChildren } from "react";
-import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { PropsWithChildren, useEffect } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import invariant from "tiny-invariant";
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import {
@@ -17,7 +19,10 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import type { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -28,8 +33,54 @@ const optimizationDirections = [
   "NONE",
 ] satisfies EvaluatorOptimizationDirection[];
 
+const useEvaluatorLLMChoiceForm = () => {
+  // pull in zustand
+  const store = useEvaluatorStoreInstance();
+  const { outputConfig, includeExplanation } = useEvaluatorStore(
+    useShallow((state) => ({
+      outputConfig: state.outputConfig,
+      includeExplanation: state.evaluator.includeExplanation,
+    }))
+  );
+  invariant(
+    outputConfig,
+    "outputConfig is required. Mount EvaluatorLLMChoice within an LLM Evaluator."
+  );
+  // make a small react hook form scoped down with validation rules
+  const form = useForm({
+    defaultValues: { outputConfig, includeExplanation },
+    mode: "onChange",
+  });
+  const subscribe = form.subscribe;
+  // watch form fields, push valid updates back to zustand
+  useEffect(() => {
+    return subscribe({
+      formState: { isValid: true, values: true },
+      callback({ values: { outputConfig, includeExplanation }, isValid }) {
+        if (!isValid) {
+          return;
+        }
+        const {
+          setOutputConfigName,
+          setOutputConfigOptimizationDirection,
+          setOutputConfigValues,
+          setIncludeExplanation,
+        } = store.getState();
+        setOutputConfigName(outputConfig.name);
+        setOutputConfigOptimizationDirection(
+          outputConfig.optimizationDirection
+        );
+        setOutputConfigValues(outputConfig.values);
+        setIncludeExplanation(includeExplanation);
+      },
+    });
+  }, [subscribe, store]);
+
+  return form;
+};
+
 export const EvaluatorLLMChoice = () => {
-  const { control } = useFormContext<EvaluatorFormValues>();
+  const { control } = useEvaluatorLLMChoiceForm();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "outputConfig.values",
@@ -184,7 +235,7 @@ export const EvaluatorLLMChoice = () => {
         </Flex>
         <Controller
           control={control}
-          name="evaluator.includeExplanation"
+          name="includeExplanation"
           render={({ field }) => (
             <Switch isSelected={field.value} onChange={field.onChange}>
               <Text>Include explanation</Text>

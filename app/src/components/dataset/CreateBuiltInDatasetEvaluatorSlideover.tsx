@@ -1,5 +1,4 @@
 import { Suspense, useMemo, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
 import {
   ConnectionHandler,
   graphql,
@@ -7,17 +6,20 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import invariant from "tiny-invariant";
 
 import { Dialog, DialogContent, Flex, Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_dataset$key } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_dataset.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
-import {
-  DEFAULT_CODE_FORM_VALUES,
-  EvaluatorFormValues,
-} from "@phoenix/components/evaluators/EvaluatorForm";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import {
+  DEFAULT_CODE_EVALUATOR_STORE_VALUES,
+  type EvaluatorStoreInstance,
+  type EvaluatorStoreProps,
+} from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
@@ -102,6 +104,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       `,
       { evaluatorId }
     );
+  invariant(evaluator, "evaluator is required");
 
   const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
     dataset.id,
@@ -128,58 +131,49 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     );
 
   const datasetId = dataset.id;
-  const defaultFormValues: EvaluatorFormValues | null = useMemo(() => {
+  const initialState = useMemo(() => {
+    invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "CODE") {
+      const displayName =
+        evaluator.name?.toLowerCase().replace(/\s+/g, "_") ?? "";
       return {
-        ...DEFAULT_CODE_FORM_VALUES,
+        ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
           readonly: true,
           id: datasetId,
-          assignEvaluatorToDataset: true,
+          selectedExampleId: null,
+          selectedSplitIds: [],
         },
         evaluator: {
-          ...DEFAULT_CODE_FORM_VALUES.evaluator,
-          name: evaluator.name?.toLowerCase().replace(/\s+/g, "_") ?? "",
+          ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
+          name: evaluator.name,
+          displayName,
           description: evaluator.description ?? "",
           kind: evaluator.kind,
           isBuiltin: true,
-          builtInEvaluatorName: evaluator.name,
         },
-      };
+      } satisfies EvaluatorStoreProps;
     }
     return null;
   }, [evaluator, datasetId]);
 
-  if (!defaultFormValues) {
+  if (!initialState) {
     throw new Error(
       `EvaluatorConfigDialogContent: unexpected evaluator kind: ${evaluator?.kind}`
     );
   }
 
-  const form = useForm<EvaluatorFormValues>({
-    mode: "onChange",
-    defaultValues: defaultFormValues,
-  });
-  const {
-    getValues,
-    formState: { isValid: isFormValid },
-  } = form;
-
-  const onAddEvaluator = () => {
-    if (!isFormValid) {
-      return;
-    }
+  const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      inputMapping,
-      evaluator: { name },
-    } = getValues();
+      evaluator: { inputMapping, displayName },
+    } = store.getState();
     createDatasetBuiltInEvaluator({
       variables: {
         input: {
           datasetId: dataset.id,
           evaluatorId: evaluator.id,
-          displayName: name,
+          displayName,
           // deep clone the input mapping to ensure relay doesn't mutate the original object
           // TODO: remove this once we are using zustand
           inputMapping: structuredClone(inputMapping),
@@ -204,15 +198,17 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   };
 
   return (
-    <FormProvider {...form}>
-      <EditBuiltInEvaluatorDialogContent
-        onClose={onClose}
-        evaluatorInputSchema={evaluator.inputSchema}
-        onSubmit={onAddEvaluator}
-        isSubmitting={isCreatingDatasetBuiltInEvaluator}
-        mode="create"
-        error={error}
-      />
-    </FormProvider>
+    <EvaluatorStoreProvider initialState={initialState}>
+      {({ store }) => (
+        <EditBuiltInEvaluatorDialogContent
+          onClose={onClose}
+          evaluatorInputSchema={evaluator.inputSchema}
+          onSubmit={() => onAddEvaluator(store)}
+          isSubmitting={isCreatingDatasetBuiltInEvaluator}
+          mode="create"
+          error={error}
+        />
+      )}
+    </EvaluatorStoreProvider>
   );
 }

@@ -1,5 +1,5 @@
-import { PropsWithChildren, Suspense, useMemo } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
@@ -11,32 +11,21 @@ import {
   Text,
 } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
-import { EvaluatorFormValues } from "@phoenix/components/evaluators/EvaluatorForm";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
-import {
-  EMPTY_EVALUATOR_INPUT,
-  EvaluatorInput,
-} from "@phoenix/components/evaluators/utils";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
+import type { EvaluatorPreMappedInput } from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
-type EvaluatorInputMappingProps = {
-  evaluatorInput: EvaluatorInput | null;
-  exampleId?: string;
-};
-
-export const EvaluatorInputMapping = ({
-  evaluatorInput,
-}: EvaluatorInputMappingProps) => {
-  const variables = useEvaluatorInputVariables();
+export const EvaluatorInputMapping = () => {
   return (
     <EvaluatorInputMappingTitle>
       <Suspense fallback={<Loading />}>
-        <EvaluatorInputMappingControls
-          evaluatorInput={evaluatorInput}
-          variables={variables}
-        />
+        <EvaluatorInputMappingControls />
       </Suspense>
     </EvaluatorInputMappingTitle>
   );
@@ -55,16 +44,40 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   );
 };
 
-const EvaluatorInputMappingControls = ({
-  evaluatorInput,
-  variables,
-}: {
-  evaluatorInput: EvaluatorInput | null;
-  variables: string[];
-}) => {
-  const { control, watch } = useFormContext<EvaluatorFormValues>();
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorInput);
-  const inputValues = watch("inputMapping.pathMapping");
+const useEvaluatorInputMappingControlsForm = () => {
+  const store = useEvaluatorStoreInstance();
+  const pathMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.pathMapping
+  );
+  const form = useForm({ defaultValues: { pathMapping }, mode: "onChange" });
+  const subscribe = form.subscribe;
+  useEffect(() => {
+    return subscribe({
+      formState: { isValid: true, values: true },
+      callback({ values: { pathMapping }, isValid }) {
+        if (!isValid) {
+          return;
+        }
+        const { setPathMapping } = store.getState();
+        setPathMapping({ ...pathMapping });
+      },
+    });
+  }, [subscribe, store]);
+  return form;
+};
+
+const EvaluatorInputMappingControls = () => {
+  const { control } = useEvaluatorInputMappingControlsForm();
+  const variables = useEvaluatorInputVariables();
+  const evaluatorPreMappedInput = useEvaluatorStore(
+    (state) => state.preMappedInput
+  );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(
+    evaluatorPreMappedInput
+  );
+  const inputValues = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.pathMapping
+  );
   // iterate over all keys in the control
   // each row should have a variable, an arrow pointing to the example field, and a select field
   // the variable should be the key, the select field should have all flattened example keys as options
@@ -83,7 +96,7 @@ const EvaluatorInputMappingControls = ({
           `}
         >
           <Controller
-            name={`inputMapping.pathMapping.${variable}`}
+            name={`pathMapping.${variable}`}
             control={control}
             render={({ field }) => (
               <ComboBox
@@ -136,16 +149,16 @@ const EvaluatorInputMappingControls = ({
 };
 
 export const useFlattenedEvaluatorInputKeys = (
-  evaluatorInput: EvaluatorInput | null
+  evaluatorPreMappedInput: EvaluatorPreMappedInput
 ) => {
   return useMemo(() => {
     const flat = flattenObject({
-      obj: evaluatorInput ?? EMPTY_EVALUATOR_INPUT,
+      obj: evaluatorPreMappedInput,
       keepNonTerminalValues: true,
     });
     return Object.keys(flat).map((key) => ({
       id: key,
       label: key,
     }));
-  }, [evaluatorInput]);
+  }, [evaluatorPreMappedInput]);
 };
