@@ -22,8 +22,10 @@ import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 
-import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
-import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
+import {
+  DatasetPageQuery,
+  DatasetPageQuery$data,
+} from "./__generated__/DatasetPageQuery.graphql";
 import { DatasetDownloadMenu } from "./DatasetDownloadMenu";
 import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
 
@@ -37,6 +39,7 @@ export const DatasetPageQueryNode = graphql`
         description
         exampleCount
         experimentCount
+        evaluatorCount
         labels {
           id
           name
@@ -143,7 +146,7 @@ function getTabIndexFromPathname(pathname: string): number {
 function DatasetPageContent({
   dataset,
 }: {
-  dataset: datasetLoaderQuery$data["dataset"];
+  dataset: DatasetPageQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
@@ -218,7 +221,7 @@ function DatasetPageContent({
           <Tab id="versions">Versions</Tab>
           {isEvaluatorsEnabled ? (
             <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
-              Evaluators
+              Evaluators <Counter>{dataset.evaluatorCount}</Counter>
             </Tab>
           ) : null}
         </TabList>

@@ -837,6 +837,9 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
+
+  """Number of evaluators associated with this dataset."""
+  evaluatorCount: Int!
   datasetEvaluator(datasetEvaluatorId: ID!): DatasetEvaluator!
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
   lastUpdatedAt: DateTime
