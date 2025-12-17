@@ -25,7 +25,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         aria-label="Add Dataset Example"
         variant="primary"
       >
-        Add Example
+        Example
       </Button>
       <ModalOverlay>
         <Modal size="L">

@@ -32,8 +32,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
-import { DatasetCodeButton } from "./DatasetCodeButton";
-import { RunExperimentButton } from "./RunExperimentButton";
+import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
 
 export const DatasetPageQueryNode = graphql`
   query DatasetPageQuery($id: ID!) {
@@ -166,7 +165,6 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
-  const datasetHasVersions = (dataset.latestVersions?.edges.length ?? 0) > 0;
 
   // Set the initial tab
   const location = useLocation();
@@ -222,12 +220,12 @@ function DatasetPageContent({
           <Flex direction="row" gap="size-100" alignItems="center">
             <MenuTrigger>
               <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+                size="M"
+                leadingVisual={<Icon svg={<Icons.DownloadOutline />} />}
               />
               <Popover>
                 <Menu
-                  aria-label="Dataset action menu"
+                  aria-label="Dataset download"
                   onAction={(action) => {
                     switch (action) {
                       case "csv":
@@ -265,20 +263,8 @@ function DatasetPageContent({
                 </Menu>
               </Popover>
             </MenuTrigger>
-            <DatasetCodeButton />
-            <RunExperimentButton />
             <DatasetLabelConfigButton datasetId={dataset.id} />
-            <Button
-              isDisabled={!datasetHasVersions}
-              size="S"
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={() => {
-                navigate(`/playground?datasetId=${dataset.id}`);
-              }}
-            >
-              Playground
-            </Button>
+            <RunDatasetExperimentButton variant="primary" size="M" />
           </Flex>
         </Flex>
       </View>

@@ -8,8 +8,6 @@ import {
   ExternalLink,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
   Text,
   View,
 } from "@phoenix/components";
@@ -25,11 +23,11 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { ExperimentCodeModal } from "@phoenix/components/experiment/ExperimentCodeModal";
 import { BASE_URL } from "@phoenix/config";
-import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix-client`;
-// TODO: plumb though session URL from the backend
+
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
     `import os\n` +
@@ -43,6 +41,7 @@ function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   }
   return setBaseURLPython;
 }
+
 const TASK_PYTHON =
   `# Define your task\n` +
   `# Typically should be an LLM call or a call to invoke your application\n` +
@@ -109,9 +108,29 @@ await runExperiment({
 });`;
 }
 
-function RunExperimentPythonExample() {
-  const datasetName = useDatasetContext((state) => state.datasetName);
-  const version = useDatasetContext((state) => state.latestVersion);
+export type DatasetVersion = {
+  id: string;
+};
+
+export type RunExperimentCodeDialogProps = {
+  /**
+   * The name of the dataset to run the experiment on
+   */
+  datasetName: string;
+  /**
+   * The ID of the dataset (used for TypeScript example)
+   */
+  datasetId: string;
+  /**
+   * Optional specific version of the dataset
+   */
+  version?: DatasetVersion | null;
+};
+
+function RunExperimentPythonExample({
+  datasetName,
+  version,
+}: Pick<RunExperimentCodeDialogProps, "datasetName" | "version">) {
   const isAuthEnabled = window.Config.authenticationEnabled;
 
   const getDatasetPythonCode = useCallback(() => {
@@ -183,9 +202,9 @@ function RunExperimentPythonExample() {
   );
 }
 
-function RunExperimentTypeScriptExample() {
-  const datasetName = useDatasetContext((state) => state.datasetName);
-  // You could add experimentName state or prop if needed
+function RunExperimentTypeScriptExample({
+  datasetId,
+}: Pick<RunExperimentCodeDialogProps, "datasetId">) {
   return (
     <View overflow="auto">
       <View paddingBottom="size-100">
@@ -201,14 +220,22 @@ function RunExperimentTypeScriptExample() {
       </View>
       <CodeWrap>
         <TypeScriptBlockWithCopy
-          value={getDatasetTypeScriptCode(datasetName, "experiment_name")}
+          value={getDatasetTypeScriptCode(datasetId, "experiment_name")}
         />
       </CodeWrap>
     </View>
   );
 }
 
-function RunExperimentExampleSwitcher() {
+/**
+ * Dialog content showing code examples for running experiments via the SDK.
+ * Use inside a Modal component.
+ */
+export function RunExperimentCodeDialogContent({
+  datasetName,
+  datasetId,
+  version,
+}: RunExperimentCodeDialogProps) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   return (
     <Dialog>
@@ -227,9 +254,12 @@ function RunExperimentExampleSwitcher() {
             />
           </View>
           {language === "Python" ? (
-            <RunExperimentPythonExample />
+            <RunExperimentPythonExample
+              datasetName={datasetName}
+              version={version}
+            />
           ) : (
-            <RunExperimentTypeScriptExample />
+            <RunExperimentTypeScriptExample datasetId={datasetId} />
           )}
         </View>
       </DialogContent>
@@ -237,26 +267,34 @@ function RunExperimentExampleSwitcher() {
   );
 }
 
-export function RunExperimentButton(
-  { variant = "default", size = "S" }: Pick<ButtonProps, "variant" | "size"> = {
-    variant: "default",
-    size: "S",
-  }
-) {
+export type RunExperimentButtonProps = RunExperimentCodeDialogProps &
+  Pick<ButtonProps, "variant" | "size">;
+
+/**
+ * A button that opens a dialog with code examples for running experiments
+ * on a dataset via the Python or TypeScript SDK.
+ */
+export function RunExperimentButton({
+  datasetName,
+  datasetId,
+  version,
+  variant = "default",
+  size = "S",
+}: RunExperimentButtonProps) {
   return (
     <DialogTrigger>
       <Button
         size={size}
         variant={variant}
-        leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
       >
-        Run Experiment
+        Experiment
       </Button>
-      <ModalOverlay isDismissable>
-        <Modal variant="slideover" size="L">
-          <RunExperimentExampleSwitcher />
-        </Modal>
-      </ModalOverlay>
+      <ExperimentCodeModal
+        datasetName={datasetName}
+        datasetId={datasetId}
+        version={version}
+      />
     </DialogTrigger>
   );
 }
