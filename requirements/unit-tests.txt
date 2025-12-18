@@ -28,3 +28,4 @@ typing-extensions
 vcrpy
 pytest-smtpd
 freezegun
+aiosqlite<0.22.0  # new version is causing tests to hang
