@@ -1,10 +1,17 @@
+import {
+  DEFAULT_PHOENIX_BASE_URL,
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+  ENV_PHOENIX_HOST,
+} from "@arizeai/phoenix-config";
+
 import type { ClientOptions } from "openapi-fetch";
 import z from "zod";
 
 const phoenixEnvironmentSchema = z.object({
-  PHOENIX_API_KEY: z.string().optional(),
-  PHOENIX_HOST: z.string().optional(),
-  PHOENIX_CLIENT_HEADERS: z
+  [ENV_PHOENIX_API_KEY]: z.string().optional(),
+  [ENV_PHOENIX_HOST]: z.string().optional(),
+  [ENV_PHOENIX_CLIENT_HEADERS]: z
     .string()
     .transform((s) => JSON.parse(s))
     .transform((o) => z.record(z.string()).parse(o))
@@ -74,6 +81,6 @@ export const defaultGetEnvironmentOptions = (): Partial<ClientOptions> => {
  */
 export const makeDefaultClientOptions = (): Partial<ClientOptions> => {
   return {
-    baseUrl: "http://localhost:6006",
+    baseUrl: DEFAULT_PHOENIX_BASE_URL,
   };
 };
