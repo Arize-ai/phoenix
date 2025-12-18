@@ -1204,11 +1204,7 @@ class Query:
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:
-            async with info.context.db() as session:
-                orm_provider = await session.get(models.GenerativeModelCustomProvider, node_id)
-            if not orm_provider:
-                raise NotFound(f"Unknown provider: {node_id}")
-            return GenerativeModelCustomProvider(id=node_id, db_record=orm_provider)
+            return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

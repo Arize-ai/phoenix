@@ -346,14 +346,7 @@ def _parse_config(
     sdk: models.GenerativeModelSDK,
     encrypted_config: bytes,
     decrypt: Callable[[bytes], bytes],
-) -> (
-    OpenAICustomProviderConfig
-    | AzureOpenAICustomProviderConfig
-    | AnthropicCustomProviderConfig
-    | AWSBedrockCustomProviderConfig
-    | GoogleGenAICustomProviderConfig
-    | UnparsableConfig
-):
+) -> CustomProviderConfig:
     """Parse the encrypted config based on the SDK type."""
     try:
         data = decrypt(encrypted_config)
@@ -454,17 +447,17 @@ class GenerativeModelCustomProvider(Node):
     @strawberry.field(description="The config of this provider.")  # type: ignore
     async def config(self, info: Info[Context, None]) -> CustomProviderConfig:
         if self.db_record:
-            encrypted_config = self.db_record.config
             sdk = self.db_record.sdk
+            encrypted_config = self.db_record.config
         else:
-            # Load both config and sdk fields
-            encrypted_config = (
-                await info.context.data_loaders.generative_model_custom_provider_fields.load(
+            (
+                sdk,
+                encrypted_config,
+            ) = await info.context.data_loaders.generative_model_custom_provider_fields.load_many(
+                [
+                    (self.id, models.GenerativeModelCustomProvider.sdk),
                     (self.id, models.GenerativeModelCustomProvider.config),
-                )
-            )
-            sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.sdk),
+                ]
             )
         return _parse_config(sdk, encrypted_config, info.context.decrypt)
 
