@@ -436,9 +436,11 @@ jobs:
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 60
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
+        timeout-minutes: 60
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e unit_tests -- -ra -x --reruns 5
 
   type-check-integration-tests:
