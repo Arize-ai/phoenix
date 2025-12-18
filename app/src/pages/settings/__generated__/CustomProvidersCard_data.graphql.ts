@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f0aba9add88010d1d6e61894ea18bfb>>
+ * @generated SignedSource<<d88a3dd5e29a69e0bdf013bbd0b1a929>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,56 +15,7 @@ export type CustomProvidersCard_data$data = {
   readonly generativeModelCustomProviders: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly config?: {
-          readonly anthropicAuthenticationMethod?: {
-            readonly apiKey: string | null;
-          };
-          readonly anthropicClientKwargs?: {
-            readonly baseUrl: string | null;
-            readonly defaultHeaders: any | null;
-          } | null;
-          readonly awsBedrockAuthenticationMethod?: {
-            readonly awsAccessKeyId: string | null;
-            readonly awsSecretAccessKey: string | null;
-            readonly awsSessionToken: string | null;
-          };
-          readonly awsBedrockClientKwargs?: {
-            readonly endpointUrl: string | null;
-            readonly regionName: string | null;
-          } | null;
-          readonly azureOpenaiAuthenticationMethod?: {
-            readonly apiKey: string | null;
-            readonly azureAdTokenProvider: {
-              readonly azureClientId: string | null;
-              readonly azureClientSecret: string | null;
-              readonly azureTenantId: string | null;
-              readonly scope: string | null;
-            } | null;
-          };
-          readonly azureOpenaiClientKwargs?: {
-            readonly apiVersion: string | null;
-            readonly azureDeployment: string | null;
-            readonly azureEndpoint: string | null;
-            readonly defaultHeaders: any | null;
-          } | null;
-          readonly googleGenaiAuthenticationMethod?: {
-            readonly apiKey: string | null;
-          };
-          readonly googleGenaiClientKwargs?: {
-            readonly httpOptions: {
-              readonly baseUrl: string | null;
-              readonly headers: any | null;
-            } | null;
-          } | null;
-          readonly openaiAuthenticationMethod?: {
-            readonly apiKey: string | null;
-          };
-          readonly openaiClientKwargs?: {
-            readonly baseUrl: string | null;
-            readonly defaultHeaders: any | null;
-            readonly organization: string | null;
-            readonly project: string | null;
-          } | null;
+        readonly config: {
           readonly parseError?: string;
         };
         readonly createdAt: string;
@@ -100,44 +51,6 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
-  "storageKey": null
-},
-v2 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "parseError",
-      "storageKey": null
-    }
-  ],
-  "type": "UnparsableConfig",
-  "abstractKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "apiKey",
-  "storageKey": null
-},
-v4 = [
-  (v3/*: any*/)
-],
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "baseUrl",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "defaultHeaders",
   "storageKey": null
 };
 return {
@@ -197,7 +110,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
+              "concreteType": "GenerativeModelCustomProvider",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -272,375 +185,29 @@ return {
                   "storageKey": null
                 },
                 {
-                  "kind": "InlineFragment",
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "config",
+                  "plural": false,
                   "selections": [
                     {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "config",
-                      "plural": false,
+                      "kind": "InlineFragment",
                       "selections": [
-                        (v2/*: any*/),
                         {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "OpenAIAuthenticationMethod",
-                              "kind": "LinkedField",
-                              "name": "openaiAuthenticationMethod",
-                              "plural": false,
-                              "selections": (v4/*: any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "OpenAIClientKwargs",
-                              "kind": "LinkedField",
-                              "name": "openaiClientKwargs",
-                              "plural": false,
-                              "selections": [
-                                (v5/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "organization",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "project",
-                                  "storageKey": null
-                                },
-                                (v6/*: any*/)
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "OpenAICustomProviderConfig",
-                          "abstractKey": null
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "parseError",
+                          "storageKey": null
                         }
                       ],
-                      "storageKey": null
+                      "type": "UnparsableConfig",
+                      "abstractKey": null
                     }
                   ],
-                  "type": "GenerativeModelCustomProviderOpenAI",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "config",
-                      "plural": false,
-                      "selections": [
-                        (v2/*: any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AzureOpenAIAuthenticationMethod",
-                              "kind": "LinkedField",
-                              "name": "azureOpenaiAuthenticationMethod",
-                              "plural": false,
-                              "selections": [
-                                (v3/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "concreteType": "AzureADTokenProvider",
-                                  "kind": "LinkedField",
-                                  "name": "azureAdTokenProvider",
-                                  "plural": false,
-                                  "selections": [
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "azureTenantId",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "azureClientId",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "azureClientSecret",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "scope",
-                                      "storageKey": null
-                                    }
-                                  ],
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AzureOpenAIClientKwargs",
-                              "kind": "LinkedField",
-                              "name": "azureOpenaiClientKwargs",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "apiVersion",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "azureEndpoint",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "azureDeployment",
-                                  "storageKey": null
-                                },
-                                (v6/*: any*/)
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "AzureOpenAICustomProviderConfig",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "GenerativeModelCustomProviderAzureOpenAI",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "config",
-                      "plural": false,
-                      "selections": [
-                        (v2/*: any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AnthropicAuthenticationMethod",
-                              "kind": "LinkedField",
-                              "name": "anthropicAuthenticationMethod",
-                              "plural": false,
-                              "selections": (v4/*: any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AnthropicClientKwargs",
-                              "kind": "LinkedField",
-                              "name": "anthropicClientKwargs",
-                              "plural": false,
-                              "selections": [
-                                (v5/*: any*/),
-                                (v6/*: any*/)
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "AnthropicCustomProviderConfig",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "GenerativeModelCustomProviderAnthropic",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "config",
-                      "plural": false,
-                      "selections": [
-                        (v2/*: any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AWSBedrockAuthenticationMethod",
-                              "kind": "LinkedField",
-                              "name": "awsBedrockAuthenticationMethod",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "awsAccessKeyId",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "awsSecretAccessKey",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "awsSessionToken",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "AWSBedrockClientKwargs",
-                              "kind": "LinkedField",
-                              "name": "awsBedrockClientKwargs",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "regionName",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "endpointUrl",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "AWSBedrockCustomProviderConfig",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "GenerativeModelCustomProviderAWSBedrock",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "config",
-                      "plural": false,
-                      "selections": [
-                        (v2/*: any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "GoogleGenAIAuthenticationMethod",
-                              "kind": "LinkedField",
-                              "name": "googleGenaiAuthenticationMethod",
-                              "plural": false,
-                              "selections": (v4/*: any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "GoogleGenAIClientKwargs",
-                              "kind": "LinkedField",
-                              "name": "googleGenaiClientKwargs",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "concreteType": "GoogleGenAIHttpOptions",
-                                  "kind": "LinkedField",
-                                  "name": "httpOptions",
-                                  "plural": false,
-                                  "selections": [
-                                    (v5/*: any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "headers",
-                                      "storageKey": null
-                                    }
-                                  ],
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "GoogleGenAICustomProviderConfig",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "GenerativeModelCustomProviderGoogleGenAI",
-                  "abstractKey": null
+                  "storageKey": null
                 },
                 {
                   "alias": null,
@@ -696,6 +263,6 @@ return {
 };
 })();
 
-(node as any).hash = "16a3c52f83fadebbba9c7e7a03effeed";
+(node as any).hash = "c29e85fe3f8eb2ea260fdc204f7f5ada";
 
 export default node;
