@@ -387,7 +387,7 @@ class EvaluatorMutationMixin:
                         prompt_version_tag.prompt_version_id = provided_prompt_version_id
                     else:
                         raise NotFound(
-                            f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id}"
+                            f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id} "
                             "not found"
                         )
 
