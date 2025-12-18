@@ -1,0 +1,86 @@
+{
+  "name": "@arizeai/phoenix-client",
+  "version": "5.5.5",
+  "description": "A client for the Phoenix API",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    },
+    "./prompts": {
+      "import": "./dist/esm/prompts/index.js",
+      "require": "./dist/src/prompts/index.js"
+    },
+    "./spans": {
+      "import": "./dist/esm/spans/index.js",
+      "require": "./dist/src/spans/index.js"
+    },
+    "./sessions": {
+      "import": "./dist/esm/sessions/index.js",
+      "require": "./dist/src/sessions/index.js"
+    },
+    "./experiments": {
+      "import": "./dist/esm/experiments/index.js",
+      "require": "./dist/src/experiments/index.js"
+    },
+    "./datasets": {
+      "import": "./dist/esm/datasets/index.js",
+      "require": "./dist/src/datasets/index.js"
+    },
+    "./utils/*": {
+      "import": "./dist/esm/utils/*.js",
+      "require": "./dist/src/utils/*.js"
+    },
+    "./types/*": {
+      "import": "./dist/esm/types/*.d.ts",
+      "require": "./dist/src/types/*.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "type:check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "phoenix",
+    "arize"
+  ],
+  "author": "oss@arize.com",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.22",
+    "ai": "^5.0.38",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.10"
+  },
+  "dependencies": {},
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.35.0",
+    "ai": "^5.0.76",
+    "openai": "^6.10.0"
+  }
+}
