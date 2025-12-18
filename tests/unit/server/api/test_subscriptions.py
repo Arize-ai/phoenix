@@ -1950,7 +1950,6 @@ class TestChatCompletionOverDatasetSubscription:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that no evaluation chunks are emitted when chat completion over dataset errors."""
         dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
@@ -2013,7 +2012,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert len(error_chunks) == 1
         assert "model" in error_chunks[0]["message"].lower()
 
-        # Verify NO evaluation chunks were emitted
+        # Verify no evaluation chunks were emitted
         assert len(evaluation_chunks) == 0
 
         # Verify no experiment run annotations were persisted
