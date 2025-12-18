@@ -12,14 +12,15 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.evaluators import (
-    validate_consistent_llm_evaluator_and_prompt_version,
-)
+from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_config
 from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptTemplateFormat,
+    PromptTools,
     RoleConversion,
     TextContentPart,
     denormalize_tools,
@@ -58,45 +59,114 @@ class EvaluationResult(TypedDict):
 class LLMEvaluator:
     def __init__(
         self,
-        llm_evaluator_orm: models.LLMEvaluator,
-        prompt_version_orm: models.PromptVersion,
+        name: str,
+        description: Optional[str],
+        metadata: dict[str, Any],
+        annotation_name: str,
+        output_config: CategoricalAnnotationConfig,
+        template: PromptChatTemplate,
+        template_format: PromptTemplateFormat,
+        tools: PromptTools,
+        model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient,
-    ) -> None:
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version_orm, llm_evaluator_orm)
-        self._llm_evaluator_orm = llm_evaluator_orm
-        self._prompt_version_orm = prompt_version_orm
+        id: Optional[int] = None,
+    ):
+        validate_evaluator_prompt_and_config(
+            prompt_tools=tools,
+            prompt_response_format=None,
+            evaluator_annotation_name=annotation_name,
+            evaluator_output_config=output_config,
+            evaluator_description=description,
+        )
+        self._name = name
+        self._description = description
+        self._metadata = metadata
+        self._annotation_name = annotation_name
+        self._output_config = output_config
+        self._template = template
+        self._template_format = template_format
+        self._tools = tools
+        self._model_provider = model_provider
+        self._id = id
         self._llm_client = llm_client
 
     @property
-    def node_id(self) -> GlobalID:
-        """
-        The node ID of the corresponding LLM evaluator node.
-        """
-        from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
-
-        return GlobalID(LLMEvaluatorNode.__name__, str(self._llm_evaluator_orm.id))
-
-    @property
     def name(self) -> str:
-        return self._llm_evaluator_orm.name.root
+        return self._name
 
     @property
     def description(self) -> Optional[str]:
-        return self._llm_evaluator_orm.description
+        return self._description
 
     @property
     def metadata(self) -> dict[str, Any]:
-        return self._llm_evaluator_orm.metadata_
+        return self._metadata
+
+    @property
+    def annotation_name(self) -> str:
+        return self._annotation_name
+
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
+        return self._output_config
+
+    @property
+    def template(self) -> PromptChatTemplate:
+        return self._template
+
+    @property
+    def template_format(self) -> PromptTemplateFormat:
+        return self._template_format
+
+    @property
+    def tools(self) -> PromptTools:
+        return self._tools
+
+    @property
+    def model_provider(self) -> ModelProvider:
+        return self._model_provider
+
+    @staticmethod
+    def from_orm(
+        llm_evaluator_orm: models.LLMEvaluator,
+        prompt_version_orm: models.PromptVersion,
+        llm_client: PlaygroundStreamingClient,
+    ) -> "LLMEvaluator":
+        template = prompt_version_orm.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = prompt_version_orm.tools
+        assert tools is not None
+
+        return LLMEvaluator(
+            id=llm_evaluator_orm.id,
+            name=llm_evaluator_orm.name.root,
+            description=llm_evaluator_orm.description,
+            metadata=llm_evaluator_orm.metadata_,
+            annotation_name=llm_evaluator_orm.annotation_name,
+            output_config=llm_evaluator_orm.output_config,
+            template=template,
+            template_format=prompt_version_orm.template_format,
+            tools=tools,
+            model_provider=prompt_version_orm.model_provider,
+            llm_client=llm_client,
+        )
+
+    @property
+    def node_id(self) -> GlobalID:
+        if self._id is None:
+            raise ValueError(
+                "LLMEvaluator has not yet been persisted to the database and hence has no node ID"
+            )
+        from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+
+        return GlobalID(LLMEvaluatorNode.__name__, str(self._id))
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        prompt_version = self._prompt_version_orm
-        template = prompt_version.template
-        assert isinstance(template, PromptChatTemplate)
-        formatter = get_template_formatter(prompt_version.template_format)
+        formatter = get_template_formatter(self.template_format)
         variables: set[str] = set()
 
-        for msg in template.messages:
+        for msg in self.template.messages:
             if isinstance(msg.content, str):
                 variables.update(formatter.parse(msg.content))
             elif isinstance(msg.content, list):
@@ -119,23 +189,16 @@ class LLMEvaluator:
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
-        prompt_version = self._prompt_version_orm
-        evaluator = self._llm_evaluator_orm
-        prompt_tools = prompt_version.tools
-        assert prompt_tools is not None
-        template = prompt_version.template
-        assert isinstance(template, PromptChatTemplate)
-        output_config = evaluator.output_config
         template_variables = apply_input_mapping(
             input_schema=self.input_schema,
             input_mapping=input_mapping,
             context=context,
         )
-        template_formatter = get_template_formatter(prompt_version.template_format)
+        template_formatter = get_template_formatter(self._template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
         ] = []
-        for msg in template.messages:
+        for msg in self._template.messages:
             role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
             if isinstance(msg.content, str):
                 formatted_content = template_formatter.format(msg.content, **template_variables)
@@ -149,7 +212,7 @@ class LLMEvaluator:
             messages.append((role, formatted_content, None, None))
 
         denormalized_tools, _ = denormalize_tools(
-            prompt_tools, prompt_version.model_provider
+            self._tools, self._model_provider
         )  # todo: denormalize tool choice and pass as part of invocation parameters
 
         tool_call_by_id: dict[ToolCallId, ToolCall] = {}
@@ -172,7 +235,7 @@ class LLMEvaluator:
             error_message = str(e)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=evaluator.annotation_name,
+                name=self._annotation_name,
                 annotator_kind="LLM",
                 label=None,
                 score=None,
@@ -190,13 +253,13 @@ class LLMEvaluator:
         args = json.loads(tool_call["arguments"])
         label = args["label"]
         scores_by_label = {
-            config_value.label: config_value.score for config_value in output_config.values
+            config_value.label: config_value.score for config_value in self._output_config.values
         }
         score = scores_by_label.get(label)
         explanation = args.get("explanation")
 
         return EvaluationResult(
-            name=evaluator.annotation_name,
+            name=self._annotation_name,
             annotator_kind="LLM",
             label=label,
             score=score,
@@ -308,7 +371,7 @@ async def get_llm_evaluators(
             raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
 
         llm_evaluators.append(
-            LLMEvaluator(
+            LLMEvaluator.from_orm(
                 llm_evaluator_orm=llm_evaluator_orm,
                 prompt_version_orm=prompt_version,
                 llm_client=llm_client,
@@ -415,6 +478,38 @@ def evaluation_result_to_span_annotation(
     )
 
 
+def create_llm_evaluator_from_inline(
+    *,
+    prompt_version_orm: models.PromptVersion,
+    annotation_name: str,
+    output_config: CategoricalAnnotationConfig,
+    llm_client: PlaygroundStreamingClient,
+    description: Optional[str] = None,
+) -> LLMEvaluator:
+    """
+    Creates an LLMEvaluator instance from inline definition without database persistence.
+    Used for evaluator preview functionality.
+    """
+    template = prompt_version_orm.template
+    assert isinstance(template, PromptChatTemplate)
+    tools = prompt_version_orm.tools
+    assert tools is not None
+
+    return LLMEvaluator(
+        id=None,
+        name="preview",
+        description=description,
+        metadata={},
+        annotation_name=annotation_name,
+        output_config=output_config,
+        template=template,
+        template_format=prompt_version_orm.template_format,
+        tools=tools,
+        model_provider=prompt_version_orm.model_provider,
+        llm_client=llm_client,
+    )
+
+
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     name = "Contains"
@@ -457,7 +552,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             matched = any(word.lower() in text.lower() for word in words)
         explanation = (
             f"one or more of the words {repr(words)} were {'found' if matched else 'not found'} "
-            "in the output"
+            "in the text"
         )
         return EvaluationResult(
             name=self.name,

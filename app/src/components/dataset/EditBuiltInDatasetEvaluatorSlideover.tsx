@@ -18,6 +18,7 @@ import {
 import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -52,12 +53,15 @@ export function EditBuiltInDatasetEvaluatorSlideover({
               }
             >
               {datasetEvaluatorId && (
-                <EditBuiltInDatasetEvaluatorSlideoverContent
-                  datasetEvaluatorId={datasetEvaluatorId}
-                  onClose={close}
-                  datasetId={datasetId}
-                  updateConnectionIds={updateConnectionIds}
-                />
+                // TODO: remove playground provider
+                <EvaluatorPlaygroundProvider>
+                  <EditBuiltInDatasetEvaluatorSlideoverContent
+                    datasetEvaluatorId={datasetEvaluatorId}
+                    onClose={close}
+                    datasetId={datasetId}
+                    updateConnectionIds={updateConnectionIds}
+                  />
+                </EvaluatorPlaygroundProvider>
               )}
             </Suspense>
           )}
@@ -151,6 +155,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorKind = evaluator.kind;
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
+  const evaluatorId = evaluator.id;
   const initialState = useMemo(() => {
     if (evaluatorKind === "CODE") {
       return {
@@ -166,6 +171,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
         },
         evaluator: {
           ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
+          id: evaluatorId,
           name: evaluatorName ?? "",
           displayName: displayName ?? "",
           description: evaluatorDescription ?? "",
@@ -181,6 +187,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     displayName,
     evaluatorKind,
     evaluatorName,
+    evaluatorId,
     inputMapping,
     datasetEvaluatorId,
     evaluatorDescription,
