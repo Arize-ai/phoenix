@@ -1,7 +1,7 @@
 {
-  "name": "@arizeai/phoenix-client",
-  "version": "5.5.5",
-  "description": "A client for the Phoenix API",
+  "name": "@arizeai/phoenix-config",
+  "version": "0.0.1",
+  "description": "central configuration for Phoenix",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/src/index.d.ts",
@@ -9,34 +9,6 @@
     ".": {
       "import": "./dist/esm/index.js",
       "require": "./dist/src/index.js"
-    },
-    "./prompts": {
-      "import": "./dist/esm/prompts/index.js",
-      "require": "./dist/src/prompts/index.js"
-    },
-    "./spans": {
-      "import": "./dist/esm/spans/index.js",
-      "require": "./dist/src/spans/index.js"
-    },
-    "./sessions": {
-      "import": "./dist/esm/sessions/index.js",
-      "require": "./dist/src/sessions/index.js"
-    },
-    "./experiments": {
-      "import": "./dist/esm/experiments/index.js",
-      "require": "./dist/src/experiments/index.js"
-    },
-    "./datasets": {
-      "import": "./dist/esm/datasets/index.js",
-      "require": "./dist/src/datasets/index.js"
-    },
-    "./utils/*": {
-      "import": "./dist/esm/utils/*.js",
-      "require": "./dist/src/utils/*.js"
-    },
-    "./types/*": {
-      "import": "./dist/esm/types/*.d.ts",
-      "require": "./dist/src/types/*.d.ts"
     }
   },
   "files": [
@@ -58,7 +30,7 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-config",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
