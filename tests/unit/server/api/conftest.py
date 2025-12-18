@@ -906,7 +906,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
 
 
 @pytest.fixture
-async def assign_correctnesss_llm_evaluator_to_dataset(
+async def assign_correctness_llm_evaluator_to_dataset(
     db: DbSessionFactory,
     correctness_llm_evaluator: models.LLMEvaluator,
 ) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
@@ -915,7 +915,7 @@ async def assign_correctnesss_llm_evaluator_to_dataset(
     Reuses the correctness_llm_evaluator fixture.
     """
 
-    async def _assign_correctnesss_llm_evaluator_to_dataset(
+    async def _assign_correctness_llm_evaluator_to_dataset(
         dataset_id: int,
     ) -> models.DatasetEvaluators:
         async with db() as session:
@@ -929,7 +929,7 @@ async def assign_correctnesss_llm_evaluator_to_dataset(
             await session.flush()
             return dataset_evaluator
 
-    return _assign_correctnesss_llm_evaluator_to_dataset
+    return _assign_correctness_llm_evaluator_to_dataset
 
 
 @pytest.fixture

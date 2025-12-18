@@ -1856,13 +1856,13 @@ class TestChatCompletionOverDatasetSubscription:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
-        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+        assign_correctness_llm_evaluator_to_dataset: Callable[
             [int], Awaitable[models.DatasetEvaluators]
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
         evaluator_gid = str(
@@ -1944,14 +1944,14 @@ class TestChatCompletionOverDatasetSubscription:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
-        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+        assign_correctness_llm_evaluator_to_dataset: Callable[
             [int], Awaitable[models.DatasetEvaluators]
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
         """Test that no evaluation chunks are emitted when chat completion over dataset errors."""
-        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
         evaluator_gid = str(

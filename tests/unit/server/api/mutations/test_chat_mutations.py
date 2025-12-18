@@ -660,7 +660,7 @@ class TestChatCompletionMutationMixin:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
-        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+        assign_correctness_llm_evaluator_to_dataset: Callable[
             [int], Awaitable[models.DatasetEvaluators]
         ],
         custom_vcr: CustomVCR,
@@ -668,7 +668,7 @@ class TestChatCompletionMutationMixin:
     ) -> None:
         """Test that chat_completion_over_dataset mutation with evaluator returns evaluations
         and persists experiment run annotations."""
-        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
         evaluator_gid = str(
@@ -777,14 +777,14 @@ class TestChatCompletionMutationMixin:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
-        assign_correctnesss_llm_evaluator_to_dataset: Callable[
+        assign_correctness_llm_evaluator_to_dataset: Callable[
             [int], Awaitable[models.DatasetEvaluators]
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
         """Test that evaluators are not run when the chat completion over dataset task errors."""
-        dataset_evaluator = await assign_correctnesss_llm_evaluator_to_dataset(
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
         evaluator_gid = str(
