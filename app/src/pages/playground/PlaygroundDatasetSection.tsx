@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -134,6 +134,9 @@ export function PlaygroundDatasetSection({
       () =>
         datasetEvaluators.map((datasetEvaluator) => datasetEvaluator.id) ?? []
     );
+  const onEvaluatorCreated = useCallback((datasetEvaluatorId: string) => {
+    setSelectedDatasetEvaluatorIds((prev) => [...prev, datasetEvaluatorId]);
+  }, []);
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return datasetEvaluators
       .filter((datasetEvaluator) =>
@@ -214,6 +217,7 @@ export function PlaygroundDatasetSection({
                 updateConnectionIds={[
                   data.dataset.datasetEvaluators?.__id ?? "",
                 ]}
+                onEvaluatorCreated={onEvaluatorCreated}
               />
               {experimentIds.length > 0 && (
                 <LinkButton

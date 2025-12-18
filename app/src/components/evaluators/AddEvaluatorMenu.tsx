@@ -103,6 +103,7 @@ export const AddEvaluatorMenu = ({
         }}
         evaluatorId={builtinEvaluatorIdToAssociate}
         datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
       />
     </>
   );

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a31160c3d830c0ce954cf2c4b67ce6f6>>
+ * @generated SignedSource<<36dd77a4ae471adec8b26b5c0dbbca07>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AddEvaluatorMenu_query$data = {
-  readonly dataset: {
-    readonly " $fragmentSpreads": FragmentRefs<"CreateBuiltInDatasetEvaluatorSlideover_dataset">;
-  };
   readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates" | "AddEvaluatorMenu_llmEvaluatorTemplates">;
   readonly " $fragmentType": "AddEvaluatorMenu_query";
 };
@@ -23,13 +20,7 @@ export type AddEvaluatorMenu_query$key = {
 };
 
 const node: ReaderFragment = {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "datasetId"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "AddEvaluatorMenu_query",
@@ -38,35 +29,6 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "FragmentSpread",
       "name": "AddEvaluatorMenu_codeEvaluatorTemplates"
-    },
-    {
-      "alias": "dataset",
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "id",
-          "variableName": "datasetId"
-        }
-      ],
-      "concreteType": null,
-      "kind": "LinkedField",
-      "name": "node",
-      "plural": false,
-      "selections": [
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "args": null,
-              "kind": "FragmentSpread",
-              "name": "CreateBuiltInDatasetEvaluatorSlideover_dataset"
-            }
-          ],
-          "type": "Dataset",
-          "abstractKey": null
-        }
-      ],
-      "storageKey": null
     },
     {
       "args": null,
@@ -78,6 +40,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "6c8e5e9487e8292c5ddb8685431a5a05";
+(node as any).hash = "a4dd24fa272edf3d043b07ed8298ac86";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b76484aae909e1a348571d04fac09aa>>
+ * @generated SignedSource<<a1bf82bc4c3a1434596ceb2fb666b9c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type datasetEvaluatorsLoaderQuery$variables = {
 export type datasetEvaluatorsLoaderQuery$data = {
   readonly dataset: {
     readonly id: string;
-    readonly " $fragmentSpreads": FragmentRefs<"CreateBuiltInDatasetEvaluatorSlideover_dataset" | "DatasetEvaluatorsTable_evaluators">;
+    readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_evaluators">;
   };
   readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_query">;
 };
@@ -111,11 +111,6 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "CreateBuiltInDatasetEvaluatorSlideover_dataset"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
                 "name": "DatasetEvaluatorsTable_evaluators"
               }
             ],
@@ -126,13 +121,7 @@ return {
         "storageKey": null
       },
       {
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "datasetId",
-            "variableName": "id"
-          }
-        ],
+        "args": null,
         "kind": "FragmentSpread",
         "name": "AddEvaluatorMenu_query"
       }
@@ -428,16 +417,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0ba23c33498ea0ec16000eebf64e7303",
+    "cacheID": "f463380f530e31b9d70b55eaef468572",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query_2m4mqp\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query_2m4mqp on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      ...CreateBuiltInDatasetEvaluatorSlideover_dataset\n    }\n    id\n  }\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {\n  id\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "44eedac75a51ea4bb57269be9a76fea4";
+(node as any).hash = "6256632b06a080f3deaeaa4286f97890";
 
 export default node;

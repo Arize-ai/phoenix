@@ -1,11 +1,6 @@
 import { Suspense, useMemo, useState } from "react";
 import { ModalOverlayProps } from "react-aria-components";
-import {
-  ConnectionHandler,
-  graphql,
-  useLazyLoadQuery,
-  useMutation,
-} from "react-relay";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
@@ -31,12 +26,14 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
   evaluatorId,
-  onEvaluatorAssigned,
+  updateConnectionIds,
+  onEvaluatorCreated,
   datasetId,
   ...props
 }: {
   evaluatorId: string | null;
-  onEvaluatorAssigned?: () => void;
+  updateConnectionIds: string[];
+  onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
   datasetId: string;
 } & ModalOverlayProps) {
   return (
@@ -57,8 +54,9 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
                     <CreateBuiltInDatasetEvaluatorSlideoverContent
                       evaluatorId={evaluatorId}
                       onClose={close}
-                      onEvaluatorAssigned={onEvaluatorAssigned}
+                      onEvaluatorCreated={onEvaluatorCreated}
                       datasetId={datasetId}
+                      updateConnectionIds={updateConnectionIds}
                     />
                   </EvaluatorPlaygroundProvider>
                 )}
@@ -74,13 +72,15 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
 function CreateBuiltInDatasetEvaluatorSlideoverContent({
   evaluatorId,
   onClose,
-  onEvaluatorAssigned,
+  onEvaluatorCreated,
   datasetId,
+  updateConnectionIds,
 }: {
   evaluatorId: string;
   onClose: () => void;
-  onEvaluatorAssigned?: () => void;
+  onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
   datasetId: string;
+  updateConnectionIds: string[];
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
@@ -109,10 +109,6 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     );
   invariant(evaluator, "evaluator is required");
 
-  const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
-    datasetId,
-    "DatasetEvaluatorsTable_datasetEvaluators"
-  );
   const [createDatasetBuiltInEvaluator, isCreatingDatasetBuiltInEvaluator] =
     useMutation<CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation>(
       graphql`
@@ -126,6 +122,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                 connections: $connectionIds
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
+              id
               ...DatasetEvaluatorsTable_row
             }
           }
@@ -181,10 +178,11 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           // TODO: remove this once we are using zustand
           inputMapping: structuredClone(inputMapping),
         },
-        connectionIds: [datasetEvaluatorsTableConnection],
+        connectionIds: updateConnectionIds,
       },
-      onCompleted: () => {
-        onEvaluatorAssigned?.();
+      onCompleted: (response) => {
+        const createdId = response.createDatasetBuiltinEvaluator.evaluator.id;
+        onEvaluatorCreated?.(createdId);
         notifySuccess({
           title: "Evaluator created",
           message: "The evaluator has been added to the dataset.",

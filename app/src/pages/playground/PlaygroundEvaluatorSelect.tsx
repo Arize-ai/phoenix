@@ -38,6 +38,7 @@ type PlaygroundEvaluatorSelectProps = {
   onSelectionChange: (keys: string[]) => void;
   builtInEvaluatorsQuery: BuiltInEvaluatorsQueryKey;
   updateConnectionIds: string[];
+  onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -50,6 +51,7 @@ export function PlaygroundEvaluatorSelect(
     builtInEvaluatorsQuery,
     datasetId,
     updateConnectionIds,
+    onEvaluatorCreated,
   } = props;
 
   const [editingEvaluator, setEditingEvaluator] = useState<{
@@ -161,6 +163,7 @@ export function PlaygroundEvaluatorSelect(
             setEditingEvaluator(null);
           }
         }}
+        updateConnectionIds={updateConnectionIds}
       />
       <EditBuiltInDatasetEvaluatorSlideover
         datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId}
@@ -171,6 +174,7 @@ export function PlaygroundEvaluatorSelect(
             setEditingEvaluator(null);
           }
         }}
+        updateConnectionIds={updateConnectionIds}
       />
       <CreateBuiltInDatasetEvaluatorSlideover
         evaluatorId={builtinEvaluatorIdToAssociate}
@@ -181,6 +185,8 @@ export function PlaygroundEvaluatorSelect(
             onCloseAssociateBuiltinEvaluatorDialog();
           }
         }}
+        onEvaluatorCreated={onEvaluatorCreated}
+        updateConnectionIds={updateConnectionIds}
       />
       <CreateLLMDatasetEvaluatorSlideover
         isOpen={!!createLLMEvaluatorDialogInitialState}
@@ -193,6 +199,7 @@ export function PlaygroundEvaluatorSelect(
             ? createLLMEvaluatorDialogInitialState
             : undefined
         }
+        onEvaluatorCreated={onEvaluatorCreated}
       />
     </>
   );
