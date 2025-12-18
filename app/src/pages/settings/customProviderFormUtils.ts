@@ -9,6 +9,7 @@ import {
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { EditCustomProviderButtonQuery$data } from "@phoenix/pages/settings/__generated__/EditCustomProviderButtonQuery.graphql";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   safelyJSONStringify,
@@ -16,8 +17,12 @@ import {
 } from "@phoenix/utils/jsonUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
-import type { CustomProvidersCard_data$data } from "./__generated__/CustomProvidersCard_data.graphql";
-import type { CreateGenerativeModelCustomProviderMutationInput } from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
+import type { PatchGenerativeModelCustomProviderMutationInput } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
+import type {
+  AzureOpenAIAuthenticationMethodInput,
+  CreateGenerativeModelCustomProviderMutationInput,
+  GenerativeModelCustomerProviderConfigInput,
+} from "./__generated__/NewCustomProviderButtonCreateMutation.graphql";
 import type {
   AnthropicFormData,
   AWSBedrockFormData,
@@ -27,11 +32,7 @@ import type {
   ProviderFormData,
 } from "./CustomProviderForm";
 
-/**
- * GraphQL provider node type alias for better readability
- */
-type ProviderNode =
-  CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
+export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 
 // =============================================================================
 // Form Default Values
@@ -131,10 +132,16 @@ export function createDefaultFormData(
  *
  * Uses the `sdk` field for type detection rather than inferring from config
  * properties, which is more robust for polymorphic types.
+ *
+ * Returns a complete ProviderFormData with all required fields filled in.
  */
 export function transformConfigToFormValues(
   provider: ProviderNode
-): Partial<ProviderFormData> {
+): ProviderFormData {
+  invariant(
+    provider.__typename === "GenerativeModelCustomProvider",
+    "Node is not a generative model custom provider"
+  );
   const baseValues = {
     name: provider.name,
     description: provider.description || "",
@@ -245,7 +252,9 @@ export function transformConfigToFormValues(
  * the GraphQL schema. Uses a switch statement on the `sdk` discriminant
  * for automatic type narrowing.
  */
-export function buildClientConfig(formData: ProviderFormData) {
+export function buildClientConfig(
+  formData: ProviderFormData
+): GenerativeModelCustomerProviderConfigInput {
   switch (formData.sdk) {
     case "OPENAI":
       return {
@@ -269,22 +278,6 @@ export function buildClientConfig(formData: ProviderFormData) {
         formData.azure_auth_method,
         "Azure authentication method is required but was empty"
       );
-      const authMethodType = formData.azure_auth_method;
-
-      // Build auth method based on selected type
-      const authMethod =
-        authMethodType === "ad_token_provider"
-          ? compressObject({
-              azureAdTokenProvider: compressObject({
-                azureTenantId: formData.azure_tenant_id,
-                azureClientId: formData.azure_client_id,
-                azureClientSecret: formData.azure_client_secret,
-                scope: formData.azure_scope,
-              }),
-            })
-          : compressObject({
-              apiKey: formData.azure_api_key,
-            });
 
       // Validate required fields before constructing the object.
       // These should be guaranteed by Zod validation, but we assert here for type safety
@@ -301,10 +294,43 @@ export function buildClientConfig(formData: ProviderFormData) {
         formData.azure_api_version,
         "Azure API version is required but was empty"
       );
-      invariant(
-        authMethod,
-        "Azure authentication method is required but was empty"
-      );
+
+      // Build auth method based on selected type
+      // Note: We don't use compressObject here because the GraphQL types require
+      // specific fields to be non-optional
+      const authMethodType = formData.azure_auth_method;
+      let authMethod: AzureOpenAIAuthenticationMethodInput;
+
+      if (authMethodType === "ad_token_provider") {
+        invariant(
+          formData.azure_tenant_id,
+          "Azure tenant ID is required for AD token provider"
+        );
+        invariant(
+          formData.azure_client_id,
+          "Azure client ID is required for AD token provider"
+        );
+        invariant(
+          formData.azure_client_secret,
+          "Azure client secret is required for AD token provider"
+        );
+        authMethod = {
+          azureAdTokenProvider: {
+            azureTenantId: formData.azure_tenant_id,
+            azureClientId: formData.azure_client_id,
+            azureClientSecret: formData.azure_client_secret,
+            ...(formData.azure_scope && { scope: formData.azure_scope }),
+          },
+        };
+      } else {
+        invariant(
+          formData.azure_api_key,
+          "Azure API key is required when using API key authentication"
+        );
+        authMethod = {
+          apiKey: formData.azure_api_key,
+        };
+      }
 
       // Build azureOpenaiClientKwargs with required fields directly (not via compactObject)
       // to ensure it's never undefined. Optional fields are added conditionally.
@@ -403,8 +429,122 @@ export function transformToCreateInput(
     name: formData.name,
     description: formData.description || undefined,
     provider: formData.provider,
-    clientConfig: buildClientConfig(
-      formData
-    ) as CreateGenerativeModelCustomProviderMutationInput["clientConfig"],
+    clientConfig: buildClientConfig(formData),
   };
+}
+
+/**
+ * Transforms form data into the GraphQL mutation input for patching/updating a provider.
+ *
+ * Compares new values with original values and only includes changed fields in the patch.
+ * The `id` field is always included as it's required by the mutation.
+ */
+export function transformToPatchInput(
+  formData: ProviderFormData,
+  providerId: string,
+  originalValues: ProviderFormData
+): PatchGenerativeModelCustomProviderMutationInput {
+  const input: PatchGenerativeModelCustomProviderMutationInput = {
+    id: providerId,
+  };
+
+  // Check base fields for changes
+  if (formData.name !== originalValues.name) {
+    input.name = formData.name;
+  }
+
+  if (formData.description !== originalValues.description) {
+    input.description = formData.description || null;
+  }
+
+  if (formData.provider !== originalValues.provider) {
+    input.provider = formData.provider;
+  }
+
+  // For clientConfig, we always send the full config if any SDK-specific field changed.
+  // This is simpler and safer than trying to diff nested config structures.
+  const configChanged = hasConfigChanged(formData, originalValues);
+  if (configChanged) {
+    input.clientConfig = buildClientConfig(formData);
+  }
+
+  return input;
+}
+
+/**
+ * Checks if any SDK-specific configuration fields have changed.
+ * Returns true if any field in the config section differs from the original.
+ */
+function hasConfigChanged(
+  formData: ProviderFormData,
+  originalValues: ProviderFormData
+): boolean {
+  // If SDK changed, config definitely changed
+  if (formData.sdk !== originalValues.sdk) {
+    return true;
+  }
+
+  // Compare SDK-specific fields based on the SDK type.
+  // We use invariant to narrow originalValues since TypeScript can't track
+  // the relationship established by the early return above.
+  switch (formData.sdk) {
+    case "OPENAI": {
+      invariant(originalValues.sdk === "OPENAI", "SDK mismatch");
+      return (
+        formData.openai_api_key !== originalValues.openai_api_key ||
+        formData.openai_base_url !== originalValues.openai_base_url ||
+        formData.openai_organization !== originalValues.openai_organization ||
+        formData.openai_project !== originalValues.openai_project ||
+        formData.openai_default_headers !==
+          originalValues.openai_default_headers
+      );
+    }
+    case "AZURE_OPENAI": {
+      invariant(originalValues.sdk === "AZURE_OPENAI", "SDK mismatch");
+      return (
+        formData.azure_endpoint !== originalValues.azure_endpoint ||
+        formData.azure_deployment_name !==
+          originalValues.azure_deployment_name ||
+        formData.azure_api_version !== originalValues.azure_api_version ||
+        formData.azure_auth_method !== originalValues.azure_auth_method ||
+        formData.azure_api_key !== originalValues.azure_api_key ||
+        formData.azure_tenant_id !== originalValues.azure_tenant_id ||
+        formData.azure_client_id !== originalValues.azure_client_id ||
+        formData.azure_client_secret !== originalValues.azure_client_secret ||
+        formData.azure_scope !== originalValues.azure_scope ||
+        formData.azure_default_headers !== originalValues.azure_default_headers
+      );
+    }
+    case "ANTHROPIC": {
+      invariant(originalValues.sdk === "ANTHROPIC", "SDK mismatch");
+      return (
+        formData.anthropic_api_key !== originalValues.anthropic_api_key ||
+        formData.anthropic_base_url !== originalValues.anthropic_base_url ||
+        formData.anthropic_default_headers !==
+          originalValues.anthropic_default_headers
+      );
+    }
+    case "AWS_BEDROCK": {
+      invariant(originalValues.sdk === "AWS_BEDROCK", "SDK mismatch");
+      return (
+        formData.aws_region !== originalValues.aws_region ||
+        formData.aws_access_key_id !== originalValues.aws_access_key_id ||
+        formData.aws_secret_access_key !==
+          originalValues.aws_secret_access_key ||
+        formData.aws_session_token !== originalValues.aws_session_token ||
+        formData.aws_endpoint_url !== originalValues.aws_endpoint_url
+      );
+    }
+    case "GOOGLE_GENAI": {
+      invariant(originalValues.sdk === "GOOGLE_GENAI", "SDK mismatch");
+      return (
+        formData.google_api_key !== originalValues.google_api_key ||
+        formData.google_base_url !== originalValues.google_base_url ||
+        formData.google_headers !== originalValues.google_headers
+      );
+    }
+    default: {
+      assertUnreachable(formData);
+    }
+  }
 }

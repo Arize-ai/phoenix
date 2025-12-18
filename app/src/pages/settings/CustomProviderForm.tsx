@@ -53,10 +53,7 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 
-import type {
-  CustomProviderFormTestCredentialsQuery,
-  GenerativeModelCustomerProviderConfigInput,
-} from "./__generated__/CustomProviderFormTestCredentialsQuery.graphql";
+import type { CustomProviderFormTestCredentialsQuery } from "./__generated__/CustomProviderFormTestCredentialsQuery.graphql";
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
@@ -163,6 +160,7 @@ export interface ProviderFormProps {
   /** Initial values for editing an existing provider. If not provided, creates a new provider with OPENAI defaults. */
   initialValues?: ProviderFormData;
   isSubmitting?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 const flexFieldCSS = css`
@@ -856,21 +854,30 @@ function SDKSelect({
   );
 }
 
-export function ProviderForm({
+export const ProviderForm = ({
   onSubmit,
   onCancel,
   initialValues,
   isSubmitting = false,
-}: ProviderFormProps) {
+  onDirtyChange,
+}: ProviderFormProps) => {
   const defaultValues = initialValues ?? createDefaultFormData("OPENAI");
 
-  const { control, handleSubmit, reset, getValues } = useForm<ProviderFormData>(
-    {
-      defaultValues,
-      resolver: zodResolver(providerFormSchema),
-      mode: "onBlur", // Validate on blur for better UX
-    }
-  );
+  const {
+    control,
+    handleSubmit,
+    reset,
+    getValues,
+    formState: { isDirty },
+  } = useForm<ProviderFormData>({
+    defaultValues,
+    resolver: zodResolver(providerFormSchema),
+    mode: "onBlur", // Validate on blur for better UX
+  });
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const sdk = useWatch({ control, name: "sdk" });
   // SDK is guaranteed to exist because defaultValues is always a complete ProviderFormData
@@ -973,7 +980,7 @@ export function ProviderForm({
       </Flex>
     </Form>
   );
-}
+};
 
 const testCredentialsQuery = graphql`
   query CustomProviderFormTestCredentialsQuery(
@@ -1101,9 +1108,7 @@ function TestConnectionButton({
 
     try {
       const formValues = getValues();
-      const clientConfig = buildClientConfig(
-        formValues
-      ) as GenerativeModelCustomerProviderConfigInput;
+      const clientConfig = buildClientConfig(formValues);
       const result = await fetchQuery<CustomProviderFormTestCredentialsQuery>(
         environment,
         testCredentialsQuery,
