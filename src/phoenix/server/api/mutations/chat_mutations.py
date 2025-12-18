@@ -183,7 +183,6 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         input: ChatCompletionOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
-        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
@@ -194,6 +193,9 @@ class ChatCompletionMutationMixin:
         )
         project_name = generate_experiment_project_name()
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
                 raise NotFound("Dataset not found")
@@ -327,7 +329,7 @@ class ChatCompletionMutationMixin:
                 llm_evaluators = await get_llm_evaluators(
                     evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                     session=session,
-                    llm_client=llm_client,
+                    decrypt=info.context.decrypt,
                 )
                 for (revision, repetition_number), experiment_run in zip(
                     unbatched_items, experiment_runs
@@ -427,7 +429,10 @@ class ChatCompletionMutationMixin:
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
     ) -> ChatCompletionMutationPayload:
-        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
+        async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
@@ -449,7 +454,7 @@ class ChatCompletionMutationMixin:
                 llm_evaluators = await get_llm_evaluators(
                     evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                     session=session,
-                    llm_client=llm_client,
+                    decrypt=info.context.decrypt,
                 )
                 for repetition_number, result in enumerate(results, start=1):
                     if isinstance(result, BaseException):
@@ -573,7 +578,6 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping,
                 )
                 context_result = _to_annotation(eval_result)
-
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 model_provider = inline_llm_evaluator.prompt_version.model_provider
                 model_name = inline_llm_evaluator.prompt_version.model_name
