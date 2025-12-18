@@ -638,6 +638,172 @@ class TestDatasetLLMEvaluatorMutations:
             )
             assert len(prompt_versions.all()) == 1
 
+    async def test_create_dataset_llm_evaluator_with_identical_prompt_content(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test creating evaluator with existing prompt_version_id and identical content doesn't create new version."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # First, create a prompt and prompt version
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-{token_hex(4)}"),
+                description="test prompt",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type=PromptTemplateType.CHAT,
+                        template_format=PromptTemplateFormat.MUSTACHE,
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[
+                                        TextContentPart(
+                                            type="text",
+                                            text="Original: {{input}}",
+                                        )
+                                    ],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(temperature=0.5),
+                        ),
+                        tools=normalize_tools(
+                            [
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "test-evaluator-identical",
+                                        "description": "test description",
+                                        "parameters": {
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string",
+                                                    "enum": ["correct", "incorrect"],
+                                                    "description": "correctness",
+                                                }
+                                            },
+                                            "required": ["label"],
+                                        },
+                                    },
+                                }
+                            ],
+                            ModelProvider.OPENAI,
+                            tool_choice={
+                                "type": "function",
+                                "function": {"name": "test-evaluator-identical"},
+                            },
+                        ),
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            session.add(prompt)
+            await session.flush()
+            existing_prompt_version = prompt.prompt_versions[0]
+            existing_prompt_version_id = str(
+                GlobalID("PromptVersion", str(existing_prompt_version.id))
+            )
+            existing_prompt_id = prompt.id
+
+        # Create evaluator with identical prompt contents
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            name="test-evaluator-identical",
+            description="test description",
+            promptVersionId=existing_prompt_version_id,
+            promptVersion=dict(
+                description=None,
+                templateFormat="MUSTACHE",
+                template=dict(
+                    messages=[
+                        dict(role="USER", content=[dict(text=dict(text="Original: {{input}}"))])
+                    ]
+                ),
+                invocationParameters=dict(
+                    temperature=0.5,  # Same temperature as existing
+                    tool_choice=dict(
+                        type="function",
+                        function=dict(name="test-evaluator-identical"),
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="test-evaluator-identical",
+                                description="test description",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        label=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                            description="correctness",
+                                        )
+                                    ),
+                                    required=["label"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+
+        # Verify the evaluator uses the existing prompt and SAME prompt version (no new version created)
+        async with db() as session:
+            dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            llm_evaluator = await session.get(
+                models.LLMEvaluator,
+                db_dataset_evaluator.evaluator_id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert llm_evaluator is not None
+            # Verify prompt ID matches the existing prompt
+            assert llm_evaluator.prompt_id == existing_prompt_id
+            # Verify prompt version ID is the SAME (no new version created)
+            assert llm_evaluator.prompt_version_tag is not None
+            assert llm_evaluator.prompt_version_tag.prompt_version_id == existing_prompt_version.id
+            # Verify tag was added to the existing prompt version
+            assert llm_evaluator.prompt_version_tag.prompt_id == existing_prompt_id
+
+            # Verify only ONE prompt version exists (no new one created)
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == existing_prompt_id
+                )
+            )
+            prompt_versions_list = prompt_versions.all()
+            assert len(prompt_versions_list) == 1
+
     async def test_create_dataset_llm_evaluator_with_nonexistent_prompt_version_id(
         self,
         db: DbSessionFactory,

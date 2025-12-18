@@ -245,11 +245,14 @@ class EvaluatorMutationMixin:
                     if prompt is None:
                         raise NotFound(f"Prompt with id {existing_prompt_id} not found")
 
-                    # Always create a new prompt version for the existing prompt
-                    prompt_version.prompt_id = existing_prompt_id
-                    session.add(prompt_version)
-                    await session.flush()
-                    target_prompt_version_id = prompt_version.id
+                    # Only create a new prompt version if the contents differ
+                    if existing_prompt_version.has_identical_content(prompt_version):
+                        target_prompt_version_id = existing_prompt_version.id
+                    else:
+                        prompt_version.prompt_id = existing_prompt_id
+                        session.add(prompt_version)
+                        await session.flush()
+                        target_prompt_version_id = prompt_version.id
                 else:
                     # No prompt version ID provided: create new prompt and prompt version
                     prompt_name = IdentifierModel.model_validate(
