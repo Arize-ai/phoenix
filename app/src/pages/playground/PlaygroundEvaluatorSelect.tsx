@@ -13,6 +13,7 @@ import {
   Separator,
   Text,
 } from "@phoenix/components";
+import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
   CreateLLMDatasetEvaluatorInitialState,
   CreateLLMDatasetEvaluatorSlideover,
@@ -56,11 +57,19 @@ export function PlaygroundEvaluatorSelect(
     kind: EvaluatorKind;
     isBuiltIn: boolean;
   } | null>(null);
+  const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
+    useState<string | null>(null);
+  const associateBuiltinEvaluatorDialogOpen =
+    builtinEvaluatorIdToAssociate != null;
+  const onCloseAssociateBuiltinEvaluatorDialog = () => {
+    setBuiltinEvaluatorIdToAssociate(null);
+  };
   const [evaluatorMenuOpen, setEvaluatorMenuOpen] = useState(false);
 
-  const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] = useState<
-    CreateLLMDatasetEvaluatorInitialState | boolean | null
-  >(null);
+  const [
+    createLLMEvaluatorDialogInitialState,
+    setCreateLLMEvaluatorDialogInitialState,
+  ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
 
   const onEdit = ({
     datasetEvaluatorId,
@@ -106,6 +115,7 @@ export function PlaygroundEvaluatorSelect(
             css={css`
               max-width: 600px;
             `}
+            aria-label="Select evaluators"
           >
             <GridListSection>
               <GridListSectionTitle title="Evaluators" />
@@ -128,12 +138,12 @@ export function PlaygroundEvaluatorSelect(
           <Separator />
           <AddEvaluatorMenuContents
             query={builtInEvaluatorsQuery}
-            onCreateEvaluator={() => setCreateEvaluatorDialogOpen(true)}
-            onSelectBuiltInCodeEvaluator={() =>
-              setCreateEvaluatorDialogOpen(true)
+            onCreateEvaluator={() =>
+              setCreateLLMEvaluatorDialogInitialState(true)
             }
+            onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
-              setCreateEvaluatorDialogOpen(initialState);
+              setCreateLLMEvaluatorDialogInitialState(initialState);
             }}
           />
         </MenuContainer>
@@ -162,21 +172,28 @@ export function PlaygroundEvaluatorSelect(
           }
         }}
       />
-      <DialogTrigger
-        isOpen={!!createEvaluatorDialogOpen}
-        onOpenChange={setCreateEvaluatorDialogOpen}
-      >
-        <CreateLLMDatasetEvaluatorSlideover
-          datasetId={datasetId}
-          updateConnectionIds={updateConnectionIds}
-          initialState={
-            createEvaluatorDialogOpen &&
-            typeof createEvaluatorDialogOpen === "object"
-              ? createEvaluatorDialogOpen
-              : undefined
+      <CreateBuiltInDatasetEvaluatorSlideover
+        evaluatorId={builtinEvaluatorIdToAssociate}
+        datasetId={datasetId}
+        isOpen={associateBuiltinEvaluatorDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseAssociateBuiltinEvaluatorDialog();
           }
-        />
-      </DialogTrigger>
+        }}
+      />
+      <CreateLLMDatasetEvaluatorSlideover
+        isOpen={!!createLLMEvaluatorDialogInitialState}
+        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+        initialState={
+          createLLMEvaluatorDialogInitialState &&
+          typeof createLLMEvaluatorDialogInitialState === "object"
+            ? createLLMEvaluatorDialogInitialState
+            : undefined
+        }
+      />
     </>
   );
 }

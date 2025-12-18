@@ -1,16 +1,22 @@
 import { Suspense, useMemo, useState } from "react";
+import { ModalOverlayProps } from "react-aria-components";
 import {
   ConnectionHandler,
   graphql,
-  useFragment,
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { Dialog, DialogContent, Flex, Loading } from "@phoenix/components";
+import {
+  Dialog,
+  DialogContent,
+  Flex,
+  Loading,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
-import type { CreateBuiltInDatasetEvaluatorSlideover_dataset$key } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_dataset.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -25,38 +31,43 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
   evaluatorId,
-  onClose,
   onEvaluatorAssigned,
-  datasetRef,
+  datasetId,
+  ...props
 }: {
   evaluatorId: string | null;
-  onClose: () => void;
   onEvaluatorAssigned?: () => void;
-  datasetRef: CreateBuiltInDatasetEvaluatorSlideover_dataset$key;
-}) {
+  datasetId: string;
+} & ModalOverlayProps) {
   return (
-    <Dialog aria-label="Add evaluator to dataset">
-      <DialogContent minHeight="300px">
-        <Suspense
-          fallback={
-            <Flex flex={1} alignItems="center">
-              <Loading />
-            </Flex>
-          }
-        >
-          {evaluatorId && (
-            <EvaluatorPlaygroundProvider>
-              <CreateBuiltInDatasetEvaluatorSlideoverContent
-                evaluatorId={evaluatorId}
-                onClose={onClose}
-                onEvaluatorAssigned={onEvaluatorAssigned}
-                datasetRef={datasetRef}
-              />
-            </EvaluatorPlaygroundProvider>
+    <ModalOverlay {...props}>
+      <Modal variant="slideover" size="fullscreen">
+        <Dialog aria-label="Add evaluator to dataset">
+          {({ close }) => (
+            <DialogContent minHeight="300px">
+              <Suspense
+                fallback={
+                  <Flex flex={1} alignItems="center">
+                    <Loading />
+                  </Flex>
+                }
+              >
+                {evaluatorId && (
+                  <EvaluatorPlaygroundProvider>
+                    <CreateBuiltInDatasetEvaluatorSlideoverContent
+                      evaluatorId={evaluatorId}
+                      onClose={close}
+                      onEvaluatorAssigned={onEvaluatorAssigned}
+                      datasetId={datasetId}
+                    />
+                  </EvaluatorPlaygroundProvider>
+                )}
+              </Suspense>
+            </DialogContent>
           )}
-        </Suspense>
-      </DialogContent>
-    </Dialog>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 
@@ -64,26 +75,15 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   evaluatorId,
   onClose,
   onEvaluatorAssigned,
-  datasetRef,
+  datasetId,
 }: {
   evaluatorId: string;
   onClose: () => void;
   onEvaluatorAssigned?: () => void;
-  datasetRef: CreateBuiltInDatasetEvaluatorSlideover_dataset$key;
+  datasetId: string;
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
-
-  const dataset =
-    useFragment<CreateBuiltInDatasetEvaluatorSlideover_dataset$key>(
-      graphql`
-        fragment CreateBuiltInDatasetEvaluatorSlideover_dataset on Dataset {
-          id
-          name
-        }
-      `,
-      datasetRef
-    );
 
   const { evaluator } =
     useLazyLoadQuery<CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery>(
@@ -110,7 +110,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   invariant(evaluator, "evaluator is required");
 
   const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
-    dataset.id,
+    datasetId,
     "DatasetEvaluatorsTable_datasetEvaluators"
   );
   const [createDatasetBuiltInEvaluator, isCreatingDatasetBuiltInEvaluator] =
@@ -133,7 +133,6 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       `
     );
 
-  const datasetId = dataset.id;
   const initialState = useMemo(() => {
     invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "CODE") {
@@ -175,7 +174,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     createDatasetBuiltInEvaluator({
       variables: {
         input: {
-          datasetId: dataset.id,
+          datasetId,
           evaluatorId: evaluator.id,
           displayName,
           // deep clone the input mapping to ensure relay doesn't mutate the original object

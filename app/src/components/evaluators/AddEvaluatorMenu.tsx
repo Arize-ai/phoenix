@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  DialogTrigger,
   MenuSection,
   MenuTriggerProps,
   SubmenuTrigger,
@@ -26,7 +25,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
-import { Modal, ModalOverlay } from "@phoenix/components/overlay";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -40,9 +38,10 @@ export const AddEvaluatorMenu = ({
   updateConnectionIds: string[];
   query: AddEvaluatorMenu_query$key;
 } & Omit<MenuTriggerProps, "children">) => {
-  const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] = useState<
-    CreateLLMDatasetEvaluatorInitialState | boolean | null
-  >(null);
+  const [
+    createLLMEvaluatorDialogInitialState,
+    setCreateLLMEvaluatorDialogInitialState,
+  ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
   const associateBuiltinEvaluatorDialogOpen =
@@ -52,14 +51,8 @@ export const AddEvaluatorMenu = ({
   };
   const data = useFragment<AddEvaluatorMenu_query$key>(
     graphql`
-      fragment AddEvaluatorMenu_query on Query
-      @argumentDefinitions(datasetId: { type: "ID!" }) {
+      fragment AddEvaluatorMenu_query on Query {
         ...AddEvaluatorMenu_codeEvaluatorTemplates
-        dataset: node(id: $datasetId) {
-          ... on Dataset {
-            ...CreateBuiltInDatasetEvaluatorSlideover_dataset
-          }
-        }
         ...AddEvaluatorMenu_llmEvaluatorTemplates
       }
     `,
@@ -78,43 +71,39 @@ export const AddEvaluatorMenu = ({
         <MenuContainer minHeight={"auto"}>
           <AddEvaluatorMenuContents
             query={data}
-            onCreateEvaluator={() => setCreateEvaluatorDialogOpen(true)}
+            onCreateEvaluator={() =>
+              setCreateLLMEvaluatorDialogInitialState(true)
+            }
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
-            onSelectBuiltInLLMEvaluator={setCreateEvaluatorDialogOpen} // TODO: make this clearer
+            onSelectBuiltInLLMEvaluator={
+              setCreateLLMEvaluatorDialogInitialState
+            }
           />
         </MenuContainer>
       </MenuTrigger>
-      <DialogTrigger
-        isOpen={!!createEvaluatorDialogOpen}
-        onOpenChange={setCreateEvaluatorDialogOpen}
-      >
-        <CreateLLMDatasetEvaluatorSlideover
-          datasetId={datasetId}
-          updateConnectionIds={updateConnectionIds}
-          initialState={
-            createEvaluatorDialogOpen &&
-            typeof createEvaluatorDialogOpen === "object"
-              ? createEvaluatorDialogOpen
-              : undefined
-          }
-        />
-      </DialogTrigger>
-      <ModalOverlay
+      <CreateLLMDatasetEvaluatorSlideover
+        isOpen={!!createLLMEvaluatorDialogInitialState}
+        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+        initialState={
+          createLLMEvaluatorDialogInitialState &&
+          typeof createLLMEvaluatorDialogInitialState === "object"
+            ? createLLMEvaluatorDialogInitialState
+            : undefined
+        }
+      />
+
+      <CreateBuiltInDatasetEvaluatorSlideover
         isOpen={associateBuiltinEvaluatorDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setBuiltinEvaluatorIdToAssociate(null);
+            onCloseAssociateBuiltinEvaluatorDialog();
           }
         }}
-      >
-        <Modal size="fullscreen" variant="slideover">
-          <CreateBuiltInDatasetEvaluatorSlideover
-            evaluatorId={builtinEvaluatorIdToAssociate}
-            onClose={onCloseAssociateBuiltinEvaluatorDialog}
-            datasetRef={data.dataset}
-          />
-        </Modal>
-      </ModalOverlay>
+        evaluatorId={builtinEvaluatorIdToAssociate}
+        datasetId={datasetId}
+      />
     </>
   );
 };

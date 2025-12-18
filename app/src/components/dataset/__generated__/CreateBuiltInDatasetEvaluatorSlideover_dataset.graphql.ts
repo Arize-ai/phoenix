@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ca7bb7e4bf298bedf58e3c1affd15f21>>
+ * @generated SignedSource<<87f4ecb68982ac4569d5e69d8c9194e5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,6 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type CreateBuiltInDatasetEvaluatorSlideover_dataset$data = {
   readonly id: string;
-  readonly name: string;
   readonly " $fragmentType": "CreateBuiltInDatasetEvaluatorSlideover_dataset";
 };
 export type CreateBuiltInDatasetEvaluatorSlideover_dataset$key = {
@@ -32,19 +31,12 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "id",
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
     }
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 
-(node as any).hash = "5986509e6cf8e563520d7adaca6bc75e";
+(node as any).hash = "32aed2a9c220563dd7905efb3a938e06";
 
 export default node;
