@@ -1,8 +1,7 @@
 interactions:
 - request:
-    body: '{"messages": [{"content": "What country is Paris in? Answer in one word,
-      no punctuation.", "role": "user"}], "model": "gpt-nonexistent-model", "stream":
-      true, "stream_options": {"include_usage": true}}'
+    body: '{"messages":[{"content":"What country is Paris in? Answer in one word,
+      no punctuation.","role":"user"}],"model":"gpt-nonexistent-model","stream":true,"stream_options":{"include_usage":true}}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions

@@ -865,12 +865,13 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                                     parameters={
                                         "type": "object",
                                         "properties": {
-                                            "correctness": {
+                                            "label": {
                                                 "type": "string",
                                                 "enum": ["correct", "incorrect"],
+                                                "description": "correctness",
                                             },
                                         },
-                                        "required": ["correctness"],
+                                        "required": ["label"],
                                     },
                                 ),
                             )

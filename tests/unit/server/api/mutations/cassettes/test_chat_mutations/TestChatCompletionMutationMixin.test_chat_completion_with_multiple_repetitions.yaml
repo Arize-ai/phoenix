@@ -1,23 +1,21 @@
 interactions:
 - request:
-    body: '{"messages": [{"content": "What is 2 + 2? Answer with just the number.",
-      "role": "user"}], "model": "gpt-4", "stream": true, "stream_options": {"include_usage":
-      true}}'
+    body: '{"messages":[{"content":"What is 2 + 2? Answer with just the number.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnF6kobCKPnOkFS7XUdcQEEgvAmc8","object":"chat.completion.chunk","created":1765852182,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+      string: 'data: {"id":"chatcmpl-CoDmNiHWuatCeYThLh5hanQpEJQsh","object":"chat.completion.chunk","created":1766085403,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
 
 
-        data: {"id":"chatcmpl-CnF6kobCKPnOkFS7XUdcQEEgvAmc8","object":"chat.completion.chunk","created":1765852182,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"W"}
+        data: {"id":"chatcmpl-CoDmNiHWuatCeYThLh5hanQpEJQsh","object":"chat.completion.chunk","created":1766085403,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"7"}
 
 
-        data: {"id":"chatcmpl-CnF6kobCKPnOkFS7XUdcQEEgvAmc8","object":"chat.completion.chunk","created":1765852182,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"eNoWgS0yNd1L"}
+        data: {"id":"chatcmpl-CoDmNiHWuatCeYThLh5hanQpEJQsh","object":"chat.completion.chunk","created":1766085403,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"ezjqt42FfuxY"}
 
 
-        data: {"id":"chatcmpl-CnF6kobCKPnOkFS7XUdcQEEgvAmc8","object":"chat.completion.chunk","created":1765852182,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"V7"}
+        data: {"id":"chatcmpl-CoDmNiHWuatCeYThLh5hanQpEJQsh","object":"chat.completion.chunk","created":1766085403,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"k3"}
 
 
         data: [DONE]
@@ -29,24 +27,22 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"messages": [{"content": "What is 2 + 2? Answer with just the number.",
-      "role": "user"}], "model": "gpt-4", "stream": true, "stream_options": {"include_usage":
-      true}}'
+    body: '{"messages":[{"content":"What is 2 + 2? Answer with just the number.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnF6lsAPBGHOm6bwg7KFsKgv085IO","object":"chat.completion.chunk","created":1765852183,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+      string: 'data: {"id":"chatcmpl-CoDmOfL5vrLIww5FNPwLsVA9CK7lg","object":"chat.completion.chunk","created":1766085404,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
 
 
-        data: {"id":"chatcmpl-CnF6lsAPBGHOm6bwg7KFsKgv085IO","object":"chat.completion.chunk","created":1765852183,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"U"}
+        data: {"id":"chatcmpl-CoDmOfL5vrLIww5FNPwLsVA9CK7lg","object":"chat.completion.chunk","created":1766085404,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"M"}
 
 
-        data: {"id":"chatcmpl-CnF6lsAPBGHOm6bwg7KFsKgv085IO","object":"chat.completion.chunk","created":1765852183,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"oIaJNBfiTKXb"}
+        data: {"id":"chatcmpl-CoDmOfL5vrLIww5FNPwLsVA9CK7lg","object":"chat.completion.chunk","created":1766085404,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"p9mTLVl0uHVa"}
 
 
-        data: {"id":"chatcmpl-CnF6lsAPBGHOm6bwg7KFsKgv085IO","object":"chat.completion.chunk","created":1765852183,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"h6"}
+        data: {"id":"chatcmpl-CoDmOfL5vrLIww5FNPwLsVA9CK7lg","object":"chat.completion.chunk","created":1766085404,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"i3"}
 
 
         data: [DONE]

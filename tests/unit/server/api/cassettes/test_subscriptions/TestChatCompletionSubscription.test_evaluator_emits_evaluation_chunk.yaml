@@ -1,23 +1,21 @@
 interactions:
 - request:
-    body: '{"messages": [{"content": "What is 2 + 2? Answer with just the number.",
-      "role": "user"}], "model": "gpt-4o-mini", "stream": true, "stream_options":
-      {"include_usage": true}, "temperature": 0.0}'
+    body: '{"messages":[{"content":"What is 2 + 2? Answer with just the number.","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"temperature":0.0}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnEbClBG2Xvua8yZKzRmk0pBPzBxK","object":"chat.completion.chunk","created":1765850226,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"SLKZ5UPhA"}
+      string: 'data: {"id":"chatcmpl-CoDjf6NNX5opIjQw28txv1g3hTq8I","object":"chat.completion.chunk","created":1766085235,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"KRHKnnBf4"}
 
 
-        data: {"id":"chatcmpl-CnEbClBG2Xvua8yZKzRmk0pBPzBxK","object":"chat.completion.chunk","created":1765850226,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"1x5x7fiStY"}
+        data: {"id":"chatcmpl-CoDjf6NNX5opIjQw28txv1g3hTq8I","object":"chat.completion.chunk","created":1766085235,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{"content":"4"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"WPjE05beiD"}
 
 
-        data: {"id":"chatcmpl-CnEbClBG2Xvua8yZKzRmk0pBPzBxK","object":"chat.completion.chunk","created":1765850226,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"YxL9X"}
+        data: {"id":"chatcmpl-CoDjf6NNX5opIjQw28txv1g3hTq8I","object":"chat.completion.chunk","created":1766085235,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"uXAWg"}
 
 
-        data: {"id":"chatcmpl-CnEbClBG2Xvua8yZKzRmk0pBPzBxK","object":"chat.completion.chunk","created":1765850226,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"qaPh326bUD7"}
+        data: {"id":"chatcmpl-CoDjf6NNX5opIjQw28txv1g3hTq8I","object":"chat.completion.chunk","created":1766085235,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[],"usage":{"prompt_tokens":21,"completion_tokens":1,"total_tokens":22,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"mTX0sWRYpB9"}
 
 
         data: [DONE]
@@ -29,42 +27,38 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"messages": [{"content": "You are an evaluator that assesses the correctness
-      of outputs.", "role": "system"}, {"content": "Input: [{\"message\": {\"role\":
-      \"user\", \"content\": \"What is 2 + 2? Answer with just the number.\"}}]\n\nOutput:
-      [{\"message\": {\"role\": \"assistant\", \"content\": \"4\"}}]\n\nIs this output
-      correct?", "role": "user"}], "model": "gpt-4o-mini", "stream": true, "stream_options":
-      {"include_usage": true}, "tools": [{"function": {"name": "evaluate_correctness",
-      "description": "evaluates the correctness of the output", "parameters": {"type":
-      "object", "properties": {"correct": {"type": "string", "enum": ["correct", "incorrect"]}},
-      "required": ["correct"]}}, "type": "function"}]}'
+    body: '{"messages":[{"content":"You are an evaluator that assesses the correctness
+      of outputs.","role":"system"},{"content":"Input: [{\"message\": {\"role\": \"user\",
+      \"content\": \"What is 2 + 2? Answer with just the number.\"}}]\n\nOutput: [{\"message\":
+      {\"role\": \"assistant\", \"content\": \"4\"}}]\n\nIs this output correct?","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"tools":[{"function":{"name":"evaluate_correctness","description":"evaluates
+      the correctness of the output","parameters":{"type":"object","properties":{"label":{"type":"string","enum":["correct","incorrect"],"description":"correctness"}},"required":["label"]}},"type":"function"}]}'
     headers: {}
     method: POST
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_C3D6CcgZFWsCxS6uDT2OMTrP","type":"function","function":{"name":"evaluate_correctness","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"4F5RKTgJYly"}
+      string: 'data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_etldxOdkjqXjTYNK3AiTiy9G","type":"function","function":{"name":"evaluate_correctness","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"WMMjr1i4W2B"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"VLunwKPCdgzeOB"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"one1XkblIcnPMP"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"correct"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"1umdLB32bm"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"label"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"Er0gnZ8YAcPg"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"2wKqozkUwG55"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"Ug0Ca3MorgCg"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"correct"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"gaF1vH5Jog"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"correct"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"LMJhguEXgv"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"Nycu3KycAvyNbS"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"0DgHhJxZVwX721"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"usage":null,"obfuscation":"Mrta8nDW4sgqDhz"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"usage":null,"obfuscation":"pMqmN9p3FwlVn28"}
 
 
-        data: {"id":"chatcmpl-CnEbD0CpNWW4aF2yrGMI78WvvxM2u","object":"chat.completion.chunk","created":1765850227,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_aa07c96156","choices":[],"usage":{"prompt_tokens":116,"completion_tokens":15,"total_tokens":131,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"Nrro9fHj"}
+        data: {"id":"chatcmpl-CoDjgcRJbiOyhx0Wi5lqcvNTpUz0B","object":"chat.completion.chunk","created":1766085236,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_ee69c2ef48","choices":[],"usage":{"prompt_tokens":118,"completion_tokens":15,"total_tokens":133,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"IEGD1rvH"}
 
 
         data: [DONE]
