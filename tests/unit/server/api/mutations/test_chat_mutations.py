@@ -87,7 +87,8 @@ class TestChatCompletionMutationMixin:
             repetition = repetitions[0]
             assert repetition["repetitionNumber"] == 1
             assert not repetition["errorMessage"]
-            assert repetition["content"]  # Should have content (e.g., "Paris")
+            assert repetition["content"]
+            assert "Paris" in repetition["content"]
             assert repetition["span"]["input"]["value"]
             assert repetition["span"]["output"]["value"]
             assert repetition["span"]["cumulativeTokenCountTotal"]
@@ -491,8 +492,6 @@ class TestChatCompletionMutationMixin:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that chat_completion mutation with evaluator returns evaluations and persists
-        span annotations."""
         evaluator_gid = str(
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
         )
@@ -675,7 +674,6 @@ class TestChatCompletionMutationMixin:
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
         )
 
-        # Get dataset version ID
         async with db() as session:
             version_id = await session.scalar(
                 select(models.DatasetVersion.id).where(
@@ -783,7 +781,6 @@ class TestChatCompletionMutationMixin:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that evaluators are not run when the chat completion over dataset task errors."""
         dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
@@ -791,7 +788,6 @@ class TestChatCompletionMutationMixin:
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
         )
 
-        # Get dataset version ID
         async with db() as session:
             version_id = await session.scalar(
                 select(models.DatasetVersion.id).where(
@@ -870,18 +866,15 @@ class TestChatCompletionMutationMixin:
 
             example = examples[0]
             repetition = example["repetition"]
-            # Verify the task errored
-            assert repetition["errorMessage"]
+            assert repetition["errorMessage"]  # verify the task errored
             assert repetition["content"] is None
 
-            # Verify no evaluations were run
-            assert repetition["evaluations"] == []
+            assert repetition["evaluations"] == []  # verify no evaluations were run
 
-        # Verify no experiment run annotations were persisted
         async with db() as session:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
-            assert len(annotations) == 0
+            assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
