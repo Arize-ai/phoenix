@@ -4,12 +4,13 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
+import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
@@ -152,13 +153,7 @@ export const EvaluatorForm = () => {
             {/* only show input mapping for non-builtin evaluators */}
             {/* builtin evaluators have hand made forms for their input mapping */}
             {!isBuiltin && <EvaluatorInputMapping />}
-            <Flex direction="column" gap="size-100">
-              <Heading level={3}>Test your evaluator</Heading>
-              <Text color="text-500">
-                Give your evaluator a test run against the selected dataset
-                example, and a hypothetical task output.
-              </Text>
-            </Flex>
+            <EvaluatorOutputPreview />
           </div>
         </PanelContainer>
       </Panel>

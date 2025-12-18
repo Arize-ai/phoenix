@@ -10,29 +10,28 @@ from pydantic import (
 from typing_extensions import Self, assert_never
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.server.api.helpers.prompts.models import (
+    PromptResponseFormat,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolFunction,
+    PromptTools,
 )
 
 
-def validate_consistent_llm_evaluator_and_prompt_version(
-    prompt_version: models.PromptVersion,
-    evaluator: models.LLMEvaluator,
+def validate_evaluator_prompt_and_config(
+    *,
+    prompt_tools: Optional[PromptTools],
+    prompt_response_format: Optional[PromptResponseFormat],
+    evaluator_annotation_name: str,
+    evaluator_output_config: CategoricalAnnotationConfig,
+    evaluator_description: Optional[str] = None,
 ) -> None:
-    """
-    Checks that the LLM evaluator and prompt version are consistent, e.g., that corresponding fields
-    between the ORMs match. Also checks that the prompt is a valid evaluator prompt, e.g., by
-    checking that it has exactly one tool. Intended to be run before inserting the validated ORMs
-    into the database.
-    """
-
-    if prompt_version.response_format is not None:
+    if prompt_response_format is not None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED)
-    if prompt_version.tools is None:
+    if prompt_tools is None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED)
-    prompt_tools = prompt_version.tools
     if len(prompt_tools.tools) != 1:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED)
     if not isinstance(
@@ -48,7 +47,6 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     if not isinstance(prompt_tool, PromptToolFunction):
         assert_never(prompt_tool)
     prompt_tool_function_definition = prompt_tool.function
-    evaluator_description = evaluator.description
     prompt_tool_function_definition_description = (
         prompt_tool_function_definition.description
         if isinstance(prompt_tool_function_definition.description, str)
@@ -76,12 +74,12 @@ def validate_consistent_llm_evaluator_and_prompt_version(
             )
         )
     function_label_property_description = function_parameters.properties.label.description
-    if function_label_property_description != evaluator.annotation_name:
+    if function_label_property_description != evaluator_annotation_name:
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION
         )
     labels = function_parameters.properties.label.enum
-    evaluator_choices = [value.label for value in evaluator.output_config.values]
+    evaluator_choices = [value.label for value in evaluator_output_config.values]
     if set(labels) != set(evaluator_choices):
         raise ValueError(
             _LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS
@@ -99,6 +97,19 @@ class _EvaluatorPromptToolFunctionParametersLabelProperty(BaseModel):
 class _EvaluatorPromptToolFunctionParametersExplanationProperty(BaseModel):
     type: Literal["string"]
     description: str
+
+
+def validate_consistent_llm_evaluator_and_prompt_version(
+    prompt_version: models.PromptVersion,
+    evaluator: models.LLMEvaluator,
+) -> None:
+    validate_evaluator_prompt_and_config(
+        prompt_tools=prompt_version.tools,
+        prompt_response_format=prompt_version.response_format,
+        evaluator_annotation_name=evaluator.annotation_name,
+        evaluator_output_config=evaluator.output_config,
+        evaluator_description=evaluator.description,
+    )
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
