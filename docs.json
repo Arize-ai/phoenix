@@ -217,8 +217,7 @@
                         "group": "Configuring the LLM",
                         "pages": [
                           "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
-                          "docs/phoenix/evaluation/how-to-evals/configuring-the-llm/prompt-formats",
-                          "docs/phoenix/evaluation/how-to-evals/configuring-the-llm/calling-models-with-litellm"
+                          "docs/phoenix/evaluation/how-to-evals/configuring-the-llm/prompt-formats"
                         ]
                       },
                       "docs/phoenix/evaluation/how-to-evals/code-evaluators",
