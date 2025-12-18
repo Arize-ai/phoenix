@@ -1622,7 +1622,7 @@ class TestChatCompletionOverDatasetSubscription:
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
-        playground_dataset_with_splits: models.Dataset,
+        playground_dataset_with_splits: None,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
@@ -1707,7 +1707,7 @@ class TestChatCompletionOverDatasetSubscription:
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
-        playground_dataset_with_splits: models.Dataset,
+        playground_dataset_with_splits: None,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
@@ -1783,7 +1783,7 @@ class TestChatCompletionOverDatasetSubscription:
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
-        playground_dataset_with_splits: models.Dataset,
+        playground_dataset_with_splits: None,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:

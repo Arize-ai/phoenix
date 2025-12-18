@@ -780,7 +780,7 @@ def cities_and_countries() -> list[tuple[str, str]]:
 @pytest.fixture
 async def playground_city_and_country_dataset(
     cities_and_countries: list[tuple[str, str]], db: DbSessionFactory
-) -> models.Dataset:
+) -> None:
     """
     A dataset with many example.
     """
@@ -820,8 +820,6 @@ async def playground_city_and_country_dataset(
         await session.flush()
         session.add_all(revisions)
         await session.flush()
-
-    return dataset
 
 
 @pytest.fixture
@@ -969,7 +967,7 @@ async def single_example_dataset(db: DbSessionFactory) -> models.Dataset:
 
 
 @pytest.fixture
-async def playground_dataset_with_splits(db: DbSessionFactory) -> models.Dataset:
+async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
     """
     A dataset with examples assigned to different splits for testing split-based filtering.
 
@@ -1050,8 +1048,6 @@ async def playground_dataset_with_splits(db: DbSessionFactory) -> models.Dataset
         await session.flush()
         session.add_all(split_assignments)
         await session.flush()
-
-    return dataset
 
 
 class ExperimentsWithIncompleteRuns(NamedTuple):
