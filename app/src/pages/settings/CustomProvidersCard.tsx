@@ -9,7 +9,17 @@ import {
 } from "@tanstack/react-table";
 import invariant from "tiny-invariant";
 
-import { Card, Empty, Flex, Text } from "@phoenix/components";
+import {
+  Card,
+  Empty,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -29,6 +39,7 @@ import type {
   GenerativeModelSDK as GraphQLGenerativeModelSDK,
 } from "./__generated__/CustomProvidersCard_data.graphql";
 import { DeleteCustomProviderButton } from "./DeleteCustomProviderButton";
+import { EditCustomProviderButton } from "./EditCustomProviderButton";
 import { NewCustomProviderButton } from "./NewCustomProviderButton";
 
 // Compile-time check that GenerativeModelSDK in generativeConstants.ts matches the GraphQL schema.
@@ -115,6 +126,40 @@ function ProviderCell({
 }
 
 /**
+ * Name cell component - shows warning icon if config has parse error
+ */
+function NameCell({
+  name,
+  hasParseError,
+}: {
+  name: string;
+  hasParseError: boolean;
+}) {
+  if (!hasParseError) {
+    return <span>{name}</span>;
+  }
+
+  return (
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <span>{name}</span>
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Icon
+            svg={<Icons.AlertTriangleOutline />}
+            color="warning"
+            aria-label="Configuration error"
+          />
+        </TriggerWrap>
+        <Tooltip>
+          This provider&apos;s configuration could not be parsed. Use edit to
+          enter a new configuration.
+        </Tooltip>
+      </TooltipTrigger>
+    </Flex>
+  );
+}
+
+/**
  * User cell component for "Created By" column
  */
 function UserCell({ user }: { user: DataRow["user"] }) {
@@ -165,99 +210,11 @@ export function CustomProvidersCard({
                 username
                 profilePictureUrl
               }
-              # Config fields are fetched for edit functionality (see note above)
-              ... on GenerativeModelCustomProviderOpenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                  ... on OpenAICustomProviderConfig {
-                    openaiAuthenticationMethod {
-                      apiKey
-                    }
-                    openaiClientKwargs {
-                      baseUrl
-                      organization
-                      project
-                      defaultHeaders
-                    }
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAzureOpenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                  ... on AzureOpenAICustomProviderConfig {
-                    azureOpenaiAuthenticationMethod {
-                      apiKey
-                      azureAdTokenProvider {
-                        azureTenantId
-                        azureClientId
-                        azureClientSecret
-                        scope
-                      }
-                    }
-                    azureOpenaiClientKwargs {
-                      apiVersion
-                      azureEndpoint
-                      azureDeployment
-                      defaultHeaders
-                    }
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAnthropic {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                  ... on AnthropicCustomProviderConfig {
-                    anthropicAuthenticationMethod {
-                      apiKey
-                    }
-                    anthropicClientKwargs {
-                      baseUrl
-                      defaultHeaders
-                    }
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderAWSBedrock {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                  ... on AWSBedrockCustomProviderConfig {
-                    awsBedrockAuthenticationMethod {
-                      awsAccessKeyId
-                      awsSecretAccessKey
-                      awsSessionToken
-                    }
-                    awsBedrockClientKwargs {
-                      regionName
-                      endpointUrl
-                    }
-                  }
-                }
-              }
-              ... on GenerativeModelCustomProviderGoogleGenAI {
-                config {
-                  ... on UnparsableConfig {
-                    parseError
-                  }
-                  ... on GoogleGenAICustomProviderConfig {
-                    googleGenaiAuthenticationMethod {
-                      apiKey
-                    }
-                    googleGenaiClientKwargs {
-                      httpOptions {
-                        baseUrl
-                        headers
-                      }
-                    }
-                  }
+              # Only fetch parseError to detect unparseable configs
+              # Full config is fetched by EditCustomProviderButton when editing
+              config {
+                ... on UnparsableConfig {
+                  parseError
                 }
               }
             }
@@ -279,6 +236,12 @@ export function CustomProvidersCard({
       {
         header: "Name",
         accessorKey: "name",
+        cell: ({ row }) => (
+          <NameCell
+            name={row.original.name}
+            hasParseError={Boolean(row.original.config?.parseError)}
+          />
+        ),
       },
       {
         header: "Description",
@@ -326,10 +289,16 @@ export function CustomProvidersCard({
       {
         id: "actions",
         cell: ({ row }) => (
-          <DeleteCustomProviderButton
-            providerId={row.original.id}
-            providerName={row.original.name}
-          />
+          <Flex direction="row" gap="size-50" width="100%" justifyContent="end">
+            <EditCustomProviderButton
+              providerId={row.original.id}
+              providerName={row.original.name}
+            />
+            <DeleteCustomProviderButton
+              providerId={row.original.id}
+              providerName={row.original.name}
+            />
+          </Flex>
         ),
       }
     );
