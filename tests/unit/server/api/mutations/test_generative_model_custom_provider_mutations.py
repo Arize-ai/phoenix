@@ -33,91 +33,73 @@ class TestGenerativeModelCustomProviderMutations:
             provider
             createdAt
             updatedAt
-            ... on GenerativeModelCustomProviderOpenAI {
-              config {
-                ... on OpenAICustomProviderConfig {
-                  openaiClientInterface
-                  supportsStreaming
-                  openaiAuthenticationMethod {
-                    apiKey
+            config {
+              ... on OpenAICustomProviderConfig {
+                openaiClientInterface
+                supportsStreaming
+                openaiAuthenticationMethod {
+                  apiKey
+                }
+                openaiClientKwargs {
+                  baseUrl
+                  organization
+                  project
+                  defaultHeaders
+                }
+              }
+              ... on AzureOpenAICustomProviderConfig {
+                azureOpenaiClientInterface
+                supportsStreaming
+                azureOpenaiAuthenticationMethod {
+                  apiKey
+                  azureAdTokenProvider {
+                    azureTenantId
+                    azureClientId
+                    azureClientSecret
+                    scope
                   }
-                  openaiClientKwargs {
+                }
+                azureOpenaiClientKwargs {
+                  apiVersion
+                  azureEndpoint
+                  azureDeployment
+                  defaultHeaders
+                }
+              }
+              ... on AnthropicCustomProviderConfig {
+                anthropicClientInterface
+                supportsStreaming
+                anthropicAuthenticationMethod {
+                  apiKey
+                }
+                anthropicClientKwargs {
+                  baseUrl
+                  defaultHeaders
+                }
+              }
+              ... on AWSBedrockCustomProviderConfig {
+                awsBedrockClientInterface
+                supportsStreaming
+                awsBedrockAuthenticationMethod {
+                  awsAccessKeyId
+                  awsSecretAccessKey
+                  awsSessionToken
+                }
+                awsBedrockClientKwargs {
+                  regionName
+                  endpointUrl
+                }
+              }
+              ... on GoogleGenAICustomProviderConfig {
+                googleGenaiClientInterface
+                supportsStreaming
+                googleGenaiAuthenticationMethod {
+                  apiKey
+                }
+                googleGenaiClientKwargs {
+                  httpOptions {
                     baseUrl
-                    organization
-                    project
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAzureOpenAI {
-              config {
-                ... on AzureOpenAICustomProviderConfig {
-                  azureOpenaiClientInterface
-                  supportsStreaming
-                  azureOpenaiAuthenticationMethod {
-                    apiKey
-                    azureAdTokenProvider {
-                      azureTenantId
-                      azureClientId
-                      azureClientSecret
-                      scope
-                    }
-                  }
-                  azureOpenaiClientKwargs {
-                    apiVersion
-                    azureEndpoint
-                    azureDeployment
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAnthropic {
-              config {
-                ... on AnthropicCustomProviderConfig {
-                  anthropicClientInterface
-                  supportsStreaming
-                  anthropicAuthenticationMethod {
-                    apiKey
-                  }
-                  anthropicClientKwargs {
-                    baseUrl
-                    defaultHeaders
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderAWSBedrock {
-              config {
-                ... on AWSBedrockCustomProviderConfig {
-                  awsBedrockClientInterface
-                  supportsStreaming
-                  awsBedrockAuthenticationMethod {
-                    awsAccessKeyId
-                    awsSecretAccessKey
-                    awsSessionToken
-                  }
-                  awsBedrockClientKwargs {
-                    regionName
-                    endpointUrl
-                  }
-                }
-              }
-            }
-            ... on GenerativeModelCustomProviderGoogleGenAI {
-              config {
-                ... on GoogleGenAICustomProviderConfig {
-                  googleGenaiClientInterface
-                  supportsStreaming
-                  googleGenaiAuthenticationMethod {
-                    apiKey
-                  }
-                  googleGenaiClientKwargs {
-                    httpOptions {
-                      baseUrl
-                      headers
-                    }
+                    headers
                   }
                 }
               }
@@ -621,7 +603,7 @@ class TestGenerativeModelCustomProviderMutations:
             query=self.QUERY,
             variables={
                 "input": {
-                    "id": str(GlobalID("GenerativeModelCustomProviderOpenAI", "999999")),
+                    "id": str(GlobalID("GenerativeModelCustomProvider", "999999")),
                     "name": "new-name",
                 }
             },
@@ -629,6 +611,44 @@ class TestGenerativeModelCustomProviderMutations:
         )
         assert nonexistent_patch_result.errors is not None
         assert any("not found" in e.message.lower() for e in nonexistent_patch_result.errors)
+
+        # Patch provider to change SDK type (OpenAI -> Anthropic)
+        # This verifies that SDK switching is allowed
+        switched_sdk_name = f"switched-sdk-provider-{token_hex(2)}"
+        patch_sdk_switch_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": minimal_id,  # This was an OpenAI provider
+                    "name": switched_sdk_name,
+                    "clientConfig": {
+                        "anthropic": {
+                            "anthropicAuthenticationMethod": {"apiKey": "sk-ant-switched-key"},
+                            "anthropicClientKwargs": {"baseUrl": "https://api.anthropic.com"},
+                        }
+                    },
+                }
+            },
+            operation_name="PatchGenerativeModelCustomProvider",
+        )
+        assert not patch_sdk_switch_result.errors
+        assert patch_sdk_switch_result.data is not None
+        # The returned ID should now be an Anthropic provider type
+        switched_id = patch_sdk_switch_result.data["patchGenerativeModelCustomProvider"][
+            "provider"
+        ]["id"]
+
+        # Verify the SDK was switched - fetch using the new Anthropic-typed ID
+        switched_provider = await _fetch_provider_via_node_query(
+            gql_client, switched_id, self.QUERY
+        )
+        assert switched_provider is not None
+        assert switched_provider["name"] == switched_sdk_name
+        # Verify Anthropic config is present
+        switched_config = switched_provider["config"]
+        assert switched_config["anthropicClientInterface"] == "CHAT"
+        assert switched_config["anthropicAuthenticationMethod"]["apiKey"] == "sk-ant-switched-key"
+        assert switched_config["anthropicClientKwargs"]["baseUrl"] == "https://api.anthropic.com"
 
         # ===== DELETE TESTS =====
 
@@ -654,9 +674,7 @@ class TestGenerativeModelCustomProviderMutations:
         # Delete non-existent provider (idempotent - should succeed)
         nonexistent_delete_result = await gql_client.execute(
             query=self.QUERY,
-            variables={
-                "input": {"id": str(GlobalID("GenerativeModelCustomProviderOpenAI", "888888"))}
-            },
+            variables={"input": {"id": str(GlobalID("GenerativeModelCustomProvider", "888888"))}},
             operation_name="DeleteGenerativeModelCustomProvider",
         )
         assert not nonexistent_delete_result.errors
