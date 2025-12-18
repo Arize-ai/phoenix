@@ -13,6 +13,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_dataset$key } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_dataset.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
+import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -44,12 +45,14 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
           }
         >
           {evaluatorId && (
-            <CreateBuiltInDatasetEvaluatorSlideoverContent
-              evaluatorId={evaluatorId}
-              onClose={onClose}
-              onEvaluatorAssigned={onEvaluatorAssigned}
-              datasetRef={datasetRef}
-            />
+            <EvaluatorPlaygroundProvider>
+              <CreateBuiltInDatasetEvaluatorSlideoverContent
+                evaluatorId={evaluatorId}
+                onClose={onClose}
+                onEvaluatorAssigned={onEvaluatorAssigned}
+                datasetRef={datasetRef}
+              />
+            </EvaluatorPlaygroundProvider>
           )}
         </Suspense>
       </DialogContent>
@@ -146,6 +149,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
         },
         evaluator: {
           ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
+          id: evaluator.id,
           name: evaluator.name,
           displayName,
           description: evaluator.description ?? "",
