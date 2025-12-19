@@ -378,9 +378,7 @@ async def get_llm_evaluators(
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
 
-        provider_key = _convert_model_provider_to_generative_provider_key(
-            prompt_version.model_provider
-        )
+        provider_key = GenerativeProviderKey.from_model_provider(prompt_version.model_provider)
         model_input = GenerativeModelInput(
             builtin=GenerativeModelBuiltinProviderInput(
                 provider_key=provider_key,
@@ -587,26 +585,3 @@ class ContainsEvaluator(BuiltInEvaluator):
             start_time=now,
             end_time=now,
         )
-
-
-def _convert_model_provider_to_generative_provider_key(
-    model_provider: ModelProvider,
-) -> GenerativeProviderKey:
-    """Convert a model provider to a generative provider key."""
-    if model_provider is ModelProvider.OPENAI:
-        return GenerativeProviderKey.OPENAI
-    elif model_provider is ModelProvider.AZURE_OPENAI:
-        return GenerativeProviderKey.AZURE_OPENAI
-    elif model_provider is ModelProvider.ANTHROPIC:
-        return GenerativeProviderKey.ANTHROPIC
-    elif model_provider is ModelProvider.GOOGLE:
-        return GenerativeProviderKey.GOOGLE
-    elif model_provider is ModelProvider.DEEPSEEK:
-        return GenerativeProviderKey.DEEPSEEK
-    elif model_provider is ModelProvider.XAI:
-        return GenerativeProviderKey.XAI
-    elif model_provider is ModelProvider.OLLAMA:
-        return GenerativeProviderKey.OLLAMA
-    elif model_provider is ModelProvider.AWS:
-        return GenerativeProviderKey.AWS
-    assert_never(model_provider)

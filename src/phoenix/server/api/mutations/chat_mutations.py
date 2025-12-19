@@ -32,7 +32,6 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -581,9 +580,7 @@ class ChatCompletionMutationMixin:
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 model_provider = inline_llm_evaluator.prompt_version.model_provider
                 model_name = inline_llm_evaluator.prompt_version.model_name
-                generative_provider_key = _convert_model_provider_to_generative_provider_key(
-                    model_provider
-                )
+                generative_provider_key = GenerativeProviderKey.from_model_provider(model_provider)
                 model_input = GenerativeModelInput(
                     builtin=GenerativeModelBuiltinProviderInput(
                         provider_key=generative_provider_key,
@@ -915,29 +912,6 @@ def _get_batches(
 
 def _is_builtin_evaluator(evaluator_id: int) -> bool:
     return evaluator_id < 0
-
-
-def _convert_model_provider_to_generative_provider_key(
-    model_provider: ModelProvider,
-) -> GenerativeProviderKey:
-    """Convert a model provider to a generative provider key."""
-    if model_provider is ModelProvider.OPENAI:
-        return GenerativeProviderKey.OPENAI
-    elif model_provider is ModelProvider.AZURE_OPENAI:
-        return GenerativeProviderKey.AZURE_OPENAI
-    elif model_provider is ModelProvider.ANTHROPIC:
-        return GenerativeProviderKey.ANTHROPIC
-    elif model_provider is ModelProvider.GOOGLE:
-        return GenerativeProviderKey.GOOGLE
-    elif model_provider is ModelProvider.DEEPSEEK:
-        return GenerativeProviderKey.DEEPSEEK
-    elif model_provider is ModelProvider.XAI:
-        return GenerativeProviderKey.XAI
-    elif model_provider is ModelProvider.OLLAMA:
-        return GenerativeProviderKey.OLLAMA
-    elif model_provider is ModelProvider.AWS:
-        return GenerativeProviderKey.AWS
-    assert_never(model_provider)
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
