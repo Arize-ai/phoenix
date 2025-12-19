@@ -1604,12 +1604,12 @@ input EvaluatorPreviewItemInput {
   inputMapping: EvaluatorInputMappingInput! = {}
 }
 
-type EvaluatorPreviewPayload {
-  results: [ExperimentRunAnnotation!]!
-}
-
 input EvaluatorPreviewsInput {
   previews: [EvaluatorPreviewItemInput!]!
+}
+
+type EvaluatorPreviewsPayload {
+  annotations: [ExperimentRunAnnotation!]!
 }
 
 """The sort key and direction for evaluator connections"""
@@ -2339,7 +2339,7 @@ type Mutation {
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
-  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewPayload!
+  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cc582a60a37193919886ae24ec36cc68>>
+ * @generated SignedSource<<62dc636afd9239691f7ad7d99a92ce4c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -89,7 +89,7 @@ export type EvaluatorOutputPreviewMutation$variables = {
 };
 export type EvaluatorOutputPreviewMutation$data = {
   readonly evaluatorPreviews: {
-    readonly results: ReadonlyArray<{
+    readonly annotations: ReadonlyArray<{
       readonly explanation: string | null;
       readonly id: string;
       readonly label: string | null;
@@ -133,7 +133,7 @@ v1 = [
         "name": "input"
       }
     ],
-    "concreteType": "EvaluatorPreviewPayload",
+    "concreteType": "EvaluatorPreviewsPayload",
     "kind": "LinkedField",
     "name": "evaluatorPreviews",
     "plural": false,
@@ -143,7 +143,7 @@ v1 = [
         "args": null,
         "concreteType": "ExperimentRunAnnotation",
         "kind": "LinkedField",
-        "name": "results",
+        "name": "annotations",
         "plural": true,
         "selections": [
           {
@@ -206,16 +206,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "fba32baa71f836242f2533e0c7f89ec3",
+    "cacheID": "555fea2f64843706400479c845231744",
     "id": null,
     "metadata": {},
     "name": "EvaluatorOutputPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    results {\n      explanation\n      label\n      score\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    annotations {\n      explanation\n      label\n      score\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6aba2d0f260338b482aae27099864b0";
+(node as any).hash = "d66596c4485f68799c7a69164b3a5004";
 
 export default node;

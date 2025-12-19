@@ -51,7 +51,7 @@ const EvaluatorOutputPreviewContent = () => {
         $input: EvaluatorPreviewItemInput!
       ) {
         evaluatorPreviews(input: { previews: [$input] }) {
-          results {
+          annotations {
             explanation
             label
             score
@@ -110,12 +110,12 @@ const EvaluatorOutputPreviewContent = () => {
           setError(errors[0].message);
         } else {
           setPreviewAnnotations(
-            response.evaluatorPreviews.results.map((result) => ({
-              id: result.id,
-              name: result.name,
-              label: result.label,
-              score: result.score,
-              explanation: result.explanation,
+            response.evaluatorPreviews.annotations.map((annotation) => ({
+              id: annotation.id,
+              name: annotation.name,
+              label: annotation.label,
+              score: annotation.score,
+              explanation: annotation.explanation,
             }))
           );
         }

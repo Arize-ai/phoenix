@@ -154,8 +154,8 @@ class ChatCompletionOverDatasetMutationPayload:
 
 
 @strawberry.type
-class EvaluatorPreviewPayload:
-    results: list[ExperimentRunAnnotation]
+class EvaluatorPreviewsPayload:
+    annotations: list[ExperimentRunAnnotation]
 
 
 def _to_annotation(eval_result: EvaluationResult) -> ExperimentRunAnnotation:
@@ -548,7 +548,7 @@ class ChatCompletionMutationMixin:
     @classmethod
     async def evaluator_previews(
         cls, info: Info[Context, None], input: EvaluatorPreviewsInput
-    ) -> EvaluatorPreviewPayload:
+    ) -> EvaluatorPreviewsPayload:
         all_results: list[ExperimentRunAnnotation] = []
 
         for preview_item in input.previews:
@@ -628,7 +628,7 @@ class ChatCompletionMutationMixin:
 
             all_results.append(context_result)
 
-        return EvaluatorPreviewPayload(results=all_results)
+        return EvaluatorPreviewsPayload(annotations=all_results)
 
     @classmethod
     async def _chat_completion(
