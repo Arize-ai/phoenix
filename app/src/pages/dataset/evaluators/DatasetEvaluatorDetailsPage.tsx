@@ -4,18 +4,20 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Loading } from "@phoenix/components";
+import { Heading, Loading, Text, View } from "@phoenix/components";
 import { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
+import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import {
   datasetEvaluatorDetailsLoader,
   datasetEvaluatorDetailsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
-  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
   overflow: hidden;
+  flex-direction: column;
+  height: 100%;
 `;
 
 export function DatasetEvaluatorDetailsPage() {
@@ -34,9 +36,31 @@ export function DatasetEvaluatorDetailsPage() {
 }
 
 function DatasetEvaluatorDetailsPageContent({
-  data: _data,
+  data,
 }: {
   data: datasetEvaluatorDetailsLoaderQuery["response"];
 }) {
-  return <main css={mainCSS}>Evaluator Details</main>;
+  const datasetEvaluator = data.dataset.datasetEvaluator;
+  invariant(datasetEvaluator, "datasetEvaluator is required");
+  const evaluator = datasetEvaluator.evaluator;
+
+  return (
+    <main css={mainCSS}>
+      <View
+        borderBottomColor="dark"
+        borderBottomWidth="thin"
+        padding="size-200"
+        flex="none"
+      >
+        <Heading level={1}>Evaluator: {datasetEvaluator.displayName}</Heading>
+        <Text size="M">{evaluator.description}</Text>
+      </View>
+      {evaluator.__typename === "LLMEvaluator" && (
+        <LLMDatasetEvaluatorDetails evaluatorRef={evaluator} />
+      )}
+      {evaluator.__typename === "BuiltInEvaluator" && (
+        <BuiltInDatasetEvaluatorDetails evaluatorRef={evaluator} />
+      )}
+    </main>
+  );
 }

@@ -18,6 +18,18 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
         datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
           id
           displayName
+          evaluator {
+            __typename
+            kind
+            description
+            isBuiltin
+            ... on LLMEvaluator {
+              ...LLMDatasetEvaluatorDetails_evaluator
+            }
+            ... on BuiltInEvaluator {
+              ...BuiltInDatasetEvaluatorDetails_evaluator
+            }
+          }
         }
       }
     }
