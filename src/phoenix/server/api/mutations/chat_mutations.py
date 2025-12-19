@@ -587,9 +587,10 @@ class ChatCompletionMutationMixin:
                         name=model_name,
                     )
                 )
-                llm_client = await get_playground_client(
-                    model_input, info.context.db, info.context.decrypt
-                )
+                async with info.context.db() as session:
+                    llm_client = await get_playground_client(
+                        model=model_input, session=session, decrypt=info.context.decrypt
+                    )
                 try:
                     prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(
                         user_id=None
