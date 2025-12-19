@@ -27,6 +27,11 @@
     }
   },
   "favicon": "/docs/favicon.png",
+  "seo": {
+    "metatags": {
+      "canonical": "https://arize.com"
+    }
+  },
   "navigation": {
     "languages": [
       {
