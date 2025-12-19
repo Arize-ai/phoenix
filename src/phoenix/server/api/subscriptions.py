@@ -20,6 +20,7 @@ from typing import (
 import strawberry
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.trace import StatusCode
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -160,7 +161,7 @@ async def _stream_single_chat_completion(
     db_span = get_db_span(span, db_trace)
     await results.put((db_span, repetition_number))
 
-    if input.evaluators:
+    if input.evaluators and span.status_code is StatusCode.OK:
         context_dict: dict[str, Any] = {
             "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
             "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
@@ -602,7 +603,7 @@ class Subscription:
                                 models.ExperimentRun.repetition_number == repetition_number,
                             )
                         )
-                        if run is None:
+                        if run is None or run.error is not None:
                             continue
                         context_dict: dict[str, Any] = {
                             "input": json.dumps(revision.input),
@@ -652,7 +653,7 @@ class Subscription:
                             )
                             session.add(annotation_model)
                             await session.flush()
-                            yield EvaluationChunk(
+                            evaluation_chunk = EvaluationChunk(
                                 experiment_run_evaluation=ExperimentRunAnnotation(
                                     id=annotation_model.id,
                                     db_record=annotation_model,
@@ -661,6 +662,7 @@ class Subscription:
                                 dataset_example_id=example_id,
                                 repetition_number=repetition_number,
                             )
+                            yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
