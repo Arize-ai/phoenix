@@ -1,3 +1,4 @@
+import zlib
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Optional
@@ -266,7 +267,9 @@ class LLMEvaluator(Evaluator, Node):
                 ]
             )
             config, annotation_name = results
-        return _to_gql_categorical_annotation_config(config=config, annotation_name=annotation_name)
+        return _to_gql_categorical_annotation_config(
+            config=config, annotation_name=annotation_name, evaluator_id=self.id
+        )
 
     @strawberry.field
     async def created_at(
@@ -459,9 +462,15 @@ class BuiltInEvaluator(Evaluator, Node):
         return None
 
 
+def _generate_categorical_annotation_config_id(evaluator_id: int) -> int:
+    """Generate a stable negative ID using CRC32 checksum."""
+    return -abs(zlib.crc32(str(evaluator_id).encode("utf-8")))
+
+
 def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
     annotation_name: str,
+    evaluator_id: int,
 ) -> CategoricalAnnotationConfig:
     values = [
         CategoricalAnnotationValue(
@@ -471,7 +480,7 @@ def _to_gql_categorical_annotation_config(
         for val in config.values
     ]
     return CategoricalAnnotationConfig(
-        id_attr=1,  # this id is fake for now
+        id_attr=_generate_categorical_annotation_config_id(evaluator_id),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,

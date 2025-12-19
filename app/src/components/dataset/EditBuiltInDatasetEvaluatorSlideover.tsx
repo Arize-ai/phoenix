@@ -1,11 +1,6 @@
 import { Suspense, useMemo, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import {
-  ConnectionHandler,
-  graphql,
-  useLazyLoadQuery,
-  useMutation,
-} from "react-relay";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
@@ -124,10 +119,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   invariant(dataset, "dataset is required");
   const datasetEvaluator = dataset.datasetEvaluator;
   invariant(datasetEvaluator, "datasetEvaluator is required");
-  const datasetEvaluatorsTableConnection = ConnectionHandler.getConnectionID(
-    dataset.id,
-    "DatasetEvaluatorsTable_datasetEvaluators"
-  );
+
   const [updateDatasetBuiltinEvaluator, isUpdatingDatasetBuiltinEvaluator] =
     useMutation<EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation>(
       graphql`
@@ -211,10 +203,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           displayName,
           inputMapping,
         },
-        connectionIds: [
-          datasetEvaluatorsTableConnection,
-          ...(updateConnectionIds ?? []),
-        ],
+        connectionIds: updateConnectionIds ?? [],
       },
       onCompleted: () => {
         notifySuccess({
