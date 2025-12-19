@@ -5,8 +5,10 @@ from typing import Any, ClassVar, Mapping, Optional, Union
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.config import getenv
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
@@ -21,6 +23,28 @@ class GenerativeProviderKey(Enum):
     XAI = "xAI"
     OLLAMA = "Ollama"
     AWS = "AWS Bedrock"
+
+    @classmethod
+    def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
+        """Convert a ModelProvider to a GenerativeProviderKey."""
+
+        if model_provider is ModelProvider.OPENAI:
+            return cls.OPENAI
+        elif model_provider is ModelProvider.AZURE_OPENAI:
+            return cls.AZURE_OPENAI
+        elif model_provider is ModelProvider.ANTHROPIC:
+            return cls.ANTHROPIC
+        elif model_provider is ModelProvider.GOOGLE:
+            return cls.GOOGLE
+        elif model_provider is ModelProvider.DEEPSEEK:
+            return cls.DEEPSEEK
+        elif model_provider is ModelProvider.XAI:
+            return cls.XAI
+        elif model_provider is ModelProvider.OLLAMA:
+            return cls.OLLAMA
+        elif model_provider is ModelProvider.AWS:
+            return cls.AWS
+        assert_never(model_provider)
 
 
 GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] = MappingProxyType(

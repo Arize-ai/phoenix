@@ -276,12 +276,14 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
             llm_evaluators = await get_llm_evaluators(
                 evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
-                llm_client=llm_client,
+                decrypt=info.context.decrypt,
             )
             if (
                 playground_project_id := await session.scalar(
@@ -395,7 +397,6 @@ class Subscription:
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        llm_client = await get_playground_client(input.model, info.context.db, info.context.decrypt)
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(
@@ -405,10 +406,13 @@ class Subscription:
             else None
         )
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
             llm_evaluators = await get_llm_evaluators(
                 evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
-                llm_client=llm_client,
+                decrypt=info.context.decrypt,
             )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))

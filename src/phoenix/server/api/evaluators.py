@@ -2,7 +2,7 @@ import json
 import zlib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -16,7 +16,10 @@ from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_config
-from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
+from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundStreamingClient,
+    get_playground_client,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptTemplateFormat,
@@ -26,6 +29,10 @@ from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.input_types.GenerativeModelInput import (
+    GenerativeModelBuiltinProviderInput,
+    GenerativeModelInput,
+)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import (
     PromptChatTemplateInput,
@@ -33,6 +40,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
 
 ToolCallId: TypeAlias = str
@@ -322,7 +330,7 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
 async def get_llm_evaluators(
     evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
-    llm_client: PlaygroundStreamingClient,
+    decrypt: Callable[[bytes], bytes],
 ) -> list[LLMEvaluator]:
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
@@ -369,6 +377,17 @@ async def get_llm_evaluators(
         prompt_version = await session.scalar(prompt_version_query)
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
+
+        provider_key = GenerativeProviderKey.from_model_provider(prompt_version.model_provider)
+        model_input = GenerativeModelInput(
+            builtin=GenerativeModelBuiltinProviderInput(
+                provider_key=provider_key,
+                name=prompt_version.model_name,
+            )
+        )
+        llm_client = await get_playground_client(
+            model=model_input, session=session, decrypt=decrypt
+        )
 
         llm_evaluators.append(
             LLMEvaluator.from_orm(
