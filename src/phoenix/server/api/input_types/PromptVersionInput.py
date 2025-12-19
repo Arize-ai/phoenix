@@ -132,6 +132,10 @@ class ChatPromptVersionInput:
             response_format=response_format,
             model_provider=ModelProvider(self.model_provider),
             model_name=self.model_name,
+            # metadata_ will default to {} in the DB if not provided due to the NOT NULL constraint,
+            # so setting it here allows us to more accurately check prompt version equality
+            # between prompts that have been saved to the DB and those that haven't.
+            metadata_={},
         )
 
 
