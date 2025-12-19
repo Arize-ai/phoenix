@@ -290,19 +290,17 @@ const evaluator = createClassificationEvaluator({
 
 Model invocation parameters (like `temperature`, `maxTokens`, etc.) are passed through to the underlying AI SDK `generateObject` call. However, the current TypeScript type definitions don't explicitly include these parameters in `CreateClassifierArgs` or `CreateClassificationEvaluatorArgs`, so TypeScript will show type errors if you try to pass them directly.
 
-**Note**: Invocation parameters work at runtime (they are captured via the `...rest` spread and passed through), but you may see TypeScript errors. For type-safe usage, you may need to configure these parameters at the model level when creating the model, or use type assertions.
+**Note**: Invocation parameters work at runtime (they are captured via the `...rest` spread in `createClassifierFn` and passed through to `generateObject`), but TypeScript will show type errors at compile time. To use invocation parameters, you'll need to use type assertions (as shown in the example below) since the AI SDK does not support setting default invocation parameters at the model level.
 
 ```typescript
-// This works at runtime but TypeScript may show type errors
 const evaluator = createClassificationEvaluator({
   name: "factual_check",
   model,
   choices: { factual: 1, hallucinated: 0 },
   promptTemplate: "Your evaluation prompt here: {input}",
-  // TypeScript may complain about these, but they work at runtime
   temperature: 0.0,
   maxTokens: 100,
-} as any); // Type assertion needed to avoid TypeScript errors
+} as any);
 ```
 
 For more configuration options and provider-specific settings, refer to the [AI SDK documentation](https://sdk.vercel.ai/providers/ai-sdk-providers).
