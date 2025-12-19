@@ -553,19 +553,10 @@ class ChatCompletionMutationMixin:
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
-            ctx = preview_item.context
+            context = preview_item.context
             input_mapping = preview_item.input_mapping
 
-            if isinstance(ctx, dict) and "output" not in ctx:
-                raise BadRequest(
-                    "Context is missing 'output' field. "
-                    "Either include 'output' in the context or provide a "
-                    "generation_config to generate it."
-                )
-            prepared_context = ctx
-
-            if evaluator_input.built_in_evaluator_id:
-                evaluator_id: GlobalID = evaluator_input.built_in_evaluator_id
+            if evaluator_id := evaluator_input.built_in_evaluator_id:
                 type_name, db_id = from_global_id(evaluator_id)
 
                 if type_name != BuiltInEvaluator.__name__:
@@ -576,15 +567,14 @@ class ChatCompletionMutationMixin:
                 builtin_evaluator = builtin_evaluator_cls()
 
                 eval_result = builtin_evaluator.evaluate(
-                    context=prepared_context,
+                    context=context,
                     input_mapping=input_mapping,
                 )
                 context_result = _to_annotation(eval_result)
 
-            elif evaluator_input.inline_llm_evaluator:
-                inline_def = evaluator_input.inline_llm_evaluator
-                model_provider = inline_def.prompt_version.model_provider
-                model_name = inline_def.prompt_version.model_name
+            elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
+                model_provider = inline_llm_evaluator.prompt_version.model_provider
+                model_name = inline_llm_evaluator.prompt_version.model_name
                 generative_provider_key = _convert_model_provider_to_generative_provider_key(
                     model_provider
                 )
@@ -598,35 +588,37 @@ class ChatCompletionMutationMixin:
                     model_input, info.context.db, info.context.decrypt
                 )
                 try:
-                    prompt_version_orm = inline_def.prompt_version.to_orm_prompt_version(
+                    prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(
                         user_id=None
                     )
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                output_config = _to_pydantic_categorical_annotation_config(inline_def.output_config)
+                output_config = _to_pydantic_categorical_annotation_config(
+                    inline_llm_evaluator.output_config
+                )
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
-                    annotation_name=inline_def.output_config.name,
+                    annotation_name=inline_llm_evaluator.output_config.name,
                     output_config=output_config,
                     llm_client=llm_client,
-                    description=inline_def.description,
+                    description=inline_llm_evaluator.description,
                 )
 
                 try:
                     validate_evaluator_prompt_and_config(
                         prompt_tools=prompt_version_orm.tools,
                         prompt_response_format=prompt_version_orm.response_format,
-                        evaluator_annotation_name=inline_def.output_config.name,
+                        evaluator_annotation_name=inline_llm_evaluator.output_config.name,
                         evaluator_output_config=output_config,
-                        evaluator_description=inline_def.description,
+                        evaluator_description=inline_llm_evaluator.description,
                     )
                 except ValueError as error:
                     raise BadRequest(str(error))
 
                 eval_result = await evaluator.evaluate(
-                    context=prepared_context,
+                    context=context,
                     input_mapping=input_mapping,
                 )
                 context_result = _to_annotation(eval_result)

@@ -147,30 +147,3 @@ class TestEvaluatorPreviewMutation:
         )
 
         assert result.errors is not None
-
-    async def test_preview_without_output_raises_error(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Test that missing output field raises an error."""
-        builtin_evaluator_id = str(
-            GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
-        )
-
-        result = await self._preview(
-            gql_client,
-            previews=[
-                dict(
-                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
-                    context={"input": "some input without output"},
-                    inputMapping=dict(
-                        literalMapping={"words": "hello", "case_sensitive": False},
-                        pathMapping={"text": "$.output"},
-                    ),
-                )
-            ],
-        )
-
-        assert result.errors is not None
-        error_message = result.errors[0].message.lower()
-        assert "output" in error_message
