@@ -40,8 +40,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.22",
-    "ai": "^5.0.38",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^4.0.10"
   },
@@ -49,10 +47,5 @@
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=18"
-  },
-  "optionalDependencies": {
-    "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^5.0.76",
-    "openai": "^6.10.0"
   }
 }
