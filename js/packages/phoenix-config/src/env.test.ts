@@ -165,10 +165,10 @@ describe("env", () => {
       expect(result).toBe(-1);
     });
 
-    it("should return NaN for non-numeric strings", () => {
+    it("should return undefined for non-numeric strings", () => {
       process.env[ENV_PHOENIX_PORT] = "not-a-number";
       const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
-      expect(result).toBeNaN();
+      expect(result).toBeUndefined();
     });
 
     it("should parse integers with leading zeros", () => {

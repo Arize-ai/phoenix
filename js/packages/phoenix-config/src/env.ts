@@ -52,7 +52,7 @@ export const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
  * Retrieves an integer value from an environment variable.
  *
  * @param envKey - The name of the environment variable to read
- * @returns The parsed integer value, or `undefined` if the variable is not set or empty
+ * @returns The parsed integer value, or `undefined` if the variable is not set, empty, or not a valid integer
  *
  * @example
  * const port = getIntFromEnvironment("PHOENIX_PORT");
@@ -63,7 +63,11 @@ export function getIntFromEnvironment(envKey: string) {
   if (!value) {
     return;
   }
-  return parseInt(value);
+  const parsed = parseInt(value);
+  if (Number.isNaN(parsed)) {
+    return;
+  }
+  return parsed;
 }
 
 /**
