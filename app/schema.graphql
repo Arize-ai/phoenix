@@ -3972,6 +3972,7 @@ input UpdateDatasetLLMEvaluatorInput {
   datasetId: ID!
   name: Identifier!
   description: String = null
+  promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
   outputConfig: CategoricalAnnotationConfigInput!
   inputMapping: EvaluatorInputMappingInput = null

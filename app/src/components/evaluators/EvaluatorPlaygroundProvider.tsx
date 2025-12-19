@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { EvaluatorPlaygroundProviderQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorPlaygroundProviderQuery.graphql";
 import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
@@ -20,12 +21,14 @@ export const EvaluatorPlaygroundProvider = ({
   promptName,
   promptId,
   defaultMessages,
+  templateFormat,
 }: PropsWithChildren<{
   promptId?: string;
   promptName?: string;
   promptVersionRef?: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
   promptVersionTag?: string;
   defaultMessages?: PlaygroundChatTemplate["messages"];
+  templateFormat?: TemplateFormat;
 }>) => {
   const { modelProviders } = useLazyLoadQuery<EvaluatorPlaygroundProviderQuery>(
     graphql`
@@ -80,6 +83,7 @@ export const EvaluatorPlaygroundProvider = ({
     <PlaygroundProvider
       instances={defaultInstances}
       modelConfigByProvider={modelConfigByProvider}
+      templateFormat={templateFormat}
     >
       {children}
     </PlaygroundProvider>

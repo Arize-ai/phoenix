@@ -89,6 +89,7 @@ const EditEvaluatorPlaygroundProvider = (
                       name
                     }
                     promptVersion {
+                      templateFormat
                       ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
                     }
                     promptVersionTag {
@@ -113,6 +114,7 @@ const EditEvaluatorPlaygroundProvider = (
       promptName={datasetEvaluator.evaluator.prompt?.name}
       promptVersionRef={datasetEvaluator.evaluator.promptVersion}
       promptVersionTag={datasetEvaluator.evaluator.promptVersionTag?.name}
+      templateFormat={datasetEvaluator.evaluator.promptVersion?.templateFormat}
     >
       <EditEvaluatorDialog queryRef={datasetEvaluator} {...props} />
     </EvaluatorPlaygroundProvider>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<56245d0e0e8e6cc34dd977c0662ad3b2>>
+ * @generated SignedSource<<d3c0c423d22d119999ef5451500a73ff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type UpdateDatasetLLMEvaluatorInput = {
   name: string;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
+  promptVersionId?: string | null;
 };
 export type ChatPromptVersionInput = {
   description?: string | null;

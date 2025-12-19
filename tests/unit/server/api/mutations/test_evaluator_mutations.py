@@ -25,6 +25,8 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
     TextContentPart,
+    denormalize_tools,
+    get_raw_invocation_parameters,
     normalize_tools,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
@@ -83,7 +85,7 @@ class TestDatasetLLMEvaluatorMutations:
         actual_text = messages[0]["content"][0]["text"]["text"]
         assert actual_text == expected_text
 
-    async def test_create_dataset_llm_evaluator(
+    async def test_create_dataset_llm_evaluator_basic(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -636,6 +638,172 @@ class TestDatasetLLMEvaluatorMutations:
             )
             assert len(prompt_versions.all()) == 1
 
+    async def test_create_dataset_llm_evaluator_with_identical_prompt_content(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test creating evaluator with existing prompt_version_id and identical content doesn't create new version."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # First, create a prompt and prompt version
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-{token_hex(4)}"),
+                description="test prompt",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type=PromptTemplateType.CHAT,
+                        template_format=PromptTemplateFormat.MUSTACHE,
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[
+                                        TextContentPart(
+                                            type="text",
+                                            text="Original: {{input}}",
+                                        )
+                                    ],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(temperature=0.5),
+                        ),
+                        tools=normalize_tools(
+                            [
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "test-evaluator-identical",
+                                        "description": "test description",
+                                        "parameters": {
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string",
+                                                    "enum": ["correct", "incorrect"],
+                                                    "description": "correctness",
+                                                }
+                                            },
+                                            "required": ["label"],
+                                        },
+                                    },
+                                }
+                            ],
+                            ModelProvider.OPENAI,
+                            tool_choice={
+                                "type": "function",
+                                "function": {"name": "test-evaluator-identical"},
+                            },
+                        ),
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            session.add(prompt)
+            await session.flush()
+            existing_prompt_version = prompt.prompt_versions[0]
+            existing_prompt_version_id = str(
+                GlobalID("PromptVersion", str(existing_prompt_version.id))
+            )
+            existing_prompt_id = prompt.id
+
+        # Create evaluator with identical prompt contents
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            name="test-evaluator-identical",
+            description="test description",
+            promptVersionId=existing_prompt_version_id,
+            promptVersion=dict(
+                description=None,
+                templateFormat="MUSTACHE",
+                template=dict(
+                    messages=[
+                        dict(role="USER", content=[dict(text=dict(text="Original: {{input}}"))])
+                    ]
+                ),
+                invocationParameters=dict(
+                    temperature=0.5,  # Same temperature as existing
+                    tool_choice=dict(
+                        type="function",
+                        function=dict(name="test-evaluator-identical"),
+                    ),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="test-evaluator-identical",
+                                description="test description",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        label=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                            description="correctness",
+                                        )
+                                    ),
+                                    required=["label"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="description",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+
+        # Verify the evaluator uses the existing prompt and SAME prompt version (no new version created)
+        async with db() as session:
+            dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            llm_evaluator = await session.get(
+                models.LLMEvaluator,
+                db_dataset_evaluator.evaluator_id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert llm_evaluator is not None
+            # Verify prompt ID matches the existing prompt
+            assert llm_evaluator.prompt_id == existing_prompt_id
+            # Verify prompt version ID is the SAME (no new version created)
+            assert llm_evaluator.prompt_version_tag is not None
+            assert llm_evaluator.prompt_version_tag.prompt_version_id == existing_prompt_version.id
+            # Verify tag was added to the existing prompt version
+            assert llm_evaluator.prompt_version_tag.prompt_id == existing_prompt_id
+
+            # Verify only ONE prompt version exists (no new one created)
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == existing_prompt_id
+                )
+            )
+            prompt_versions_list = prompt_versions.all()
+            assert len(prompt_versions_list) == 1
+
     async def test_create_dataset_llm_evaluator_with_nonexistent_prompt_version_id(
         self,
         db: DbSessionFactory,
@@ -821,6 +989,689 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             assert db_evaluator is not None
             assert db_evaluator.description == "updated description"
             assert db_evaluator.annotation_name == "result"
+
+    async def test_update_without_prompt_version_id_creates_new_prompt(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that updating without prompt_version_id creates a new prompt and version."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        original_prompt_id = llm_evaluator.prompt_id
+
+        # Get the dataset_evaluator ID
+        async with db() as session:
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+            original_prompt = await session.get(models.Prompt, original_prompt_id)
+            assert original_prompt is not None
+
+        # Update without prompt_version_id
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator",
+                    "description": "updated description",
+                    "promptVersion": dict(
+                        description="new prompt version",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="New prompt: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.7,
+                            tool_choice="required",
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="updated-evaluator",
+                                        description="updated description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["yes", "no"],
+                                                    description="result",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfig": dict(
+                        name="result",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="yes", score=1),
+                            dict(label="no", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify a new prompt and version were created
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            # Verify prompt_id changed (new prompt created)
+            assert db_evaluator.prompt_id != original_prompt_id
+            new_prompt = await session.get(models.Prompt, db_evaluator.prompt_id)
+            assert new_prompt is not None
+            # Verify prompt_version_tag exists and points to new prompt
+            assert db_evaluator.prompt_version_tag is not None
+            assert db_evaluator.prompt_version_tag.prompt_id == db_evaluator.prompt_id
+            # Verify only one version exists for the new prompt
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == db_evaluator.prompt_id
+                )
+            )
+            assert len(prompt_versions.all()) == 1
+            # Verify the version has the new content
+            new_version = await session.get(
+                models.PromptVersion, db_evaluator.prompt_version_tag.prompt_version_id
+            )
+            assert new_version is not None
+            assert isinstance(new_version.template, PromptChatTemplate)
+            assert (
+                new_version.template.messages[0].content[0].text == "New prompt: {{input}}"  # type: ignore[union-attr]
+            )
+
+    async def test_update_with_prompt_version_id_different_prompt(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that updating with prompt_version_id pointing to different prompt switches prompts."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        original_prompt_id = llm_evaluator.prompt_id
+
+        # Create a different prompt with a version
+        async with db() as session:
+            different_prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"different-prompt-{token_hex(4)}"),
+                description="different prompt",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type=PromptTemplateType.CHAT,
+                        template_format=PromptTemplateFormat.MUSTACHE,
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[
+                                        TextContentPart(
+                                            type="text",
+                                            text="Different: {{input}}",
+                                        )
+                                    ],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
+                        ),
+                        tools=normalize_tools(
+                            [
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "different-tool",
+                                        "description": "different",
+                                        "parameters": {
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string",
+                                                    "enum": ["yes", "no"],
+                                                    "description": "result",
+                                                }
+                                            },
+                                            "required": ["label"],
+                                        },
+                                    },
+                                }
+                            ],
+                            ModelProvider.OPENAI,
+                            tool_choice="required",
+                        ),
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            session.add(different_prompt)
+            await session.flush()
+            different_prompt_version_id = str(
+                GlobalID("PromptVersion", str(different_prompt.prompt_versions[0].id))
+            )
+            different_prompt_id = different_prompt.id
+
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+
+        # Update with prompt_version_id pointing to different prompt
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator",
+                    "description": "updated description",
+                    "promptVersionId": different_prompt_version_id,
+                    "promptVersion": dict(
+                        description="updated prompt version",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Updated: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.5,
+                            tool_choice="required",
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="updated-evaluator",
+                                        description="updated description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["yes", "no"],
+                                                    description="result",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfig": dict(
+                        name="result",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="yes", score=1),
+                            dict(label="no", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify evaluator switched to different prompt
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            # Verify prompt_id changed to different prompt
+            assert db_evaluator.prompt_id == different_prompt_id
+            assert db_evaluator.prompt_id != original_prompt_id
+            # Verify prompt_version_tag points to different prompt
+            assert db_evaluator.prompt_version_tag is not None
+            assert db_evaluator.prompt_version_tag.prompt_id == different_prompt_id
+
+    async def test_update_with_prompt_version_id_content_changed(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that updating with prompt_version_id but changed content creates new version."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Get the current prompt version
+        async with db() as session:
+            current_prompt_version = await session.scalar(
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+            assert current_prompt_version is not None
+            current_prompt_version_id = str(
+                GlobalID("PromptVersion", str(current_prompt_version.id))
+            )
+            original_prompt_id = llm_evaluator.prompt_id
+
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+
+        # Update with prompt_version_id but different content
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator",
+                    "description": "updated description",
+                    "promptVersionId": current_prompt_version_id,
+                    "promptVersion": dict(
+                        description="changed content",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Changed: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.8,  # Different temperature
+                            tool_choice="required",
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="updated-evaluator",
+                                        description="updated description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["yes", "no"],
+                                                    description="result",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfig": dict(
+                        name="result",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="yes", score=1),
+                            dict(label="no", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify new version was created
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            # Verify prompt_id stayed the same
+            assert db_evaluator.prompt_id == original_prompt_id
+            # Verify prompt_version_tag points to new version
+            assert db_evaluator.prompt_version_tag is not None
+            new_version_id = db_evaluator.prompt_version_tag.prompt_version_id
+            assert new_version_id != current_prompt_version.id
+            # Verify new version has changed content
+            new_version = await session.get(models.PromptVersion, new_version_id)
+            assert new_version is not None
+            assert isinstance(new_version.template, PromptChatTemplate)
+            assert (
+                new_version.template.messages[0].content[0].text == "Changed: {{input}}"  # type: ignore[union-attr]
+            )
+
+    async def test_update_with_prompt_version_id_content_unchanged(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that updating with prompt_version_id and unchanged content doesn't create new version."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Get the current prompt version and extract all fields to match exactly
+        async with db() as session:
+            current_prompt_version = await session.scalar(
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+            assert current_prompt_version is not None
+            current_prompt_version_id = str(
+                GlobalID("PromptVersion", str(current_prompt_version.id))
+            )
+            original_prompt_id = llm_evaluator.prompt_id
+
+            # Extract invocation parameters (need raw dict, not the typed object)
+            raw_invocation_parameters = get_raw_invocation_parameters(
+                current_prompt_version.invocation_parameters
+            )
+
+            # Extract tools (convert to GraphQL format)
+            assert current_prompt_version.tools is not None
+            tool_schemas, tool_choice = denormalize_tools(
+                current_prompt_version.tools, current_prompt_version.model_provider
+            )
+            tools = [dict(definition=schema) for schema in tool_schemas]
+            # Add tool_choice back to invocation_parameters if present
+            if tool_choice is not None:
+                raw_invocation_parameters["tool_choice"] = tool_choice
+
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+
+        # Update with prompt_version_id and identical content (matching all fields)
+        # Only update the name (which doesn't affect prompt version content)
+        new_evaluator_name = "updated-evaluator"
+
+        # Create template_messages that match the fixture exactly
+        template_messages = [
+            dict(
+                role="USER",
+                content=[dict(text=dict(text="Test evaluator: {input}"))],
+            )
+        ]
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": new_evaluator_name,
+                    "description": llm_evaluator.description,  # Keep same as fixture
+                    "promptVersionId": current_prompt_version_id,
+                    "promptVersion": dict(
+                        description=current_prompt_version.description,
+                        templateFormat=current_prompt_version.template_format.value,
+                        template=dict(messages=template_messages),
+                        invocationParameters=raw_invocation_parameters,
+                        tools=tools,
+                        responseFormat=None,  # fixture has None
+                        modelProvider=current_prompt_version.model_provider.value,
+                        modelName=current_prompt_version.model_name,
+                    ),
+                    "outputConfig": dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify no new version was created
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            # Verify prompt_id stayed the same
+            assert db_evaluator.prompt_id == original_prompt_id
+            # Verify prompt_version_tag points to the original version (no new version created)
+            assert db_evaluator.prompt_version_tag is not None
+            tag_version_id = db_evaluator.prompt_version_tag.prompt_version_id
+            assert tag_version_id == current_prompt_version.id
+            # Verify only one version exists (no new version created)
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == original_prompt_id
+                )
+            )
+            assert len(prompt_versions.all()) == 1
+
+    async def test_update_with_prompt_version_id_same_prompt(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """Test that updating with prompt_version_id pointing to same prompt updates tag."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        original_prompt_id = llm_evaluator.prompt_id
+
+        # Create a second version for the same prompt
+        async with db() as session:
+            # Get existing prompt
+            prompt = await session.get(models.Prompt, original_prompt_id)
+            assert prompt is not None
+
+            # Create a second version
+            # Use exact values that will match the test input
+            second_version = models.PromptVersion(
+                description="updated",
+                template_type=PromptTemplateType.CHAT,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        PromptMessage(
+                            role="user",
+                            content=[TextContentPart(type="text", text="Second version: {input}")],
+                        )
+                    ],
+                ),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
+                ),
+                tools=normalize_tools(
+                    [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "updated-evaluator",
+                                "description": "updated description",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "label": {
+                                            "type": "string",
+                                            "enum": ["correct", "incorrect"],
+                                            "description": "correctness",
+                                        }
+                                    },
+                                    "required": ["label"],
+                                },
+                            },
+                        }
+                    ],
+                    ModelProvider.OPENAI,
+                    tool_choice="required",
+                ),
+                response_format=None,
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+                prompt_id=original_prompt_id,
+            )
+            session.add(second_version)
+            await session.flush()
+            second_version_id = str(GlobalID("PromptVersion", str(second_version.id)))
+
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+
+        # Update with prompt_version_id pointing to the second version (same prompt)
+        # Use identical content so no new version is created
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator",
+                    "description": "updated description",
+                    "promptVersionId": second_version_id,
+                    "promptVersion": dict(
+                        description="updated",
+                        templateFormat="F_STRING",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Second version: {input}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.0,  # Same as second_version
+                            tool_choice="required",
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="updated-evaluator",
+                                        description="updated description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["correct", "incorrect"],
+                                                    description="correctness",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfig": dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    ),
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        # Verify evaluator still points to same prompt, and tag points to second version
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            # Verify prompt_id stayed the same
+            assert db_evaluator.prompt_id == original_prompt_id
+            # Verify prompt_version_tag points to the second version (no new version created)
+            assert db_evaluator.prompt_version_tag is not None
+            assert db_evaluator.prompt_version_tag.prompt_version_id == second_version.id
+            assert db_evaluator.prompt_version_tag.prompt_id == original_prompt_id
+            # Verify only 2 versions exist (original + second, no new one created)
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == original_prompt_id
+                )
+            )
+            assert len(prompt_versions.all()) == 2
 
 
 class TestAssignUnassignEvaluatorMutations:
@@ -1631,18 +2482,56 @@ async def llm_evaluator(
     db: DbSessionFactory, empty_dataset: models.Dataset
 ) -> AsyncIterator[models.LLMEvaluator]:
     """Inserts an LLM evaluator with dataset relationship."""
+    evaluator_name = IdentifierModel.model_validate(f"test-llm-evaluator-{token_hex(4)}")
+    evaluator_description = "test llm evaluator"
+    annotation_name = "correctness"
+
+    # Create tools that match the evaluator's output config
+    tool_schema = {
+        "type": "function",
+        "function": {
+            "name": evaluator_name.root,
+            "description": evaluator_description,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "enum": ["correct", "incorrect"],
+                        "description": annotation_name,
+                    }
+                },
+                "required": ["label"],
+            },
+        },
+    }
+    tools = normalize_tools(
+        schemas=[tool_schema],
+        model_provider=ModelProvider.OPENAI,
+        tool_choice="required",
+    )
+
     prompt = models.Prompt(
         name=IdentifierModel.model_validate(f"test-prompt-{token_hex(4)}"),
         description="test prompt",
         prompt_versions=[
             models.PromptVersion(
-                template_type=PromptTemplateType.STRING,
+                template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.F_STRING,
-                template=PromptStringTemplate(type="string", template="Test evaluator: {input}"),
-                invocation_parameters=PromptOpenAIInvocationParameters(
-                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        PromptMessage(
+                            role="user",
+                            content=[TextContentPart(type="text", text="Test evaluator: {input}")],
+                        )
+                    ],
                 ),
-                tools=None,
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                tools=tools,
                 response_format=None,
                 model_provider=ModelProvider.OPENAI,
                 model_name="gpt-4",
@@ -1650,12 +2539,11 @@ async def llm_evaluator(
             )
         ],
     )
-    evaluator_name = IdentifierModel.model_validate(f"test-llm-evaluator-{token_hex(4)}")
     evaluator = models.LLMEvaluator(
         name=evaluator_name,
-        description="test llm evaluator",
+        description=evaluator_description,
         kind="LLM",
-        annotation_name="correctness",
+        annotation_name=annotation_name,
         output_config=CategoricalAnnotationConfig(
             type="CATEGORICAL",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -1676,11 +2564,24 @@ async def llm_evaluator(
     )
     async with db() as session:
         session.add(evaluator)
+        await session.flush()
+        prompt_version = prompt.prompt_versions[0]
+        tag_name = IdentifierModel.model_validate(f"{evaluator_name.root}-evaluator-{token_hex(4)}")
+        prompt_tag = models.PromptVersionTag(
+            name=tag_name,
+            prompt_id=prompt.id,
+            prompt_version_id=prompt_version.id,
+        )
+        evaluator.prompt_version_tag = prompt_tag
+        session.add(evaluator)
 
     yield evaluator
     async with db() as session:
         await session.execute(
             sa.delete(models.LLMEvaluator).where(models.LLMEvaluator.id == evaluator.id)
+        )
+        await session.execute(
+            sa.delete(models.PromptVersionTag).where(models.PromptVersionTag.prompt_id == prompt.id)
         )
         await session.execute(
             sa.delete(models.PromptVersion).where(models.PromptVersion.prompt_id == prompt.id)
