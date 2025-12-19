@@ -51,7 +51,7 @@ const EvaluatorOutputPreviewContent = () => {
         $input: EvaluatorPreviewItemInput!
       ) {
         evaluatorPreviews(input: { previews: [$input] }) {
-          results {
+          annotations {
             explanation
             label
             score
@@ -67,61 +67,42 @@ const EvaluatorOutputPreviewContent = () => {
     const { instances } = playgroundStore.getState();
     const instanceId = instances[0].id;
     invariant(instanceId != null, "instanceId is required");
-    const {
-      evaluator: {
-        id,
-        displayName,
-        name,
-        description,
-        inputMapping,
-        includeExplanation,
-        isBuiltin,
-      },
-      outputConfig,
-      dataset,
-      preMappedInput,
-    } = evaluatorStore.getState();
+    const state = evaluatorStore.getState();
     let params:
       | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
-      | { evaluatorId: string };
-    if (!isBuiltin) {
-      invariant(outputConfig, "outputConfig is required");
+      | { builtInEvaluatorId: string };
+    if (!state.evaluator.isBuiltin) {
+      invariant(state.outputConfig, "outputConfig is required");
       const payload = createLLMEvaluatorPayload({
         playgroundStore,
-        description,
-        name: displayName || name,
-        includeExplanation,
-        inputMapping,
-        outputConfig,
+        description: state.evaluator.description,
+        name: state.evaluator.displayName || state.evaluator.name,
+        includeExplanation: state.evaluator.includeExplanation,
+        inputMapping: state.evaluator.inputMapping,
+        outputConfig: state.outputConfig,
         instanceId,
-        datasetId: dataset?.id ?? "",
+        datasetId: state.dataset?.id ?? "",
       });
       params = {
         inlineLlmEvaluator: {
+          description: payload.description,
+          outputConfig: payload.outputConfig,
           promptVersion: payload.promptVersion,
-          outputConfig,
-          description,
-          model: {
-            builtin: {
-              name: payload.promptVersion.modelName,
-              providerKey: payload.promptVersion.modelProvider,
-            },
-          },
         },
       };
     } else {
-      invariant(id, "evaluator id is required");
+      invariant(state.evaluator.id, "evaluator id is required");
       params = {
-        evaluatorId: id,
+        builtInEvaluatorId: state.evaluator.id,
       };
     }
 
     previewEvaluator({
       variables: {
         input: {
-          contexts: [preMappedInput],
+          context: state.preMappedInput,
           evaluator: params,
-          inputMapping,
+          inputMapping: state.evaluator.inputMapping,
         },
       },
       onCompleted(response, errors) {
@@ -129,12 +110,12 @@ const EvaluatorOutputPreviewContent = () => {
           setError(errors[0].message);
         } else {
           setPreviewAnnotations(
-            response.evaluatorPreviews.results.map((result) => ({
-              id: result.id,
-              name: result.name,
-              label: result.label,
-              score: result.score,
-              explanation: result.explanation,
+            response.evaluatorPreviews.annotations.map((annotation) => ({
+              id: annotation.id,
+              name: annotation.name,
+              label: annotation.label,
+              score: annotation.score,
+              explanation: annotation.explanation,
             }))
           );
         }
