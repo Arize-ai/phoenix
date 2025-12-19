@@ -42,8 +42,8 @@ class TestEvaluatorPreviewMutation:
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[{"output": "The quick brown fox jumps over the lazy dog"}],
+                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    context={"output": "The quick brown fox jumps over the lazy dog"},
                     inputMapping=dict(
                         literalMapping={"words": "fox,cat", "case_sensitive": False},
                         pathMapping={"text": "$.output"},
@@ -75,8 +75,8 @@ class TestEvaluatorPreviewMutation:
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[{"output": "The quick brown fox"}],
+                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    context={"output": "The quick brown fox"},
                     inputMapping=dict(
                         literalMapping={"words": "elephant,giraffe", "case_sensitive": False},
                         pathMapping={"text": "$.output"},
@@ -93,41 +93,6 @@ class TestEvaluatorPreviewMutation:
         assert eval_result["score"] == 0.0
         assert "not found" in eval_result["explanation"]
 
-    async def test_preview_multiple_contexts_per_evaluator(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Test that one evaluator can process multiple contexts."""
-        builtin_evaluator_id = str(
-            GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
-        )
-
-        result = await self._preview(
-            gql_client,
-            previews=[
-                dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[
-                        {"output": "hello world"},
-                        {"output": "goodbye world"},
-                        {"output": "hello again"},
-                    ],
-                    inputMapping=dict(
-                        literalMapping={"words": "hello", "case_sensitive": False},
-                        pathMapping={"text": "$.output"},
-                    ),
-                )
-            ],
-        )
-
-        assert result.data and not result.errors
-        results = result.data["evaluatorPreviews"]["results"]
-        assert len(results) == 3
-
-        assert results[0]["score"] == 1.0
-        assert results[1]["score"] == 0.0
-        assert results[2]["score"] == 1.0
-
     async def test_preview_multiple_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
@@ -141,16 +106,16 @@ class TestEvaluatorPreviewMutation:
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[{"output": "hello world"}],
+                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    context={"output": "hello world"},
                     inputMapping=dict(
                         literalMapping={"words": "hello", "case_sensitive": False},
                         pathMapping={"text": "$.output"},
                     ),
                 ),
                 dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[{"output": "goodbye world"}],
+                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    context={"output": "goodbye world"},
                     inputMapping=dict(
                         literalMapping={"words": "hello", "case_sensitive": False},
                         pathMapping={"text": "$.output"},
@@ -175,7 +140,7 @@ class TestEvaluatorPreviewMutation:
             previews=[
                 dict(
                     evaluator=dict(),
-                    contexts=[{"output": "test"}],
+                    context={"output": "test"},
                     inputMapping=dict(),
                 )
             ],
@@ -183,11 +148,11 @@ class TestEvaluatorPreviewMutation:
 
         assert result.errors is not None
 
-    async def test_preview_without_output_requires_generation_config(
+    async def test_preview_without_output_raises_error(
         self,
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        """Test that missing output without generation_config raises an error."""
+        """Test that missing output field raises an error."""
         builtin_evaluator_id = str(
             GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
         )
@@ -196,8 +161,8 @@ class TestEvaluatorPreviewMutation:
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(evaluatorId=builtin_evaluator_id),
-                    contexts=[{"input": "some input without output"}],
+                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    context={"input": "some input without output"},
                     inputMapping=dict(
                         literalMapping={"words": "hello", "case_sensitive": False},
                         pathMapping={"text": "$.output"},
@@ -209,4 +174,3 @@ class TestEvaluatorPreviewMutation:
         assert result.errors is not None
         error_message = result.errors[0].message.lower()
         assert "output" in error_message
-        assert "generation_config" in error_message
