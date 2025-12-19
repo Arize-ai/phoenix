@@ -255,8 +255,7 @@
                 "pages": [
                   "docs/phoenix/settings/access-control-rbac",
                   "docs/phoenix/settings/api-keys",
-                  "docs/phoenix/settings/data-retention",
-                  "docs/phoenix/settings/phoenix-to-arize-ax-migration"
+                  "docs/phoenix/settings/data-retention"
                 ]
               },
               {
@@ -326,6 +325,7 @@
                     ]
                   },
                   "docs/phoenix/resources/contribute-to-phoenix",
+                  "docs/phoenix/resources/phoenix-to-arize-ax-migration",
                   "docs/phoenix/resources/github",
                   "docs/phoenix/resources/openinference"
                 ]
@@ -1742,6 +1742,10 @@
     {
       "source": "/docs/phoenix/deployment",
       "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/settings/phoenix-to-arize-ax-migration",
+      "destination": "/docs/phoenix/resources/phoenix-to-arize-ax-migration"
     }
   ]
 }
