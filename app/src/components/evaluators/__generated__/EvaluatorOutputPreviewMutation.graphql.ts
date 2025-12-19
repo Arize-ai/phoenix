@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3e27b13ee6b2edbb40af67fa29ab8590>>
+ * @generated SignedSource<<62dc636afd9239691f7ad7d99a92ce4c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,52 +9,22 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
-export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewItemInput = {
-  contexts: ReadonlyArray<any>;
+  context: any;
   evaluator: EvaluatorPreviewInput;
-  generationConfig?: GenerationConfigInput | null;
   inputMapping?: EvaluatorInputMappingInput;
-  model?: GenerativeModelInput | null;
 };
 export type EvaluatorPreviewInput = {
-  evaluatorId?: string | null;
+  builtInEvaluatorId?: string | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
-  model: GenerativeModelInput;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
-};
-export type GenerativeModelInput = {
-  builtin?: GenerativeModelBuiltinProviderInput | null;
-  custom?: GenerativeModelCustomProviderInput | null;
-};
-export type GenerativeModelBuiltinProviderInput = {
-  apiVersion?: string | null;
-  baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
-  name: string;
-  providerKey: GenerativeProviderKey;
-  region?: string | null;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
-};
-export type GenerativeModelCustomProviderInput = {
-  extraHeaders?: any | null;
-  modelName: string;
-  provider: string;
-  providerId: string;
 };
 export type ChatPromptVersionInput = {
   description?: string | null;
@@ -114,36 +84,12 @@ export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type GenerationConfigInput = {
-  invocationParameters?: ReadonlyArray<InvocationParameterInput>;
-  messages: ReadonlyArray<ChatCompletionMessageInput>;
-  model: GenerativeModelInput;
-  templateFormat?: PromptTemplateFormat;
-  tools?: ReadonlyArray<any> | null;
-};
-export type ChatCompletionMessageInput = {
-  content?: any;
-  role: ChatCompletionMessageRole;
-  toolCallId?: string | null;
-  toolCalls?: ReadonlyArray<any> | null;
-};
-export type InvocationParameterInput = {
-  canonicalName?: CanonicalParameterName | null;
-  invocationName: string;
-  valueBool?: boolean | null;
-  valueBoolean?: boolean | null;
-  valueFloat?: number | null;
-  valueInt?: number | null;
-  valueJson?: any | null;
-  valueString?: string | null;
-  valueStringList?: ReadonlyArray<string> | null;
-};
 export type EvaluatorOutputPreviewMutation$variables = {
   input: EvaluatorPreviewItemInput;
 };
 export type EvaluatorOutputPreviewMutation$data = {
   readonly evaluatorPreviews: {
-    readonly results: ReadonlyArray<{
+    readonly annotations: ReadonlyArray<{
       readonly explanation: string | null;
       readonly id: string;
       readonly label: string | null;
@@ -187,7 +133,7 @@ v1 = [
         "name": "input"
       }
     ],
-    "concreteType": "EvaluatorPreviewPayload",
+    "concreteType": "EvaluatorPreviewsPayload",
     "kind": "LinkedField",
     "name": "evaluatorPreviews",
     "plural": false,
@@ -197,7 +143,7 @@ v1 = [
         "args": null,
         "concreteType": "ExperimentRunAnnotation",
         "kind": "LinkedField",
-        "name": "results",
+        "name": "annotations",
         "plural": true,
         "selections": [
           {
@@ -260,16 +206,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "fba32baa71f836242f2533e0c7f89ec3",
+    "cacheID": "555fea2f64843706400479c845231744",
     "id": null,
     "metadata": {},
     "name": "EvaluatorOutputPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    results {\n      explanation\n      label\n      score\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    annotations {\n      explanation\n      label\n      score\n      name\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6aba2d0f260338b482aae27099864b0";
+(node as any).hash = "d66596c4485f68799c7a69164b3a5004";
 
 export default node;
