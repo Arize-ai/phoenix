@@ -323,12 +323,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_splits_result = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_splits_result.scalars().all()
                 assert len(split_links) == 1
                 assert split_links[0].dataset_split_id == 1  # train split
 
@@ -400,12 +400,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_splits_result = await session.execute(
                     select(models.ExperimentDatasetSplit)
                     .where(models.ExperimentDatasetSplit.experiment_id == exp_id)
                     .order_by(models.ExperimentDatasetSplit.dataset_split_id)
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_splits_result.scalars().all()
                 assert len(split_links) == 2
                 assert split_links[0].dataset_split_id == 1  # train split
                 assert split_links[1].dataset_split_id == 2  # test split
@@ -476,12 +476,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_split_results = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_split_results.scalars().all()
                 assert len(split_links) == 0  # No splits associated
 
     async def test_evaluator_returns_evaluation_and_persists_span_annotation(
@@ -567,8 +567,8 @@ class TestChatCompletionMutationMixin:
 
         # Verify span annotation was persisted in DB
         async with db() as session:
-            result = await session.execute(select(models.SpanAnnotation))
-            annotations = result.scalars().all()
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
             assert len(annotations) == 1
 
             annotation = annotations[0]
@@ -650,8 +650,8 @@ class TestChatCompletionMutationMixin:
             assert repetition["evaluations"] == []  # verify no evaluations were run
 
         async with db() as session:
-            result = await session.execute(select(models.SpanAnnotation))
-            annotations = result.scalars().all()
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
             assert len(annotations) == 0  # verify no span annotations were persisted
 
     async def test_evaluator_over_dataset_returns_evaluations_and_persists_annotations(
@@ -761,8 +761,8 @@ class TestChatCompletionMutationMixin:
 
         # Verify experiment run annotation was persisted in DB
         async with db() as session:
-            result = await session.execute(select(models.ExperimentRunAnnotation))
-            annotations = result.scalars().all()
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 1
 
             annotation = annotations[0]
@@ -872,8 +872,8 @@ class TestChatCompletionMutationMixin:
             assert repetition["evaluations"] == []  # verify no evaluations were run
 
         async with db() as session:
-            result = await session.execute(select(models.ExperimentRunAnnotation))
-            annotations = result.scalars().all()
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
 
