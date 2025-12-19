@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f87ce6b695d7b2795b6436c6e9f80562>>
+ * @generated SignedSource<<d862fc8ea0ba8acefcec5fd2e012d6a2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,7 @@ export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluator
 export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$data = {
   readonly createDatasetBuiltinEvaluator: {
     readonly evaluator: {
+      readonly id: string;
       readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
     };
   };
@@ -149,6 +150,7 @@ return {
             "name": "evaluator",
             "plural": false,
             "selections": [
+              (v3/*: any*/),
               {
                 "kind": "InlineDataFragmentSpread",
                 "name": "DatasetEvaluatorsTable_row",
@@ -312,16 +314,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dce1f02b97e22da7624c2b837256ddc3",
+    "cacheID": "0ca30a1ffb1005558de6e0445013fb05",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      id\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "249829c3f4a0c6a7f32880a2f09f27e9";
+(node as any).hash = "e8340150b423295254de91d7afd1d219";
 
 export default node;

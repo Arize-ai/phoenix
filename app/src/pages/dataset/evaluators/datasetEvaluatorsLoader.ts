@@ -12,11 +12,10 @@ export const datasetEvaluatorsLoaderGQL = graphql`
       id
       ... on Dataset {
         id
-        ...CreateBuiltInDatasetEvaluatorSlideover_dataset
         ...DatasetEvaluatorsTable_evaluators
       }
     }
-    ...AddEvaluatorMenu_query @arguments(datasetId: $id)
+    ...AddEvaluatorMenu_query
   }
 `;
 
