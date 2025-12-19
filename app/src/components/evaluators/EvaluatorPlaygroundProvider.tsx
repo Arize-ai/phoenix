@@ -14,6 +14,8 @@ import {
   type PlaygroundChatTemplate,
 } from "@phoenix/store";
 
+import { TemplateFormats } from "../templateEditor/constants";
+
 export const EvaluatorPlaygroundProvider = ({
   children,
   promptVersionRef,
@@ -21,7 +23,7 @@ export const EvaluatorPlaygroundProvider = ({
   promptName,
   promptId,
   defaultMessages,
-  templateFormat,
+  templateFormat = TemplateFormats.Mustache,
 }: PropsWithChildren<{
   promptId?: string;
   promptName?: string;
