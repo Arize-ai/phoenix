@@ -28,6 +28,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never, override
@@ -74,7 +75,6 @@ from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProviderKey,
 )
 from phoenix.server.api.types.node import from_global_id
-from phoenix.server.types import DbSessionFactory
 
 if TYPE_CHECKING:
     import httpx
@@ -1833,8 +1833,9 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
 
 
 async def get_playground_client(
+    *,
     model: GenerativeModelInput,
-    db: DbSessionFactory,
+    session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
 ) -> "PlaygroundStreamingClient":
     """
@@ -1858,14 +1859,14 @@ async def get_playground_client(
         NotFound: If a custom provider ID doesn't exist.
     """
     if builtin := model.builtin:
-        return await _get_builtin_provider_client(builtin, db, decrypt)
+        return await _get_builtin_provider_client(builtin, session, decrypt)
     if custom := model.custom:
-        return await _get_custom_provider_client(custom, db, decrypt)
+        return await _get_custom_provider_client(custom, session, decrypt)
     raise BadRequest("Model input must specify either a builtin or custom provider")
 
 
 async def _resolve_secrets(
-    db: DbSessionFactory,
+    session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     *keys: str,
 ) -> dict[str, str]:
@@ -1884,10 +1885,9 @@ async def _resolve_secrets(
     Raises:
         BadRequest: If a secret exists but cannot be decrypted.
     """
-    async with db() as session:
-        secrets = (
-            await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
-        ).all()
+    secrets = (
+        await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+    ).all()
     result: dict[str, str] = {}
     for secret in secrets:
         try:
@@ -1912,7 +1912,7 @@ def _get_credential_from_input(
 
 async def _get_builtin_provider_client(
     obj: GenerativeModelBuiltinProviderInput,
-    db: DbSessionFactory,
+    session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
 ) -> "PlaygroundStreamingClient":
     """
@@ -1936,7 +1936,7 @@ async def _get_builtin_provider_client(
 
         api_key = (
             _get_credential_from_input(obj.credentials, "OPENAI_API_KEY")
-            or (await _resolve_secrets(db, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
             or getenv("OPENAI_API_KEY")
         )
         base_url = obj.base_url or getenv("OPENAI_BASE_URL")
@@ -1972,7 +1972,7 @@ async def _get_builtin_provider_client(
 
         api_key = (
             _get_credential_from_input(obj.credentials, "AZURE_OPENAI_API_KEY")
-            or (await _resolve_secrets(db, decrypt, "AZURE_OPENAI_API_KEY")).get(
+            or (await _resolve_secrets(session, decrypt, "AZURE_OPENAI_API_KEY")).get(
                 "AZURE_OPENAI_API_KEY"
             )
             or getenv("AZURE_OPENAI_API_KEY")
@@ -2028,7 +2028,9 @@ async def _get_builtin_provider_client(
 
         api_key = (
             _get_credential_from_input(obj.credentials, "ANTHROPIC_API_KEY")
-            or (await _resolve_secrets(db, decrypt, "ANTHROPIC_API_KEY")).get("ANTHROPIC_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "ANTHROPIC_API_KEY")).get(
+                "ANTHROPIC_API_KEY"
+            )
             or getenv("ANTHROPIC_API_KEY")
         )
         if not api_key:
@@ -2060,7 +2062,7 @@ async def _get_builtin_provider_client(
 
         # Fall back to database secrets
         if not api_key:
-            secrets = await _resolve_secrets(db, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
+            secrets = await _resolve_secrets(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
             api_key = secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
 
         # Fall back to environment variables
@@ -2093,7 +2095,7 @@ async def _get_builtin_provider_client(
         # Fall back to database secrets for missing credentials
         if not aws_access_key_id or not aws_secret_access_key:
             secrets = await _resolve_secrets(
-                db, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
+                session, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
             )
             aws_access_key_id = aws_access_key_id or secrets.get("AWS_ACCESS_KEY_ID")
             aws_secret_access_key = aws_secret_access_key or secrets.get("AWS_SECRET_ACCESS_KEY")
@@ -2104,14 +2106,14 @@ async def _get_builtin_provider_client(
         aws_secret_access_key = aws_secret_access_key or getenv("AWS_SECRET_ACCESS_KEY")
         aws_session_token = aws_session_token or getenv("AWS_SESSION_TOKEN")
 
-        session = boto3.Session(
+        boto_session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             region_name=region,
         )
 
-        bedrock_client = session.client(service_name="bedrock-runtime")
+        bedrock_client = boto_session.client(service_name="bedrock-runtime")
         return BedrockStreamingClient(
             client=bedrock_client,
             model_name=model_name,
@@ -2126,7 +2128,9 @@ async def _get_builtin_provider_client(
 
         api_key = (
             _get_credential_from_input(obj.credentials, "DEEPSEEK_API_KEY")
-            or (await _resolve_secrets(db, decrypt, "DEEPSEEK_API_KEY")).get("DEEPSEEK_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "DEEPSEEK_API_KEY")).get(
+                "DEEPSEEK_API_KEY"
+            )
             or getenv("DEEPSEEK_API_KEY")
         )
         base_url = obj.base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
@@ -2154,7 +2158,7 @@ async def _get_builtin_provider_client(
 
         api_key = (
             _get_credential_from_input(obj.credentials, "XAI_API_KEY")
-            or (await _resolve_secrets(db, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
             or getenv("XAI_API_KEY")
         )
         base_url = obj.base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
@@ -2201,7 +2205,7 @@ async def _get_builtin_provider_client(
 
 async def _get_custom_provider_client(
     obj: GenerativeModelCustomProviderInput,
-    db: DbSessionFactory,
+    session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
 ) -> "PlaygroundStreamingClient":
     """
@@ -2212,7 +2216,7 @@ async def _get_custom_provider_client(
 
     Args:
         obj: Custom provider input containing provider ID and model details.
-        db: Database session factory.
+        session: Database session.
         decrypt: Decryption function for the stored config.
 
     Returns:
@@ -2225,10 +2229,9 @@ async def _get_custom_provider_client(
 
     _, provider_id = from_global_id(obj.provider_id)
 
-    async with db() as session:
-        provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
-        if not provider_record:
-            raise NotFound(f"Custom provider with ID {provider_id} not found")
+    provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
+    if not provider_record:
+        raise NotFound(f"Custom provider with ID {provider_id} not found")
 
     try:
         decrypted_data = decrypt(provider_record.config)
