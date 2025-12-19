@@ -39,11 +39,13 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
   initialState,
+  onEvaluatorCreated,
   ...props
 }: {
   datasetId: string;
   updateConnectionIds?: string[];
   initialState?: CreateLLMDatasetEvaluatorInitialState;
+  onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
 } & ModalOverlayProps) => {
   const defaultMessages = useMemo(() => {
     if (initialState?.promptMessages) {
@@ -66,6 +68,7 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
                     datasetId={datasetId}
                     updateConnectionIds={updateConnectionIds}
                     initialState={initialState}
+                    onEvaluatorCreated={onEvaluatorCreated}
                   />
                 </EvaluatorPlaygroundProvider>
               )}
@@ -82,11 +85,13 @@ const CreateEvaluatorDialog = ({
   datasetId,
   updateConnectionIds,
   initialState: _initialState,
+  onEvaluatorCreated,
 }: {
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
   initialState?: CreateLLMDatasetEvaluatorInitialState;
+  onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
 }) => {
   const playgroundStore = usePlaygroundStore();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -169,7 +174,9 @@ const CreateEvaluatorDialog = ({
           input,
           connectionIds: updateConnectionIds ?? [],
         },
-        onCompleted: () => {
+        onCompleted: (response) => {
+          const createdId = response.createDatasetLlmEvaluator.evaluator.id;
+          onEvaluatorCreated?.(createdId);
           onClose();
           notifySuccess({
             title: "Evaluator created",
@@ -188,6 +195,7 @@ const CreateEvaluatorDialog = ({
       updateConnectionIds,
       onClose,
       notifySuccess,
+      onEvaluatorCreated,
     ]
   );
   return (
