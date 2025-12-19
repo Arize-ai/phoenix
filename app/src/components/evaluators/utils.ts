@@ -134,14 +134,15 @@ export const updateLLMEvaluatorPayload = ({
   const displayName = rawDisplayName.trim();
   const description = rawDescription.trim() || undefined;
 
-  const { prunedPromptInput: promptVersion } = createPromptVersionInput({
-    playgroundStore,
-    instanceId,
-    name: displayName,
-    description,
-    outputConfig,
-    includeExplanation,
-  });
+  const { prunedPromptInput: promptVersion, promptVersionId } =
+    createPromptVersionInput({
+      playgroundStore,
+      instanceId,
+      name: displayName,
+      description,
+      outputConfig,
+      includeExplanation,
+    });
 
   return {
     name: displayName,
@@ -155,6 +156,7 @@ export const updateLLMEvaluatorPayload = ({
     // deep clone the output config to ensure relay doesn't mutate the original object
     // TODO: remove this once we are using zustand
     outputConfig: structuredClone(outputConfig),
+    promptVersionId: promptVersionId ?? null,
   };
 };
 /**
