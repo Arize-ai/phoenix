@@ -1,6 +1,6 @@
 from enum import Enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Union
+from typing import Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
@@ -8,11 +8,9 @@ from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.config import getenv
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
-
-if TYPE_CHECKING:
-    from phoenix.db.types.model_provider import ModelProvider
 
 
 @strawberry.enum
@@ -29,7 +27,6 @@ class GenerativeProviderKey(Enum):
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
         """Convert a ModelProvider to a GenerativeProviderKey."""
-        from phoenix.db.types.model_provider import ModelProvider
 
         if model_provider is ModelProvider.OPENAI:
             return cls.OPENAI
