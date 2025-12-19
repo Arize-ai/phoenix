@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Counter,
   DialogTrigger,
   GridList,
   GridListSectionTitle,
@@ -11,7 +12,6 @@ import {
   Icons,
   MenuContainer,
   Separator,
-  Text,
 } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
@@ -34,7 +34,7 @@ import { isStringArray } from "@phoenix/typeUtils";
 type PlaygroundEvaluatorSelectProps = {
   datasetId: string;
   evaluators: EvaluatorItem[];
-  selectedIds?: string[];
+  selectedIds: string[];
   onSelectionChange: (keys: string[]) => void;
   builtInEvaluatorsQuery: BuiltInEvaluatorsQueryKey;
   updateConnectionIds: string[];
@@ -92,52 +92,52 @@ export function PlaygroundEvaluatorSelect(
         isOpen={evaluatorMenuOpen}
         onOpenChange={setEvaluatorMenuOpen}
       >
-        <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
-          Add evaluator
+        <Button size="S" leadingVisual={<Icon svg={<Icons.Scale />} />}>
+          Evaluators{" "}
+          {selectedIds.length > 0 && <Counter>{selectedIds.length}</Counter>}
         </Button>
-        <MenuContainer placement="top end" shouldFlip={true}>
-          <GridList
-            selectionMode="multiple"
-            selectedKeys={selectedIds}
-            onSelectionChange={(keys) => {
-              if (keys === "all") {
-                return;
-              }
-              const keysArray = Array.from(keys);
-              if (!isStringArray(keysArray)) {
-                return;
-              }
-              onSelectionChange(keysArray);
-            }}
-            renderEmptyState={() => (
-              <Text color="grey-300" size="S">
-                No evaluators found
-              </Text>
-            )}
-            css={css`
-              max-width: 600px;
-            `}
-            aria-label="Select evaluators"
-          >
-            <GridListSection>
-              <GridListSectionTitle title="Evaluators" />
-              {evaluators.map((evaluator) => (
-                <EvaluatorSelectMenuItem
-                  key={evaluator.id}
-                  evaluator={evaluator}
-                  isSelected={selectedIds?.includes(evaluator.id) ?? false}
-                  onEdit={() =>
-                    onEdit({
-                      datasetEvaluatorId: evaluator.id,
-                      kind: evaluator.kind,
-                      isBuiltIn: evaluator.isBuiltIn,
-                    })
+        <MenuContainer placement="top end" shouldFlip={true} minHeight="auto">
+          {evaluators.length > 0 && (
+            <>
+              <GridList
+                selectionMode="multiple"
+                selectedKeys={selectedIds}
+                onSelectionChange={(keys) => {
+                  if (keys === "all") {
+                    return;
                   }
-                />
-              ))}
-            </GridListSection>
-          </GridList>
-          <Separator />
+                  const keysArray = Array.from(keys);
+                  if (!isStringArray(keysArray)) {
+                    return;
+                  }
+                  onSelectionChange(keysArray);
+                }}
+                css={css`
+                  max-width: 600px;
+                `}
+                aria-label="Select evaluators"
+              >
+                <GridListSection>
+                  <GridListSectionTitle title="Evaluators" />
+                  {evaluators.map((evaluator) => (
+                    <EvaluatorSelectMenuItem
+                      key={evaluator.id}
+                      evaluator={evaluator}
+                      isSelected={selectedIds?.includes(evaluator.id) ?? false}
+                      onEdit={() =>
+                        onEdit({
+                          datasetEvaluatorId: evaluator.id,
+                          kind: evaluator.kind,
+                          isBuiltIn: evaluator.isBuiltIn,
+                        })
+                      }
+                    />
+                  ))}
+                </GridListSection>
+              </GridList>
+              <Separator />
+            </>
+          )}
           <AddEvaluatorMenuContents
             query={builtInEvaluatorsQuery}
             onCreateEvaluator={() =>

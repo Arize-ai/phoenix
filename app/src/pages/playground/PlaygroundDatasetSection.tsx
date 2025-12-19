@@ -214,9 +214,11 @@ export function PlaygroundDatasetSection({
                 onSelectionChange={setSelectedDatasetEvaluatorIds}
                 datasetId={datasetId}
                 builtInEvaluatorsQuery={data}
-                updateConnectionIds={[
-                  data.dataset.datasetEvaluators?.__id ?? "",
-                ]}
+                updateConnectionIds={
+                  data.dataset.datasetEvaluators?.__id != null
+                    ? [data.dataset.datasetEvaluators.__id]
+                    : []
+                }
                 onEvaluatorCreated={onEvaluatorCreated}
               />
               {experimentIds.length > 0 && (
