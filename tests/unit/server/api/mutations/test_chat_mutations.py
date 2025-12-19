@@ -1,13 +1,16 @@
 import re
+from typing import Awaitable, Callable
 
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 from vcr.request import Request
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import LLMEvaluator
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -17,10 +20,136 @@ from ....vcr import CustomVCR
 
 
 class TestChatCompletionMutationMixin:
-    async def test_chat_completion_over_dataset(
+    async def test_chat_completion(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test basic chat completion mutation without a dataset."""
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                toolCalls {
+                  id
+                  function {
+                    name
+                    arguments
+                  }
+                }
+                span {
+                  cumulativeTokenCountTotal
+                  input {
+                    value
+                  }
+                  output {
+                    value
+                  }
+                  trace {
+                    project {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                    }
+                },
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is the capital of France? Answer in one word.",
+                    }
+                ],
+                "repetitions": 1,
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
+
+            repetition = repetitions[0]
+            assert repetition["repetitionNumber"] == 1
+            assert not repetition["errorMessage"]
+            assert repetition["content"]
+            assert "Paris" in repetition["content"]
+            assert repetition["span"]["input"]["value"]
+            assert repetition["span"]["output"]["value"]
+            assert repetition["span"]["cumulativeTokenCountTotal"]
+            # Verify the span is in the playground project
+            assert repetition["span"]["trace"]["project"]["name"] == PLAYGROUND_PROJECT_NAME
+
+    async def test_chat_completion_with_multiple_repetitions(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test chat completion with multiple repetitions."""
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                span {
+                  cumulativeTokenCountTotal
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                    }
+                },
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2? Answer with just the number.",
+                    }
+                ],
+                "repetitions": 2,
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 2
+
+            for i, repetition in enumerate(repetitions, start=1):
+                assert repetition["repetitionNumber"] == i
+                assert not repetition["errorMessage"]
+                assert repetition["content"]
+                assert repetition["span"]["cumulativeTokenCountTotal"]
+
+    async def test_chat_completion_over_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
         playground_dataset_with_patch_revision: None,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -194,12 +323,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_splits_result = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_splits_result.scalars().all()
                 assert len(split_links) == 1
                 assert split_links[0].dataset_split_id == 1  # train split
 
@@ -271,12 +400,12 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_splits_result = await session.execute(
                     select(models.ExperimentDatasetSplit)
                     .where(models.ExperimentDatasetSplit.experiment_id == exp_id)
                     .order_by(models.ExperimentDatasetSplit.dataset_split_id)
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_splits_result.scalars().all()
                 assert len(split_links) == 2
                 assert split_links[0].dataset_split_id == 1  # train split
                 assert split_links[1].dataset_split_id == 2  # test split
@@ -347,13 +476,405 @@ class TestChatCompletionMutationMixin:
                 from phoenix.server.api.types.node import from_global_id
 
                 _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
-                db_result = await session.execute(
+                dataset_split_results = await session.execute(
                     select(models.ExperimentDatasetSplit).where(
                         models.ExperimentDatasetSplit.experiment_id == exp_id
                     )
                 )
-                split_links = db_result.scalars().all()
+                split_links = dataset_split_results.scalars().all()
                 assert len(split_links) == 0  # No splits associated
+
+    async def test_evaluator_returns_evaluation_and_persists_span_annotation(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  name
+                  label
+                  score
+                  explanation
+                  annotatorKind
+                }
+                span {
+                  id
+                  cumulativeTokenCountTotal
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2? Answer with just the number.",
+                    }
+                ],
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
+
+            repetition = repetitions[0]
+            assert repetition["repetitionNumber"] == 1
+            assert not repetition["errorMessage"]
+            assert "4" in repetition["content"]
+            assert repetition["span"]["cumulativeTokenCountTotal"]
+
+            # Verify evaluations are returned
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 1
+            eval_result = evaluations[0]
+            assert eval_result["name"] == "correctness"
+            assert eval_result["annotatorKind"] == "LLM"
+            assert eval_result["label"] == "correct"
+
+        # Verify span annotation was persisted in DB
+        async with db() as session:
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
+            assert len(annotations) == 1
+
+            annotation = annotations[0]
+            assert annotation.name == "correctness"
+            assert annotation.annotator_kind == "LLM"
+            assert annotation.label == "correct"
+
+    async def test_evaluator_not_run_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that evaluators are not run when the chat completion errors out."""
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  name
+                  label
+                  score
+                }
+                span {
+                  id
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-nonexistent-model",  # use a non-existent model to trigger an error
+                    }
+                },
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is 2 + 2?",
+                    }
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
+
+            repetition = repetitions[0]
+            assert repetition["errorMessage"]  # verify the task errored out
+            assert repetition["content"] is None
+
+            assert repetition["evaluations"] == []  # verify no evaluations were run
+
+        async with db() as session:
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
+            assert len(annotations) == 0  # verify no span annotations were persisted
+
+    async def test_evaluator_over_dataset_returns_evaluations_and_persists_annotations(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        assign_correctness_llm_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that chat_completion_over_dataset mutation with evaluator returns evaluations
+        and persists experiment run annotations."""
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
+            single_example_dataset.id
+        )
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+        )
+
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    name
+                    label
+                    score
+                    annotatorKind
+                  }
+                  span {
+                    id
+                    cumulativeTokenCountTotal
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            assert not repetition["errorMessage"]
+            assert repetition["content"]  # Should have content like "France"
+
+            # Verify evaluations are returned
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 1
+            eval_result = evaluations[0]
+            assert eval_result["name"] == "correctness"
+            assert eval_result["annotatorKind"] == "LLM"
+
+        # Verify experiment run annotation was persisted in DB
+        async with db() as session:
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
+            assert len(annotations) == 1
+
+            annotation = annotations[0]
+            assert annotation.name == "correctness"
+            assert annotation.annotator_kind == "LLM"
+            assert annotation.experiment_run_id is not None
+
+    async def test_evaluator_over_dataset_not_run_when_task_errors(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        assign_correctness_llm_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
+            single_example_dataset.id
+        )
+        evaluator_gid = str(
+            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+        )
+
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    name
+                    label
+                    score
+                  }
+                  span {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-nonexistent-model",  # triggers an error
+                    }
+                },
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "inputMapping": {
+                            "pathMapping": {
+                                "input": "$.input",
+                                "output": "$.output",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            assert repetition["errorMessage"]  # verify the task errored
+            assert repetition["content"] is None
+
+            assert repetition["evaluations"] == []  # verify no evaluations were run
+
+        async with db() as session:
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
+            assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:

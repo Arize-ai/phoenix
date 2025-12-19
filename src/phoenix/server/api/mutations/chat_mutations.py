@@ -544,7 +544,9 @@ class ChatCompletionMutationMixin:
                 for repetition_number, result in enumerate(results, start=1):
                     if isinstance(result, BaseException):
                         continue  # skip failed completions
-                    _, db_span = result
+                    repetition, db_span = result
+                    if repetition.error_message:
+                        continue  # skip repetitions in which the task errored out
                     evaluations_by_repetition[repetition_number] = []
 
                     context_dict: dict[str, Any] = {
