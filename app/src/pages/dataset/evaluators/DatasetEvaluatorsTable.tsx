@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { usePaginationFragment } from "react-relay";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
@@ -91,6 +91,7 @@ export const DatasetEvaluatorsTable = ({
   refetch,
 }: DatasetEvaluatorsTableProps) => {
   const { datasetId } = useParams();
+  const navigate = useNavigate();
   invariant(datasetId, "datasetId is required");
   const connectionsToUpdate = useMemo(() => {
     if (data.datasetEvaluators.__id) {
@@ -117,6 +118,9 @@ export const DatasetEvaluatorsTable = ({
       }
       datasetId={datasetId}
       updateConnectionIds={connectionsToUpdate}
+      onRowClick={(row) => {
+        navigate(`/datasets/${datasetId}/evaluators/${row.id}`);
+      }}
     />
   );
 };
