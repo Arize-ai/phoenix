@@ -214,25 +214,12 @@ importers:
       '@types/node':
         specifier: ^20.17.22
         version: 20.19.23
-      tsx:
-        specifier: ^4.19.3
-        version: 4.21.0
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
       vitest:
         specifier: ^4.0.10
         version: 4.0.10(@types/node@20.19.23)(jiti@2.6.1)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1)
-    optionalDependencies:
-      '@anthropic-ai/sdk':
-        specifier: ^0.35.0
-        version: 0.35.0
-      ai:
-        specifier: ^5.0.76
-        version: 5.0.76(zod@4.1.13)
-      openai:
-        specifier: ^6.10.0
-        version: 6.10.0(zod@4.1.13)
 
   packages/phoenix-evals:
     dependencies:
@@ -3542,14 +3529,6 @@ snapshots:
       '@vercel/oidc': 3.0.3
       zod: 4.1.12
 
-  '@ai-sdk/gateway@2.0.0(zod@4.1.13)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.12(zod@4.1.13)
-      '@vercel/oidc': 3.0.3
-      zod: 4.1.13
-    optional: true
-
   '@ai-sdk/google@2.0.40(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -3587,14 +3566,6 @@ snapshots:
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.6
       zod: 4.1.12
-
-  '@ai-sdk/provider-utils@3.0.12(zod@4.1.13)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@standard-schema/spec': 1.0.0
-      eventsource-parser: 3.0.6
-      zod: 4.1.13
-    optional: true
 
   '@ai-sdk/provider-utils@3.0.17(zod@4.1.12)':
     dependencies:
@@ -4986,15 +4957,6 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       zod: 4.1.12
 
-  ai@5.0.76(zod@4.1.13):
-    dependencies:
-      '@ai-sdk/gateway': 2.0.0(zod@4.1.13)
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.12(zod@4.1.13)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.1.13
-    optional: true
-
   ajv-formats@3.0.1(ajv@8.17.1):
     optionalDependencies:
       ajv: 8.17.1
@@ -6116,11 +6078,6 @@ snapshots:
   openai@6.10.0(zod@3.25.76):
     optionalDependencies:
       zod: 3.25.76
-    optional: true
-
-  openai@6.10.0(zod@4.1.13):
-    optionalDependencies:
-      zod: 4.1.13
     optional: true
 
   openai@6.9.1(zod@4.1.13):
