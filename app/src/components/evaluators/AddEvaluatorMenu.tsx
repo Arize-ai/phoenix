@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  DialogTrigger,
   MenuSection,
   MenuTriggerProps,
   SubmenuTrigger,
@@ -26,7 +25,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
-import { Modal, ModalOverlay } from "@phoenix/components/overlay";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -40,9 +38,10 @@ export const AddEvaluatorMenu = ({
   updateConnectionIds: string[];
   query: AddEvaluatorMenu_query$key;
 } & Omit<MenuTriggerProps, "children">) => {
-  const [createEvaluatorDialogOpen, setCreateEvaluatorDialogOpen] = useState<
-    CreateLLMDatasetEvaluatorInitialState | boolean | null
-  >(null);
+  const [
+    createLLMEvaluatorDialogInitialState,
+    setCreateLLMEvaluatorDialogInitialState,
+  ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
   const associateBuiltinEvaluatorDialogOpen =
@@ -52,14 +51,8 @@ export const AddEvaluatorMenu = ({
   };
   const data = useFragment<AddEvaluatorMenu_query$key>(
     graphql`
-      fragment AddEvaluatorMenu_query on Query
-      @argumentDefinitions(datasetId: { type: "ID!" }) {
+      fragment AddEvaluatorMenu_query on Query {
         ...AddEvaluatorMenu_codeEvaluatorTemplates
-        dataset: node(id: $datasetId) {
-          ... on Dataset {
-            ...CreateBuiltInDatasetEvaluatorSlideover_dataset
-          }
-        }
         ...AddEvaluatorMenu_llmEvaluatorTemplates
       }
     `,
@@ -76,91 +69,110 @@ export const AddEvaluatorMenu = ({
         </Button>
         {/* TODO: Remove minHeight once we have more items in the menu */}
         <MenuContainer minHeight={"auto"}>
-          <Menu
-            onAction={(action) => {
-              switch (action) {
-                case "createEvaluator":
-                  setCreateEvaluatorDialogOpen(true);
-                  break;
-              }
-            }}
-          >
-            <MenuSection>
-              <MenuSectionTitle title="New LLM evaluator" />
-              <MenuItem
-                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
-                id="createEvaluator"
-              >
-                Create new LLM evaluator
-              </MenuItem>
-              <LLMEvaluatorTemplateSubmenu
-                query={data}
-                onAction={(evaluatorTemplate) =>
-                  setCreateEvaluatorDialogOpen(evaluatorTemplate)
-                }
-              >
-                <MenuItem
-                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
-                >
-                  Use LLM evaluator template
-                </MenuItem>
-              </LLMEvaluatorTemplateSubmenu>
-            </MenuSection>
-            <MenuSection>
-              <MenuSectionTitle title="New code evaluator" />
-              <MenuItem
-                leadingContent={<Icon svg={<Icons.PlusOutline />} />}
-                isDisabled
-                id="createCodeEvaluator"
-              >
-                Create new code evaluator
-              </MenuItem>
-              <CodeEvaluatorTemplateSubmenu
-                query={data}
-                onAction={setBuiltinEvaluatorIdToAssociate}
-              >
-                <MenuItem
-                  leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}
-                >
-                  Use built-in code evaluator
-                </MenuItem>
-              </CodeEvaluatorTemplateSubmenu>
-            </MenuSection>
-          </Menu>
+          <AddEvaluatorMenuContents
+            query={data}
+            onCreateEvaluator={() =>
+              setCreateLLMEvaluatorDialogInitialState(true)
+            }
+            onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
+            onSelectBuiltInLLMEvaluator={
+              setCreateLLMEvaluatorDialogInitialState
+            }
+          />
         </MenuContainer>
       </MenuTrigger>
-      <DialogTrigger
-        isOpen={!!createEvaluatorDialogOpen}
-        onOpenChange={setCreateEvaluatorDialogOpen}
-      >
-        <CreateLLMDatasetEvaluatorSlideover
-          datasetId={datasetId}
-          updateConnectionIds={updateConnectionIds}
-          initialState={
-            createEvaluatorDialogOpen &&
-            typeof createEvaluatorDialogOpen === "object"
-              ? createEvaluatorDialogOpen
-              : undefined
-          }
-        />
-      </DialogTrigger>
-      <ModalOverlay
+      <CreateLLMDatasetEvaluatorSlideover
+        isOpen={!!createLLMEvaluatorDialogInitialState}
+        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+        initialState={
+          createLLMEvaluatorDialogInitialState &&
+          typeof createLLMEvaluatorDialogInitialState === "object"
+            ? createLLMEvaluatorDialogInitialState
+            : undefined
+        }
+      />
+
+      <CreateBuiltInDatasetEvaluatorSlideover
         isOpen={associateBuiltinEvaluatorDialogOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setBuiltinEvaluatorIdToAssociate(null);
+            onCloseAssociateBuiltinEvaluatorDialog();
           }
         }}
-      >
-        <Modal size="fullscreen" variant="slideover">
-          <CreateBuiltInDatasetEvaluatorSlideover
-            evaluatorId={builtinEvaluatorIdToAssociate}
-            onClose={onCloseAssociateBuiltinEvaluatorDialog}
-            datasetRef={data.dataset}
-          />
-        </Modal>
-      </ModalOverlay>
+        evaluatorId={builtinEvaluatorIdToAssociate}
+        datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
+      />
     </>
+  );
+};
+
+export type BuiltInEvaluatorsQueryKey =
+  AddEvaluatorMenu_codeEvaluatorTemplates$key &
+    AddEvaluatorMenu_llmEvaluatorTemplates$key;
+
+export const AddEvaluatorMenuContents = ({
+  query,
+  onCreateEvaluator,
+  onSelectBuiltInCodeEvaluator,
+  onSelectBuiltInLLMEvaluator,
+}: {
+  query: BuiltInEvaluatorsQueryKey;
+  onCreateEvaluator: () => void;
+  onSelectBuiltInCodeEvaluator: (evaluatorId: string) => void;
+  onSelectBuiltInLLMEvaluator: (
+    initialState: CreateLLMDatasetEvaluatorInitialState | null
+  ) => void;
+}) => {
+  return (
+    <Menu
+      aria-label="Add evaluator"
+      onAction={(action) => {
+        switch (action) {
+          case "createEvaluator":
+            onCreateEvaluator();
+            break;
+        }
+      }}
+    >
+      <MenuSection>
+        <MenuSectionTitle title="New LLM evaluator" />
+        <MenuItem
+          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          id="createEvaluator"
+        >
+          Create new LLM evaluator
+        </MenuItem>
+        <LLMEvaluatorTemplateSubmenu
+          query={query}
+          onAction={onSelectBuiltInLLMEvaluator}
+        >
+          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+            Use LLM evaluator template
+          </MenuItem>
+        </LLMEvaluatorTemplateSubmenu>
+      </MenuSection>
+      <MenuSection>
+        <MenuSectionTitle title="New code evaluator" />
+        <MenuItem
+          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          isDisabled
+          id="createCodeEvaluator"
+        >
+          Create new code evaluator
+        </MenuItem>
+        <CodeEvaluatorTemplateSubmenu
+          query={query}
+          onAction={onSelectBuiltInCodeEvaluator}
+        >
+          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+            Use built-in code evaluator
+          </MenuItem>
+        </CodeEvaluatorTemplateSubmenu>
+      </MenuSection>
+    </Menu>
   );
 };
 

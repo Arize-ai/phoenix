@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -53,7 +53,9 @@ export function PlaygroundDatasetSection({
               name
               color
             }
-            datasetEvaluators(first: 100) {
+            datasetEvaluators(first: 100)
+              @connection(key: "PlaygroundDatasetSection_datasetEvaluators") {
+              __id
               edges {
                 node {
                   ...PlaygroundDatasetSection_evaluator
@@ -62,6 +64,8 @@ export function PlaygroundDatasetSection({
             }
           }
         }
+        ...AddEvaluatorMenu_codeEvaluatorTemplates
+        ...AddEvaluatorMenu_llmEvaluatorTemplates
       }
     `,
     {
@@ -130,6 +134,9 @@ export function PlaygroundDatasetSection({
       () =>
         datasetEvaluators.map((datasetEvaluator) => datasetEvaluator.id) ?? []
     );
+  const onEvaluatorCreated = useCallback((datasetEvaluatorId: string) => {
+    setSelectedDatasetEvaluatorIds((prev) => [...prev, datasetEvaluatorId]);
+  }, []);
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return datasetEvaluators
       .filter((datasetEvaluator) =>
@@ -206,6 +213,13 @@ export function PlaygroundDatasetSection({
                 selectedIds={selectedDatasetEvaluatorIds}
                 onSelectionChange={setSelectedDatasetEvaluatorIds}
                 datasetId={datasetId}
+                builtInEvaluatorsQuery={data}
+                updateConnectionIds={
+                  data.dataset.datasetEvaluators?.__id != null
+                    ? [data.dataset.datasetEvaluators.__id]
+                    : []
+                }
+                onEvaluatorCreated={onEvaluatorCreated}
               />
               {experimentIds.length > 0 && (
                 <LinkButton

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b231c33a51aa5549423577bb7d69ce3>>
+ * @generated SignedSource<<875b077e0eef1a5680c743ca5104545d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type PlaygroundDatasetSectionQuery$variables = {
 export type PlaygroundDatasetSectionQuery$data = {
   readonly dataset: {
     readonly datasetEvaluators?: {
+      readonly __id: string;
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetSection_evaluator">;
@@ -31,6 +32,7 @@ export type PlaygroundDatasetSectionQuery$data = {
       readonly name: string;
     }>;
   };
+  readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates" | "AddEvaluatorMenu_llmEvaluatorTemplates">;
 };
 export type PlaygroundDatasetSectionQuery = {
   response: PlaygroundDatasetSectionQuery$data;
@@ -104,21 +106,14 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
-  }
-],
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "displayName",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluatorInputMapping",
@@ -143,27 +138,78 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "isBuiltin",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
-};
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cursor",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PageInfo",
+  "kind": "LinkedField",
+  "name": "pageInfo",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "endCursor",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hasNextPage",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v13 = {
+  "kind": "ClientExtension",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__id",
+      "storageKey": null
+    }
+  ]
+},
+v14 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -186,11 +232,11 @@ return {
               (v3/*: any*/),
               (v5/*: any*/),
               {
-                "alias": null,
-                "args": (v6/*: any*/),
+                "alias": "datasetEvaluators",
+                "args": null,
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
-                "name": "datasetEvaluators",
+                "name": "__PlaygroundDatasetSection_datasetEvaluators_connection",
                 "plural": false,
                 "selections": [
                   {
@@ -214,8 +260,8 @@ return {
                             "name": "PlaygroundDatasetSection_evaluator",
                             "selections": [
                               (v4/*: any*/),
+                              (v6/*: any*/),
                               (v7/*: any*/),
-                              (v8/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -225,8 +271,8 @@ return {
                                 "plural": false,
                                 "selections": [
                                   (v4/*: any*/),
+                                  (v8/*: any*/),
                                   (v9/*: any*/),
-                                  (v10/*: any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
@@ -252,15 +298,19 @@ return {
                             ],
                             "args": null,
                             "argumentDefinitions": []
-                          }
+                          },
+                          (v10/*: any*/)
                         ],
                         "storageKey": null
-                      }
+                      },
+                      (v11/*: any*/)
                     ],
                     "storageKey": null
-                  }
+                  },
+                  (v12/*: any*/),
+                  (v13/*: any*/)
                 ],
-                "storageKey": "datasetEvaluators(first:100)"
+                "storageKey": null
               }
             ],
             "type": "Dataset",
@@ -268,6 +318,16 @@ return {
           }
         ],
         "storageKey": null
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "AddEvaluatorMenu_codeEvaluatorTemplates"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "AddEvaluatorMenu_llmEvaluatorTemplates"
       }
     ],
     "type": "Query",
@@ -287,7 +347,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v11/*: any*/),
+          (v10/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -296,7 +356,7 @@ return {
               (v5/*: any*/),
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v14/*: any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "datasetEvaluators",
@@ -319,8 +379,8 @@ return {
                         "plural": false,
                         "selections": [
                           (v4/*: any*/),
+                          (v6/*: any*/),
                           (v7/*: any*/),
-                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -329,10 +389,10 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v11/*: any*/),
-                              (v4/*: any*/),
-                              (v9/*: any*/),
                               (v10/*: any*/),
+                              (v4/*: any*/),
+                              (v8/*: any*/),
+                              (v9/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -355,15 +415,28 @@ return {
                               }
                             ],
                             "storageKey": null
-                          }
+                          },
+                          (v10/*: any*/)
                         ],
                         "storageKey": null
-                      }
+                      },
+                      (v11/*: any*/)
                     ],
                     "storageKey": null
-                  }
+                  },
+                  (v12/*: any*/),
+                  (v13/*: any*/)
                 ],
                 "storageKey": "datasetEvaluators(first:100)"
+              },
+              {
+                "alias": null,
+                "args": (v14/*: any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "PlaygroundDatasetSection_datasetEvaluators",
+                "kind": "LinkedHandle",
+                "name": "datasetEvaluators"
               }
             ],
             "type": "Dataset",
@@ -372,20 +445,134 @@ return {
           (v4/*: any*/)
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "BuiltInEvaluator",
+        "kind": "LinkedField",
+        "name": "builtInEvaluators",
+        "plural": true,
+        "selections": [
+          (v4/*: any*/),
+          (v2/*: any*/),
+          (v8/*: any*/)
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "ClassificationEvaluatorConfig",
+        "kind": "LinkedField",
+        "name": "classificationEvaluatorConfigs",
+        "plural": true,
+        "selections": [
+          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "choices",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "optimizationDirection",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PromptMessage",
+            "kind": "LinkedField",
+            "name": "messages",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "content",
+                "plural": true,
+                "selections": [
+                  (v10/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "TextContentValue",
+                        "kind": "LinkedField",
+                        "name": "text",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "text",
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "TextContentPart",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "role",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "00386493dfed92aa858b9c9188d7d180",
+    "cacheID": "fd817ffb7f892226633d2ffc68bb2d96",
     "id": null,
-    "metadata": {},
+    "metadata": {
+      "connection": [
+        {
+          "count": null,
+          "cursor": null,
+          "direction": "forward",
+          "path": [
+            "dataset",
+            "datasetEvaluators"
+          ]
+        }
+      ]
+    },
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      name\n      exampleCount(splitIds: $splitIds)\n      splits {\n        id\n        name\n        color\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "13fc62af4b7fc86c5b0a4162412da8c7";
+(node as any).hash = "6882523154acd6f8c7f94358e9fe47f9";
 
 export default node;
