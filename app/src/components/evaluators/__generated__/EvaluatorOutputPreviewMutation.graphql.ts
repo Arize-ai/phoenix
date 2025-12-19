@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3e27b13ee6b2edbb40af67fa29ab8590>>
+ * @generated SignedSource<<cc582a60a37193919886ae24ec36cc68>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,52 +9,22 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
-export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewItemInput = {
-  contexts: ReadonlyArray<any>;
+  context: any;
   evaluator: EvaluatorPreviewInput;
-  generationConfig?: GenerationConfigInput | null;
   inputMapping?: EvaluatorInputMappingInput;
-  model?: GenerativeModelInput | null;
 };
 export type EvaluatorPreviewInput = {
-  evaluatorId?: string | null;
+  builtInEvaluatorId?: string | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
-  model: GenerativeModelInput;
   outputConfig: CategoricalAnnotationConfigInput;
   promptVersion: ChatPromptVersionInput;
-};
-export type GenerativeModelInput = {
-  builtin?: GenerativeModelBuiltinProviderInput | null;
-  custom?: GenerativeModelCustomProviderInput | null;
-};
-export type GenerativeModelBuiltinProviderInput = {
-  apiVersion?: string | null;
-  baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
-  name: string;
-  providerKey: GenerativeProviderKey;
-  region?: string | null;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
-};
-export type GenerativeModelCustomProviderInput = {
-  extraHeaders?: any | null;
-  modelName: string;
-  provider: string;
-  providerId: string;
 };
 export type ChatPromptVersionInput = {
   description?: string | null;
@@ -113,30 +83,6 @@ export type CategoricalAnnotationConfigValueInput = {
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
-};
-export type GenerationConfigInput = {
-  invocationParameters?: ReadonlyArray<InvocationParameterInput>;
-  messages: ReadonlyArray<ChatCompletionMessageInput>;
-  model: GenerativeModelInput;
-  templateFormat?: PromptTemplateFormat;
-  tools?: ReadonlyArray<any> | null;
-};
-export type ChatCompletionMessageInput = {
-  content?: any;
-  role: ChatCompletionMessageRole;
-  toolCallId?: string | null;
-  toolCalls?: ReadonlyArray<any> | null;
-};
-export type InvocationParameterInput = {
-  canonicalName?: CanonicalParameterName | null;
-  invocationName: string;
-  valueBool?: boolean | null;
-  valueBoolean?: boolean | null;
-  valueFloat?: number | null;
-  valueInt?: number | null;
-  valueJson?: any | null;
-  valueString?: string | null;
-  valueStringList?: ReadonlyArray<string> | null;
 };
 export type EvaluatorOutputPreviewMutation$variables = {
   input: EvaluatorPreviewItemInput;

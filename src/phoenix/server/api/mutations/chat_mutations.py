@@ -32,6 +32,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -41,9 +42,6 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
     get_llm_evaluators,
-)
-from phoenix.server.api.evaluators import (
-    LLMEvaluator as LLMEvaluatorRunner,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
@@ -72,7 +70,10 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
-    GenerationConfigInput,
+)
+from phoenix.server.api.input_types.GenerativeModelInput import (
+    GenerativeModelBuiltinProviderInput,
+    GenerativeModelInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.mutations.annotation_config_mutations import (
@@ -88,12 +89,9 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import (
-    BuiltInEvaluator,
-    CodeEvaluator,
-    LLMEvaluator,
-)
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
@@ -173,94 +171,6 @@ def _to_annotation(eval_result: EvaluationResult) -> ExperimentRunAnnotation:
             "start_time": eval_result["start_time"],
             "end_time": eval_result["end_time"],
         }
-    )
-
-
-async def _generate_output_without_persistence(
-    llm_client: PlaygroundStreamingClient,
-    messages: list[ChatCompletionMessage],
-    tools: Optional[list[Any]],
-    invocation_parameters: dict[str, Any],
-) -> str:
-    """
-    Invokes the LLM client to generate output without recording spans or telemetry.
-    Returns the generated text content (or JSON for tool calls).
-    """
-    text_content = ""
-    tool_calls: dict[str, ChatCompletionToolCall] = {}
-
-    async for chunk in llm_client.chat_completion_create(
-        messages=messages,
-        tools=tools or [],
-        **invocation_parameters,
-    ):
-        if isinstance(chunk, TextChunk):
-            text_content += chunk.content
-        elif isinstance(chunk, ToolCallChunk):
-            if chunk.id not in tool_calls:
-                tool_calls[chunk.id] = ChatCompletionToolCall(
-                    id=chunk.id,
-                    function=ChatCompletionFunctionCall(
-                        name=chunk.function.name,
-                        arguments=chunk.function.arguments,
-                    ),
-                )
-            else:
-                tool_calls[chunk.id].function.arguments += chunk.function.arguments
-        else:
-            assert_never(chunk)
-
-    if tool_calls:
-        tool_calls_output = [
-            {
-                "id": tc.id,
-                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-            }
-            for tc in tool_calls.values()
-        ]
-        return json.dumps(tool_calls_output)
-    return text_content
-
-
-async def _prepare_context_with_generation(
-    context: dict[str, Any],
-    generation_config: "GenerationConfigInput",
-    db: Any,
-    decrypt: Any,
-) -> str:
-    """
-    Uses the generation config to invoke an LLM and generate the output for a context.
-    Returns the generated output string.
-    """
-    llm_client = await get_playground_client(generation_config.model, db, decrypt)
-
-    messages: list[ChatCompletionMessage] = [
-        (
-            message.role,
-            message.content,
-            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-            message.tool_calls if isinstance(message.tool_calls, list) else None,
-        )
-        for message in generation_config.messages
-    ]
-
-    template_formatter = get_template_formatter(generation_config.template_format)
-    formatted_messages: list[ChatCompletionMessage] = []
-    for role, content, tool_call_id, tool_calls in messages:
-        formatted_content = template_formatter.format(content, **context)
-        formatted_messages.append((role, formatted_content, tool_call_id, tool_calls))
-
-    invocation_parameters = llm_client.construct_invocation_parameters(
-        generation_config.invocation_parameters
-    )
-
-    tools = generation_config.tools if generation_config.tools is not strawberry.UNSET else None
-
-    return await _generate_output_without_persistence(
-        llm_client=llm_client,
-        messages=formatted_messages,
-        tools=tools,
-        invocation_parameters=invocation_parameters,
     )
 
 
@@ -643,117 +553,50 @@ class ChatCompletionMutationMixin:
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
-            raw_contexts = preview_item.contexts
+            ctx = preview_item.context
             input_mapping = preview_item.input_mapping
-            generation_config = preview_item.generation_config
 
-            prepared_contexts: list[Any] = []
-            for ctx in raw_contexts:
-                if isinstance(ctx, dict) and "output" not in ctx:
-                    if generation_config is strawberry.UNSET or generation_config is None:
-                        raise BadRequest(
-                            "Context is missing 'output' field and no generation_config was "
-                            "provided. Either include 'output' in the context or provide a "
-                            "generation_config to generate it."
-                        )
-                    generated_output = await _prepare_context_with_generation(
-                        ctx,
-                        generation_config,
-                        info.context.db,
-                        info.context.decrypt,
-                    )
-                    prepared_contexts.append({**ctx, "output": generated_output})
-                else:
-                    prepared_contexts.append(ctx)
+            if isinstance(ctx, dict) and "output" not in ctx:
+                raise BadRequest(
+                    "Context is missing 'output' field. "
+                    "Either include 'output' in the context or provide a "
+                    "generation_config to generate it."
+                )
+            prepared_context = ctx
 
-            context_results: list[ExperimentRunAnnotation] = []
-
-            if (
-                evaluator_input.evaluator_id is not strawberry.UNSET
-                and evaluator_input.evaluator_id is not None
-            ):
-                evaluator_id: GlobalID = evaluator_input.evaluator_id
+            if evaluator_input.built_in_evaluator_id:
+                evaluator_id: GlobalID = evaluator_input.built_in_evaluator_id
                 type_name, db_id = from_global_id(evaluator_id)
 
-                if type_name == BuiltInEvaluator.__name__:
-                    builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
-                    if builtin_evaluator_cls is None:
-                        raise BadRequest(f"Built-in evaluator with id {evaluator_id} not found")
-                    builtin_evaluator = builtin_evaluator_cls()
+                if type_name != BuiltInEvaluator.__name__:
+                    raise BadRequest(f"Expected built-in evaluator, got {type_name}")
+                builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+                if builtin_evaluator_cls is None:
+                    raise BadRequest(f"Built-in evaluator with id {evaluator_id} not found")
+                builtin_evaluator = builtin_evaluator_cls()
 
-                    for context in prepared_contexts:
-                        eval_result = builtin_evaluator.evaluate(
-                            context=context,
-                            input_mapping=input_mapping,
-                        )
-                        context_results.append(_to_annotation(eval_result))
-
-                elif type_name == LLMEvaluator.__name__:
-                    if preview_item.model is strawberry.UNSET or preview_item.model is None:
-                        raise BadRequest(
-                            "Model configuration is required when previewing an existing "
-                            "LLM evaluator. Please provide the 'model' field."
-                        )
-
-                    async with info.context.db() as session:
-                        llm_evaluator_orm = await session.get(models.LLMEvaluator, db_id)
-                        if llm_evaluator_orm is None:
-                            raise BadRequest(f"LLM evaluator with id {evaluator_id} not found")
-
-                        prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
-                        if prompt_version_tag_id is not None:
-                            prompt_version_query = (
-                                select(models.PromptVersion)
-                                .join(models.PromptVersionTag)
-                                .where(models.PromptVersionTag.id == prompt_version_tag_id)
-                            )
-                        else:
-                            prompt_version_query = (
-                                select(models.PromptVersion)
-                                .where(
-                                    models.PromptVersion.prompt_id == llm_evaluator_orm.prompt_id
-                                )
-                                .order_by(models.PromptVersion.id.desc())
-                                .limit(1)
-                            )
-                        prompt_version = await session.scalar(prompt_version_query)
-                        if prompt_version is None:
-                            raise BadRequest(
-                                f"Prompt version not found for evaluator {evaluator_id}"
-                            )
-
-                        llm_client = await get_playground_client(
-                            preview_item.model,
-                            info.context.db,
-                            info.context.decrypt,
-                        )
-
-                        evaluator = LLMEvaluatorRunner.from_orm(
-                            llm_evaluator_orm=llm_evaluator_orm,
-                            prompt_version_orm=prompt_version,
-                            llm_client=llm_client,
-                        )
-
-                        for context in prepared_contexts:
-                            eval_result = await evaluator.evaluate(
-                                context=context,
-                                input_mapping=input_mapping,
-                            )
-                            context_results.append(_to_annotation(eval_result))
-
-                elif type_name == CodeEvaluator.__name__:
-                    raise BadRequest("Code evaluators are not yet supported for preview")
-                else:
-                    raise BadRequest(f"Unknown evaluator type: {type_name}")
-
-            elif evaluator_input.inline_llm_evaluator is not strawberry.UNSET:
-                inline_def = evaluator_input.inline_llm_evaluator
-                assert inline_def is not None
-
-                llm_client = await get_playground_client(
-                    inline_def.model, info.context.db, info.context.decrypt
+                eval_result = builtin_evaluator.evaluate(
+                    context=prepared_context,
+                    input_mapping=input_mapping,
                 )
+                context_result = _to_annotation(eval_result)
 
+            elif evaluator_input.inline_llm_evaluator:
+                inline_def = evaluator_input.inline_llm_evaluator
+                model_provider = inline_def.prompt_version.model_provider
+                model_name = inline_def.prompt_version.model_name
+                generative_provider_key = _convert_model_provider_to_generative_provider_key(
+                    model_provider
+                )
+                model_input = GenerativeModelInput(
+                    builtin=GenerativeModelBuiltinProviderInput(
+                        provider_key=generative_provider_key,
+                        name=model_name,
+                    )
+                )
+                llm_client = await get_playground_client(
+                    model_input, info.context.db, info.context.decrypt
+                )
                 try:
                     prompt_version_orm = inline_def.prompt_version.to_orm_prompt_version(
                         user_id=None
@@ -782,17 +625,16 @@ class ChatCompletionMutationMixin:
                 except ValueError as error:
                     raise BadRequest(str(error))
 
-                for context in prepared_contexts:
-                    eval_result = await evaluator.evaluate(
-                        context=context,
-                        input_mapping=input_mapping,
-                    )
-                    context_results.append(_to_annotation(eval_result))
+                eval_result = await evaluator.evaluate(
+                    context=prepared_context,
+                    input_mapping=input_mapping,
+                )
+                context_result = _to_annotation(eval_result)
 
             else:
                 raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
 
-            all_results.extend(context_results)
+            all_results.append(context_result)
 
         return EvaluatorPreviewPayload(results=all_results)
 
@@ -1075,6 +917,29 @@ def _get_batches(
 
 def _is_builtin_evaluator(evaluator_id: int) -> bool:
     return evaluator_id < 0
+
+
+def _convert_model_provider_to_generative_provider_key(
+    model_provider: ModelProvider,
+) -> GenerativeProviderKey:
+    """Convert a model provider to a generative provider key."""
+    if model_provider is ModelProvider.OPENAI:
+        return GenerativeProviderKey.OPENAI
+    elif model_provider is ModelProvider.AZURE_OPENAI:
+        return GenerativeProviderKey.AZURE_OPENAI
+    elif model_provider is ModelProvider.ANTHROPIC:
+        return GenerativeProviderKey.ANTHROPIC
+    elif model_provider is ModelProvider.GOOGLE:
+        return GenerativeProviderKey.GOOGLE
+    elif model_provider is ModelProvider.DEEPSEEK:
+        return GenerativeProviderKey.DEEPSEEK
+    elif model_provider is ModelProvider.XAI:
+        return GenerativeProviderKey.XAI
+    elif model_provider is ModelProvider.OLLAMA:
+        return GenerativeProviderKey.OLLAMA
+    elif model_provider is ModelProvider.AWS:
+        return GenerativeProviderKey.AWS
+    assert_never(model_provider)
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
