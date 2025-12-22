@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a14dee6b86d527a063e064f6984b3e2a>>
+ * @generated SignedSource<<59f0787227cc646a1970e7f2cd1e012e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -101,6 +101,29 @@ v9 = {
   "args": null,
   "kind": "ScalarField",
   "name": "isBuiltin",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v11 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "definition",
+    "storageKey": null
+  }
+],
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "toolCallId",
   "storageKey": null
 };
 return {
@@ -245,13 +268,225 @@ return {
                             "plural": false,
                             "selections": [
                               (v3/*: any*/),
+                              (v10/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "promptVersion",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
                                 "kind": "ScalarField",
-                                "name": "name",
+                                "name": "modelName",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "modelProvider",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "invocationParameters",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "ResponseFormat",
+                                "kind": "LinkedField",
+                                "name": "responseFormat",
+                                "plural": false,
+                                "selections": (v11/*: any*/),
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "template",
+                                "plural": false,
+                                "selections": [
+                                  (v6/*: any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "PromptMessage",
+                                        "kind": "LinkedField",
+                                        "name": "messages",
+                                        "plural": true,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "role",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": null,
+                                            "kind": "LinkedField",
+                                            "name": "content",
+                                            "plural": true,
+                                            "selections": [
+                                              (v6/*: any*/),
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "concreteType": "TextContentValue",
+                                                    "kind": "LinkedField",
+                                                    "name": "text",
+                                                    "plural": false,
+                                                    "selections": [
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "kind": "ScalarField",
+                                                        "name": "text",
+                                                        "storageKey": null
+                                                      }
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "TextContentPart",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "concreteType": "ToolCallContentValue",
+                                                    "kind": "LinkedField",
+                                                    "name": "toolCall",
+                                                    "plural": false,
+                                                    "selections": [
+                                                      (v12/*: any*/),
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "concreteType": "ToolCallFunction",
+                                                        "kind": "LinkedField",
+                                                        "name": "toolCall",
+                                                        "plural": false,
+                                                        "selections": [
+                                                          (v10/*: any*/),
+                                                          {
+                                                            "alias": null,
+                                                            "args": null,
+                                                            "kind": "ScalarField",
+                                                            "name": "arguments",
+                                                            "storageKey": null
+                                                          }
+                                                        ],
+                                                        "storageKey": null
+                                                      }
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ToolCallContentPart",
+                                                "abstractKey": null
+                                              },
+                                              {
+                                                "kind": "InlineFragment",
+                                                "selections": [
+                                                  {
+                                                    "alias": null,
+                                                    "args": null,
+                                                    "concreteType": "ToolResultContentValue",
+                                                    "kind": "LinkedField",
+                                                    "name": "toolResult",
+                                                    "plural": false,
+                                                    "selections": [
+                                                      (v12/*: any*/),
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "kind": "ScalarField",
+                                                        "name": "result",
+                                                        "storageKey": null
+                                                      }
+                                                    ],
+                                                    "storageKey": null
+                                                  }
+                                                ],
+                                                "type": "ToolResultContentPart",
+                                                "abstractKey": null
+                                              }
+                                            ],
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "PromptChatTemplate",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "template",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "PromptStringTemplate",
+                                    "abstractKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "ToolDefinition",
+                                "kind": "LinkedField",
+                                "name": "tools",
+                                "plural": true,
+                                "selections": (v11/*: any*/),
                                 "storageKey": null
                               }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "promptVersionTag",
+                            "plural": false,
+                            "selections": [
+                              (v10/*: any*/),
+                              (v3/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -296,12 +531,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "331a1c0acdd2f66946138e5308ca19d8",
+    "cacheID": "52b2588a57efc036f342a33efb219bfe",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          ... on BuiltInEvaluator {\n            ...BuiltInDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_evaluator on BuiltInEvaluator {\n  kind\n  metadata\n  inputSchema\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          ... on BuiltInEvaluator {\n            ...BuiltInDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_evaluator on BuiltInEvaluator {\n  kind\n  metadata\n  inputSchema\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n  promptVersion {\n    ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n    id\n  }\n  promptVersionTag {\n    name\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

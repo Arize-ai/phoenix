@@ -21,7 +21,7 @@ export function BuiltInDatasetEvaluatorDetails({
   );
 
   return (
-    <View padding="size-200">
+    <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-100">
         <Text size="M">Evaluator Type: {evaluator.kind}</Text>
         <Text size="M">
