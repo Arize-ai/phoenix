@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-config",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "central configuration for Phoenix",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
