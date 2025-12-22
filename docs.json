@@ -23,7 +23,7 @@
   },
   "integrations": {
     "ga4": {
-        "measurementId": "G-V9Z9MCPE84"
+      "measurementId": "G-V9Z9MCPE84"
     }
   },
   "favicon": "/docs/favicon.png",
@@ -534,8 +534,7 @@
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js",
                       "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js",
-                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals"
+                      "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js"
                     ]
                   },
                   {
@@ -543,17 +542,14 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/anthropic",
                       "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
-                      "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
-                      "docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals"
+                      "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript"
                     ]
                   },
                   {
                     "group": "Google",
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/google-gen-ai",
-                      "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing",
-                      "docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals",
-                      "docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals"
+                      "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing"
                     ]
                   },
                   {
@@ -567,16 +563,14 @@
                     "group": "LiteLLM",
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/litellm",
-                      "docs/phoenix/integrations/llm-providers/litellm/litellm-tracing",
-                      "docs/phoenix/integrations/llm-providers/litellm/litellm-evals"
+                      "docs/phoenix/integrations/llm-providers/litellm/litellm-tracing"
                     ]
                   },
                   {
                     "group": "MistralAI",
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/mistralai",
-                      "docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing",
-                      "docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals"
+                      "docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing"
                     ]
                   },
                   {
@@ -584,7 +578,6 @@
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/openai",
                       "docs/phoenix/integrations/llm-providers/openai/openai-tracing",
-                      "docs/phoenix/integrations/llm-providers/openai/openai-evals",
                       "docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing",
                       "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
                     ]
@@ -600,8 +593,7 @@
                     "group": "VertexAI",
                     "pages": [
                       "docs/phoenix/integrations/llm-providers/vertexai",
-                      "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing",
-                      "docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals"
+                      "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing"
                     ]
                   }
                 ]
@@ -841,16 +833,8 @@
                 "group": "Evaluation Integrations",
                 "icon": "clipboard-check",
                 "pages": [
-                  "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals",
-                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals",
                   "docs/phoenix/integrations/evaluation-integrations/cleanlab",
-                  "docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals",
-                  "docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals",
-                  "docs/phoenix/integrations/llm-providers/litellm/litellm-evals",
-                  "docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals",
-                  "docs/phoenix/integrations/llm-providers/openai/openai-evals",
-                  "docs/phoenix/integrations/evaluation-integrations/ragas",
-                  "docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals"
+                  "docs/phoenix/integrations/evaluation-integrations/ragas"
                 ]
               },
               {
