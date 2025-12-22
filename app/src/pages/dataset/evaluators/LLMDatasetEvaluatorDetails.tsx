@@ -8,6 +8,7 @@ import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/Evaluator
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { LLMDatasetEvaluatorDetails_evaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_evaluator.graphql";
+import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 export function LLMDatasetEvaluatorDetails({
@@ -124,7 +125,14 @@ export function LLMDatasetEvaluatorDetails({
               </Flex>
             )}
             <Flex direction="column" gap="size-100">
-              <Heading level={2}>Prompt</Heading>
+              <Flex justifyContent="space-between">
+                <Heading level={2}>Prompt</Heading>
+                <PromptLink
+                  promptId={evaluator.prompt?.id}
+                  promptName={evaluator.prompt?.name}
+                  promptVersionTag={evaluator.promptVersionTag?.name}
+                />
+              </Flex>
               <EvaluatorPromptPreview />
             </Flex>
           </Flex>
