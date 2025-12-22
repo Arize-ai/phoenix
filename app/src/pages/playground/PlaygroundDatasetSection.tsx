@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Flex, Icon, Icons, LinkButton, Text, View } from "@phoenix/components";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
@@ -82,26 +83,29 @@ export function PlaygroundDatasetSection({
               </Text>
             ) : null}
           </Flex>
-          {experimentIds.length > 0 && (
-            <LinkButton
-              size="S"
-              isDisabled={isRunning}
-              leadingVisual={
-                <Icon
-                  svg={
-                    isRunning ? (
-                      <Icons.LoadingOutline />
-                    ) : (
-                      <Icons.ExperimentOutline />
-                    )
-                  }
-                />
-              }
-              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-            >
-              View Experiment{instances.length > 1 ? "s" : ""}
-            </LinkButton>
-          )}
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {experimentIds.length > 0 && (
+              <LinkButton
+                size="S"
+                isDisabled={isRunning}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isRunning ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.ExperimentOutline />
+                      )
+                    }
+                  />
+                }
+                to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              >
+                View Experiment{instances.length > 1 ? "s" : ""}
+              </LinkButton>
+            )}
+            <PlaygroundDatasetSelect />
+          </Flex>
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTableProvider>

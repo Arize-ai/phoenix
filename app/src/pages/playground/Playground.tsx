@@ -96,7 +96,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              <PlaygroundDatasetSelect />
               <PlaygroundCredentialsDropdown />
               <PlaygroundConfigButton />
               <PlaygroundRunButton />
@@ -196,8 +195,6 @@ function PlaygroundContent() {
   // Pass undefined instead of empty array to indicate "no filter"
   const splitIds = splitIdsArray.length > 0 ? splitIdsArray : undefined;
   const isDatasetMode = datasetId != null;
-  const numInstances = usePlaygroundContext((state) => state.instances.length);
-  const isSingleInstance = numInstances === 1;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
@@ -243,14 +240,7 @@ function PlaygroundContent() {
 
   return (
     <Fragment key="playground-content">
-      <PanelGroup
-        direction={
-          isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"
-        }
-        autoSaveId={
-          isSingleInstance ? "playground-horizontal" : "playground-vertical"
-        }
-      >
+      <PanelGroup direction="vertical" autoSaveId="playground-panels">
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
             <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
@@ -303,7 +293,16 @@ function PlaygroundContent() {
                 {templateFormat !== TemplateFormats.NONE ? (
                   <Disclosure id="input" size="L">
                     <DisclosureTrigger arrowPosition="start">
-                      Inputs
+                      <Flex
+                        direction="row"
+                        gap="size-100"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        width="100%"
+                      >
+                        Inputs
+                        <PlaygroundDatasetSelect />
+                      </Flex>
                     </DisclosureTrigger>
                     <DisclosurePanel>
                       <View padding="size-200" height={"100%"}>

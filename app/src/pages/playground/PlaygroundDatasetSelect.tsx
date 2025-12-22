@@ -17,8 +17,6 @@ const playgroundDatasetSelectCSS = css`
   direction: row;
   align-items: center;
   & .dataset-picker-button {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
     height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
     &[data-pressed],
     &:hover {
@@ -28,10 +26,16 @@ const playgroundDatasetSelectCSS = css`
     }
   }
   & .dataset-clear-button {
+    height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
+  }
+  & .dataset-picker-button:has(+ .dataset-clear-button) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  & .dataset-picker-button + .dataset-clear-button {
+    border-left: none;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
-    border-left: none;
-    height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
   }
 `;
 
@@ -73,18 +77,20 @@ export function PlaygroundDatasetSelect() {
           });
         }}
       />
-      <Button
-        className="dataset-clear-button"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-        onPress={() => {
-          setSearchParams((prev) => {
-            prev.delete("datasetId");
-            prev.delete("splitId");
-            return prev;
-          });
-        }}
-      />
+      {datasetId ? (
+        <Button
+          className="dataset-clear-button"
+          size="S"
+          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          onPress={() => {
+            setSearchParams((prev) => {
+              prev.delete("datasetId");
+              prev.delete("splitId");
+              return prev;
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

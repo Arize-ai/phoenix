@@ -11,6 +11,8 @@ import { css } from "@emotion/react";
 import {
   Button,
   Flex,
+  Icon,
+  Icons,
   LinkButton,
   Menu,
   MenuContainer,
@@ -148,6 +150,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
       <Button
         data-testid="dataset-picker"
         className="dataset-picker-button"
+        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
       >
