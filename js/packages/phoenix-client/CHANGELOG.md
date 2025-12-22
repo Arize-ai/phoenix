@@ -1,5 +1,16 @@
 # @arizeai/phoenix-client
 
+## 5.6.0
+
+### Minor Changes
+
+- 0f2950e: centralize phoenix config
+
+### Patch Changes
+
+- Updated dependencies [0f2950e]
+  - @arizeai/phoenix-config@0.1.0
+
 ## 5.5.5
 
 ### Patch Changes
