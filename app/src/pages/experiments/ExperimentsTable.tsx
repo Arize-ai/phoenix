@@ -14,7 +14,10 @@ import { css } from "@emotion/react";
 import {
   Flex,
   Heading,
+  Icon,
+  Icons,
   Link,
+  LinkButton,
   ProgressBar,
   RichTooltip,
   Text,
@@ -30,6 +33,7 @@ import {
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   CompactJSONCell,
   IntCell,
@@ -444,18 +448,30 @@ export function ExperimentsTable({
         const project = row.original.project;
         const metadata = row.original.metadata;
         return (
-          <Flex direction="row" gap="size-100">
-            <DownloadExperimentActionMenu experimentId={row.original.id} />
-            <ExperimentActionMenu
-              projectId={project?.id || null}
-              experimentId={row.original.id}
-              metadata={metadata}
-              canDeleteExperiment={true}
-              onExperimentDeleted={() => {
-                refetch({}, { fetchPolicy: "network-only" });
-              }}
-            />
-          </Flex>
+          <StopPropagation>
+            <Flex direction="row" gap="size-100">
+              <LinkButton
+                to={`/projects/${project?.id}`}
+                leadingVisual={<Icon svg={<Icons.Trace />} />}
+                size="S"
+                aria-label="View traces"
+                isDisabled={!project?.id}
+              >
+                Traces
+              </LinkButton>
+              <DownloadExperimentActionMenu experimentId={row.original.id} />
+
+              <ExperimentActionMenu
+                projectId={project?.id || null}
+                experimentId={row.original.id}
+                metadata={metadata}
+                canDeleteExperiment={true}
+                onExperimentDeleted={() => {
+                  refetch({}, { fetchPolicy: "network-only" });
+                }}
+              />
+            </Flex>
+          </StopPropagation>
         );
       },
     },
