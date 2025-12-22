@@ -15,6 +15,8 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
+import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
@@ -133,7 +135,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               invocation parameters for the model to the instance in the store */}
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
+          <ModelMenu />
           <ModelConfigButton {...props} />
+          <ModelParametersConfigButton playgroundInstanceId={instanceId} />
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
