@@ -5,13 +5,9 @@ import {
   Button,
   Card,
   CopyToClipboardButton,
-  Disclosure,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
   Icon,
   Icons,
-  View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
@@ -111,46 +107,36 @@ export function PlaygroundResponseFormat({
   );
 
   return (
-    <Disclosure id="response-format">
-      <DisclosureTrigger arrowPosition="start">
-        Response Format
-      </DisclosureTrigger>
-      <DisclosurePanel>
-        <View padding="size-200">
-          <Card
-            title="Schema"
-            extra={
-              <Flex direction="row" gap="size-100">
-                <CopyToClipboardButton text={currentValueRef} />
-                <Button
-                  aria-label="Delete Response Format"
-                  leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-                  size="S"
-                  onPress={() => {
-                    deleteInvocationParameterInput({
-                      instanceId: playgroundInstanceId,
-                      invocationParameterInputInvocationName:
-                        RESPONSE_FORMAT_PARAM_NAME,
-                    });
-                  }}
-                />
-              </Flex>
-            }
-          >
-            <LazyEditorWrapper
-              preInitializationMinHeight={
-                RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
-              }
-            >
-              <JSONEditor
-                value={initialResponseFormatDefinition}
-                onChange={onChange}
-                jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
-              />
-            </LazyEditorWrapper>
-          </Card>
-        </View>
-      </DisclosurePanel>
-    </Disclosure>
+    <Card
+      title="Response Format"
+      collapsible
+      extra={
+        <Flex direction="row" gap="size-100">
+          <CopyToClipboardButton text={currentValueRef} />
+          <Button
+            aria-label="Delete Response Format"
+            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            size="S"
+            onPress={() => {
+              deleteInvocationParameterInput({
+                instanceId: playgroundInstanceId,
+                invocationParameterInputInvocationName:
+                  RESPONSE_FORMAT_PARAM_NAME,
+              });
+            }}
+          />
+        </Flex>
+      }
+    >
+      <LazyEditorWrapper
+        preInitializationMinHeight={RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT}
+      >
+        <JSONEditor
+          value={initialResponseFormatDefinition}
+          onChange={onChange}
+          jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
+        />
+      </LazyEditorWrapper>
+    </Card>
   );
 }

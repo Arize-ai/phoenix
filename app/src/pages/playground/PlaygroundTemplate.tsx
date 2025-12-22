@@ -2,7 +2,6 @@ import { Suspense, useCallback, useMemo } from "react";
 
 import {
   Button,
-  Card,
   DialogTrigger,
   Flex,
   Icon,
@@ -13,9 +12,9 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
+  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
@@ -109,40 +108,34 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   return (
     <>
-      <Card
-        title={
-          <StopPropagation>
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              marginEnd="size-100"
-            >
-              <AlphabeticIndexIcon index={index} />
-              <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
-            </Flex>
-          </StopPropagation>
-        }
-        collapsible
-        extra={
-          <Flex direction="row" gap="size-100">
-            <Suspense
-              fallback={
-                <div>
-                  <Loading size="S" />
-                </div>
-              }
-            >
-              {/* As long as this component mounts, it will sync the supported
+      <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          marginEnd="size-100"
+        >
+          <AlphabeticIndexIcon index={index} />
+          <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+        </Flex>
+        <Flex direction="row" gap="size-100">
+          <Suspense
+            fallback={
+              <div>
+                <Loading size="S" />
+              </div>
+            }
+          >
+            {/* As long as this component mounts, it will sync the supported
               invocation parameters for the model to the instance in the store */}
-              <ModelSupportedParamsFetcher instanceId={instanceId} />
-            </Suspense>
-            <ModelConfigButton {...props} />
-            <SaveButton instanceId={instanceId} dirty={dirty} />
-            {instances.length > 1 ? <DeleteButton {...props} /> : null}
-          </Flex>
-        }
-      >
+            <ModelSupportedParamsFetcher instanceId={instanceId} />
+          </Suspense>
+          <ModelConfigButton {...props} />
+          <SaveButton instanceId={instanceId} dirty={dirty} />
+          {instances.length > 1 ? <DeleteButton {...props} /> : null}
+        </Flex>
+      </Flex>
+      <View paddingY="size-100">
         {template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
@@ -150,7 +143,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         ) : (
           "Completion Template"
         )}
-      </Card>
+      </View>
     </>
   );
 }
@@ -189,7 +182,12 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
   }
   return (
     <DialogTrigger>
-      <Button variant={dirty ? "primary" : undefined} size="S">
+      <Button
+        variant={dirty ? "primary" : undefined}
+        size="S"
+        leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
+        aria-label="Save prompt"
+      >
         Save Prompt
       </Button>
       <ModalOverlay>

@@ -19,7 +19,6 @@ import {
   Button,
   Card,
   CopyToClipboardButton,
-  DisclosureGroup,
   Flex,
   Form,
   Icon,
@@ -142,8 +141,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           css={css`
             display: flex;
             flex-direction: column;
-            gap: var(--ac-global-dimension-size-200);
-            padding: var(--ac-global-dimension-size-200);
+            gap: var(--ac-global-dimension-size-100);
           `}
         >
           {messageIds.map((messageId) => {
@@ -158,25 +156,17 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           })}
         </ul>
       </SortableContext>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderColor="dark"
-        borderTopWidth="thin"
-        borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
-      >
+      <View paddingTop="size-100" paddingBottom="size-100">
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
         />
       </View>
       {hasTools || hasResponseFormat ? (
-        <DisclosureGroup defaultExpandedKeys={["tools", "response-format"]}>
+        <Flex direction="column" gap="size-100">
           {hasTools ? <PlaygroundTools {...props} /> : null}
           {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
-        </DisclosureGroup>
+        </Flex>
       ) : null}
     </DndContext>
   );
