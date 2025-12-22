@@ -337,41 +337,34 @@ function SortableMessageItem({
         collapsible
         {...messageCardStyles}
         title={
-          <div
-            css={css`
-              // Align the role picker with the prompt picker in PlaygroundTemplate header
-              margin-left: var(--ac-global-dimension-size-150);
-            `}
-          >
-            <MessageRoleSelect
-              includeLabel={false}
-              role={message.role}
-              onChange={(role) => {
-                let content = message.content;
-                let toolCalls = message.toolCalls;
-                // Tool calls should only be attached to ai messages
-                // Clear tools from the message and reset the message mode when switching away form ai
-                if (role !== "ai") {
-                  toolCalls = undefined;
-                  setAIMessageMode("text");
-                }
-                // Tool role messages should contain tool result content
-                // Reset the content to an empty json string
-                if (role === "tool") {
-                  content = `""`;
-                }
-                updateMessage({
-                  instanceId: playgroundInstanceId,
-                  messageId,
-                  patch: {
-                    role,
-                    toolCalls,
-                    content,
-                  },
-                });
-              }}
-            />
-          </div>
+          <MessageRoleSelect
+            includeLabel={false}
+            role={message.role}
+            onChange={(role) => {
+              let content = message.content;
+              let toolCalls = message.toolCalls;
+              // Tool calls should only be attached to ai messages
+              // Clear tools from the message and reset the message mode when switching away form ai
+              if (role !== "ai") {
+                toolCalls = undefined;
+                setAIMessageMode("text");
+              }
+              // Tool role messages should contain tool result content
+              // Reset the content to an empty json string
+              if (role === "tool") {
+                content = `""`;
+              }
+              updateMessage({
+                instanceId: playgroundInstanceId,
+                messageId,
+                patch: {
+                  role,
+                  toolCalls,
+                  content,
+                },
+              });
+            }}
+          />
         }
         extra={
           <Flex direction="row" gap="size-100">

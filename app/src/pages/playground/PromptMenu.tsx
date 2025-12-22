@@ -20,6 +20,7 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
+  SearchIcon,
   SelectChevronUpDownIcon,
   Tab,
   TabList,
@@ -229,6 +230,7 @@ export const PromptMenu = <T extends object>({
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
+              <SearchIcon />
               <Input placeholder="Search prompts" />
             </SearchField>
           </MenuHeader>
@@ -244,11 +246,7 @@ export const PromptMenu = <T extends object>({
               return (
                 <SubmenuTrigger>
                   <MenuItem>{name}</MenuItem>
-                  <MenuContainer
-                    placement="end"
-                    containerPadding={8}
-                    shouldFlip
-                  >
+                  <MenuContainer placement="end top" shouldFlip offset={4}>
                     <Tabs
                       defaultSelectedKey={
                         selectedPromptTagNameKey && (tags?.length ?? 0) > 0
@@ -264,6 +262,7 @@ export const PromptMenu = <T extends object>({
                         <Autocomplete filter={contains}>
                           <MenuHeader>
                             <SearchField aria-label="Search" autoFocus>
+                              <SearchIcon />
                               <Input placeholder="Search prompt versions" />
                             </SearchField>
                           </MenuHeader>
@@ -333,6 +332,7 @@ export const PromptMenu = <T extends object>({
                         <Autocomplete filter={contains}>
                           <MenuHeader>
                             <SearchField aria-label="Search" autoFocus>
+                              <SearchIcon />
                               <Input placeholder="Search prompt tags" />
                             </SearchField>
                           </MenuHeader>
