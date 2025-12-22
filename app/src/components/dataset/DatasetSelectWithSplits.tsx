@@ -313,10 +313,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       )}
                     </Flex>
                   </MenuItem>
-                  <MenuContainer placement="end top">
+                  <MenuContainer placement="end top" shouldFlip>
                     <Autocomplete filter={contains}>
                       <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
+                          <SearchIcon />
                           <Input placeholder="Search splits" />
                         </SearchField>
                       </MenuHeader>
