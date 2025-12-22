@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03cd7dc66ef0706284f2c802915ef83e>>
+ * @generated SignedSource<<88fcb82f9fb2466e320ac07cccfe7ad4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -542,6 +542,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
+                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -576,12 +577,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c98805ae3f36db3b84e3e7082c8447b2",
+    "cacheID": "62932bcc3606c61cafc3ccd348a0aaee",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          ... on BuiltInEvaluator {\n            ...BuiltInDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_evaluator on BuiltInEvaluator {\n  kind\n  metadata\n  inputSchema\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n  promptVersion {\n    tools {\n      definition\n    }\n    ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n    id\n  }\n  promptVersionTag {\n    name\n    id\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          ... on BuiltInEvaluator {\n            ...BuiltInDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_evaluator on BuiltInEvaluator {\n  kind\n  name\n  metadata\n  inputSchema\n  isBuiltin\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n  promptVersion {\n    tools {\n      definition\n    }\n    ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n    id\n  }\n  promptVersionTag {\n    name\n    id\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

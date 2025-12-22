@@ -45,6 +45,11 @@ export function LLMDatasetEvaluatorDetails({
     `,
     evaluatorRef
   );
+
+  if (evaluator.kind !== "LLM") {
+    throw new Error("LLMDatasetEvaluatorDetails called for non-LLM evaluator");
+  }
+
   const includeExplanation = inferIncludeExplanationFromPrompt(
     evaluator.promptVersion?.tools
   );
