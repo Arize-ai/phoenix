@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24be69c78f00a44b31bb834e58a6484b>>
+ * @generated SignedSource<<c902f6910265e7411801ed4e0c5c149f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,14 +10,26 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type LLMDatasetEvaluatorDetails_evaluator$data = {
   readonly kind: EvaluatorKind;
+  readonly outputConfig: {
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
+      readonly label: string;
+      readonly score: number | null;
+    }>;
+  };
   readonly prompt: {
     readonly id: string;
     readonly name: string;
   };
   readonly promptVersion: {
+    readonly tools: ReadonlyArray<{
+      readonly definition: any;
+    }>;
     readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
   };
   readonly promptVersionTag: {
@@ -57,11 +69,21 @@ v2 = [
 v3 = {
   "alias": null,
   "args": null,
+  "concreteType": "ToolDefinition",
+  "kind": "LinkedField",
+  "name": "tools",
+  "plural": true,
+  "selections": (v2/*: any*/),
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -102,6 +124,7 @@ return {
       "name": "promptVersion",
       "plural": false,
       "selections": [
+        (v3/*: any*/),
         {
           "kind": "InlineDataFragmentSpread",
           "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -146,7 +169,7 @@ return {
               "name": "template",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
+                (v4/*: any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -173,7 +196,7 @@ return {
                           "name": "content",
                           "plural": true,
                           "selections": [
-                            (v3/*: any*/),
+                            (v4/*: any*/),
                             {
                               "kind": "InlineFragment",
                               "selections": [
@@ -210,7 +233,7 @@ return {
                                   "name": "toolCall",
                                   "plural": false,
                                   "selections": [
-                                    (v4/*: any*/),
+                                    (v5/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -248,7 +271,7 @@ return {
                                   "name": "toolResult",
                                   "plural": false,
                                   "selections": [
-                                    (v4/*: any*/),
+                                    (v5/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -290,16 +313,7 @@ return {
               ],
               "storageKey": null
             },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "ToolDefinition",
-              "kind": "LinkedField",
-              "name": "tools",
-              "plural": true,
-              "selections": (v2/*: any*/),
-              "storageKey": null
-            }
+            (v3/*: any*/)
           ],
           "args": null,
           "argumentDefinitions": []
@@ -318,6 +332,50 @@ return {
         (v1/*: any*/)
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationConfig",
+      "kind": "LinkedField",
+      "name": "outputConfig",
+      "plural": false,
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "optimizationDirection",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CategoricalAnnotationValue",
+          "kind": "LinkedField",
+          "name": "values",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "label",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "score",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "LLMEvaluator",
@@ -325,6 +383,6 @@ return {
 };
 })();
 
-(node as any).hash = "72f54fcb4f59837e5a1d32ac2af79cd9";
+(node as any).hash = "9744bc3a9d8b2333d3e7badeb25f9b42";
 
 export default node;
