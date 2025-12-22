@@ -219,10 +219,14 @@ class LLMEvaluator:
                 formatted_content = "".join(text_parts)
             messages.append((role, formatted_content, None, None))
 
-        denormalized_tools, _ = denormalize_tools(
+        denormalized_tools, denormalized_tool_choice = denormalize_tools(
             self._tools, self._model_provider
-        )  # todo: denormalize tool choice and pass as part of invocation parameters
-
+        )
+        invocation_parameters = (
+            {"tool_choice": denormalized_tool_choice}
+            if denormalized_tool_choice is not None
+            else {}
+        )
         tool_call_by_id: dict[ToolCallId, ToolCall] = {}
         error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
@@ -230,6 +234,7 @@ class LLMEvaluator:
             async for chunk in self._llm_client.chat_completion_create(
                 messages=messages,
                 tools=denormalized_tools,
+                **invocation_parameters,
             ):
                 if isinstance(chunk, ToolCallChunk):
                     if chunk.id not in tool_call_by_id:
