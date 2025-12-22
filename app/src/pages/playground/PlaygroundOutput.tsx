@@ -521,7 +521,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           />
         </Flex>
       }
-      collapsible
     >
       {(() => {
         switch (true) {

@@ -14,6 +14,7 @@ export const cardCSS = (style?: CSSProperties) => css`
   border-radius: var(--ac-global-rounding-medium);
   border: 1px solid var(--scope-border-color);
   overflow: hidden;
+  box-sizing: border-box;
 
   /* Card Header Styles */
   & > header {
