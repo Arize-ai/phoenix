@@ -7,44 +7,55 @@ import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/Eval
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
-import { LLMDatasetEvaluatorDetails_evaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_evaluator.graphql";
+import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 export function LLMDatasetEvaluatorDetails({
-  evaluatorRef,
+  datasetEvaluatorRef,
 }: {
-  evaluatorRef: LLMDatasetEvaluatorDetails_evaluator$key;
+  datasetEvaluatorRef: LLMDatasetEvaluatorDetails_datasetEvaluator$key;
 }) {
-  const evaluator = useFragment(
+  const datasetEvaluator = useFragment(
     graphql`
-      fragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {
-        kind
-        prompt {
-          id
-          name
+      fragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
+        inputMapping {
+          literalMapping
+          pathMapping
         }
-        promptVersion {
-          tools {
-            definition
-          }
-          ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
-        }
-        promptVersionTag {
-          name
-        }
-        outputConfig {
-          name
-          optimizationDirection
-          values {
-            label
-            score
+        evaluator {
+          kind
+          ... on LLMEvaluator {
+            prompt {
+              id
+              name
+            }
+            promptVersion {
+              tools {
+                definition
+              }
+              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+            }
+            promptVersionTag {
+              name
+            }
+            outputConfig {
+              name
+              optimizationDirection
+              values {
+                label
+                score
+              }
+            }
           }
         }
       }
     `,
-    evaluatorRef
+    datasetEvaluatorRef
   );
+
+  const evaluator = datasetEvaluator.evaluator;
+  const inputMapping = datasetEvaluator.inputMapping;
 
   if (evaluator.kind !== "LLM") {
     throw new Error("LLMDatasetEvaluatorDetails called for non-LLM evaluator");
@@ -68,9 +79,9 @@ export function LLMDatasetEvaluatorDetails({
             ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
             inputMapping: {
               literalMapping: {
-                input: "Sample input",
-                output: "Sample output",
-                expected: "Sample expected",
+                ...inputMapping?.literalMapping,
+                // this is so that mapped paths get rendered in the prompt preview
+                ...inputMapping?.pathMapping,
               },
               pathMapping: {},
             },
@@ -108,13 +119,11 @@ export function LLMDatasetEvaluatorDetails({
                           <Text size="S" weight="heavy">
                             Values:{" "}
                           </Text>
-                          {evaluator.outputConfig.values.map((v, idx) => (
+                          {evaluator.outputConfig.values.map((v, idx, arr) => (
                             <Text key={idx} size="S">
                               {v.label}
                               {v.score != null ? ` (${v.score})` : ""}
-                              {idx < evaluator.outputConfig.values.length - 1
-                                ? ", "
-                                : ""}
+                              {idx < arr.length - 1 ? ", " : ""}
                             </Text>
                           ))}
                         </Text>
@@ -130,17 +139,75 @@ export function LLMDatasetEvaluatorDetails({
             <Flex direction="column" gap="size-100">
               <Flex justifyContent="space-between">
                 <Heading level={2}>Prompt</Heading>
-                <PromptLink
-                  promptId={evaluator.prompt?.id}
-                  promptName={evaluator.prompt?.name}
-                  promptVersionTag={evaluator.promptVersionTag?.name}
-                />
+                {evaluator.prompt?.id && evaluator.prompt?.name && (
+                  <PromptLink
+                    promptId={evaluator.prompt.id}
+                    promptName={evaluator.prompt.name}
+                    promptVersionTag={evaluator.promptVersionTag?.name}
+                  />
+                )}
               </Flex>
               <EvaluatorPromptPreview />
             </Flex>
+            <LLMEvaluatorInputMapping inputMapping={inputMapping} />
           </Flex>
         </View>
       </EvaluatorStoreProvider>
     </EvaluatorPlaygroundProvider>
+  );
+}
+
+function LLMEvaluatorInputMapping({
+  inputMapping,
+}: {
+  inputMapping: {
+    literalMapping?: Record<string, boolean | string | number> | null;
+    pathMapping?: Record<string, string> | null;
+  } | null;
+}) {
+  const literalMapping = inputMapping?.literalMapping;
+  const pathMapping = inputMapping?.pathMapping;
+
+  const hasLiteralMapping =
+    literalMapping && Object.keys(literalMapping).length > 0;
+  const hasPathMapping = pathMapping && Object.keys(pathMapping).length > 0;
+
+  if (!hasLiteralMapping && !hasPathMapping) {
+    return null;
+  }
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <Heading level={2}>Input Mapping</Heading>
+      <div
+        css={css`
+          background-color: var(--ac-global-background-color-dark);
+          border-radius: var(--ac-global-rounding-medium);
+          padding: var(--ac-global-dimension-static-size-200);
+          margin-top: var(--ac-global-dimension-static-size-50);
+          border: 1px solid var(--ac-global-border-color-default);
+        `}
+      >
+        <Flex direction="column" gap="size-100">
+          {pathMapping &&
+            Object.entries(pathMapping).map(([key, value]) => (
+              <Text key={key} size="S">
+                <Text weight="heavy">{key}:</Text> {value || "Not mapped"}
+              </Text>
+            ))}
+          {literalMapping &&
+            Object.entries(literalMapping).map(([key, value]) => (
+              <Text key={key} size="S">
+                <Text weight="heavy">{key}:</Text>{" "}
+                {typeof value === "boolean"
+                  ? value
+                    ? "Yes"
+                    : "No"
+                  : String(value)}
+              </Text>
+            ))}
+        </Flex>
+      </div>
+    </Flex>
   );
 }

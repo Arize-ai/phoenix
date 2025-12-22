@@ -56,7 +56,7 @@ function DatasetEvaluatorDetailsPageContent({
         <Text size="M">{evaluator.description}</Text>
       </View>
       {evaluator.__typename === "LLMEvaluator" && (
-        <LLMDatasetEvaluatorDetails evaluatorRef={evaluator} />
+        <LLMDatasetEvaluatorDetails datasetEvaluatorRef={datasetEvaluator} />
       )}
       {evaluator.__typename === "BuiltInEvaluator" && (
         <BuiltInDatasetEvaluatorDetails
