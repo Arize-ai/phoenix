@@ -1,5 +1,30 @@
 # Changelog
 
+## [12.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.25.1...arize-phoenix-v12.26.0) (2025-12-22)
+
+
+### Features
+
+* move add dataset example to be a part of the examples tab ([#10643](https://github.com/Arize-ai/phoenix/issues/10643)) ([f1c3711](https://github.com/Arize-ai/phoenix/commit/f1c3711f83308353accdca70f0daad081c80bfa8))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10716](https://github.com/Arize-ai/phoenix/issues/10716)) ([2b6a34b](https://github.com/Arize-ai/phoenix/commit/2b6a34b87e0f61cf605ec78335a50c30ac74d46a))
+* **deps:** update arize-phoenix-client to 1.27.1 ([#10663](https://github.com/Arize-ai/phoenix/issues/10663)) ([2e2d1d8](https://github.com/Arize-ai/phoenix/commit/2e2d1d8f34753f31a36f9b55cc3717114f6cc331))
+* dispose database engine on shutdown ([#10658](https://github.com/Arize-ai/phoenix/issues/10658)) ([4135e0f](https://github.com/Arize-ai/phoenix/commit/4135e0f021d972cdff0052e20d2608f92ecb7e32))
+* update strawberry-graphql to 0.287.3 ([#10657](https://github.com/Arize-ai/phoenix/issues/10657)) ([46432f0](https://github.com/Arize-ai/phoenix/commit/46432f04d22d75d658126b180e299b3d5051d890))
+
+
+### Documentation
+
+* **evals:** add detailed configuring the llm docs ([#10704](https://github.com/Arize-ai/phoenix/issues/10704)) ([f25392e](https://github.com/Arize-ai/phoenix/commit/f25392ea55683e2305023389c19b135b5c7f98ad))
+* moving migration script ([#10713](https://github.com/Arize-ai/phoenix/issues/10713)) ([0845a91](https://github.com/Arize-ai/phoenix/commit/0845a91b6babc01ac59b19d5037bc6cfdc7766e6))
+* seo fix ([#10715](https://github.com/Arize-ai/phoenix/issues/10715)) ([367226f](https://github.com/Arize-ai/phoenix/commit/367226f2db63b2c3e90cc4fa56d1dc9d0081da37))
+* Sitemap generator ([#10666](https://github.com/Arize-ai/phoenix/issues/10666)) ([d7770d7](https://github.com/Arize-ai/phoenix/commit/d7770d716c39e0cafae3d8f73641d04410b1015a))
+* trigger docs.json sitemap generator ([#10677](https://github.com/Arize-ai/phoenix/issues/10677)) ([bc80a7e](https://github.com/Arize-ai/phoenix/commit/bc80a7e56adb9b0597dd6433f625061a583e52c9))
+* trigger sitemap build ([b744b12](https://github.com/Arize-ai/phoenix/commit/b744b12b5b66ca7649fa2d6dec8a41931de26427))
+
 ## [12.25.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.25.0...arize-phoenix-v12.25.1) (2025-12-16)
 
 
