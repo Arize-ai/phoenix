@@ -59,7 +59,9 @@ function DatasetEvaluatorDetailsPageContent({
         <LLMDatasetEvaluatorDetails evaluatorRef={evaluator} />
       )}
       {evaluator.__typename === "BuiltInEvaluator" && (
-        <BuiltInDatasetEvaluatorDetails evaluatorRef={evaluator} />
+        <BuiltInDatasetEvaluatorDetails
+          datasetEvaluatorRef={datasetEvaluator}
+        />
       )}
     </main>
   );

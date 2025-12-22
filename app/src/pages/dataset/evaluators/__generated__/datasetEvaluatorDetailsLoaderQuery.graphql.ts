@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88fcb82f9fb2466e320ac07cccfe7ad4>>
+ * @generated SignedSource<<bf3f74b3ffc7c4d722facfb3377db261>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,9 +24,10 @@ export type datasetEvaluatorDetailsLoaderQuery$data = {
         readonly description: string | null;
         readonly isBuiltin: boolean;
         readonly kind: EvaluatorKind;
-        readonly " $fragmentSpreads": FragmentRefs<"BuiltInDatasetEvaluatorDetails_evaluator" | "LLMDatasetEvaluatorDetails_evaluator">;
+        readonly " $fragmentSpreads": FragmentRefs<"LLMDatasetEvaluatorDetails_evaluator">;
       };
       readonly id: string;
+      readonly " $fragmentSpreads": FragmentRefs<"BuiltInDatasetEvaluatorDetails_datasetEvaluator">;
     };
     readonly id: string;
   };
@@ -181,21 +182,14 @@ return {
                         ],
                         "type": "LLMEvaluator",
                         "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "args": null,
-                            "kind": "FragmentSpread",
-                            "name": "BuiltInDatasetEvaluatorDetails_evaluator"
-                          }
-                        ],
-                        "type": "BuiltInEvaluator",
-                        "abstractKey": null
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "args": null,
+                    "kind": "FragmentSpread",
+                    "name": "BuiltInDatasetEvaluatorDetails_datasetEvaluator"
                   }
                 ],
                 "storageKey": null
@@ -256,6 +250,7 @@ return {
                       (v8/*: any*/),
                       (v9/*: any*/),
                       (v3/*: any*/),
+                      (v10/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -538,28 +533,31 @@ return {
                         ],
                         "type": "LLMEvaluator",
                         "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "EvaluatorInputMapping",
+                    "kind": "LinkedField",
+                    "name": "inputMapping",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "literalMapping",
+                        "storageKey": null
                       },
                       {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v10/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "metadata",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "inputSchema",
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "BuiltInEvaluator",
-                        "abstractKey": null
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "pathMapping",
+                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -577,16 +575,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "62932bcc3606c61cafc3ccd348a0aaee",
+    "cacheID": "3c8be9e0bb8fe82087480f0a40943df6",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          ... on BuiltInEvaluator {\n            ...BuiltInDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_evaluator on BuiltInEvaluator {\n  kind\n  name\n  metadata\n  inputSchema\n  isBuiltin\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n  promptVersion {\n    tools {\n      definition\n    }\n    ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n    id\n  }\n  promptVersionTag {\n    name\n    id\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        evaluator {\n          __typename\n          kind\n          description\n          isBuiltin\n          ... on LLMEvaluator {\n            ...LLMDatasetEvaluatorDetails_evaluator\n          }\n          id\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    isBuiltin\n    id\n  }\n}\n\nfragment LLMDatasetEvaluatorDetails_evaluator on LLMEvaluator {\n  kind\n  prompt {\n    id\n    name\n  }\n  promptVersion {\n    tools {\n      definition\n    }\n    ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n    id\n  }\n  promptVersionTag {\n    name\n    id\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bb95ec53d8c6d96d1d67fe57e3db64c4";
+(node as any).hash = "c9e7450bdcb65cfdb85f1c9e70353878";
 
 export default node;

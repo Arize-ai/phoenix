@@ -86,46 +86,44 @@ export function LLMDatasetEvaluatorDetails({
                   css={css`
                     background-color: var(--ac-global-background-color-dark);
                     border-radius: var(--ac-global-rounding-medium);
-                    padding: var(--ac-global-dimension-static-size-50);
+                    padding: var(--ac-global-dimension-static-size-200);
                     margin-top: var(--ac-global-dimension-static-size-50);
                     border: 1px solid var(--ac-global-border-color-default);
                   `}
                 >
-                  <View padding="size-200">
-                    <Flex direction="column" gap="size-100">
+                  <Flex direction="column" gap="size-100">
+                    <Text size="S">
+                      <Text weight="heavy">Name:</Text>{" "}
+                      {evaluator.outputConfig.name}
+                    </Text>
+                    {evaluator.outputConfig.optimizationDirection && (
                       <Text size="S">
-                        <Text weight="heavy">Name:</Text>{" "}
-                        {evaluator.outputConfig.name}
+                        <Text weight="heavy">Optimization Direction:</Text>{" "}
+                        {evaluator.outputConfig.optimizationDirection}
                       </Text>
-                      {evaluator.outputConfig.optimizationDirection && (
-                        <Text size="S">
-                          <Text weight="heavy">Optimization Direction:</Text>{" "}
-                          {evaluator.outputConfig.optimizationDirection}
+                    )}
+                    {evaluator.outputConfig.values &&
+                      evaluator.outputConfig.values.length > 0 && (
+                        <Text>
+                          <Text size="S" weight="heavy">
+                            Values:{" "}
+                          </Text>
+                          {evaluator.outputConfig.values.map((v, idx) => (
+                            <Text key={idx} size="S">
+                              {v.label}
+                              {v.score != null ? ` (${v.score})` : ""}
+                              {idx < evaluator.outputConfig.values.length - 1
+                                ? ", "
+                                : ""}
+                            </Text>
+                          ))}
                         </Text>
                       )}
-                      {evaluator.outputConfig.values &&
-                        evaluator.outputConfig.values.length > 0 && (
-                          <Text>
-                            <Text size="S" weight="heavy">
-                              Values:{" "}
-                            </Text>
-                            {evaluator.outputConfig.values.map((v, idx) => (
-                              <Text key={idx} size="S">
-                                {v.label}
-                                {v.score != null ? ` (${v.score})` : ""}
-                                {idx < evaluator.outputConfig.values.length - 1
-                                  ? ", "
-                                  : ""}
-                              </Text>
-                            ))}
-                          </Text>
-                        )}
-                      <Text size="S">
-                        <Text weight="heavy">Explanations:</Text>{" "}
-                        {includeExplanation ? "Enabled" : "Disabled"}
-                      </Text>
-                    </Flex>
-                  </View>
+                    <Text size="S">
+                      <Text weight="heavy">Explanations:</Text>{" "}
+                      {includeExplanation ? "Enabled" : "Disabled"}
+                    </Text>
+                  </Flex>
                 </div>
               </Flex>
             )}

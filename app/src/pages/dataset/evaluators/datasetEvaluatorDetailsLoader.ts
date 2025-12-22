@@ -26,10 +26,8 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             ... on LLMEvaluator {
               ...LLMDatasetEvaluatorDetails_evaluator
             }
-            ... on BuiltInEvaluator {
-              ...BuiltInDatasetEvaluatorDetails_evaluator
-            }
           }
+          ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
         }
       }
     }
