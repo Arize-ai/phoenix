@@ -19,6 +19,7 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
+  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   Token,
@@ -174,6 +175,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
+              <SearchIcon />
               <Input placeholder="Search datasets" />
             </SearchField>
           </MenuHeader>
@@ -431,7 +433,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Menu>
         </Autocomplete>
         <MenuFooter>
-          <LinkButton to="/datasets">Go to Datasets</LinkButton>
+          <LinkButton to="/datasets" size="S" variant="quiet">
+            Go to Datasets
+          </LinkButton>
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
