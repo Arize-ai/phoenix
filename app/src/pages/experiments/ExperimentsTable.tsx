@@ -450,15 +450,17 @@ export function ExperimentsTable({
         return (
           <StopPropagation>
             <Flex direction="row" gap="size-100">
-              <LinkButton
-                to={`/projects/${project?.id}`}
-                leadingVisual={<Icon svg={<Icons.Trace />} />}
-                size="S"
-                aria-label="View traces"
-                isDisabled={!project?.id}
-              >
-                Traces
-              </LinkButton>
+              {project?.id ? (
+                <LinkButton
+                  to={`/projects/${project?.id}`}
+                  leadingVisual={<Icon svg={<Icons.Trace />} />}
+                  size="S"
+                  aria-label="View traces"
+                  isDisabled={!project?.id}
+                >
+                  Traces
+                </LinkButton>
+              ) : null}
               <DownloadExperimentActionMenu experimentId={row.original.id} />
 
               <ExperimentActionMenu
