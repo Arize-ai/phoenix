@@ -228,8 +228,7 @@ class LLMEvaluator:
             self._tools, self._model_provider
         )
         invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-        if denormalized_tool_choice is not None:
-            invocation_parameters["tool_choice"] = denormalized_tool_choice
+        invocation_parameters.update(denormalized_tool_choice)
         tool_call_by_id: dict[ToolCallId, ToolCall] = {}
         error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
