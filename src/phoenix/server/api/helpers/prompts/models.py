@@ -632,7 +632,7 @@ def denormalize_tools(
     elif model_provider is ModelProvider.GOOGLE:
         denormalized_tools = [_prompt_to_gemini_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
-            tool_choice = {"tool_choice": GoogleToolChoiceConversion.to_google(tools.tool_choice)}
+            tool_choice = {"tool_config": GoogleToolChoiceConversion.to_google(tools.tool_choice)}
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     return [tool.model_dump() for tool in denormalized_tools], tool_choice
