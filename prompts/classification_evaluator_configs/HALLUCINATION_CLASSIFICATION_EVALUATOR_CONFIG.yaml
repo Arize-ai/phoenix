@@ -19,17 +19,21 @@ messages:
       response.
       
 
+      <data>
+
       <query>
-        {{input}}
+      {{input}}
       </query>
 
       <context>
-        {{context}}
+      {{context}}
       </context>
 
       <response>
         {{output}}
       </response>
+
+      </data>
 
       
       Is the response above factual or hallucinated based on the query and context?

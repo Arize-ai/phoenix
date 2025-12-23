@@ -9,14 +9,17 @@ messages:
       question. Here is the data:
       
 
+      <data>
+
       <question>
-        {{input}}
+      {{input}}
       </question>
 
       <document_text>
-        {{document_text}}
+      {{document_text}}
       </document_text>
 
+      </data>
       
       Compare the question above to the document text. You must determine
       whether the document text contains information that can answer the
