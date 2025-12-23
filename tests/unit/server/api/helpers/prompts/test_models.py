@@ -575,49 +575,63 @@ async def test_google_tools_are_round_tripped_without_data_loss(
     (
         pytest.param(
             {"function_calling_config": {"mode": "auto"}},
-            {"function_calling_config": {"mode": "auto"}},
+            {"tool_config": {"function_calling_config": {"mode": "auto"}}},
             id="mode-auto-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any"}},
-            {"function_calling_config": {"mode": "any"}},
+            {"tool_config": {"function_calling_config": {"mode": "any"}}},
             id="mode-any-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "none"}},
-            {"function_calling_config": {"mode": "none"}},
+            {"tool_config": {"function_calling_config": {"mode": "none"}}},
             id="mode-none-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "AUTO"}},
-            {"function_calling_config": {"mode": "auto"}},
+            {"tool_config": {"function_calling_config": {"mode": "auto"}}},
             id="mode-AUTO-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "ANY"}},
-            {"function_calling_config": {"mode": "any"}},
+            {"tool_config": {"function_calling_config": {"mode": "any"}}},
             id="mode-ANY-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "NONE"}},
-            {"function_calling_config": {"mode": "none"}},
+            {"tool_config": {"function_calling_config": {"mode": "none"}}},
             id="mode-NONE-uppercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
-            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            {
+                "tool_config": {
+                    "function_calling_config": {
+                        "mode": "any",
+                        "allowed_function_names": ["get_weather"],
+                    }
+                }
+            },
             id="specific-function-name-lowercase",
         ),
         pytest.param(
             {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["get_weather"]}},
-            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            {
+                "tool_config": {
+                    "function_calling_config": {
+                        "mode": "any",
+                        "allowed_function_names": ["get_weather"],
+                    }
+                }
+            },
             id="specific-function-name-uppercase",
         ),
     ),
 )
 async def test_google_tool_choice_is_round_tripped_without_data_loss(
     google_tool_choice: dict[str, Any],
-    expected_denormalized_tool_choice: dict[str, Any],
+    expected_denormalized_tool_choice: dict[str, dict[str, Any]],
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
