@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -15,6 +16,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { UnassignDatasetEvaluatorDialog } from "@phoenix/pages/dataset/evaluators/UnassignDatasetEvaluatorDialog";
 
 enum DatasetEvaluatorAction {
+  VIEW_DETAILS = "viewDetails",
   UNASSIGN = "unassign",
   EDIT = "edit",
 }
@@ -36,6 +38,7 @@ export function DatasetEvaluatorActionMenu({
 }) {
   const [isUnassignDialogOpen, setIsUnassignDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -48,6 +51,11 @@ export function DatasetEvaluatorActionMenu({
           <Menu
             onAction={(action) => {
               switch (action) {
+                case DatasetEvaluatorAction.VIEW_DETAILS:
+                  navigate(
+                    `/datasets/${datasetId}/evaluators/${datasetEvaluatorId}`
+                  );
+                  break;
                 case DatasetEvaluatorAction.UNASSIGN:
                   setIsUnassignDialogOpen(true);
                   break;
@@ -57,6 +65,9 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
+            <MenuItem id={DatasetEvaluatorAction.VIEW_DETAILS}>
+              View details
+            </MenuItem>
             {(evaluatorKind === "LLM" || isBuiltIn) && (
               <MenuItem id={DatasetEvaluatorAction.EDIT}>Edit</MenuItem>
             )}

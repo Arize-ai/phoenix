@@ -231,7 +231,6 @@ export const DatasetEvaluatorsTable = ({
     return cols;
   }, [datasetId, updateConnectionIds]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -342,6 +341,9 @@ export const DatasetEvaluatorsTable = ({
                 onClick={() => {
                   onRowClick?.(row.original);
                 }}
+                css={css`
+                  cursor: ${onRowClick ? "pointer" : "default"};
+                `}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
