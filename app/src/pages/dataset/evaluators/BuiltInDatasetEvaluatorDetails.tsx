@@ -1,19 +1,30 @@
 import { useFragment } from "react-relay";
+import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
+import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 export function BuiltInDatasetEvaluatorDetails({
   datasetEvaluatorRef,
+  datasetId,
+  isEditSlideoverOpen,
+  onEditSlideoverOpenChange,
 }: {
   datasetEvaluatorRef: BuiltInDatasetEvaluatorDetails_datasetEvaluator$key;
+  datasetId: string;
+  isEditSlideoverOpen: boolean;
+  onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
+  // this is so evaluator name updates are reflected in the breadcrumbs
+  const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
     graphql`
       fragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
+        id
         inputMapping {
           literalMapping
           pathMapping
@@ -40,7 +51,18 @@ export function BuiltInDatasetEvaluatorDetails({
   if (evaluator.isBuiltin && evaluator.name) {
     switch (evaluator.name.toLowerCase()) {
       case "contains": {
-        return <ContainsEvaluatorDetails inputMapping={inputMapping} />;
+        return (
+          <>
+            <ContainsEvaluatorDetails inputMapping={inputMapping} />
+            <EditBuiltInDatasetEvaluatorSlideover
+              datasetEvaluatorId={datasetEvaluator.id}
+              datasetId={datasetId}
+              isOpen={isEditSlideoverOpen}
+              onOpenChange={onEditSlideoverOpenChange}
+              onEvaluatorUpdated={() => revalidate()}
+            />
+          </>
+        );
       }
     }
   }

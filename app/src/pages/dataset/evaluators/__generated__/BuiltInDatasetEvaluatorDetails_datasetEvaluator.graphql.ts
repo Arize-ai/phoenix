@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ae245f3739fe3c22194d388d0b456ce>>
+ * @generated SignedSource<<33c5d086901ec4de1ffbbb634bfdc3dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly kind: EvaluatorKind;
     readonly name: string;
   };
+  readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
@@ -34,6 +35,13 @@ const node: ReaderFragment = {
   "metadata": null,
   "name": "BuiltInDatasetEvaluatorDetails_datasetEvaluator",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -96,6 +104,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "af7ed8ce4d7c87392f4b872c995e43d4";
+(node as any).hash = "02e897eff0649ad0f594d58a59ca8def";
 
 export default node;

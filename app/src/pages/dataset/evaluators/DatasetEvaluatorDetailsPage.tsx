@@ -1,10 +1,19 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Heading, Loading, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import {
@@ -40,9 +49,15 @@ function DatasetEvaluatorDetailsPageContent({
 }: {
   data: datasetEvaluatorDetailsLoaderQuery["response"];
 }) {
+  const { datasetId } = useParams();
+  invariant(datasetId, "datasetId is required");
   const datasetEvaluator = data.dataset.datasetEvaluator;
   invariant(datasetEvaluator, "datasetEvaluator is required");
   const evaluator = datasetEvaluator.evaluator;
+  const [isEditSlideoverOpen, setIsEditSlideoverOpen] = useState(false);
+
+  const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
+  const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
 
   return (
     <main css={mainCSS}>
@@ -52,15 +67,36 @@ function DatasetEvaluatorDetailsPageContent({
         padding="size-200"
         flex="none"
       >
-        <Heading level={1}>Evaluator: {datasetEvaluator.displayName}</Heading>
-        <Text size="M">{evaluator.description}</Text>
+        <Flex justifyContent="space-between" alignItems="center">
+          <Flex direction="column" gap="size-50">
+            <Heading level={1}>
+              Evaluator: {datasetEvaluator.displayName}
+            </Heading>
+            <Text size="M">{evaluator.description}</Text>
+          </Flex>
+          <Button
+            variant="primary"
+            onPress={() => setIsEditSlideoverOpen(true)}
+            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+          >
+            Edit
+          </Button>
+        </Flex>
       </View>
-      {evaluator.__typename === "LLMEvaluator" && (
-        <LLMDatasetEvaluatorDetails datasetEvaluatorRef={datasetEvaluator} />
+      {isLLMEvaluator && (
+        <LLMDatasetEvaluatorDetails
+          datasetEvaluatorRef={datasetEvaluator}
+          datasetId={datasetId}
+          isEditSlideoverOpen={isEditSlideoverOpen}
+          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+        />
       )}
-      {evaluator.__typename === "BuiltInEvaluator" && (
+      {isBuiltInEvaluator && (
         <BuiltInDatasetEvaluatorDetails
           datasetEvaluatorRef={datasetEvaluator}
+          datasetId={datasetId}
+          isEditSlideoverOpen={isEditSlideoverOpen}
+          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
         />
       )}
     </main>

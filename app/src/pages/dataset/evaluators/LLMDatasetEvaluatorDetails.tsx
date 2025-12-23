@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useFragment } from "react-relay";
+import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
+import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
@@ -13,12 +16,22 @@ import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStor
 
 export function LLMDatasetEvaluatorDetails({
   datasetEvaluatorRef,
+  datasetId,
+  isEditSlideoverOpen,
+  onEditSlideoverOpenChange,
 }: {
   datasetEvaluatorRef: LLMDatasetEvaluatorDetails_datasetEvaluator$key;
+  datasetId: string;
+  isEditSlideoverOpen: boolean;
+  onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
+  const [promptRefreshKey, setPromptRefreshKey] = useState(0);
+  // this is so evaluator name updates are reflected in the breadcrumbs
+  const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
     graphql`
       fragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
+        id
         inputMapping {
           literalMapping
           pathMapping
@@ -71,6 +84,9 @@ export function LLMDatasetEvaluatorDetails({
       promptName={evaluator.prompt?.name}
       promptVersionRef={evaluator.promptVersion ?? undefined}
       promptVersionTag={evaluator.promptVersionTag?.name}
+      // force remount when the evaluator prompt is updated in the slideover,
+      // so that the prompt preview is updated
+      key={promptRefreshKey}
     >
       <EvaluatorStoreProvider
         initialState={{
@@ -153,6 +169,16 @@ export function LLMDatasetEvaluatorDetails({
           </Flex>
         </View>
       </EvaluatorStoreProvider>
+      <EditLLMDatasetEvaluatorSlideover
+        datasetEvaluatorId={datasetEvaluator.id}
+        datasetId={datasetId}
+        isOpen={isEditSlideoverOpen}
+        onOpenChange={onEditSlideoverOpenChange}
+        onEvaluatorUpdated={() => {
+          setPromptRefreshKey((prev) => prev + 1);
+          revalidate();
+        }}
+      />
     </EvaluatorPlaygroundProvider>
   );
 }

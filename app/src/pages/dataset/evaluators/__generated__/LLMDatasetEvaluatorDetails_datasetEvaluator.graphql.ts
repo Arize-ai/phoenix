@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb75df336f85759da7a363c9874d5e76>>
+ * @generated SignedSource<<d4205803efaa1ddc296d479bbff67f58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,6 +37,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly name: string;
     } | null;
   };
+  readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
@@ -102,6 +103,7 @@ return {
   "metadata": null,
   "name": "LLMDatasetEvaluatorDetails_datasetEvaluator",
   "selections": [
+    (v0/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -432,6 +434,6 @@ return {
 };
 })();
 
-(node as any).hash = "245f71ef2da5aea11e44db823eb604de";
+(node as any).hash = "8bea4392cdeb941afca48547b50649ae";
 
 export default node;

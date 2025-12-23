@@ -27,12 +27,14 @@ type EditBuiltInDatasetEvaluatorSlideoverProps = {
   datasetEvaluatorId?: string | null;
   datasetId: string;
   updateConnectionIds?: string[];
+  onEvaluatorUpdated?: () => void;
 } & ModalOverlayProps;
 
 export function EditBuiltInDatasetEvaluatorSlideover({
   datasetEvaluatorId,
   datasetId,
   updateConnectionIds,
+  onEvaluatorUpdated,
   ...props
 }: EditBuiltInDatasetEvaluatorSlideoverProps) {
   return (
@@ -55,6 +57,7 @@ export function EditBuiltInDatasetEvaluatorSlideover({
                     onClose={close}
                     datasetId={datasetId}
                     updateConnectionIds={updateConnectionIds}
+                    onEvaluatorUpdated={onEvaluatorUpdated}
                   />
                 </EvaluatorPlaygroundProvider>
               )}
@@ -71,11 +74,13 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   onClose,
   datasetId,
   updateConnectionIds,
+  onEvaluatorUpdated,
 }: {
   datasetEvaluatorId: string;
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
+  onEvaluatorUpdated?: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
@@ -135,6 +140,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
               ) {
               ...DatasetEvaluatorsTable_row
               ...PlaygroundDatasetSection_evaluator
+              ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
             }
           }
         }
@@ -210,6 +216,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           title: "Evaluator updated",
         });
         onClose();
+        onEvaluatorUpdated?.();
       },
       onError: (error) => {
         setError(
