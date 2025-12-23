@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -122,7 +122,7 @@ def to_gql_prompt_version(
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    tool_choice = None
+    tool_choice: dict[str, Any] = {}
     if prompt_version.tools is not None:
         tool_schemas, tool_choice = denormalize_tools(
             prompt_version.tools, prompt_version.model_provider
@@ -141,8 +141,7 @@ def to_gql_prompt_version(
         else None
     )
     invocation_parameters = get_raw_invocation_parameters(prompt_version.invocation_parameters)
-    if tool_choice is not None:
-        invocation_parameters["tool_choice"] = tool_choice
+    invocation_parameters.update(tool_choice)
     return PromptVersion(
         id_attr=prompt_version.id,
         prompt_id=prompt_version.prompt_id,
