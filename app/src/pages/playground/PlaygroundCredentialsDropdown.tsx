@@ -59,7 +59,7 @@ export function PlaygroundCredentialsDropdown() {
         <Button
           size="S"
           isDisabled={isRunning}
-          trailingVisual={<Icon svg={<Icons.ChevronDown />} />}
+          leadingVisual={<Icon svg={<Icons.KeyOutline />} />}
         >
           API Keys
         </Button>
