@@ -123,7 +123,19 @@ export function ModelMenu({ onChange }: ModelMenuProps) {
                       >
                         {({ name }) => (
                           <MenuItem id={name} textValue={name}>
-                            <Text>{name}</Text>
+                            <Flex
+                              direction="row"
+                              gap="size-100"
+                              alignItems="center"
+                            >
+                              {isValidProvider && (
+                                <GenerativeProviderIcon
+                                  provider={providerKey}
+                                  height={16}
+                                />
+                              )}
+                              <Text>{name}</Text>
+                            </Flex>
                           </MenuItem>
                         )}
                       </Menu>
