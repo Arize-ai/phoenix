@@ -12,11 +12,13 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
+  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
@@ -138,6 +140,15 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
+      <View paddingY="size-100">
+        {instance.template.__type === "chat" ? (
+          <Suspense>
+            <PlaygroundChatTemplate {...props} />
+          </Suspense>
+        ) : (
+          "Completion Template"
+        )}
+      </View>
     </>
   );
 }

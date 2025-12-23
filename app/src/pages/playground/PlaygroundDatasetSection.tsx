@@ -172,7 +172,6 @@ export function PlaygroundDatasetSection({
               ) : null}
             </Flex>
             <Flex direction="row" gap="size-100" alignItems="center">
-              <PlaygroundDatasetSelect />
               <Flex direction="row" gap="size-100" alignItems="center">
                 {datasetEvaluators
                   .filter((e) => selectedDatasetEvaluatorIds.includes(e.id))
@@ -213,26 +212,7 @@ export function PlaygroundDatasetSection({
                 }
                 onEvaluatorCreated={onEvaluatorCreated}
               />
-              {experimentIds.length > 0 && (
-                <LinkButton
-                  size="S"
-                  isDisabled={isRunning}
-                  leadingVisual={
-                    <Icon
-                      svg={
-                        isRunning ? (
-                          <Icons.LoadingOutline />
-                        ) : (
-                          <Icons.ExperimentOutline />
-                        )
-                      }
-                    />
-                  }
-                  to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-                >
-                  View Experiment{instances.length > 1 ? "s" : ""}
-                </LinkButton>
-              )}
+              <PlaygroundDatasetSelect />
             </Flex>
           </Flex>
         </View>
