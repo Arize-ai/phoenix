@@ -3,18 +3,26 @@ description: A specialized evaluator for determining document relevance to a giv
 optimization_direction: maximize
 messages:
   - role: user
-    content: |
+    content: >
       You are comparing a document to a question and trying to determine
       if the document text contains information relevant to answering the
       question. Here is the data:
       
+
       [BEGIN DATA]
+
       ************
+
       [Question]: {{input}}
+
       ************
+
       [Document text]: {{document_text}}
+
       ************
+
       [END DATA]
+
       
       Compare the question above to the document text. You must determine
       whether the document text contains information that can answer the

@@ -3,7 +3,7 @@ description: A specialized evaluator for detecting hallucinations in grounded LL
 optimization_direction: minimize
 messages:
   - role: user
-    content: |
+    content: >
       In this task, you will be presented with a query, some context and a response. The response
       is generated to the question based on the context. The response may contain false
       information. You must use the context to determine if the response to the question
@@ -18,15 +18,25 @@ messages:
       information. Please read the query and context carefully before determining your
       response.
       
+
       [BEGIN DATA]
+
       ************
+
       [Query]: {{input}}
+
       ************
+
       [Context]: {{context}}
+
       ************
+
       [Response]: {{output}}
+
       ************
+
       [END DATA]
+
       
       Is the response above factual or hallucinated based on the query and context?
 choices:
