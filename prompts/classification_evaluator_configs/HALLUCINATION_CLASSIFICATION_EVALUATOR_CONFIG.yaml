@@ -22,15 +22,21 @@ messages:
       <data>
 
       <query>
+
       {{input}}
+
       </query>
 
       <context>
+
       {{context}}
+
       </context>
 
       <response>
-        {{output}}
+
+      {{output}}
+
       </response>
 
       </data>

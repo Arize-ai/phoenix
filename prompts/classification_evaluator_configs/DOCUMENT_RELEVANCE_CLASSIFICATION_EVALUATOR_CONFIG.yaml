@@ -12,11 +12,15 @@ messages:
       <data>
 
       <question>
+
       {{input}}
+
       </question>
 
       <document_text>
+
       {{document_text}}
+
       </document_text>
 
       </data>
