@@ -23,6 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { ManualProjectGuide } from "@phoenix/pages/projects/ManualProjectGuide";
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
@@ -79,6 +80,11 @@ function NewProjectDialog({
 }: {
   refetchProjects: () => void;
 }) {
+  const programmingLanguage = usePreferencesContext(
+    (state) => state.programmingLanguage
+  );
+  const defaultTab = programmingLanguage;
+
   return (
     <Dialog>
       <DialogContent>
@@ -88,19 +94,19 @@ function NewProjectDialog({
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
-        <Tabs>
+        <Tabs defaultSelectedKey={defaultTab}>
           <TabList>
-            <Tab id="python">Python</Tab>
-            <Tab id="typescript">TypeScript</Tab>
+            <Tab id="Python">Python</Tab>
+            <Tab id="TypeScript">TypeScript</Tab>
             <Tab id="manual">Manual</Tab>
           </TabList>
-          <TabPanel id="python">
+          <TabPanel id="Python">
             <View padding="size-200" overflow="auto">
               <TraceBasedProjectGuideIntro />
               <PythonProjectGuide />
             </View>
           </TabPanel>
-          <TabPanel id="typescript">
+          <TabPanel id="TypeScript">
             <View padding="size-200" overflow="auto">
               <TraceBasedProjectGuideIntro />
               <TypeScriptProjectGuide />

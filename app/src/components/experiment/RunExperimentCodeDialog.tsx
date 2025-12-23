@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import {
   Button,
@@ -12,7 +12,7 @@ import {
   View,
 } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
-import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
@@ -25,6 +25,7 @@ import {
 } from "@phoenix/components/dialog";
 import { ExperimentCodeModal } from "@phoenix/components/experiment/ExperimentCodeModal";
 import { BASE_URL } from "@phoenix/config";
+import { usePreferencesContext } from "@phoenix/contexts";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix-client`;
 
@@ -236,7 +237,12 @@ export function RunExperimentCodeDialogContent({
   datasetId,
   version,
 }: RunExperimentCodeDialogProps) {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
+    (state) => ({
+      programmingLanguage: state.programmingLanguage,
+      setProgrammingLanguage: state.setProgrammingLanguage,
+    })
+  );
   return (
     <Dialog>
       <DialogContent>
@@ -249,11 +255,11 @@ export function RunExperimentCodeDialogContent({
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-200">
             <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
+              language={programmingLanguage}
+              onChange={setProgrammingLanguage}
             />
           </View>
-          {language === "Python" ? (
+          {programmingLanguage === "Python" ? (
             <RunExperimentPythonExample
               datasetName={datasetName}
               version={version}
