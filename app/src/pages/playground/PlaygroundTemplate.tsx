@@ -24,7 +24,6 @@ import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChat
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
-import { ModelConfigButton } from "./ModelConfigButton";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -136,7 +135,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
           <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-          <ModelConfigButton {...props} />
+          {/* Un-comment this to get legacy behavior for cross-checking */}
+          {/* <ModelConfigButton {...props} /> */}
           <ModelParametersConfigButton playgroundInstanceId={instanceId} />
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />

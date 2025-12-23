@@ -12,12 +12,13 @@ import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
 import modelsQuery, {
   ModelComboBoxQuery,
 } from "./__generated__/ModelComboBoxQuery.graphql";
+
 type ModelItem = {
   name: string;
   id: string;
 };
 
-type ModelComboBoxProps = {
+export type ModelComboBoxProps = {
   onChange: (model: string) => void;
   provider: ModelProvider;
   modelName: string | null;
@@ -26,7 +27,7 @@ type ModelComboBoxProps = {
   "children" | "onSelectionChange" | "defaultSelectedKey"
 >;
 
-export function ModelComboBoxLoader({
+function ModelComboBoxLoader({
   onChange,
   modelName,
   queryReference,
@@ -109,6 +110,10 @@ export function ModelComboBoxLoader({
   );
 }
 
+/**
+ * A reusable combobox for selecting a model from a provider.
+ * Fetches available models for the given provider and allows custom values.
+ */
 export function ModelComboBox(props: ModelComboBoxProps) {
   const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<ModelComboBoxQuery>(modelsQuery);
