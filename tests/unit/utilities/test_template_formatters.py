@@ -112,6 +112,20 @@ from phoenix.utilities.template_formatters import (
             id="mustache-none-value",
         ),
         pytest.param(
+            MustacheTemplateFormatter,
+            "{{ output }}",
+            {"output": r'{"content": "Here\u2019s an example"}'},
+            r'{"content": "Here\u2019s an example"}',
+            id="mustache-value-with-unicode-escape-sequence",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ output }}",
+            {"output": r"line1\nline2"},
+            r"line1\nline2",
+            id="mustache-value-with-backslash-n",
+        ),
+        pytest.param(
             FStringTemplateFormatter,
             "{hello}",
             {"hello": "world"},

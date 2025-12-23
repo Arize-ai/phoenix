@@ -1,12 +1,13 @@
 import { css } from "@emotion/react";
 
-import { Text } from "@phoenix/components";
+import { Text, TextProps } from "@phoenix/components";
 
 interface EmptyProps {
   message?: string;
+  size?: TextProps["size"];
 }
 export function Empty(props: EmptyProps) {
-  const { message } = props;
+  const { message, size = "M" } = props;
   return (
     <div
       css={css`
@@ -24,7 +25,7 @@ export function Empty(props: EmptyProps) {
         `}
       >
         {message && (
-          <Text size="M" color="text-700">
+          <Text size={size} color="text-700">
             {message}
           </Text>
         )}

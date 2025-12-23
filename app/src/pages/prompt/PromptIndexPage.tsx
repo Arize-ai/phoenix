@@ -13,6 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
@@ -22,7 +23,6 @@ import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__asi
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { EditPromptButton } from "./EditPromptButton";
-import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { promptLoaderQuery } from "./promptLoader";

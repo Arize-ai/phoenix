@@ -650,6 +650,84 @@ CREATE INDEX ix_document_annotations_span_rowid ON public.document_annotations
     USING btree (span_rowid);
 
 
+-- Table: evaluators
+-- -----------------
+CREATE TABLE public.evaluators (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    metadata JSONB NOT NULL,
+    kind VARCHAR NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_evaluators_kind_id
+        UNIQUE (kind, id),
+    CONSTRAINT uq_evaluators_name
+        UNIQUE (name),
+    CHECK (((kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_evaluators_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_evaluators_user_id ON public.evaluators
+    USING btree (user_id);
+
+
+-- Table: code_evaluators
+-- ----------------------
+CREATE TABLE public.code_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'CODE'::text)),
+    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: datasets_evaluators
+-- --------------------------
+CREATE TABLE public.datasets_evaluators (
+    id bigserial NOT NULL,
+    dataset_id BIGINT NOT NULL,
+    evaluator_id BIGINT,
+    builtin_evaluator_id BIGINT,
+    input_mapping JSONB NOT NULL,
+    CONSTRAINT pk_datasets_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_datasets_evaluators_dataset_id_builtin_evaluator_id
+        UNIQUE (dataset_id, builtin_evaluator_id),
+    CONSTRAINT uq_datasets_evaluators_dataset_id_evaluator_id
+        UNIQUE (dataset_id, evaluator_id),
+    CHECK (((evaluator_id IS NOT NULL) <> (builtin_evaluator_id IS NOT NULL))),
+    CONSTRAINT fk_datasets_evaluators_dataset_id_datasets FOREIGN KEY
+        (dataset_id)
+        REFERENCES public.datasets (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_datasets_evaluators_evaluator_id_evaluators FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_datasets_evaluators_builtin_evaluator_id ON public.datasets_evaluators
+    USING btree (builtin_evaluator_id);
+CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_builtin_notnull ON public.datasets_evaluators
+    USING btree (dataset_id, builtin_evaluator_id) WHERE (builtin_evaluator_id IS NOT NULL);
+CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_evaluator_notnull ON public.datasets_evaluators
+    USING btree (dataset_id, evaluator_id) WHERE (evaluator_id IS NOT NULL);
+CREATE INDEX ix_datasets_evaluators_evaluator_id ON public.datasets_evaluators
+    USING btree (evaluator_id);
+
+
 -- Table: experiments
 -- ------------------
 CREATE TABLE public.experiments (
@@ -835,6 +913,29 @@ CREATE INDEX ix_experiments_dataset_splits_dataset_split_id ON public.experiment
     USING btree (dataset_split_id);
 
 
+-- Table: generative_model_custom_providers
+-- ----------------------------------------
+CREATE TABLE public.generative_model_custom_providers (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    provider VARCHAR NOT NULL,
+    sdk VARCHAR NOT NULL,
+    config BYTEA NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
+    CONSTRAINT uq_generative_model_custom_providers_name
+        UNIQUE (name),
+    CONSTRAINT fk_generative_model_custom_providers_user_id_users
+        FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -976,6 +1077,39 @@ CREATE INDEX ix_prompt_version_tags_user_id ON public.prompt_version_tags
     USING btree (user_id);
 
 
+-- Table: llm_evaluators
+-- ---------------------
+CREATE TABLE public.llm_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
+    prompt_id BIGINT NOT NULL,
+    prompt_version_tag_id BIGINT,
+    annotation_name VARCHAR NOT NULL,
+    output_config JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'LLM'::text)),
+    CONSTRAINT fk_llm_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_llm_evaluators_prompt_id_prompts FOREIGN KEY
+        (prompt_id)
+        REFERENCES public.prompts (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
+        FOREIGN KEY
+        (prompt_version_tag_id)
+        REFERENCES public.prompt_version_tags (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_llm_evaluators_prompt_id ON public.llm_evaluators
+    USING btree (prompt_id);
+CREATE INDEX ix_llm_evaluators_prompt_version_tag_id ON public.llm_evaluators
+    USING btree (prompt_version_tag_id);
+
+
 -- Table: refresh_tokens
 -- ---------------------
 CREATE TABLE public.refresh_tokens (
@@ -1022,6 +1156,21 @@ CREATE UNIQUE INDEX ix_access_tokens_refresh_token_id ON public.access_tokens
     USING btree (refresh_token_id);
 CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
     USING btree (user_id);
+
+
+-- Table: secrets
+-- --------------
+CREATE TABLE public.secrets (
+    key VARCHAR NOT NULL,
+    value BYTEA NOT NULL,
+    user_id BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_secrets PRIMARY KEY (key),
+    CONSTRAINT fk_secrets_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
 
 
 -- Table: span_annotations

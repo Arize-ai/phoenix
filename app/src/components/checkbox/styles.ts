@@ -46,8 +46,11 @@ export const checkboxCSS = css`
     border-color: var(--border-color-pressed);
   }
 
-  &[data-is-hovered] .checkbox {
-    border-color: var(--border-color-hover);
+  &[data-force-hovered],
+  &[data-hovered] {
+    .checkbox {
+      border-color: var(--border-color-hover);
+    }
   }
 
   &[data-focus-visible] .checkbox {

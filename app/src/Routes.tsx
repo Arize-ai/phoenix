@@ -6,7 +6,15 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import {
+  datasetEvaluatorDetailsLoader,
+  DatasetEvaluatorDetailsLoaderData,
+} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
+import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
+import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -34,6 +42,7 @@ import {
 } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
@@ -232,8 +241,24 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
-                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
+                <Route
+                  path="evaluators"
+                  element={<DatasetEvaluatorsPage />}
+                  loader={datasetEvaluatorsLoader}
+                  handle={{
+                    crumb: () => "evaluators",
+                  }}
+                />
               </Route>
+              <Route
+                path="evaluators/:evaluatorId"
+                element={<DatasetEvaluatorDetailsPage />}
+                loader={datasetEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                }}
+              />
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}
@@ -260,6 +285,13 @@ const router = createBrowserRouter(
                   return "span unknown";
                 },
               }}
+            />
+          </Route>
+          <Route path="/evaluators" handle={{ crumb: () => "Evaluators" }}>
+            <Route
+              index
+              element={<EvaluatorsPage />}
+              loader={evaluatorsPageLoader}
             />
           </Route>
           <Route
@@ -424,6 +456,11 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/prompts/:promptId/tags/:tagName"
+            loader={promptTagRedirectLoader}
             errorElement={<ErrorElement />}
           />
         </Route>

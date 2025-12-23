@@ -10,13 +10,13 @@ import {
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
-  createAnthropicToolDefinition,
-  createAwsToolDefinition,
-  createGeminiToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
+  fromOpenAIToolDefinition,
+  OpenAIToolDefinition,
 } from "@phoenix/schemas";
 import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
+import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import {
   AnthropicToolCall,
   createAnthropicToolCall,
@@ -46,7 +46,12 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
+
+import {
+  ChatCompletionOverDatasetInput,
+  EvaluatorInputMappingInput,
+} from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
@@ -70,7 +75,6 @@ import {
   TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import { InvocationParameter } from "./InvocationParametersFormFields";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
@@ -562,8 +566,9 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
       }
       return {
         id: generateToolId(),
+        editorType: "json",
         definition: tool.tool.json_schema,
-      };
+      } satisfies Tool;
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -970,43 +975,31 @@ export const getToolName = (tool: Tool): string | null => {
  * Creates a tool definition for the given provider
  * @param provider the provider to create the tool for
  * @param toolNumber the tool number to create - used for naming the tool
- * returns a tool definition for the given provider
+ * @param type the type of the tool
+ * @param definition the definition of the tool. In OpenAI format, will be converted to the appropriate format for the provider.
+ * @returns a tool definition for the given provider
  */
 export const createToolForProvider = ({
   provider,
   toolNumber,
+  type = "json",
+  definition,
 }: {
   provider: ModelProvider;
   toolNumber: number;
+  type?: PhoenixToolEditorType;
+  definition?: OpenAIToolDefinition;
 }): Tool => {
-  switch (provider) {
-    case "OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "OLLAMA":
-    case "AZURE_OPENAI":
-      return {
-        id: generateToolId(),
-        definition: createOpenAIToolDefinition(toolNumber),
-      };
-    case "ANTHROPIC":
-      return {
-        id: generateToolId(),
-        definition: createAnthropicToolDefinition(toolNumber),
-      };
-    case "AWS":
-      return {
-        id: generateToolId(),
-        definition: createAwsToolDefinition(toolNumber),
-      };
-    case "GOOGLE":
-      return {
-        id: generateToolId(),
-        definition: createGeminiToolDefinition(toolNumber),
-      };
-    default:
-      assertUnreachable(provider);
-  }
+  const defaultDefinition = fromOpenAIToolDefinition({
+    toolDefinition: definition ?? createOpenAIToolDefinition(toolNumber),
+    targetProvider: provider,
+  });
+
+  return {
+    id: generateToolId(),
+    editorType: type,
+    definition: defaultDefinition,
+  };
 };
 
 /**
@@ -1180,12 +1173,15 @@ const getBaseChatCompletionInput = ({
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
-      providerKey: instance.model.provider,
-      name: instance.model.modelName || "",
-      baseUrl: instance.model.baseUrl,
-      customHeaders: instance.model.customHeaders,
-      ...azureModelParams,
-      ...awsModelParams,
+      builtin: {
+        providerKey: instance.model.provider,
+        name: instance.model.modelName || "",
+        baseUrl: instance.model.baseUrl,
+        customHeaders: instance.model.customHeaders,
+        credentials: getCredentials(credentials, instance.model.provider),
+        ...azureModelParams,
+        ...awsModelParams,
+      },
     },
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
@@ -1195,7 +1191,6 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    credentials: getCredentials(credentials, instance.model.provider),
     promptName: instance.prompt?.name,
     repetitions: playgroundStore.getState().repetitions,
   } satisfies Partial<ChatCompletionInput>;
@@ -1304,12 +1299,17 @@ export const getChatCompletionOverDatasetInput = ({
   credentials,
   datasetId,
   splitIds,
+  evaluatorMappings,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
   splitIds?: string[];
+  /**
+   * Record of evaluator id to input mappings
+   */
+  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
 }): ChatCompletionOverDatasetInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
@@ -1323,6 +1323,12 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions: playgroundStore.getState().repetitions,
     datasetId,
     splitIds: splitIds ?? null,
+    evaluators: Object.entries(evaluatorMappings).map(
+      ([evaluatorId, inputMapping]) => ({
+        id: evaluatorId,
+        inputMapping,
+      })
+    ),
   };
 };
 

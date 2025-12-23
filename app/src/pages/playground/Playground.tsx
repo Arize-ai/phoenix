@@ -283,6 +283,7 @@ function PlaygroundContent() {
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>
               <PlaygroundDatasetSection
+                key={datasetId} // reset evaluator selection when dataset changes
                 datasetId={datasetId}
                 splitIds={splitIds}
               />

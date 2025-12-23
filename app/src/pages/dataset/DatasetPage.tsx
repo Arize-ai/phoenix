@@ -28,11 +28,13 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import { RunDatasetExperimentButton } from "@phoenix/pages/dataset/RunDatasetExperimentButton";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
-import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
-import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
-import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
+import {
+  DatasetPageQuery,
+  DatasetPageQuery$data,
+} from "./__generated__/DatasetPageQuery.graphql";
 
 export const DatasetPageQueryNode = graphql`
   query DatasetPageQuery($id: ID!) {
@@ -44,6 +46,7 @@ export const DatasetPageQueryNode = graphql`
         description
         exampleCount
         experimentCount
+        evaluatorCount
         labels {
           id
           name
@@ -150,7 +153,7 @@ function getTabIndexFromPathname(pathname: string): number {
 function DatasetPageContent({
   dataset,
 }: {
-  dataset: datasetLoaderQuery$data["dataset"];
+  dataset: DatasetPageQuery$data["dataset"];
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
@@ -269,13 +272,7 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs
-        defaultSelectedKey={
-          initialIndex === 0
-            ? "experiments"
-            : initialIndex === 1
-              ? "examples"
-              : "versions"
-        }
+        selectedKey={TABS_LIST[initialIndex]}
         onSelectionChange={(key) => {
           if (isTabName(key)) {
             onTabChange(TABS_LIST.indexOf(key));
@@ -292,7 +289,7 @@ function DatasetPageContent({
           <Tab id="versions">Versions</Tab>
           {isEvaluatorsEnabled ? (
             <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
-              Evaluators
+              Evaluators <Counter>{dataset.evaluatorCount}</Counter>
             </Tab>
           ) : null}
         </TabList>

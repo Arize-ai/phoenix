@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
@@ -19,6 +20,7 @@ from typing import (
 import strawberry
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.trace import StatusCode
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -34,14 +36,18 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
-from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
-    PlaygroundStreamingClient,
-    initialize_playground_clients,
+from phoenix.server.api.evaluators import (
+    EvaluationResult,
+    LLMEvaluator,
+    evaluation_result_to_model,
+    get_builtin_evaluator_by_id,
+    get_llm_evaluators,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
+from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundStreamingClient,
+    get_playground_client,
+    initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_spans import (
     get_db_experiment_run,
@@ -61,18 +67,21 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionExperiment,
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
+    EvaluationChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -104,6 +113,8 @@ async def _stream_single_chat_completion(
     project_id: int,
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
+    info: Info[Context, None],
+    llm_evaluators: list[LLMEvaluator],
 ) -> ChatStream:
     messages = [
         (
@@ -149,6 +160,64 @@ async def _stream_single_chat_completion(
     db_trace = get_db_trace(span, project_id)
     db_span = get_db_span(span, db_trace)
     await results.put((db_span, repetition_number))
+
+    if input.evaluators and span.status_code is StatusCode.OK:
+        context_dict: dict[str, Any] = {
+            "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
+            "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
+        }
+        async with info.context.db() as session:
+            for evaluator in input.evaluators:
+                _, db_id = from_global_id(evaluator.id)  # pyright: ignore
+                if _is_builtin_evaluator(db_id):
+                    builtin_evaluator = get_builtin_evaluator_by_id(db_id)
+                    if builtin_evaluator is None:
+                        continue
+                    builtin = builtin_evaluator()
+                    result: EvaluationResult = builtin.evaluate(
+                        context=context_dict,
+                        input_mapping=evaluator.input_mapping,
+                    )
+                    annotation = ExperimentRunAnnotation.from_dict(
+                        {
+                            "name": result["name"],
+                            "label": result["label"],
+                            "score": result["score"],
+                            "explanation": result["explanation"],
+                            "metadata": result["metadata"],
+                        }
+                    )
+                    await session.flush()
+                    yield EvaluationChunk(
+                        experiment_run_evaluation=annotation,
+                        dataset_example_id=None,
+                        repetition_number=repetition_number,
+                    )
+
+            input_mappings_by_evaluator_node_id = {
+                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+            }
+            for llm_evaluator in llm_evaluators:
+                input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                result = await llm_evaluator.evaluate(
+                    context=context_dict,
+                    input_mapping=input_mapping,
+                )
+                annotation = ExperimentRunAnnotation.from_dict(
+                    {
+                        "name": result["name"],
+                        "label": result["label"],
+                        "score": result["score"],
+                        "explanation": result["explanation"],
+                        "metadata": result["metadata"],
+                    }
+                )
+                yield EvaluationChunk(
+                    experiment_run_evaluation=annotation,
+                    span_evaluation=None,
+                    dataset_example_id=None,
+                    repetition_number=repetition_number,
+                )
 
 
 async def _chat_completion_span_result_payloads(
@@ -197,38 +266,25 @@ def _is_span_result_payloads_stream(
     return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore
 
 
+def _is_builtin_evaluator(evaluator_id: int) -> bool:
+    return evaluator_id < 0
+
+
 @strawberry.type
 class Subscription:
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+                decrypt=info.context.decrypt,
+            )
             if (
                 playground_project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
@@ -253,6 +309,8 @@ class Subscription:
                     project_id=playground_project_id,
                     repetition_number=repetition_number,
                     results=results,
+                    info=info,
+                    llm_evaluators=llm_evaluators,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -339,31 +397,6 @@ class Subscription:
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(
@@ -373,6 +406,14 @@ class Subscription:
             else None
         )
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model, session=session, decrypt=info.context.decrypt
+            )
+            llm_evaluators = await get_llm_evaluators(
+                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                session=session,
+                decrypt=info.context.decrypt,
+            )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
@@ -421,6 +462,7 @@ class Subscription:
                             load_only(
                                 models.DatasetExampleRevision.dataset_example_id,
                                 models.DatasetExampleRevision.input,
+                                models.DatasetExampleRevision.output,
                             )
                         )
                     )
@@ -551,6 +593,80 @@ class Subscription:
                 span_cost_calculator=info.context.span_cost_calculator,
             ):
                 yield result_payload
+
+        if input.evaluators:
+            async with info.context.db() as session:
+                for revision in revisions:
+                    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+                    for repetition_number in range(1, input.repetitions + 1):
+                        run = await session.scalar(  # pyright: ignore
+                            select(models.ExperimentRun).where(
+                                models.ExperimentRun.experiment_id == experiment.id,
+                                models.ExperimentRun.dataset_example_id
+                                == revision.dataset_example_id,
+                                models.ExperimentRun.repetition_number == repetition_number,
+                            )
+                        )
+                        if run is None or run.error is not None:
+                            continue
+                        context_dict: dict[str, Any] = {
+                            "input": json.dumps(revision.input),
+                            "expected": json.dumps(revision.output),
+                            "output": json.dumps(run.output),
+                        }
+                        for evaluator in input.evaluators:
+                            _, db_id = from_global_id(evaluator.id)  # pyright: ignore
+                            if _is_builtin_evaluator(db_id):
+                                builtin_evaluator = get_builtin_evaluator_by_id(db_id)
+                                if builtin_evaluator is None:
+                                    continue
+                                builtin = builtin_evaluator()
+                                result: EvaluationResult = builtin.evaluate(
+                                    context=context_dict,
+                                    input_mapping=evaluator.input_mapping,
+                                )
+                                annotation_model = evaluation_result_to_model(
+                                    result,
+                                    experiment_run_id=run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                                yield EvaluationChunk(
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
+                                        id=annotation_model.id,
+                                        db_record=annotation_model,
+                                    ),
+                                    span_evaluation=None,
+                                    dataset_example_id=example_id,
+                                    repetition_number=repetition_number,
+                                )
+                        input_mappings_by_evaluator_node_id = {
+                            evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                        }
+                        for llm_evaluator in llm_evaluators:
+                            input_mapping = input_mappings_by_evaluator_node_id[
+                                llm_evaluator.node_id
+                            ]
+                            result = await llm_evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=input_mapping,
+                            )
+                            annotation_model = evaluation_result_to_model(
+                                result,
+                                experiment_run_id=run.id,
+                            )
+                            session.add(annotation_model)
+                            await session.flush()
+                            evaluation_chunk = EvaluationChunk(
+                                experiment_run_evaluation=ExperimentRunAnnotation(
+                                    id=annotation_model.id,
+                                    db_record=annotation_model,
+                                ),
+                                span_evaluation=None,
+                                dataset_example_id=example_id,
+                                repetition_number=repetition_number,
+                            )
+                            yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
@@ -788,6 +904,7 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
     return name
 
 
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
