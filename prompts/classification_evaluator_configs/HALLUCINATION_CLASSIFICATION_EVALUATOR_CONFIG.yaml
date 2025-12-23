@@ -19,23 +19,17 @@ messages:
       response.
       
 
-      [BEGIN DATA]
+      <query>
+        {{input}}
+      </query>
 
-      ************
+      <context>
+        {{context}}
+      </context>
 
-      [Query]: {{input}}
-
-      ************
-
-      [Context]: {{context}}
-
-      ************
-
-      [Response]: {{output}}
-
-      ************
-
-      [END DATA]
+      <response>
+        {{output}}
+      </response>
 
       
       Is the response above factual or hallucinated based on the query and context?

@@ -9,19 +9,13 @@ messages:
       question. Here is the data:
       
 
-      [BEGIN DATA]
+      <question>
+        {{input}}
+      </question>
 
-      ************
-
-      [Question]: {{input}}
-
-      ************
-
-      [Document text]: {{document_text}}
-
-      ************
-
-      [END DATA]
+      <document_text>
+        {{document_text}}
+      </document_text>
 
       
       Compare the question above to the document text. You must determine
