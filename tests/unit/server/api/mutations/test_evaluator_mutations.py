@@ -1428,8 +1428,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             )
             tools = [dict(definition=schema) for schema in tool_schemas]
             # Add tool_choice back to invocation_parameters if present
-            if tool_choice is not None:
-                raw_invocation_parameters["tool_choice"] = tool_choice
+            raw_invocation_parameters.update(tool_choice)
 
             dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
