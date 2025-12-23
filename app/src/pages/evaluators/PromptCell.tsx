@@ -23,7 +23,7 @@ export const PromptCell = ({
   );
 };
 
-const PromptLink = ({
+export const PromptLink = ({
   promptId,
   promptName,
   promptVersionTag,

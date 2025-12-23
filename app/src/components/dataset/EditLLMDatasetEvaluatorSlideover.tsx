@@ -38,12 +38,14 @@ type EditLLMDatasetEvaluatorSlideoverProps = {
   datasetEvaluatorId?: string;
   datasetId: string;
   updateConnectionIds?: string[];
+  onUpdate?: () => void;
 } & ModalOverlayProps;
 
 export const EditLLMDatasetEvaluatorSlideover = ({
   datasetEvaluatorId,
   datasetId,
   updateConnectionIds,
+  onUpdate,
   ...props
 }: EditLLMDatasetEvaluatorSlideoverProps) => {
   return (
@@ -58,6 +60,7 @@ export const EditLLMDatasetEvaluatorSlideover = ({
                   datasetId={datasetId}
                   updateConnectionIds={updateConnectionIds}
                   onClose={close}
+                  onUpdate={onUpdate}
                 />
               )}
             </Suspense>
@@ -126,6 +129,7 @@ type EditEvaluatorDialogProps = {
   onClose: () => void;
   datasetId: string;
   updateConnectionIds?: string[];
+  onUpdate?: () => void;
   queryRef: EditLLMDatasetEvaluatorSlideover_evaluator$key;
 };
 
@@ -134,6 +138,7 @@ const EditEvaluatorDialog = ({
   onClose,
   datasetId,
   updateConnectionIds,
+  onUpdate,
   queryRef,
 }: EditEvaluatorDialogProps) => {
   const notifySuccess = useNotifySuccess();
@@ -206,6 +211,7 @@ const EditEvaluatorDialog = ({
               }
               ...DatasetEvaluatorsTable_row
               ...EditLLMDatasetEvaluatorSlideover_evaluator
+              ...LLMDatasetEvaluatorDetails_datasetEvaluator
             }
           }
         }
@@ -294,6 +300,9 @@ const EditEvaluatorDialog = ({
           notifySuccess({
             title: "Evaluator updated",
           });
+          if (onUpdate) {
+            onUpdate();
+          }
         },
         onError: (error) => {
           const errorMessages = getErrorMessagesFromRelayMutationError(error);
@@ -309,6 +318,7 @@ const EditEvaluatorDialog = ({
       updateConnectionIds,
       onClose,
       notifySuccess,
+      onUpdate,
     ]
   );
 

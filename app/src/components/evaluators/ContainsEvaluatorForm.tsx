@@ -3,7 +3,6 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Card,
   Checkbox,
   ComboBox,
   ComboBoxItem,
@@ -14,43 +13,12 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import {
-  type CodeLanguage,
-  CodeLanguageRadioGroup,
-} from "@phoenix/components/code";
-import { CodeBlock } from "@phoenix/components/CodeBlock";
+import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
-
-const PYTHON_CODE = `
-def contains(
-  text: str,
-  words: str,
-  case_sensitive: bool = False,
-) -> bool:
-  words = [word.strip() for word in words.split(",")]
-  if case_sensitive:
-    return any(word in text for word in words)
-  else:
-    return any(word.lower() in text.lower() for word in words)
-`.trim();
-
-const TYPESCRIPT_CODE = `
-function contains(
-  text: string,
-  words: string,
-  caseSensitive: boolean = false,
-): boolean {
-  words = words.split(",").map((word) => word.trim());
-  if (caseSensitive) {
-    return words.some((word) => text.includes(word));
-  }
-  return words.some((word) => text.toLowerCase().includes(word.toLowerCase()));
-}
-`.trim();
 
 const useContainsEvaluatorForm = () => {
   const store = useEvaluatorStoreInstance();
@@ -80,7 +48,6 @@ const useContainsEvaluatorForm = () => {
 
 export const ContainsEvaluatorForm = () => {
   const { control, getValues } = useContainsEvaluatorForm();
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
@@ -88,23 +55,7 @@ export const ContainsEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <Card
-        title="Code"
-        extra={
-          <Flex gap="size-100" alignItems="center">
-            <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
-              size="S"
-            />
-          </Flex>
-        }
-      >
-        <CodeBlock
-          language={language}
-          value={language === "Python" ? PYTHON_CODE : TYPESCRIPT_CODE}
-        />
-      </Card>
+      <ContainsEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
         <Controller
           name={`pathMapping.text`}

@@ -6,6 +6,11 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import {
+  datasetEvaluatorDetailsLoader,
+  DatasetEvaluatorDetailsLoaderData,
+} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
@@ -240,8 +245,20 @@ const router = createBrowserRouter(
                   path="evaluators"
                   element={<DatasetEvaluatorsPage />}
                   loader={datasetEvaluatorsLoader}
+                  handle={{
+                    crumb: () => "evaluators",
+                  }}
                 />
               </Route>
+              <Route
+                path="evaluators/:evaluatorId"
+                element={<DatasetEvaluatorDetailsPage />}
+                loader={datasetEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                }}
+              />
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}
