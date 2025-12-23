@@ -15,14 +15,15 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
+import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
-import { ModelConfigButton } from "./ModelConfigButton";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -133,7 +134,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               invocation parameters for the model to the instance in the store */}
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
-          <ModelConfigButton {...props} />
+          <PlaygroundModelMenu playgroundInstanceId={instanceId} />
+          {/* Un-comment this to get legacy behavior for cross-checking */}
+          {/* <ModelConfigButton {...props} /> */}
+          <ModelParametersConfigButton playgroundInstanceId={instanceId} />
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}

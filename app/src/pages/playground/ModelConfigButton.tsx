@@ -1,4 +1,4 @@
-import { memo, Suspense, useCallback, useState } from "react";
+import { memo, Suspense, useState } from "react";
 
 import {
   Button,
@@ -19,12 +19,12 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import { ModelConfigFormFields } from "@phoenix/components/playground/model";
+import {
+  ModelConfigFormFields,
+  SaveModelConfigButton,
+} from "@phoenix/components/playground/model";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
-import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -40,6 +40,11 @@ type ModelConfigButtonProps = Pick<
   "playgroundInstanceId"
 >;
 
+/**
+ * This is a legacy component that is used to configure the model for a playground instance.
+ * It is deprecated and will be removed in a future version.
+ * @deprecated Use the PlaygroundModelMenu component instead.
+ */
 function ModelConfigButton(props: ModelConfigButtonProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find(
@@ -100,65 +105,18 @@ function ModelConfigButton(props: ModelConfigButtonProps) {
 
 type ModelConfigDialogProps = ModelConfigButtonProps;
 function ModelConfigDialog(props: ModelConfigDialogProps) {
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find(
-      (instance) => instance.id === props.playgroundInstanceId
-    )
-  );
-
-  if (!instance) {
-    throw new Error(
-      `Playground instance ${props.playgroundInstanceId} not found`
-    );
-  }
-  const setModelConfigForProvider = usePreferencesContext(
-    (state) => state.setModelConfigForProvider
-  );
-
-  const notifySuccess = useNotifySuccess();
-
   const [hasCustomHeadersError, setHasCustomHeadersError] = useState(false);
-  const onSaveConfig = useCallback(() => {
-    const {
-      // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
 
-      supportedInvocationParameters: _,
-      ...modelConfigWithoutSupportedParams
-    } = instance.model;
-    setModelConfigForProvider({
-      provider: instance.model.provider,
-      modelConfig: modelConfigWithoutSupportedParams,
-    });
-    notifySuccess({
-      title: "Model Configuration Saved",
-      message: `${ModelProviders[instance.model.provider]} model configuration saved as default for later use.`,
-      expireMs: 3000,
-    });
-  }, [instance.model, notifySuccess, setModelConfigForProvider]);
   return (
     <Dialog>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Model Configuration</DialogTitle>
           <DialogTitleExtra>
-            <TooltipTrigger delay={0} closeDelay={0}>
-              <Button
-                size="S"
-                variant="default"
-                onPress={onSaveConfig}
-                isDisabled={hasCustomHeadersError}
-                leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
-              >
-                Save as Default
-              </Button>
-              <Tooltip placement="bottom" offset={5}>
-                {hasCustomHeadersError
-                  ? "Fix custom headers validation errors before saving"
-                  : `Saves the current configuration as the default for ${
-                      ModelProviders[instance.model.provider] ?? "this provider"
-                    }.`}
-              </Tooltip>
-            </TooltipTrigger>
+            <SaveModelConfigButton
+              playgroundInstanceId={props.playgroundInstanceId}
+              isDisabled={hasCustomHeadersError}
+            />
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>

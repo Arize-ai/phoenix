@@ -1,18 +1,18 @@
-import { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { PlaygroundNormalizedInstance } from "@phoenix/store";
 
 import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
-import { AWSModelConfigFormFields } from "./AWSModelConfigFormFields";
-import { AzureOpenAIModelConfigFormFields } from "./AzureOpenAIModelConfigFormFields";
-import { ModelComboBox } from "./ModelComboBox";
+import { ApiVersionConfigFormField } from "./ApiVersionConfigFormField";
+import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
+import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
+import { DeploymentNameConfigFormField } from "./DeploymentNameConfigFormField";
+import { EndpointConfigFormField } from "./EndpointConfigFormField";
 import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
 import { ModelProviderSelect } from "./ModelProviderSelect";
-import { OpenAIModelConfigFormFields } from "./OpenAIModelConfigFormFields";
+import { PlaygroundModelComboBox } from "./PlaygroundModelComboBox";
 
 const modelConfigFormCSS = css`
   display: flex;
@@ -44,7 +44,7 @@ export type ModelConfigFormFieldsProps = {
 
 /**
  * Reusable form fields for configuring a playground model.
- * This component can be used in different contexts like the ModelConfigButton dialog.
+ * Declaratively shows/hides fields based on the provider.
  */
 export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
   const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
@@ -62,7 +62,6 @@ export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
   );
 
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
 
   const query = useLazyLoadQuery<ModelConfigFormFieldsQuery>(
     graphql`
@@ -73,73 +72,62 @@ export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
     {}
   );
 
-  const onModelNameChange = useCallback(
-    (modelName: string) => {
-      updateModel({
-        instanceId: playgroundInstanceId,
-        patch: {
-          modelName,
-        },
-      });
-    },
-    [playgroundInstanceId, updateModel]
-  );
+  const provider = instance.model.provider;
+
+  // Provider capability flags
+  const showModelComboBox = provider !== "AZURE_OPENAI";
+  const showBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
+  const showAzureFields = provider === "AZURE_OPENAI";
+  const showRegion = provider === "AWS";
 
   return (
     <form css={modelConfigFormCSS}>
       <ModelProviderSelect
-        provider={instance.model.provider}
+        provider={provider}
         query={query}
-        onChange={(provider) => {
+        onChange={(newProvider) => {
           updateProvider({
             instanceId: playgroundInstanceId,
-            provider,
+            provider: newProvider,
             modelConfigByProvider,
           });
         }}
       />
-      <ProviderModelConfigFields
-        instance={instance}
-        onModelNameChange={onModelNameChange}
-      />
+
+      {/* Model selection - shown for all providers except Azure (which uses deployment name) */}
+      {showModelComboBox && (
+        <PlaygroundModelComboBox playgroundInstanceId={playgroundInstanceId} />
+      )}
+
+      {/* OpenAI / Ollama specific fields */}
+      {showBaseUrl && (
+        <BaseUrlConfigFormField playgroundInstanceId={playgroundInstanceId} />
+      )}
+
+      {/* Azure OpenAI specific fields */}
+      {showAzureFields && (
+        <>
+          <DeploymentNameConfigFormField
+            playgroundInstanceId={playgroundInstanceId}
+          />
+          <EndpointConfigFormField
+            playgroundInstanceId={playgroundInstanceId}
+          />
+          <ApiVersionConfigFormField
+            playgroundInstanceId={playgroundInstanceId}
+          />
+        </>
+      )}
+
+      {/* AWS Bedrock specific fields */}
+      {showRegion && (
+        <AWSRegionConfigFormField playgroundInstanceId={playgroundInstanceId} />
+      )}
+
       <ModelInvocationParametersFormFields
         playgroundInstanceId={playgroundInstanceId}
         onCustomHeadersErrorChange={onCustomHeadersErrorChange}
       />
     </form>
-  );
-}
-
-function providerSupportsOpenAIConfig(provider: ModelProvider) {
-  return provider === "OPENAI" || provider === "OLLAMA";
-}
-
-/**
- * Renders the appropriate model configuration fields based on the provider
- */
-function ProviderModelConfigFields({
-  instance,
-  onModelNameChange,
-}: {
-  instance: PlaygroundNormalizedInstance;
-  onModelNameChange: (modelName: string) => void;
-}) {
-  const provider = instance.model.provider;
-
-  return (
-    <>
-      {providerSupportsOpenAIConfig(provider) ? (
-        <OpenAIModelConfigFormFields instance={instance} />
-      ) : provider === "AZURE_OPENAI" ? (
-        <AzureOpenAIModelConfigFormFields instance={instance} />
-      ) : (
-        <ModelComboBox
-          modelName={instance.model.modelName}
-          provider={provider}
-          onChange={onModelNameChange}
-        />
-      )}
-      {provider === "AWS" && <AWSModelConfigFormFields instance={instance} />}
-    </>
   );
 }
