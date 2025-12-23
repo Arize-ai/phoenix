@@ -22,11 +22,13 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
+    PromptInvocationParameters,
     PromptTemplateFormat,
     PromptTools,
     RoleConversion,
     TextContentPart,
     denormalize_tools,
+    get_raw_invocation_parameters,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.GenerativeModelInput import (
@@ -75,6 +77,7 @@ class LLMEvaluator:
         template: PromptChatTemplate,
         template_format: PromptTemplateFormat,
         tools: PromptTools,
+        invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient,
         id: Optional[int] = None,
@@ -94,6 +97,7 @@ class LLMEvaluator:
         self._template = template
         self._template_format = template_format
         self._tools = tools
+        self._invocation_parameters = invocation_parameters
         self._model_provider = model_provider
         self._id = id
         self._llm_client = llm_client
@@ -155,6 +159,7 @@ class LLMEvaluator:
             template=template,
             template_format=prompt_version_orm.template_format,
             tools=tools,
+            invocation_parameters=prompt_version_orm.invocation_parameters,
             model_provider=prompt_version_orm.model_provider,
             llm_client=llm_client,
         )
@@ -219,10 +224,11 @@ class LLMEvaluator:
                 formatted_content = "".join(text_parts)
             messages.append((role, formatted_content, None, None))
 
-        denormalized_tools, _ = denormalize_tools(
+        denormalized_tools, denormalized_tool_choice = denormalize_tools(
             self._tools, self._model_provider
-        )  # todo: denormalize tool choice and pass as part of invocation parameters
-
+        )
+        invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
+        invocation_parameters.update(denormalized_tool_choice)
         tool_call_by_id: dict[ToolCallId, ToolCall] = {}
         error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
@@ -230,6 +236,7 @@ class LLMEvaluator:
             async for chunk in self._llm_client.chat_completion_create(
                 messages=messages,
                 tools=denormalized_tools,
+                **invocation_parameters,
             ):
                 if isinstance(chunk, ToolCallChunk):
                     if chunk.id not in tool_call_by_id:
@@ -524,6 +531,7 @@ def create_llm_evaluator_from_inline(
         template=template,
         template_format=prompt_version_orm.template_format,
         tools=tools,
+        invocation_parameters=prompt_version_orm.invocation_parameters,
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
     )
