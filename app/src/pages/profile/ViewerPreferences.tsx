@@ -17,17 +17,26 @@ import {
   useTheme,
 } from "@phoenix/contexts";
 import { DisplayTimezone } from "@phoenix/store/preferencesStore";
+import {
+  isProgrammingLanguage,
+  programmingLanguages,
+} from "@phoenix/types/code";
 import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
 import { getLocale, getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 export function ViewerPreferences() {
   const { systemTheme, themeMode, setThemeMode } = useTheme();
-  const { displayTimezone, setDisplayTimezone } = usePreferencesContext(
-    (state) => ({
-      displayTimezone: state.displayTimezone,
-      setDisplayTimezone: state.setDisplayTimezone,
-    })
-  );
+  const {
+    displayTimezone,
+    setDisplayTimezone,
+    programmingLanguage,
+    setProgrammingLanguage,
+  } = usePreferencesContext((state) => ({
+    displayTimezone: state.displayTimezone,
+    setDisplayTimezone: state.setDisplayTimezone,
+    programmingLanguage: state.programmingLanguage,
+    setProgrammingLanguage: state.setProgrammingLanguage,
+  }));
 
   const themeOptions = useMemo(() => {
     return [
@@ -122,6 +131,23 @@ export function ViewerPreferences() {
                 <Flex direction="column" gap="size-50">
                   <Text weight="heavy">{option.label}</Text>
                 </Flex>
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
+          <ComboBox
+            aria-label="Programming Language"
+            label="Programming Language"
+            description="Choose the default language for code snippets"
+            selectedKey={programmingLanguage}
+            onSelectionChange={(value) => {
+              if (value && isProgrammingLanguage(value)) {
+                setProgrammingLanguage(value);
+              }
+            }}
+          >
+            {programmingLanguages.map((lang) => (
+              <ComboBoxItem key={lang} id={lang} textValue={lang}>
+                <Text weight="heavy">{lang}</Text>
               </ComboBoxItem>
             ))}
           </ComboBox>
