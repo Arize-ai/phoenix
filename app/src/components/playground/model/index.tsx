@@ -8,3 +8,4 @@ export * from "./ModelProviderSelect";
 export * from "./ModelConfigFormFields";
 export * from "./ModelInvocationParametersFormFields";
 export * from "./ModelParametersConfigButton";
+export * from "./PlaygroundModelMenu";
