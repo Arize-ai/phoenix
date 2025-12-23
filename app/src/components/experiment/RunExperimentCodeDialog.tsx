@@ -26,6 +26,7 @@ import {
 import { ExperimentCodeModal } from "@phoenix/components/experiment/ExperimentCodeModal";
 import { BASE_URL } from "@phoenix/config";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix-client`;
 
@@ -243,6 +244,17 @@ export function RunExperimentCodeDialogContent({
       setProgrammingLanguage: state.setProgrammingLanguage,
     })
   );
+  let codeExampleEl: React.ReactNode;
+  if (programmingLanguage === "Python") {
+    codeExampleEl = (
+      <RunExperimentPythonExample datasetName={datasetName} version={version} />
+    );
+  } else if (programmingLanguage === "TypeScript") {
+    codeExampleEl = <RunExperimentTypeScriptExample datasetId={datasetId} />;
+  } else {
+    assertUnreachable(programmingLanguage);
+  }
+
   return (
     <Dialog>
       <DialogContent>
@@ -259,14 +271,7 @@ export function RunExperimentCodeDialogContent({
               onChange={setProgrammingLanguage}
             />
           </View>
-          {programmingLanguage === "Python" ? (
-            <RunExperimentPythonExample
-              datasetName={datasetName}
-              version={version}
-            />
-          ) : (
-            <RunExperimentTypeScriptExample datasetId={datasetId} />
-          )}
+          {codeExampleEl}
         </View>
       </DialogContent>
     </Dialog>
