@@ -207,6 +207,10 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=self.input_schema,
+        )
         template_formatter = get_template_formatter(self._template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
@@ -435,12 +439,18 @@ def apply_input_mapping(
         if key not in result and key in context:
             result[key] = context[key]
 
+    return result
+
+
+def validate_template_variables(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> None:
     try:
-        validate(instance=result, schema=input_schema)
+        validate(instance=template_variables, schema=input_schema)
     except ValidationError as e:
         raise ValueError(f"Input validation failed: {e.message}")
-
-    return result
 
 
 def infer_input_schema_from_template(
@@ -568,6 +578,10 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
+        inputs = validate_template_variables(
+            template_variables=inputs,
+            input_schema=self.input_schema,
+        )
         words = [word.strip() for word in inputs.get("words", "").split(",")]
         text = inputs.get("text", "")
         case_sensitive = inputs.get("case_sensitive", False)
