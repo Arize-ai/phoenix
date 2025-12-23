@@ -174,7 +174,7 @@ export function LLMDatasetEvaluatorDetails({
         datasetId={datasetId}
         isOpen={isEditSlideoverOpen}
         onOpenChange={onEditSlideoverOpenChange}
-        onEvaluatorUpdated={() => {
+        onUpdate={() => {
           setPromptRefreshKey((prev) => prev + 1);
           revalidate();
         }}

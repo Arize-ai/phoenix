@@ -59,7 +59,7 @@ export function BuiltInDatasetEvaluatorDetails({
               datasetId={datasetId}
               isOpen={isEditSlideoverOpen}
               onOpenChange={onEditSlideoverOpenChange}
-              onEvaluatorUpdated={() => revalidate()}
+              onUpdate={() => revalidate()}
             />
           </>
         );

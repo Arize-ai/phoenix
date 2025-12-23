@@ -17,7 +17,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  Token,
+  View,
+} from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -182,6 +190,13 @@ export const DatasetEvaluatorsTable = ({
       {
         header: "name",
         accessorKey: "displayName",
+        cell: ({ getValue, row }) => {
+          return (
+            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
+              {getValue() as string}
+            </Link>
+          );
+        },
       },
       {
         header: "kind",
@@ -231,6 +246,7 @@ export const DatasetEvaluatorsTable = ({
     return cols;
   }, [datasetId, updateConnectionIds]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -341,9 +357,6 @@ export const DatasetEvaluatorsTable = ({
                 onClick={() => {
                   onRowClick?.(row.original);
                 }}
-                css={css`
-                  cursor: ${onRowClick ? "pointer" : "default"};
-                `}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
