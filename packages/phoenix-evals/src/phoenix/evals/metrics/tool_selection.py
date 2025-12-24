@@ -18,6 +18,9 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     Notes:
         - Evaluates whether an AI agent's tool selection was correct or incorrect based on
           the conversation context, available tools, and the agent's tool invocations.
+        - The agent's tool selection can be a single tool or a list of tools.
+        - This metric evaluates the correctness of the tool selection, not the correctness of the
+          tool invocations or the tool outputs.
         - Returns one `Score` with `label` (correct or incorrect), `score` (1.0 if correct,
           0.0 if incorrect), and an `explanation` from the LLM judge.
         - Requires an LLM that supports tool calling or structured output.
@@ -29,9 +32,11 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
         llm = LLM(provider="openai", model="gpt-4o-mini")
         tool_selection_eval = ToolSelectionEvaluator(llm=llm)
         eval_input = {
-            "input": "What is the weather in San Francisco?",
-            "available_tools": "get_weather(location: str) -> dict",
-            "agent_tool_invocations": "get_weather(location='San Francisco')"
+            "input": "User: What is the weather in San Francisco?",
+            "available_tools": "WeatherTool: Get the current weather for a location.\n
+            NewsTool: Stay connected to global events with our up-to-date news around the world.\n
+            MusicTool: Create playlists, search for music, and check the latest music trends.",
+            "agent_tool_selection": "WeatherTool(location='San Francisco')" # input args optional
         }
         scores = tool_selection_eval.evaluate(eval_input)
         print(scores)
@@ -47,9 +52,11 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     DIRECTION = TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
 
     class ToolSelectionInputSchema(BaseModel):
-        input: str = Field(description="The input context or conversation.")
-        available_tools: str = Field(description="The available tools that the agent could use.")
-        agent_tool_invocations: str = Field(description="The tool invocations made by the agent.")
+        input: str = Field(description="The input query or conversation.")
+        available_tools: str = Field(
+            description="A list of available tools that the agent could use."
+        )
+        agent_tool_selection: str = Field(description="The tool or tools selected by the agent.")
 
     def __init__(
         self,
