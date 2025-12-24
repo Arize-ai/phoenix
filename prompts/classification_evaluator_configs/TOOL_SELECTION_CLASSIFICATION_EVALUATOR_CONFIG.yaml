@@ -3,10 +3,10 @@ description: A specialized evaluator for determining if the correct tool was sel
 optimization_direction: maximize
 messages:
   - role: user
-    content: |
+    content: >-
       You are an impartial judge evaluating an AI agent's tool-calling behavior, specifically whether the agent selected the most appropriate tool or tools for the task.
 
-      Your task:  Determine whether the agent's tool selection was correct or incorrect based on:
+      Your task: Determine whether the agent's tool selection was correct or incorrect based on:
       - The conversation context
       - The available tools
       - The agent's tool invocation(s)
