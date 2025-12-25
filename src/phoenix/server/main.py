@@ -2,7 +2,7 @@ import atexit
 import codecs
 import os
 import sys
-from argparse import SUPPRESS, ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from pathlib import Path
 from ssl import CERT_REQUIRED
 from threading import Thread
@@ -172,99 +172,212 @@ def main() -> None:
 
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser(usage="phoenix serve", add_help=False)
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        help=SUPPRESS,
+    # Get available fixture names for help text
+    available_fixtures = [fixture.name for fixture in FIXTURES]
+    available_trace_fixtures = [fixture.name for fixture in TRACES_FIXTURES]
+    
+    parser = ArgumentParser(
+        description="Phoenix - AI Observability & Evaluation Platform",
+        usage="phoenix <command> [options]",
+        epilog="For more information, visit: https://arize.com/docs/phoenix"
     )
-    parser.add_argument("--database-url", required=False, help=SUPPRESS)
-    parser.add_argument("--export_path", help=SUPPRESS)
-    parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
-    parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
-    parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
-    parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
+    
+    # Global options
     parser.add_argument(
-        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
+        "--database-url",
+        help="Database connection string"
     )
-    parser.add_argument("--debug", action="store_true", help=SUPPRESS)
-    parser.add_argument("--dev", action="store_true", help=SUPPRESS)
-    parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
-    parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
-    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
+    parser.add_argument(
+        "--export_path",
+        help="Path for exporting data and reports"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        help="Host address to bind server to"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Port number to bind server to"
+    )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Run in read-only mode (no data ingestion)"
+    )
+    parser.add_argument(
+        "--no-internet",
+        action="store_true",
+        help="Disable internet access for fixture downloads"
+    )
+    parser.add_argument(
+        "--umap_params",
+        type=str,
+        default=DEFAULT_UMAP_PARAMS_STR,
+        help=f"UMAP parameters: min_dist,n_neighbors,n_samples (default: {DEFAULT_UMAP_PARAMS_STR})"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode"
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Enable development mode"
+    )
+    parser.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Disable web UI (API-only mode)"
+    )
+    parser.add_argument(
+        "--enable-websockets",
+        type=str,
+        help="Enable WebSocket support (experimental)"
+    )
+    
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True,
+        title="Commands",
+        description="Available Phoenix commands",
+        help="Use 'phoenix <command> --help' for command details"
+    )
 
-    serve_parser = subparsers.add_parser("serve")
+    # Serve command
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Start the Phoenix server",
+        description="Start Phoenix server with optional sample data",
+        formatter_class=RawDescriptionHelpFormatter
+    )
     serve_parser.add_argument(
         "--with-fixture",
         type=str,
-        required=False,
-        default="",
-        help=("Name of an inference fixture. Example: 'fixture1'"),
+        choices=available_fixtures,
+        help="Load sample inference data from fixture"
     )
     serve_parser.add_argument(
         "--with-trace-fixtures",
         type=str,
-        required=False,
-        default="",
-        help=(
-            "Comma separated list of tracing fixture names (spaces are ignored). "
-            "Example: 'fixture1, fixture2'"
-        ),
+        help="Load trace data from fixtures (comma-separated)"
     )
     serve_parser.add_argument(
         "--with-projects",
         type=str,
-        required=False,
-        default="",
-        help=(
-            "Comma separated list of project names (spaces are ignored). "
-            "Example: 'project1, project2'"
-        ),
+        help="Load all fixtures for specific projects (comma-separated)"
     )
     serve_parser.add_argument(
         "--force-fixture-ingestion",
         action="store_true",
-        required=False,
-        help=(
-            "Whether or not to check the database age before adding the fixtures. "
-            "Default is False, i.e., fixtures will only be added if the "
-            "database is new."
-        ),
+        help="Force fixture ingestion (default: only for new databases)"
     )
     serve_parser.add_argument(
         "--scaffold-datasets",
         action="store_true",
+        help="Auto-create datasets from fixtures"
+    )
+
+    # Datasets command
+    datasets_parser = subparsers.add_parser(
+        "datasets",
+        help="Load and configure datasets",
+        description="Load primary, reference, and corpus datasets",
+        formatter_class=RawDescriptionHelpFormatter
+    )
+    datasets_parser.add_argument(
+        "--primary",
+        type=str,
+        required=True,
+        choices=available_fixtures,
+        help="Primary dataset fixture name"
+    )
+    datasets_parser.add_argument(
+        "--reference",
+        type=str,
         required=False,
-        help=(
-            "Whether or not to add any datasets defined in "
-            "the inputted project or trace fixture. "
-            "Default is False. "
-        ),
+        choices=available_fixtures,
+        help="Reference dataset fixture name (optional)"
+    )
+    datasets_parser.add_argument(
+        "--corpus",
+        type=str,
+        required=False,
+        choices=available_fixtures,
+        help="Corpus dataset fixture name (optional)"
+    )
+    datasets_parser.add_argument(
+        "--trace",
+        type=str,
+        required=False,
+        choices=available_trace_fixtures,
+        help="Trace dataset fixture name (optional)"
     )
 
-    datasets_parser = subparsers.add_parser("datasets")
-    datasets_parser.add_argument("--primary", type=str, required=True)
-    datasets_parser.add_argument("--reference", type=str, required=False)
-    datasets_parser.add_argument("--corpus", type=str, required=False)
-    datasets_parser.add_argument("--trace", type=str, required=False)
+    # Fixture command
+    fixture_parser = subparsers.add_parser(
+        "fixture",
+        help="Run a specific inference fixture",
+        description="Load and run a specific inference fixture",
+        formatter_class=RawDescriptionHelpFormatter
+    )
+    fixture_parser.add_argument(
+        "fixture",
+        type=str,
+        choices=available_fixtures,
+        help="Fixture name to run"
+    )
+    fixture_parser.add_argument(
+        "--primary-only",
+        action="store_true",
+        help="Load only primary dataset"
+    )
 
-    fixture_parser = subparsers.add_parser("fixture")
-    fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")
-
-    trace_fixture_parser = subparsers.add_parser("trace-fixture")
+    # Trace fixture command
+    trace_fixture_parser = subparsers.add_parser(
+        "trace-fixture",
+        help="Run a specific trace fixture",
+        description="Load and run a specific trace fixture",
+        formatter_class=RawDescriptionHelpFormatter
+    )
     trace_fixture_parser.add_argument(
-        "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
+        "fixture",
+        type=str,
+        choices=available_trace_fixtures,
+        help="Trace fixture name to run"
     )
-    trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
+    trace_fixture_parser.add_argument(
+        "--simulate-streaming",
+        action="store_true",
+        help="Simulate streaming data ingestion"
+    )
 
-    demo_parser = subparsers.add_parser("demo")
-    demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    demo_parser.add_argument(
-        "trace_fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
+    # Demo command
+    demo_parser = subparsers.add_parser(
+        "demo",
+        help="Run a complete demo with both inference and trace data",
+        description="Load both inference and trace fixtures",
+        formatter_class=RawDescriptionHelpFormatter
     )
-    demo_parser.add_argument("--simulate-streaming", action="store_true")
+    demo_parser.add_argument(
+        "fixture",
+        type=str,
+        choices=available_fixtures,
+        help="Inference fixture name"
+    )
+    demo_parser.add_argument(
+        "trace_fixture",
+        type=str,
+        choices=available_trace_fixtures,
+        help="Trace fixture name"
+    )
+    demo_parser.add_argument(
+        "--simulate-streaming",
+        action="store_true",
+        help="Simulate streaming data ingestion"
+    )
 
     args = parser.parse_args()
     db_connection_str = (
