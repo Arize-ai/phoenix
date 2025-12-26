@@ -1,5 +1,29 @@
 # Changelog
 
+## [12.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.26.0...arize-phoenix-v12.27.0) (2025-12-26)
+
+
+### Features
+
+* add analytics ([#10748](https://github.com/Arize-ai/phoenix/issues/10748)) ([da9f114](https://github.com/Arize-ai/phoenix/commit/da9f114ee7fb2d4b244448992b338ffa4294d24a))
+* add generate api key buttons to project onboarding modals ([#10745](https://github.com/Arize-ai/phoenix/issues/10745)) ([abd90a4](https://github.com/Arize-ai/phoenix/commit/abd90a473c94ce99df6f5cf1a73480c902d63dd8))
+* add key icon ([#10729](https://github.com/Arize-ai/phoenix/issues/10729)) ([d943bdd](https://github.com/Arize-ai/phoenix/commit/d943bdd9abe46e39d46a7f1949b793dd7f516a00))
+* add theme selector to viewer preferences ([#10728](https://github.com/Arize-ai/phoenix/issues/10728)) ([c5300a1](https://github.com/Arize-ai/phoenix/commit/c5300a188b4d192d2558f3c31e59b5e62407ed8f))
+* consistent layout in playground, move dataset selector into the input / experiment sections ([#10727](https://github.com/Arize-ai/phoenix/issues/10727)) ([429037e](https://github.com/Arize-ai/phoenix/commit/429037eec9f62386ba84972d4768d6b515586b25))
+* promote trace link to experiment table ([#10724](https://github.com/Arize-ai/phoenix/issues/10724)) ([a93de69](https://github.com/Arize-ai/phoenix/commit/a93de69f8149f08cc25441358f02fe98551cdaae))
+* remember a user's programming language preferences ([#10739](https://github.com/Arize-ai/phoenix/issues/10739)) ([aeaf132](https://github.com/Arize-ai/phoenix/commit/aeaf132a34585731f0bd2de9d1ea33c6916f730c))
+
+
+### Bug Fixes
+
+* **prompts:** remove newlines from built-in prompts ([#10736](https://github.com/Arize-ai/phoenix/issues/10736)) ([edf35f0](https://github.com/Arize-ai/phoenix/commit/edf35f00ef90cc27160e0887b97a5bc49c6cd0e8))
+* styling of dataset dropdown ([#10725](https://github.com/Arize-ai/phoenix/issues/10725)) ([5ce0355](https://github.com/Arize-ai/phoenix/commit/5ce0355aa6b7f0c65ad9652ec68abe679d65b67f))
+
+
+### Documentation
+
+* removing evals integrations ([#10722](https://github.com/Arize-ai/phoenix/issues/10722)) ([636e7f3](https://github.com/Arize-ai/phoenix/commit/636e7f3f4b3d63ef55ad61c4de0e51b7a4277926))
+
 ## [12.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.25.1...arize-phoenix-v12.26.0) (2025-12-22)
 
 
