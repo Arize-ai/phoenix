@@ -1,19 +1,8 @@
-import { DialogTrigger, Heading } from "react-aria-components";
+import { Heading } from "react-aria-components";
 import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  LinkButton,
-  Modal,
-  ModalOverlay,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
@@ -124,35 +113,6 @@ function PromptIndexPageAside({
       borderStartWidth="thin"
     >
       <View padding="size-200">
-        <Flex direction="row" gap="size-100" justifyContent="end">
-          <DialogTrigger>
-            <Button
-              size="S"
-              leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
-            >
-              Clone
-            </Button>
-            <ModalOverlay>
-              <Modal size="M">
-                <ClonePromptDialog
-                  promptId={data.id}
-                  promptName={data.name}
-                  promptDescription={data.description ?? undefined}
-                  promptMetadata={data.metadata ?? undefined}
-                />
-              </Modal>
-            </ModalOverlay>
-          </DialogTrigger>
-          <LinkButton
-            variant="primary"
-            leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-            to="playground"
-            size="S"
-            aria-label="Open this Prompt in Playground"
-          >
-            Playground
-          </LinkButton>
-        </Flex>
         <Flex
           direction="row"
           justifyContent="space-between"

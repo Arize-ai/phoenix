@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b687fd6b0eadd43e1eda58e38c71565b>>
+ * @generated SignedSource<<fc5a1253656a4fd2bdc377c60bdc8675>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type PromptLayout__main$data = {
   readonly description: string | null;
   readonly id: string;
+  readonly metadata: any;
   readonly name: string;
   readonly promptVersions: {
     readonly edges: ReadonlyArray<{
@@ -60,6 +61,13 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "description",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "metadata",
       "storageKey": null
     },
     {
@@ -115,6 +123,6 @@ return {
 };
 })();
 
-(node as any).hash = "3f2a7eb87a4a433362def455a9151d45";
+(node as any).hash = "1778112f7fe3cd7c75472a1889cce0d9";
 
 export default node;
