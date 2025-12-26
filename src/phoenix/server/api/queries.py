@@ -36,6 +36,7 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
+    cast_template_variable_types,
     get_builtin_evaluators,
     infer_input_schema_from_template,
     validate_template_variables,
@@ -1782,6 +1783,7 @@ class Query:
                 input_mapping,
                 variables,
             )
+            variables = cast_template_variable_types(variables, input_schema)
             validate_template_variables(
                 template_variables=variables,
                 input_schema=input_schema,
