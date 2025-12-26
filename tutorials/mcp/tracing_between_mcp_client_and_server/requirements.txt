@@ -4,7 +4,7 @@ openinference-instrumentation-openai==0.1.25
 openai==1.76.0
 mcp==1.10.0
 openai-agents==0.0.13
-fastmcp==2.13.0
+fastmcp==2.14.0
 arize-phoenix-otel==0.9.0
 openinference-semantic-conventions==0.1.17
 pydantic==2.11.2
