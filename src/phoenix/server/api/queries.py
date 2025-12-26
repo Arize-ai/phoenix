@@ -38,6 +38,7 @@ from phoenix.server.api.evaluators import (
     apply_input_mapping,
     get_builtin_evaluators,
     infer_input_schema_from_template,
+    validate_template_variables,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
@@ -1780,6 +1781,10 @@ class Query:
                 input_schema,
                 input_mapping,
                 variables,
+            )
+            validate_template_variables(
+                template_variables=variables,
+                input_schema=input_schema,
             )
 
         messages: list[PromptMessage] = []
