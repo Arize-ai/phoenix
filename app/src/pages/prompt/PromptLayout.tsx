@@ -4,17 +4,25 @@ import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Counter,
+  DialogTrigger,
   Flex,
   Heading,
+  Icon,
+  Icons,
   LazyTabPanel,
   Link,
+  LinkButton,
+  Modal,
+  ModalOverlay,
   Tab,
   TabList,
   Tabs,
   Text,
   View,
 } from "@phoenix/components";
+import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
@@ -71,6 +79,7 @@ export function PromptLayout() {
         id
         name
         description
+        metadata
         sourcePrompt {
           id
           name
@@ -111,6 +120,35 @@ export function PromptLayout() {
                 </Link>
               </Text>
             )}
+          </Flex>
+          <Flex direction="row" gap="size-100" justifyContent="end">
+            <DialogTrigger>
+              <Button
+                size="M"
+                leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+              >
+                Clone
+              </Button>
+              <ModalOverlay>
+                <Modal size="M">
+                  <ClonePromptDialog
+                    promptId={data.id}
+                    promptName={data.name}
+                    promptDescription={data.description ?? undefined}
+                    promptMetadata={data.metadata ?? undefined}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
+            <LinkButton
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              to="playground"
+              size="M"
+              aria-label="Open this Prompt in Playground"
+            >
+              Playground
+            </LinkButton>
           </Flex>
         </Flex>
       </View>
