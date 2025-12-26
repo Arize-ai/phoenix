@@ -40,9 +40,9 @@ import {
   Icon,
   IconButton,
   Icons,
-  Loading,
   Modal,
   ModalOverlay,
+  ParagraphSkeleton,
   Text,
   View,
 } from "@phoenix/components";
@@ -238,16 +238,16 @@ function EmptyExampleOutput({
       return parsedDatasetExampleInput[variable] == null;
     });
   }, [parsedDatasetExampleInput, instanceVariables]);
-  let cellTopContent: ReactNode | null = (
+  let cellTopContent: ReactNode | null = <Text color="text-500">Ready</Text>;
+  let content: ReactNode | null = (
     <Text color="text-500">Press run to generate</Text>
   );
-  let content: ReactNode | null = null;
   if (isRunning) {
-    content = <Loading />;
-    cellTopContent = <Text color="text-500">Running...</Text>;
+    content = <ParagraphSkeleton lines={4} />;
+    cellTopContent = <Text color="text-500">Queued</Text>;
   }
   if (missingVariables.length > 0) {
-    cellTopContent = <Text color="text-500">Missing variables</Text>;
+    cellTopContent = <Text color="danger">Missing variables</Text>;
     content = (
       <PlaygroundErrorWrap>
         {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
@@ -263,7 +263,9 @@ function EmptyExampleOutput({
   return (
     <>
       <CellTop>{cellTopContent}</CellTop>
-      {content}
+      <View padding="size-200" key="content-wrap">
+        {content}
+      </View>
     </>
   );
 }
@@ -367,29 +369,31 @@ function ExampleOutputContent({
           </Flex>
         ) : (
           <Text color="text-500" fontStyle="italic">
-            generating...
+            Generating...
           </Text>
         )}
       </CellTop>
-      <View padding="size-200">
-        <Flex direction={"column"} gap="size-100" key="content-wrap">
-          {errorMessage != null ? (
+      <Flex direction={"column"} gap="size-100" key="content-wrap">
+        {errorMessage != null ? (
+          <View padding="size-200" key="error-message-wrap">
             <PlaygroundErrorWrap key="error-message">
               {errorMessage}
             </PlaygroundErrorWrap>
-          ) : null}
-          {content != null ? (
-            <LargeTextWrap key="content">{content}</LargeTextWrap>
-          ) : null}
-          {toolCalls != null
-            ? Object.values(toolCalls).map((toolCall) =>
-                toolCall == null ? null : (
-                  <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
-                )
+          </View>
+        ) : null}
+        {content != null ? (
+          <LargeTextWrap key="content">{content}</LargeTextWrap>
+        ) : null}
+        {toolCalls != null ? (
+          <View padding="size-200" key="tool-calls-wrap">
+            {Object.values(toolCalls).map((toolCall) =>
+              toolCall == null ? null : (
+                <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
               )
-            : null}
-        </Flex>
-      </View>
+            )}
+          </View>
+        ) : null}
+      </Flex>
     </Flex>
   );
 }
