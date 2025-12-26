@@ -1,5 +1,8 @@
+import { useState } from "react";
+
 import {
   ExternalLink,
+  Flex,
   Heading,
   Tab,
   TabList,
@@ -8,7 +11,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
+import {
+  GenerateAPIKeyButton,
+  IsAdmin,
+  IsAuthenticated,
+} from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
@@ -71,14 +78,22 @@ registerInstrumentations({
 });`;
 };
 
-const PHOENIX_OTEL_ENV_VARS = [
-  `export PHOENIX_COLLECTOR_ENDPOINT="${BASE_URL}"`,
-  `export PHOENIX_API_KEY="your-api-key"`,
-].join("\n");
+const getPhoenixOtelEnvVars = (apiKey?: string) => {
+  const apiKeyValue = apiKey || "your-api-key";
+  return [
+    `export PHOENIX_COLLECTOR_ENDPOINT="${BASE_URL}"`,
+    `export PHOENIX_API_KEY="${apiKeyValue}"`,
+  ].join("\n");
+};
 
 export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
   const existingProjectName = props.projectName;
   const projectName = existingProjectName || "your-next-llm-project";
+  const isAuthEnabled = window.Config.authenticationEnabled;
+  const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
+  const phoenixOtelEnvVars = getPhoenixOtelEnvVars(
+    generatedApiKey ?? undefined
+  );
   return (
     <div>
       <View paddingTop="size-200" paddingBottom="size-100">
@@ -147,12 +162,28 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
         </Heading>
       </View>
       <View paddingBottom="size-100">
-        <Text>
-          Alternatively, you can configure Phoenix using environment variables:
-        </Text>
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          gap="size-100"
+        >
+          <Text>
+            Alternatively, you can configure Phoenix using environment
+            variables:
+          </Text>
+          {isAuthEnabled && !generatedApiKey ? (
+            <IsAuthenticated>
+              <GenerateAPIKeyButton
+                onApiKeyGenerated={setGeneratedApiKey}
+                keyName="project-setup-generated"
+              />
+            </IsAuthenticated>
+          ) : null}
+        </Flex>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={PHOENIX_OTEL_ENV_VARS} />
+        <PythonBlockWithCopy value={phoenixOtelEnvVars} />
       </CodeWrap>
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">

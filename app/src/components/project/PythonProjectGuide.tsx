@@ -1,5 +1,8 @@
+import { useState } from "react";
+
 import {
   ExternalLink,
+  Flex,
   Heading,
   Tab,
   TabList,
@@ -12,7 +15,7 @@ import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 
-import { IsAdmin } from "../auth";
+import { GenerateAPIKeyButton, IsAdmin, IsAuthenticated } from "../auth";
 
 import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
@@ -31,14 +34,17 @@ const INSTALL_OPENAI_INSTRUMENTATION_PYTHON = `pip install openinference-instrum
 function getEnvironmentVariablesPython({
   isAuthEnabled,
   isHosted,
+  apiKey,
 }: {
   isAuthEnabled: boolean;
   isHosted: boolean;
+  apiKey?: string;
 }): string {
+  const apiKeyValue = apiKey || "<your-api-key>";
   if (isHosted) {
-    return `PHOENIX_CLIENT_HEADERS='api_key=<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+    return `PHOENIX_CLIENT_HEADERS='api_key=${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
   } else if (isAuthEnabled) {
-    return `PHOENIX_API_KEY='<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
+    return `PHOENIX_API_KEY='${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
   }
   return `PHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
 }
@@ -87,9 +93,11 @@ type PythonProjectGuideProps = {
 export function PythonProjectGuide(props: PythonProjectGuideProps) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
   const isAuthEnabled = window.Config.authenticationEnabled;
+  const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const environmentVariablesPython = getEnvironmentVariablesPython({
     isAuthEnabled,
     isHosted,
+    apiKey: generatedApiKey ?? undefined,
   });
 
   const projectName = props.projectName || "your-next-llm-project";
@@ -116,13 +124,28 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
         </Heading>
       </View>
       <View paddingBottom="size-100">
-        <Text>
-          <b>arize-phoenix-otel</b> automatically picks up your configuration
-          from{" "}
-          <ExternalLink href={PHOENIX_ENVIRONMENT_VARIABLES_LINK}>
-            environment variables
-          </ExternalLink>
-        </Text>
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          gap="size-100"
+        >
+          <Text>
+            <b>arize-phoenix-otel</b> automatically picks up your configuration
+            from{" "}
+            <ExternalLink href={PHOENIX_ENVIRONMENT_VARIABLES_LINK}>
+              environment variables
+            </ExternalLink>
+          </Text>
+          {isAuthEnabled && !generatedApiKey ? (
+            <IsAuthenticated>
+              <GenerateAPIKeyButton
+                onApiKeyGenerated={setGeneratedApiKey}
+                keyName="project-setup-generated"
+              />
+            </IsAuthenticated>
+          ) : null}
+        </Flex>
       </View>
       <CodeWrap>
         <PythonBlockWithCopy value={environmentVariablesPython} />
