@@ -17,22 +17,18 @@ This means you have complete control over:
 
 ### What kind of telemetry does Phoenix collect?
 
-By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable analytics tracking via environment variables for usage analytics in the web interface.
+By default, Phoenix collects basic web analytics (e.g., page views, UI interactions) to help us understand how the product is used. **None of your trace data, evaluation results, or any sensitive information is ever collected.** The telemetry is limited to understanding how users interact with the Phoenix web interface.
 
-### Why might telemetry be enabled?
+### Why does Phoenix collect telemetry?
 
-When enabled, telemetry helps us to:
+Telemetry helps us to:
 - Understand how Phoenix is used and improve the most relevant features
 - Track overall usage for internal and external (e.g., fundraising) reporting
 - Identify and fix issues in the user interface
 
-### What data is collected?
-
-When telemetry is enabled, only basic web analytics are collected (e.g., page views, UI interactions). **None of your trace data, evaluation results, or any sensitive information is ever collected.** The telemetry is limited to understanding how users interact with the Phoenix web interface.
-
 ### How can I opt-out?
 
-Telemetry is currently disabled. To ensure it never gets enabled, set the following environment variable:
+To disable telemetry, set the following environment variable:
 
 ```bash
 PHOENIX_TELEMETRY_ENABLED=false
