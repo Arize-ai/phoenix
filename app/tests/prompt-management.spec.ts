@@ -55,7 +55,8 @@ test.describe("Prompt Management", () => {
     await page.getByRole("tab", { name: "versions" }).click();
     await expect(page.getByRole("heading", { name: "version:" })).toBeVisible();
     await page
-      .getByRole("link", { name: "Open this Prompt version in Playground" })
+      .getByLabel("Versions")
+      .getByRole("link", { name: "Playground" })
       .click();
 
     // Ensure that the prompt is loaded into the playground page
