@@ -5,6 +5,7 @@ import { StylableProps } from "../types/style";
 import { Skeleton } from "./Skeleton";
 
 interface ContentSkeletonProps extends StylableProps {}
+
 /**
  * A skeleton component for the content of a card or other container.
  */
