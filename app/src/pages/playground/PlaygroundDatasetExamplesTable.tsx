@@ -238,23 +238,33 @@ function EmptyExampleOutput({
       return parsedDatasetExampleInput[variable] == null;
     });
   }, [parsedDatasetExampleInput, instanceVariables]);
+  let cellTopContent: ReactNode | null = (
+    <Text color="text-500">Press run to generate</Text>
+  );
+  let content: ReactNode | null = null;
   if (isRunning) {
-    return <Loading />;
+    content = <Loading />;
+    cellTopContent = <Text color="text-500">Running...</Text>;
   }
-
-  if (missingVariables.length === 0) {
-    return null;
+  if (missingVariables.length > 0) {
+    cellTopContent = <Text color="text-500">Missing variables</Text>;
+    content = (
+      <PlaygroundErrorWrap>
+        {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+          ", "
+        )}.${
+          Object.keys(parsedDatasetExampleInput).length > 0
+            ? ` Possible inputs are: ${Object.keys(parsedDatasetExampleInput).join(", ")}`
+            : " No inputs found in dataset example."
+        }`}
+      </PlaygroundErrorWrap>
+    );
   }
   return (
-    <PlaygroundErrorWrap>
-      {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
-        ", "
-      )}.${
-        Object.keys(parsedDatasetExampleInput).length > 0
-          ? ` Possible inputs are: ${Object.keys(parsedDatasetExampleInput).join(", ")}`
-          : " No inputs found in dataset example."
-      }`}
-    </PlaygroundErrorWrap>
+    <>
+      <CellTop>{cellTopContent}</CellTop>
+      {content}
+    </>
   );
 }
 
