@@ -82,7 +82,6 @@ ENV_PHOENIX_SCARF_SH_PIXEL_ID = "PHOENIX_SCARF_SH_PIXEL_ID"
 """
 The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
 will be enabled in the Phoenix web interface.
-Note: This will automatically be enabled in the future but it will always be possible to disable.
 """
 ENV_PHOENIX_TELEMETRY_ENABLED = "PHOENIX_TELEMETRY_ENABLED"
 """
@@ -3068,7 +3067,8 @@ def get_env_scarf_sh_pixel_id() -> Optional[str]:
     """
     if not get_env_telemetry_enabled():
         return None
-    return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID)
+    # Return the phoenix-app-v12 pixel
+    return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID) or "98877b05-7d80-493e-ab95-97c104785d1e"
 
 
 def get_env_management_url() -> Optional[str]:

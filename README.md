@@ -155,16 +155,9 @@ We take data security and privacy very seriously. For more details, see our [Sec
 
 ### Telemetry
 
-By default, Phoenix does **not** collect any telemetry from self-hosted instances. However, in the future we may enable tracking for usage analytics.
+By default, Phoenix collects basic web analytics (e.g., page views, UI interactions) to help us understand how Phoenix is used and improve the product. **None of your trace data, evaluation results, or any sensitive information is ever collected.**
 
-This helps us to:
-
-- Understand how Phoenix is used and improve the most relevant features
-- Track overall usage for internal and external reporting
-
-When telemetry is enabled, only basic web analytics are collected (e.g., page views, UI interactions). **None of your trace data, evaluation results, or any sensitive information is ever collected.**
-
-You can permanently opt-out of telemetry by setting the environment variable: `PHOENIX_TELEMETRY_ENABLED=false`
+You can opt-out of telemetry by setting the environment variable: `PHOENIX_TELEMETRY_ENABLED=false`
 
 ## Community
 
