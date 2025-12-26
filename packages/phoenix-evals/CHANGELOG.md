@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.1...arize-phoenix-evals-v2.7.2) (2025-12-26)
+
+
+### Bug Fixes
+
+* **prompts:** remove newlines from built-in prompts ([#10736](https://github.com/Arize-ai/phoenix/issues/10736)) ([edf35f0](https://github.com/Arize-ai/phoenix/commit/edf35f00ef90cc27160e0887b97a5bc49c6cd0e8))
+
 ## [2.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.0...arize-phoenix-evals-v2.7.1) (2025-12-12)
 
 
