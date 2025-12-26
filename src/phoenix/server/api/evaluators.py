@@ -578,7 +578,7 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
-        inputs = validate_template_variables(
+        validate_template_variables(
             template_variables=inputs,
             input_schema=self.input_schema,
         )
