@@ -9,6 +9,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.evaluators import apply_input_mapping
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -31,6 +32,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTools,
     TextContentPart,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 
 
 class TestValidateConsistentLLMEvaluatorAndPromptVersion:
@@ -523,6 +525,215 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             match=_LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+
+
+class TestApplyInputMapping:
+    def test_extracts_value_using_jsonpath_expression(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"output": {"type": "string"}},
+            "required": ["output"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"output": "$.response"},
+            literal_mapping={},
+        )
+        context = {"response": "Hello, world!"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"output": "Hello, world!"}
+
+    def test_extracts_nested_value_using_jsonpath(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.data.nested.value"},
+            literal_mapping={},
+        )
+        context = {"data": {"nested": {"value": "deep content"}}}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"text": "deep content"}
+
+    def test_literal_mapping_overrides_path_mapping(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"key": "$.from_path"},
+            literal_mapping={"key": "literal_value"},
+        )
+        context = {"from_path": "path_value"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"key": "literal_value"}
+
+    def test_falls_back_to_context_for_unmapped_schema_keys(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "input": {"type": "string"},
+                "output": {"type": "string"},
+            },
+            "required": ["input", "output"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={},
+        )
+        context = {"input": "user input", "output": "model output"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"input": "user input", "output": "model output"}
+
+    def test_ignores_invalid_jsonpath_expression(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"key": "[[[invalid jsonpath"},
+            literal_mapping={},
+        )
+        context = {"key": "fallback"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        # Falls back to context since invalid jsonpath is skipped
+        assert result == {"key": "fallback"}
+
+    def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"key": "$.nonexistent.path"},
+            literal_mapping={},
+        )
+        context = {"other": "value", "key": "fallback"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        # Falls back to context since jsonpath has no matches
+        assert result == {"key": "fallback"}
+
+    def test_with_empty_mappings_uses_context_fallback(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"a": {"type": "string"}, "b": {"type": "string"}},
+            "required": ["a", "b"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={},
+        )
+        context = {"a": "value_a", "b": "value_b", "c": "value_c"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        # Only keys in schema are included
+        assert result == {"a": "value_a", "b": "value_b"}
+
+    def test_combines_path_literal_and_fallback_sources(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "from_path": {"type": "string"},
+                "from_literal": {"type": "string"},
+                "from_fallback": {"type": "string"},
+            },
+            "required": ["from_path", "from_literal", "from_fallback"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"from_path": "$.extracted"},
+            literal_mapping={"from_literal": "hardcoded"},
+        )
+        context = {"extracted": "path_result", "from_fallback": "context_value"}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {
+            "from_path": "path_result",
+            "from_literal": "hardcoded",
+            "from_fallback": "context_value",
+        }
+
+    def test_returns_first_match_for_multi_match_jsonpath(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"item": {"type": "string"}},
+            "required": ["item"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"item": "$.items[*]"},
+            literal_mapping={},
+        )
+        context = {"items": ["first", "second", "third"]}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"item": "first"}
+
+    def test_handles_missing_path_mapping_attribute(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+
+        class MappingWithoutPath:
+            literal_mapping = {"key": "from_literal"}
+
+        result = apply_input_mapping(input_schema, MappingWithoutPath(), {"key": "fallback"})
+        assert result == {"key": "from_literal"}
+
+    def test_handles_missing_literal_mapping_attribute(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+
+        class MappingWithoutLiteral:
+            path_mapping = {"key": "$.value"}
+
+        result = apply_input_mapping(input_schema, MappingWithoutLiteral(), {"value": "from_path"})
+        assert result == {"key": "from_path"}
+
+    def test_path_mapping_extracts_array_value(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                }
+            },
+            "required": ["list"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"list": "$.data"},
+            literal_mapping={},
+        )
+        context = {"data": [1, 2, 3]}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"list": [1, 2, 3]}
+
+    def test_path_mapping_extracts_object_value(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "obj": {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "number"},
+                        "b": {"type": "number"},
+                    },
+                }
+            },
+            "required": ["obj"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"obj": "$.nested"},
+            literal_mapping={},
+        )
+        context = {"nested": {"a": 1, "b": 2}}
+        result = apply_input_mapping(input_schema, input_mapping, context)
+        assert result == {"obj": {"a": 1, "b": 2}}
 
 
 @pytest.fixture
