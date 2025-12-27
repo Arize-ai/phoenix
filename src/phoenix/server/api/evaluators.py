@@ -207,6 +207,11 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
+        template_variables = cast_template_variable_types(template_variables, self.input_schema)
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=self.input_schema,
+        )
         template_formatter = get_template_formatter(self._template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
@@ -418,11 +423,11 @@ def apply_input_mapping(
         for key, path_expr in input_mapping.path_mapping.items():
             try:
                 jsonpath = parse_jsonpath(path_expr)
-                matches = jsonpath.find(context)
-                if matches:
-                    result[key] = matches[0].value
-            except Exception:
-                pass
+            except Exception as e:
+                raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
+            matches = jsonpath.find(context)
+            if matches:
+                result[key] = matches[0].value
 
     # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):
@@ -435,12 +440,34 @@ def apply_input_mapping(
         if key not in result and key in context:
             result[key] = context[key]
 
-    try:
-        validate(instance=result, schema=input_schema)
-    except ValidationError as e:
-        raise ValueError(f"Input validation failed: {e.message}")
+    return result
+
+
+def cast_template_variable_types(
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> dict[str, Any]:
+    result = dict(template_variables)
+    properties = input_schema.get("properties", {})
+
+    for key, prop_schema in properties.items():
+        if key in result:
+            prop_type = prop_schema.get("type")
+            if prop_type == "string" and not isinstance(result[key], str):
+                result[key] = str(result[key])
 
     return result
+
+
+def validate_template_variables(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> None:
+    try:
+        validate(instance=template_variables, schema=input_schema)
+    except ValidationError as e:
+        raise ValueError(f"Input validation failed: {e.message}")
 
 
 def infer_input_schema_from_template(
@@ -568,6 +595,11 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
         inputs = apply_input_mapping(self.input_schema, input_mapping, context)
+        inputs = cast_template_variable_types(inputs, self.input_schema)
+        validate_template_variables(
+            template_variables=inputs,
+            input_schema=self.input_schema,
+        )
         words = [word.strip() for word in inputs.get("words", "").split(",")]
         text = inputs.get("text", "")
         case_sensitive = inputs.get("case_sensitive", False)
