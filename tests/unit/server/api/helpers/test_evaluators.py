@@ -587,7 +587,7 @@ class TestApplyInputMapping:
         result = apply_input_mapping(input_schema, input_mapping, context)
         assert result == {"input": "user input", "output": "model output"}
 
-    def test_ignores_invalid_jsonpath_expression(self) -> None:
+    def test_raises_on_invalid_jsonpath_expression(self) -> None:
         input_schema = {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -598,9 +598,8 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"key": "fallback"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
-        # Falls back to context since invalid jsonpath is skipped
-        assert result == {"key": "fallback"}
+        with pytest.raises(ValueError, match=r"Invalid JSONPath expression.*for key 'key'"):
+            apply_input_mapping(input_schema, input_mapping, context)
 
     def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
         input_schema = {
