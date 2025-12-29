@@ -1746,7 +1746,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "gpt-4o-mini",
-      apiVersion: "2024-10-01-preview",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1761,7 +1760,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "my-azure-deployment",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1779,7 +1777,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: "2024-06-01",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1789,7 +1786,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: null,
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1807,7 +1803,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1821,7 +1816,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1838,7 +1832,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1852,7 +1845,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
   });

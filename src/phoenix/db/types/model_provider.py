@@ -243,8 +243,9 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                 )
                 token_provider = get_bearer_token_provider(cred, scope)
 
+                # Passing token_provider as api_key requires openai>=1.106.0
                 return AsyncOpenAI(
-                    api_key=token_provider,  # type: ignore[arg-type]
+                    api_key=token_provider,
                     base_url=base_url,
                     default_headers=merged_headers,
                 )

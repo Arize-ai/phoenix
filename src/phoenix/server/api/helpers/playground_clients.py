@@ -11,12 +11,14 @@ from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncIterable,
     Hashable,
     Mapping,
     MutableMapping,
     Optional,
     Sequence,
     Union,
+    cast,
 )
 
 import sqlalchemy as sa
@@ -306,9 +308,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 max_value=2.0,
             ),
             IntInvocationParameter(
-                invocation_name="max_tokens",
+                invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
+                label="Max Completion Tokens",
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
@@ -365,8 +367,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -377,14 +379,18 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=True,
-            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        ):
+        stream = cast(
+            AsyncIterable[chat.ChatCompletionChunk],
+            await throttled_create(
+                messages=openai_messages,
+                model=self.model_name,
+                stream=True,
+                stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
+                tools=tools or omit,
+                **invocation_parameters,
+            ),
+        )
+        async for chunk in stream:
             if (usage := chunk.usage) is not None:
                 token_usage = usage
             if not chunk.choices:
@@ -1216,7 +1222,8 @@ class AzureOpenAIReasoningNonStreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1226,12 +1233,15 @@ class AzureOpenAIReasoningNonStreamingClient(
                 openai_messages.append(openai_message)
 
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=False,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
+        response = cast(
+            chat.ChatCompletion,
+            await throttled_create(
+                messages=openai_messages,
+                model=self.model_name,
+                stream=False,
+                tools=tools or omit,
+                **invocation_parameters,
+            ),
         )
 
         if response.usage is not None:
@@ -1243,13 +1253,18 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         if choice.message.tool_calls:
             for tool_call in choice.message.tool_calls:
-                yield ToolCallChunk(
-                    id=tool_call.id,
-                    function=FunctionCallChunk(
-                        name=tool_call.function.name,
-                        arguments=tool_call.function.arguments,
-                    ),
-                )
+                if tool_call.type == "function":
+                    yield ToolCallChunk(
+                        id=tool_call.id,
+                        function=FunctionCallChunk(
+                            name=tool_call.function.name,
+                            arguments=tool_call.function.arguments,
+                        ),
+                    )
+                elif tool_call.type == "custom":
+                    raise NotImplementedError("custom tool calls are not supported")
+                else:
+                    assert_never(tool_call.type)
 
     def to_openai_chat_completion_param(
         self,
@@ -2003,8 +2018,9 @@ async def _get_builtin_provider_client(
                 DefaultAzureCredential(),
                 "https://cognitiveservices.azure.com/.default",
             )
+            # Passing token_provider as api_key requires openai>=1.106.0
             azure_client = AsyncOpenAI(
-                api_key=token_provider,  # type: ignore[arg-type]
+                api_key=token_provider,
                 base_url=base_url,
                 default_headers=headers,
             )
