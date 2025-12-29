@@ -316,6 +316,7 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
+
       <Flex direction={"column"} gap="size-100" key="content-wrap">
         {errorMessage != null ? (
           <View padding="size-200" key="error-message-wrap">
@@ -325,7 +326,9 @@ function ExampleOutputContent({
           </View>
         ) : null}
         {content != null ? (
-          <LargeTextWrap key="content">{content}</LargeTextWrap>
+          <View padding="size-200" key="content-wrap">
+            <LargeTextWrap key="content">{content}</LargeTextWrap>
+          </View>
         ) : null}
         {toolCalls != null ? (
           <View padding="size-200" key="tool-calls-wrap">
