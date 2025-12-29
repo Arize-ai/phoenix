@@ -257,16 +257,12 @@ input AzureOpenAIAuthenticationMethodInput @oneOf {
 }
 
 type AzureOpenAIClientKwargs {
-  apiVersion: String!
   azureEndpoint: String!
-  azureDeployment: String!
   defaultHeaders: JSON
 }
 
 input AzureOpenAIClientKwargsInput {
   azureEndpoint: String!
-  azureDeployment: String!
-  apiVersion: String!
   defaultHeaders: JSON
 }
 
@@ -1957,7 +1953,6 @@ input GenerativeModelBuiltinProviderInput {
   name: String!
   baseUrl: String
   endpoint: String
-  apiVersion: String
   region: String
   customHeaders: JSON
   credentials: [GenerativeCredentialInput!]

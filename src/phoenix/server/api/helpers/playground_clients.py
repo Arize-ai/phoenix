@@ -11,12 +11,14 @@ from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncIterable,
     Hashable,
     Mapping,
     MutableMapping,
     Optional,
     Sequence,
     Union,
+    cast,
 )
 
 import sqlalchemy as sa
@@ -82,7 +84,7 @@ if TYPE_CHECKING:
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google import genai
     from google.generativeai.types import ContentType
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
     from opentelemetry.util.types import AttributeValue
@@ -268,12 +270,12 @@ class PlaygroundStreamingClient(ABC):
 
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
-    client: Union["AsyncOpenAI", "AsyncAzureOpenAI"]
+    client: "AsyncOpenAI"
 
     def __init__(
         self,
         *,
-        client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
+        client: "AsyncOpenAI",
         model_name: str,
         provider: str,
     ) -> None:
@@ -306,9 +308,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 max_value=2.0,
             ),
             IntInvocationParameter(
-                invocation_name="max_tokens",
+                invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
+                label="Max Completion Tokens",
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
@@ -365,8 +367,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -377,14 +379,18 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=True,
-            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        ):
+        stream = cast(
+            AsyncIterable[chat.ChatCompletionChunk],
+            await throttled_create(
+                messages=openai_messages,
+                model=self.model_name,
+                stream=True,
+                stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
+                tools=tools or omit,
+                **invocation_parameters,
+            ),
+        )
+        async for chunk in stream:
             if (usage := chunk.usage) is not None:
                 token_usage = usage
             if not chunk.choices:
@@ -1191,7 +1197,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         *,
-        client: "AsyncAzureOpenAI",
+        client: "AsyncOpenAI",
         model_name: str,
         provider: str = "azure",
     ) -> None:
@@ -1217,7 +1223,8 @@ class AzureOpenAIReasoningNonStreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1227,12 +1234,15 @@ class AzureOpenAIReasoningNonStreamingClient(
                 openai_messages.append(openai_message)
 
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=False,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
+        response = cast(
+            chat.ChatCompletion,
+            await throttled_create(
+                messages=openai_messages,
+                model=self.model_name,
+                stream=False,
+                tools=tools or omit,
+                **invocation_parameters,
+            ),
         )
 
         if response.usage is not None:
@@ -1244,13 +1254,18 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         if choice.message.tool_calls:
             for tool_call in choice.message.tool_calls:
-                yield ToolCallChunk(
-                    id=tool_call.id,
-                    function=FunctionCallChunk(
-                        name=tool_call.function.name,
-                        arguments=tool_call.function.arguments,
-                    ),
-                )
+                if tool_call.type == "function":
+                    yield ToolCallChunk(
+                        id=tool_call.id,
+                        function=FunctionCallChunk(
+                            name=tool_call.function.name,
+                            arguments=tool_call.function.arguments,
+                        ),
+                    )
+                elif tool_call.type == "custom":
+                    raise NotImplementedError("custom tool calls are not supported")
+                else:
+                    assert_never(tool_call.type)
 
     def to_openai_chat_completion_param(
         self,
@@ -1959,7 +1974,7 @@ async def _get_builtin_provider_client(
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         try:
-            from openai import AsyncAzureOpenAI
+            from openai import AsyncOpenAI
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
@@ -1971,18 +1986,18 @@ async def _get_builtin_provider_client(
             or getenv("AZURE_OPENAI_API_KEY")
         )
         endpoint = obj.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
-        api_version = obj.api_version or getenv("OPENAI_API_VERSION")
 
         if not endpoint:
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not api_version:
-            raise BadRequest("An API version is required for Azure OpenAI models")
+
+        # Construct the v1 API base URL
+        endpoint = endpoint.rstrip("/")
+        base_url = (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
 
         if api_key:
-            azure_client = AsyncAzureOpenAI(
+            azure_client = AsyncOpenAI(
                 api_key=api_key,
-                azure_endpoint=endpoint,
-                api_version=api_version,
+                base_url=base_url,
                 default_headers=headers,
             )
         else:
@@ -1992,13 +2007,14 @@ async def _get_builtin_provider_client(
                 raise BadRequest(
                     "Provide an API key for Azure OpenAI models or install azure-identity"
                 )
-            azure_client = AsyncAzureOpenAI(
-                azure_ad_token_provider=get_bearer_token_provider(
-                    DefaultAzureCredential(),
-                    "https://cognitiveservices.azure.com/.default",
-                ),
-                azure_endpoint=endpoint,
-                api_version=api_version,
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default",
+            )
+            # Passing token_provider as api_key requires openai>=1.106.0
+            azure_client = AsyncOpenAI(
+                api_key=token_provider,
+                base_url=base_url,
                 default_headers=headers,
             )
         if model_name in OPENAI_REASONING_MODELS:
@@ -2261,7 +2277,6 @@ async def _get_custom_provider_client(
             azure_openai_client = cfg.get_client(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client: {e}")
-        model_name = model_name or cfg.azure_openai_client_kwargs.azure_deployment
         if model_name in OPENAI_REASONING_MODELS:
             return AzureOpenAIReasoningNonStreamingClient(
                 client=azure_openai_client,

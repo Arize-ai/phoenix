@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad9fa187cc755dffddb1f68d1ea471c3>>
+ * @generated SignedSource<<f420089a0a8baf20fb4df5017b42929f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,8 +44,6 @@ export type AzureOpenAIADTokenProviderInput = {
   scope?: string | null;
 };
 export type AzureOpenAIClientKwargsInput = {
-  apiVersion: string;
-  azureDeployment: string;
   azureEndpoint: string;
   defaultHeaders?: any | null;
 };
