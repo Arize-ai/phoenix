@@ -1,15 +1,12 @@
-import {
-  type CodeLanguage,
-  PythonBlock,
-  TypeScriptBlock,
-} from "@phoenix/components/code";
+import { PythonBlock, TypeScriptBlock } from "@phoenix/components/code";
+import { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 export function CodeBlock({
   language,
   value,
 }: {
-  language: CodeLanguage;
+  language: ProgrammingLanguage;
   value: string;
 }) {
   switch (language) {
