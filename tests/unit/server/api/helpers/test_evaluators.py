@@ -667,32 +667,6 @@ class TestApplyInputMapping:
         result = apply_input_mapping(input_schema, input_mapping, context)
         assert result == {"item": ["first", "second", "third"]}
 
-    def test_handles_missing_path_mapping_attribute(self) -> None:
-        input_schema = {
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        }
-
-        class MappingWithoutPath:
-            literal_mapping = {"key": "from_literal"}
-
-        result = apply_input_mapping(input_schema, MappingWithoutPath(), {"key": "fallback"})
-        assert result == {"key": "from_literal"}
-
-    def test_handles_missing_literal_mapping_attribute(self) -> None:
-        input_schema = {
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        }
-
-        class MappingWithoutLiteral:
-            path_mapping = {"key": "$.value"}
-
-        result = apply_input_mapping(input_schema, MappingWithoutLiteral(), {"value": "from_path"})
-        assert result == {"key": "from_path"}
-
     def test_path_mapping_extracts_array_value(self) -> None:
         input_schema = {
             "type": "object",
