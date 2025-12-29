@@ -16,6 +16,7 @@ import {
   LinkButton,
   Modal,
   ModalOverlay,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
@@ -98,29 +99,19 @@ export function PromptLayout() {
 
   return (
     <main css={mainCSS}>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        flex="none"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Flex direction="column">
-            <Heading level={1}>{data.name}</Heading>
-            {data.sourcePrompt && (
-              <Text color="text-700">
-                cloned from{" "}
-                <Link to={`/prompts/${data.sourcePrompt.id}`}>
-                  {data.sourcePrompt.name}
-                </Link>
-              </Text>
-            )}
-          </Flex>
+      <PageHeader
+        title={data.name}
+        subTitle={
+          data.sourcePrompt && (
+            <Text color="text-700">
+              cloned from{" "}
+              <Link to={`/prompts/${data.sourcePrompt.id}`}>
+                {data.sourcePrompt.name}
+              </Link>
+            </Text>
+          )
+        }
+        extra={
           <Flex direction="row" gap="size-100" justifyContent="end">
             <DialogTrigger>
               <Button
@@ -150,8 +141,8 @@ export function PromptLayout() {
               Playground
             </LinkButton>
           </Flex>
-        </Flex>
-      </View>
+        }
+      />
       <Tabs
         defaultSelectedKey={defaultTab}
         onSelectionChange={(key) => {

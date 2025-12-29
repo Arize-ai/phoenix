@@ -1,7 +1,15 @@
 import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  PageHeader,
+  Text,
+  View,
+} from "@phoenix/components";
 
 const supportItemsCSS = css`
   display: grid;
@@ -14,17 +22,11 @@ export function SupportPage() {
   return (
     <main>
       <Flex direction="column" width="100%">
-        <View
-          padding="size-200"
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
-        >
-          <Flex direction="column" gap="size-50">
-            <Heading level={1}>Support</Heading>
-            <Text color="text-700">
-              We are here to help. Pick a channel below to get in touch with us.
-            </Text>
-          </Flex>
+        <View borderBottomColor="dark" borderBottomWidth="thin">
+          <PageHeader
+            title="Support"
+            subTitle="We are here to help. Pick a channel below to get in touch with us."
+          />
         </View>
         <div css={supportItemsCSS}>
           <SupportItem

@@ -11,16 +11,15 @@ import { css } from "@emotion/react";
 
 import {
   Flex,
-  Heading,
   Icon,
   Icons,
   LazyTabPanel,
   Link,
   LinkButton,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
-  View,
 } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -157,13 +156,9 @@ export function DashboardsPage() {
   ];
   return (
     <Flex direction="column" height="100%">
-      <View padding="size-200" flex="none">
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Heading level={1}>Dashboards</Heading>
+      <PageHeader
+        title="Dashboards"
+        extra={
           <LinkButton
             size="M"
             leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
@@ -172,8 +167,8 @@ export function DashboardsPage() {
           >
             Create Dashboard
           </LinkButton>
-        </Flex>
-      </View>
+        }
+      />
       <Tabs>
         <TabList>
           <Tab id="project-dashboards">Project Dashboards</Tab>

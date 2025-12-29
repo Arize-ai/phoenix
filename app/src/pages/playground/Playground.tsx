@@ -11,10 +11,10 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
-  Heading,
   Icon,
   Icons,
   Loading,
+  PageHeader,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
@@ -83,24 +83,17 @@ export function Playground(props: Partial<PlaygroundProps>) {
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
-        <View
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
-          padding="size-200"
-          flex="none"
-        >
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Heading level={1}>Playground</Heading>
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <PlaygroundCredentialsDropdown />
-              <PlaygroundConfigButton />
-              <PlaygroundRunButton />
-            </Flex>
-          </Flex>
+        <View borderBottomColor="dark" borderBottomWidth="thin">
+          <PageHeader
+            title="Playground"
+            extra={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <PlaygroundCredentialsDropdown />
+                <PlaygroundConfigButton />
+                <PlaygroundRunButton />
+              </Flex>
+            }
+          />
         </View>
         <PlaygroundContent />
       </div>
