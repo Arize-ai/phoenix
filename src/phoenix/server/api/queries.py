@@ -1778,19 +1778,28 @@ class Query:
                 template=template,
                 template_format=template_options.format,
             )
-            variables = apply_input_mapping(
-                input_schema=input_schema,
-                input_mapping=input_mapping,
-                context=variables,
-            )
+
+            try:
+                variables = apply_input_mapping(
+                    input_schema=input_schema,
+                    input_mapping=input_mapping,
+                    context=variables,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
             variables = cast_template_variable_types(
                 template_variables=variables,
                 input_schema=input_schema,
             )
-            validate_template_variables(
-                template_variables=variables,
-                input_schema=input_schema,
-            )
+
+            try:
+                validate_template_variables(
+                    template_variables=variables,
+                    input_schema=input_schema,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
 
         messages: list[PromptMessage] = []
         for msg in template.messages:
