@@ -1779,11 +1779,14 @@ class Query:
                 template_format=template_options.format,
             )
             variables = apply_input_mapping(
-                input_schema,
-                input_mapping,
-                variables,
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=variables,
             )
-            variables = cast_template_variable_types(variables, input_schema)
+            variables = cast_template_variable_types(
+                template_variables=variables,
+                input_schema=input_schema,
+            )
             validate_template_variables(
                 template_variables=variables,
                 input_schema=input_schema,

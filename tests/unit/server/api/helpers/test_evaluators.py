@@ -545,7 +545,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"response": "Hello, world!"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"output": "Hello, world!"}
 
     def test_extracts_nested_value_using_jsonpath(self) -> None:
@@ -559,7 +563,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"data": {"nested": {"value": "deep content"}}}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"text": "deep content"}
 
     def test_literal_mapping_overrides_path_mapping(self) -> None:
@@ -573,7 +581,11 @@ class TestApplyInputMapping:
             literal_mapping={"key": "literal_value"},
         )
         context = {"from_path": "path_value"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"key": "literal_value"}
 
     def test_falls_back_to_context_for_unmapped_schema_keys(self) -> None:
@@ -590,7 +602,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"input": "user input", "output": "model output"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"input": "user input", "output": "model output"}
 
     def test_raises_on_invalid_jsonpath_expression(self) -> None:
@@ -605,7 +621,11 @@ class TestApplyInputMapping:
         )
         context = {"key": "fallback"}
         with pytest.raises(ValueError, match=r"Invalid JSONPath expression.*for key 'key'"):
-            apply_input_mapping(input_schema, input_mapping, context)
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
 
     def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
         input_schema = {
@@ -618,7 +638,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"other": "value", "key": "fallback"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         # Falls back to context since jsonpath has no matches
         assert result == {"key": "fallback"}
 
@@ -633,7 +657,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"a": "value_a", "b": "value_b", "c": "value_c"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         # Only keys in schema are included
         assert result == {"a": "value_a", "b": "value_b"}
 
@@ -652,7 +680,11 @@ class TestApplyInputMapping:
             literal_mapping={"from_literal": "hardcoded"},
         )
         context = {"extracted": "path_result", "from_fallback": "context_value"}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {
             "from_path": "path_result",
             "from_literal": "hardcoded",
@@ -670,7 +702,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"items": ["first", "second", "third"]}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"item": ["first", "second", "third"]}
 
     def test_path_mapping_extracts_array_value(self) -> None:
@@ -689,7 +725,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"data": [1, 2, 3]}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"list": [1, 2, 3]}
 
     def test_path_mapping_extracts_object_value(self) -> None:
@@ -711,7 +751,11 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"nested": {"a": 1, "b": 2}}
-        result = apply_input_mapping(input_schema, input_mapping, context)
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
         assert result == {"obj": {"a": 1, "b": 2}}
 
 
@@ -722,7 +766,10 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"count": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"count": "42"}
 
     def test_converts_list_to_string(self) -> None:
@@ -731,7 +778,10 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"items": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"items": "[1, 2, 3]"}
 
     def test_converts_dict_to_string(self) -> None:
@@ -740,7 +790,10 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"data": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"data": "{'key': 'value'}"}
 
     def test_converts_none_to_string(self) -> None:
@@ -749,7 +802,10 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"value": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"value": "None"}
 
     def test_leaves_existing_string_unchanged(self) -> None:
@@ -758,7 +814,10 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"text": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"text": "hello world"}
 
     def test_ignores_non_string_schema_types(self) -> None:
@@ -770,7 +829,10 @@ class TestCastTemplateVariableTypes:
                 "flag": {"type": "boolean"},
             },
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"count": 42, "flag": True}
 
     def test_preserves_keys_not_in_schema(self) -> None:
@@ -779,13 +841,19 @@ class TestCastTemplateVariableTypes:
             "type": "object",
             "properties": {"in_schema": {"type": "string"}},
         }
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"in_schema": "123", "not_in_schema": 456}
 
     def test_handles_empty_schema(self) -> None:
         template_variables = {"key": 42}
         input_schema: dict[str, Any] = {}
-        result = cast_template_variable_types(template_variables, input_schema)
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
         assert result == {"key": 42}
 
 

@@ -1,6 +1,7 @@
 import json
 import zlib
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
@@ -207,7 +208,10 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
-        template_variables = cast_template_variable_types(template_variables, self.input_schema)
+        template_variables = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=self.input_schema,
+        )
         validate_template_variables(
             template_variables=template_variables,
             input_schema=self.input_schema,
@@ -413,6 +417,7 @@ async def get_llm_evaluators(
 
 
 def apply_input_mapping(
+    *,
     input_schema: dict[str, Any],
     input_mapping: "EvaluatorInputMappingInput",
     context: dict[str, Any],
@@ -447,19 +452,20 @@ def apply_input_mapping(
 
 
 def cast_template_variable_types(
+    *,
     template_variables: dict[str, Any],
     input_schema: dict[str, Any],
 ) -> dict[str, Any]:
-    result = dict(template_variables)
+    casted_template_variables = deepcopy(template_variables)
     properties = input_schema.get("properties", {})
 
     for key, prop_schema in properties.items():
-        if key in result:
+        if key in casted_template_variables:
             prop_type = prop_schema.get("type")
-            if prop_type == "string" and not isinstance(result[key], str):
-                result[key] = str(result[key])
+            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
+                casted_template_variables[key] = str(casted_template_variables[key])
 
-    return result
+    return casted_template_variables
 
 
 def validate_template_variables(
@@ -597,8 +603,15 @@ class ContainsEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
-        inputs = apply_input_mapping(self.input_schema, input_mapping, context)
-        inputs = cast_template_variable_types(inputs, self.input_schema)
+        inputs = apply_input_mapping(
+            input_schema=self.input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        inputs = cast_template_variable_types(
+            template_variables=inputs,
+            input_schema=self.input_schema,
+        )
         validate_template_variables(
             template_variables=inputs,
             input_schema=self.input_schema,
