@@ -77,7 +77,6 @@ export type ModelConfig = {
   modelName: string | null;
   baseUrl?: string | null;
   endpoint?: string | null;
-  apiVersion?: string | null;
   /**
    * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
    */
