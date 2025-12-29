@@ -4,9 +4,11 @@ import { useNavigate } from "react-router";
 import {
   Button,
   Dialog,
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
   Icon,
   Icons,
   Menu,
@@ -86,6 +88,9 @@ export function NewDatasetActionMenu({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>New Dataset</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
               </DialogHeader>
               <CreateDatasetForm
                 onDatasetCreated={(newDataset) => {
@@ -121,6 +126,7 @@ export function NewDatasetActionMenu({
       >
         <Modal>
           <Dialog>
+            <DialogCloseButton slot="close" />
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>New Dataset from CSV</DialogTitle>
