@@ -8,7 +8,6 @@ import {
   Counter,
   DialogTrigger,
   Flex,
-  Heading,
   Icon,
   Icons,
   LazyTabPanel,
@@ -21,7 +20,6 @@ import {
   TabList,
   Tabs,
   Text,
-  View,
 } from "@phoenix/components";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
