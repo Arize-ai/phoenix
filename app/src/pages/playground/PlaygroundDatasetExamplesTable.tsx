@@ -1,8 +1,6 @@
 "use no memo";
 import {
   memo,
-  PropsWithChildren,
-  ReactNode,
   SetStateAction,
   useCallback,
   useEffect,
@@ -20,7 +18,6 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  CellContext,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -48,7 +45,13 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { CellTop } from "@phoenix/components/table";
+import { ExperimentRunCellAnnotationsList } from "@phoenix/components/experiment";
+import {
+  CellTop,
+  JSONCell,
+  LargeTextWrap,
+  PaddedCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -86,7 +89,8 @@ import {
 } from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
-import {
+import PlaygroundDatasetExamplesTableSubscription, {
+  EvaluatorInputMappingInput,
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
@@ -117,8 +121,14 @@ const createExampleResponsesForInstance = (
 ): InstanceResponses => {
   return response.examples.reduce<InstanceResponses>(
     (instanceResponses, example) => {
-      const { datasetExampleId, repetitionNumber, experimentRunId } = example;
-      const { errorMessage, content, span, toolCalls } = example.repetition;
+      const {
+        datasetExampleId,
+        repetitionNumber,
+        experimentRunId,
+        repetition,
+      } = example;
+      const { errorMessage, content, span, toolCalls, evaluations } =
+        repetition;
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -136,6 +146,7 @@ const createExampleResponsesForInstance = (
               },
               {}
             ),
+            evaluations: [...evaluations],
           },
         },
       };
@@ -144,81 +155,6 @@ const createExampleResponsesForInstance = (
     {}
   );
 };
-
-const cellWithControlsWrapCSS = css`
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  height: 100%;
-  min-height: 75px;
-  .controls {
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
-    z-index: 1;
-  }
-  &:hover .controls {
-    opacity: 1;
-    display: flex;
-    // make them stand out
-    button {
-      border-color: var(--ac-global-color-primary);
-    }
-  }
-`;
-
-const cellControlsCSS = css`
-  position: absolute;
-  top: calc(-1 * var(--ac-global-dimension-static-size-200));
-  right: var(--ac-global-dimension-static-size-100);
-  display: flex;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-100);
-`;
-
-/**
- * Wraps a cell to provides space for controls that are shown on hover.
- */
-export function CellWithControlsWrap(
-  props: PropsWithChildren<{ controls: ReactNode }>
-) {
-  return (
-    <div css={cellWithControlsWrapCSS}>
-      {props.children}
-      <div css={cellControlsCSS} className="controls">
-        {props.controls}
-      </div>
-    </div>
-  );
-}
-
-function LargeTextWrap({ children }: { children: ReactNode }) {
-  return (
-    <div
-      data-testid="large-text-wrap"
-      css={css`
-        height: 200px;
-        overflow-y: auto;
-        padding: var(--ac-global-dimension-static-size-200);
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
-function JSONCell<TData extends object, TValue>({
-  getValue,
-  collapseSingleKey,
-}: CellContext<TData, TValue> & { collapseSingleKey?: boolean }) {
-  const value = getValue();
-  return (
-    <LargeTextWrap>
-      <JSONText json={value} space={2} collapseSingleKey={collapseSingleKey} />
-    </LargeTextWrap>
-  );
-}
 
 function EmptyExampleOutput({
   isRunning,
@@ -276,17 +212,27 @@ function ExampleOutputContent({
   setRepetitionNumber,
   totalRepetitions,
   onViewExperimentRunDetailsPress,
-  onViewExperimentRunTracePress,
+  onViewTracePress,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
   setRepetitionNumber: (n: SetStateAction<number>) => void;
   totalRepetitions: number;
   onViewExperimentRunDetailsPress: () => void;
-  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
+  onViewTracePress: (
+    traceId: string,
+    projectId: string,
+    evaluatorName?: string
+  ) => void;
 }) {
-  const { span, content, toolCalls, errorMessage, experimentRunId } =
-    exampleData;
+  const {
+    span,
+    content,
+    toolCalls,
+    errorMessage,
+    experimentRunId,
+    evaluations,
+  } = exampleData;
   const hasSpan = span != null;
   const hasExperimentRun = experimentRunId != null;
   const spanControls = useMemo(() => {
@@ -320,10 +266,7 @@ function ExampleOutputContent({
             isDisabled={!hasSpan}
             onPress={() => {
               if (span) {
-                onViewExperimentRunTracePress(
-                  span.context.traceId,
-                  span.project.id
-                );
+                onViewTracePress(span.context.traceId, span.project.id);
               }
             }}
           >
@@ -344,7 +287,7 @@ function ExampleOutputContent({
     span,
     totalRepetitions,
     onViewExperimentRunDetailsPress,
-    onViewExperimentRunTracePress,
+    onViewTracePress,
   ]);
 
   return (
@@ -373,6 +316,7 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
+
       <Flex direction={"column"} gap="size-100" key="content-wrap">
         {errorMessage != null ? (
           <View padding="size-200" key="error-message-wrap">
@@ -382,7 +326,9 @@ function ExampleOutputContent({
           </View>
         ) : null}
         {content != null ? (
-          <LargeTextWrap key="content">{content}</LargeTextWrap>
+          <View padding="size-200" key="content-wrap">
+            <LargeTextWrap key="content">{content}</LargeTextWrap>
+          </View>
         ) : null}
         {toolCalls != null ? (
           <View padding="size-200" key="tool-calls-wrap">
@@ -394,6 +340,16 @@ function ExampleOutputContent({
           </View>
         ) : null}
       </Flex>
+      {evaluations != null && evaluations.length > 0 && (
+        <ExperimentRunCellAnnotationsList
+          annotations={evaluations}
+          onTraceClick={({ traceId, projectId, annotationName }) => {
+            if (traceId && projectId) {
+              onViewTracePress(traceId, projectId, annotationName);
+            }
+          }}
+        />
+      )}
     </Flex>
   );
 }
@@ -405,7 +361,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables,
   datasetExampleInput,
   onViewExperimentRunDetailsPress,
-  onViewExperimentRunTracePress,
+  onViewTracePress,
 }: {
   instanceId: number;
   exampleId: string;
@@ -413,7 +369,11 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceVariables: string[];
   datasetExampleInput: unknown;
   onViewExperimentRunDetailsPress: () => void;
-  onViewExperimentRunTracePress: (traceId: string, projectId: string) => void;
+  onViewTracePress: (
+    traceId: string,
+    projectId: string,
+    evaluatorName?: string
+  ) => void;
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -438,7 +398,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
       onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
-      onViewExperimentRunTracePress={onViewExperimentRunTracePress}
+      onViewTracePress={onViewTracePress}
     />
   );
 });
@@ -451,6 +411,7 @@ function TableBody<T>({
   table: Table<T>;
   virtualizer: Virtualizer<HTMLDivElement, Element>;
 }) {
+  "use no memo";
   const rows = table.getRowModel().rows;
 
   const virtualRows = virtualizer.getVirtualItems();
@@ -518,9 +479,14 @@ export const MemoizedTableBody = memo(
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
+  evaluatorMappings,
 }: {
   datasetId: string;
   splitIds?: string[];
+  /**
+   * Record of evaluator id to input mappings
+   */
+  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -535,6 +501,7 @@ export function PlaygroundDatasetExamplesTable({
   const [selectedTraceInfo, setSelectedTraceInfo] = useState<{
     traceId: string;
     projectId: string;
+    evaluatorName?: string;
   } | null>(null);
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
@@ -558,6 +525,10 @@ export function PlaygroundDatasetExamplesTable({
   const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
     (state) => state.appendExampleDataTextChunk
   );
+  const appendExampleDataEvaluationChunk =
+    usePlaygroundDatasetExamplesTableContext(
+      (state) => state.appendExampleDataEvaluationChunk
+    );
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -637,7 +608,22 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               toolCallChunk: chatCompletion,
             });
-
+            break;
+          }
+          case "EvaluationChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            const evaluation = chatCompletion.experimentRunEvaluation;
+            if (evaluation == null) {
+              return;
+            }
+            appendExampleDataEvaluationChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
+              evaluationChunk: evaluation,
+            });
             break;
           }
           // This should never happen
@@ -651,6 +637,7 @@ export function PlaygroundDatasetExamplesTable({
     [
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
+      appendExampleDataEvaluationChunk,
       updateExampleData,
       updateInstance,
     ]
@@ -691,6 +678,20 @@ export function PlaygroundDatasetExamplesTable({
                 function {
                   name
                   arguments
+                }
+              }
+              evaluations {
+                id
+                name
+                label
+                score
+                annotatorKind
+                explanation
+                metadata
+                startTime
+                trace {
+                  traceId
+                  projectId
                 }
               }
             }
@@ -763,66 +764,12 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorMappings,
           }),
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
           {
-            subscription: graphql`
-              subscription PlaygroundDatasetExamplesTableSubscription(
-                $input: ChatCompletionOverDatasetInput!
-              ) {
-                chatCompletionOverDataset(input: $input) {
-                  __typename
-                  ... on TextChunk {
-                    content
-                    datasetExampleId
-                    repetitionNumber
-                  }
-                  ... on ToolCallChunk {
-                    id
-                    datasetExampleId
-                    repetitionNumber
-                    function {
-                      name
-                      arguments
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionExperiment {
-                    experiment {
-                      id
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionResult {
-                    datasetExampleId
-                    repetitionNumber
-                    span {
-                      id
-                      tokenCountTotal
-                      costSummary {
-                        total {
-                          cost
-                        }
-                      }
-                      latencyMs
-                      project {
-                        id
-                      }
-                      context {
-                        traceId
-                      }
-                    }
-                    experimentRun {
-                      id
-                    }
-                  }
-                  ... on ChatCompletionSubscriptionError {
-                    datasetExampleId
-                    repetitionNumber
-                    message
-                  }
-                }
-              }
-            `,
+            subscription: PlaygroundDatasetExamplesTableSubscription,
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
@@ -875,6 +822,7 @@ export function PlaygroundDatasetExamplesTable({
             playgroundStore,
             datasetId,
             splitIds,
+            evaluatorMappings,
           }),
         };
         const disposable = generateChatCompletion({
@@ -911,6 +859,7 @@ export function PlaygroundDatasetExamplesTable({
     datasetId,
     splitIds,
     environment,
+    evaluatorMappings,
     generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,
@@ -1042,8 +991,8 @@ export function PlaygroundDatasetExamplesTable({
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
               }}
-              onViewExperimentRunTracePress={(traceId, projectId) => {
-                setSelectedTraceInfo({ traceId, projectId });
+              onViewTracePress={(traceId, projectId, evaluatorName) => {
+                setSelectedTraceInfo({ traceId, projectId, evaluatorName });
               }}
             />
           );
@@ -1095,14 +1044,16 @@ export function PlaygroundDatasetExamplesTable({
                 `}
               >{`Example ${row.original.id}`}</Text>
             </CellTop>
-            <LargeTextWrap>
-              <JSONText
-                json={row.original.input}
-                disableTitle
-                space={2}
-                collapseSingleKey={false}
-              />
-            </LargeTextWrap>
+            <PaddedCell>
+              <LargeTextWrap height={200}>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={2}
+                  collapseSingleKey={false}
+                />
+              </LargeTextWrap>
+            </PaddedCell>
           </>
         );
       },
@@ -1117,7 +1068,9 @@ export function PlaygroundDatasetExamplesTable({
             <CellTop>
               <Text color="text-500">{`reference output`}</Text>
             </CellTop>
-            <JSONCell {...props} collapseSingleKey={true} />
+            <PaddedCell>
+              <JSONCell {...props} collapseSingleKey={true} height={200} />
+            </PaddedCell>
           </>
         );
       },
@@ -1174,12 +1127,10 @@ export function PlaygroundDatasetExamplesTable({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizingInfo,
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizing,
     columns.length,
@@ -1302,7 +1253,11 @@ export function PlaygroundDatasetExamplesTable({
             <PlaygroundRunTraceDetailsDialog
               traceId={selectedTraceInfo.traceId}
               projectId={selectedTraceInfo.projectId}
-              title="Experiment Run Trace"
+              title={
+                selectedTraceInfo.evaluatorName
+                  ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
+                  : "Experiment Run Trace"
+              }
             />
           )}
         </Modal>
@@ -1310,3 +1265,79 @@ export function PlaygroundDatasetExamplesTable({
     </div>
   );
 }
+
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+graphql`
+  subscription PlaygroundDatasetExamplesTableSubscription(
+    $input: ChatCompletionOverDatasetInput!
+  ) {
+    chatCompletionOverDataset(input: $input) {
+      __typename
+      ... on TextChunk {
+        content
+        datasetExampleId
+        repetitionNumber
+      }
+      ... on ToolCallChunk {
+        id
+        datasetExampleId
+        repetitionNumber
+        function {
+          name
+          arguments
+        }
+      }
+      ... on ChatCompletionSubscriptionExperiment {
+        experiment {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionResult {
+        datasetExampleId
+        repetitionNumber
+        span {
+          id
+          tokenCountTotal
+          costSummary {
+            total {
+              cost
+            }
+          }
+          latencyMs
+          project {
+            id
+          }
+          context {
+            traceId
+          }
+        }
+        experimentRun {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionError {
+        datasetExampleId
+        repetitionNumber
+        message
+      }
+      ... on EvaluationChunk {
+        datasetExampleId
+        repetitionNumber
+        experimentRunEvaluation {
+          id
+          name
+          label
+          score
+          annotatorKind
+          explanation
+          metadata
+          startTime
+          trace {
+            traceId
+            projectId
+          }
+        }
+      }
+    }
+  }
+`;

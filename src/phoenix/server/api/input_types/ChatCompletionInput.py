@@ -8,12 +8,12 @@ from strawberry.scalars import JSON
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
 )
-from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.Identifier import Identifier
 
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
 from .GenerativeModelInput import GenerativeModelInput
 from .InvocationParameters import InvocationParameterInput
+from .PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from .PromptTemplateOptions import PromptTemplateOptions
 
 
@@ -23,10 +23,10 @@ class ChatCompletionInput:
     model: GenerativeModelInput
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
     repetitions: int
+    evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
 
 
 @strawberry.input
@@ -35,7 +35,6 @@ class ChatCompletionOverDatasetInput:
     model: GenerativeModelInput
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE
     repetitions: int
     dataset_id: GlobalID
@@ -45,3 +44,4 @@ class ChatCompletionOverDatasetInput:
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
     prompt_name: Optional[Identifier] = None
+    evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)

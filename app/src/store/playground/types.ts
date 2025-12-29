@@ -1,10 +1,11 @@
 import { z } from "zod";
 
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
-import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
+import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import {
   AnthropicToolChoice,
   GoogleToolChoice,
@@ -97,6 +98,7 @@ export type ModelInvocationParameterInput =
  */
 export type Tool = {
   id: number;
+  editorType: PhoenixToolEditorType;
   definition: LlmProviderToolDefinition;
 };
 
@@ -202,7 +204,7 @@ export interface PlaygroundProps {
   instances: Array<PlaygroundInstance>;
   /**
    * The current template format for all instances
-   * @default "mustache"
+   * @default "MUSTACHE"
    */
   templateFormat: TemplateFormat;
   /**

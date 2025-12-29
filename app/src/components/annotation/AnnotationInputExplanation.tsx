@@ -49,7 +49,7 @@ export const AnnotationInputExplanation = ({
           color: var(--ac-global-link-color);
           &:disabled {
             cursor: default;
-            opacity: var(--ac-opacity-disabled);
+            opacity: var(--ac-global-opacity-disabled);
             color: var(--ac-global-text-color-900);
           }
           &:hover:not(:disabled) {
