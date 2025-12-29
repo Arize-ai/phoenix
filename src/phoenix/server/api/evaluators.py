@@ -427,7 +427,10 @@ def apply_input_mapping(
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)
             if matches:
-                result[key] = matches[0].value
+                if len(matches) == 1:
+                    result[key] = matches[0].value
+                else:
+                    result[key] = [match.value for match in matches]
 
     # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):

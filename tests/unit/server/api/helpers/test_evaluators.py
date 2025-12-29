@@ -653,10 +653,10 @@ class TestApplyInputMapping:
             "from_fallback": "context_value",
         }
 
-    def test_returns_first_match_for_multi_match_jsonpath(self) -> None:
+    def test_returns_list_for_multi_match_jsonpath(self) -> None:
         input_schema = {
             "type": "object",
-            "properties": {"item": {"type": "string"}},
+            "properties": {"item": {"type": "array", "items": {"type": "string"}}},
             "required": ["item"],
         }
         input_mapping = EvaluatorInputMappingInput(
@@ -665,7 +665,7 @@ class TestApplyInputMapping:
         )
         context = {"items": ["first", "second", "third"]}
         result = apply_input_mapping(input_schema, input_mapping, context)
-        assert result == {"item": "first"}
+        assert result == {"item": ["first", "second", "third"]}
 
     def test_handles_missing_path_mapping_attribute(self) -> None:
         input_schema = {
