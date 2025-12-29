@@ -1,0 +1,271 @@
+---
+title: "UQLM Confidence & Hallucination Risk"
+---
+
+Ensuring reliable, accurate LLM responses is a core challenge in production AI. In high-stakes domains, hallucinations can be costly, and teams need a model-agnostic way to quantify uncertainty and triage risky answers.
+
+[UQLM](https://github.com/cvs-health/uqlm) (Uncertainty Quantification for Language Models), developed by CVS Health, estimates the trustworthiness of an LLM response using SOTA black-box (consistency across sampled answers) and white-box (token-level logprobs) signals based on the latest research. It computes generation-time, response-level confidence scores in [0,1], helping you flag ambiguous, contradictory, or unreliable outputs.
+
+This guide shows how to integrate UQLM with Phoenix to systematically identify and improve low-quality LLM responses. By leveraging UQLM for automated uncertainty scoring and Phoenix for tracing, slicing, and visualization, you can build more robust and trustworthy AI applications. 
+
+Specifically, this tutorial covers:
+
+- Evaluating LLM responses for trustworthiness with UQLM (BlackBox & WhiteBox).
+- Scoring and flagging high-risk outputs using confidence and risk thresholds.
+- Tracing and visualizing UQLM evaluations in Phoenix (distributions, filters, span details).
+
+More information about UQLM can be found in [this paper](https://arxiv.org/abs/2504.19254).
+
+We will walk through the key steps in the documentation below. Check out the full tutorial here:
+
+<Card title="UQLM_Phoenix_Confidence_Example.ipynb" icon="github" horizontal href="https://github.com/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/uqlm_phoenix_confidence_example.ipynb">
+  
+</Card>
+
+### Key Implementation Steps for generating evals w/ UQLM
+
+1. Install Dependencies, Set up API Keys
+1. Create your Dataset 
+
+   ```python
+   from phoenix.client import Client
+   
+   simple_dataset = [{
+       "input": "What is the capital of France?",
+       "output": "Paris is the capital of France.",
+   }, {
+       "input": "Explain quantum entanglement in one sentence.",
+       "output": "Quantum entanglement is when particles share a state no matter the distance, showing instant correlations.",
+   }, {
+       "input": "Who won the 2023 Wimbledon men's singles?",
+       "output": "Carlos Alcaraz won the 2023 Wimbledon men's singles title.",
+   }, {
+       "input": "Give me three uses of sodium chloride in medicine.",
+           "output": "Sodium chloride is used for IV fluids, nasal irrigation, and as a wound-cleaning solution.",
+   }]
+   simple_df = pd.DataFrame(simple_dataset)
+   
+   client = Client()
+   dataset = client.datasets.create_dataset(
+       dataframe=simple_df,
+       name="cvs_evals",
+       input_keys=["input"],
+       output_keys=["output"]
+   )
+   ```
+1. Define your Task & run an experiment
+
+   ```python
+   from openai import OpenAI
+   from phoenix.client.experiments import run_experiment
+   
+   client = OpenAI()
+   def my_task(example):
+       client = OpenAI()
+       prompt = f"""
+       You will be given a question. I want 5 sampled responses to the question.
+       You will return a list of 5 responses. 
+       Here is your question: {example.input}
+       This is the expected output: 
+       [
+           "response 1",
+           "response 2",
+           "response 3",
+           "response 4",
+           "response 5"
+       ]
+       """
+       response = client.chat.completions.create(
+           model="gpt-4o-mini",
+           messages=[{"role": "user", "content": prompt}]
+       )
+       return response.choices[0].message.content
+   
+   experiment = run_experiment(
+       dataset=dataset,
+       task=my_task,
+       experiment_name="my-experiment", 
+   )   
+   ```
+1. Manipulate your DataFrame to set up for definind UQLM
+
+   ```python
+   import pandas as pd
+   
+   rows = []
+   for run in experiment['task_runs']:
+       row = dict(run)
+       output = run.get('output', {})
+       if isinstance(output, dict):
+           row.update(output)
+       else:
+           row['output'] = output
+       rows.append(row)
+   df = pd.DataFrame(rows)
+   df = df.rename(columns={'output': 'sampled_responses'})
+   responses_df = df['sampled_responses']
+   responses_df = responses_df.iloc[::-1].reset_index(drop=True)
+   df = pd.merge(simple_df, responses_df, left_index=True,right_index=True, how='left')
+   df["sampled_responses"] = df["sampled_responses"].apply(json.loads)
+   df
+   ```
+1. Define UQLM adapter 
+
+   ```python
+   async def compute_uqlm_confidence(
+       dataframe: pd.DataFrame,
+       prompt_col: str = "input",
+       response_col: Optional[str] = None,
+       sampled_responses_col: Optional[str] = None,
+       blackbox_scorers: List[str] = ["noncontradiction"], 
+       ensemble: str = "mean",
+       ensemble_weights: Optional[Dict[str, float]] = None,
+       risk_threshold: Optional[float] = None,  
+       mode: str = "black_box",
+       llm: Optional[Any] = None,
+       num_responses: int = 5,
+       whitebox_scorers: List[str] = ["min_probability"],
+       verbose: bool = False,
+   ) -> pd.DataFrame:
+       """Compute per-scorer and ensemble confidence with UQLM and return merged dataframe.
+       Adds columns:
+         - uqlm_confidence [0,1]
+         - uqlm_risk [0,1] = 1 - confidence
+         - uqlm_high_risk (optional bool) if risk_threshold provided
+         - uqlm__conf (per-scorer, if available)
+       """
+       if not HAVE_UQLM:
+           raise ImportError("UQLM is not installed. `pip install uqlm`.")
+   
+       df = dataframe.copy()
+       per_scorer_cols = []
+   
+       def _ensemble(row: Dict[str, Any]) -> float:
+           vals = [row[c] for c in per_scorer_cols if pd.notnull(row.get(c))]
+           if not vals:
+               return float("nan")
+           if ensemble == "mean":
+               return float(sum(vals) / len(vals))
+           if ensemble == "median":
+               s = sorted(vals)
+               n = len(s)
+               return float((s[n//2] if n % 2 else (s[n//2 - 1] + s[n//2]) / 2))
+           if ensemble == "weighted_mean" and ensemble_weights:
+               num = 0.0
+               den = 0.0
+               for c in per_scorer_cols:
+                   sc = c.replace("uqlm_", "").replace("_conf", "")
+                   w = float(ensemble_weights.get(sc, 0.0))
+                   if sc in ensemble_weights and pd.notnull(row.get(c)):
+                       num += w * float(row[c])
+                       den += w
+               return float(num / den) if den > 0 else float("nan")
+           return float(sum(vals) / len(vals))
+   
+       prompts = df[prompt_col].tolist()
+       responses = df[response_col].tolist() if response_col is not None and response_col in df.columns else None
+       sampled = df[sampled_responses_col].tolist() if sampled_responses_col is not None and sampled_responses_col in df.columns else None
+   
+       if mode == "auto":
+           mode_to_run = "black_box" 
+           if llm:
+               if hasattr(llm, "logprobs"):
+                   mode_to_run = "white_box"
+          
+       else:
+           mode_to_run = mode
+   
+       if mode_to_run == "black_box":
+           bbuq = BlackBoxUQ(llm=llm, scorers=blackbox_scorers)
+           if responses is not None and sampled is not None:
+               results = bbuq.score(responses=responses, sampled_responses=sampled, show_progress_bars=False)
+           else:
+               results = await bbuq.generate_and_score(prompts=prompts, num_responses=num_responses, show_progress_bars=False)
+       
+           per_scorer_cols = []
+           for sc_name in results.data:
+               if sc_name in blackbox_scorers:
+                   per_scorer_cols.append(f"uqlm_{sc_name}_conf")
+                   df[f"uqlm_{sc_name}_conf"] = results.data[sc_name]
+   
+       elif mode_to_run == "white_box":
+          
+           wbuq = WhiteBoxUQ(llm=llm, scorers=whitebox_scorers)
+           if verbose: print("WhiteBoxUQ.generate_and_score ...")
+           results = await wbuq.generate_and_score(prompts=prompts, show_progress_bars=False)
+   
+           for sc_name in results.data:
+               if sc_name in whitebox_scorers:
+                   per_scorer_cols.append(f"uqlm_{sc_name}_conf")
+                   df[f"uqlm_{sc_name}_conf"] = results.data[sc_name]
+       else:
+           raise ValueError("mode must be one of {'black_box', 'white_box', 'auto'}.")
+   
+       df["uqlm_confidence"] = df.apply(_ensemble, axis=1)
+       df["uqlm_risk"] = 1.0 - df["uqlm_confidence"]
+       if risk_threshold is not None:
+           df["uqlm_high_risk"] = df["uqlm_risk"] >= float(risk_threshold)
+   
+       return df
+   ```
+1. Run BlackBoxUQ scoring
+
+   ```python
+   uqlm_df = await compute_uqlm_confidence(
+   	dataframe=df,
+       prompt_col="input",
+       response_col="output",
+       sampled_responses_col="sampled_responses",
+       blackbox_scorers=["noncontradiction", "exact_match"], 
+       ensemble="mean",
+       risk_threshold=0.3,   
+       mode="black_box",
+       llm=None,           
+       num_responses=5,
+       verbose=True,
+   )
+   uqlm_df
+   ```
+
+That's it! Congratulations, you have sucessfully run the Uncertainty Quantification for Language Models eval. Take it a step further by following the steps below. 
+
+7. Generate-and-score with your LLM client
+
+```python
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model="gpt-4", 
+    temperature= 1
+)
+
+llm = llm
+uqlm_gen_df = await compute_uqlm_confidence(
+	dataframe=df,
+	mode="black_box",
+	llm=llm,
+	num_responses=5,
+	blackbox_scorers=["noncontradiction", "cosine_sim"],
+	ensemble="mean",
+	risk_threshold=0.5,
+	verbose=True,
+)
+
+uqlm_gen_df
+```
+
+8. WhiteBox scoring (token-level logprobs)
+
+```python
+llm_logprobs = llm
+uqlm_whitebox_df = await compute_uqlm_confidence(
+	dataframe=df,
+	mode="white_box",
+	llm=llm_logprobs,
+	whitebox_scorers=["min_probability", "normalized_probability"],
+	risk_threshold=0.5,
+	verbose=True
+)
+
+uqlm_whitebox_df
+```
