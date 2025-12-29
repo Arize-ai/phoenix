@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71a2d9a3bc8c91fd1918bb235a08df5a>>
+ * @generated SignedSource<<ad60c38441427f77c3445653f05a7f1b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,7 +41,6 @@ export type GenerativeModelInput = {
   custom?: GenerativeModelCustomProviderInput | null;
 };
 export type GenerativeModelBuiltinProviderInput = {
-  apiVersion?: string | null;
   baseUrl?: string | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   customHeaders?: any | null;

@@ -13,7 +13,6 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
-import { ApiVersionConfigFormField } from "./ApiVersionConfigFormField";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { DeploymentNameConfigFormField } from "./DeploymentNameConfigFormField";
@@ -83,9 +82,6 @@ export function ModelParametersConfigButton(
                     playgroundInstanceId={playgroundInstanceId}
                   />
                   <EndpointConfigFormField
-                    playgroundInstanceId={playgroundInstanceId}
-                  />
-                  <ApiVersionConfigFormField
                     playgroundInstanceId={playgroundInstanceId}
                   />
                 </>

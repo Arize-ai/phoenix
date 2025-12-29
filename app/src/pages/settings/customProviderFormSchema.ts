@@ -83,8 +83,6 @@ const azureEndpointSchema = z
 const azureOpenAISchema = baseProviderSchema.extend({
   sdk: z.literal("AZURE_OPENAI"),
   azure_endpoint: azureEndpointSchema,
-  azure_deployment_name: z.string().min(1, "Deployment name is required"),
-  azure_api_version: z.string().min(1, "API version is required"),
   azure_auth_method: z.enum(["api_key", "ad_token_provider"]),
   azure_api_key: z.string().optional(),
   azure_tenant_id: z.string().optional(),

@@ -375,9 +375,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           instances: instances.map((instance) => {
             if (instance.id === instanceId) {
               // if we have top level model config for the provider, merge it in
-              // this allows us to populate default values for baseUrl, endpoint, and apiVersion
+              // this allows us to populate default values for baseUrl, endpoint, and region
               // when the user has saved an azure prompt and we load it back in
-              const { baseUrl, endpoint, apiVersion, region } =
+              const { baseUrl, endpoint, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
               // try to port dirty invocation parameters to the new supported invocation parameters
               // ensure that the invocation parameters are only the ones that are supported by the model
@@ -400,7 +400,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   ...instance.model,
                   baseUrl: instance.model.baseUrl ?? baseUrl,
                   endpoint: instance.model.endpoint ?? endpoint,
-                  apiVersion: instance.model.apiVersion ?? apiVersion,
                   region: instance.model.region ?? region,
                   supportedInvocationParameters,
                   invocationParameters: mergedInvocationParameters,
@@ -460,7 +459,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           const resetFields = {
             modelName: null,
             baseUrl: getDefaultBaseUrl(provider),
-            apiVersion: null,
             endpoint: null,
             region: null,
             customHeaders: null,
