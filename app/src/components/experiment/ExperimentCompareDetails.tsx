@@ -404,14 +404,12 @@ export function ExperimentRunOutputs() {
                 }
                 return experimentRepetitions.map((repetition) => {
                   return (
-                    <li key={`${experimentId}-${repetition.repetitionNumber}`}>
-                      <ExperimentItemIfSelected
-                        key={`${experimentId}-${repetition.repetitionNumber}`}
-                        experiment={experiment}
-                        experimentRepetition={repetition}
-                        experimentIndex={experimentIndex}
-                      />
-                    </li>
+                    <ExperimentListItemIfSelected
+                      key={`${experimentId}-${repetition.repetitionNumber}`}
+                      experiment={experiment}
+                      experimentRepetition={repetition}
+                      experimentIndex={experimentIndex}
+                    />
                   );
                 });
               }
@@ -423,7 +421,7 @@ export function ExperimentRunOutputs() {
   );
 }
 
-const ExperimentItemIfSelected = ({
+const ExperimentListItemIfSelected = ({
   experiment,
   experimentRepetition,
   experimentIndex,
@@ -455,11 +453,13 @@ const ExperimentItemIfSelected = ({
   }
 
   return (
-    <ExperimentItem
-      experiment={experiment}
-      experimentRepetition={experimentRepetition}
-      experimentIndex={experimentIndex}
-    />
+    <li>
+      <ExperimentItem
+        experiment={experiment}
+        experimentRepetition={experimentRepetition}
+        experimentIndex={experimentIndex}
+      />
+    </li>
   );
 };
 
