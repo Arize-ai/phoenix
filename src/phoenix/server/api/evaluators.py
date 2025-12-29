@@ -1,6 +1,7 @@
 import json
 import zlib
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
@@ -207,6 +208,14 @@ class LLMEvaluator:
             input_mapping=input_mapping,
             context=context,
         )
+        template_variables = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=self.input_schema,
+        )
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=self.input_schema,
+        )
         template_formatter = get_template_formatter(self._template_format)
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
@@ -408,6 +417,7 @@ async def get_llm_evaluators(
 
 
 def apply_input_mapping(
+    *,
     input_schema: dict[str, Any],
     input_mapping: "EvaluatorInputMappingInput",
     context: dict[str, Any],
@@ -418,11 +428,14 @@ def apply_input_mapping(
         for key, path_expr in input_mapping.path_mapping.items():
             try:
                 jsonpath = parse_jsonpath(path_expr)
-                matches = jsonpath.find(context)
-                if matches:
+            except Exception as e:
+                raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
+            matches = jsonpath.find(context)
+            if matches:
+                if len(matches) == 1:
                     result[key] = matches[0].value
-            except Exception:
-                pass
+                else:
+                    result[key] = [match.value for match in matches]
 
     # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):
@@ -435,12 +448,35 @@ def apply_input_mapping(
         if key not in result and key in context:
             result[key] = context[key]
 
+    return result
+
+
+def cast_template_variable_types(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> dict[str, Any]:
+    casted_template_variables = deepcopy(template_variables)
+    properties = input_schema.get("properties", {})
+
+    for key, prop_schema in properties.items():
+        if key in casted_template_variables:
+            prop_type = prop_schema.get("type")
+            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
+                casted_template_variables[key] = str(casted_template_variables[key])
+
+    return casted_template_variables
+
+
+def validate_template_variables(
+    *,
+    template_variables: dict[str, Any],
+    input_schema: dict[str, Any],
+) -> None:
     try:
-        validate(instance=result, schema=input_schema)
+        validate(instance=template_variables, schema=input_schema)
     except ValidationError as e:
         raise ValueError(f"Input validation failed: {e.message}")
-
-    return result
 
 
 def infer_input_schema_from_template(
@@ -567,7 +603,19 @@ class ContainsEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
-        inputs = apply_input_mapping(self.input_schema, input_mapping, context)
+        inputs = apply_input_mapping(
+            input_schema=self.input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        inputs = cast_template_variable_types(
+            template_variables=inputs,
+            input_schema=self.input_schema,
+        )
+        validate_template_variables(
+            template_variables=inputs,
+            input_schema=self.input_schema,
+        )
         words = [word.strip() for word in inputs.get("words", "").split(",")]
         text = inputs.get("text", "")
         case_sensitive = inputs.get("case_sensitive", False)

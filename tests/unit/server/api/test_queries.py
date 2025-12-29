@@ -2069,3 +2069,102 @@ class TestApplyChatTemplate:
         assert response.errors is not None
         assert len(response.errors) == 1
         assert response.errors[0].message == "Variables JSON string must parse to a dictionary"
+
+    async def test_apply_template_with_invalid_jsonpath_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that invalid JSONPath expressions return a readable error message."""
+        query = """
+          query (
+            $template: PromptChatTemplateInput!,
+            $templateOptions: PromptTemplateOptions!,
+            $inputMapping: EvaluatorInputMappingInput
+          ) {
+            applyChatTemplate(
+              template: $template,
+              templateOptions: $templateOptions,
+              inputMapping: $inputMapping
+            ) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Hello, {{ name }}!"}}],
+                    },
+                ]
+            },
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {"name": "Alice"},
+            },
+            "inputMapping": {
+                "pathMapping": {"name": "[[[invalid jsonpath"},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert response.errors is not None
+        assert len(response.errors) == 1
+        assert "Invalid JSONPath expression" in response.errors[0].message
+        assert "name" in response.errors[0].message
+
+    async def test_apply_template_with_missing_required_variable_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that missing required template variables return a readable error message."""
+        query = """
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+                content {
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+
+        variables = {
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [
+                            {"text": {"text": "Hello, {{ name }}! Welcome to {{ place }}."}}
+                        ],
+                    },
+                ]
+            },
+            "templateOptions": {
+                "format": "MUSTACHE",
+                "variables": {"name": "Alice"},  # Missing 'place' variable
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert response.errors is not None
+        assert len(response.errors) == 1
+        assert "Missing template variable(s)" in response.errors[0].message
+        assert "place" in response.errors[0].message

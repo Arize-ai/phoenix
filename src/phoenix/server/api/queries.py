@@ -36,8 +36,10 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
+    cast_template_variable_types,
     get_builtin_evaluators,
     infer_input_schema_from_template,
+    validate_template_variables,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
@@ -1776,11 +1778,28 @@ class Query:
                 template=template,
                 template_format=template_options.format,
             )
-            variables = apply_input_mapping(
-                input_schema,
-                input_mapping,
-                variables,
+
+            try:
+                variables = apply_input_mapping(
+                    input_schema=input_schema,
+                    input_mapping=input_mapping,
+                    context=variables,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+            variables = cast_template_variable_types(
+                template_variables=variables,
+                input_schema=input_schema,
             )
+
+            try:
+                validate_template_variables(
+                    template_variables=variables,
+                    input_schema=input_schema,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
 
         messages: list[PromptMessage] = []
         for msg in template.messages:
