@@ -5,7 +5,6 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
-import { ApiVersionConfigFormField } from "./ApiVersionConfigFormField";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { DeploymentNameConfigFormField } from "./DeploymentNameConfigFormField";
@@ -111,9 +110,6 @@ export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
             playgroundInstanceId={playgroundInstanceId}
           />
           <EndpointConfigFormField
-            playgroundInstanceId={playgroundInstanceId}
-          />
-          <ApiVersionConfigFormField
             playgroundInstanceId={playgroundInstanceId}
           />
         </>
