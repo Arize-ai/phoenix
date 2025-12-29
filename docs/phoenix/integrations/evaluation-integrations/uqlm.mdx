@@ -25,7 +25,7 @@ We will walk through the key steps in the documentation below. Check out the ful
 ### Key Implementation Steps for generating evals w/ UQLM
 
 1. Install Dependencies, Set up API Keys
-1. Create your Dataset 
+1. Create your Dataset
 
    ```python
    from phoenix.client import Client
@@ -109,7 +109,7 @@ We will walk through the key steps in the documentation below. Check out the ful
    df["sampled_responses"] = df["sampled_responses"].apply(json.loads)
    df
    ```
-1. Define UQLM adapter 
+1. Define UQLM adapter
 
    ```python
    async def compute_uqlm_confidence(
@@ -227,7 +227,7 @@ We will walk through the key steps in the documentation below. Check out the ful
    uqlm_df
    ```
 
-That's it! Congratulations, you have sucessfully run the Uncertainty Quantification for Language Models eval. Take it a step further by following the steps below. 
+That's it! Congratulations, you have sucessfully run the Uncertainty Quantification for Language Models eval. Take it a step further by following the steps below.
 
 7. Generate-and-score with your LLM client
 

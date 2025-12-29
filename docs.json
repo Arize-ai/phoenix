@@ -834,7 +834,8 @@
                 "icon": "clipboard-check",
                 "pages": [
                   "docs/phoenix/integrations/evaluation-integrations/cleanlab",
-                  "docs/phoenix/integrations/evaluation-integrations/ragas"
+                  "docs/phoenix/integrations/evaluation-integrations/ragas", 
+                  "docs/phoenix/integrations/evaluation-integrations/uqlm"
                 ]
               },
               {
