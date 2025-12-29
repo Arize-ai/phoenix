@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google import genai
     from google.generativeai.types import ContentType
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
     from opentelemetry.util.types import AttributeValue
@@ -268,12 +268,12 @@ class PlaygroundStreamingClient(ABC):
 
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
-    client: Union["AsyncOpenAI", "AsyncAzureOpenAI"]
+    client: "AsyncOpenAI"
 
     def __init__(
         self,
         *,
-        client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
+        client: "AsyncOpenAI",
         model_name: str,
         provider: str,
     ) -> None:
@@ -1190,7 +1190,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         *,
-        client: "AsyncAzureOpenAI",
+        client: "AsyncOpenAI",
         model_name: str,
         provider: str = "azure",
     ) -> None:
@@ -1966,7 +1966,7 @@ async def _get_builtin_provider_client(
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         try:
-            from openai import AsyncAzureOpenAI
+            from openai import AsyncOpenAI
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
@@ -1978,18 +1978,18 @@ async def _get_builtin_provider_client(
             or getenv("AZURE_OPENAI_API_KEY")
         )
         endpoint = obj.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
-        api_version = obj.api_version or getenv("OPENAI_API_VERSION")
 
         if not endpoint:
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not api_version:
-            raise BadRequest("An API version is required for Azure OpenAI models")
+
+        # Construct the v1 API base URL
+        endpoint = endpoint.rstrip("/")
+        base_url = (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
 
         if api_key:
-            azure_client = AsyncAzureOpenAI(
+            azure_client = AsyncOpenAI(
                 api_key=api_key,
-                azure_endpoint=endpoint,
-                api_version=api_version,
+                base_url=base_url,
                 default_headers=headers,
             )
         else:
@@ -1999,13 +1999,13 @@ async def _get_builtin_provider_client(
                 raise BadRequest(
                     "Provide an API key for Azure OpenAI models or install azure-identity"
                 )
-            azure_client = AsyncAzureOpenAI(
-                azure_ad_token_provider=get_bearer_token_provider(
-                    DefaultAzureCredential(),
-                    "https://cognitiveservices.azure.com/.default",
-                ),
-                azure_endpoint=endpoint,
-                api_version=api_version,
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default",
+            )
+            azure_client = AsyncOpenAI(
+                api_key=token_provider,  # type: ignore[arg-type]
+                base_url=base_url,
                 default_headers=headers,
             )
         if model_name in OPENAI_REASONING_MODELS:
@@ -2268,7 +2268,6 @@ async def _get_custom_provider_client(
             azure_openai_client = cfg.get_client(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client: {e}")
-        model_name = model_name or cfg.azure_openai_client_kwargs.azure_deployment
         if model_name in OPENAI_REASONING_MODELS:
             return AzureOpenAIReasoningNonStreamingClient(
                 client=azure_openai_client,

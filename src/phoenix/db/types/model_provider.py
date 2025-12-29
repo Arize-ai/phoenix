@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
     from google import genai
     from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI
 
 
 class ModelProvider(Enum):
@@ -162,17 +162,9 @@ class AzureOpenAIClientKwargs(BaseModel):
         str_min_length=1,
         str_strip_whitespace=True,
     )
-    api_version: str = Field(
-        ...,
-        description="Azure OpenAI API version",
-    )
     azure_endpoint: str = Field(
         ...,
-        description="Azure endpoint URL",
-    )
-    azure_deployment: str = Field(
-        ...,
-        description="Azure deployment name",
+        description="Azure endpoint URL (e.g., https://myresource.openai.azure.com)",
     )
     default_headers: Mapping[str, str] | None = Field(
         default=None,
@@ -200,18 +192,23 @@ class AzureOpenAICustomProviderConfig(BaseModel):
     def get_client(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "AsyncAzureOpenAI":
+    ) -> "AsyncOpenAI":
         try:
-            from openai import AsyncAzureOpenAI
+            from openai import AsyncOpenAI
         except ImportError:
             raise ImportError("OpenAI package not installed. Run: pip install openai")
 
         kwargs = self.azure_openai_client_kwargs
 
-        azure_deployment = kwargs.azure_deployment
-        azure_endpoint = kwargs.azure_endpoint
-        api_version = kwargs.api_version
         default_headers = kwargs.default_headers
+
+        # Construct the v1 API base URL
+        azure_endpoint = kwargs.azure_endpoint.rstrip("/")
+        base_url = (
+            azure_endpoint
+            if azure_endpoint.endswith("/openai/v1")
+            else f"{azure_endpoint}/openai/v1"
+        ) + "/"
 
         headers = dict(default_headers) if default_headers else {}
         if extra_headers:
@@ -223,16 +220,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         with without_env_vars("AZURE_*", "OPENAI_*"):
             if method.type == "api_key":
                 api_key = method.api_key
-                return AsyncAzureOpenAI(
+                return AsyncOpenAI(
                     api_key=api_key,
-                    azure_endpoint=azure_endpoint,
-                    azure_deployment=azure_deployment,
-                    api_version=api_version,
+                    base_url=base_url,
                     default_headers=merged_headers,
                 )
             elif method.type == "azure_ad_token_provider":
                 try:
-                    from azure.identity import ClientSecretCredential
+                    from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
                 except ImportError:
                     raise ImportError(
                         "Azure identity package not installed. Run: pip install azure-identity"
@@ -246,16 +241,11 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     client_id=client_id,
                     client_secret=client_secret,
                 )
+                token_provider = get_bearer_token_provider(cred, scope)
 
-                def azure_ad_token_provider() -> str:
-                    token = cred.get_token(scope)
-                    return token.token
-
-                return AsyncAzureOpenAI(
-                    azure_ad_token_provider=azure_ad_token_provider,
-                    azure_endpoint=azure_endpoint,
-                    azure_deployment=azure_deployment,
-                    api_version=api_version,
+                return AsyncOpenAI(
+                    api_key=token_provider,  # type: ignore[arg-type]
+                    base_url=base_url,
                     default_headers=merged_headers,
                 )
             else:
