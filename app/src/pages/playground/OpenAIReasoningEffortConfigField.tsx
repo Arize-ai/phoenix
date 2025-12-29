@@ -1,6 +1,12 @@
 import { Label } from "react-aria-components";
 
-import { ListBox, Select, SelectItem, SelectValue } from "@phoenix/components";
+import {
+  ListBox,
+  Select,
+  SelectItem,
+  SelectValue,
+  Text,
+} from "@phoenix/components";
 import { Button } from "@phoenix/components/button";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { Popover } from "@phoenix/components/overlay";
@@ -37,7 +43,11 @@ export const OpenAIReasoningEffortConfigField = ({
       </Button>
       <Popover>
         <ListBox>
-          <SelectItem id={UNSET_VALUE}>unset</SelectItem>
+          <SelectItem id={UNSET_VALUE}>
+            <Text color="text-500" fontStyle="italic">
+              unset
+            </Text>
+          </SelectItem>
           <SelectItem id="none">none</SelectItem>
           <SelectItem id="minimal">minimal</SelectItem>
           <SelectItem id="low">low</SelectItem>
