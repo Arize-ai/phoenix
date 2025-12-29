@@ -80,9 +80,7 @@ const ProviderQuery = graphql`
               }
             }
             azureOpenaiClientKwargs {
-              apiVersion
               azureEndpoint
-              azureDeployment
               defaultHeaders
             }
           }

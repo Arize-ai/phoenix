@@ -69,8 +69,6 @@ export function createDefaultFormData(
         sdk: "AZURE_OPENAI",
         provider: SDK_DEFAULT_PROVIDER.AZURE_OPENAI,
         azure_endpoint: "",
-        azure_deployment_name: "",
-        azure_api_version: "",
         azure_auth_method: "api_key",
         azure_api_key: undefined,
         azure_tenant_id: undefined,
@@ -178,8 +176,6 @@ export function transformConfigToFormValues(
         ...baseValues,
         sdk: "AZURE_OPENAI",
         azure_endpoint: kwargs?.azureEndpoint ?? "",
-        azure_deployment_name: kwargs?.azureDeployment ?? "",
-        azure_api_version: kwargs?.apiVersion ?? "",
         azure_auth_method: authMethodType,
         azure_api_key: authMethod?.apiKey ?? undefined,
         azure_tenant_id:
@@ -286,14 +282,6 @@ export function buildClientConfig(
         formData.azure_endpoint,
         "Azure endpoint is required but was empty"
       );
-      invariant(
-        formData.azure_deployment_name,
-        "Azure deployment name is required but was empty"
-      );
-      invariant(
-        formData.azure_api_version,
-        "Azure API version is required but was empty"
-      );
 
       // Build auth method based on selected type
       // Note: We don't use compressObject here because the GraphQL types require
@@ -344,8 +332,6 @@ export function buildClientConfig(
           azureOpenaiAuthenticationMethod: authMethod,
           azureOpenaiClientKwargs: {
             azureEndpoint: formData.azure_endpoint,
-            azureDeployment: formData.azure_deployment_name,
-            apiVersion: formData.azure_api_version,
             ...(defaultHeaders !== undefined && { defaultHeaders }),
           },
         },
@@ -503,9 +489,6 @@ function hasConfigChanged(
       invariant(originalValues.sdk === "AZURE_OPENAI", "SDK mismatch");
       return (
         formData.azure_endpoint !== originalValues.azure_endpoint ||
-        formData.azure_deployment_name !==
-          originalValues.azure_deployment_name ||
-        formData.azure_api_version !== originalValues.azure_api_version ||
         formData.azure_auth_method !== originalValues.azure_auth_method ||
         formData.azure_api_key !== originalValues.azure_api_key ||
         formData.azure_tenant_id !== originalValues.azure_tenant_id ||

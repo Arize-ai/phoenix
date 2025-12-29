@@ -11,7 +11,6 @@ httpx-ws
 litellm>1.61.15
 nest-asyncio # for executor testing
 numpy
-openai>=1.0.0
 pandas-stubs==2.0.3.230814
 pandas>=1.0
 protobuf

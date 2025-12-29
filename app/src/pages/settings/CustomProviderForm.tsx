@@ -97,8 +97,6 @@ export interface OpenAIFormData extends BaseProviderFormData {
 export interface AzureOpenAIFormData extends BaseProviderFormData {
   sdk: "AZURE_OPENAI";
   azure_endpoint: string;
-  azure_deployment_name: string;
-  azure_api_version: string;
   azure_auth_method: AzureAuthMethod;
   // API Key auth
   azure_api_key?: string;
@@ -297,40 +295,6 @@ function AzureOpenAIFields({
           >
             <Label>Endpoint</Label>
             <Input placeholder="https://your-resource.openai.azure.com/" />
-            {error && <FieldError>{error.message}</FieldError>}
-          </TextField>
-        )}
-      />
-      <Controller
-        name="azure_deployment_name"
-        control={control}
-        rules={{ required: "Deployment Name is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <TextField
-            isRequired
-            isInvalid={invalid}
-            {...field}
-            isDisabled={isSubmitting}
-          >
-            <Label>Deployment Name</Label>
-            <Input />
-            {error && <FieldError>{error.message}</FieldError>}
-          </TextField>
-        )}
-      />
-      <Controller
-        name="azure_api_version"
-        control={control}
-        rules={{ required: "API Version is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <TextField
-            isRequired
-            isInvalid={invalid}
-            {...field}
-            isDisabled={isSubmitting}
-          >
-            <Label>API Version</Label>
-            <Input placeholder="e.g., 2025-06-01" />
             {error && <FieldError>{error.message}</FieldError>}
           </TextField>
         )}
@@ -1001,8 +965,6 @@ type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
 const CREDENTIAL_FIELDS = [
   "openai_api_key",
   "azure_endpoint",
-  "azure_deployment_name",
-  "azure_api_version",
   "azure_api_key",
   "azure_auth_method",
   "azure_tenant_id",
@@ -1026,10 +988,7 @@ function hasRequiredCredentials(
     case "OPENAI":
       return Boolean(credentials.openai_api_key);
     case "AZURE_OPENAI": {
-      const hasBaseConfig =
-        credentials.azure_endpoint &&
-        credentials.azure_deployment_name &&
-        credentials.azure_api_version;
+      const hasBaseConfig = credentials.azure_endpoint;
       const authMethod = credentials.azure_auth_method || "api_key";
       if (authMethod === "api_key") {
         return Boolean(hasBaseConfig && credentials.azure_api_key);

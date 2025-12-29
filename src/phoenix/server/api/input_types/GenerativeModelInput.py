@@ -23,8 +23,6 @@ class GenerativeModelBuiltinProviderInput:
     """ The base URL to use for the model. """
     endpoint: Optional[str] = UNSET
     """ The endpoint to use for the model. Only required for Azure OpenAI models. """
-    api_version: Optional[str] = UNSET
-    """ The API version to use for the model. """
     region: Optional[str] = UNSET
     """ The region to use for the model. """
     custom_headers: Optional[JSON] = UNSET

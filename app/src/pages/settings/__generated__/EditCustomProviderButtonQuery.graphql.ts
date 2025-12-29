@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aeaab999cca471823ac4e0d0759d948e>>
+ * @generated SignedSource<<9f0362460a7a2d0c10c8ffc8a962ffde>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,8 +43,6 @@ export type EditCustomProviderButtonQuery$data = {
         } | null;
       };
       readonly azureOpenaiClientKwargs?: {
-        readonly apiVersion: string;
-        readonly azureDeployment: string;
         readonly azureEndpoint: string;
         readonly defaultHeaders: any | null;
       };
@@ -336,21 +334,7 @@ v17 = {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "apiVersion",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
           "name": "azureEndpoint",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "azureDeployment",
           "storageKey": null
         },
         (v15/*: any*/)
@@ -611,16 +595,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3f1d1c91b1a765b619fb169bb2ea23f9",
+    "cacheID": "fbe88fa91634bb95aae93fa0a68d6362",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonQuery",
     "operationKind": "query",
-    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n          }\n          azureOpenaiClientKwargs {\n            apiVersion\n            azureEndpoint\n            azureDeployment\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            awsAccessKeyId\n            awsSecretAccessKey\n            awsSessionToken\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n          }\n          azureOpenaiClientKwargs {\n            azureEndpoint\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            awsAccessKeyId\n            awsSecretAccessKey\n            awsSessionToken\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b43fc8f39d3421abd2110a9b81af0ba8";
+(node as any).hash = "431654fd3aa7511a154331160e5a0233";
 
 export default node;

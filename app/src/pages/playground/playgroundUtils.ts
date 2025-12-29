@@ -399,7 +399,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const azureConfig =
       provider === "AZURE_OPENAI"
         ? getAzureConfigFromAttributes(parsedAttributes)
-        : { deploymentName: null, apiVersion: null, endpoint: null };
+        : { deploymentName: null, endpoint: null };
     const modelName =
       provider === "AZURE_OPENAI" && azureConfig.deploymentName
         ? azureConfig.deploymentName
@@ -410,7 +410,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
           Object.entries({
             baseUrl,
             endpoint: azureConfig.endpoint,
-            apiVersion: azureConfig.apiVersion,
           }).filter(([_, value]) => value !== null)
         ),
         modelName,
@@ -425,11 +424,11 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 }
 
 /**
- * Temporary stopgap: Extract Azure config (deploymentName, apiVersion, endpoint)
+ * Temporary stopgap: Extract Azure config (deploymentName, endpoint)
  * from span attributes until vendor-specific OpenInference conventions exist.
  *
  * Important: This currently only works for two types of spans:
- * - Phoenix playground spans (URL present → parsed for deployment/apiVersion/endpoint)
+ * - Phoenix playground spans (URL present → parsed for deployment/endpoint)
  * - LangChain spans (metadata.ls_model_name)
  *
  * Note: For Azure, `llm.model_name` is NOT the deployment name.
@@ -438,7 +437,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
  * 1) URL (preferred): When the request URL is present (most often on playground
  *    generated spans), parse it to extract:
  *    - deploymentName from the path segment: deployments/<name>/...
- *    - apiVersion from the query param: api-version=<version>
  *    - endpoint from the URL origin
  * 2) Metadata (fallback): If the URL is not present or not parseable, use
  *    `llm.metadata.ls_model_name` (commonly emitted by some LangChain spans) as
@@ -453,7 +451,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
  */
 export function getAzureConfigFromAttributes(parsedAttributes: unknown): {
   deploymentName: string | null;
-  apiVersion: string | null;
   endpoint: string | null;
 } {
   const { success: metaSuccess, data: meta } =
@@ -464,16 +461,15 @@ export function getAzureConfigFromAttributes(parsedAttributes: unknown): {
     meta.metadata.ls_model_name.trim()
       ? meta.metadata.ls_model_name.trim()
       : null;
-  // Derive deployment name, endpoint and apiVersion from URL when available
+  // Derive deployment name and endpoint from URL when available
   const { success: urlSuccess, data: urlData } =
     urlSchema.safeParse(parsedAttributes);
-  const { endpoint, apiVersion, deploymentName } = urlSuccess
+  const { endpoint, deploymentName } = urlSuccess
     ? parseAzureDeploymentInfoFromUrl(urlData.url.full)
-    : { endpoint: null, apiVersion: null, deploymentName: null };
+    : { endpoint: null, deploymentName: null };
   return {
     // URL takes precedence when present; fall back to metadata-derived name
     deploymentName: deploymentName ?? deploymentNameFromMetadata,
-    apiVersion,
     endpoint,
   };
 }
@@ -1162,7 +1158,6 @@ const getBaseChatCompletionInput = ({
     instance.model.provider === "AZURE_OPENAI"
       ? {
           endpoint: instance.model.endpoint,
-          apiVersion: instance.model.apiVersion,
         }
       : {};
 
@@ -1546,22 +1541,19 @@ const LS_METADATA_SCHEMA = z
   })
   .passthrough();
 
-// Parse Azure details (endpoint, apiVersion, deployment name) from URL
+// Parse Azure details (endpoint, deployment name) from URL
 function parseAzureDeploymentInfoFromUrl(fullUrl: string): {
   endpoint: string | null;
-  apiVersion: string | null;
   deploymentName: string | null;
 } {
   try {
     const urlObj = new URL(fullUrl);
     const endpoint = urlObj.origin.trim();
-    const apiVer = urlObj.searchParams.get("api-version");
-    const apiVersion = apiVer && apiVer.trim() ? apiVer.trim() : null;
     const path = (urlObj.pathname || "").toString();
     const match = path.match(AZURE_DEPLOYMENT_PATH_REGEX);
     const deploymentName = match && match[1] ? match[1].trim() : null;
-    return { endpoint, apiVersion, deploymentName };
+    return { endpoint, deploymentName };
   } catch {
-    return { endpoint: null, apiVersion: null, deploymentName: null };
+    return { endpoint: null, deploymentName: null };
   }
 }

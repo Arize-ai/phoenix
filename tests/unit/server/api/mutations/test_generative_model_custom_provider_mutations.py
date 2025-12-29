@@ -60,9 +60,7 @@ class TestGenerativeModelCustomProviderMutations:
                   }
                 }
                 azureOpenaiClientKwargs {
-                  apiVersion
                   azureEndpoint
-                  azureDeployment
                   defaultHeaders
                 }
               }
@@ -205,8 +203,6 @@ class TestGenerativeModelCustomProviderMutations:
                             "azureOpenaiAuthenticationMethod": {"apiKey": "azure-key-123"},
                             "azureOpenaiClientKwargs": {
                                 "azureEndpoint": "https://test.openai.azure.com",
-                                "azureDeployment": "gpt-4",
-                                "apiVersion": "2024-02-15-preview",
                             },
                         }
                     },
@@ -232,8 +228,6 @@ class TestGenerativeModelCustomProviderMutations:
             azure_config["azureOpenaiClientKwargs"]["azureEndpoint"]
             == "https://test.openai.azure.com"
         )
-        assert azure_config["azureOpenaiClientKwargs"]["apiVersion"] == "2024-02-15-preview"
-        assert azure_config["azureOpenaiClientKwargs"]["azureDeployment"] == "gpt-4"
 
         # Create Azure OpenAI provider with AD token provider
         azure_ad_provider_result = await gql_client.execute(
@@ -254,8 +248,6 @@ class TestGenerativeModelCustomProviderMutations:
                             },
                             "azureOpenaiClientKwargs": {
                                 "azureEndpoint": "https://test.openai.azure.com",
-                                "azureDeployment": "gpt-4",
-                                "apiVersion": "2024-02-15-preview",
                             },
                         }
                     },

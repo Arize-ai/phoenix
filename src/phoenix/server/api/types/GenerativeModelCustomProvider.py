@@ -133,17 +133,13 @@ class AzureOpenAIAuthenticationMethod:
 
 @strawberry.type
 class AzureOpenAIClientKwargs:
-    api_version: str
     azure_endpoint: str
-    azure_deployment: str
     default_headers: JSON | None = UNSET
 
     @classmethod
     def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs) -> Self:
         return cls(
-            api_version=kwargs.api_version,
             azure_endpoint=kwargs.azure_endpoint,
-            azure_deployment=kwargs.azure_deployment,
             default_headers=kwargs.default_headers,
         )
 

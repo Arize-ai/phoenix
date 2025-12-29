@@ -176,7 +176,7 @@ container = [
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=1.0.0",
+  "openai>=2.14.0",
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
