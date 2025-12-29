@@ -9,7 +9,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.evaluators import apply_input_mapping
+from phoenix.server.api.evaluators import apply_input_mapping, cast_template_variable_types
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -707,6 +707,80 @@ class TestApplyInputMapping:
         context = {"nested": {"a": 1, "b": 2}}
         result = apply_input_mapping(input_schema, input_mapping, context)
         assert result == {"obj": {"a": 1, "b": 2}}
+
+
+class TestCastTemplateVariableTypes:
+    def test_converts_int_to_string(self) -> None:
+        template_variables = {"count": 42}
+        input_schema = {
+            "type": "object",
+            "properties": {"count": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"count": "42"}
+
+    def test_converts_list_to_string(self) -> None:
+        template_variables = {"items": [1, 2, 3]}
+        input_schema = {
+            "type": "object",
+            "properties": {"items": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"items": "[1, 2, 3]"}
+
+    def test_converts_dict_to_string(self) -> None:
+        template_variables = {"data": {"key": "value"}}
+        input_schema = {
+            "type": "object",
+            "properties": {"data": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"data": "{'key': 'value'}"}
+
+    def test_converts_none_to_string(self) -> None:
+        template_variables = {"value": None}
+        input_schema = {
+            "type": "object",
+            "properties": {"value": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"value": "None"}
+
+    def test_leaves_existing_string_unchanged(self) -> None:
+        template_variables = {"text": "hello world"}
+        input_schema = {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"text": "hello world"}
+
+    def test_ignores_non_string_schema_types(self) -> None:
+        template_variables = {"count": 42, "flag": True}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "count": {"type": "number"},
+                "flag": {"type": "boolean"},
+            },
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"count": 42, "flag": True}
+
+    def test_preserves_keys_not_in_schema(self) -> None:
+        template_variables = {"in_schema": 123, "not_in_schema": 456}
+        input_schema = {
+            "type": "object",
+            "properties": {"in_schema": {"type": "string"}},
+        }
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"in_schema": "123", "not_in_schema": 456}
+
+    def test_handles_empty_schema(self) -> None:
+        template_variables = {"key": 42}
+        input_schema = {}
+        result = cast_template_variable_types(template_variables, input_schema)
+        assert result == {"key": 42}
 
 
 @pytest.fixture
