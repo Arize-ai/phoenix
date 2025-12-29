@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 
 import { Card, Flex } from "@phoenix/components";
-import {
-  type CodeLanguage,
-  CodeLanguageRadioGroup,
-} from "@phoenix/components/code";
+import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeBlock } from "@phoenix/components/CodeBlock";
+import { ProgrammingLanguage } from "@phoenix/types/code";
 
 const PYTHON_CODE = `
 def contains(
@@ -35,7 +33,7 @@ function contains(
 `.trim();
 
 export const ContainsEvaluatorCodeBlock = () => {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  const [language, setLanguage] = useState<ProgrammingLanguage>("Python");
   return (
     <Card
       title="Code"
