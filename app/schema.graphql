@@ -1932,7 +1932,7 @@ type Functionality {
 
 input GenerativeCredentialInput {
   envVarName: String!
-  value: String!
+  value: SecretString!
 }
 
 type GenerativeModel implements Node & ModelInterface {
@@ -3210,6 +3210,9 @@ input SecretKeyValueInput {
   """The value of the secret. If null, the secret will be deleted."""
   value: String
 }
+
+"""A secret string value."""
+scalar SecretString
 
 type Segment {
   bin: Bin!

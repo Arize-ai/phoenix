@@ -11,6 +11,7 @@ module.exports = {
     UUID: "string",
     Identifier: "string",
     CronExpression: "string",
+    SecretString: "string",
   },
   typescriptExcludeUndefinedFromNullableUnion: true,
 };
