@@ -9,7 +9,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.evaluators import apply_input_mapping, cast_template_variable_types
+from phoenix.server.api.evaluators import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    validate_template_variables,
+)
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -781,6 +785,94 @@ class TestCastTemplateVariableTypes:
         input_schema = {}
         result = cast_template_variable_types(template_variables, input_schema)
         assert result == {"key": 42}
+
+
+class TestValidateTemplateVariables:
+    def test_passes_with_valid_input(self) -> None:
+        template_variables = {"name": "Alice", "age": "30"}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "string"},
+            },
+            "required": ["name", "age"],
+        }
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+
+    def test_raises_on_missing_required_field(self) -> None:
+        template_variables = {"name": "Alice"}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "string"},
+            },
+            "required": ["name", "age"],
+        }
+        with pytest.raises(
+            ValueError, match="Input validation failed.*'age' is a required property"
+        ):
+            validate_template_variables(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
+
+    def test_raises_on_wrong_type(self) -> None:
+        template_variables = {"count": "not a number"}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "count": {"type": "number"},
+            },
+            "required": ["count"],
+        }
+        with pytest.raises(ValueError, match="Input validation failed.*is not of type 'number'"):
+            validate_template_variables(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
+
+    def test_passes_with_extra_fields(self) -> None:
+        template_variables = {"name": "Alice", "extra": "ignored"}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+            },
+            "required": ["name"],
+        }
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+
+    def test_with_nested_object_schema(self) -> None:
+        template_variables = {
+            "user": {"name": "Alice", "email": "alice@example.com"},
+        }
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "email": {"type": "string"},
+                    },
+                    "required": ["name", "email"],
+                },
+            },
+            "required": ["user"],
+        }
+        # Should not raise
+        validate_template_variables(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
 
 
 @pytest.fixture
