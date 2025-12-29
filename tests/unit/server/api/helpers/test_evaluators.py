@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from phoenix.db import models
@@ -782,7 +784,7 @@ class TestCastTemplateVariableTypes:
 
     def test_handles_empty_schema(self) -> None:
         template_variables = {"key": 42}
-        input_schema = {}
+        input_schema: dict[str, Any] = {}
         result = cast_template_variable_types(template_variables, input_schema)
         assert result == {"key": 42}
 
