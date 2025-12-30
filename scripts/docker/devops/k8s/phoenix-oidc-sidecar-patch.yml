@@ -1,0 +1,35 @@
+# Patch to add OIDC dev server as sidecar to Phoenix pod
+# Apply with: kubectl patch deployment phoenix --patch-file k8s/phoenix-oidc-sidecar-patch.yml
+spec:
+  template:
+    spec:
+      containers:
+        - name: oidc-dev
+          image: oidc-dev:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 9000
+          env:
+            - name: OIDC_PORT
+              value: "9000"
+            - name: OIDC_ISSUER
+              value: "http://localhost:9000"
+            - name: OIDC_PUBLIC_BASE_URL
+              value: "http://localhost:9000"
+            - name: OIDC_AUTH_ENDPOINT
+              value: "http://localhost:9000/auth"
+            - name: OIDC_CLIENT_ID
+              value: "phoenix-oidc-client-id"
+            - name: OIDC_CLIENT_SECRET
+              value: "phoenix-oidc-client-secret-abc-123"
+            - name: OIDC_CALLBACK_URL
+              value: "http://localhost:6006/oauth2/dev/callback"
+            - name: OIDC_LOGOUT_REDIRECT_URL
+              value: "http://localhost:6006"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@postgres:5432/postgres"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+
