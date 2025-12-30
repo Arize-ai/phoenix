@@ -1913,7 +1913,7 @@ def _get_credential_from_input(
     if not credentials:
         return None
     return next(
-        (c.value for c in credentials if c.env_var_name == env_var_name),
+        (str(c.value) for c in credentials if c.env_var_name == env_var_name),
         None,
     )
 
