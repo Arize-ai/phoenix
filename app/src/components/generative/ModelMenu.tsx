@@ -99,15 +99,24 @@ function encodeCustomKey(customProviderId: string, modelName: string): string {
 }
 
 /**
- * Decodes a menu key string into its components
+ * Decodes a menu key string into its components.
+ * Uses indexOf to handle model names that may contain the delimiter.
  */
 function decodeMenuKey(key: string): MenuKey | null {
-  const parts = key.split(KEY_DELIMITER);
-  if (parts.length !== 3) {
+  const firstDelim = key.indexOf(KEY_DELIMITER);
+  if (firstDelim === -1) {
     return null;
   }
 
-  const [type, id, modelName] = parts;
+  const secondDelim = key.indexOf(KEY_DELIMITER, firstDelim + 1);
+  if (secondDelim === -1) {
+    return null;
+  }
+
+  const type = key.slice(0, firstDelim);
+  const id = key.slice(firstDelim + 1, secondDelim);
+  const modelName = key.slice(secondDelim + 1);
+
   if (type === "custom") {
     return { type: "custom", customProviderId: id, modelName };
   } else if (type === "builtin") {
