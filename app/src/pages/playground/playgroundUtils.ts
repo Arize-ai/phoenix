@@ -1165,19 +1165,32 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
+  // Determine if we're using a custom provider or built-in provider
+  const isCustomProvider = !!instance.model.customProviderId;
+
+  const model = isCustomProvider
+    ? {
+        custom: {
+          providerId: instance.model.customProviderId!,
+          modelName: instance.model.modelName || "",
+          extraHeaders: instance.model.customHeaders,
+        },
+      }
+    : {
+        builtin: {
+          providerKey: instance.model.provider,
+          name: instance.model.modelName || "",
+          baseUrl: instance.model.baseUrl,
+          customHeaders: instance.model.customHeaders,
+          credentials: getCredentials(credentials, instance.model.provider),
+          ...azureModelParams,
+          ...awsModelParams,
+        },
+      };
+
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
-    model: {
-      builtin: {
-        providerKey: instance.model.provider,
-        name: instance.model.modelName || "",
-        baseUrl: instance.model.baseUrl,
-        customHeaders: instance.model.customHeaders,
-        credentials: getCredentials(credentials, instance.model.provider),
-        ...azureModelParams,
-        ...awsModelParams,
-      },
-    },
+    model,
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
       instance.model.provider,

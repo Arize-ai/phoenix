@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { ModelMenu, ModelMenuValue } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -32,8 +32,23 @@ export function PlaygroundModelMenu({
     ? {
         provider: instance.model.provider,
         modelName: instance.model.modelName,
+        customProviderId: instance.model.customProviderId ?? undefined,
       }
     : null;
+
+  // Extract just the model names from the saved configs
+  const defaultModelByProvider = useMemo(() => {
+    const result: Partial<
+      Record<keyof typeof modelConfigByProvider, string | undefined>
+    > = {};
+    for (const [provider, config] of Object.entries(modelConfigByProvider)) {
+      if (config?.modelName) {
+        result[provider as keyof typeof modelConfigByProvider] =
+          config.modelName;
+      }
+    }
+    return result;
+  }, [modelConfigByProvider]);
 
   const handleChange = useCallback(
     (model: ModelMenuValue) => {
@@ -48,10 +63,13 @@ export function PlaygroundModelMenu({
         });
       }
 
-      // Update model name
+      // Update model name and custom provider info
       updateModel({
         instanceId: playgroundInstanceId,
-        patch: { modelName: model.modelName },
+        patch: {
+          modelName: model.modelName,
+          customProviderId: model.customProviderId ?? null,
+        },
       });
     },
     [
@@ -67,5 +85,11 @@ export function PlaygroundModelMenu({
     return null;
   }
 
-  return <ModelMenu value={value} onChange={handleChange} />;
+  return (
+    <ModelMenu
+      value={value}
+      onChange={handleChange}
+      defaultModelByProvider={defaultModelByProvider}
+    />
+  );
 }
