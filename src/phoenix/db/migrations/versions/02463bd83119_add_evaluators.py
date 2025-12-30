@@ -251,9 +251,55 @@ def upgrade() -> None:
         postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
         sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
     )
+    op.create_table(
+        "evaluators_projects",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "builtin_evaluator_id",
+            _Integer,
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.CheckConstraint(
+            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
+            name="evaluator_id_xor_builtin_evaluator_id",
+        ),
+    )
+    # Create unique constraints for one evaluator -> one project
+    op.create_index(
+        "ix_evaluator_projects_evaluator_notnull",
+        "evaluator_projects",
+        ["evaluator_id"],
+        unique=True,
+        postgresql_where=sa.text("evaluator_id IS NOT NULL"),
+        sqlite_where=sa.text("evaluator_id IS NOT NULL"),
+    )
+    op.create_index(
+        "ix_evaluator_projects_builtin_notnull",
+        "evaluator_projects",
+        ["builtin_evaluator_id"],
+        unique=True,
+        postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+        sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("evaluator_projects")
     op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
