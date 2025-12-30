@@ -27,6 +27,7 @@ class ChatCompletionInput:
     prompt_name: Optional[Identifier] = None
     repetitions: int
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
+    tracing_enabled: bool = True
 
 
 @strawberry.input
@@ -45,3 +46,4 @@ class ChatCompletionOverDatasetInput:
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
     prompt_name: Optional[Identifier] = None
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
+    tracing_enabled: bool = True

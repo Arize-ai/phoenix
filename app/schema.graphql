@@ -367,6 +367,7 @@ input ChatCompletionInput {
   promptName: Identifier = null
   repetitions: Int!
   evaluators: [PlaygroundEvaluatorInput!]! = []
+  tracingEnabled: Boolean! = true
 }
 
 input ChatCompletionMessageInput {
@@ -410,6 +411,7 @@ input ChatCompletionOverDatasetInput {
   experimentMetadata: JSON = {}
   promptName: Identifier = null
   evaluators: [PlaygroundEvaluatorInput!]! = []
+  tracingEnabled: Boolean! = true
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {

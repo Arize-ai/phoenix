@@ -2279,6 +2279,52 @@ class DatasetEvaluators(HasId):
     )
 
 
+class EvaluatorsProjects(HasId):
+    __tablename__ = "evaluators_projects"
+
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    builtin_evaluator_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        nullable=True,
+        index=True,
+    )
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # Relationships
+    evaluator: Mapped[Optional["Evaluator"]] = relationship("Evaluator")
+    project: Mapped["Project"] = relationship("Project")
+
+    __table_args__ = (
+        CheckConstraint(
+            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
+            name="evaluator_id_xor_builtin_evaluator_id",
+        ),
+        # Partial unique indexes to enforce one evaluator -> one project
+        Index(
+            "ix_evaluator_projects_evaluator_notnull",
+            "evaluator_id",
+            unique=True,
+            postgresql_where=sa.text("evaluator_id IS NOT NULL"),
+            sqlite_where=sa.text("evaluator_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_evaluator_projects_builtin_notnull",
+            "builtin_evaluator_id",
+            unique=True,
+            postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+            sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
+        ),
+    )
+
+
 class Secret(Base):
     __tablename__ = "secrets"
     key: Mapped[str] = mapped_column(String, primary_key=True)
