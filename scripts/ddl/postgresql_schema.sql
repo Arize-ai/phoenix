@@ -694,37 +694,40 @@ CREATE TABLE public.code_evaluators (
 );
 
 
--- Table: datasets_evaluators
--- --------------------------
-CREATE TABLE public.datasets_evaluators (
+-- Table: dataset_evaluators
+-- -------------------------
+CREATE TABLE public.dataset_evaluators (
     id bigserial NOT NULL,
     dataset_id BIGINT NOT NULL,
     evaluator_id BIGINT,
     builtin_evaluator_id BIGINT,
+    display_name VARCHAR NOT NULL,
     input_mapping JSONB NOT NULL,
-    CONSTRAINT pk_datasets_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_datasets_evaluators_dataset_id_builtin_evaluator_id
-        UNIQUE (dataset_id, builtin_evaluator_id),
-    CONSTRAINT uq_datasets_evaluators_dataset_id_evaluator_id
-        UNIQUE (dataset_id, evaluator_id),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_evaluators_dataset_id_builtin_evaluator_id_d_6f1f
+        UNIQUE (dataset_id, builtin_evaluator_id, display_name),
+    CONSTRAINT uq_dataset_evaluators_dataset_id_evaluator_id_display_name
+        UNIQUE (dataset_id, evaluator_id, display_name),
     CHECK (((evaluator_id IS NOT NULL) <> (builtin_evaluator_id IS NOT NULL))),
-    CONSTRAINT fk_datasets_evaluators_dataset_id_datasets FOREIGN KEY
+    CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_datasets_evaluators_evaluator_id_evaluators FOREIGN KEY
+    CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
         (evaluator_id)
         REFERENCES public.evaluators (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_datasets_evaluators_builtin_evaluator_id ON public.datasets_evaluators
+CREATE INDEX ix_dataset_evaluators_builtin_evaluator_id ON public.dataset_evaluators
     USING btree (builtin_evaluator_id);
-CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_builtin_notnull ON public.datasets_evaluators
-    USING btree (dataset_id, builtin_evaluator_id) WHERE (builtin_evaluator_id IS NOT NULL);
-CREATE UNIQUE INDEX ix_datasets_evaluators_dataset_evaluator_notnull ON public.datasets_evaluators
-    USING btree (dataset_id, evaluator_id) WHERE (evaluator_id IS NOT NULL);
-CREATE INDEX ix_datasets_evaluators_evaluator_id ON public.datasets_evaluators
+CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_builtin_notnull ON public.dataset_evaluators
+    USING btree (dataset_id, builtin_evaluator_id, display_name) WHERE (builtin_evaluator_id IS NOT NULL);
+CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_evaluator_notnull ON public.dataset_evaluators
+    USING btree (dataset_id, evaluator_id, display_name) WHERE (evaluator_id IS NOT NULL);
+CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 
 
