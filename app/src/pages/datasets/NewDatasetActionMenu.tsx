@@ -126,10 +126,12 @@ export function NewDatasetActionMenu({
       >
         <Modal>
           <Dialog>
-            <DialogCloseButton slot="close" />
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>New Dataset from CSV</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
               </DialogHeader>
               <DatasetFromCSVForm
                 onDatasetCreated={(newDataset) => {
