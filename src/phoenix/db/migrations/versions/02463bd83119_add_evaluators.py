@@ -299,7 +299,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("evaluator_projects")
+    op.drop_table("evaluators_projects")
     op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
