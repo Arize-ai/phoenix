@@ -384,7 +384,7 @@ export function ExperimentRunOutputs() {
               display: flex;
               gap: var(--ac-global-dimension-static-size-200);
               padding: var(--ac-global-dimension-static-size-200);
-              li {
+              > li {
                 flex: 1 1 0;
                 min-width: 500px;
               }
