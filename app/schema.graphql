@@ -2005,6 +2005,9 @@ type GenerativeModelCustomProvider implements Node {
 
   """The user that created this provider."""
   user: User
+
+  """The model names available for this provider."""
+  modelNames: [String!]!
 }
 
 """A connection to a list of items."""
@@ -2027,7 +2030,6 @@ type GenerativeModelCustomProviderEdge {
 
 input GenerativeModelCustomProviderInput {
   providerId: ID!
-  provider: String!
   modelName: String!
   extraHeaders: JSON
 }

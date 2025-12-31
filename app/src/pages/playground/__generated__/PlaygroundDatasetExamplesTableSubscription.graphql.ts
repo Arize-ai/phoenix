@@ -56,7 +56,6 @@ export type GenerativeCredentialInput = {
 export type GenerativeModelCustomProviderInput = {
   extraHeaders?: any | null;
   modelName: string;
-  provider: string;
   providerId: string;
 };
 export type InvocationParameterInput = {
