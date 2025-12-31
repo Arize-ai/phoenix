@@ -25,6 +25,7 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
@@ -70,31 +71,43 @@ const SDK_TO_PROVIDER_KEY: Record<GenerativeModelSDK, GenerativeProviderKey> = {
  */
 const KEY_DELIMITER = "\uE000";
 
-type MenuKeyBuiltIn = {
+type BuiltinModelInfo = {
   type: "builtin";
   providerKey: string;
   modelName: string;
 };
 
-type MenuKeyCustom = {
+type CustomModelInfo = {
   type: "custom";
   customProviderId: string;
   modelName: string;
 };
 
-type MenuKey = MenuKeyBuiltIn | MenuKeyCustom;
+type ModelInfo = BuiltinModelInfo | CustomModelInfo;
 
 /**
  * Encodes a menu key for a built-in provider model
  */
-function encodeBuiltInKey(providerKey: string, modelName: string): string {
+function encodeBuiltInKey({
+  providerKey,
+  modelName,
+}: {
+  providerKey: string;
+  modelName: string;
+}): string {
   return `builtin${KEY_DELIMITER}${providerKey}${KEY_DELIMITER}${modelName}`;
 }
 
 /**
  * Encodes a menu key for a custom provider model
  */
-function encodeCustomKey(customProviderId: string, modelName: string): string {
+function encodeCustomKey({
+  customProviderId,
+  modelName,
+}: {
+  customProviderId: string;
+  modelName: string;
+}): string {
   return `custom${KEY_DELIMITER}${customProviderId}${KEY_DELIMITER}${modelName}`;
 }
 
@@ -102,7 +115,7 @@ function encodeCustomKey(customProviderId: string, modelName: string): string {
  * Decodes a menu key string into its components.
  * Uses indexOf to handle model names that may contain the delimiter.
  */
-function decodeMenuKey(key: string): MenuKey | null {
+function decodeMenuKey(key: string): ModelInfo | null {
   const firstDelim = key.indexOf(KEY_DELIMITER);
   if (firstDelim === -1) {
     return null;
@@ -117,12 +130,14 @@ function decodeMenuKey(key: string): MenuKey | null {
   const id = key.slice(firstDelim + 1, secondDelim);
   const modelName = key.slice(secondDelim + 1);
 
-  if (type === "custom") {
-    return { type: "custom", customProviderId: id, modelName };
-  } else if (type === "builtin") {
-    return { type: "builtin", providerKey: id, modelName };
+  switch (type) {
+    case "custom":
+      return { type: "custom", customProviderId: id, modelName };
+    case "builtin":
+      return { type: "builtin", providerKey: id, modelName };
+    default:
+      return null;
   }
-  return null;
 }
 
 export type ModelMenuProps = {
@@ -352,26 +367,32 @@ function ModelsByProviderMenu({
       css={menuWidthCSS}
       autoFocus={false}
       onAction={(key) => {
-        const parsed = decodeMenuKey(String(key));
-        if (!parsed) {
+        const modelInfo = decodeMenuKey(String(key));
+        if (!modelInfo) {
           return;
         }
 
-        if (parsed.type === "custom") {
-          // Find the custom provider to get the SDK -> provider key mapping
-          const customProvider = customProviders.find(
-            (p) => p.id === parsed.customProviderId
-          );
-          if (customProvider) {
-            const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
-            handleModelSelect(
-              providerKey,
-              parsed.modelName,
-              parsed.customProviderId
+        switch (modelInfo.type) {
+          case "custom": {
+            // Find the custom provider to get the SDK -> provider key mapping
+            const customProvider = customProviders.find(
+              (p) => p.id === modelInfo.customProviderId
             );
+            if (customProvider) {
+              const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+              handleModelSelect(
+                providerKey,
+                modelInfo.modelName,
+                modelInfo.customProviderId
+              );
+            }
+            break;
           }
-        } else {
-          handleModelSelect(parsed.providerKey, parsed.modelName);
+          case "builtin":
+            handleModelSelect(modelInfo.providerKey, modelInfo.modelName);
+            break;
+          default:
+            assertUnreachable(modelInfo);
         }
       }}
     >
@@ -384,7 +405,10 @@ function ModelsByProviderMenu({
               <MenuSection key={`custom-${customProvider.id}`}>
                 <MenuSectionTitle title={customProvider.name} />
                 {customProvider.modelNames.map((modelName) => {
-                  const itemKey = encodeCustomKey(customProvider.id, modelName);
+                  const itemKey = encodeCustomKey({
+                    customProviderId: customProvider.id,
+                    modelName,
+                  });
                   return (
                     <MenuItem key={itemKey} id={itemKey} textValue={modelName}>
                       <Flex direction="row" gap="size-100" alignItems="center">
@@ -412,7 +436,10 @@ function ModelsByProviderMenu({
                 <MenuSection key={providerKey}>
                   <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
                   {models.map((modelName) => {
-                    const itemKey = encodeBuiltInKey(providerKey, modelName);
+                    const itemKey = encodeBuiltInKey({
+                      providerKey,
+                      modelName,
+                    });
                     const isDefault = modelName === defaultModelName;
                     return (
                       <MenuItem
