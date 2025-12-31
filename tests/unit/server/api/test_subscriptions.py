@@ -1623,9 +1623,15 @@ class TestChatCompletionOverDatasetSubscription:
             )
             assert response_text == output_message_content
 
-        # check experiment payload
-        assert len(payloads[None]) == 1
-        assert (experiment := payloads[None].pop()["chatCompletionOverDataset"]["experiment"])
+        # check experiment payload (filter out progress payloads)
+        experiment_payloads = [
+            p
+            for p in payloads[None]
+            if p["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionExperiment.__name__
+        ]
+        assert len(experiment_payloads) == 1
+        assert (experiment := experiment_payloads[0]["chatCompletionOverDataset"]["experiment"])
         experiment_id = experiment["id"]
         assert isinstance(experiment_id, str)
 
@@ -1696,9 +1702,15 @@ class TestChatCompletionOverDatasetSubscription:
         for test_id in test_example_ids:
             assert test_id not in payloads, f"Test example {test_id} should not be in results"
 
-        # Verify experiment payload exists
-        assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None][0]["chatCompletionOverDataset"])[
+        # Verify experiment payload exists (filter out progress payloads)
+        experiment_payloads = [
+            p
+            for p in payloads[None]
+            if p["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionExperiment.__name__
+        ]
+        assert len(experiment_payloads) == 1
+        assert (experiment_payload := experiment_payloads[0]["chatCompletionOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment_id = experiment_payload["experiment"]["id"]
@@ -1775,9 +1787,15 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert set(payloads.keys()) == set(all_example_ids) | {None}
 
-        # Verify experiment has both split associations in DB
-        assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        # Verify experiment has both split associations in DB (filter out progress payloads)
+        experiment_payloads = [
+            p
+            for p in payloads[None]
+            if p["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionExperiment.__name__
+        ]
+        assert len(experiment_payloads) == 1
+        experiment_id = experiment_payloads[0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             from phoenix.server.api.types.node import from_global_id
@@ -1849,9 +1867,15 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert set(payloads.keys()) == set(all_example_ids) | {None}
 
-        # Verify experiment has NO split associations in DB
-        assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        # Verify experiment has NO split associations in DB (filter out progress payloads)
+        experiment_payloads = [
+            p
+            for p in payloads[None]
+            if p["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionExperiment.__name__
+        ]
+        assert len(experiment_payloads) == 1
+        experiment_id = experiment_payloads[0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             from phoenix.server.api.types.node import from_global_id
