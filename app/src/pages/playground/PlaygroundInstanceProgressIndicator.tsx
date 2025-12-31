@@ -30,7 +30,7 @@ function ProgressIndicator({
         </Text>
         {failed > 0 && (
           <Text color="danger" size="S">
-            , {failed} failed
+            {failed} failed
           </Text>
         )}
       </Flex>
