@@ -570,7 +570,7 @@ class Subscription:
         # Initialize progress tracking
         total_runs = len(revisions) * input.repetitions
         total_evals = total_runs * len(input.evaluators) if input.evaluators else 0
-        progress_tracker = ExperimentProgress(total_runs=total_runs, total_evals=total_evals)
+        experiment_progress = ExperimentProgress(total_runs=total_runs, total_evals=total_evals)
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
         not_started: list[tuple[DatasetExampleID, ChatStream]] = [
@@ -584,7 +584,7 @@ class Subscription:
                     repetition_number=repetition_number,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
-                    experiment_progress=progress_tracker,
+                    experiment_progress=experiment_progress,
                 ),
             )
             for revision in revisions
@@ -625,14 +625,14 @@ class Subscription:
                         yield ChatCompletionSubscriptionError(
                             message="Playground task timed out", dataset_example_id=example_id
                         )
-                        yield progress_tracker.increment_runs_failed()
+                        yield experiment_progress.increment_runs_failed()
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
                             message="An unexpected error occurred", dataset_example_id=example_id
                         )
-                        yield progress_tracker.increment_runs_failed()
+                        yield experiment_progress.increment_runs_failed()
                     logger.exception(error)
                 else:
                     task = _create_task_with_timeout(stream)
@@ -652,7 +652,7 @@ class Subscription:
                         db=info.context.db,
                         results=_drain_no_wait(results),
                         span_cost_calculator=info.context.span_cost_calculator,
-                        experiment_progress=progress_tracker,
+                        experiment_progress=experiment_progress,
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
@@ -662,7 +662,7 @@ class Subscription:
                 db=info.context.db,
                 results=remaining_results,
                 span_cost_calculator=info.context.span_cost_calculator,
-                experiment_progress=progress_tracker,
+                experiment_progress=experiment_progress,
             ):
                 yield result_payload
 

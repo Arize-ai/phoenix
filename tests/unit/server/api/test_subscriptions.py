@@ -1048,6 +1048,14 @@ class TestChatCompletionOverDatasetSubscription:
               annotatorKind
             }
           }
+          ... on ChatCompletionSubscriptionExperimentProgress {
+            totalRuns
+            runsCompleted
+            runsFailed
+            totalEvals
+            evalsCompleted
+            evalsFailed
+          }
         }
       }
 
