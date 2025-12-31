@@ -136,7 +136,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
           <CompositeField>
-            {" "}
             <PlaygroundModelMenu playgroundInstanceId={instanceId} />
             {/* Un-comment this to get legacy behavior for cross-checking */}
             {/* <ModelConfigButton {...props} /> */}
