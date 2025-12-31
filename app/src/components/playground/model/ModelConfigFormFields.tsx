@@ -7,7 +7,6 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
-import { DeploymentNameConfigFormField } from "./DeploymentNameConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";
 import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
 import { ModelProviderSelect } from "./ModelProviderSelect";
@@ -105,14 +104,7 @@ export function ModelConfigFormFields(props: ModelConfigFormFieldsProps) {
 
       {/* Azure OpenAI specific fields */}
       {showAzureFields && (
-        <>
-          <DeploymentNameConfigFormField
-            playgroundInstanceId={playgroundInstanceId}
-          />
-          <EndpointConfigFormField
-            playgroundInstanceId={playgroundInstanceId}
-          />
-        </>
+        <EndpointConfigFormField playgroundInstanceId={playgroundInstanceId} />
       )}
 
       {/* AWS Bedrock specific fields */}

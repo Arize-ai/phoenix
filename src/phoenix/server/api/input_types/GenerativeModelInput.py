@@ -33,7 +33,6 @@ class GenerativeModelBuiltinProviderInput:
 @strawberry.input
 class GenerativeModelCustomProviderInput:
     provider_id: GlobalID
-    provider: str
     model_name: str
     extra_headers: Optional[JSON] = UNSET
 

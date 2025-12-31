@@ -25,9 +25,11 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
+  GenerativeModelSDK,
   GenerativeProviderKey,
   ModelMenuQuery,
 } from "./__generated__/ModelMenuQuery.graphql";
@@ -39,7 +41,104 @@ const menuWidthCSS = css`
 export type ModelMenuValue = {
   provider: GenerativeProviderKey;
   modelName: string;
+  /**
+   * The custom provider ID if using a custom provider
+   */
+  customProviderId?: string;
 };
+
+type CustomProviderInfo = {
+  id: string;
+  name: string;
+  sdk: GenerativeModelSDK;
+  modelNames: readonly string[];
+};
+
+/**
+ * Maps GenerativeModelSDK to GenerativeProviderKey for icon display
+ */
+const SDK_TO_PROVIDER_KEY: Record<GenerativeModelSDK, GenerativeProviderKey> = {
+  OPENAI: "OPENAI",
+  AZURE_OPENAI: "AZURE_OPENAI",
+  ANTHROPIC: "ANTHROPIC",
+  AWS_BEDROCK: "AWS",
+  GOOGLE_GENAI: "GOOGLE",
+};
+
+/**
+ * Delimiter used to separate parts of menu keys.
+ * Using a Private Use Area (PUA) character unlikely to appear in provider IDs or model names.
+ */
+const KEY_DELIMITER = "\uE000";
+
+type BuiltinModelInfo = {
+  type: "builtin";
+  providerKey: string;
+  modelName: string;
+};
+
+type CustomModelInfo = {
+  type: "custom";
+  customProviderId: string;
+  modelName: string;
+};
+
+type ModelInfo = BuiltinModelInfo | CustomModelInfo;
+
+/**
+ * Encodes a menu key for a built-in provider model
+ */
+function encodeBuiltInKey({
+  providerKey,
+  modelName,
+}: {
+  providerKey: string;
+  modelName: string;
+}): string {
+  return `builtin${KEY_DELIMITER}${providerKey}${KEY_DELIMITER}${modelName}`;
+}
+
+/**
+ * Encodes a menu key for a custom provider model
+ */
+function encodeCustomKey({
+  customProviderId,
+  modelName,
+}: {
+  customProviderId: string;
+  modelName: string;
+}): string {
+  return `custom${KEY_DELIMITER}${customProviderId}${KEY_DELIMITER}${modelName}`;
+}
+
+/**
+ * Decodes a menu key string into its components.
+ * Uses indexOf to handle model names that may contain the delimiter.
+ */
+function decodeMenuKey(key: string): ModelInfo | null {
+  const firstDelim = key.indexOf(KEY_DELIMITER);
+  if (firstDelim === -1) {
+    return null;
+  }
+
+  const secondDelim = key.indexOf(KEY_DELIMITER, firstDelim + 1);
+  if (secondDelim === -1) {
+    return null;
+  }
+
+  const type = key.slice(0, firstDelim);
+  const id = key.slice(firstDelim + 1, secondDelim);
+  const modelName = key.slice(secondDelim + 1);
+
+  switch (type) {
+    case "custom":
+      return { type: "custom", customProviderId: id, modelName };
+    case "builtin":
+      return { type: "builtin", providerKey: id, modelName };
+    default:
+      return null;
+  }
+}
 
 export type ModelMenuProps = {
   value?: ModelMenuValue | null;
@@ -52,6 +151,16 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
   const data = useLazyLoadQuery<ModelMenuQuery>(
     graphql`
       query ModelMenuQuery {
+        generativeModelCustomProviders {
+          edges {
+            node {
+              id
+              name
+              sdk
+              modelNames
+            }
+          }
+        }
         modelProviders {
           key
           name
@@ -92,7 +201,17 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
     return map;
   }, [data.modelProviders]);
 
-  // Filter models when searching
+  // Extract custom providers from the connection
+  const customProviders = useMemo((): CustomProviderInfo[] => {
+    return data.generativeModelCustomProviders.edges.map((edge) => ({
+      id: edge.node.id,
+      name: edge.node.name,
+      sdk: edge.node.sdk,
+      modelNames: edge.node.modelNames,
+    }));
+  }, [data.generativeModelCustomProviders]);
+
+  // Filter models when searching (built-in providers)
   const filteredModelsByProvider = useMemo(() => {
     if (!searchValue.trim()) {
       return new Map<string, string[]>();
@@ -114,6 +233,22 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
     }
     return filtered;
   }, [searchValue, modelsByProvider, providerInfoMap, contains]);
+
+  // Filter custom providers when searching
+  const filteredCustomProviders = useMemo(() => {
+    if (!searchValue.trim()) {
+      return [];
+    }
+
+    return customProviders
+      .map((provider) => ({
+        ...provider,
+        modelNames: provider.modelNames.filter((model) =>
+          contains(model, searchValue)
+        ),
+      }))
+      .filter((provider) => provider.modelNames.length > 0);
+  }, [searchValue, customProviders, contains]);
 
   const isSearching = searchValue.trim().length > 0;
 
@@ -151,12 +286,14 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
           <ModelsByProviderMenu
             modelsByProvider={filteredModelsByProvider}
             providerInfoMap={providerInfoMap}
+            customProviders={filteredCustomProviders}
             onChange={onChange}
           />
         ) : (
           <ProviderMenu
             providers={data.modelProviders}
             modelsByProvider={modelsByProvider}
+            customProviders={customProviders}
             onChange={onChange}
           />
         )}
@@ -181,6 +318,7 @@ type ModelsByProviderMenuProps = {
     string,
     { name: string; dependenciesInstalled: boolean }
   >;
+  customProviders: CustomProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
 };
 
@@ -191,59 +329,129 @@ type ModelsByProviderMenuProps = {
 function ModelsByProviderMenu({
   modelsByProvider,
   providerInfoMap,
+  customProviders,
   onChange,
 }: ModelsByProviderMenuProps) {
-  const handleModelSelect = (providerKey: string, modelName: string) => {
+  const handleModelSelect = (
+    providerKey: string,
+    modelName: string,
+    customProviderId?: string
+  ) => {
     if (isModelProvider(providerKey)) {
       onChange?.({
         provider: providerKey,
         modelName,
+        customProviderId,
       });
     }
   };
+
+  const hasBuiltInResults = modelsByProvider.size > 0;
+  const hasCustomResults = customProviders.length > 0;
+  const hasResults = hasBuiltInResults || hasCustomResults;
 
   return (
     <Menu
       css={menuWidthCSS}
       autoFocus={false}
       onAction={(key) => {
-        const keyStr = String(key);
-        // Key format is "providerKey:modelName"
-        const separatorIndex = keyStr.indexOf(":");
-        if (separatorIndex > 0) {
-          const providerKey = keyStr.slice(0, separatorIndex);
-          const modelName = keyStr.slice(separatorIndex + 1);
-          handleModelSelect(providerKey, modelName);
+        const modelInfo = decodeMenuKey(String(key));
+        if (!modelInfo) {
+          return;
+        }
+
+        switch (modelInfo.type) {
+          case "custom": {
+            // Find the custom provider to get the SDK -> provider key mapping
+            const customProvider = customProviders.find(
+              (p) => p.id === modelInfo.customProviderId
+            );
+            if (customProvider) {
+              const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+              handleModelSelect(
+                providerKey,
+                modelInfo.modelName,
+                modelInfo.customProviderId
+              );
+            }
+            break;
+          }
+          case "builtin":
+            handleModelSelect(modelInfo.providerKey, modelInfo.modelName);
+            break;
+          default:
+            assertUnreachable(modelInfo);
         }
       }}
     >
-      {modelsByProvider.size > 0 ? (
-        Array.from(modelsByProvider.entries()).map(([providerKey, models]) => {
-          const providerInfo = providerInfoMap.get(providerKey);
-          const isValidProvider = isModelProvider(providerKey);
-          return (
-            <MenuSection key={providerKey}>
-              <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
-              {models.map((modelName) => (
-                <MenuItem
-                  key={`${providerKey}:${modelName}`}
-                  id={`${providerKey}:${modelName}`}
-                  textValue={modelName}
-                >
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    {isValidProvider && (
-                      <GenerativeProviderIcon
-                        provider={providerKey}
-                        height={16}
-                      />
-                    )}
-                    <Text>{modelName}</Text>
-                  </Flex>
-                </MenuItem>
-              ))}
-            </MenuSection>
-          );
-        })
+      {hasResults ? (
+        <>
+          {/* Custom providers */}
+          {customProviders.map((customProvider) => {
+            const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+            return (
+              <MenuSection key={`custom-${customProvider.id}`}>
+                <MenuSectionTitle title={customProvider.name} />
+                {customProvider.modelNames.map((modelName) => {
+                  const itemKey = encodeCustomKey({
+                    customProviderId: customProvider.id,
+                    modelName,
+                  });
+                  return (
+                    <MenuItem key={itemKey} id={itemKey} textValue={modelName}>
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <GenerativeProviderIcon
+                          provider={providerKey}
+                          height={16}
+                        />
+                        <Text>{modelName}</Text>
+                      </Flex>
+                    </MenuItem>
+                  );
+                })}
+              </MenuSection>
+            );
+          })}
+          {/* Built-in providers */}
+          {Array.from(modelsByProvider.entries()).map(
+            ([providerKey, models]) => {
+              const providerInfo = providerInfoMap.get(providerKey);
+              const isValidProvider = isModelProvider(providerKey);
+              return (
+                <MenuSection key={providerKey}>
+                  <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
+                  {models.map((modelName) => {
+                    const itemKey = encodeBuiltInKey({
+                      providerKey,
+                      modelName,
+                    });
+                    return (
+                      <MenuItem
+                        key={itemKey}
+                        id={itemKey}
+                        textValue={modelName}
+                      >
+                        <Flex
+                          direction="row"
+                          gap="size-100"
+                          alignItems="center"
+                        >
+                          {isValidProvider && (
+                            <GenerativeProviderIcon
+                              provider={providerKey}
+                              height={16}
+                            />
+                          )}
+                          <Text>{modelName}</Text>
+                        </Flex>
+                      </MenuItem>
+                    );
+                  })}
+                </MenuSection>
+              );
+            }
+          )}
+        </>
       ) : (
         <MenuItem id="no-results" textValue="No results" isDisabled>
           <Text color="text-700">No models found</Text>
@@ -260,6 +468,7 @@ type ProviderMenuProps = {
     readonly dependenciesInstalled: boolean;
   }[];
   modelsByProvider: Map<string, string[]>;
+  customProviders: CustomProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
 };
 
@@ -270,10 +479,35 @@ type ProviderMenuProps = {
 function ProviderMenu({
   providers,
   modelsByProvider,
+  customProviders,
   onChange,
 }: ProviderMenuProps) {
   return (
     <Menu css={menuWidthCSS} autoFocus={false}>
+      {/* Custom providers */}
+      {customProviders.map((customProvider) => {
+        const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+        return (
+          <SubmenuTrigger key={`custom-${customProvider.id}`}>
+            <MenuItem
+              id={`custom-${customProvider.id}`}
+              textValue={customProvider.name}
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={providerKey} height={16} />
+                <Text>{customProvider.name}</Text>
+              </Flex>
+            </MenuItem>
+            <ProviderModelsSubmenu
+              providerKey={providerKey}
+              models={customProvider.modelNames}
+              customProviderId={customProvider.id}
+              onChange={onChange}
+            />
+          </SubmenuTrigger>
+        );
+      })}
+      {/* Built-in providers */}
       {providers.map((provider) => {
         const providerKey = provider.key;
         const isValidProvider = isModelProvider(providerKey);
@@ -307,18 +541,24 @@ function ProviderMenu({
 
 type ProviderModelsSubmenuProps = {
   providerKey: GenerativeProviderKey;
-  models: string[];
+  models: readonly string[];
   onChange?: (model: ModelMenuValue) => void;
+  /**
+   * If provided, this is a custom provider and the ID will be included in the selection
+   */
+  customProviderId?: string;
 };
 
 /**
  * Submenu for selecting a model from a provider.
  * Allows searching and selecting custom model names not in the list.
+ * Works for both built-in providers and custom providers.
  */
 function ProviderModelsSubmenu({
   providerKey,
   models,
   onChange,
+  customProviderId,
 }: ProviderModelsSubmenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -331,12 +571,16 @@ function ProviderModelsSubmenu({
       name,
       isCustom: false,
     }));
+
     const trimmedSearch = searchValue.trim();
 
     // If there's a search value and it doesn't exactly match an existing model, add it as custom
-    if (trimmedSearch && !models.some((m) => m === trimmedSearch)) {
+    const existsInItems = baseItems.some((item) => item.name === trimmedSearch);
+    if (trimmedSearch && !existsInItems) {
       // Check if any existing models match the search (would be shown by filter)
-      const hasMatches = models.some((m) => contains(m, trimmedSearch));
+      const hasMatches = baseItems.some((item) =>
+        contains(item.name, trimmedSearch)
+      );
 
       // Always add the custom option at the top when searching
       if (!hasMatches || trimmedSearch) {
@@ -385,6 +629,7 @@ function ProviderModelsSubmenu({
             onChange?.({
               provider: providerKey,
               modelName,
+              customProviderId,
             });
           }}
         >
