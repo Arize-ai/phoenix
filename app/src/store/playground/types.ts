@@ -169,6 +169,14 @@ export interface PlaygroundInstance {
    * The selected repetition number for the instance
    */
   selectedRepetitionNumber: number;
+  /**
+   * Progress tracking for dataset experiment runs
+   */
+  experimentRunProgress?: {
+    total: number;
+    completed: number;
+    failed: number;
+  } | null;
 }
 
 /**
@@ -455,4 +463,15 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Clears all repetitions for an instance
    */
   clearRepetitions: (instanceId: number) => void;
+  /**
+   * Update experiment run progress for an instance
+   */
+  updateExperimentRunProgress: (params: {
+    instanceId: number;
+    progress: {
+      total: number;
+      completed: number;
+      failed: number;
+    };
+  }) => void;
 }

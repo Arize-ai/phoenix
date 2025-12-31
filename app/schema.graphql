@@ -452,6 +452,14 @@ interface ChatCompletionSubscriptionPayload {
   repetitionNumber: Int
 }
 
+type ChatCompletionSubscriptionProgress implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  total: Int!
+  completed: Int!
+  failed: Int!
+}
+
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int

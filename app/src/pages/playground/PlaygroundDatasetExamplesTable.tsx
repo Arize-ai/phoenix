@@ -101,6 +101,7 @@ import {
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
+import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
   PartialOutputToolCall,
@@ -510,6 +511,9 @@ export function PlaygroundDatasetExamplesTable({
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const updateExperimentRunProgress = usePlaygroundContext(
+    (state) => state.updateExperimentRunProgress
+  );
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
@@ -588,6 +592,16 @@ export function PlaygroundDatasetExamplesTable({
               patch: { errorMessage: chatCompletion.message },
             });
             break;
+          case "ChatCompletionSubscriptionProgress":
+            updateExperimentRunProgress({
+              instanceId,
+              progress: {
+                total: chatCompletion.total,
+                completed: chatCompletion.completed,
+                failed: chatCompletion.failed,
+              },
+            });
+            break;
           case "TextChunk":
             if (chatCompletion.datasetExampleId == null) {
               return;
@@ -641,6 +655,7 @@ export function PlaygroundDatasetExamplesTable({
       appendExampleDataEvaluationChunk,
       updateExampleData,
       updateInstance,
+      updateExperimentRunProgress,
     ]
   );
 
@@ -975,9 +990,17 @@ export function PlaygroundDatasetExamplesTable({
       return {
         id: `instance-${instance.id}`,
         header: () => (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <AlphabeticIndexIcon index={index} size="XS" />
-            <span>Output</span>
+          <Flex
+            direction="row"
+            width="100%"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Flex direction="row" gap="size-100">
+              <AlphabeticIndexIcon index={index} size="XS" />
+              <span>Output</span>
+            </Flex>
+            <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
           </Flex>
         ),
 
@@ -1320,6 +1343,11 @@ graphql`
         datasetExampleId
         repetitionNumber
         message
+      }
+      ... on ChatCompletionSubscriptionProgress {
+        total
+        completed
+        failed
       }
       ... on EvaluationChunk {
         datasetExampleId

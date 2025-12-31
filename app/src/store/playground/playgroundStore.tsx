@@ -744,6 +744,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: generateRunId(),
+            experimentRunProgress: null, // Clear previous progress
             repetitions: Object.fromEntries(
               Array.from({ length: repetitions }, (_, i) => [
                 i + 1,
@@ -1217,6 +1218,24 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "setRepetitionSpanId" }
+      );
+    },
+    updateExperimentRunProgress: ({ instanceId, progress }) => {
+      const instances = get().instances;
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                experimentRunProgress: progress,
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "updateExperimentRunProgress" }
       );
     },
   });
