@@ -7,4 +7,5 @@ export * from "./SearchIcon";
 export * from "./DebouncedSearch";
 export * from "./FieldDangerIcon";
 export * from "./FieldSuccessIcon";
+export * from "./CompositeField";
 export { TextArea } from "react-aria-components";
