@@ -2247,7 +2247,7 @@ async def _get_custom_provider_client(
 
     provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
     if not provider_record:
-        raise NotFound(f"Custom provider with ID {provider_id} not found")
+        raise NotFound(f"Custom provider with ID {obj.provider_id} not found")
 
     try:
         decrypted_data = decrypt(provider_record.config)
@@ -2260,7 +2260,7 @@ async def _get_custom_provider_client(
         raise BadRequest("Failed to parse custom provider config")
 
     model_name = obj.model_name
-    provider = obj.provider
+    provider = provider_record.provider
     headers = dict(obj.extra_headers) if obj.extra_headers else None
     cfg = config.root
     if cfg.type == "openai":
