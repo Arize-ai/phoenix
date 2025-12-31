@@ -32,6 +32,7 @@ export function PlaygroundModelMenu({
     ? {
         provider: instance.model.provider,
         modelName: instance.model.modelName,
+        customProviderId: instance.model.customProviderId ?? undefined,
       }
     : null;
 
@@ -48,10 +49,13 @@ export function PlaygroundModelMenu({
         });
       }
 
-      // Update model name
+      // Update model name and custom provider info
       updateModel({
         instanceId: playgroundInstanceId,
-        patch: { modelName: model.modelName },
+        patch: {
+          modelName: model.modelName,
+          customProviderId: model.customProviderId ?? null,
+        },
       });
     },
     [
