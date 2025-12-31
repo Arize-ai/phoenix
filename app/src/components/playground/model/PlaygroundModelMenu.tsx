@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import { ModelMenu, ModelMenuValue } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -36,20 +36,6 @@ export function PlaygroundModelMenu({
       }
     : null;
 
-  // Extract just the model names from the saved configs
-  const defaultModelByProvider = useMemo(() => {
-    const result: Partial<
-      Record<keyof typeof modelConfigByProvider, string | undefined>
-    > = {};
-    for (const [provider, config] of Object.entries(modelConfigByProvider)) {
-      if (config?.modelName) {
-        result[provider as keyof typeof modelConfigByProvider] =
-          config.modelName;
-      }
-    }
-    return result;
-  }, [modelConfigByProvider]);
-
   const handleChange = useCallback(
     (model: ModelMenuValue) => {
       if (!instance) return;
@@ -85,11 +71,5 @@ export function PlaygroundModelMenu({
     return null;
   }
 
-  return (
-    <ModelMenu
-      value={value}
-      onChange={handleChange}
-      defaultModelByProvider={defaultModelByProvider}
-    />
-  );
+  return <ModelMenu value={value} onChange={handleChange} />;
 }

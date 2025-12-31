@@ -143,17 +143,9 @@ function decodeMenuKey(key: string): ModelInfo | null {
 export type ModelMenuProps = {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
-  /**
-   * Map of provider key to default model name (from saved preferences)
-   */
-  defaultModelByProvider?: Partial<Record<GenerativeProviderKey, string>>;
 };
 
-export function ModelMenu({
-  value,
-  onChange,
-  defaultModelByProvider,
-}: ModelMenuProps) {
+export function ModelMenu({ value, onChange }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const data = useLazyLoadQuery<ModelMenuQuery>(
@@ -295,7 +287,6 @@ export function ModelMenu({
             modelsByProvider={filteredModelsByProvider}
             providerInfoMap={providerInfoMap}
             customProviders={filteredCustomProviders}
-            defaultModelByProvider={defaultModelByProvider}
             onChange={onChange}
           />
         ) : (
@@ -303,7 +294,6 @@ export function ModelMenu({
             providers={data.modelProviders}
             modelsByProvider={modelsByProvider}
             customProviders={customProviders}
-            defaultModelByProvider={defaultModelByProvider}
             onChange={onChange}
           />
         )}
@@ -329,7 +319,6 @@ type ModelsByProviderMenuProps = {
     { name: string; dependenciesInstalled: boolean }
   >;
   customProviders: CustomProviderInfo[];
-  defaultModelByProvider?: Partial<Record<GenerativeProviderKey, string>>;
   onChange?: (model: ModelMenuValue) => void;
 };
 
@@ -341,7 +330,6 @@ function ModelsByProviderMenu({
   modelsByProvider,
   providerInfoMap,
   customProviders,
-  defaultModelByProvider,
   onChange,
 }: ModelsByProviderMenuProps) {
   const handleModelSelect = (
@@ -429,9 +417,6 @@ function ModelsByProviderMenu({
             ([providerKey, models]) => {
               const providerInfo = providerInfoMap.get(providerKey);
               const isValidProvider = isModelProvider(providerKey);
-              const defaultModelName = isValidProvider
-                ? defaultModelByProvider?.[providerKey]
-                : undefined;
               return (
                 <MenuSection key={providerKey}>
                   <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
@@ -440,7 +425,6 @@ function ModelsByProviderMenu({
                       providerKey,
                       modelName,
                     });
-                    const isDefault = modelName === defaultModelName;
                     return (
                       <MenuItem
                         key={itemKey}
@@ -459,11 +443,6 @@ function ModelsByProviderMenu({
                             />
                           )}
                           <Text>{modelName}</Text>
-                          {isDefault && (
-                            <Text color="text-700" size="XS">
-                              (default)
-                            </Text>
-                          )}
                         </Flex>
                       </MenuItem>
                     );
@@ -490,7 +469,6 @@ type ProviderMenuProps = {
   }[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
-  defaultModelByProvider?: Partial<Record<GenerativeProviderKey, string>>;
   onChange?: (model: ModelMenuValue) => void;
 };
 
@@ -502,7 +480,6 @@ function ProviderMenu({
   providers,
   modelsByProvider,
   customProviders,
-  defaultModelByProvider,
   onChange,
 }: ProviderMenuProps) {
   return (
@@ -525,7 +502,6 @@ function ProviderMenu({
               providerKey={providerKey}
               models={customProvider.modelNames}
               customProviderId={customProvider.id}
-              defaultModelName={defaultModelByProvider?.[providerKey]}
               onChange={onChange}
             />
           </SubmenuTrigger>
@@ -554,7 +530,6 @@ function ProviderMenu({
             <ProviderModelsSubmenu
               providerKey={providerKey}
               models={models}
-              defaultModelName={defaultModelByProvider?.[providerKey]}
               onChange={onChange}
             />
           </SubmenuTrigger>
@@ -572,10 +547,6 @@ type ProviderModelsSubmenuProps = {
    * If provided, this is a custom provider and the ID will be included in the selection
    */
   customProviderId?: string;
-  /**
-   * The default model name for this provider (from saved preferences)
-   */
-  defaultModelName?: string;
 };
 
 /**
@@ -588,44 +559,22 @@ function ProviderModelsSubmenu({
   models,
   onChange,
   customProviderId,
-  defaultModelName,
 }: ProviderModelsSubmenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const isValidProvider = isModelProvider(providerKey);
 
   // Build the list of models, adding the search value as a custom option if needed
-  // and putting the default model at the top
   const modelItems = useMemo(() => {
-    // Create items with isDefault flag
     const baseItems = models.map((name) => ({
       id: name,
       name,
       isCustom: false,
-      isDefault: name === defaultModelName,
     }));
-
-    // If default model is not in the list, add it at the top
-    if (defaultModelName && !models.includes(defaultModelName)) {
-      baseItems.unshift({
-        id: defaultModelName,
-        name: defaultModelName,
-        isCustom: false,
-        isDefault: true,
-      });
-    } else if (defaultModelName) {
-      // Sort to put default model at the top
-      baseItems.sort((a, b) => {
-        if (a.isDefault) return -1;
-        if (b.isDefault) return 1;
-        return 0;
-      });
-    }
 
     const trimmedSearch = searchValue.trim();
 
     // If there's a search value and it doesn't exactly match an existing model, add it as custom
-    // Check against baseItems (not just models) to avoid duplicates with the default model
     const existsInItems = baseItems.some((item) => item.name === trimmedSearch);
     if (trimmedSearch && !existsInItems) {
       // Check if any existing models match the search (would be shown by filter)
@@ -639,13 +588,12 @@ function ProviderModelsSubmenu({
           id: `custom:${trimmedSearch}`,
           name: trimmedSearch,
           isCustom: true,
-          isDefault: false,
         });
       }
     }
 
     return baseItems;
-  }, [models, searchValue, contains, defaultModelName]);
+  }, [models, searchValue, contains]);
 
   // Custom filter that always shows the custom option
   const customFilter = (textValue: string, inputValue: string) => {
@@ -685,18 +633,13 @@ function ProviderModelsSubmenu({
             });
           }}
         >
-          {({ id, name, isCustom, isDefault }) => (
+          {({ id, name, isCustom }) => (
             <MenuItem id={id} textValue={id}>
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isValidProvider && (
                   <GenerativeProviderIcon provider={providerKey} height={16} />
                 )}
                 <Text>{name}</Text>
-                {isDefault && (
-                  <Text color="text-700" size="XS">
-                    (default)
-                  </Text>
-                )}
                 {isCustom && (
                   <Text color="text-700" size="XS">
                     (custom)
