@@ -625,9 +625,13 @@ function ProviderModelsSubmenu({
     const trimmedSearch = searchValue.trim();
 
     // If there's a search value and it doesn't exactly match an existing model, add it as custom
-    if (trimmedSearch && !models.some((m) => m === trimmedSearch)) {
+    // Check against baseItems (not just models) to avoid duplicates with the default model
+    const existsInItems = baseItems.some((item) => item.name === trimmedSearch);
+    if (trimmedSearch && !existsInItems) {
       // Check if any existing models match the search (would be shown by filter)
-      const hasMatches = models.some((m) => contains(m, trimmedSearch));
+      const hasMatches = baseItems.some((item) =>
+        contains(item.name, trimmedSearch)
+      );
 
       // Always add the custom option at the top when searching
       if (!hasMatches || trimmedSearch) {
