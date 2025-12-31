@@ -13,6 +13,8 @@ from typing_extensions import Self, assert_never
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.User import User
@@ -472,3 +474,27 @@ class GenerativeModelCustomProvider(Node):
         from .User import User
 
         return User(id=user_id)
+
+    @strawberry.field(description="The model names available for this provider.")  # type: ignore
+    async def model_names(self, info: Info[Context, None]) -> list[str]:
+        if self.db_record:
+            sdk = self.db_record.sdk
+        else:
+            sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
+                (self.id, models.GenerativeModelCustomProvider.sdk),
+            )
+
+        if sdk == "openai":
+            provider_key = GenerativeProviderKey.OPENAI
+        elif sdk == "azure_openai":
+            provider_key = GenerativeProviderKey.AZURE_OPENAI
+        elif sdk == "anthropic":
+            provider_key = GenerativeProviderKey.ANTHROPIC
+        elif sdk == "aws_bedrock":
+            provider_key = GenerativeProviderKey.AWS
+        elif sdk == "google_genai":
+            provider_key = GenerativeProviderKey.GOOGLE
+        else:
+            assert_never(sdk)
+
+        return PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)

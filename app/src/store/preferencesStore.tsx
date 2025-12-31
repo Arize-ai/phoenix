@@ -10,7 +10,10 @@ import { ModelConfig } from "./playground";
 export type MarkdownDisplayMode = "text" | "markdown";
 
 export type ModelConfigByProvider = Partial<
-  Record<ModelProvider, Omit<ModelConfig, "supportedInvocationParameters">>
+  Record<
+    ModelProvider,
+    Omit<ModelConfig, "supportedInvocationParameters" | "customProviderId">
+  >
 >;
 
 export type ProjectViewMode = "table" | "grid";

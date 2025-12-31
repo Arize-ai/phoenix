@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5529411b7c76ab62d2e82fac37e8dacf>>
+ * @generated SignedSource<<09d12b72db686ec21e0c48f3d33ac488>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,20 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type ModelMenuQuery$variables = Record<PropertyKey, never>;
 export type ModelMenuQuery$data = {
+  readonly generativeModelCustomProviders: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly id: string;
+        readonly modelNames: ReadonlyArray<string>;
+        readonly name: string;
+        readonly sdk: GenerativeModelSDK;
+      };
+    }>;
+  };
   readonly modelProviders: ReadonlyArray<{
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
@@ -36,6 +47,61 @@ var v0 = {
   "storageKey": null
 },
 v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "GenerativeModelCustomProviderConnection",
+    "kind": "LinkedField",
+    "name": "generativeModelCustomProviders",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "GenerativeModelCustomProviderEdge",
+        "kind": "LinkedField",
+        "name": "edges",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "GenerativeModelCustomProvider",
+            "kind": "LinkedField",
+            "name": "node",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
+                "storageKey": null
+              },
+              (v0/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "sdk",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "modelNames",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -100,16 +166,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "d0031da38b17c09c52f59fe219bcdff7",
+    "cacheID": "fbc5c763256fede25fb3f8cc0cc9f60d",
     "id": null,
     "metadata": {},
     "name": "ModelMenuQuery",
     "operationKind": "query",
-    "text": "query ModelMenuQuery {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query ModelMenuQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dd2cd77044dac5b1f5b3d1fc0dfaa61b";
+(node as any).hash = "656fd764c70299c13142bc527235b0b8";
 
 export default node;

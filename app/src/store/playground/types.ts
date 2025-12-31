@@ -85,6 +85,11 @@ export type ModelConfig = {
    * Custom headers to be sent with requests to the LLM provider
    */
   customHeaders?: Record<string, string> | null;
+  /**
+   * The ID of the custom provider if using a custom provider configuration.
+   * When set, the request will use the custom provider instead of the built-in provider.
+   */
+  customProviderId?: string | null;
   invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };
