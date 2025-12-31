@@ -2,6 +2,7 @@ import { Suspense, useCallback, useMemo } from "react";
 
 import {
   Button,
+  CompositeField,
   DialogTrigger,
   Flex,
   Icon,
@@ -134,10 +135,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               invocation parameters for the model to the instance in the store */}
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
-          <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-          {/* Un-comment this to get legacy behavior for cross-checking */}
-          {/* <ModelConfigButton {...props} /> */}
-          <ModelParametersConfigButton playgroundInstanceId={instanceId} />
+          <CompositeField>
+            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
+            {/* Un-comment this to get legacy behavior for cross-checking */}
+            {/* <ModelConfigButton {...props} /> */}
+            <ModelParametersConfigButton playgroundInstanceId={instanceId} />
+          </CompositeField>
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
