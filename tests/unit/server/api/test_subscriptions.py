@@ -1237,9 +1237,15 @@ class TestChatCompletionOverDatasetSubscription:
         ] == ChatCompletionSubscriptionError.__name__
         assert error_payload["message"] == "Missing template variable(s): city"
 
-        # check experiment payload
-        assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None].pop()["chatCompletionOverDataset"])[
+        # check experiment payload (filter out progress payloads)
+        experiment_payloads = [
+            p
+            for p in payloads[None]
+            if p["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionExperiment.__name__
+        ]
+        assert len(experiment_payloads) == 1
+        assert (experiment_payload := experiment_payloads.pop()["chatCompletionOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment = experiment_payload["experiment"]
