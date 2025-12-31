@@ -15,9 +15,9 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
-import { DeploymentNameConfigFormField } from "./DeploymentNameConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";
 import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
+import { ModelNameConfigFormField } from "./ModelNameConfigFormField";
 import { SaveModelConfigButton } from "./SaveModelConfigButton";
 
 const formFieldsCSS = css`
@@ -68,6 +68,11 @@ export function ModelParametersConfigButton(
         <Dialog>
           <View padding="size-200" overflow="auto" width="400px">
             <div css={formFieldsCSS}>
+              {/* Model name field - shown for all providers */}
+              <ModelNameConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+              />
+
               {/* OpenAI / Ollama specific fields */}
               {showBaseUrl && (
                 <BaseUrlConfigFormField
@@ -77,14 +82,9 @@ export function ModelParametersConfigButton(
 
               {/* Azure OpenAI specific fields */}
               {showAzureFields && (
-                <>
-                  <DeploymentNameConfigFormField
-                    playgroundInstanceId={playgroundInstanceId}
-                  />
-                  <EndpointConfigFormField
-                    playgroundInstanceId={playgroundInstanceId}
-                  />
-                </>
+                <EndpointConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
               )}
 
               {/* AWS Bedrock specific fields */}
