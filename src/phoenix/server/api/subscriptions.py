@@ -65,6 +65,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
+    ChatCompletionSubscriptionExperimentProgress,
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
     EvaluationChunk,
@@ -93,6 +94,67 @@ from phoenix.utilities.template_formatters import (
 GenericType = TypeVar("GenericType")
 
 logger = logging.getLogger(__name__)
+
+
+class ExperimentProgress:
+    """Tracks progress for chat completion over dataset subscriptions."""
+
+    def __init__(self, total_runs: int, total_evals: int):
+        self.total_runs = total_runs
+        self.total_evals = total_evals
+        self.runs_completed = 0
+        self.runs_failed = 0
+        self.evals_completed = 0
+        self.evals_failed = 0
+
+    def increment_runs_completed(self) -> ChatCompletionSubscriptionExperimentProgress:
+        """Called when a run completes successfully."""
+        self.runs_completed += 1
+        return ChatCompletionSubscriptionExperimentProgress(
+            total_runs=self.total_runs,
+            runs_completed=self.runs_completed,
+            runs_failed=self.runs_failed,
+            total_evals=self.total_evals,
+            evals_completed=self.evals_completed,
+            evals_failed=self.evals_failed,
+        )
+
+    def increment_runs_failed(self) -> ChatCompletionSubscriptionExperimentProgress:
+        """Called when a run fails (timeout, error, or formatting issue)."""
+        self.runs_failed += 1
+        return ChatCompletionSubscriptionExperimentProgress(
+            total_runs=self.total_runs,
+            runs_completed=self.runs_completed,
+            runs_failed=self.runs_failed,
+            total_evals=self.total_evals,
+            evals_completed=self.evals_completed,
+            evals_failed=self.evals_failed,
+        )
+
+    def increment_evals_completed(self) -> ChatCompletionSubscriptionExperimentProgress:
+        """Called when an evaluation completes successfully."""
+        self.evals_completed += 1
+        return ChatCompletionSubscriptionExperimentProgress(
+            total_runs=self.total_runs,
+            runs_completed=self.runs_completed,
+            runs_failed=self.runs_failed,
+            total_evals=self.total_evals,
+            evals_completed=self.evals_completed,
+            evals_failed=self.evals_failed,
+        )
+
+    def increment_evals_failed(self) -> ChatCompletionSubscriptionExperimentProgress:
+        """Called when an evaluation fails."""
+        self.evals_failed += 1
+        return ChatCompletionSubscriptionExperimentProgress(
+            total_runs=self.total_runs,
+            runs_completed=self.runs_completed,
+            runs_failed=self.runs_failed,
+            total_evals=self.total_evals,
+            evals_completed=self.evals_completed,
+            evals_failed=self.evals_failed,
+        )
+
 
 initialize_playground_clients()
 
@@ -505,6 +567,11 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
+        # Initialize progress tracking
+        total_runs = len(revisions) * input.repetitions
+        total_evals = total_runs * len(input.evaluators) if input.evaluators else 0
+        progress_tracker = ExperimentProgress(total_runs=total_runs, total_evals=total_evals)
+
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
         not_started: list[tuple[DatasetExampleID, ChatStream]] = [
             (
@@ -517,6 +584,7 @@ class Subscription:
                     repetition_number=repetition_number,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
+                    experiment_progress=progress_tracker,
                 ),
             )
             for revision in revisions
@@ -557,12 +625,14 @@ class Subscription:
                         yield ChatCompletionSubscriptionError(
                             message="Playground task timed out", dataset_example_id=example_id
                         )
+                        yield progress_tracker.increment_runs_failed()
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
                             message="An unexpected error occurred", dataset_example_id=example_id
                         )
+                        yield progress_tracker.increment_runs_failed()
                     logger.exception(error)
                 else:
                     task = _create_task_with_timeout(stream)
@@ -582,6 +652,7 @@ class Subscription:
                         db=info.context.db,
                         results=_drain_no_wait(results),
                         span_cost_calculator=info.context.span_cost_calculator,
+                        experiment_progress=progress_tracker,
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
@@ -591,6 +662,7 @@ class Subscription:
                 db=info.context.db,
                 results=remaining_results,
                 span_cost_calculator=info.context.span_cost_calculator,
+                experiment_progress=progress_tracker,
             ):
                 yield result_payload
 
@@ -678,6 +750,7 @@ async def _stream_chat_completion_over_dataset_example(
     results: asyncio.Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
+    experiment_progress: ExperimentProgress,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
@@ -763,6 +836,7 @@ async def _chat_completion_result_payloads(
     db: DbSessionFactory,
     results: Sequence[ChatCompletionResult],
     span_cost_calculator: SpanCostCalculator,
+    experiment_progress: ExperimentProgress,
 ) -> ChatStream:
     if not results:
         return
@@ -792,6 +866,11 @@ async def _chat_completion_result_payloads(
             dataset_example_id=example_id,
             repetition_number=run.repetition_number,
         )
+        # Emit progress update based on whether run succeeded or failed
+        if run.error:
+            yield experiment_progress.increment_runs_failed()
+        else:
+            yield experiment_progress.increment_runs_completed()
 
 
 def _is_result_payloads_stream(

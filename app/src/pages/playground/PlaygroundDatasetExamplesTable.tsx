@@ -592,13 +592,16 @@ export function PlaygroundDatasetExamplesTable({
               patch: { errorMessage: chatCompletion.message },
             });
             break;
-          case "ChatCompletionSubscriptionProgress":
+          case "ChatCompletionSubscriptionExperimentProgress":
             updateExperimentRunProgress({
               instanceId,
               progress: {
-                total: chatCompletion.total,
-                completed: chatCompletion.completed,
-                failed: chatCompletion.failed,
+                totalRuns: chatCompletion.totalRuns,
+                runsCompleted: chatCompletion.runsCompleted,
+                runsFailed: chatCompletion.runsFailed,
+                totalEvals: chatCompletion.totalEvals,
+                evalsCompleted: chatCompletion.evalsCompleted,
+                evalsFailed: chatCompletion.evalsFailed,
               },
             });
             break;
@@ -1344,10 +1347,13 @@ graphql`
         repetitionNumber
         message
       }
-      ... on ChatCompletionSubscriptionProgress {
-        total
-        completed
-        failed
+      ... on ChatCompletionSubscriptionExperimentProgress {
+        totalRuns
+        runsCompleted
+        runsFailed
+        totalEvals
+        evalsCompleted
+        evalsFailed
       }
       ... on EvaluationChunk {
         datasetExampleId

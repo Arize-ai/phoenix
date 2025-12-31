@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<248f244c58cfd6460464ca6b350e6bde>>
+ * @generated SignedSource<<14c5757ac70c748dbc94f9ca8b5610f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,10 +93,13 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
       readonly id: string;
     };
   } | {
-    readonly __typename: "ChatCompletionSubscriptionProgress";
-    readonly completed: number;
-    readonly failed: number;
-    readonly total: number;
+    readonly __typename: "ChatCompletionSubscriptionExperimentProgress";
+    readonly evalsCompleted: number;
+    readonly evalsFailed: number;
+    readonly runsCompleted: number;
+    readonly runsFailed: number;
+    readonly totalEvals: number;
+    readonly totalRuns: number;
   } | {
     readonly __typename: "ChatCompletionSubscriptionResult";
     readonly datasetExampleId: string | null;
@@ -404,25 +407,46 @@ v14 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "total",
+      "name": "totalRuns",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "completed",
+      "name": "runsCompleted",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "failed",
+      "name": "runsFailed",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "totalEvals",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evalsCompleted",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evalsFailed",
       "storageKey": null
     }
   ],
-  "type": "ChatCompletionSubscriptionProgress",
+  "type": "ChatCompletionSubscriptionExperimentProgress",
   "abstractKey": null
 },
 v15 = {
@@ -613,16 +637,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "16500b8639569c85b28825f3a94b5c89",
+    "cacheID": "94c2051de33e9569a50f38ab50de59e4",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on ChatCompletionSubscriptionProgress {\n      total\n      completed\n      failed\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on ChatCompletionSubscriptionExperimentProgress {\n      totalRuns\n      runsCompleted\n      runsFailed\n      totalEvals\n      evalsCompleted\n      evalsFailed\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5f138ccdcba6ed3d8217b9ea22cdca86";
+(node as any).hash = "c5ceb0e723ba8d37ddbf3530ce41c48d";
 
 export default node;

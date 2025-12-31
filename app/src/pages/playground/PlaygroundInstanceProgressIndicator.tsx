@@ -4,6 +4,45 @@ import { Flex, Text } from "@phoenix/components";
 import { ProgressCircle } from "@phoenix/components/progress/ProgressCircle";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+interface ProgressIndicatorProps {
+  completed: number;
+  total: number;
+  failed: number;
+  label: string;
+}
+
+/**
+ * Reusable progress indicator component
+ */
+function ProgressIndicator({
+  completed,
+  total,
+  failed,
+  label,
+}: ProgressIndicatorProps) {
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <Flex direction="row" gap="size-50">
+        <Text color="text-700" size="S">
+          {completed}/{total} {label}
+        </Text>
+        {failed > 0 && (
+          <Text color="danger" size="S">
+            , {failed} failed
+          </Text>
+        )}
+      </Flex>
+      <ProgressCircle
+        value={percentage}
+        size="S"
+        aria-label={`${label} progress`}
+      />
+    </Flex>
+  );
+}
+
 interface PlaygroundInstanceProgressIndicatorProps {
   instanceId: number;
 }
@@ -29,35 +68,41 @@ export const PlaygroundInstanceProgressIndicator = memo(
     const experimentRunProgress = instance.experimentRunProgress;
 
     // If no progress yet but experiment is running, show 0 progress
-    const total = experimentRunProgress?.total ?? 0;
-    const completed = experimentRunProgress?.completed ?? 0;
-    const failed = experimentRunProgress?.failed ?? 0;
+    const totalRuns = experimentRunProgress?.totalRuns ?? 0;
+    const runsCompleted = experimentRunProgress?.runsCompleted ?? 0;
+    const runsFailed = experimentRunProgress?.runsFailed ?? 0;
+    const totalEvals = experimentRunProgress?.totalEvals ?? 0;
+    const evalsCompleted = experimentRunProgress?.evalsCompleted ?? 0;
+    const evalsFailed = experimentRunProgress?.evalsFailed ?? 0;
 
-    // Don't show anything if total is 0 (progress not initialized yet)
-    if (total === 0) {
+    // Don't show anything if total runs is 0 (progress not initialized yet)
+    if (totalRuns === 0) {
       return null;
     }
 
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    // Determine if runs are complete
+    const runsComplete = runsCompleted + runsFailed >= totalRuns;
 
-    return (
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <ProgressCircle
-          value={percentage}
-          size="S"
-          aria-label="Experiment progress"
+    // Show evals progress if runs are complete and there are evals to track
+    if (runsComplete && totalEvals > 0) {
+      return (
+        <ProgressIndicator
+          completed={evalsCompleted}
+          total={totalEvals}
+          failed={evalsFailed}
+          label="evals"
         />
-        <Flex direction="row" gap="size-50">
-          <Text color="text-700" size="S">
-            {completed}/{total} completed
-          </Text>
-          {failed > 0 && (
-            <Text color="danger" size="S">
-              , {failed} failed
-            </Text>
-          )}
-        </Flex>
-      </Flex>
+      );
+    }
+
+    // Otherwise show runs progress
+    return (
+      <ProgressIndicator
+        completed={runsCompleted}
+        total={totalRuns}
+        failed={runsFailed}
+        label="runs"
+      />
     );
   }
 );

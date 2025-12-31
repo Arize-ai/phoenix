@@ -447,17 +447,20 @@ type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionP
   experiment: Experiment!
 }
 
+type ChatCompletionSubscriptionExperimentProgress implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  totalRuns: Int!
+  runsCompleted: Int!
+  runsFailed: Int!
+  totalEvals: Int!
+  evalsCompleted: Int!
+  evalsFailed: Int!
+}
+
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
-}
-
-type ChatCompletionSubscriptionProgress implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: ID
-  repetitionNumber: Int
-  total: Int!
-  completed: Int!
-  failed: Int!
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {

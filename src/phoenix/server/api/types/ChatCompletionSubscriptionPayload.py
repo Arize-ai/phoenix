@@ -56,7 +56,10 @@ class EvaluationChunk(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class ChatCompletionSubscriptionProgress(ChatCompletionSubscriptionPayload):
-    total: int
-    completed: int
-    failed: int
+class ChatCompletionSubscriptionExperimentProgress(ChatCompletionSubscriptionPayload):
+    total_runs: int
+    runs_completed: int
+    runs_failed: int
+    total_evals: int
+    evals_completed: int
+    evals_failed: int

@@ -173,9 +173,12 @@ export interface PlaygroundInstance {
    * Progress tracking for dataset experiment runs
    */
   experimentRunProgress?: {
-    total: number;
-    completed: number;
-    failed: number;
+    totalRuns: number;
+    runsCompleted: number;
+    runsFailed: number;
+    totalEvals: number;
+    evalsCompleted: number;
+    evalsFailed: number;
   } | null;
 }
 
@@ -469,9 +472,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   updateExperimentRunProgress: (params: {
     instanceId: number;
     progress: {
-      total: number;
-      completed: number;
-      failed: number;
+      totalRuns: number;
+      runsCompleted: number;
+      runsFailed: number;
+      totalEvals: number;
+      evalsCompleted: number;
+      evalsFailed: number;
     };
   }) => void;
 }
