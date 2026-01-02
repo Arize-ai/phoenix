@@ -276,6 +276,7 @@
                       "docs/phoenix/tracing/concepts-tracing/what-are-traces",
                       "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
                       "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
+                      "docs/phoenix/tracing/concepts-tracing/translating-conventions",
                       "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
                     ]
                   },
