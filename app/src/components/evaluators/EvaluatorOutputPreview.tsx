@@ -1,21 +1,23 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
   Button,
+  ContentSkeleton,
   DialogTrigger,
   Flex,
   Heading,
-  Loading,
+  Icon,
+  Icons,
   Popover,
-  Skeleton,
   Text,
   View,
 } from "@phoenix/components";
 import { type Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
+import { JSONBlock } from "@phoenix/components/code";
 import type {
   EvaluatorOutputPreviewMutation,
   InlineLLMEvaluatorInput,
@@ -127,22 +129,42 @@ const EvaluatorOutputPreviewContent = () => {
   };
   return (
     <Flex direction="column" gap="size-100">
-      <Flex direction="row" gap="size-100">
+      <Flex
+        direction="row"
+        gap="size-100"
+        width="100%"
+        justifyContent="space-between"
+      >
         <Button
           onPress={onTestEvaluator}
           isPending={isLoadingEvaluatorPreview}
-          css={css`
-            min-width: 64px;
-          `}
+          variant="primary"
+          leadingVisual={
+            <Icon
+              svg={
+                isLoadingEvaluatorPreview ? (
+                  <Icons.LoadingOutline />
+                ) : (
+                  <Icons.PlayCircleOutline />
+                )
+              }
+            />
+          }
         >
-          {isLoadingEvaluatorPreview ? <Loading size="S" /> : "Test"}
+          {isLoadingEvaluatorPreview ? "Testing..." : "Test"}
         </Button>
-        {isLoadingEvaluatorPreview ? (
-          <Skeleton width="100%" height="100%" animation="wave" />
-        ) : (
-          <Flex direction="row" gap="size-100">
-            {previewAnnotations.map((annotation, i) => (
-              <DialogTrigger key={`${annotation.id}-${i}`}>
+      </Flex>
+      {isLoadingEvaluatorPreview ? (
+        <ContentSkeleton />
+      ) : (
+        <Flex direction="column" gap="size-100">
+          {previewAnnotations.map((annotation, i) => (
+            <Flex
+              direction="column"
+              gap="size-100"
+              key={`${annotation.id}-${i}`}
+            >
+              <DialogTrigger>
                 <ExperimentAnnotationButton annotation={annotation} />
                 <Popover>
                   <View padding="size-200">
@@ -150,10 +172,12 @@ const EvaluatorOutputPreviewContent = () => {
                   </View>
                 </Popover>
               </DialogTrigger>
-            ))}
-          </Flex>
-        )}
-      </Flex>
+              <AnnotationPreviewJSONBlock annotation={annotation} />
+            </Flex>
+          ))}
+        </Flex>
+      )}
+
       {error && (
         <div
           css={css`
@@ -171,3 +195,17 @@ const EvaluatorOutputPreviewContent = () => {
     </Flex>
   );
 };
+
+function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
+  const { name, label, explanation } = props.annotation;
+  const jsonString = useMemo(() => {
+    return JSON.stringify({ name, label, explanation }, null, 2);
+  }, [explanation, label, name]);
+
+  return (
+    <JSONBlock
+      value={jsonString}
+      basicSetup={{ lineNumbers: false, foldGutter: false }}
+    />
+  );
+}
