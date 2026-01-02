@@ -3,7 +3,6 @@ import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import { Flex } from "@phoenix/components";
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import {
   PlaygroundDatasetSection_evaluator$data,
@@ -23,9 +22,6 @@ export function PlaygroundDatasetSection({
   datasetId: string;
   splitIds?: string[];
 }) {
-  const instances = usePlaygroundContext((state) => state.instances);
-  const isRunning = instances.some((instance) => instance.activeRunId != null);
-
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
@@ -120,7 +116,6 @@ export function PlaygroundDatasetSection({
       <Flex direction={"column"} height={"100%"}>
         <PlaygroundExperimentToolbar
           datasetId={datasetId}
-          isRunning={isRunning}
           datasetEvaluators={datasetEvaluators}
           selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
           onSelectionChange={setSelectedDatasetEvaluatorIds}

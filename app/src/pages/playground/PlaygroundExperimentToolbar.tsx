@@ -20,7 +20,6 @@ type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
 type PlaygroundExperimentToolbarProps = {
   datasetId: string;
-  isRunning: boolean;
   datasetEvaluators: (DatasetEvaluatorNode & EvaluatorItem)[];
   selectedDatasetEvaluatorIds: string[];
   onSelectionChange: (ids: string[]) => void;
@@ -31,7 +30,6 @@ type PlaygroundExperimentToolbarProps = {
 
 export function PlaygroundExperimentToolbar({
   datasetId,
-  isRunning,
   datasetEvaluators,
   selectedDatasetEvaluatorIds,
   onSelectionChange,
@@ -40,6 +38,7 @@ export function PlaygroundExperimentToolbar({
   query,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
     return instances
       .map((instance) => instance.experimentId)
