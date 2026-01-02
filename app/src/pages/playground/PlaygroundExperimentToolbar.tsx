@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import {
   Flex,
   Heading,
@@ -8,6 +10,7 @@ import {
   View,
 } from "@phoenix/components";
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
@@ -17,8 +20,6 @@ type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
 type PlaygroundExperimentToolbarProps = {
   datasetId: string;
-  experimentIds: string[];
-  instanceCount: number;
   isRunning: boolean;
   datasetEvaluators: (DatasetEvaluatorNode & EvaluatorItem)[];
   selectedDatasetEvaluatorIds: string[];
@@ -30,8 +31,6 @@ type PlaygroundExperimentToolbarProps = {
 
 export function PlaygroundExperimentToolbar({
   datasetId,
-  experimentIds,
-  instanceCount,
   isRunning,
   datasetEvaluators,
   selectedDatasetEvaluatorIds,
@@ -40,6 +39,12 @@ export function PlaygroundExperimentToolbar({
   onEvaluatorCreated,
   query,
 }: PlaygroundExperimentToolbarProps) {
+  const instances = usePlaygroundContext((state) => state.instances);
+  const experimentIds = useMemo(() => {
+    return instances
+      .map((instance) => instance.experimentId)
+      .filter((id) => id != null);
+  }, [instances]);
   return (
     <View
       flex="none"
@@ -58,7 +63,10 @@ export function PlaygroundExperimentToolbar({
           {isRunning ? (
             <Flex alignItems="center" gap="size-100">
               <Icon key="loading" svg={<Icons.LoadingOutline />} />
-              <Text>Running...</Text>
+              <Text>
+                {instances.length} experiment{instances.length > 1 ? "s" : ""}{" "}
+                running
+              </Text>
             </Flex>
           ) : null}
           {experimentIds.length > 0 && !isRunning ? (
@@ -68,7 +76,7 @@ export function PlaygroundExperimentToolbar({
               leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
               to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
             >
-              View Experiment{instanceCount > 1 ? "s" : ""}
+              View Experiment{instances.length > 1 ? "s" : ""}
             </LinkButton>
           ) : null}
         </Flex>

@@ -25,11 +25,6 @@ export function PlaygroundDatasetSection({
 }) {
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
-  const experimentIds = useMemo(() => {
-    return instances
-      .map((instance) => instance.experimentId)
-      .filter((id) => id != null);
-  }, [instances]);
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
@@ -125,8 +120,6 @@ export function PlaygroundDatasetSection({
       <Flex direction={"column"} height={"100%"}>
         <PlaygroundExperimentToolbar
           datasetId={datasetId}
-          experimentIds={experimentIds}
-          instanceCount={instances.length}
           isRunning={isRunning}
           datasetEvaluators={datasetEvaluators}
           selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
