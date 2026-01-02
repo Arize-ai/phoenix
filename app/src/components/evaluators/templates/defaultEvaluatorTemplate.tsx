@@ -41,8 +41,8 @@ const DEFAULT_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
   name: "score",
   optimizationDirection: "MAXIMIZE",
   values: [
-    { label: "correct", score: 1 },
-    { label: "incorrect", score: 0 },
+    { label: "true", score: 1 },
+    { label: "false", score: 0 },
   ],
 };
 
