@@ -1,30 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  LinkButton,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
-import { AnnotationNameAndValue } from "@phoenix/components/annotation";
+import { Flex } from "@phoenix/components";
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import {
   PlaygroundDatasetSection_evaluator$data,
   PlaygroundDatasetSection_evaluator$key,
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
-import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
-import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
+import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
 
 export function PlaygroundDatasetSection({
   datasetId,
@@ -33,14 +22,6 @@ export function PlaygroundDatasetSection({
   datasetId: string;
   splitIds?: string[];
 }) {
-  const instances = usePlaygroundContext((state) => state.instances);
-  const isRunning = instances.some((instance) => instance.activeRunId != null);
-  const experimentIds = useMemo(() => {
-    return instances
-      .map((instance) => instance.experimentId)
-      .filter((id) => id != null);
-  }, [instances]);
-
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: ID!) {
@@ -57,8 +38,7 @@ export function PlaygroundDatasetSection({
             }
           }
         }
-        ...AddEvaluatorMenu_codeEvaluatorTemplates
-        ...AddEvaluatorMenu_llmEvaluatorTemplates
+        ...PlaygroundEvaluatorSelect_query
       }
     `,
     {
@@ -134,88 +114,19 @@ export function PlaygroundDatasetSection({
   return (
     <>
       <Flex direction={"column"} height={"100%"}>
-        <View
-          flex="none"
-          backgroundColor={"dark"}
-          paddingX="size-200"
-          paddingY={"size-100"}
-          borderBottomColor={"light"}
-          borderBottomWidth={"thin"}
-          height={50}
-        >
-          <Flex
-            justifyContent="space-between"
-            alignItems="center"
-            height="100%"
-          >
-            <Flex gap="size-100" alignItems="center">
-              <Text>Experiment</Text>
-              {experimentIds.length > 0 ? (
-                <LinkButton
-                  size="S"
-                  isDisabled={isRunning}
-                  leadingVisual={
-                    <Icon
-                      svg={
-                        isRunning ? (
-                          <Icons.LoadingOutline />
-                        ) : (
-                          <Icons.ExperimentOutline />
-                        )
-                      }
-                    />
-                  }
-                  to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
-                >
-                  View Experiment{instances.length > 1 ? "s" : ""}
-                </LinkButton>
-              ) : null}
-            </Flex>
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {datasetEvaluators
-                  .filter((e) => selectedDatasetEvaluatorIds.includes(e.id))
-                  .slice(0, 3)
-                  .flatMap((e, index, array) => [
-                    <AnnotationNameAndValue
-                      key={e.id}
-                      annotation={{
-                        id: e.id,
-                        name: e.displayName,
-                        label: e.annotationName,
-                      }}
-                      displayPreference="none"
-                      minWidth="auto"
-                    />,
-                    ...(index === array.length - 1 &&
-                    selectedDatasetEvaluatorIds.length > 3
-                      ? [
-                          <Token key={`more`}>
-                            <Text>
-                              + {selectedDatasetEvaluatorIds.length - 3} more
-                            </Text>
-                          </Token>,
-                        ]
-                      : []),
-                  ])}
-              </Flex>
-              <PlaygroundEvaluatorSelect
-                evaluators={datasetEvaluators}
-                selectedIds={selectedDatasetEvaluatorIds}
-                onSelectionChange={setSelectedDatasetEvaluatorIds}
-                datasetId={datasetId}
-                builtInEvaluatorsQuery={data}
-                updateConnectionIds={
-                  data.dataset.datasetEvaluators?.__id != null
-                    ? [data.dataset.datasetEvaluators.__id]
-                    : []
-                }
-                onEvaluatorCreated={onEvaluatorCreated}
-              />
-              <PlaygroundDatasetSelect />
-            </Flex>
-          </Flex>
-        </View>
+        <PlaygroundExperimentToolbar
+          datasetId={datasetId}
+          datasetEvaluators={datasetEvaluators}
+          selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
+          onSelectionChange={setSelectedDatasetEvaluatorIds}
+          updateConnectionIds={
+            data.dataset.datasetEvaluators?.__id != null
+              ? [data.dataset.datasetEvaluators.__id]
+              : []
+          }
+          onEvaluatorCreated={onEvaluatorCreated}
+          query={data}
+        />
         <PlaygroundDatasetExamplesTableProvider>
           <PlaygroundDatasetExamplesTable
             datasetId={datasetId}

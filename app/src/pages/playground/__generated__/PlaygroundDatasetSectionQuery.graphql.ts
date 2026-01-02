@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7489c687bb41b09e2180c90b4dadc92a>>
+ * @generated SignedSource<<3d71ab5309d97f5f8923d1d479f58904>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,7 @@ export type PlaygroundDatasetSectionQuery$data = {
       }>;
     };
   };
-  readonly " $fragmentSpreads": FragmentRefs<"AddEvaluatorMenu_codeEvaluatorTemplates" | "AddEvaluatorMenu_llmEvaluatorTemplates">;
+  readonly " $fragmentSpreads": FragmentRefs<"PlaygroundEvaluatorSelect_query">;
 };
 export type PlaygroundDatasetSectionQuery = {
   response: PlaygroundDatasetSectionQuery$data;
@@ -273,12 +273,7 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "AddEvaluatorMenu_codeEvaluatorTemplates"
-      },
-      {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "AddEvaluatorMenu_llmEvaluatorTemplates"
+        "name": "PlaygroundEvaluatorSelect_query"
       }
     ],
     "type": "Query",
@@ -499,7 +494,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cdaeb23230b72c4efe1283fa421045ac",
+    "cacheID": "9a46ae6944f8518a285a4df471043c9d",
     "id": null,
     "metadata": {
       "connection": [
@@ -516,11 +511,11 @@ return {
     },
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n  ...PlaygroundEvaluatorSelect_query\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundEvaluatorSelect_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d76e857a5ec07f4be403fa661a19c7d4";
+(node as any).hash = "a77a52b98ebc60395e2e1a0b2bca4c6c";
 
 export default node;
