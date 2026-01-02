@@ -142,6 +142,36 @@ export type PlaygroundRepetition = {
 };
 
 /**
+ * Tracks progress of experiment runs over a dataset
+ */
+export type ExperimentRunProgress = {
+  /**
+   * Total number of experiment runs expected (exampleCount * repetitions)
+   */
+  totalRuns: number;
+  /**
+   * Number of runs completed successfully
+   */
+  runsCompleted: number;
+  /**
+   * Number of runs that failed with errors
+   */
+  runsFailed: number;
+  /**
+   * Total number of evaluations expected (exampleCount * repetitions * evaluatorCount)
+   */
+  totalEvals: number;
+  /**
+   * Number of evaluations completed
+   */
+  evalsCompleted: number;
+  /**
+   * Number of evaluations that failed
+   */
+  evalsFailed: number;
+};
+
+/**
  * A single instance of the playground that has
  * - a template
  * - tools
@@ -174,6 +204,10 @@ export interface PlaygroundInstance {
    * The selected repetition number for the instance
    */
   selectedRepetitionNumber: number;
+  /**
+   * Progress tracking for experiment runs over a dataset
+   */
+  experimentRunProgress?: ExperimentRunProgress | null;
 }
 
 /**
@@ -460,4 +494,31 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Clears all repetitions for an instance
    */
   clearRepetitions: (instanceId: number) => void;
+  /**
+   * Initialize experiment run progress for an instance
+   */
+  initExperimentRunProgress: (
+    instanceId: number,
+    progress: ExperimentRunProgress
+  ) => void;
+  /**
+   * Increment the number of completed runs for an instance
+   */
+  incrementRunsCompleted: (instanceId: number) => void;
+  /**
+   * Increment the number of failed runs for an instance
+   */
+  incrementRunsFailed: (instanceId: number) => void;
+  /**
+   * Increment the number of completed evaluations for an instance
+   */
+  incrementEvalsCompleted: (instanceId: number) => void;
+  /**
+   * Increment the number of failed evaluations for an instance
+   */
+  incrementEvalsFailed: (instanceId: number) => void;
+  /**
+   * Clear experiment run progress for an instance
+   */
+  clearExperimentRunProgress: (instanceId: number) => void;
 }

@@ -101,6 +101,7 @@ import {
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
+import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
   PartialOutputToolCall,
@@ -548,6 +549,50 @@ export function PlaygroundDatasetExamplesTable({
 
   const notifyError = useNotifyError();
 
+  const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
+    graphql`
+      query PlaygroundDatasetExamplesTableQuery(
+        $datasetId: ID!
+        $splitIds: [ID!]
+      ) {
+        dataset: node(id: $datasetId) {
+          ...PlaygroundDatasetExamplesTableFragment
+            @arguments(splitIds: $splitIds)
+          ... on Dataset {
+            exampleCount(splitIds: $splitIds)
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
+              edges {
+                version: node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { datasetId, splitIds: splitIds ?? null }
+  );
+
+  const exampleCount = dataset.exampleCount ?? 0;
+  const evaluatorCount = Object.keys(evaluatorMappings).length;
+
+  const incrementRunsCompleted = usePlaygroundContext(
+    (state) => state.incrementRunsCompleted
+  );
+  const incrementRunsFailed = usePlaygroundContext(
+    (state) => state.incrementRunsFailed
+  );
+  const incrementEvalsCompleted = usePlaygroundContext(
+    (state) => state.incrementEvalsCompleted
+  );
+  const initExperimentRunProgress = usePlaygroundContext(
+    (state) => state.initExperimentRunProgress
+  );
+
   const onNext = useCallback(
     (instanceId: number) =>
       (response?: PlaygroundDatasetExamplesTableSubscription$data | null) => {
@@ -576,6 +621,7 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
+            incrementRunsCompleted(instanceId);
             break;
           case "ChatCompletionSubscriptionError":
             if (chatCompletion.datasetExampleId == null) {
@@ -587,6 +633,7 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               patch: { errorMessage: chatCompletion.message },
             });
+            incrementRunsFailed(instanceId);
             break;
           case "TextChunk":
             if (chatCompletion.datasetExampleId == null) {
@@ -625,6 +672,7 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: evaluation,
             });
+            incrementEvalsCompleted(instanceId);
             break;
           }
           // This should never happen
@@ -639,6 +687,9 @@ export function PlaygroundDatasetExamplesTable({
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
+      incrementEvalsCompleted,
+      incrementRunsCompleted,
+      incrementRunsFailed,
       updateExampleData,
       updateInstance,
     ]
@@ -746,6 +797,11 @@ export function PlaygroundDatasetExamplesTable({
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
     resetData();
+
+    // Calculate total runs and evals for progress tracking
+    const totalRuns = exampleCount * repetitions;
+    const totalEvals = exampleCount * repetitions * evaluatorCount;
+
     if (streaming) {
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
@@ -758,6 +814,17 @@ export function PlaygroundDatasetExamplesTable({
         if (activeRunId === null) {
           continue;
         }
+
+        // Initialize progress for this instance
+        initExperimentRunProgress(instance.id, {
+          totalRuns,
+          runsCompleted: 0,
+          runsFailed: 0,
+          totalEvals,
+          evalsCompleted: 0,
+          evalsFailed: 0,
+        });
+
         const variables = {
           input: getChatCompletionOverDatasetInput({
             credentials,
@@ -816,6 +883,17 @@ export function PlaygroundDatasetExamplesTable({
           patch: { experimentId: null },
           dirty: null,
         });
+
+        // Initialize progress for this instance (non-streaming mode)
+        initExperimentRunProgress(instance.id, {
+          totalRuns,
+          runsCompleted: 0,
+          runsFailed: 0,
+          totalEvals,
+          evalsCompleted: 0,
+          evalsFailed: 0,
+        });
+
         const variables = {
           input: getChatCompletionOverDatasetInput({
             credentials,
@@ -860,9 +938,12 @@ export function PlaygroundDatasetExamplesTable({
     datasetId,
     splitIds,
     environment,
+    evaluatorCount,
     evaluatorMappings,
+    exampleCount,
     generateChatCompletion,
     hasSomeRunIds,
+    initExperimentRunProgress,
     markPlaygroundInstanceComplete,
     notifyError,
     onCompleted,
@@ -872,33 +953,6 @@ export function PlaygroundDatasetExamplesTable({
     resetData,
     setRepetitions,
   ]);
-
-  const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
-    graphql`
-      query PlaygroundDatasetExamplesTableQuery(
-        $datasetId: ID!
-        $splitIds: [ID!]
-      ) {
-        dataset: node(id: $datasetId) {
-          ...PlaygroundDatasetExamplesTableFragment
-            @arguments(splitIds: $splitIds)
-          ... on Dataset {
-            latestVersions: versions(
-              first: 1
-              sort: { col: createdAt, dir: desc }
-            ) {
-              edges {
-                version: node {
-                  id
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    { datasetId, splitIds: splitIds ?? null }
-  );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -975,9 +1029,18 @@ export function PlaygroundDatasetExamplesTable({
       return {
         id: `instance-${instance.id}`,
         header: () => (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <AlphabeticIndexIcon index={index} size="XS" />
-            <span>Output</span>
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="space-between"
+            width="100%"
+          >
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <AlphabeticIndexIcon index={index} size="XS" />
+              <span>Output</span>
+            </Flex>
+            <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
           </Flex>
         ),
 
