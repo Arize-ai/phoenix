@@ -1,4 +1,5 @@
 import { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templates/types";
+import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 const SYSTEM_PROMPT = `
 First, describe the persona of your evaluator (e.g. "You are an expert at evaluating the correctness of a model's response").
@@ -36,7 +37,17 @@ const USER_PROMPT = `
 </provided_answer>
 `;
 
+const DEFAULT_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
+  name: "score",
+  optimizationDirection: "MAXIMIZE",
+  values: [
+    { label: "correct", score: 1 },
+    { label: "incorrect", score: 0 },
+  ],
+};
+
 export const DEFAULT_EVALUATOR_TEMPLATE: LLMEvaluatorTemplate = {
   systemPrompt: SYSTEM_PROMPT.trim(),
   userPrompt: USER_PROMPT.trim(),
+  outputConfig: DEFAULT_OUTPUT_CONFIG,
 };
