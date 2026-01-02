@@ -3,6 +3,7 @@ import invariant from "tiny-invariant";
 import { createStore } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
 import type {
   ClassificationChoice,
   ClassificationEvaluatorAnnotationConfig,
@@ -127,14 +128,7 @@ export const DEFAULT_LLM_EVALUATOR_STORE_VALUES = {
     kind: "LLM",
     isBuiltin: false,
   },
-  outputConfig: {
-    name: "",
-    optimizationDirection: "MAXIMIZE",
-    values: [
-      { label: "", score: undefined },
-      { label: "", score: undefined },
-    ],
-  },
+  outputConfig: { ...DEFAULT_EVALUATOR_TEMPLATE.outputConfig },
 } satisfies EvaluatorStoreProps;
 
 /**
