@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Card,
   ContentSkeleton,
   DialogTrigger,
   Flex,
@@ -164,15 +165,19 @@ const EvaluatorOutputPreviewContent = () => {
               gap="size-100"
               key={`${annotation.id}-${i}`}
             >
-              <DialogTrigger>
-                <ExperimentAnnotationButton annotation={annotation} />
-                <Popover>
-                  <View padding="size-200">
-                    <AnnotationDetailsContent annotation={annotation} />
-                  </View>
-                </Popover>
-              </DialogTrigger>
-              <AnnotationPreviewJSONBlock annotation={annotation} />
+              <Card title="Annotation Preview">
+                <AnnotationPreviewJSONBlock annotation={annotation} />
+                <View padding="size-100">
+                  <DialogTrigger>
+                    <ExperimentAnnotationButton annotation={annotation} />
+                    <Popover>
+                      <View padding="size-200">
+                        <AnnotationDetailsContent annotation={annotation} />
+                      </View>
+                    </Popover>
+                  </DialogTrigger>
+                </View>
+              </Card>
             </Flex>
           ))}
         </Flex>
@@ -197,10 +202,10 @@ const EvaluatorOutputPreviewContent = () => {
 };
 
 function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
-  const { name, label, explanation } = props.annotation;
+  const { name, label, score, explanation } = props.annotation;
   const jsonString = useMemo(() => {
-    return JSON.stringify({ name, label, explanation }, null, 2);
-  }, [explanation, label, name]);
+    return JSON.stringify({ name, label, score, explanation }, null, 2);
+  }, [explanation, label, name, score]);
 
   return (
     <JSONBlock
