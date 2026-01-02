@@ -1220,6 +1220,121 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setRepetitionSpanId" }
       );
     },
+    initExperimentRunProgress: (instanceId, progress) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: progress,
+            };
+          }),
+        },
+        false,
+        { type: "initExperimentRunProgress" }
+      );
+    },
+    incrementRunsCompleted: (instanceId) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId || !instance.experimentRunProgress) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: {
+                ...instance.experimentRunProgress,
+                runsCompleted: instance.experimentRunProgress.runsCompleted + 1,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "incrementRunsCompleted" }
+      );
+    },
+    incrementRunsFailed: (instanceId) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId || !instance.experimentRunProgress) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: {
+                ...instance.experimentRunProgress,
+                runsFailed: instance.experimentRunProgress.runsFailed + 1,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "incrementRunsFailed" }
+      );
+    },
+    incrementEvalsCompleted: (instanceId) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId || !instance.experimentRunProgress) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: {
+                ...instance.experimentRunProgress,
+                evalsCompleted:
+                  instance.experimentRunProgress.evalsCompleted + 1,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "incrementEvalsCompleted" }
+      );
+    },
+    incrementEvalsFailed: (instanceId) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId || !instance.experimentRunProgress) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: {
+                ...instance.experimentRunProgress,
+                evalsFailed: instance.experimentRunProgress.evalsFailed + 1,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "incrementEvalsFailed" }
+      );
+    },
+    clearExperimentRunProgress: (instanceId) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experimentRunProgress: null,
+            };
+          }),
+        },
+        false,
+        { type: "clearExperimentRunProgress" }
+      );
+    },
   });
   return create(devtools(playgroundStore, { name: "playgroundStore" }));
 };
