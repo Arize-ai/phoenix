@@ -1,5 +1,24 @@
 # Changelog
 
+## [12.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.27.0...arize-phoenix-v12.28.0) (2026-01-02)
+
+
+### Features
+
+* skeleton loader for paragraphs in the playground ([#10752](https://github.com/Arize-ai/phoenix/issues/10752)) ([bf8234d](https://github.com/Arize-ai/phoenix/commit/bf8234d46a4d2240cb7b601f11738164e1d3dcd8))
+
+
+### Bug Fixes
+
+* add consistent layout to experiment details ([#10762](https://github.com/Arize-ai/phoenix/issues/10762)) ([04dd48c](https://github.com/Arize-ai/phoenix/commit/04dd48cf258bfbb848aacaa4b1b344f0c320338c))
+* dialog close button placement ([#10770](https://github.com/Arize-ai/phoenix/issues/10770)) ([7c7136c](https://github.com/Arize-ai/phoenix/commit/7c7136ca645f5984550c402976f2598087cfc19b))
+
+
+### Documentation
+
+* add uqlm evals ([#10757](https://github.com/Arize-ai/phoenix/issues/10757)) ([68b062a](https://github.com/Arize-ai/phoenix/commit/68b062ad6ae9c5b503af923e5802b536d70e5695))
+* translating conventions ([#10777](https://github.com/Arize-ai/phoenix/issues/10777)) ([08fecaa](https://github.com/Arize-ai/phoenix/commit/08fecaab9df6e8d5a81f540873751d6c0b416e84))
+
 ## [12.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.26.0...arize-phoenix-v12.27.0) (2025-12-26)
 
 
