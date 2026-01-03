@@ -13,7 +13,6 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -47,7 +46,6 @@ from phoenix.server.bearer_auth import PhoenixUser
 async def _ensure_evaluator_prompt_label(
     session: Any,
     prompt_id: int,
-    dialect: SupportedSQLDialect,
 ) -> None:
     """
     Ensures the "evaluator" label exists and is associated with the given prompt.
@@ -55,43 +53,36 @@ async def _ensure_evaluator_prompt_label(
     Args:
         session: The active database session (must be within a transaction)
         prompt_id: The ID of the prompt to label
-        dialect: The SQL dialect for insert_on_conflict operations
     """
-    # Step 1: Upsert the "evaluator" label
-    label_values = {
-        "name": "evaluator",
-        "description": "Automatically assigned to prompts created for LLM evaluators",
-        "color": "#33c5e8",  # Default blue color matching UI defaults
-    }
-
-    await session.execute(
-        insert_on_conflict(
-            label_values,
-            dialect=dialect,
-            table=models.PromptLabel,
-            unique_by=("name",),
-            on_conflict=OnConflict.DO_NOTHING,
-        )
-    )
-
-    stmt = select(models.PromptLabel.id).where(models.PromptLabel.name == "evaluator")
+    # Get or create the "evaluator" label
+    stmt = select(models.PromptLabel).where(models.PromptLabel.name == "evaluator")
     result = await session.execute(stmt)
-    label_id = result.scalar_one()
+    label = result.scalar_one_or_none()
 
-    association_values = {
-        "prompt_id": prompt_id,
-        "prompt_label_id": label_id,
-    }
-
-    await session.execute(
-        insert_on_conflict(
-            association_values,
-            dialect=dialect,
-            table=models.PromptPromptLabel,
-            unique_by=("prompt_label_id", "prompt_id"),
-            on_conflict=OnConflict.DO_NOTHING,
+    if label is None:
+        # Create the label if it doesn't exist
+        label = models.PromptLabel(
+            name="evaluator",
+            description="Automatically assigned to prompts created for LLM evaluators",
         )
+        session.add(label)
+        await session.flush()  # Flush to get the ID
+
+    # Step 2: Check if association already exists
+    assoc_stmt = select(models.PromptPromptLabel).where(
+        models.PromptPromptLabel.prompt_id == prompt_id,
+        models.PromptPromptLabel.prompt_label_id == label.id,
     )
+    assoc_result = await session.execute(assoc_stmt)
+    existing_association = assoc_result.scalar_one_or_none()
+
+    if existing_association is None:
+        # Create the association if it doesn't exist
+        association = models.PromptPromptLabel(
+            prompt_id=prompt_id,
+            prompt_label_id=label.id,
+        )
+        session.add(association)
 
 
 def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
@@ -336,12 +327,10 @@ class EvaluatorMutationMixin:
                     raise BadRequest(str(error))
 
                 session.add(llm_evaluator)
+                await session.flush()
 
                 # Ensure the prompt is labeled as an evaluator prompt
-                dialect = SupportedSQLDialect(session.bind.dialect.name)
-                await _ensure_evaluator_prompt_label(session, prompt.id, dialect)
-
-                await session.flush()
+                await _ensure_evaluator_prompt_label(session, prompt.id)
                 tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
                 # Use the target prompt version ID (newly created if prompt_version_id
                 # provided, otherwise the new prompt version)
@@ -468,8 +457,7 @@ class EvaluatorMutationMixin:
                 await session.flush()
 
                 # Ensure the new prompt is labeled as an evaluator prompt
-                dialect = SupportedSQLDialect(session.bind.dialect.name)
-                await _ensure_evaluator_prompt_label(session, new_prompt.id, dialect)
+                await _ensure_evaluator_prompt_label(session, new_prompt.id)
 
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
