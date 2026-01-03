@@ -804,6 +804,79 @@ class TestDatasetLLMEvaluatorMutations:
             prompt_versions_list = prompt_versions.all()
             assert len(prompt_versions_list) == 1
 
+    async def test_create_dataset_llm_evaluator_creates_evaluator_label(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test that creating an LLM evaluator labels its prompt with 'evaluator'."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            name="label-test",
+            description="desc",
+            promptVersion=dict(
+                templateFormat="MUSTACHE",
+                template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="x"))])]),
+                invocationParameters=dict(
+                    tool_choice=dict(type="function", function=dict(name="label-test"))
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="label-test",
+                                description="desc",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        label=dict(
+                                            type="string", enum=["a", "b"], description="out"
+                                        )
+                                    ),
+                                    required=["label"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="out",
+                optimizationDirection="MAXIMIZE",
+                values=[dict(label="a", score=1), dict(label="b", score=0)],
+            ),
+        )
+        assert result.data and not result.errors
+
+        # Verify the prompt has the "evaluator" label
+        async with db() as session:
+            evaluator_id = int(
+                GlobalID.from_id(
+                    result.data["createDatasetLlmEvaluator"]["evaluator"]["id"]
+                ).node_id
+            )
+            de = await session.get(models.DatasetEvaluators, evaluator_id)
+            assert de is not None
+            llm_eval = await session.get(models.LLMEvaluator, de.evaluator_id)
+            assert llm_eval is not None
+
+            assoc = await session.scalar(
+                select(models.PromptPromptLabel).where(
+                    models.PromptPromptLabel.prompt_id == llm_eval.prompt_id
+                )
+            )
+            assert assoc is not None
+            label = await session.get(models.PromptLabel, assoc.prompt_label_id)
+            assert label is not None
+            assert label.name == "evaluator"
+
     async def test_create_dataset_llm_evaluator_with_nonexistent_prompt_version_id(
         self,
         db: DbSessionFactory,
