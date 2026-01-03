@@ -7,6 +7,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -44,7 +45,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 
 
 async def _ensure_evaluator_prompt_label(
-    session: Any,
+    session: AsyncSession,
     prompt_id: int,
 ) -> None:
     """
