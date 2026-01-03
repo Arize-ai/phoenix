@@ -13,6 +13,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -41,6 +42,56 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+async def _ensure_evaluator_prompt_label(
+    session: Any,
+    prompt_id: int,
+    dialect: SupportedSQLDialect,
+) -> None:
+    """
+    Ensures the "evaluator" label exists and is associated with the given prompt.
+
+    Args:
+        session: The active database session (must be within a transaction)
+        prompt_id: The ID of the prompt to label
+        dialect: The SQL dialect for insert_on_conflict operations
+    """
+    # Step 1: Upsert the "evaluator" label
+    label_values = {
+        "name": "evaluator",
+        "description": "Automatically assigned to prompts created for LLM evaluators",
+        "color": "#33c5e8",  # Default blue color matching UI defaults
+    }
+
+    await session.execute(
+        insert_on_conflict(
+            label_values,
+            dialect=dialect,
+            table=models.PromptLabel,
+            unique_by=("name",),
+            on_conflict=OnConflict.DO_NOTHING,
+        )
+    )
+
+    stmt = select(models.PromptLabel.id).where(models.PromptLabel.name == "evaluator")
+    result = await session.execute(stmt)
+    label_id = result.scalar_one()
+
+    association_values = {
+        "prompt_id": prompt_id,
+        "prompt_label_id": label_id,
+    }
+
+    await session.execute(
+        insert_on_conflict(
+            association_values,
+            dialect=dialect,
+            table=models.PromptPromptLabel,
+            unique_by=("prompt_label_id", "prompt_id"),
+            on_conflict=OnConflict.DO_NOTHING,
+        )
+    )
 
 
 def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
@@ -285,6 +336,11 @@ class EvaluatorMutationMixin:
                     raise BadRequest(str(error))
 
                 session.add(llm_evaluator)
+
+                # Ensure the prompt is labeled as an evaluator prompt
+                dialect = SupportedSQLDialect(session.bind.dialect.name)
+                await _ensure_evaluator_prompt_label(session, prompt.id, dialect)
+
                 await session.flush()
                 tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
                 # Use the target prompt version ID (newly created if prompt_version_id
@@ -410,6 +466,11 @@ class EvaluatorMutationMixin:
                 )
                 session.add(new_prompt)
                 await session.flush()
+
+                # Ensure the new prompt is labeled as an evaluator prompt
+                dialect = SupportedSQLDialect(session.bind.dialect.name)
+                await _ensure_evaluator_prompt_label(session, new_prompt.id, dialect)
+
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
                 # Use the newly created prompt_version for comparison (it will always be "new")
