@@ -337,9 +337,9 @@ class Query:
 
         if config.root.type == "openai":
             try:
-                openai_client = config.root.get_client()
                 with anyio.move_on_after(10) as scope:
-                    await openai_client.models.list(timeout=10)
+                    async with config.root.get_client_factory()() as openai_client:
+                        await openai_client.models.list(timeout=10)
                 if scope.cancelled_caught:
                     return TestGenerativeModelCustomProviderCredentialsResult(
                         error="Request timed out after 10 seconds"
@@ -348,9 +348,9 @@ class Query:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
         elif config.root.type == "azure_openai":
             try:
-                azure_openai_client = config.root.get_client()
                 with anyio.move_on_after(10) as scope:
-                    await azure_openai_client.models.list(timeout=10)
+                    async with config.root.get_client_factory()() as azure_openai_client:
+                        await azure_openai_client.models.list(timeout=10)
                 if scope.cancelled_caught:
                     return TestGenerativeModelCustomProviderCredentialsResult(
                         error="Request timed out after 10 seconds"
@@ -361,15 +361,15 @@ class Query:
             try:
                 from anthropic import NotFoundError as AnthropicNotFoundError
 
-                anthropic_client = config.root.get_client()
                 # Use dummy model - non-auth errors mean credentials are valid
                 with anyio.move_on_after(10) as scope:
-                    await anthropic_client.messages.create(
-                        model="test-credential-check",
-                        messages=[{"role": "user", "content": "Hi"}],
-                        max_tokens=10,
-                        timeout=10,
-                    )
+                    async with config.root.get_client_factory()() as anthropic_client:
+                        await anthropic_client.messages.create(
+                            model="test-credential-check",
+                            messages=[{"role": "user", "content": "Hi"}],
+                            max_tokens=10,
+                            timeout=10,
+                        )
                 if scope.cancelled_caught:
                     return TestGenerativeModelCustomProviderCredentialsResult(
                         error="Request timed out after 10 seconds"
@@ -381,18 +381,16 @@ class Query:
         elif config.root.type == "aws_bedrock":
             try:
                 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
-                from starlette.concurrency import run_in_threadpool
 
-                aws_bedrock_client = config.root.get_client()
                 # Use dummy model - ValidationException means credentials are valid
-                # boto3 is synchronous, run in thread pool
+                # Use async aioboto3 client
                 with anyio.move_on_after(10) as scope:
-                    await run_in_threadpool(
-                        aws_bedrock_client.converse,
-                        modelId=f"test-credential-check-{token_hex(4)}",
-                        messages=[{"role": "user", "content": [{"text": "Hi"}]}],
-                        inferenceConfig={"maxTokens": 10},
-                    )
+                    async with config.root.get_client_factory()() as client:
+                        await client.converse(
+                            modelId=f"test-credential-check-{token_hex(4)}",
+                            messages=[{"role": "user", "content": [{"text": "Hi"}]}],
+                            inferenceConfig={"maxTokens": 10},
+                        )
                 if scope.cancelled_caught:
                     return TestGenerativeModelCustomProviderCredentialsResult(
                         error="Request timed out after 10 seconds"
@@ -411,11 +409,11 @@ class Query:
             try:
                 from google.genai.types import HttpOptions, ListModelsConfig
 
-                google_genai_client = config.root.get_client()
                 with anyio.move_on_after(10) as scope:
-                    await google_genai_client.models.list(
-                        config=ListModelsConfig(http_options=HttpOptions(timeout=10_000))
-                    )
+                    async with config.root.get_client_factory()() as google_genai_client:
+                        await google_genai_client.models.list(
+                            config=ListModelsConfig(http_options=HttpOptions(timeout=10_000))
+                        )
                 if scope.cancelled_caught:
                     return TestGenerativeModelCustomProviderCredentialsResult(
                         error="Request timed out after 10 seconds"

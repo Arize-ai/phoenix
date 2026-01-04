@@ -638,7 +638,7 @@ class ChatCompletionMutationMixin:
     async def _chat_completion(
         cls,
         info: Info[Context, None],
-        llm_client: PlaygroundStreamingClient,
+        llm_client: "PlaygroundStreamingClient[Any]",
         input: ChatCompletionInput,
         repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,

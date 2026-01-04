@@ -1,10 +1,12 @@
+from contextlib import AbstractAsyncContextManager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Annotated,
-    Any,
+    Callable,
     Literal,
     Mapping,
+    TypeVar,
     Union,
 )
 
@@ -20,9 +22,13 @@ from phoenix.utilities.env_vars import without_env_vars
 
 if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
-    from google import genai
-    from mypy_boto3_bedrock_runtime.client import BedrockRuntimeClient
+    from google.genai.client import AsyncClient as GoogleAsyncClient
     from openai import AsyncOpenAI
+    from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
+
+# Generic type for client factory
+ClientT = TypeVar("ClientT")
+ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
 
 
 class ModelProvider(Enum):
@@ -93,10 +99,15 @@ class OpenAICustomProviderConfig(BaseModel):
         description="OpenAI client kwargs",
     )
 
-    def get_client(
+    def get_client_factory(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "AsyncOpenAI":
+    ) -> "ClientFactory[AsyncOpenAI]":
+        """
+        Returns a factory that creates fresh AsyncOpenAI clients.
+
+        The factory returns an async context manager for proper resource cleanup.
+        """
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -114,15 +125,19 @@ class OpenAICustomProviderConfig(BaseModel):
         headers = dict(default_headers) if default_headers else {}
         if extra_headers:
             headers.update(extra_headers)
+        merged_headers = headers or None
 
-        with without_env_vars("OPENAI_*"):
-            return AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                organization=organization,
-                project=project,
-                default_headers=headers or None,
-            )
+        def create_client() -> AsyncOpenAI:
+            with without_env_vars("OPENAI_*"):
+                return AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                    organization=organization,
+                    project=project,
+                    default_headers=merged_headers,
+                )
+
+        return create_client
 
 
 class AuthenticationMethodAzureADTokenProvider(BaseModel):
@@ -189,10 +204,15 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         description="Azure OpenAI client kwargs",
     )
 
-    def get_client(
+    def get_client_factory(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "AsyncOpenAI":
+    ) -> "ClientFactory[AsyncOpenAI]":
+        """
+        Returns a factory that creates fresh AsyncOpenAI clients for Azure.
+
+        The factory returns an async context manager for proper resource cleanup.
+        """
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -217,40 +237,49 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
         method = self.azure_openai_authentication_method
 
-        with without_env_vars("AZURE_*", "OPENAI_*"):
-            if method.type == "api_key":
-                api_key = method.api_key
-                return AsyncOpenAI(
-                    api_key=api_key,
-                    base_url=base_url,
-                    default_headers=merged_headers,
-                )
-            elif method.type == "azure_ad_token_provider":
-                try:
-                    from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
-                except ImportError:
-                    raise ImportError(
-                        "Azure identity package not installed. Run: pip install azure-identity"
-                    )
-                scope = method.scope
-                tenant_id = method.azure_tenant_id
-                client_id = method.azure_client_id
-                client_secret = method.azure_client_secret
-                cred = ClientSecretCredential(
-                    tenant_id=tenant_id,
-                    client_id=client_id,
-                    client_secret=client_secret,
-                )
-                token_provider = get_bearer_token_provider(cred, scope)
+        if method.type == "api_key":
+            api_key = method.api_key
 
-                # Passing token_provider as api_key requires openai>=1.106.0
-                return AsyncOpenAI(
-                    api_key=token_provider,
-                    base_url=base_url,
-                    default_headers=merged_headers,
+            def create_client_with_api_key() -> AsyncOpenAI:
+                with without_env_vars("AZURE_*", "OPENAI_*"):
+                    return AsyncOpenAI(
+                        api_key=api_key,
+                        base_url=base_url,
+                        default_headers=merged_headers,
+                    )
+
+            return create_client_with_api_key
+
+        elif method.type == "azure_ad_token_provider":
+            try:
+                from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
+            except ImportError:
+                raise ImportError(
+                    "Azure identity package not installed. Run: pip install azure-identity"
                 )
-            else:
-                assert_never(method.type)
+            scope = method.scope
+            tenant_id = method.azure_tenant_id
+            client_id = method.azure_client_id
+            client_secret = method.azure_client_secret
+            cred = ClientSecretCredential(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+            token_provider = get_bearer_token_provider(cred, scope)
+
+            def create_client_with_token() -> AsyncOpenAI:
+                with without_env_vars("AZURE_*", "OPENAI_*"):
+                    # Passing token_provider as api_key requires openai>=1.106.0
+                    return AsyncOpenAI(
+                        api_key=token_provider,
+                        base_url=base_url,
+                        default_headers=merged_headers,
+                    )
+
+            return create_client_with_token
+        else:
+            assert_never(method.type)
 
 
 AnthropicAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -289,10 +318,15 @@ class AnthropicCustomProviderConfig(BaseModel):
         description="Anthropic client kwargs",
     )
 
-    def get_client(
+    def get_client_factory(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "AsyncAnthropic":
+    ) -> "ClientFactory[AsyncAnthropic]":
+        """
+        Returns a factory that creates fresh AsyncAnthropic clients.
+
+        The factory returns an async context manager for proper resource cleanup.
+        """
         try:
             from anthropic import AsyncAnthropic
         except ImportError:
@@ -309,13 +343,17 @@ class AnthropicCustomProviderConfig(BaseModel):
         headers = dict(default_headers) if default_headers else {}
         if extra_headers:
             headers.update(extra_headers)
+        merged_headers = headers or None
 
-        with without_env_vars("ANTHROPIC_*"):
-            return AsyncAnthropic(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=headers or None,
-            )
+        def create_client() -> AsyncAnthropic:
+            with without_env_vars("ANTHROPIC_*"):
+                return AsyncAnthropic(
+                    api_key=api_key,
+                    base_url=base_url,
+                    default_headers=merged_headers,
+                )
+
+        return create_client
 
 
 class AWSBedrockAuthenticationMethod(BaseModel):
@@ -371,14 +409,25 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         description="AWS Bedrock client kwargs",
     )
 
-    def get_client(
+    def get_client_factory(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "BedrockRuntimeClient":
+    ) -> "ClientFactory[BedrockRuntimeClient]":
+        """
+        Returns a factory that creates fresh Bedrock runtime clients.
+
+        The factory returns aioboto3's ClientCreatorContext which is an async context manager.
+
+        Usage::
+
+            client_factory = config.get_client_factory()
+            async with client_factory() as client:
+                response = await client.converse_stream(...)
+        """
         try:
-            import boto3  # type: ignore[import-untyped]
+            import aioboto3  # type: ignore[import-untyped]
         except ImportError:
-            raise ImportError("boto3 package not installed. Run: pip install boto3")
+            raise ImportError("aioboto3 package not installed. Run: pip install aioboto3")
 
         kwargs = self.aws_bedrock_client_kwargs
 
@@ -392,28 +441,20 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         aws_session_token = method.aws_session_token
 
         with without_env_vars("AWS_*"):
-            session = boto3.Session(
+            session = aioboto3.Session(
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 region_name=region_name,
             )
 
-            client: "BedrockRuntimeClient" = session.client(
+        def create_client() -> "AbstractAsyncContextManager[BedrockRuntimeClient]":
+            return session.client(  # type: ignore[no-any-return]
                 service_name="bedrock-runtime",
-                region_name=region_name,
                 endpoint_url=endpoint_url,
             )
 
-        # Add custom headers support via boto3 event system
-        if extra_headers:
-
-            def add_custom_headers(request: Any, **kwargs: Any) -> None:
-                request.headers.update(extra_headers)
-
-            client.meta.events.register("before-send.*", add_custom_headers)
-
-        return client
+        return create_client
 
 
 GoogleGenAIAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -464,10 +505,15 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         description="Google GenAI client kwargs",
     )
 
-    def get_client(
+    def get_client_factory(
         self,
         extra_headers: Mapping[str, str] | None = None,
-    ) -> "genai.Client":
+    ) -> "ClientFactory[GoogleAsyncClient]":
+        """
+        Returns a factory that creates fresh Google GenAI async clients.
+
+        The factory returns Client.aio which is an async context manager.
+        """
         try:
             from google.genai.client import Client
             from google.genai.types import HttpOptions
@@ -500,11 +546,14 @@ class GoogleGenAICustomProviderConfig(BaseModel):
             else None
         )
 
-        with without_env_vars("GOOGLE_*", "GEMINI_*"):
-            return Client(
-                api_key=api_key,
-                http_options=http_options,
-            )
+        def create_client() -> "AbstractAsyncContextManager[GoogleAsyncClient]":
+            with without_env_vars("GOOGLE_*", "GEMINI_*"):
+                return Client(  # type: ignore[no-any-return]
+                    api_key=api_key,
+                    http_options=http_options,
+                ).aio
+
+        return create_client
 
 
 GenerativeModelCustomerProviderConfigType = Annotated[

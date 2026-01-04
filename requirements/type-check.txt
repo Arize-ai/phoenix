@@ -2,8 +2,7 @@
 asyncpg
 grpcio
 litellm>=1.0.3
-boto3
-mypy-boto3-bedrock-runtime
+aioboto3
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-grpc
@@ -20,6 +19,7 @@ pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
 strawberry-graphql[opentelemetry]==0.287.3
 tenacity
+types-aiobotocore-bedrock-runtime
 types-cachetools
 types-jmespath
 types-jsonschema

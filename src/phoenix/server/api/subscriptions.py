@@ -109,7 +109,7 @@ ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
-    llm_client: PlaygroundStreamingClient,
+    llm_client: "PlaygroundStreamingClient[Any]",
     project_id: int,
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
@@ -672,7 +672,7 @@ class Subscription:
 async def _stream_chat_completion_over_dataset_example(
     *,
     input: ChatCompletionOverDatasetInput,
-    llm_client: PlaygroundStreamingClient,
+    llm_client: "PlaygroundStreamingClient[Any]",
     revision: models.DatasetExampleRevision,
     repetition_number: int,
     results: asyncio.Queue[ChatCompletionResult],
