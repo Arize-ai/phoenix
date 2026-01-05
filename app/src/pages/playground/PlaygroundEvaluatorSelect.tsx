@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { GridListSection } from "react-aria-components";
+import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -21,24 +22,24 @@ import {
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import type { EvaluatorKind } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
-import {
-  AddEvaluatorMenuContents,
-  BuiltInEvaluatorsQueryKey,
-} from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { AddEvaluatorMenuContents } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import {
   EvaluatorItem,
   EvaluatorSelectMenuItem,
 } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { isStringArray } from "@phoenix/typeUtils";
 
+import { PlaygroundEvaluatorSelect_query$key } from "./__generated__/PlaygroundEvaluatorSelect_query.graphql";
+
 type PlaygroundEvaluatorSelectProps = {
   datasetId: string;
   evaluators: EvaluatorItem[];
   selectedIds: string[];
   onSelectionChange: (keys: string[]) => void;
-  builtInEvaluatorsQuery: BuiltInEvaluatorsQueryKey;
   updateConnectionIds: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
+  query: PlaygroundEvaluatorSelect_query$key;
+  isDisabled?: boolean;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -48,11 +49,22 @@ export function PlaygroundEvaluatorSelect(
     evaluators,
     selectedIds,
     onSelectionChange,
-    builtInEvaluatorsQuery,
     datasetId,
     updateConnectionIds,
     onEvaluatorCreated,
+    query,
+    isDisabled,
   } = props;
+
+  const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
+    graphql`
+      fragment PlaygroundEvaluatorSelect_query on Query {
+        ...AddEvaluatorMenu_codeEvaluatorTemplates
+        ...AddEvaluatorMenu_llmEvaluatorTemplates
+      }
+    `,
+    query
+  );
 
   const [editingEvaluator, setEditingEvaluator] = useState<{
     datasetEvaluatorId: string;
@@ -92,7 +104,11 @@ export function PlaygroundEvaluatorSelect(
         isOpen={evaluatorMenuOpen}
         onOpenChange={setEvaluatorMenuOpen}
       >
-        <Button size="S" leadingVisual={<Icon svg={<Icons.Scale />} />}>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.Scale />} />}
+          isDisabled={isDisabled}
+        >
           Evaluators{" "}
           {selectedIds.length > 0 && <Counter>{selectedIds.length}</Counter>}
         </Button>
@@ -139,7 +155,7 @@ export function PlaygroundEvaluatorSelect(
             </>
           )}
           <AddEvaluatorMenuContents
-            query={builtInEvaluatorsQuery}
+            query={data}
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
