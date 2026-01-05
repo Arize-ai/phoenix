@@ -49,17 +49,17 @@ function getProportionBarColor(
 
   if (optimizationDirection === "MAXIMIZE") {
     if (isAtUpperBound) {
-      return "var(--ac-global-color-green-500)";
+      return "var(--ac-global-color-optimization-direction-positive)";
     }
     if (isAtLowerBound) {
-      return "var(--ac-global-color-red-500)";
+      return "var(--ac-global-color-optimization-direction-negative)";
     }
   } else if (optimizationDirection === "MINIMIZE") {
     if (isAtLowerBound) {
-      return "var(--ac-global-color-green-500)";
+      return "var(--ac-global-color-optimization-direction-positive)";
     }
     if (isAtUpperBound) {
-      return "var(--ac-global-color-red-500)";
+      return "var(--ac-global-color-optimization-direction-negative)";
     }
   }
 

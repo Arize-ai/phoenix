@@ -15,11 +15,11 @@ type OptimizedValueTextProps = Omit<TextProps, "children" | "color"> & {
 };
 
 const positiveOptimizationCSS = css`
-  color: var(--ac-global-color-green-500);
+  color: var(--ac-global-color-optimization-direction-positive);
 `;
 
 const negativeOptimizationCSS = css`
-  color: var(--ac-global-color-red-500);
+  color: var(--ac-global-color-optimization-direction-negative);
 `;
 
 /**

@@ -677,6 +677,14 @@ export const darkThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-200);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-300);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-green-700
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-red-700
+    );
   }
 `;
 
@@ -927,6 +935,14 @@ export const lightThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-75);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-200);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-green-700
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-red-700
+    );
   }
 `;
 
