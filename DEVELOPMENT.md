@@ -292,7 +292,7 @@ Use cursor-based pagination. Each request gives a cursor to the next page of res
 - The response should be a JSON object with a `data` key.
 - Payload content should use snake case to make it easier to work with when translating to objects.
 
-## Cursor
+## Cursor / VS Code
 
 A recommended list of extensions for Cursor/VSCode is located in the `.vscode/extensions.json` file.
 When opening Phoenix in Cursor, you will automatically be prompted to install the recommended extensions.
@@ -318,3 +318,55 @@ After doing so, consider pasting the following settings into your workspace sett
   "relay.autoStartCompiler": true
 }
 ```
+
+### Debugging the Python Server
+
+The dev server runs with `debugpy` enabled, allowing you to attach a debugger from VS Code or Cursor.
+
+1. **Create a launch configuration** at `.vscode/launch.json`:
+
+   ```json
+   {
+     "version": "0.2.0",
+     "configurations": [
+       {
+         "name": "Attach to Phoenix Dev Server",
+         "type": "debugpy",
+         "request": "attach",
+         "connect": {
+           "host": "localhost",
+           "port": 5678
+         },
+         "justMyCode": false
+       }
+     ]
+   }
+   ```
+
+2. **Start the dev environment** from the `app` directory:
+
+   ```bash
+   pnpm dev
+   ```
+
+   This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+
+   > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
+   > ```bash
+   > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+   > ```
+
+3. **Set breakpoints** by clicking in the gutter (left of line numbers) in any Python file.
+
+4. **Attach the debugger**:
+   - Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
+   - Select **"Attach to Phoenix Dev Server"** from the dropdown
+   - Press `F5` or click the green play button
+
+5. **Trigger your code** by making a request to the server via the UI or API.
+
+6. **Debug**: When a breakpoint is hit, use the debug toolbar to step through code:
+   - `F10` — Step over
+   - `F11` — Step into
+   - `F5` — Continue
+   - Inspect variables in the left panel or evaluate expressions in the Debug Console
