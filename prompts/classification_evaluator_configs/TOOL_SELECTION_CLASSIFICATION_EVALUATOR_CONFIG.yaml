@@ -1,29 +1,29 @@
 name: tool_selection
-description: For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the agent's tool selections.
+description: For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the LLM's tool selections.
 optimization_direction: maximize
 messages:
   - role: user
     content: >-
-      You are an impartial judge evaluating an AI agent's tool-calling behavior, specifically whether the agent selected the most appropriate tool or tools for the task.
+      You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM selected the most appropriate tool or tools for the task.
 
-      Your task: Determine whether the agent's tool selection was correct or incorrect based on:
+      Your task: Determine whether the LLM's tool selection was correct or incorrect based on:
       - The conversation context
       - The available tools
-      - The agent's tool invocation(s)
+      - The LLM's tool invocation(s)
 
       Criteria
       Return "correct" only when ALL of the following are true:
-      - The agent chose the best available tool for the user query OR correctly avoided tools if none were needed.
+      - The LLM chose the best available tool for the user query OR correctly avoided tools if none were needed.
       - The tool name exists in the available tools list.
       - The tool is allowed and safe to call.
-      - The agent selected the correct number of tools for the task.
+      - The LLM selected the correct number of tools for the task.
 
       Return "incorrect" if ANY of the following are true:
-      - The agent used a hallucinated or nonexistent tool.
-      - The agent selected a tool when none was needed.
-      - The agent did not use a tool when one was required.
-      - The agent chose a suboptimal or irrelevant tool.
-      - The agent selected an unsafe or not-permitted tool.
+      - The LLM used a hallucinated or nonexistent tool.
+      - The LLM selected a tool when none was needed.
+      - The LLM did not use a tool when one was required.
+      - The LLM chose a suboptimal or irrelevant tool.
+      - The LLM selected an unsafe or not-permitted tool.
       - The tool name does not appear in the available tools list.
 
       Before providing your final judgment, explain your reasoning and consider:
@@ -43,9 +43,9 @@ messages:
       {{available_tools}}
       </available_tools>
 
-      <agent_tool_selection>
-      {{agent_tool_selection}}
-      </agent_tool_selection>
+      <tool_selection>
+      {{tool_selection}}
+      </tool_selection>
       </data>
 
       Given the above data, is the tool selection correct or incorrect?
