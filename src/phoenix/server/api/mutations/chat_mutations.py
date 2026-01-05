@@ -849,13 +849,17 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
+    # Convert to list to check if empty and allow multiple iterations
+    messages_list = list(messages)
+    if not messages_list:
+        return iter([])
     template_formatter = get_template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
         tool_call_id,
         tool_calls,
-    ) = zip(*messages)
+    ) = zip(*messages_list)
     formatted_templates = map(
         lambda template: template_formatter.format(template, **template_options.variables),
         templates,
