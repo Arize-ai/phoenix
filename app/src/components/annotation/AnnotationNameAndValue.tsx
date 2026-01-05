@@ -95,6 +95,10 @@ interface AnnotationNameAndValueProps extends ProportionBarProps {
    * Whether to show the proportion bar next to the score
    */
   showProportionBar?: boolean;
+  /**
+   * Whether to show the color swatch next to the annotation name
+   */
+  showColorSwatch?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -108,6 +112,7 @@ export function AnnotationNameAndValue({
   upperBound,
   optimizationDirection,
   showProportionBar,
+  showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
@@ -123,7 +128,9 @@ export function AnnotationNameAndValue({
       maxWidth={maxWidth}
       minWidth={minWidth}
     >
-      <AnnotationColorSwatch annotationName={annotation.name} />
+      {showColorSwatch && (
+        <AnnotationColorSwatch annotationName={annotation.name} />
+      )}
       <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}

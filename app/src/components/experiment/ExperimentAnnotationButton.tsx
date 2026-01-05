@@ -70,6 +70,7 @@ export function ExperimentAnnotationButton({
             displayPreference="score"
             maxWidth="unset"
             showProportionBar
+            showColorSwatch={false}
             score={score}
             lowerBound={lowerBound}
             upperBound={upperBound}
