@@ -8,7 +8,7 @@ import { OptimizedValueText } from "./OptimizedValueText";
 import type { Annotation } from "./types";
 
 /**
- * A component that displays the details of a particular annotatio
+ * A component that displays the details of a particular annotation
  */
 export function AnnotationDetailsContent({
   annotation,

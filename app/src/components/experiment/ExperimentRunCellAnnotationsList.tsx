@@ -21,6 +21,7 @@ import {
 import {
   Annotation,
   type AnnotationConfig,
+  getOptimizationBounds,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -116,6 +117,8 @@ export function ExperimentRunCellAnnotationsList(
           annotationSummaryByAnnotationName[annotation.name]?.meanScore;
         const annotationOutputConfig: AnnotationConfig | undefined =
           annotationOutputConfigsByName[annotation.name];
+        const { lowerBound, upperBound, optimizationDirection } =
+          getOptimizationBounds(annotationOutputConfig);
         const positiveOptimization = getPositiveOptimizationFromConfig({
           config: annotationOutputConfig,
           score: annotation.score,
@@ -135,6 +138,10 @@ export function ExperimentRunCellAnnotationsList(
               <ExperimentAnnotationButton
                 annotation={annotation}
                 positiveOptimization={positiveOptimization ?? undefined}
+                score={annotation.score}
+                lowerBound={lowerBound}
+                upperBound={upperBound}
+                optimizationDirection={optimizationDirection}
                 extra={
                   meanAnnotationScore != null && numRepetitions > 1 ? (
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -156,6 +163,10 @@ export function ExperimentRunCellAnnotationsList(
                       <AnnotationDetailsContent
                         annotation={annotation}
                         positiveOptimization={positiveOptimization ?? undefined}
+                        score={annotation.score}
+                        lowerBound={lowerBound}
+                        upperBound={upperBound}
+                        optimizationDirection={optimizationDirection}
                       />
                       {renderFilters && (
                         <>

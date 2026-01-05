@@ -8,6 +8,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { OptimizedValueText } from "./OptimizedValueText";
+import { ProportionBar } from "./ProportionBar";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -52,7 +53,33 @@ const getAnnotationDisplayValue = ({
   }
 };
 
-interface AnnotationNameAndValueProps {
+/**
+ * CSS for the proportion bar wrapper.
+ * Uses a container query to hide the bar when the nearest ancestor
+ * with container-type is too narrow.
+ *
+ * Note: The parent component (e.g., the cell) should set container-type: inline-size
+ * for this to work. If no container ancestor exists, the bar will always be visible.
+ */
+const proportionBarWrapperCSS = css`
+  display: flex;
+  align-items: center;
+  width: 60px;
+  flex-shrink: 0;
+
+  @container (max-width: 250px) {
+    display: none;
+  }
+`;
+
+type ProportionBarProps = {
+  score?: number | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
+  optimizationDirection?: "MAXIMIZE" | "MINIMIZE";
+};
+
+interface AnnotationNameAndValueProps extends ProportionBarProps {
   annotation: Annotation;
   displayPreference: AnnotationDisplayPreference;
   minWidth?: CSSProperties["minWidth"];
@@ -64,6 +91,10 @@ interface AnnotationNameAndValueProps {
    * If not provided, the component will not display the optimization information.
    */
   positiveOptimization?: boolean;
+  /**
+   * Whether to show the proportion bar next to the score
+   */
+  showProportionBar?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -72,11 +103,17 @@ export function AnnotationNameAndValue({
   minWidth = "5rem",
   maxWidth = "9rem",
   positiveOptimization,
+  score,
+  lowerBound,
+  upperBound,
+  optimizationDirection,
+  showProportionBar,
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
     displayPreference,
   });
+
   return (
     <Flex
       direction="row"
@@ -107,6 +144,16 @@ export function AnnotationNameAndValue({
           >
             {labelValue}
           </OptimizedValueText>
+        </div>
+      )}
+      {showProportionBar && (
+        <div css={proportionBarWrapperCSS}>
+          <ProportionBar
+            score={score}
+            lowerBound={lowerBound}
+            upperBound={upperBound}
+            optimizationDirection={optimizationDirection}
+          />
         </div>
       )}
     </Flex>

@@ -25,8 +25,8 @@ const negativeOptimizationCSS = css`
 /**
  * A Text component that colors its content based on optimization direction.
  *
- * Green for positive optimization (score at optimal bound).
- * Red for negative optimization (score at non-optimal bound).
+ * Green for positive optimization (score above midpoint for MAXIMIZE, below for MINIMIZE).
+ * Red for negative optimization.
  * Inherited color if optimization status cannot be determined.
  *
  * @example
