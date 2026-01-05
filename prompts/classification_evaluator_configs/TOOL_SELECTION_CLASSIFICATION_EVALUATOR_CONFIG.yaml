@@ -1,5 +1,5 @@
 name: tool_selection
-description: A specialized evaluator for determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the agent's tool selections.
+description: For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the agent's tool selections.
 optimization_direction: maximize
 messages:
   - role: user
