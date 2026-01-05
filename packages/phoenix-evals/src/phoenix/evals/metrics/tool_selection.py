@@ -54,9 +54,9 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     class ToolSelectionInputSchema(BaseModel):
         input: str = Field(description="The input query or conversation.")
         available_tools: str = Field(
-            description="A list of available tools that the agent could use."
+            description="A list of available tools that the LLM could use."
         )
-        agent_tool_selection: str = Field(description="The tool or tools selected by the agent.")
+        tool_selection: str = Field(description="The tool or tools selected by the LLM.")
 
     def __init__(
         self,
