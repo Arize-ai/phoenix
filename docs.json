@@ -64,9 +64,9 @@
                     "group": "Tutorial",
                     "pages": [
                       "docs/phoenix/tracing/tutorial",
-                      "docs/phoenix/tracing/Tutorial/your-first-traces",
-                      "docs/phoenix/tracing/Tutorial/annotations-and-evaluations",
-                      "docs/phoenix/tracing/Tutorial/sessions"
+                      "docs/phoenix/tracing/tutorial/your-first-traces",
+                      "docs/phoenix/tracing/tutorial/annotations-and-evaluations",
+                      "docs/phoenix/tracing/tutorial/sessions"
                     ]
                   },
                   {
