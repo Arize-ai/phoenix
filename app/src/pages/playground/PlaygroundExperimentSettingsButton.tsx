@@ -1,5 +1,3 @@
-import { Input, Label } from "react-aria-components";
-
 import {
   Button,
   Dialog,
@@ -8,6 +6,8 @@ import {
   Heading,
   Icon,
   Icons,
+  Input,
+  Label,
   Popover,
   PopoverArrow,
   Text,
