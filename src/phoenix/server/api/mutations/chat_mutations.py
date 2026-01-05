@@ -43,11 +43,11 @@ from phoenix.server.api.evaluators import (
     get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.appended_messages import extract_and_convert_messages
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
+from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -262,8 +262,10 @@ class ChatCompletionMutationMixin:
         if input.appended_messages_path:
             for revision in revisions:
                 try:
-                    appended_messages_by_revision[revision.id] = extract_and_convert_messages(
-                        revision.input, input.appended_messages_path
+                    appended_messages_by_revision[revision.id] = (
+                        extract_and_convert_example_messages(
+                            revision.input, input.appended_messages_path
+                        )
                     )
                 except (KeyError, TypeError, ValueError):
                     # If extraction fails, store empty list; error will surface when processing

@@ -14,6 +14,16 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 # Type alias matching the one used in subscriptions.py
 ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
 
+# Mapping from OpenAI role strings to internal enum values
+_ROLE_MAPPING = {
+    "user": ChatCompletionMessageRole.USER,
+    "assistant": ChatCompletionMessageRole.AI,
+    "system": ChatCompletionMessageRole.SYSTEM,
+    "tool": ChatCompletionMessageRole.TOOL,
+    # Also handle our internal names
+    "ai": ChatCompletionMessageRole.AI,
+}
+
 
 def extract_value_from_path(data: dict[str, Any], path: str) -> Any:
     """
@@ -57,18 +67,10 @@ def _role_to_enum(role: str) -> ChatCompletionMessageRole:
         Corresponding ChatCompletionMessageRole enum value
     """
     role_lower = role.lower()
-    role_mapping = {
-        "user": ChatCompletionMessageRole.USER,
-        "assistant": ChatCompletionMessageRole.AI,
-        "system": ChatCompletionMessageRole.SYSTEM,
-        "tool": ChatCompletionMessageRole.TOOL,
-        # Also handle our internal names
-        "ai": ChatCompletionMessageRole.AI,
-    }
-    if role_lower not in role_mapping:
+    if role_lower not in _ROLE_MAPPING:
         # Default to USER for unknown roles
         return ChatCompletionMessageRole.USER
-    return role_mapping[role_lower]
+    return _ROLE_MAPPING[role_lower]
 
 
 def _convert_tool_calls_to_json_strings(tool_calls: list[dict[str, Any]]) -> list[str]:
@@ -137,7 +139,7 @@ def convert_openai_message_to_internal(
     return (role, content, tool_call_id, tool_calls)
 
 
-def extract_and_convert_messages(
+def extract_and_convert_example_messages(
     data: dict[str, Any],
     path: str,
 ) -> list[ChatCompletionMessage]:
