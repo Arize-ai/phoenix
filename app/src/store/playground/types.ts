@@ -259,7 +259,7 @@ export interface PlaygroundProps {
    * Dot-notation path to messages in dataset example input to append to prompt.
    * When set, messages at this path will be appended to the playground prompt
    * after template variables are applied.
-   * @example "messages" or "input.messages"
+   * @example "messages" or "input_messages"
    * @default null
    */
   appendedMessagesPath: string | null;
