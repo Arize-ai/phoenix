@@ -1007,10 +1007,13 @@
                   {
                     "group": "12.2025",
                     "pages": [
-                      "docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support",
-                      "docs/phoenix/release-notes/12-2025/12-10-2025-span-notes-api",
-                      "docs/phoenix/release-notes/12-2025/12-10-2025-evaluator-message-formats",
-                      "docs/phoenix/release-notes/12-2025/12-10-2025-typescript-create-evaluator"
+                      "docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences",
+                      "docs/phoenix/release-notes/12-2025/12-12-2025-support-for-gemini-tool-calls",
+                      "docs/phoenix/release-notes/12-2025/12-09-2025-span-notes-api",
+                      "docs/phoenix/release-notes/12-2025/12-06-2025-ldap-authentication-support",
+                      "docs/phoenix/release-notes/12-2025/12-04-2025-evaluator-message-formats",
+                      "docs/phoenix/release-notes/12-2025/12-03-2025-typescript-create-evaluator",
+                      "docs/phoenix/release-notes/12-2025/12-01-2025-splits-on-experiments-table"
                     ]
                   },
                   {
