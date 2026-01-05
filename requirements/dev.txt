@@ -8,3 +8,4 @@ fast-hdbscan
 umap-learn
 boto3
 jsonpath-ng
+debugpy

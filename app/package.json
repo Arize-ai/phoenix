@@ -133,7 +133,7 @@
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && vite",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "source ./.env && pnpm run build:static && pnpm run build:relay && vite",
-    "dev:server": "source ./.env && uv run --with-requirements=../requirements/dev.txt phoenix --dev serve",
+    "dev:server": "source ./.env && uv run --with-requirements=../requirements/dev.txt python -Xfrozen_modules=off -m debugpy --listen 5678 -m phoenix.server.main --dev serve",
     "dev:server:offline": "python -m phoenix.server.main --dev serve",
     "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
     "prod:server": "source ./.env && uv run --compile --with-requirements=../requirements/dev.txt phoenix serve",
