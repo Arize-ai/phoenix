@@ -11,8 +11,15 @@ import type { Annotation } from "./types";
  */
 export function AnnotationDetailsContent({
   annotation,
+  positiveOptimization,
 }: {
   annotation: Annotation;
+  /**
+   * Whether the annotation is a positive or negative optimization
+   *
+   * If not provided, the component will not display the optimization information.
+   */
+  positiveOptimization?: boolean;
 }) {
   return (
     <Flex
@@ -41,7 +48,16 @@ export function AnnotationDetailsContent({
             <Text weight="heavy" color="inherit">
               score
             </Text>
-            <Text color="inherit" fontFamily="mono">
+            <Text
+              color={
+                positiveOptimization === true
+                  ? "green-500"
+                  : positiveOptimization === false
+                    ? "red-500"
+                    : "inherit"
+              }
+              fontFamily="mono"
+            >
               {floatFormatter(annotation.score)}
             </Text>
           </Flex>

@@ -57,6 +57,12 @@ interface AnnotationNameAndValueProps {
   minWidth?: CSSProperties["minWidth"];
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
+  /**
+   * Whether the annotation is a positive or negative optimization
+   *
+   * If not provided, the component will not display the optimization information.
+   */
+  positiveOptimization?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -64,6 +70,7 @@ export function AnnotationNameAndValue({
   size,
   minWidth = "5rem",
   maxWidth = "9rem",
+  positiveOptimization,
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
@@ -93,7 +100,22 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <Text fontFamily="mono">{labelValue}</Text>
+          <Text
+            css={
+              positiveOptimization === true
+                ? css`
+                    color: var(--ac-global-color-green-500);
+                  `
+                : positiveOptimization === false
+                  ? css`
+                      color: var(--ac-global-color-red-500);
+                    `
+                  : undefined
+            }
+            fontFamily="mono"
+          >
+            {labelValue}
+          </Text>
         </div>
       )}
     </Flex>

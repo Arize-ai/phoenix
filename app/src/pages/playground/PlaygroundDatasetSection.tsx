@@ -1,7 +1,24 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
+import invariant from "tiny-invariant";
 
+<<<<<<< HEAD
 import { Flex } from "@phoenix/components";
+=======
+import {
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  Token,
+  View,
+} from "@phoenix/components";
+import {
+  type AnnotationConfig,
+  AnnotationNameAndValue,
+} from "@phoenix/components/annotation";
+>>>>>>> 991745b9b (feat: Parse and display evaluator outputConfig optimization direction on playground runs)
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import {
@@ -71,6 +88,11 @@ export function PlaygroundDatasetSection({
                   ... on LLMEvaluator {
                     outputConfig {
                       name
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
                     }
                   }
                 }
@@ -110,6 +132,28 @@ export function PlaygroundDatasetSection({
         {} as Record<string, EvaluatorInputMappingInput>
       );
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
+  const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
+    return datasetEvaluators
+      .filter(
+        (evaluator) =>
+          selectedDatasetEvaluatorIds.includes(evaluator.id) &&
+          evaluator.evaluator.outputConfig != null
+      )
+      .map((evaluator) => {
+        // the filter above should ensure that the output config is not null, but we add the invariant to be safe
+        invariant(
+          evaluator.evaluator.outputConfig != null,
+          "Evaluator output config is required"
+        );
+        return {
+          name: evaluator.evaluator.outputConfig.name,
+          optimizationDirection:
+            evaluator.evaluator.outputConfig.optimizationDirection,
+          values: evaluator.evaluator.outputConfig.values,
+          annotationType: "CATEGORICAL",
+        };
+      });
+  }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
   return (
     <>
@@ -132,6 +176,7 @@ export function PlaygroundDatasetSection({
             datasetId={datasetId}
             splitIds={splitIds}
             evaluatorMappings={selectedEvaluatorWithInputMapping}
+            evaluatorOutputConfigs={evaluatorOutputConfigs}
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>
