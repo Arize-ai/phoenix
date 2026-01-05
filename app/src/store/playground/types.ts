@@ -255,6 +255,14 @@ export interface PlaygroundProps {
    * @default 1
    */
   repetitions: number;
+  /**
+   * Dot-notation path to messages in dataset example input to append to prompt.
+   * When set, messages at this path will be appended to the playground prompt
+   * after template variables are applied.
+   * @example "messages" or "input.messages"
+   * @default null
+   */
+  appendedMessagesPath: string | null;
 }
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
@@ -429,6 +437,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set the repetitions for the playground
    */
   setRepetitions: (repetitions: number) => void;
+  /**
+   * Set the appended messages path for dataset experiments
+   */
+  setAppendedMessagesPath: (path: string | null) => void;
   /**
    * Set the dirty state of an instance
    */

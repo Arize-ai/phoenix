@@ -1325,6 +1325,8 @@ export const getChatCompletionOverDatasetInput = ({
     credentials,
   });
 
+  const { appendedMessagesPath } = playgroundStore.getState();
+
   return {
     ...baseChatCompletionVariables,
     templateFormat: playgroundStore.getState().templateFormat,
@@ -1337,6 +1339,7 @@ export const getChatCompletionOverDatasetInput = ({
         inputMapping,
       })
     ),
+    appendedMessagesPath: appendedMessagesPath ?? null,
   };
 };
 

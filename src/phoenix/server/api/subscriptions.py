@@ -44,6 +44,7 @@ from phoenix.server.api.evaluators import (
     get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.appended_messages import extract_and_convert_messages
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -699,7 +700,11 @@ async def _stream_chat_completion_over_dataset_example(
                 template_variables=revision.input,
             )
         )
-    except TemplateFormatterError as error:
+        # Append messages from dataset example if path is specified
+        if input.appended_messages_path:
+            appended = extract_and_convert_messages(revision.input, input.appended_messages_path)
+            messages.extend(appended)
+    except (TemplateFormatterError, KeyError, TypeError, ValueError) as error:
         format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         yield ChatCompletionSubscriptionError(
             message=str(error),

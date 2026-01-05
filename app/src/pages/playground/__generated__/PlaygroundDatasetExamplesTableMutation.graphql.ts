@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5906f5f04d3b95a25bb9a839e21a7ee5>>
+ * @generated SignedSource<<35bab25015358cafc7ce1de1b37693a8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
+  appendedMessagesPath?: string | null;
   datasetId: string;
   datasetVersionId?: string | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
