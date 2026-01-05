@@ -21,6 +21,7 @@ import {
 import {
   Annotation,
   type AnnotationConfig,
+  getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
@@ -115,45 +116,10 @@ export function ExperimentRunCellAnnotationsList(
           annotationSummaryByAnnotationName[annotation.name]?.meanScore;
         const annotationOutputConfig: AnnotationConfig | undefined =
           annotationOutputConfigsByName[annotation.name];
-        const optimizationDirection =
-          annotationOutputConfig?.annotationType !== "FREEFORM"
-            ? annotationOutputConfig?.optimizationDirection
-            : undefined;
-        const lowerOptimizationBound =
-          annotationOutputConfig?.annotationType === "CONTINUOUS"
-            ? annotationOutputConfig.lowerBound
-            : annotationOutputConfig.annotationType === "CATEGORICAL"
-              ? annotationOutputConfig.values?.reduce((acc, value) => {
-                  if (value.score == null) {
-                    return acc;
-                  }
-                  return value.score < acc ? value.score : acc;
-                }, Infinity)
-              : undefined;
-        const upperOptimizationBound =
-          annotationOutputConfig?.annotationType === "CONTINUOUS"
-            ? annotationOutputConfig.upperBound
-            : annotationOutputConfig.annotationType === "CATEGORICAL"
-              ? annotationOutputConfig.values?.reduce((acc, value) => {
-                  if (value.score == null) {
-                    return acc;
-                  }
-                  return value.score > acc ? value.score : acc;
-                }, -Infinity)
-              : undefined;
-        // if the score exists, calculate if it is in the upper half or bottom half of the optimization bounds
-        // if postitive optimization is false, assume it is a negative optimization, and exists in the bottom half of the optimization bounds
-        // if positive optimization is null, assume we cannot determine if it is a positive or negative optimization
-        const positiveOptimization: boolean | null =
-          annotation.score != null &&
-          upperOptimizationBound != null &&
-          lowerOptimizationBound != null
-            ? // we have all of the ingredients to determine if it is a positive optimization
-              optimizationDirection === "MAXIMIZE"
-              ? annotation.score >= upperOptimizationBound
-              : annotation.score <= lowerOptimizationBound
-            : // we do not have all of the ingredients to determine if it is a positive optimization
-              null;
+        const positiveOptimization = getPositiveOptimizationFromConfig({
+          config: annotationOutputConfig,
+          score: annotation.score,
+        });
         return (
           <li
             key={annotation.id}

@@ -7,6 +7,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
+import { OptimizedValueText } from "./OptimizedValueText";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -100,22 +101,12 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <Text
-            css={
-              positiveOptimization === true
-                ? css`
-                    color: var(--ac-global-color-green-500);
-                  `
-                : positiveOptimization === false
-                  ? css`
-                      color: var(--ac-global-color-red-500);
-                    `
-                  : undefined
-            }
+          <OptimizedValueText
+            positiveOptimization={positiveOptimization}
             fontFamily="mono"
           >
             {labelValue}
-          </Text>
+          </OptimizedValueText>
         </div>
       )}
     </Flex>
