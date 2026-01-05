@@ -57,33 +57,6 @@ export function PlaygroundExperimentSettingsButton({
                     Path to messages from the dataset to append to prompts
                   </Text>
                 </TextField>
-                <Text color="text-700" size="XS">
-                  When set, messages at this path (e.g.,{" "}
-                  <code
-                    style={{
-                      fontSize: "0.9em",
-                      backgroundColor: "var(--ac-global-color-grey-200)",
-                      padding: "1px 4px",
-                      borderRadius: "3px",
-                    }}
-                  >
-                    messages
-                  </code>{" "}
-                  or{" "}
-                  <code
-                    style={{
-                      fontSize: "0.9em",
-                      backgroundColor: "var(--ac-global-color-grey-200)",
-                      padding: "1px 4px",
-                      borderRadius: "3px",
-                    }}
-                  >
-                    input.messages
-                  </code>
-                  ) in each dataset example will be appended to the prompt,
-                  allowing you to test how a system prompt performs after
-                  replaying conversation history.
-                </Text>
               </Flex>
             </View>
           </View>
