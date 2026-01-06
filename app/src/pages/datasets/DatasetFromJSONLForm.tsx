@@ -34,19 +34,23 @@ export type CreateDatasetFromJSONLFormProps = {
   onDatasetCreateError: (error: Error) => void;
 };
 
-function getColumnNames(jsonlText: string) {
-  const lines = jsonlText.split("\n");
-  return Array.from(
-    new Set(
-      lines
-        .filter((line) => line.trim() !== "")
-        .map((line) => {
-          const json = JSON.parse(line);
-          return Object.keys(json);
-        })
-        .flat()
-    )
-  );
+function getColumnNames(jsonlText: string, onError: (error: Error) => void) {
+  try {
+    const lines = jsonlText.split("\n");
+    return Array.from(
+      new Set(
+        lines
+          .filter((line) => line.trim() !== "")
+          .map((line) => {
+            const json = JSON.parse(line);
+            return Object.keys(json);
+          })
+          .flat()
+      )
+    );
+  } catch (error) {
+    onError(error as Error);
+  }
 }
 
 export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
@@ -161,8 +165,11 @@ export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
                           return;
                         }
                         const text = e.target.result;
-                        const columnNames = getColumnNames(text as string);
-                        setColumns(columnNames);
+                        const columnNames = getColumnNames(
+                          text as string,
+                          onDatasetCreateError
+                        );
+                        setColumns(columnNames ?? []);
                         setValue("name", name);
                       };
                       reader.readAsText(newFile);
