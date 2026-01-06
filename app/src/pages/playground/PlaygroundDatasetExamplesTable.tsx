@@ -46,6 +46,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   ConnectedExperimentCostAndLatencySummary,
@@ -221,6 +222,7 @@ function ExampleOutputContent({
   totalRepetitions,
   onViewExperimentRunDetailsPress,
   onViewTracePress,
+  evaluatorOutputConfigs,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
@@ -232,6 +234,7 @@ function ExampleOutputContent({
     projectId: string,
     evaluatorName?: string
   ) => void;
+  evaluatorOutputConfigs: AnnotationConfig[];
 }) {
   const {
     span,
@@ -351,6 +354,7 @@ function ExampleOutputContent({
       {evaluations != null && evaluations.length > 0 && (
         <ExperimentRunCellAnnotationsList
           annotations={evaluations}
+          annotationOutputConfigs={evaluatorOutputConfigs}
           onTraceClick={({ traceId, projectId, annotationName }) => {
             if (traceId && projectId) {
               onViewTracePress(traceId, projectId, annotationName);
@@ -370,6 +374,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   datasetExampleInput,
   onViewExperimentRunDetailsPress,
   onViewTracePress,
+  evaluatorOutputConfigs,
 }: {
   instanceId: number;
   exampleId: string;
@@ -382,6 +387,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     projectId: string,
     evaluatorName?: string
   ) => void;
+  evaluatorOutputConfigs: AnnotationConfig[];
 }) {
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
@@ -407,6 +413,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       setRepetitionNumber={setRepetitionNumber}
       onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
       onViewTracePress={onViewTracePress}
+      evaluatorOutputConfigs={evaluatorOutputConfigs}
     />
   );
 });
@@ -488,9 +495,11 @@ export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
   evaluatorMappings,
+  evaluatorOutputConfigs,
 }: {
   datasetId: string;
   splitIds?: string[];
+  evaluatorOutputConfigs: AnnotationConfig[];
   /**
    * Record of evaluator id to input mappings
    */
@@ -1073,6 +1082,7 @@ export function PlaygroundDatasetExamplesTable({
               isRunning={hasSomeRunIds}
               instanceVariables={instanceVariables}
               datasetExampleInput={row.original.input}
+              evaluatorOutputConfigs={evaluatorOutputConfigs}
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
               }}
@@ -1091,6 +1101,7 @@ export function PlaygroundDatasetExamplesTable({
     templateFormat,
     allInstanceMessages,
     setSelectedExampleIndex,
+    evaluatorOutputConfigs,
   ]);
 
   const columns: ColumnDef<TableRow>[] = [

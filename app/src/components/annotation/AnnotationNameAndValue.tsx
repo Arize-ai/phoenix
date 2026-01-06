@@ -7,6 +7,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
+import { AnnotationScoreText } from "./AnnotationScoreText";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -57,6 +58,16 @@ interface AnnotationNameAndValueProps {
   minWidth?: CSSProperties["minWidth"];
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
+  /**
+   * Whether the annotation is a positive or negative optimization
+   *
+   * If not provided, the component will not display the optimization information.
+   */
+  positiveOptimization?: boolean;
+  /**
+   * Whether to show the color swatch next to the annotation name
+   */
+  showColorSwatch?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -64,11 +75,14 @@ export function AnnotationNameAndValue({
   size,
   minWidth = "5rem",
   maxWidth = "9rem",
+  positiveOptimization,
+  showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
     annotation,
     displayPreference,
   });
+
   return (
     <Flex
       direction="row"
@@ -78,7 +92,9 @@ export function AnnotationNameAndValue({
       maxWidth={maxWidth}
       minWidth={minWidth}
     >
-      <AnnotationColorSwatch annotationName={annotation.name} />
+      {showColorSwatch && (
+        <AnnotationColorSwatch annotationName={annotation.name} />
+      )}
       <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
         <Text weight="heavy" size={size} color="inherit">
           {annotation.name}
@@ -93,7 +109,12 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <Text fontFamily="mono">{labelValue}</Text>
+          <AnnotationScoreText
+            positiveOptimization={positiveOptimization}
+            fontFamily="mono"
+          >
+            {labelValue}
+          </AnnotationScoreText>
         </div>
       )}
     </Flex>

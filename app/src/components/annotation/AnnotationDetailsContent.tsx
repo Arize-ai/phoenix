@@ -4,10 +4,11 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { AnnotationScoreText } from "./AnnotationScoreText";
 import type { Annotation } from "./types";
 
 /**
- * A component that displays the details of a particular annotatio
+ * A component that displays the details of a particular annotation
  */
 export function AnnotationDetailsContent({
   annotation,
@@ -41,9 +42,9 @@ export function AnnotationDetailsContent({
             <Text weight="heavy" color="inherit">
               score
             </Text>
-            <Text color="inherit" fontFamily="mono">
+            <AnnotationScoreText fontFamily="mono">
               {floatFormatter(annotation.score)}
-            </Text>
+            </AnnotationScoreText>
           </Flex>
           {annotation.annotatorKind ? (
             <Flex direction="row" justifyContent="space-between">

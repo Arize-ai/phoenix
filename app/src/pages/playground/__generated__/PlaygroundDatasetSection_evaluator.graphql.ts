@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ee007d98043494eb04a2b3b8bcf323b>>
+ * @generated SignedSource<<681e9837878760490dfc5d9c3e99614c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetSection_evaluator$data = {
   readonly displayName: string;
@@ -19,6 +20,11 @@ export type PlaygroundDatasetSection_evaluator$data = {
     readonly kind: EvaluatorKind;
     readonly outputConfig?: {
       readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly values: ReadonlyArray<{
+        readonly label: string;
+        readonly score: number | null;
+      }>;
     };
   };
   readonly id: string;
@@ -38,6 +44,6 @@ const node: ReaderInlineDataFragment = {
   "name": "PlaygroundDatasetSection_evaluator"
 };
 
-(node as any).hash = "20d347227a2ade40a8ab522b23b1c591";
+(node as any).hash = "e69f7ef98d52e4dec350d215c3b84521";
 
 export default node;

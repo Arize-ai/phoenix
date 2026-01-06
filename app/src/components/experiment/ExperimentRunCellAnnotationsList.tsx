@@ -18,7 +18,11 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { Annotation } from "@phoenix/components/annotation";
+import {
+  Annotation,
+  type AnnotationConfig,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
@@ -39,6 +43,7 @@ type AnnotationWithTrace = Annotation & {
 export type ExperimentRunCellAnnotationsListProps = {
   annotations: readonly AnnotationWithTrace[];
   annotationSummaries?: readonly AnnotationSummary[];
+  annotationOutputConfigs?: readonly AnnotationConfig[];
   numRepetitions?: number;
   onTraceClick: ({
     annotationName,
@@ -58,6 +63,7 @@ export function ExperimentRunCellAnnotationsList(
   const {
     annotations,
     annotationSummaries,
+    annotationOutputConfigs,
     onTraceClick,
     numRepetitions = 1,
     renderFilters,
@@ -74,6 +80,18 @@ export function ExperimentRunCellAnnotationsList(
       ) ?? {}
     );
   }, [annotationSummaries]);
+
+  const annotationOutputConfigsByName = useMemo(() => {
+    return (
+      annotationOutputConfigs?.reduce(
+        (acc, config) => {
+          acc[config.name] = config;
+          return acc;
+        },
+        {} as Record<string, AnnotationConfig>
+      ) ?? {}
+    );
+  }, [annotationOutputConfigs]);
 
   if (!annotations || annotations.length === 0) {
     return null;
@@ -96,6 +114,12 @@ export function ExperimentRunCellAnnotationsList(
         const hasTrace = traceId != null && projectId != null;
         const meanAnnotationScore =
           annotationSummaryByAnnotationName[annotation.name]?.meanScore;
+        const annotationOutputConfig: AnnotationConfig | undefined =
+          annotationOutputConfigsByName[annotation.name];
+        const positiveOptimization = getPositiveOptimizationFromConfig({
+          config: annotationOutputConfig,
+          score: annotation.score,
+        });
         return (
           <li
             key={annotation.id}
@@ -110,6 +134,7 @@ export function ExperimentRunCellAnnotationsList(
             <DialogTrigger>
               <ExperimentAnnotationButton
                 annotation={annotation}
+                positiveOptimization={positiveOptimization ?? undefined}
                 extra={
                   meanAnnotationScore != null && numRepetitions > 1 ? (
                     <Flex direction="row" gap="size-100" alignItems="center">
