@@ -33,19 +33,21 @@
             "groups": [
               {
                 "group": " ",
-                "pages": [
-                  "docs/phoenix",
-                  "docs/phoenix/phoenix-demo"
-                ]
+                "pages": ["docs/phoenix", "docs/phoenix/phoenix-demo"]
               },
               {
                 "group": "Quick Start",
                 "pages": [
-                  "docs/phoenix/get-started",
-                  "docs/phoenix/get-started/get-started-tracing",
-                  "docs/phoenix/get-started/get-started-datasets-and-experiments",
-                  "docs/phoenix/get-started/get-started-evaluations",
-                  "docs/phoenix/get-started/get-started-prompt-playground",
+                  {
+                    "group": "Get Started with Phoenix",
+                    "pages": [
+                      "docs/phoenix/get-started",
+                      "docs/phoenix/get-started/get-started-tracing",
+                      "docs/phoenix/get-started/get-started-evaluations",
+                      "docs/phoenix/get-started/get-started-prompt-playground",
+                      "docs/phoenix/get-started/get-started-datasets-and-experiments"
+                    ]
+                  },
                   "docs/phoenix/end-to-end-features-notebook"
                 ]
               },

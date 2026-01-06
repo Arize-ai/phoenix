@@ -1,285 +1,219 @@
 ---
-title: "Evals"
+title: "Get Started with Evaluations"
 ---
 
-Now that you have Phoenix up and running, and sent traces to your first project, the next step you can take is running **evaluations** of your Python application. Evaluations let you measure and monitor the quality of your application by scoring traces against metrics like accuracy, relevance, or custom checks.
+In this guide, we’ll set up evaluations in Phoenix so we can measure the quality of model outputs from a real application.
 
-<Steps>
-  <Step title={<span className="step-title">Launch Phoenix</span>}>
-    Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started) & [Get Started with Tracing guide](./get-started-tracing).
+Traces tell us what happened during a run, but they don’t tell us whether the output was _good_. Evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
 
-    <Tabs>
-      <Tab title="Phoenix Cloud">
-        Log in, create a space, navigate to the settings page in your space, and create your API keys.
+We’ll start with data that already exists in Phoenix, define a simple evaluation, and run it so we can see results directly in the UI. The goal is to move from “I have model outputs” to “I can measure quality in a repeatable way.”
 
-        Set your environment variables.
+Since we already have traces, we can take this a step further by scoring them against metrics like correctness, relevance, or custom checks that matter to your use case.
 
-        ```bash
-        export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
-        export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
-        ```
+## **Before We Start**
 
-        You can find your collector endpoint here:
+To follow along, you’ll need:
 
-        <Frame caption="Launch your space, navigate to settings & copy your hostname for your collector endpoint">
-          <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." />
-        </Frame>
+- A Phoenix Cloud account
+- An OpenAI API key
+- SerperDev API key
 
-        Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
-      </Tab>
+This guide builds on [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing). We recommend completing that first and coming back here once you have data flowing into Phoenix.
 
-      <Tab title="Local (Self-hosted)">
-        If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://arize.com/docs/phoenix/self-hosting))
+## **Step 1: Make Sure You Have Data in Phoenix**
 
-        To host on your local machine, run `phoenix serve` in your terminal.
+Before we can run evaluations, we need something to evaluate.
 
-        Navigate to your localhost in your browser. (example localhost:6006)
-      </Tab>
-    </Tabs>
-  </Step>
+Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
 
-  <Step title={<span className="step-title">Install Phoenix Evals</span>}>
-    You'll need to install the evals library that's apart of Phoenix.
+- A project in Phoenix
+- Traces containing LLM inputs and outputs
 
-    <Tabs>
-      <Tab title="Python">
-        ```bash
-        pip install -q "arize-phoenix-evals>=2"
-        pip install -q "arize-phoenix-client"
-        ```
-      </Tab>
+It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
 
-      <Tab title="TypeScript">
-        ```bash
-        npm install @arizeai/phoenix-evals @arizeai/phoenix-client
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
+```python
+test_queries = [
+    {"tickers": "AAPL", "focus": "financial analysis and market outlook"},
+    {"tickers": "NVDA", "focus": "valuation metrics and growth prospects"},
+    {"tickers": "AMZN", "focus": "profitability and market share"},
+    {"tickers": "AAPL, MSFT", "focus": "comparative financial analysis"},
+    {"tickers": "META, SNAP, PINS", "focus": "social media sector trends"},
+    {"tickers": "RIVN", "focus": "financial health and viability"},
+    {"tickers": "SNOW", "focus": "revenue growth trajectory"},
+    {"tickers": "KO", "focus": "dividend yield and stability"},
+    {"tickers": "META", "focus": "latest developments and stock performance"},
+    {"tickers": "AAPL, MSFT, GOOGL, AMZN, META", "focus": "big tech comparison and market outlook"},
+    {"tickers": "AMC", "focus": "financial analysis and market sentiment"},
+]
 
-  <Step title={<span className="step-title">Pull down your Trace Data</span>}>
-    Since, we are running our evaluations on our trace data from our first project, we'll need to pull that data into our code.
+for query in test_queries:
+    crew.kickoff(inputs=query)
+```
 
-    <Tabs>
-      <Tab title="Python">
-        ```python
-        from phoenix.client import Client
+## **Step 2: Define an Evaluation**
 
-        px_client = Client()
-        primary_df = px_client.spans.get_spans_dataframe(project_identifier="my-llm-app")
-        ```
-      </Tab>
+Now that we have trace data, the next question is how we decide whether an output is actually good.
 
-      <Tab title="TypeScript">
-        ```typescript
-        import { getSpans } from "@arizeai/phoenix-client/spans";
+An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
 
-        // Simple: Get first batch of spans (most common use case)
-        const { spans } = await getSpans({
-          project: { projectName: "my-llm-app" },
-          limit: 100,
-        });
+In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
 
-        // Full: Get ALL spans with pagination
-        const allSpans = [];
-        let cursor: string | undefined;
+For LLM-as-a-judge evaluations, that means defining three things:
 
-        do {
-          const result = await getSpans({
-            project: { projectName: "my-llm-app" },
-            cursor,
-            limit: 100,
-          });
-          allSpans.push(...result.spans);
-          cursor = result.nextCursor ?? undefined;
-        } while (cursor);
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
+- A prompt that describes the judgment criteria
+- An LLM that performs the evaluation
+- The data we want to score
 
-  <Step title={<span className="step-title">Set Up Evaluations</span>}>
-    In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through an LLM as a Judge Model.
+In this step, we’ll define a basic completeness evaluation that checks whether the agent’s output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals) you can use or adapt for other metrics like relevance or hallucinations.
 
-        **1) Define your LLM Judge Model**
+### **Define the Evaluation Prompt**
 
-        We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/).
+We’ll start by defining the prompt that tells the evaluator how to judge an answer.
 
-        If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
+```python
+financial_completeness_template = """
+You are evaluating whether a financial research report correctly completes ALL parts of the user's task with COMPREHENSIVE coverage.
 
-        <Tabs>
-          <Tab title="Python">
-            ```python
-            import os
-            from getpass import getpass
+User input: {attributes.input.value}
 
-            if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-                openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
+Generated report: {attributes.output.value}
 
-            os.environ["OPENAI_API_KEY"] = openai_api_key
+To be marked as "complete", the report MUST meet ALL of these strict requirements:
 
-            from phoenix.evals.llm import LLM
-            llm = LLM(model="gpt-4o", provider="openai")
-            ```
-          </Tab>
+1. TICKER COVERAGE (MANDATORY):
+   - Cover ALL companies/tickers mentioned in the input
+   - If multiple tickers are listed, EACH must have dedicated analysis (not just mentioned in passing)
+   - For multiple tickers, the report must provide COMPARATIVE analysis when relevant
 
-          <Tab title="TypeScript">
-            ```typescript
-            // pnpm add @ai-sdk/openai
+2. FOCUS AREA COVERAGE (MANDATORY):
+   - Address ALL focus areas mentioned in the input
+   - If the focus mentions multiple topics (e.g., "earnings and outlook"), BOTH must be thoroughly addressed
+   - Each focus area must have substantial content, not just a brief mention
 
-            import { createOpenAI } from "@ai-sdk/openai";
+3. FINANCIAL DATA REQUIREMENTS (MANDATORY):
+   - For EACH ticker, the report must include:
+     * Current/recent stock price or performance data
+     * At least 2 key financial ratios (P/E, P/B, debt-to-equity, ROE, etc.)
+     * Revenue or earnings information
+     * Recent news or developments (within last 6 months)
+   - If focus mentions specific metrics (e.g., "P/E ratio"), those MUST be explicitly provided
 
-            const openai = createOpenAI({
-              apiKey: process.env.OPENAI_API_KEY || "your-api-key-here",
-            });
+4. DEPTH REQUIREMENT (MANDATORY):
+   - Each ticker must have at least 3-4 sentences of dedicated analysis
+   - Generic statements without specific data do NOT count
+   - The report must demonstrate thorough research, not superficial coverage
 
-            const llm = openai("gpt-4o");
-            ```
+5. COMPARISON REQUIREMENT (if multiple tickers):
+   - If 2+ tickers are requested, the report MUST include direct comparisons
+   - Comparisons should cover multiple key metrics side-by-side
+   - Generic statements like "both companies are good" do NOT satisfy this requirement
+   - Must explicitly state which company performs better/worse on specific metrics
 
+The report is "incomplete" if it fails ANY of the above requirements, including:
+- Missing any ticker or only mentioning it briefly
+- Failing to address any focus area or only addressing it superficially
+- Missing required financial data for any ticker
+- Providing generic analysis without specific metrics or data
+- Failing to provide comparisons when multiple tickers are requested
+- Not meeting the depth requirement for any ticker
 
-        **2) Define your Evaluators**
+Respond with ONLY one word: "complete" or "incomplete"
+Then provide a detailed explanation of which specific requirements were met or failed.
+"""
+```
 
-        We will set up a Q&A correctness Evaluator with the LLM of choice. I want to first define my LLM-as-a-Judge prompt template. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels.
+This prompt defines what correctness means for our application.
 
-        <Tabs>
-          <Tab title="Python">
-            ```python
-            CORRECTNESS_TEMPLATE = """ 
-            You are given a question and an answer. Decide if the answer is fully correct. 
-            Rules: The answer must be factually accurate, complete, and directly address the question. 
-            If it is, respond with "correct". Otherwise respond with "incorrect". 
-            [BEGIN DATA]
-                ************
-                [Question]: {attributes.llm.input_messages}
-                ************
-                [Answer]: {attributes.llm.output_messages}
-            [END DATA]
+### **Define the LLM Judge**
 
-            Your response must be a single word, either "correct" or "incorrect",
-            and should not contain any text or characters aside from that word.
-            "correct" means that the question is correctly and fully answered by the answer.
-            "incorrect" means that the question is not correctly or only partially answered by the
-            answer.
-            """
-            ```
-          </Tab>
+Next, we’ll define the model that will act as the judge.
 
-          <Tab title="TypeScript">
-            ```typescript
-            const CORRECTNESS_TEMPLATE = `
-            You are given a question and an answer. Decide if the answer is fully correct.
-            Rules: The answer must be factually accurate, complete, and directly address the question.
-            If it is, respond with "correct". Otherwise respond with "incorrect".
+```python
+from phoenix.evals import LLM
 
-            [BEGIN DATA]
-                ************
-                [Question]: {{attributes.llm.input_messages}}
-                ************
-                [Answer]: {{attributes.llm.output_messages}}
-            [END DATA]
+llm = LLM(model="gpt-4o", provider="openai")
+```
 
-            Your response must be a single word, either "correct" or "incorrect",
-            and should not contain any text or characters aside from that word.
-            "correct" means that the question is correctly and fully answered by the answer.
-            "incorrect" means that the question is not correctly or only partially answered by the
-            answer.
-            `;
-            ```
-          </Tab>
-        </Tabs>
+### **Create the Evaluator**
 
-        Now we want to define our Classification Evaluator
+Now we can combine the prompt and model into an evaluator.
 
-        <Tabs>
-          <Tab title="Python">
-            ```python
-            from phoenix.evals import create_classifier
+```python
+from phoenix.evals import create_classifier
 
-            correctness_evaluator = create_classifier(
-                name="correctness",
-                prompt_template=CORRECTNESS_TEMPLATE,
-                llm=llm,
-                choices={"correct": 1.0, "incorrect": 0.0},
-            )
-            ```
-          </Tab>
+completeness_evaluator = create_classifier(
+    name="completeness",
+    prompt_template=financial_completeness_template,
+    llm=llm,
+    choices={"complete": 1.0, "incomplete": 0.0},
+)
+```
 
-          <Tab title="TypeScript">
-            ```typescript
-            import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+At this point, we’ve defined how Phoenix should evaluate correctness, but we haven’t run it yet.
 
-            const correctnessEvaluator = createClassificationEvaluator({
-              name: "correctness",
-              promptTemplate: CORRECTNESS_TEMPLATE,
-              model: llm,
-              choices: { correct: 1.0, incorrect: 0.0 },
-            });
-            ```
-          </Tab>
-        </Tabs>
-      </Tab>
+## **Step 3: Run the Evaluation**
 
-    </Tabs>
-  </Step>
+Next, we’ll pull our trace data from Phoenix and run the evaluator on it.
 
-  <Step title={<span className="step-title">Run Evaluation</span>}>
-    Now that we have defined our evaluator, we're ready to evaluate our traces.
+First, fetch the spans we want to evaluate:
 
-    <Tabs>
-      <Tab title="Python">
-        ```python
-        from phoenix.evals import evaluate_dataframe
+```python
+from phoenix.client import Client
 
-        results_df = evaluate_dataframe(
-            dataframe=primary_df,
-            evaluators=[correctness_evaluator]
-        )
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
+px_client = Client()
+df = px_client.spans.get_spans_dataframe(project_name="crewai-tracing-quickstart")
+parent_spans = df[df["span_kind"] == "CHAIN"]
+```
 
-  <Step title={<span className="step-title">Log results to Visualize in Phoenix</span>}>
-    You'll now be able to log your evaluations in your project view.
+Then run the evaluator over that data:
 
-    <Tabs>
-      <Tab title="Python">
-        ```python
-        from phoenix.evals.utils import to_annotation_dataframe
+```python
+from phoenix.evals import evaluate_dataframe
+from phoenix.trace import suppress_tracing
 
-        evaluations = to_annotation_dataframe(
-            dataframe=results_df
-        )
-        client.log_span_annotations(
-            dataframe=evaluations
-        )
-        ```
-      </Tab>
+with suppress_tracing():
+    results_df = evaluate_dataframe(
+        dataframe=parent_spans,
+        evaluators=[completeness_evaluator]
+    )
+```
 
-      <Tab title="TypeScript">
-        ```typescript
-        import { logSpanAnnotations } from "@arizeai/phoenix-client/annotations";
+This produces evaluation results for each span in the dataset.
 
-        await logSpanAnnotations({
-          spanAnnotations: results
-            .filter((r) => r.label !== undefined)
-            .map((r) => ({
-              spanId: r.spanId,
-              name: "QA Correctness",
-              label: r.label,
-              score: r.score,
-              annotatorKind: "LLM" as const,
-            })),
-        });
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
-</Steps>
+## **Step 4: Log Evaluation Results to Phoenix**
 
-## Learn More:
+Finally, we’ll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
 
-<Columns cols={2}>
-  <Card title="Evaluation Concepts" href="https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge" />
-  <Card title="Evals in Phoenix" href="https://arize.com/docs/phoenix/evaluation/llm-evals" />
-</Columns>
+```python
+from phoenix.evals.utils import to_annotation_dataframe
+
+evaluations = to_annotation_dataframe(
+    dataframe=results_df
+)
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=evaluations
+)
+```
+
+Once this completes, head back to Phoenix.
+
+You’ll now see evaluation results attached to your trace data, making it easy to understand which runs passed, which failed, and how quality varies across executions.
+
+<video
+  controls
+  className="w-full aspect-video rounded-xl"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/completeness%20evals%20quickstart.mp4"
+/>
+
+**Congratulations**! You’ve run your first evaluation in Phoenix.
+
+## **Learn More About Evals**
+
+Now that you have evaluation results in Phoenix, you can start using them to guide iteration.
+
+You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The [Datasets and Experiments guide](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments) walks through this workflow in more detail.
+
+To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
+
+This was a simple example, but evaluations in Phoenix can support much more advanced workflows over time.
