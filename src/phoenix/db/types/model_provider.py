@@ -1,8 +1,10 @@
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Any,
+    AsyncIterator,
     Callable,
     Literal,
     Mapping,
@@ -29,6 +31,27 @@ if TYPE_CHECKING:
 # Generic type for client factory
 ClientT = TypeVar("ClientT")
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
+
+
+@asynccontextmanager
+async def _bedrock_client_with_headers(
+    client_context: AbstractAsyncContextManager["BedrockRuntimeClient"],
+    extra_headers: Mapping[str, str] | None,
+) -> AsyncIterator["BedrockRuntimeClient"]:
+    """
+    Wrapper that adds custom headers to a Bedrock client via the event system.
+
+    aiobotocore clients inherit boto3's event system via ``client.meta.events``:
+    https://github.com/aio-libs/aiobotocore/blob/93af53a8cd8faead9747561abcff4f6631afa732/aiobotocore/client.py#L208-L210
+    """
+    async with client_context as client:
+        if extra_headers:
+
+            def add_custom_headers(request: Any, **kwargs: Any) -> None:
+                request.headers.update(extra_headers)
+
+            client.meta.events.register("before-send.*", add_custom_headers)
+        yield client
 
 
 class ModelProvider(Enum):
@@ -416,11 +439,12 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         """
         Returns a factory that creates fresh Bedrock runtime clients.
 
-        The factory returns aioboto3's ClientCreatorContext which is an async context manager.
+        The factory returns an async context manager wrapping aioboto3's client.
+        Custom headers are supported via the boto3 event system.
 
         Usage::
 
-            client_factory = config.get_client_factory()
+            client_factory = config.get_client_factory(extra_headers={"X-Custom": "value"})
             async with client_factory() as client:
                 response = await client.converse_stream(...)
         """
@@ -440,6 +464,11 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         aws_secret_access_key = method.aws_secret_access_key
         aws_session_token = method.aws_session_token
 
+        # Capture extra_headers in closure for use in factory
+        headers = extra_headers
+
+        # Create session once with env var isolation - session holds only config,
+        # not HTTP connections. Explicit credentials are captured at session creation.
         with without_env_vars("AWS_*"):
             session = aioboto3.Session(
                 aws_access_key_id=aws_access_key_id,
@@ -449,10 +478,13 @@ class AWSBedrockCustomProviderConfig(BaseModel):
             )
 
         def create_client() -> "AbstractAsyncContextManager[BedrockRuntimeClient]":
-            return session.client(  # type: ignore[no-any-return]
-                service_name="bedrock-runtime",
-                endpoint_url=endpoint_url,
-            )
+            # Client creation still needs env var isolation for endpoint resolution
+            with without_env_vars("AWS_*"):
+                client_context = session.client(
+                    service_name="bedrock-runtime",
+                    endpoint_url=endpoint_url,
+                )
+            return _bedrock_client_with_headers(client_context, headers)
 
         return create_client
 
