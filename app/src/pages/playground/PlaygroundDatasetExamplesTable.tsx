@@ -138,6 +138,14 @@ const createExampleResponsesForInstance = (
       } = example;
       const { errorMessage, content, span, toolCalls, evaluations } =
         repetition;
+      const successfulEvaluations = evaluations
+        .filter((e) => e.__typename === "EvaluationSuccess")
+        .map((e) => {
+          if (e.__typename !== "EvaluationSuccess") {
+            throw new Error("Unexpected evaluation type");
+          }
+          return e.annotation;
+        });
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -155,7 +163,7 @@ const createExampleResponsesForInstance = (
               },
               {}
             ),
-            evaluations: [...evaluations],
+            evaluations: successfulEvaluations,
           },
         },
       };
@@ -690,6 +698,17 @@ export function PlaygroundDatasetExamplesTable({
             incrementEvalsCompleted(instanceId);
             break;
           }
+          case "EvaluationErrorChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            notifyError({
+              title: `Evaluator "${chatCompletion.evaluatorName}" failed`,
+              message: chatCompletion.message,
+            });
+            incrementEvalsCompleted(instanceId);
+            break;
+          }
           // This should never happen
           // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
           case "%other":
@@ -705,6 +724,7 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
+      notifyError,
       updateExampleData,
       updateInstance,
     ]
@@ -748,17 +768,26 @@ export function PlaygroundDatasetExamplesTable({
                 }
               }
               evaluations {
-                id
-                name
-                label
-                score
-                annotatorKind
-                explanation
-                metadata
-                startTime
-                trace {
-                  traceId
-                  projectId
+                __typename
+                ... on EvaluationSuccess {
+                  annotation {
+                    id
+                    name
+                    label
+                    score
+                    annotatorKind
+                    explanation
+                    metadata
+                    startTime
+                    trace {
+                      traceId
+                      projectId
+                    }
+                  }
+                }
+                ... on EvaluationError {
+                  evaluatorName
+                  message
                 }
               }
             }
@@ -1433,6 +1462,12 @@ graphql`
             projectId
           }
         }
+      }
+      ... on EvaluationErrorChunk {
+        datasetExampleId
+        repetitionNumber
+        evaluatorName
+        message
       }
     }
   }
