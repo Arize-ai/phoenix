@@ -44,6 +44,7 @@ from phoenix.server.api.evaluators import (
     get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -699,7 +700,13 @@ async def _stream_chat_completion_over_dataset_example(
                 template_variables=revision.input,
             )
         )
-    except TemplateFormatterError as error:
+        # Append messages from dataset example if path is specified
+        if input.appended_messages_path:
+            appended = extract_and_convert_example_messages(
+                revision.input, input.appended_messages_path
+            )
+            messages.extend(appended)
+    except (TemplateFormatterError, KeyError, TypeError, ValueError) as error:
         format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         yield ChatCompletionSubscriptionError(
             message=str(error),
@@ -869,13 +876,17 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
+    # Convert to list to check if empty and allow multiple iterations
+    messages_list = list(messages)
+    if not messages_list:
+        return iter([])
     template_formatter = _template_formatter(template_format=template_format)
     (
         roles,
         templates,
         tool_call_id,
         tool_calls,
-    ) = zip(*messages)
+    ) = zip(*messages_list)
     formatted_templates = map(
         lambda template: template_formatter.format(template, **template_variables),
         templates,

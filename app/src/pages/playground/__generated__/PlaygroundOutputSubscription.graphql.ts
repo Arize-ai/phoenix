@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12365920a2fba1f3eef95480347d92d0>>
+ * @generated SignedSource<<b05424e1f2da29e2fc3ee911d3e1d6d2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,7 +44,7 @@ export type GenerativeModelBuiltinProviderInput = {
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
-  value: string;
+  value: any;
 };
 export type GenerativeModelCustomProviderInput = {
   extraHeaders?: any | null;
