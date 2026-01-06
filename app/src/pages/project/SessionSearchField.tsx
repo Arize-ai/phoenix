@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { type BasicSetupOptions } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
@@ -46,6 +46,17 @@ const fieldCSS = css`
   }
 `;
 
+const basicSetupOptions: BasicSetupOptions = {
+  lineNumbers: false,
+  foldGutter: false,
+  bracketMatching: false,
+  syntaxHighlighting: false,
+  highlightActiveLine: false,
+  highlightActiveLineGutter: false,
+  defaultKeymap: false,
+  searchKeymap: false,
+};
+
 type SessionsSubstringFieldProps = {
   placeholder?: string;
 };
@@ -69,15 +80,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
         <CodeMirror
           css={codeMirrorCSS}
           indentWithTab={false}
-          basicSetup={{
-            lineNumbers: false,
-            foldGutter: false,
-            bracketMatching: false,
-            syntaxHighlighting: false,
-            highlightActiveLine: false,
-            highlightActiveLineGutter: false,
-            defaultKeymap: false,
-          }}
+          basicSetup={basicSetupOptions}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           value={filterIoSubstringOrSessionId}
