@@ -163,10 +163,6 @@ export function ExperimentRunCellAnnotationsList(
                       <AnnotationDetailsContent
                         annotation={annotation}
                         positiveOptimization={positiveOptimization ?? undefined}
-                        score={annotation.score}
-                        lowerBound={lowerBound}
-                        upperBound={upperBound}
-                        optimizationDirection={optimizationDirection}
                       />
                       {renderFilters && (
                         <>
