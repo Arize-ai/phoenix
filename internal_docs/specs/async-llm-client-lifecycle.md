@@ -4,6 +4,20 @@
 
 This document describes the rationale for implementing a unified async context manager pattern across all LLM provider clients in Phoenix's playground infrastructure. The design ensures proper HTTP connection lifecycle management and provides a consistent interface regardless of the underlying SDK.
 
+## What Changed
+
+| Provider | Before | After | Impact |
+|----------|--------|-------|--------|
+| **AWS Bedrock** | boto3 (blocking I/O) | aioboto3 (async I/O) | **Fixes event loop blocking** |
+| OpenAI | Fresh client per request | Fresh client per request | No change |
+| Azure OpenAI | Fresh client per request | Fresh client per request | No change |
+| Anthropic | Fresh client per request | Fresh client per request | No change |
+| Google GenAI | Fresh client per request | Fresh client per request | No change |
+
+**Key insight**: All providers already created fresh clients per request, so they already incurred connection overhead (~20-250ms per request). This PR does not introduce new overhead for non-Bedrock providers—it only fixes Bedrock's blocking behavior.
+
+The "unified factory pattern" formalizes the existing fresh-client pattern with explicit async context managers, ensuring consistent resource cleanup across all providers.
+
 ## Problem Statement
 
 Phoenix's playground feature supports multiple LLM providers (OpenAI, Azure OpenAI, Anthropic, Google GenAI, AWS Bedrock). Each provider's SDK has different client lifecycle patterns:
@@ -138,7 +152,41 @@ async def chat_completion_create(self, messages, tools, **params):
 | **Instrumentation** | Applied just-in-time, per-request |
 | **Type safety** | Generic base class ensures `client` is typed correctly |
 
-The overhead of creating fresh clients is negligible - the expensive operations (TCP connection, TLS handshake) are handled by connection pooling within each request's lifecycle.
+### Connection Overhead Tradeoff
+
+Creating a fresh client per request means **no connection pooling across requests**. Both httpx and aiohttp close all pooled connections when the client exits:
+
+- **httpx**: [`AsyncClient.aclose()`](https://github.com/encode/httpx/blob/0.27.0/httpx/_client.py#L1978-L1988) calls [`pool.aclose()`](https://github.com/encode/httpcore/blob/0.18.0/httpcore/_async/connection_pool.py#L347-L353), which clears and closes all connections
+- **aiohttp**: [`ClientSession.close()`](https://github.com/aio-libs/aiohttp/blob/957d5ba18224b10d428f3ed7fe450ffc2c2978ca/aiohttp/client.py#L1360-L1368) calls [`connector.close()`](https://github.com/aio-libs/aiohttp/blob/957d5ba18224b10d428f3ed7fe450ffc2c2978ca/aiohttp/connector.py#L442-L455), which closes all transports
+
+**Per-request overhead:**
+
+| Component | Latency |
+|-----------|---------|
+| TCP handshake | 1 RTT (1-5ms same-region, 50-200ms cross-region) |
+| TLS handshake | 1-2 RTTs + crypto (~10-50ms) |
+| **Total** | **~20-250ms per request** |
+
+**Relative impact:**
+
+| Scenario | Overhead as % of total latency |
+|----------|-------------------------------|
+| Typical LLM streaming (1-30s) | ~1-10% |
+| Short prompts, fast responses | More noticeable |
+| High concurrency | Compounded connection establishment |
+| Cross-region API calls | Higher due to RTT |
+
+**Why we accept this tradeoff:**
+
+1. **Correctness**: Guaranteed resource cleanup, no connection leaks
+2. **Consistency**: All providers behave identically
+3. **Credential refresh**: AWS IAM/Azure AD tokens refresh automatically
+4. **Simplicity**: No complex connection pool management or reuse logic
+
+For deployments where connection overhead is critical, consider:
+- Deploying Phoenix closer to the LLM provider's region
+- Using a connection-pooling proxy (e.g., envoy, nginx) in front of the LLM APIs
+- Implementing per-provider client caching with explicit lifecycle management (more complex, not currently supported)
 
 ### Alternative Considered: Thread Pool Workaround
 
@@ -151,7 +199,26 @@ from starlette.concurrency import run_in_threadpool
 await run_in_threadpool(boto3_client.converse_stream, ...)
 ```
 
-However, this adds thread overhead and doesn't integrate as cleanly with the unified factory pattern.
+**This approach would allow connection pooling if we reused clients:**
+
+| Provider | Thread Pool + Persistent Client | Current Approach (aioboto3) |
+|----------|--------------------------------|----------------------------|
+| boto3/Bedrock | Pooled connections | Fresh client per request |
+| OpenAI | Pooled connections | Fresh client per request |
+| Anthropic | Pooled connections | Fresh client per request |
+| Google GenAI | Pooled connections | Fresh client per request |
+
+Note: The previous boto3 implementation already created fresh clients per request, so it had the same connection overhead. The thread pool approach would only save connection overhead if we also changed to reusing persistent clients.
+
+**Tradeoffs of persistent clients with thread pool:**
+
+| Aspect | Persistent Clients | Fresh Clients (current) |
+|--------|-------------------|------------------------|
+| Connection overhead | None (pooled) | ~20-250ms per request |
+| AWS credential refresh | Manual refresh needed | Automatic |
+| Thread consumption | One per concurrent request | N/A (true async) |
+| Resource cleanup | Must manage lifecycle | Automatic via context manager |
+| Complexity | Higher (lifecycle, thread safety) | Lower |
 
 ### Decision
 
