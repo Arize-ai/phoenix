@@ -44,7 +44,7 @@ function getEnvironmentVariablesPython({
   if (isHosted) {
     return `PHOENIX_CLIENT_HEADERS='api_key=${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
   } else if (isAuthEnabled) {
-    return `PHOENIX_API_KEY='<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
+    return `PHOENIX_API_KEY='${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
   }
   return `PHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
 }
