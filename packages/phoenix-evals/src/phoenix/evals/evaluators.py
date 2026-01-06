@@ -22,10 +22,12 @@ from typing import (
 )
 
 import pandas as pd
+from opentelemetry.trace import NoOpTracer
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
+from phoenix.evals.tracing import get_current_trace_id, get_tracer
 
 from .legacy.evaluators import (
     HallucinationEvaluator,
@@ -176,7 +178,7 @@ class Score:
         print(json.dumps(score_dict, indent=indent))
 
 
-# --- Async helper ---
+# --- Helpers ---
 def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
@@ -319,19 +321,10 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        # Get tracer and create span for evaluation
-        from opentelemetry.trace import NoOpTracer
-
-        from phoenix.evals.tracing import get_current_trace_id, get_tracer
-
         tracer = get_tracer()
-
-        # Check if tracer is active (not NoOpTracer)
         if isinstance(tracer, NoOpTracer):
-            # No tracing active, run evaluation without span
             return self._evaluate(remapped_eval_input)
 
-        # Create evaluation span and capture trace_id
         with tracer.start_as_current_span(f"{self.name}.evaluate"):
             scores = self._evaluate(remapped_eval_input)
             trace_id = get_current_trace_id()
@@ -362,19 +355,11 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        # Get tracer and create span for evaluation
-        from opentelemetry.trace import NoOpTracer
-
-        from phoenix.evals.tracing import get_current_trace_id, get_tracer
-
         tracer = get_tracer()
 
-        # Check if tracer is active (not NoOpTracer)
         if isinstance(tracer, NoOpTracer):
-            # No tracing active, run evaluation without span
             return await self._async_evaluate(remapped_eval_input)
 
-        # Create evaluation span and capture trace_id
         with tracer.start_as_current_span(f"{self.name}.evaluate"):
             scores = await self._async_evaluate(remapped_eval_input)
             trace_id = get_current_trace_id()
