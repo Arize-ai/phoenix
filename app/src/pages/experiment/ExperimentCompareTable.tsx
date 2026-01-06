@@ -38,17 +38,15 @@ import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
-  ExperimentAverageRunTokenCosts,
+  ExperimentCostAndLatencySummary,
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { ExperimentAverageRunTokenCount } from "@phoenix/components/experiment/ExperimentAverageRunTokenCount";
 import {
   CellTop,
   CompactJSONCell,
@@ -58,7 +56,6 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -392,7 +389,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   color={experimentColor}
                 />
                 <div>
-                  {experiment && <ExperimentMetadata experiment={experiment} />}
+                  {experiment && (
+                    <ExperimentCostAndLatencySummary
+                      executionState="complete"
+                      experiment={experiment}
+                    />
+                  )}
                 </div>
               </Flex>
               <Flex
@@ -780,47 +782,6 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
-
-function ExperimentMetadata(props: { experiment: Experiment }) {
-  const { experiment } = props;
-  const averageRunLatencyMs = experiment.averageRunLatencyMs;
-  const runCount = experiment.runCount;
-  const costTotal = experiment.costSummary.total.cost;
-  const tokenCountTotal = experiment.costSummary.total.tokens;
-  const averageRunCostTotal =
-    costTotal == null || runCount == 0 ? null : costTotal / runCount;
-  const averageRunTokenCountTotal =
-    tokenCountTotal == null || runCount == 0
-      ? null
-      : tokenCountTotal / runCount;
-  return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Text size="S" fontFamily="mono" color="grey-500">
-            AVG
-          </Text>
-        </TriggerWrap>
-        <Tooltip>Averages computed over all runs in the experiment</Tooltip>
-      </TooltipTrigger>
-      {averageRunLatencyMs != null && (
-        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-      )}
-      <ExperimentAverageRunTokenCount
-        averageRunTokenCountTotal={averageRunTokenCountTotal}
-        experimentId={experiment.id}
-        size="S"
-      />
-      {averageRunCostTotal != null && (
-        <ExperimentAverageRunTokenCosts
-          averageRunCostTotal={averageRunCostTotal}
-          experimentId={experiment.id}
-          size="S"
-        />
-      )}
-    </Flex>
-  );
-}
 
 /**
  * Display the output of an experiment run.
