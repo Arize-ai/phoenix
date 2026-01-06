@@ -4,7 +4,7 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { OptimizedValueText } from "./OptimizedValueText";
+import { AnnotationScoreText } from "./AnnotationScoreText";
 import type { Annotation } from "./types";
 
 /**
@@ -49,12 +49,12 @@ export function AnnotationDetailsContent({
             <Text weight="heavy" color="inherit">
               score
             </Text>
-            <OptimizedValueText
+            <AnnotationScoreText
               positiveOptimization={positiveOptimization}
               fontFamily="mono"
             >
               {floatFormatter(annotation.score)}
-            </OptimizedValueText>
+            </AnnotationScoreText>
           </Flex>
           {annotation.annotatorKind ? (
             <Flex direction="row" justifyContent="space-between">

@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Text, TextProps } from "@phoenix/components";
 
-type OptimizedValueTextProps = Omit<TextProps, "children" | "color"> & {
+type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
   /**
    * Whether the value represents a positive optimization result.
    * - true: renders in green (success color)
@@ -31,16 +31,16 @@ const negativeOptimizationCSS = css`
  *
  * @example
  * ```tsx
- * <OptimizedValueText positiveOptimization={true} fontFamily="mono">
+ * <AnnotationScoreText positiveOptimization={true} fontFamily="mono">
  *   0.95
- * </OptimizedValueText>
+ * </AnnotationScoreText>
  * ```
  */
-export function OptimizedValueText({
+export function AnnotationScoreText({
   positiveOptimization,
   children,
   ...textProps
-}: OptimizedValueTextProps) {
+}: AnnotationScoreTextProps) {
   const colorCSS =
     positiveOptimization === true
       ? positiveOptimizationCSS

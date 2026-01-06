@@ -7,7 +7,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
-import { OptimizedValueText } from "./OptimizedValueText";
+import { AnnotationScoreText } from "./AnnotationScoreText";
 import { ProportionBar } from "./ProportionBar";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
@@ -145,12 +145,12 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <OptimizedValueText
+          <AnnotationScoreText
             positiveOptimization={positiveOptimization}
             fontFamily="mono"
           >
             {labelValue}
-          </OptimizedValueText>
+          </AnnotationScoreText>
         </div>
       )}
       {showProportionBar && (
