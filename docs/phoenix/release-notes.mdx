@@ -38,6 +38,12 @@ The Phoenix CLI now supports datasets, experiments, and annotations. Pull evalua
 **Available in @arizeai/phoenix-cli 0.1.0+**
 
 AI coding assistants operate through terminals and files—they run shell commands, read output, and process data. The new Phoenix CLI makes trace data accessible through these interfaces, enabling tools like Claude Code, Cursor, and Windsurf to query your Phoenix instance directly. Export traces to JSON, pipe to `jq`, or save to disk for analysis.
+<Update label="01.05.2026">
+## [01.05.2026: Appended Messages for Playground Experiments](/docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments) 💬
+
+**Available in Phoenix 13.0+**
+
+The Prompt Playground now supports appending conversation history from dataset examples to your prompts. This enables powerful A/B testing workflows for comparing models and system prompts against the same conversation threads. Specify a dot-notation path to messages in your dataset (e.g., `messages` or `input.messages`) and run experiments across all prompt variants.
 </Update>
 
 <Update label="12.20.2025">

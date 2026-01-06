@@ -410,6 +410,11 @@ input ChatCompletionOverDatasetInput {
   experimentMetadata: JSON = {}
   promptName: Identifier = null
   evaluators: [PlaygroundEvaluatorInput!]! = []
+
+  """
+  Dot-notation path to messages in dataset example input to append to prompt
+  """
+  appendedMessagesPath: String = null
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
