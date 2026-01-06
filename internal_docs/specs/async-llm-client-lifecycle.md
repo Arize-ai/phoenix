@@ -152,42 +152,6 @@ async def chat_completion_create(self, messages, tools, **params):
 | **Instrumentation** | Applied just-in-time, per-request |
 | **Type safety** | Generic base class ensures `client` is typed correctly |
 
-### Connection Overhead Tradeoff
-
-Creating a fresh client per request means **no connection pooling across requests**. Both httpx and aiohttp close all pooled connections when the client exits:
-
-- **httpx**: [`AsyncClient.aclose()`](https://github.com/encode/httpx/blob/0.27.0/httpx/_client.py#L1978-L1988) calls [`pool.aclose()`](https://github.com/encode/httpcore/blob/0.18.0/httpcore/_async/connection_pool.py#L347-L353), which clears and closes all connections
-- **aiohttp**: [`ClientSession.close()`](https://github.com/aio-libs/aiohttp/blob/957d5ba18224b10d428f3ed7fe450ffc2c2978ca/aiohttp/client.py#L1360-L1368) calls [`connector.close()`](https://github.com/aio-libs/aiohttp/blob/957d5ba18224b10d428f3ed7fe450ffc2c2978ca/aiohttp/connector.py#L442-L455), which closes all transports
-
-**Per-request overhead:**
-
-| Component | Latency |
-|-----------|---------|
-| TCP handshake | 1 RTT (1-5ms same-region, 50-200ms cross-region) |
-| TLS handshake | 1-2 RTTs + crypto (~10-50ms) |
-| **Total** | **~20-250ms per request** |
-
-**Relative impact:**
-
-| Scenario | Overhead as % of total latency |
-|----------|-------------------------------|
-| Typical LLM streaming (1-30s) | ~1-10% |
-| Short prompts, fast responses | More noticeable |
-| High concurrency | Compounded connection establishment |
-| Cross-region API calls | Higher due to RTT |
-
-**Why we accept this tradeoff:**
-
-1. **Correctness**: Guaranteed resource cleanup, no connection leaks
-2. **Consistency**: All providers behave identically
-3. **Credential refresh**: AWS IAM/Azure AD tokens refresh automatically
-4. **Simplicity**: No complex connection pool management or reuse logic
-
-For deployments where connection overhead is critical, consider:
-- Deploying Phoenix closer to the LLM provider's region
-- Using a connection-pooling proxy (e.g., envoy, nginx) in front of the LLM APIs
-- Implementing per-provider client caching with explicit lifecycle management (more complex, not currently supported)
-
 ### Alternative Considered: Thread Pool Workaround
 
 If aioboto3 were not feasible, boto3 could be run in a thread pool to release the event loop:
@@ -199,36 +163,16 @@ from starlette.concurrency import run_in_threadpool
 await run_in_threadpool(boto3_client.converse_stream, ...)
 ```
 
-**This approach would allow connection pooling if we reused clients:**
+**Why we chose aioboto3 instead:**
 
-| Provider | Thread Pool + Persistent Client | Current Approach (aioboto3) |
-|----------|--------------------------------|----------------------------|
-| boto3/Bedrock | Pooled connections | Fresh client per request |
-| OpenAI | Pooled connections | Fresh client per request |
-| Anthropic | Pooled connections | Fresh client per request |
-| Google GenAI | Pooled connections | Fresh client per request |
+| Aspect | Thread Pool + boto3 | aioboto3 |
+|--------|---------------------|----------|
+| Event loop blocking | No (runs in thread) | No (true async) |
+| Thread consumption | One thread per concurrent request | None |
+| Complexity | Mixed sync/async patterns | Pure async |
+| Scalability | Limited by thread pool size | Scales with async event loop |
 
-Note: The previous boto3 implementation already created fresh clients per request, so it had the same connection overhead. The thread pool approach would only save connection overhead if we also changed to reusing persistent clients.
-
-**Tradeoffs of persistent clients with thread pool:**
-
-| Aspect | Persistent Clients | Fresh Clients (current) |
-|--------|-------------------|------------------------|
-| Connection overhead | None (pooled) | ~20-250ms per request |
-| AWS credential refresh | Manual refresh needed | Automatic |
-| Thread consumption | One per concurrent request | N/A (true async) |
-| Resource cleanup | Must manage lifecycle | Automatic via context manager |
-| Complexity | Higher (lifecycle, thread safety) | Lower |
-
-### Decision
-
-We chose aioboto3 because:
-1. **Consistency**: All providers use the same async context manager pattern
-2. **True async I/O**: No thread pool overhead or complexity
-3. **Future-proofing**: Better scaling for high-concurrency deployments
-4. **Credential refresh**: aioboto3's fresh-client pattern handles AWS credential expiration automatically
-
-For most users, the blocking from boto3 is not critical, but aioboto3 is the correct architectural choice for an async server.
+For most users, the blocking from boto3 is acceptable, but aioboto3 is the correct architectural choice for an async server.
 
 ## Technical Appendix: SDK Client Lifecycle Details
 
