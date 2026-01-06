@@ -14,6 +14,9 @@ sdist
 # Server static files
 /src/phoenix/server/static/*
 
+# sqlite db files
+phoenix.db*
+
 # Docgen
 /js/**/docs
 
