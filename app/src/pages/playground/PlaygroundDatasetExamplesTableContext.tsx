@@ -19,17 +19,24 @@ type ToolCallChunk = Extract<
   { __typename: "ToolCallChunk" }
 >;
 
-type ExperimentRunEvaluation = NonNullable<
+export type ExperimentRunEvaluation = NonNullable<
   Extract<
     PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
     { __typename: "EvaluationChunk" }
   >["experimentRunEvaluation"]
 >;
 
+export type EvaluationError = NonNullable<
+  Extract<
+    PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+    { __typename: "EvaluationErrorChunk" }
+  >
+>;
+
 export type ExampleRunData = {
   content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
-  evaluations?: ExperimentRunEvaluation[];
+  evaluations?: (ExperimentRunEvaluation | EvaluationError)[];
   span?: Span | null;
   errorMessage?: string | null;
   experimentRunId?: string | null;
@@ -68,7 +75,7 @@ type PlaygroundDatasetExamplesTableActions = {
     instanceId: InstanceId;
     exampleId: ExampleId;
     repetitionNumber: RepetitionNumber;
-    evaluationChunk: ExperimentRunEvaluation;
+    evaluationChunk: ExperimentRunEvaluation | EvaluationError;
   }) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
