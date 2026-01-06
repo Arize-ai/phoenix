@@ -569,6 +569,77 @@ async def test_post_dataset_upload_csv_create_then_append(
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
+async def test_post_dataset_upload_jsonl_create_then_append(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    # JSONL format: each line is a JSON object
+    jsonl_content = b'{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
+    del response, file, data
+    jsonl_content = b'{"a": 11, "b": 22, "c": 33, "d": 44, "e": 55, "f": 66}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "append",
+            "name": name,
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert dataset_id == data.get("dataset_id")
+    assert "version_id" in data
+    version_id_str = data["version_id"]
+    version_global_id = GlobalID.from_id(version_id_str)
+    assert version_global_id.type_name == "DatasetVersion"
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": 1, "b": 2, "c": 3}
+    assert revisions[0].output == {"b": 2, "c": 3, "d": 4}
+    assert revisions[0].metadata_ == {"c": 3, "d": 4, "e": 5}
+    assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
+    assert revisions[1].output == {"b": 22, "c": 33, "d": 44}
+    assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
+
+    # Verify the DatasetVersion from the response
+    db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
+    assert db_dataset_version is not None
+    assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+
+
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -976,6 +1047,65 @@ async def test_post_dataset_upload_csv_with_splits(
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["data_split", "category"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        splits = list(
+            await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
+        )
+        # Verify whitespace was stripped and splits have default color
+        assert set(s.name for s in splits) == {"train", "test", "general", "technical"}
+        assert "  train  " not in [s.name for s in splits]
+        assert all(s.color == "#808080" for s in splits)
+
+        # Verify example assignments
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train", "general"}
+        assert await get_example_splits(examples[1].id) == {"test", "technical"}
+
+
+async def test_post_dataset_upload_jsonl_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test JSONL upload with split_keys, including whitespace stripping."""
+    name = inspect.stack()[0][3]
+    # JSONL format: each line is a JSON object
+    jsonl_content = (
+        b'{"question": "Q1", "answer": "A1", "data_split": "  train  ", "category": "general"}\n'
+        b'{"question": "Q2", "answer": "A2", "data_split": "test", "category": "technical"}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
         data={
             "action": "create",
             "name": name,

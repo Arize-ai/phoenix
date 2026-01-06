@@ -341,7 +341,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     "/datasets/upload",
     dependencies=[Depends(is_not_locked)],
     operation_id="uploadDataset",
-    summary="Upload dataset from JSON, CSV, or PyArrow",
+    summary="Upload dataset from JSON, JSONL, CSV, or PyArrow",
     responses=add_errors_to_responses(
         [
             {
@@ -489,6 +489,11 @@ async def upload_dataset(
                 examples = await _process_pyarrow(
                     content, input_keys, output_keys, metadata_keys, split_keys
                 )
+            elif file_content_type is FileContentType.JSONL:
+                encoding = FileContentEncoding(file.headers.get("content-encoding"))
+                examples = await _process_jsonl(
+                    content, encoding, input_keys, output_keys, metadata_keys, split_keys
+                )
             else:
                 assert_never(file_content_type)
         except ValueError as e:
@@ -539,6 +544,7 @@ async def upload_dataset(
 class FileContentType(Enum):
     CSV = "text/csv"
     PYARROW = "application/x-pandas-pyarrow"
+    JSONL = "application/jsonl"
 
     @classmethod
     def _missing_(cls, v: Any) -> "FileContentType":
@@ -699,6 +705,40 @@ async def _process_pyarrow(
             )
 
     return run_in_threadpool(get_examples)
+
+
+async def _process_jsonl(
+    content: bytes,
+    encoding: FileContentEncoding,
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
+) -> Examples:
+    if encoding is FileContentEncoding.GZIP:
+        content = await run_in_threadpool(gzip.decompress, content)
+    elif encoding is FileContentEncoding.DEFLATE:
+        content = await run_in_threadpool(zlib.decompress, content)
+    elif encoding is not FileContentEncoding.NONE:
+        assert_never(encoding)
+    # content is a newline delimited list of JSON objects
+    # parse within a threadpool
+    reader = await run_in_threadpool(
+        lambda c: [json.loads(line) for line in c.decode().splitlines()], content
+    )
+
+    examples: list[ExampleContent] = []
+    for obj in reader:
+        example = ExampleContent(
+            input={k: obj.get(k) for k in input_keys},
+            output={k: obj.get(k) for k in output_keys},
+            metadata={k: obj.get(k) for k in metadata_keys},
+            splits=frozenset(
+                str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
+            ),  # Only include non-empty, non-whitespace split values
+        )
+        examples.append(example)
+    return iter(examples)
 
 
 async def _check_table_exists(session: AsyncSession, name: str) -> bool:
