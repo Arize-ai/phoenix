@@ -147,7 +147,7 @@ async def chat_completion_create(self, messages, tools, **params):
 |--------|---------------------|
 | **Consistency** | All providers identical |
 | **Resource cleanup** | Automatic via context manager |
-| **Credential refresh** | Automatic (AWS IAM, Azure AD, etc.) |
+| **Credential refresh** | Supported for IAM roles (see [Appendix: Credential Refresh](#appendix-aws-credential-refresh)) |
 | **Simplicity** | No wrapper classes needed |
 | **Instrumentation** | Applied just-in-time, per-request |
 | **Type safety** | Generic base class ensures `client` is typed correctly |
@@ -361,7 +361,7 @@ The aioboto3 design enforces context manager usage because:
 
 2. **aiohttp requires explicit cleanup**: Unlike httpx which can clean up on garbage collection, aiohttp connection pools must be explicitly closed
 
-3. **Credential refresh**: AWS credentials can expire; creating a fresh client per-request allows automatic credential refresh
+3. **Credential refresh**: For IAM roles, fresh clients pick up refreshed credentials (see [Appendix: Credential Refresh](#appendix-aws-credential-refresh))
 
 ### boto3 vs aiobotocore: Code-Level Comparison
 
@@ -444,6 +444,88 @@ async def read(self, n: int = -1) -> bytes:
 ```
 
 The key difference: `await self._wait("read")` suspends the coroutine and returns control to the event loop. The future is resolved when data arrives via the socket callback, at which point the coroutine resumes. During the wait, other coroutines (handling other requests) can execute.
+
+## Appendix: AWS Credential Refresh
+
+AWS credentials come in two forms with different refresh behavior:
+
+### Decision Logic
+
+The decision is made in [`botocore/session.py#L961-L986`](https://github.com/boto/botocore/blob/82f7c427d516c22db1c7cf5c6cf3d48ad2e50e26/botocore/session.py#L961-L986):
+
+```python
+if aws_access_key_id is not None and aws_secret_access_key is not None:
+    # Explicit credentials → static Credentials (no refresh)
+    credentials = botocore.credentials.Credentials(
+        access_key=aws_access_key_id,
+        secret_key=aws_secret_access_key,
+        token=aws_session_token,
+    )
+else:
+    # No explicit creds → use credential resolver chain
+    # This may return RefreshableCredentials for IAM roles
+    credentials = self.get_credentials()
+```
+
+### Static Credentials (Explicit)
+
+When explicit credentials are passed to a session:
+
+```python
+session = aioboto3.Session(
+    aws_access_key_id="AKIA...",
+    aws_secret_access_key="...",
+    aws_session_token="...",  # Optional, for temporary credentials
+)
+```
+
+These use botocore's [`Credentials`](https://github.com/boto/botocore/blob/82f7c427d516c22db1c7cf5c6cf3d48ad2e50e26/botocore/credentials.py#L340-L355) class, which simply stores the values:
+
+```python
+class Credentials:
+    """Holds the credentials needed to authenticate requests."""
+    def __init__(self, access_key, secret_key, token=None, ...):
+        self.access_key = access_key
+        self.secret_key = secret_key
+        self.token = token
+```
+
+**No automatic refresh occurs.** If the credentials expire, API calls will fail with `ExpiredTokenException`.
+
+### Refreshable Credentials (IAM Roles)
+
+For IAM roles (EC2 instance profiles, ECS task roles, Lambda execution roles), botocore uses [`RefreshableCredentials`](https://github.com/boto/botocore/blob/82f7c427d516c22db1c7cf5c6cf3d48ad2e50e26/botocore/credentials.py#L388-L439):
+
+```python
+class RefreshableCredentials(Credentials):
+    """Knows how to refresh itself."""
+    def __init__(self, ..., expiry_time, refresh_using, ...):
+        self._refresh_using = refresh_using  # Callback to fetch new credentials
+        self._expiry_time = expiry_time
+        self._advisory_refresh_timeout = 15 * 60  # 15 min before expiry
+        self._mandatory_refresh_timeout = 10 * 60  # 10 min before expiry
+```
+
+The [`_refresh()`](https://github.com/boto/botocore/blob/82f7c427d516c22db1c7cf5c6cf3d48ad2e50e26/botocore/credentials.py#L566-L594) method is called every time credentials are accessed:
+
+```python
+def _refresh(self):
+    if not self.refresh_needed(self._advisory_refresh_timeout):
+        return  # Credentials still valid, no refresh needed
+    
+    # Acquire lock and refresh
+    if self._refresh_lock.acquire(False):
+        try:
+            self._protected_refresh(is_mandatory=...)
+        finally:
+            self._refresh_lock.release()
+```
+
+### Implications for Phoenix
+
+Phoenix's custom provider configs store **explicit credentials** from the database. These are static and do not auto-refresh. If users configure temporary credentials (STS tokens) that expire, they must update the stored credentials manually.
+
+For deployments using **IAM roles** (e.g., Phoenix running on EC2/ECS with an instance profile), credentials are resolved from the environment and auto-refresh. However, our `without_env_vars("AWS_*")` isolation for custom providers means IAM role credentials are only used for **built-in providers**, not custom configs.
 
 ## References
 
