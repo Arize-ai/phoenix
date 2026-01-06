@@ -15,6 +15,7 @@ import { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playgrou
 import { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
+import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
@@ -91,6 +92,7 @@ export function PlaygroundExperimentToolbar({
             isDisabled={isRunning}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
+          <PlaygroundExperimentSettingsButton isDisabled={isRunning} />
         </Flex>
       </Flex>
     </View>

@@ -47,6 +47,7 @@ from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_outpu
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
+from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -255,6 +256,21 @@ class ChatCompletionMutationMixin:
             for revision in revisions
             for repetition_number in range(1, input.repetitions + 1)
         ]
+
+        # Pre-extract appended messages for each revision if path is specified
+        appended_messages_by_revision: dict[int, list[ChatCompletionMessage]] = {}
+        if input.appended_messages_path:
+            for revision in revisions:
+                try:
+                    appended_messages_by_revision[revision.id] = (
+                        extract_and_convert_example_messages(
+                            revision.input, input.appended_messages_path
+                        )
+                    )
+                except (KeyError, TypeError, ValueError):
+                    # If extraction fails, store empty list; error will surface when processing
+                    appended_messages_by_revision[revision.id] = []
+
         for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
                 *(
@@ -276,6 +292,7 @@ class ChatCompletionMutationMixin:
                         ),
                         repetition_number=repetition_number,
                         project_name=project_name,
+                        appended_messages=appended_messages_by_revision.get(revision.id),
                     )
                     for revision, repetition_number in batch
                 ),
@@ -643,6 +660,7 @@ class ChatCompletionMutationMixin:
         repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
+        appended_messages: Optional[list[ChatCompletionMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
@@ -661,6 +679,10 @@ class ChatCompletionMutationMixin:
             attributes.update(
                 {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
             )
+
+        # Append messages from dataset example if provided
+        if appended_messages:
+            messages.extend(appended_messages)
 
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
@@ -827,13 +849,17 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
+    # Convert to list to check if empty and allow multiple iterations
+    messages_list = list(messages)
+    if not messages_list:
+        return iter([])
     template_formatter = get_template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
         tool_call_id,
         tool_calls,
-    ) = zip(*messages)
+    ) = zip(*messages_list)
     formatted_templates = map(
         lambda template: template_formatter.format(template, **template_options.variables),
         templates,

@@ -45,3 +45,7 @@ class ChatCompletionOverDatasetInput:
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
     prompt_name: Optional[Identifier] = None
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
+    appended_messages_path: Optional[str] = strawberry.field(
+        default=None,
+        description="Dot-notation path to messages in dataset example input to append to prompt",
+    )

@@ -1,0 +1,47 @@
+---
+title: "01.05.2026: Appended Messages for Playground Experiments"
+description: Available in Phoenix 13.0+
+---
+
+<Update label="01.05.2026">
+
+## Appended Messages for A/B Testing
+
+The Prompt Playground now supports appending conversation history from dataset examples to your prompts, enabling powerful A/B testing workflows for models and system prompts.
+
+### Key Features
+
+- **Append Conversation History**: Specify a dot-notation path to messages in your dataset examples (e.g., `messages` or `input.messages`)
+- **OpenAI Message Format**: Full support for user, assistant, system, and tool messages
+- **A/B Testing Models**: Compare how different models respond to the same conversation history
+- **Testing System Prompts**: Evaluate different system prompts against identical user conversations
+
+### How to Use
+
+1. Load a dataset containing conversation messages in OpenAI format
+2. Click the **settings button** (gear icon) in the experiment toolbar
+3. Enter the path to your messages (e.g., `messages`)
+4. Run your experiment to see results across all prompt variants
+
+### Example Dataset Format
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": "What is the weather in San Francisco?"},
+    {"role": "assistant", "content": "Let me check that for you."},
+    {"role": "user", "content": "Thanks! Also, what about New York?"}
+  ]
+}
+```
+
+<Card title="Using the Playground" href="/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground#appending-conversation-history" icon="book" horizontal>
+Learn more about appending conversation history
+</Card>
+
+<Card title="Test a Prompt" href="/docs/phoenix/prompt-engineering/how-to-prompts/test-a-prompt#ab-testing-models-and-system-prompts" icon="flask" horizontal>
+See A/B testing examples
+</Card>
+
+</Update>
+
