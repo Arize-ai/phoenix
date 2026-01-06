@@ -266,7 +266,7 @@ class ChatCompletionMutationMixin:
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description,
-                repetitions=1,
+                repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=project_name,
                 user_id=user_id,
