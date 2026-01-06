@@ -172,7 +172,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload dataset from JSON, CSV, or PyArrow */
+        /** Upload dataset from JSON, JSONL, CSV, or PyArrow */
         post: operations["uploadDataset"];
         delete?: never;
         options?: never;
