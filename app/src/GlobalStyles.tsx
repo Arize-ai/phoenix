@@ -944,16 +944,16 @@ export const lightThemeCSS = css`
 
     // Optimization Direction Colors
     --ac-global-color-optimization-direction-positive: var(
-      --ac-global-color-green-700
+      --ac-global-color-green-1000
     );
     --ac-global-color-background-optimization-direction-positive: var(
-      --ac-global-color-green-700
+      --ac-global-color-green-500
     );
     --ac-global-color-optimization-direction-negative: var(
-      --ac-global-color-red-700
+      --ac-global-color-red-1000
     );
     --ac-global-color-background-optimization-direction-negative: var(
-      --ac-global-color-red-700
+      --ac-global-color-red-500
     );
   }
 `;
