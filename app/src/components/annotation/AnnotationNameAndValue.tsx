@@ -8,7 +8,6 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationScoreText } from "./AnnotationScoreText";
-import { ProportionBar } from "./ProportionBar";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -53,33 +52,7 @@ const getAnnotationDisplayValue = ({
   }
 };
 
-/**
- * CSS for the proportion bar wrapper.
- * Uses a container query to hide the bar when the nearest ancestor
- * with container-type is too narrow.
- *
- * Note: The parent component (e.g., the cell) should set container-type: inline-size
- * for this to work. If no container ancestor exists, the bar will always be visible.
- */
-const proportionBarWrapperCSS = css`
-  display: flex;
-  align-items: center;
-  width: 60px;
-  flex-shrink: 0;
-
-  @container (max-width: 250px) {
-    display: none;
-  }
-`;
-
-type ProportionBarProps = {
-  score?: number | null;
-  lowerBound?: number | null;
-  upperBound?: number | null;
-  optimizationDirection?: "MAXIMIZE" | "MINIMIZE";
-};
-
-interface AnnotationNameAndValueProps extends ProportionBarProps {
+interface AnnotationNameAndValueProps {
   annotation: Annotation;
   displayPreference: AnnotationDisplayPreference;
   minWidth?: CSSProperties["minWidth"];
@@ -92,10 +65,6 @@ interface AnnotationNameAndValueProps extends ProportionBarProps {
    */
   positiveOptimization?: boolean;
   /**
-   * Whether to show the proportion bar next to the score
-   */
-  showProportionBar?: boolean;
-  /**
    * Whether to show the color swatch next to the annotation name
    */
   showColorSwatch?: boolean;
@@ -107,11 +76,6 @@ export function AnnotationNameAndValue({
   minWidth = "5rem",
   maxWidth = "9rem",
   positiveOptimization,
-  score,
-  lowerBound,
-  upperBound,
-  optimizationDirection,
-  showProportionBar,
   showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
   const labelValue = getAnnotationDisplayValue({
@@ -151,16 +115,6 @@ export function AnnotationNameAndValue({
           >
             {labelValue}
           </AnnotationScoreText>
-        </div>
-      )}
-      {showProportionBar && (
-        <div css={proportionBarWrapperCSS}>
-          <ProportionBar
-            score={score}
-            lowerBound={lowerBound}
-            upperBound={upperBound}
-            optimizationDirection={optimizationDirection}
-          />
         </div>
       )}
     </Flex>

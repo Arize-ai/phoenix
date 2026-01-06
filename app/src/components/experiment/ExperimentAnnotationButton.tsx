@@ -8,13 +8,6 @@ import {
   AnnotationNameAndValue,
 } from "@phoenix/components/annotation";
 
-type ProportionBarProps = {
-  score?: number | null;
-  lowerBound?: number | null;
-  upperBound?: number | null;
-  optimizationDirection?: "MAXIMIZE" | "MINIMIZE";
-};
-
 /**
  * A button that appears like a list item but that is still interactive
  * to show a pop-over for the details
@@ -23,10 +16,6 @@ export function ExperimentAnnotationButton({
   annotation,
   extra,
   positiveOptimization,
-  score,
-  lowerBound,
-  upperBound,
-  optimizationDirection,
 }: {
   annotation: Annotation;
   /**
@@ -39,7 +28,7 @@ export function ExperimentAnnotationButton({
    * Additional content like controls that will be placed on the right
    */
   extra?: ReactNode;
-} & ProportionBarProps) {
+}) {
   return (
     <Pressable>
       <button
@@ -69,12 +58,7 @@ export function ExperimentAnnotationButton({
             annotation={annotation}
             displayPreference="score"
             maxWidth="unset"
-            showProportionBar
             showColorSwatch={false}
-            score={score}
-            lowerBound={lowerBound}
-            upperBound={upperBound}
-            optimizationDirection={optimizationDirection}
           />
           {extra}
         </Flex>
