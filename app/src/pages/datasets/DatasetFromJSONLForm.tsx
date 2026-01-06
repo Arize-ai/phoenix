@@ -18,7 +18,7 @@ import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
-type CreateDatasetFromCSVParams = {
+type CreateDatasetFromJSONLParams = {
   file: FileList;
   input_keys: string[];
   output_keys: string[];
@@ -29,20 +29,27 @@ type CreateDatasetFromCSVParams = {
   metadata: Record<string, unknown>;
 };
 
-export type CreateDatasetFromCSVFormProps = {
+export type CreateDatasetFromJSONLFormProps = {
   onDatasetCreated: (dataset: { id: string; name: string }) => void;
   onDatasetCreateError: (error: Error) => void;
 };
 
-function getColumnNames(csvText: string) {
-  const lines = csvText.split("\n");
-  if (lines.length > 0) {
-    return lines[0].split(",").map((name) => name.trim());
-  }
-  return [];
+function getColumnNames(jsonlText: string) {
+  const lines = jsonlText.split("\n");
+  return Array.from(
+    new Set(
+      lines
+        .filter((line) => line.trim() !== "")
+        .map((line) => {
+          const json = JSON.parse(line);
+          return Object.keys(json);
+        })
+        .flat()
+    )
+  );
 }
 
-export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
+export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
   const { onDatasetCreated, onDatasetCreateError } = props;
   const [columns, setColumns] = useState<string[]>([]);
   const {
@@ -51,7 +58,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
     resetField,
     setValue,
     formState: { isDirty, isValid },
-  } = useForm<CreateDatasetFromCSVParams>({
+  } = useForm<CreateDatasetFromJSONLParams>({
     defaultValues: {
       name: "",
       input_keys: [],
@@ -64,7 +71,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
   });
 
   const onSubmit = useCallback(
-    (data: CreateDatasetFromCSVParams) => {
+    (data: CreateDatasetFromJSONLParams) => {
       const formData = new FormData();
       formData.append("file", data.file[0]);
       formData.append("name", data.name);
@@ -104,7 +111,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
     [onDatasetCreateError, onDatasetCreated]
   );
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <Form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
       <div
         css={css`
           padding: var(--ac-global-dimension-size-200);
@@ -116,7 +123,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         <Controller
           control={control}
           name="file"
-          rules={{ required: "CSV file is required" }}
+          rules={{ required: "JSONL file is required" }}
           render={({ field: { value: _value, onChange, ...field } }) => {
             return (
               <div
@@ -130,19 +137,24 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                   `
                 )}
               >
-                <Label>CSV file</Label>
+                <Label>JSONL file</Label>
                 <input
                   {...field}
                   onChange={(event) => {
-                    onChange(event.target.files);
                     // Reset columns when a new file is uploaded
                     resetField("input_keys");
                     resetField("output_keys");
                     resetField("metadata_keys");
                     resetField("split_keys");
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      const name = file.name.split(".")[0];
+
+                    const userFile = event.target.files?.[0];
+                    if (userFile) {
+                      // clone the file with the application/jsonl content type
+                      const newFile = new File([userFile], userFile.name, {
+                        type: "application/jsonl",
+                      });
+                      onChange([newFile]);
+                      const name = newFile.name.split(".")[0];
                       const reader = new FileReader();
                       reader.onload = function (e) {
                         if (!e.target) {
@@ -153,12 +165,12 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
                         setColumns(columnNames);
                         setValue("name", name);
                       };
-                      reader.readAsText(file);
+                      reader.readAsText(newFile);
                     }
                   }}
                   type="file"
                   id="file"
-                  accept=".csv"
+                  accept=".jsonl"
                 />
               </div>
             );
@@ -223,7 +235,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="input keys"
-              description={`the columns to use as input`}
+              description={`the keys to use as input`}
               columns={columns}
               selectedColumns={value}
               onChange={onChange}
@@ -237,7 +249,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="output keys"
-              description={`the columns to use as output`}
+              description={`the keys to use as output`}
               columns={columns}
               selectedColumns={value}
               onChange={onChange}
@@ -251,7 +263,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="metadata keys"
-              description={`the columns to use as metadata`}
+              description={`the keys to use as metadata`}
               columns={columns}
               selectedColumns={value}
               onChange={onChange}
@@ -265,7 +277,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
           render={({ field: { value, onChange }, fieldState: { error } }) => (
             <ColumnMultiSelector
               label="split keys"
-              description={`the columns to use for automatically assigning examples to splits`}
+              description={`the keys to use for automatically assigning examples to splits`}
               columns={columns}
               selectedColumns={value}
               onChange={onChange}
