@@ -153,10 +153,7 @@ export function ExperimentRunCellAnnotationsList(
                 <Dialog style={{ width: 400 }}>
                   <View padding="size-200">
                     <Flex direction="column" gap="size-50">
-                      <AnnotationDetailsContent
-                        annotation={annotation}
-                        positiveOptimization={positiveOptimization ?? undefined}
-                      />
+                      <AnnotationDetailsContent annotation={annotation} />
                       {renderFilters && (
                         <>
                           <Separator />

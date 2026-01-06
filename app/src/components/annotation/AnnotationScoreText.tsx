@@ -14,18 +14,25 @@ type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
   children: ReactNode;
 };
 
-const positiveOptimizationCSS = css`
-  color: var(--ac-global-color-optimization-direction-positive);
-  background-color: var(
-    --ac-global-color-background-optimization-direction-positive
-  );
-`;
-
-const negativeOptimizationCSS = css`
-  color: var(--ac-global-color-optimization-direction-negative);
-  background-color: var(
-    --ac-global-color-background-optimization-direction-negative
-  );
+const directionCSS = css`
+  // only apply padding and border radius if there is a direction
+  &[data-direction] {
+    padding: var(--ac-global-dimension-size-25)
+      var(--ac-global-dimension-size-100);
+    border-radius: var(--ac-global-rounding-small);
+  }
+  &[data-direction="positive"] {
+    color: var(--ac-global-color-optimization-direction-positive);
+    background-color: var(
+      --ac-global-color-background-optimization-direction-positive
+    );
+  }
+  &[data-direction="negative"] {
+    color: var(--ac-global-color-optimization-direction-negative);
+    background-color: var(
+      --ac-global-color-background-optimization-direction-negative
+    );
+  }
 `;
 
 /**
@@ -47,24 +54,15 @@ export function AnnotationScoreText({
   children,
   ...textProps
 }: AnnotationScoreTextProps) {
-  const colorCSS =
+  const direction =
     positiveOptimization === true
-      ? positiveOptimizationCSS
+      ? "positive"
       : positiveOptimization === false
-        ? negativeOptimizationCSS
+        ? "negative"
         : undefined;
 
   return (
-    <Text
-      {...textProps}
-      css={css(
-        colorCSS,
-        `
-        padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-50);
-        border-radius: var(--ac-global-rounding-small);
-        `
-      )}
-    >
+    <Text {...textProps} data-direction={direction} css={directionCSS}>
       {children}
     </Text>
   );
