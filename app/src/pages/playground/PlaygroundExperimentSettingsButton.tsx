@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogTrigger,
   Flex,
-  Heading,
   Icon,
   Icons,
   Input,
