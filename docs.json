@@ -1003,6 +1003,12 @@
                 "pages": [
                   "docs/phoenix/release-notes",
                   {
+                    "group": "01.2026",
+                    "pages": [
+                      "docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments"
+                    ]
+                  },
+                  {
                     "group": "12.2025",
                     "pages": [
                       "docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support",
