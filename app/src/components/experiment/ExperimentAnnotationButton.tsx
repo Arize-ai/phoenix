@@ -7,6 +7,7 @@ import {
   Annotation,
   AnnotationNameAndValue,
 } from "@phoenix/components/annotation";
+
 /**
  * A button that appears like a list item but that is still interactive
  * to show a pop-over for the details
@@ -14,8 +15,15 @@ import {
 export function ExperimentAnnotationButton({
   annotation,
   extra,
+  positiveOptimization,
 }: {
   annotation: Annotation;
+  /**
+   * Whether the annotation is a positive or negative optimization
+   *
+   * If not provided, the component will not display the optimization information.
+   */
+  positiveOptimization?: boolean;
   /**
    * Additional content like controls that will be placed on the right
    */
@@ -26,6 +34,7 @@ export function ExperimentAnnotationButton({
       <button
         className="button--reset"
         css={css`
+          container-type: inline-size;
           cursor: pointer;
           padding: var(--ac-global-dimension-size-50)
             var(--ac-global-dimension-size-100);
@@ -45,9 +54,11 @@ export function ExperimentAnnotationButton({
           justifyContent="space-between"
         >
           <AnnotationNameAndValue
+            positiveOptimization={positiveOptimization}
             annotation={annotation}
             displayPreference="score"
             maxWidth="unset"
+            showColorSwatch={false}
           />
           {extra}
         </Flex>

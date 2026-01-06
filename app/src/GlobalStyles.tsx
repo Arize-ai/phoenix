@@ -631,6 +631,7 @@ export const darkThemeCSS = css`
     --ac-global-color-danger-900: rgba(var(--ac-global-color-danger-rgb), 0.9);
     --ac-global-color-danger-700: rgba(var(--ac-global-color-danger-rgb), 0.7);
     --ac-global-color-danger-500: rgba(var(--ac-global-color-danger-rgb), 0.5);
+    --ac-global-color-danger-100: rgba(var(--ac-global-color-danger-rgb), 0.1);
     --ac-global-color-success-rgb: 126, 231, 135;
     --ac-global-color-success: rgb(var(--ac-global-color-success-rgb));
     --ac-global-color-success-900: rgba(
@@ -644,6 +645,10 @@ export const darkThemeCSS = css`
     --ac-global-color-success-500: rgba(
       var(--ac-global-color-success-rgb),
       0.5
+    );
+    --ac-global-color-success-100: rgba(
+      var(--ac-global-color-success-rgb),
+      0.1
     );
     --ac-global-color-warning-rgb: 230, 153, 88;
     --ac-global-color-warning: rgb(var(--ac-global-color-warning-rgb));
@@ -677,6 +682,20 @@ export const darkThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-200);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-300);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-success
+    );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-success-100
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-danger
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
+      --ac-global-color-danger-100
+    );
   }
 `;
 
@@ -904,9 +923,11 @@ export const lightThemeCSS = css`
     --ac-global-color-danger-900: rgba(218, 11, 0, 0.9);
     --ac-global-color-danger-700: rgba(218, 11, 0, 0.7);
     --ac-global-color-danger-500: rgba(218, 11, 0, 0.5);
+    --ac-global-color-danger-100: rgba(218, 11, 0, 0.1);
     --ac-global-color-success: rgb(26, 127, 55);
     --ac-global-color-success-700: rgba(26, 127, 55, 0.7);
     --ac-global-color-success-500: rgba(26, 127, 55, 0.5);
+    --ac-global-color-success-100: rgba(26, 127, 55, 0.1);
     --ac-global-color-warning: rgb(224, 102, 2);
     --ac-global-color-warning-900: rgba(224, 102, 2, 0.9);
     --ac-global-color-warning-700: rgba(224, 102, 2, 0.7);
@@ -927,6 +948,20 @@ export const lightThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-75);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-200);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-success
+    );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-success-100
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-danger
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
+      --ac-global-color-danger-100
+    );
   }
 `;
 
