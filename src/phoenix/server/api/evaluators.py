@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -604,6 +605,12 @@ class ContainsEvaluator(BuiltInEvaluator):
                 "type": "boolean",
                 "description": "Whether to match the string case sensitive",
             },
+            "require_all": {
+                "type": "boolean",
+                "description": (
+                    "If true, all words must be present. If false (default), any word matches."
+                ),
+            },
         },
         "required": ["words", "text"],
     }
@@ -632,24 +639,434 @@ class ContainsEvaluator(BuiltInEvaluator):
             words = [word.strip() for word in inputs.get("words", "").split(",")]
             text = inputs.get("text", "")
             case_sensitive = inputs.get("case_sensitive", False)
-            matched = False
+            require_all = inputs.get("require_all", False)
+            now = datetime.now(timezone.utc)
+
+            match_fn = all if require_all else any
             if case_sensitive:
-                matched = any(word in text for word in words)
+                matched = match_fn(word in text for word in words)
             else:
-                matched = any(word.lower() in text.lower() for word in words)
-            explanation = (
-                f"one or more of the words {repr(words)} were {'found' if matched else 'not found'}"
-                " in the text"
-            )
-            end_time = datetime.now(timezone.utc)
+                matched = match_fn(word.lower() in text.lower() for word in words)
+
+            if require_all:
+                all_or_not = "all" if matched else "not all"
+                explanation = f"{all_or_not} of the words {repr(words)} were found in the text"
+            else:
+                found_or_not = "found" if matched else "not found"
+                explanation = (
+                    f"one or more of the words {repr(words)} were {found_or_not} in the text"
+                )
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
                 label=None,
                 score=1.0 if matched else 0.0,
                 explanation=explanation,
-                metadata={"words": words, "text": text, "case_sensitive": case_sensitive},
+                metadata={
+                    "words": words,
+                    "text": text,
+                    "case_sensitive": case_sensitive,
+                    "require_all": require_all,
+                },
                 error=None,
+                trace_id=None,
+                start_time=now,
+                end_time=now,
+            )
+        except Exception as e:
+            logger.exception(f"Builtin evaluator '{self.name}' failed")
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=str(e),
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+
+@register_builtin_evaluator
+class ExactMatchEvaluator(BuiltInEvaluator):
+    name = "ExactMatch"
+    description = "Evaluates whether the actual text exactly matches the expected text"
+    metadata = {"type": "string_matching"}
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "expected": {
+                "type": "string",
+                "description": "The expected text",
+            },
+            "actual": {
+                "type": "string",
+                "description": "The actual text to compare",
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "Whether comparison is case-sensitive (default: True)",
+            },
+        },
+        "required": ["expected", "actual"],
+    }
+
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        try:
+            inputs = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            inputs = cast_template_variable_types(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            expected = inputs.get("expected", "")
+            actual = inputs.get("actual", "")
+            case_sensitive = inputs.get("case_sensitive", True)
+            end_time = datetime.now(timezone.utc)
+
+            if case_sensitive:
+                matched = expected == actual
+            else:
+                matched = expected.lower() == actual.lower()
+
+            explanation = f"expected {'matches' if matched else 'does not match'} actual"
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=1.0 if matched else 0.0,
+                explanation=explanation,
+                metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
+                error=None,
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except Exception as e:
+            logger.exception(f"Builtin evaluator '{self.name}' failed")
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=str(e),
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+
+@register_builtin_evaluator
+class RegexEvaluator(BuiltInEvaluator):
+    name = "Regex"
+    description = "Evaluates whether the text matches a regex pattern"
+    metadata = {"type": "pattern_matching"}
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "pattern": {
+                "type": "string",
+                "description": "The regex pattern to match",
+            },
+            "text": {
+                "type": "string",
+                "description": "The text to search",
+            },
+            "full_match": {
+                "type": "boolean",
+                "description": (
+                    "If true, pattern must match entire text; "
+                    "if false, searches for pattern anywhere (default: False)"
+                ),
+            },
+        },
+        "required": ["pattern", "text"],
+    }
+
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        try:
+            inputs = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            inputs = cast_template_variable_types(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            pattern = inputs.get("pattern", "")
+            text = inputs.get("text", "")
+            full_match = inputs.get("full_match", False)
+            end_time = datetime.now(timezone.utc)
+
+            try:
+                if full_match:
+                    match = re.fullmatch(pattern, text)
+                else:
+                    match = re.search(pattern, text)
+                matched = match is not None
+                error = None
+            except re.error as e:
+                matched = False
+                error = f"Invalid regex pattern: {e}"
+
+            if error:
+                explanation = error
+            else:
+                match_type = "full match" if full_match else "search"
+                explanation = f"pattern {'matched' if matched else 'did not match'} ({match_type})"
+
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=1.0 if matched else 0.0,
+                explanation=explanation,
+                metadata={"pattern": pattern, "text": text, "full_match": full_match},
+                error=error,
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except Exception as e:
+            logger.exception(f"Builtin evaluator '{self.name}' failed")
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=str(e),
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    if len(s1) < len(s2):
+        s1, s2 = s2, s1
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
+@register_builtin_evaluator
+class LevenshteinDistanceEvaluator(BuiltInEvaluator):
+    name = "LevenshteinDistance"
+    description = "Calculates the Levenshtein (edit) distance between two strings"
+    metadata = {"type": "string_distance"}
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "expected": {
+                "type": "string",
+                "description": "The expected text",
+            },
+            "actual": {
+                "type": "string",
+                "description": "The actual text to compare",
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "Whether comparison is case-sensitive (default: True)",
+            },
+        },
+        "required": ["expected", "actual"],
+    }
+
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        try:
+            inputs = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            inputs = cast_template_variable_types(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            expected = inputs.get("expected", "")
+            actual = inputs.get("actual", "")
+            case_sensitive = inputs.get("case_sensitive", True)
+            end_time = datetime.now(timezone.utc)
+
+            if case_sensitive:
+                distance = levenshtein_distance(expected, actual)
+            else:
+                distance = levenshtein_distance(expected.lower(), actual.lower())
+
+            explanation = f"edit distance between expected and actual is {distance}"
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=float(distance),
+                explanation=explanation,
+                metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
+                error=None,
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except Exception as e:
+            logger.exception(f"Builtin evaluator '{self.name}' failed")
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=str(e),
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+
+def json_diff_count(expected: Any, actual: Any) -> int:
+    if type(expected) is not type(actual):
+        return 1
+
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        diff = 0
+        all_keys = set(expected.keys()) | set(actual.keys())
+        for key in all_keys:
+            if key not in expected:
+                diff += 1
+            elif key not in actual:
+                diff += 1
+            else:
+                diff += json_diff_count(expected[key], actual[key])
+        return diff
+
+    if isinstance(expected, list) and isinstance(actual, list):
+        diff = abs(len(expected) - len(actual))
+        for i in range(min(len(expected), len(actual))):
+            diff += json_diff_count(expected[i], actual[i])
+        return diff
+
+    return 0 if expected == actual else 1
+
+
+@register_builtin_evaluator
+class JSONDistanceEvaluator(BuiltInEvaluator):
+    name = "JSONDistance"
+    description = "Compares two JSON structures and returns the number of differences"
+    metadata = {"type": "json_comparison"}
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "expected": {
+                "type": "string",
+                "description": "The expected JSON string",
+            },
+            "actual": {
+                "type": "string",
+                "description": "The actual JSON string to compare",
+            },
+        },
+        "required": ["expected", "actual"],
+    }
+
+    def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> EvaluationResult:
+        start_time = datetime.now(timezone.utc)
+        try:
+            inputs = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            inputs = cast_template_variable_types(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            expected_str = inputs.get("expected", "")
+            actual_str = inputs.get("actual", "")
+            end_time = datetime.now(timezone.utc)
+
+            try:
+                expected = json.loads(expected_str)
+                actual = json.loads(actual_str)
+                distance = json_diff_count(expected, actual)
+                error = None
+                explanation = f"JSON structures have {distance} difference(s)"
+            except json.JSONDecodeError as e:
+                distance = -1
+                error = f"Invalid JSON: {e}"
+                explanation = error
+
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=float(distance),
+                explanation=explanation,
+                metadata={"expected": expected_str, "actual": actual_str},
+                error=error,
                 trace_id=None,
                 start_time=start_time,
                 end_time=end_time,
