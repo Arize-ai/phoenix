@@ -1,4 +1,5 @@
 import logging
+from binascii import hexlify
 from functools import wraps
 from inspect import BoundArguments, iscoroutinefunction, signature
 from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVar, cast, overload
@@ -283,3 +284,32 @@ def _otel_attribute_value(value: Any) -> AttributeValue:
         items = cast(Sequence[object], value)
         return [str(item) for item in items]
     return str(value)
+
+
+def _str_trace_id(trace_id_int: int) -> str:
+    """Convert trace ID integer to hex string format.
+
+    Args:
+        trace_id_int (int): The trace ID as an integer.
+
+    Returns:
+        str: The trace ID as a hex string.
+    """
+    return hexlify(trace_id_int.to_bytes(16, "big")).decode()
+
+
+def get_current_trace_id() -> Optional[str]:
+    """Get trace_id from current OpenTelemetry span if available.
+
+    Returns:
+        str: Hex string trace_id if span is recording, None otherwise.
+    """
+    try:
+        span = trace_api.get_current_span()
+        if span and span.is_recording():
+            span_context = span.get_span_context()
+            if span_context and span_context.is_valid:
+                return _str_trace_id(span_context.trace_id)
+    except Exception:
+        pass
+    return None

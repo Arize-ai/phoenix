@@ -185,6 +185,34 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def _inject_trace_id_into_scores(scores: List[Score], trace_id: str) -> List[Score]:
+    """Create new Score instances with trace_id added to metadata.
+
+    Since Score is frozen/immutable, we create new instances with updated metadata.
+
+    Args:
+        scores: List of Score objects to update.
+        trace_id: The trace ID to inject into the metadata.
+
+    Returns:
+        List[Score]: New Score instances with trace_id in metadata.
+    """
+    updated_scores = []
+    for score in scores:
+        updated_metadata = {**score.metadata, "trace_id": trace_id}
+        updated_score = Score(
+            name=score.name,
+            score=score.score,
+            label=score.label,
+            explanation=score.explanation,
+            metadata=updated_metadata,
+            kind=score.kind,
+            direction=score.direction,
+        )
+        updated_scores.append(updated_score)
+    return updated_scores
+
+
 # --- Base Evaluator ---
 class Evaluator(ABC):
     """
@@ -290,7 +318,26 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return self._evaluate(remapped_eval_input)
+
+        # Get tracer and create span for evaluation
+        from opentelemetry.trace import NoOpTracer
+
+        from phoenix.evals.tracing import get_current_trace_id, get_tracer
+
+        tracer = get_tracer()
+
+        # Check if tracer is active (not NoOpTracer)
+        if isinstance(tracer, NoOpTracer):
+            # No tracing active, run evaluation without span
+            return self._evaluate(remapped_eval_input)
+
+        # Create evaluation span and capture trace_id
+        with tracer.start_as_current_span(f"{self.name}.evaluate"):
+            scores = self._evaluate(remapped_eval_input)
+            trace_id = get_current_trace_id()
+            if trace_id is not None:
+                scores = _inject_trace_id_into_scores(scores, trace_id)
+            return scores
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
@@ -314,7 +361,26 @@ class Evaluator(ABC):
                 remapped_eval_input = model_instance.model_dump()
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
-        return await self._async_evaluate(remapped_eval_input)
+
+        # Get tracer and create span for evaluation
+        from opentelemetry.trace import NoOpTracer
+
+        from phoenix.evals.tracing import get_current_trace_id, get_tracer
+
+        tracer = get_tracer()
+
+        # Check if tracer is active (not NoOpTracer)
+        if isinstance(tracer, NoOpTracer):
+            # No tracing active, run evaluation without span
+            return await self._async_evaluate(remapped_eval_input)
+
+        # Create evaluation span and capture trace_id
+        with tracer.start_as_current_span(f"{self.name}.evaluate"):
+            scores = await self._async_evaluate(remapped_eval_input)
+            trace_id = get_current_trace_id()
+            if trace_id is not None:
+                scores = _inject_trace_id_into_scores(scores, trace_id)
+            return scores
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
