@@ -13,7 +13,7 @@ class GenerativeProviderKey(Enum):
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
-    GOOGLE = "Google AI Studio"
+    GOOGLE = "Google Gemini"
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"

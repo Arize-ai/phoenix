@@ -2,6 +2,7 @@ import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import { ProgrammingLanguage } from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import { ModelConfig } from "./playground";
@@ -76,6 +77,11 @@ export interface PreferencesProps {
    * @default undefined - use the browser's local timezone
    */
   displayTimezone?: DisplayTimezone;
+  /**
+   * The preferred programming language for code snippets
+   * @default "Python"
+   */
+  programmingLanguage: ProgrammingLanguage;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -137,6 +143,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the display timezone
    */
   setDisplayTimezone: (displayTimezone: DisplayTimezone | undefined) => void;
+  /**
+   * Setter for the preferred programming language
+   */
+  setProgrammingLanguage: (programmingLanguage: ProgrammingLanguage) => void;
 }
 
 export const createPreferencesStore = (
@@ -221,6 +231,10 @@ export const createPreferencesStore = (
         throw new Error(`Invalid timezone: ${displayTimezone}`);
       }
       set({ displayTimezone }, false, { type: "setDisplayTimezone" });
+    },
+    programmingLanguage: "Python",
+    setProgrammingLanguage: (programmingLanguage) => {
+      set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
     },
     ...initialProps,
   });

@@ -381,19 +381,17 @@ export function ExperimentRunOutputs() {
             css={css`
               flex: 1;
               overflow: auto;
-              display: grid;
-              grid-auto-flow: column;
-              align-items: stretch;
+              display: flex;
               gap: var(--ac-global-dimension-static-size-200);
               padding: var(--ac-global-dimension-static-size-200);
+              > li {
+                flex: 1 1 0;
+                min-width: 500px;
+              }
             `}
           >
             {referenceOutput && referenceOutputSelected && (
-              <li
-                css={css`
-                  flex: none;
-                `}
-              >
+              <li key="reference-output">
                 <ReferenceOutputItem />
               </li>
             )}
@@ -455,11 +453,7 @@ const ExperimentListItemIfSelected = ({
   }
 
   return (
-    <li
-      css={css`
-        flex: none;
-      `}
-    >
+    <li>
       <ExperimentItem
         experiment={experiment}
         experimentRepetition={experimentRepetition}
@@ -844,7 +838,6 @@ const experimentItemCSS = css`
   border: 1px solid var(--ac-global-border-color-dark);
   border-radius: var(--ac-global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
-  width: var(--ac-global-dimension-static-size-6000);
   overflow: hidden;
   height: 100%;
 `;

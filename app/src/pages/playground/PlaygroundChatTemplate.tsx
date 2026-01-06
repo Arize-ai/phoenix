@@ -19,7 +19,6 @@ import {
   Button,
   Card,
   CopyToClipboardButton,
-  DisclosureGroup,
   Flex,
   Form,
   Icon,
@@ -142,8 +141,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           css={css`
             display: flex;
             flex-direction: column;
-            gap: var(--ac-global-dimension-size-200);
-            padding: var(--ac-global-dimension-size-200);
+            gap: var(--ac-global-dimension-size-100);
           `}
         >
           {messageIds.map((messageId) => {
@@ -158,25 +156,17 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           })}
         </ul>
       </SortableContext>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderColor="dark"
-        borderTopWidth="thin"
-        borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
-      >
+      <View paddingTop="size-100" paddingBottom="size-100">
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
         />
       </View>
       {hasTools || hasResponseFormat ? (
-        <DisclosureGroup defaultExpandedKeys={["tools", "response-format"]}>
+        <Flex direction="column" gap="size-100">
           {hasTools ? <PlaygroundTools {...props} /> : null}
           {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
-        </DisclosureGroup>
+        </Flex>
       ) : null}
     </DndContext>
   );
@@ -347,41 +337,34 @@ function SortableMessageItem({
         collapsible
         {...messageCardStyles}
         title={
-          <div
-            css={css`
-              // Align the role picker with the prompt picker in PlaygroundTemplate header
-              margin-left: var(--ac-global-dimension-size-150);
-            `}
-          >
-            <MessageRoleSelect
-              includeLabel={false}
-              role={message.role}
-              onChange={(role) => {
-                let content = message.content;
-                let toolCalls = message.toolCalls;
-                // Tool calls should only be attached to ai messages
-                // Clear tools from the message and reset the message mode when switching away form ai
-                if (role !== "ai") {
-                  toolCalls = undefined;
-                  setAIMessageMode("text");
-                }
-                // Tool role messages should contain tool result content
-                // Reset the content to an empty json string
-                if (role === "tool") {
-                  content = `""`;
-                }
-                updateMessage({
-                  instanceId: playgroundInstanceId,
-                  messageId,
-                  patch: {
-                    role,
-                    toolCalls,
-                    content,
-                  },
-                });
-              }}
-            />
-          </div>
+          <MessageRoleSelect
+            includeLabel={false}
+            role={message.role}
+            onChange={(role) => {
+              let content = message.content;
+              let toolCalls = message.toolCalls;
+              // Tool calls should only be attached to ai messages
+              // Clear tools from the message and reset the message mode when switching away form ai
+              if (role !== "ai") {
+                toolCalls = undefined;
+                setAIMessageMode("text");
+              }
+              // Tool role messages should contain tool result content
+              // Reset the content to an empty json string
+              if (role === "tool") {
+                content = `""`;
+              }
+              updateMessage({
+                instanceId: playgroundInstanceId,
+                messageId,
+                patch: {
+                  role,
+                  toolCalls,
+                  content,
+                },
+              });
+            }}
+          />
         }
         extra={
           <Flex direction="row" gap="size-100">

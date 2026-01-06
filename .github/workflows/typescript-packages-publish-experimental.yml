@@ -34,6 +34,8 @@ jobs:
               - 'js/packages/phoenix-evals/**'
             phoenix-otel:
               - 'js/packages/phoenix-otel/**'
+            phoenix-config:
+              - 'js/packages/phoenix-config/**'
             workflow_file:
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 

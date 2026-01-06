@@ -1,6 +1,6 @@
 import { Sphere } from "@react-three/drei";
 
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 const POINT_RADIUS_MULTIPLIER = 2;
 

@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
 
-const menuCss = css`
+const menuCSS = css`
   --menu-min-width: 250px;
   min-width: var(--menu-min-width);
   flex: 1 1 auto;
@@ -70,14 +70,13 @@ export const Menu = <T extends object>({
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
-      css={menuCss}
+      css={menuCSS}
       {...props}
     />
   );
 };
 
 const menuItemCss = css`
-  margin: var(--ac-global-dimension-static-size-100);
   padding: var(--ac-global-dimension-static-size-100) var(--ac-global-dimension-static-size-200);
   border-radius: var(--ac-global-rounding-small);
   outline: none;

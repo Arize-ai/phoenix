@@ -5,40 +5,27 @@ import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Counter,
   Flex,
-  Icon,
-  Icons,
+  Heading,
   LazyTabPanel,
   Loading,
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
-  Text,
   Token,
-  View,
 } from "@phoenix/components";
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useNotifySuccess } from "@phoenix/contexts";
-import {
-  DatasetProvider,
-  useDatasetContext,
-} from "@phoenix/contexts/DatasetContext";
+import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { DatasetPageQuery } from "./__generated__/DatasetPageQuery.graphql";
-import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
-import { DatasetCodeButton } from "./DatasetCodeButton";
-import { RunExperimentButton } from "./RunExperimentButton";
+import { DatasetDownloadMenu } from "./DatasetDownloadMenu";
+import { RunDatasetExperimentButton } from "./RunDatasetExperimentButton";
 
 export const DatasetPageQueryNode = graphql`
   query DatasetPageQuery($id: ID!) {
@@ -160,10 +147,6 @@ function DatasetPageContent({
 }) {
   const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
-  const refreshLatestVersion = useDatasetContext(
-    (state) => state.refreshLatestVersion
-  );
-  const notifySuccess = useNotifySuccess();
 
   const navigate = useNavigate();
   const onTabChange = useCallback(
@@ -175,133 +158,48 @@ function DatasetPageContent({
     },
     [navigate, datasetId]
   );
-  const datasetHasVersions = (dataset.latestVersions?.edges.length ?? 0) > 0;
 
   // Set the initial tab
   const location = useLocation();
   const initialIndex = getTabIndexFromPathname(location.pathname);
   return (
     <main css={mainCSS}>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-200"
-        paddingBottom="size-50"
-        flex="none"
-      >
-        <Flex direction="row" justifyContent="space-between" alignItems="start">
-          <Flex
-            direction="column"
-            justifyContent="space-between"
-            alignItems="start"
-          >
-            <Flex direction="row" gap="size-200" alignItems="center">
-              {/* TODO(datasets): Add an icon here to make the UI cohesive */}
-              {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
-              <Flex direction="column" gap="size-50">
-                <Text elementType="h1" size="L" weight="heavy">
-                  {dataset.name}
-                </Text>
-                <Text color="text-700">{dataset.description || "--"}</Text>
-                {dataset.labels && dataset.labels.length > 0 && (
-                  <ul
-                    css={css`
-                      display: flex;
-                      flex-direction: row;
-                      gap: var(--ac-global-dimension-size-100);
-                      min-width: 0;
-                      flex-wrap: wrap;
-                      padding-top: var(--ac-global-dimension-size-50);
-                    `}
-                  >
-                    {dataset.labels.map((label) => (
-                      <li key={label.id}>
-                        <Token color={label.color}>
-                          <Truncate maxWidth={200} title={label.name}>
-                            {label.name}
-                          </Truncate>
-                        </Token>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Flex>
-            </Flex>
-          </Flex>
+      <PageHeader
+        title={
           <Flex direction="row" gap="size-100" alignItems="center">
-            <MenuTrigger>
-              <Button
-                size="S"
-                leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-              />
-              <Popover>
-                <Menu
-                  aria-label="Dataset action menu"
-                  onAction={(action) => {
-                    switch (action) {
-                      case "csv":
-                        window.open(
-                          prependBasename(`/v1/datasets/${dataset.id}/csv`),
-                          "_blank"
-                        );
-                        break;
-                      case "openai-ft":
-                        window.open(
-                          prependBasename(
-                            `/v1/datasets/${dataset.id}/jsonl/openai_ft`
-                          ),
-                          "_blank"
-                        );
-                        break;
-                      case "openai-evals":
-                        window.open(
-                          prependBasename(
-                            `/v1/datasets/${dataset.id}/jsonl/openai_evals`
-                          ),
-                          "_blank"
-                        );
-                        break;
-                    }
-                  }}
-                >
-                  <MenuItem id="csv">Download CSV</MenuItem>
-                  <MenuItem id="openai-ft">
-                    Download OpenAI Fine-Tuning JSONL
-                  </MenuItem>
-                  <MenuItem id="openai-evals">
-                    Download OpenAI Evals JSONL
-                  </MenuItem>
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-            <DatasetCodeButton />
-            <RunExperimentButton />
-            <AddDatasetExampleButton
-              datasetId={dataset.id}
-              onAddExampleCompleted={() => {
-                notifySuccess({
-                  title: "Example added",
-                  message:
-                    "The example has been added successfully and the version has been updated.",
-                });
-                refreshLatestVersion();
-              }}
-            />
-            <DatasetLabelConfigButton datasetId={dataset.id} />
-            <Button
-              isDisabled={!datasetHasVersions}
-              size="S"
-              variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onPress={() => {
-                navigate(`/playground?datasetId=${dataset.id}`);
-              }}
-            >
-              Playground
-            </Button>
+            <Heading level={1}>{dataset.name}</Heading>
+            {dataset.labels && dataset.labels.length > 0 && (
+              <ul
+                css={css`
+                  display: flex;
+                  flex-direction: row;
+                  gap: var(--ac-global-dimension-size-100);
+                  min-width: 0;
+                  flex-wrap: wrap;
+                `}
+              >
+                {dataset.labels.map((label) => (
+                  <li key={label.id}>
+                    <Token color={label.color}>
+                      <Truncate maxWidth={200} title={label.name}>
+                        {label.name}
+                      </Truncate>
+                    </Token>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Flex>
-        </Flex>
-      </View>
+        }
+        subTitle={dataset.description || "--"}
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <DatasetDownloadMenu datasetId={dataset.id} />
+            <DatasetLabelConfigButton datasetId={dataset.id} />
+            <RunDatasetExperimentButton variant="primary" size="M" />
+          </Flex>
+        }
+      />
       <Tabs
         defaultSelectedKey={
           initialIndex === 0

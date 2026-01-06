@@ -372,7 +372,7 @@ class LDAPUserInfo(NamedTuple):
     """Authenticated LDAP user information.
 
     Attributes:
-        email: User's email address, or None if PHOENIX_LDAP_ATTR_EMAIL is empty.
+        email: User's email address, or None if PHOENIX_LDAP_ATTR_EMAIL is "null".
                When None, a null email marker will be generated from unique_id.
         display_name: User's display name for UI
         groups: Tuple of group DNs the user belongs to (immutable)
@@ -837,7 +837,7 @@ class LDAPAuthenticator:
                             logger.error(
                                 f"LDAP user missing required email attribute "
                                 f"({self.config.attr_email}). Either populate this attribute "
-                                f"or set PHOENIX_LDAP_ATTR_EMAIL= (empty) to use null markers."
+                                f"or set PHOENIX_LDAP_ATTR_EMAIL=null"
                             )
                             return None
                     # else: email stays None, will be handled by get_or_create_ldap_user

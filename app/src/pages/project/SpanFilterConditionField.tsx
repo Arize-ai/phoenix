@@ -13,7 +13,11 @@ import {
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import CodeMirror, {
+  type BasicSetupOptions,
+  EditorView,
+  keymap,
+} from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
@@ -253,6 +257,17 @@ const extensions = [
   autocompletion({ override: [filterConditionCompletions] }),
 ];
 
+const basicSetupOptions: BasicSetupOptions = {
+  lineNumbers: false,
+  foldGutter: false,
+  bracketMatching: true,
+  syntaxHighlighting: true,
+  highlightActiveLine: false,
+  highlightActiveLineGutter: false,
+  defaultKeymap: false,
+  searchKeymap: false,
+};
+
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
@@ -307,15 +322,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         <CodeMirror
           css={codeMirrorCSS}
           indentWithTab={false}
-          basicSetup={{
-            lineNumbers: false,
-            foldGutter: false,
-            bracketMatching: true,
-            syntaxHighlighting: true,
-            highlightActiveLine: false,
-            highlightActiveLineGutter: false,
-            defaultKeymap: false,
-          }}
+          basicSetup={basicSetupOptions}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           value={filterCondition}

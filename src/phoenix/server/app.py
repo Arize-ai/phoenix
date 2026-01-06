@@ -267,6 +267,8 @@ class AppConfig(NamedTuple):
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
+    scarf_sh_pixel_id: Optional[str] = None
+    """ Scarf.sh pixel ID for open-source analytics and usage """
     management_url: Optional[str] = None
     """ URL for a phoenix management interface, only visible to management users """
     support_email: Optional[str] = None
@@ -336,6 +338,7 @@ class Static(StaticFiles):
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
+                    "scarf_sh_pixel_id": self._app_config.scarf_sh_pixel_id,
                     "management_url": self._app_config.management_url,
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
@@ -1190,6 +1193,7 @@ def create_app(
                     ),
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
+                    scarf_sh_pixel_id=Settings.scarf_sh_pixel_id,
                     management_url=management_url,
                     support_email=get_env_support_email(),
                     has_db_threshold=bool(

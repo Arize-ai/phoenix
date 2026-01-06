@@ -1,5 +1,23 @@
 # @arizeai/phoenix-otel
 
+## 0.3.4
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+
+## 0.3.3
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
+## 0.3.2
+
+### Patch Changes
+
+- 857b617: add links to packages
+
 ## 0.3.1
 
 ### Patch Changes

@@ -1,0 +1,46 @@
+---
+title: "Privacy"
+description: Understanding privacy and telemetry in self-hosted Phoenix deployments
+---
+
+## Self-Hosted Privacy
+
+**Phoenix, when self-hosted, is fully private.** No data from your traces, evaluations, datasets, or any other application data is ever sent to Arize or any third party. All of your data remains entirely within your own infrastructure.
+
+This means you have complete control over:
+- Where your data is stored
+- Who has access to your data
+- How long your data is retained
+- Your compliance with data privacy regulations
+
+## Telemetry
+
+### What kind of telemetry does Phoenix collect?
+
+By default, Phoenix collects basic web analytics (e.g., page views, UI interactions) to help us understand how the product is used. **None of your trace data, evaluation results, or any sensitive information is ever collected.** The telemetry is limited to understanding how users interact with the Phoenix web interface.
+
+### Why does Phoenix collect telemetry?
+
+Telemetry helps us to:
+- Understand how Phoenix is used and improve the most relevant features
+- Track overall usage for internal and external (e.g., fundraising) reporting
+- Identify and fix issues in the user interface
+
+### How can I opt-out?
+
+To disable telemetry, set the following environment variable:
+
+```bash
+PHOENIX_TELEMETRY_ENABLED=false
+```
+
+This will disable all analytics tracking in the Phoenix web interface, regardless of any other telemetry-related environment variable settings.
+
+### Air-gapped deployments
+
+If you are running Phoenix in an air-gapped environment, set `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`. This will:
+
+- Automatically disable all telemetry
+- Disable external Google Fonts (the UI will fall back to system fonts)
+
+This prevents any external network requests from the Phoenix web interface, avoiding connection timeouts and UI loading delays in environments without internet access.

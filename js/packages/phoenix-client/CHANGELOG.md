@@ -1,5 +1,46 @@
 # @arizeai/phoenix-client
 
+## 5.6.0
+
+### Minor Changes
+
+- 0f2950e: centralize phoenix config
+
+### Patch Changes
+
+- Updated dependencies [0f2950e]
+  - @arizeai/phoenix-config@0.1.0
+
+## 5.5.5
+
+### Patch Changes
+
+- 5132ce4: update openai to latest version
+
+## 5.5.4
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+- Updated dependencies [4208604]
+  - @arizeai/phoenix-otel@0.3.4
+
+## 5.5.3
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+- Updated dependencies [c96475c]
+  - @arizeai/phoenix-otel@0.3.3
+
+## 5.5.2
+
+### Patch Changes
+
+- 857b617: add links to packages
+- Updated dependencies [857b617]
+  - @arizeai/phoenix-otel@0.3.2
+
 ## 5.5.1
 
 ### Patch Changes

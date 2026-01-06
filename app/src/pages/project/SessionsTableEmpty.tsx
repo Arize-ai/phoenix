@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -17,13 +16,19 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { usePreferencesContext } from "@phoenix/contexts";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
 import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
 
 function SetupSessionsDialog() {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
+    (state) => ({
+      programmingLanguage: state.programmingLanguage,
+      setProgrammingLanguage: state.setProgrammingLanguage,
+    })
+  );
   return (
     <Dialog>
       <DialogContent>
@@ -36,11 +41,11 @@ function SetupSessionsDialog() {
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-100">
             <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
+              language={programmingLanguage}
+              onChange={setProgrammingLanguage}
             />
           </View>
-          {language === "Python" ? (
+          {programmingLanguage === "Python" ? (
             <PythonSessionsGuide />
           ) : (
             <TypeScriptSessionsGuide />

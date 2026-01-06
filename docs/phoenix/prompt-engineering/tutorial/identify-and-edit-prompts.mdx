@@ -92,7 +92,7 @@ Click **Save Prompt** and keep the same prompt name, `support-classifier.`&#x20;
 The final step is to edit our actual code to use the new prompt version we just created.&#x20;
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 from phoenix.client import Client
 
@@ -106,7 +106,7 @@ prompt = px_client.prompts.get(prompt_version_id="COPY VERSION ID FROM VERSIONS 
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 

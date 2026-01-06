@@ -83,7 +83,7 @@ class AdaptiveTokenBucket:
         self.last_rate_update = now
         self.last_checked = now
         self.last_error = now - self.cooldown
-        self.tokens = 0.0
+        self.tokens = 1.0
 
     def increase_rate(self) -> None:
         time_since_last_update = time.time() - self.last_rate_update
@@ -128,7 +128,7 @@ class AdaptiveTokenBucket:
         return self.tokens
 
     def make_request_if_ready(self) -> None:
-        if self.available_requests() <= 1:
+        if self.available_requests() < 1:
             raise UnavailableTokensError
         self.tokens -= 1
 
@@ -181,7 +181,7 @@ class RateLimiter:
         self,
         rate_limit_error: Optional[Type[BaseException]] = None,
         max_rate_limit_retries: int = 0,
-        initial_per_second_request_rate: float = 1.0,
+        initial_per_second_request_rate: float = 5.0,
         maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,

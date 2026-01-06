@@ -21,16 +21,15 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
+import { InferencesContext } from "@phoenix/contexts/InferencesContext";
 import {
-  InferencesContext,
   PointCloudContext,
-  ThemeContext,
   usePointCloudContext,
-  useTheme,
-} from "@phoenix/contexts";
+} from "@phoenix/contexts/PointCloudContext";
+import { ThemeContext, useTheme } from "@phoenix/contexts/ThemeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
-import { CanvasMode } from "@phoenix/store";
+import { CanvasMode } from "@phoenix/store/pointCloudStore";
 import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
 
 import { CanvasDisplaySettingsDropdown } from "./CanvasDisplaySettingsDropdown";

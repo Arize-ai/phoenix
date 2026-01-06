@@ -20,7 +20,7 @@ By default, Phoenix uses SQLite, storing data in `~/.phoenix/` or the directory 
 For production and scalable deployments, Phoenix supports PostgreSQL. Configure the **PHOENIX\_SQL\_DATABASE\_URL** environment variable to connect Phoenix to your PostgreSQL instance.
 
 <Info>
-  See the [SQLite](/docs/phoenix/self-hosting/deployment-options/kubernetes#sqlite-with-a-statefulset) and [PostgreSQL](/docs/phoenix/self-hosting/deployment-options/kubernetes#postgresql) sections for details.
+  See the [SQLite](/docs/phoenix/self-hosting/deployment-options/docker#sqlite) and [PostgreSQL](/docs/phoenix/self-hosting/deployment-options/docker#postgresql) sections for details.
 </Info>
 
 ## Deployment Options
@@ -31,14 +31,23 @@ Phoenix can be deployed using several methods, including Docker and Kubernetes. 
   For other ways to run Phoenix, including Phoenix Cloud, see [Phoenix Deployments](/docs/phoenix/environments).
 </Info>
 
-<Columns cols={2}>
-  <Card title="Docker" href="/docs/phoenix/self-hosting/deployment-options/docker" icon="docker" horizontal>
+<CardGroup cols={2}>
+  <Card title="Docker" href="/docs/phoenix/self-hosting/deployment-options/docker" icon="docker">
     How to deploy Phoenix using Docker
   </Card>
-  <Card title="Kubernetes" href="/docs/phoenix/self-hosting/deployment-options/kubernetes" icon="rocket-launch" horizontal>
+  <Card title="Kubernetes" href="/docs/phoenix/self-hosting/deployment-options/kubernetes" icon="rocket-launch">
     How to deploy Phoenix on K8S
   </Card>
-</Columns>
+  <Card title="Kubernetes (Helm)" href="/docs/phoenix/self-hosting/deployment-options/kubernetes-helm" icon="dharmachakra">
+    Deploy Phoenix via Helm
+  </Card>
+  <Card title="AWS with CloudFormation" href="/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation" icon="aws">
+    Deploy Phoenix on AWS Fargate using CloudFormation
+  </Card>
+  <Card title="Railway" href="/docs/phoenix/self-hosting/deployment-options/railway" icon="train">
+    Deploy Phoenix on Railway via a prebuilt template
+  </Card>
+</CardGroup>
 
 ## Configure Phoenix
 
@@ -51,6 +60,8 @@ Phoenix can be deployed using several methods, including Docker and Kubernetes. 
 * Setup [authentication](/docs/phoenix/self-hosting/features/authentication)
 
 * Configuring [OAuth2 identity providers](/docs/phoenix/self-hosting/features/authentication#configuring-oauth2-identity-providers)
+
+* Configuring [LDAP authentication](/docs/phoenix/self-hosting/features/authentication#configuring-ldap-authentication)
 
 ## Images
 

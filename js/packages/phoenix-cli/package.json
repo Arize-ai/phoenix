@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "A command-line interface for Phoenix",
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
@@ -30,6 +30,14 @@
   ],
   "author": "oss@arize.com",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
   "dependencies": {
     "commander": "^12.1.0"
   },

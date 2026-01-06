@@ -7,7 +7,7 @@ import { Flex } from "@phoenix/components/layout";
 import { Popover } from "@phoenix/components/overlay";
 import { Slider } from "@phoenix/components/slider";
 import { View } from "@phoenix/components/view";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 export function CanvasDisplaySettingsDropdown() {
   const setPointSizeScale = usePointCloudContext(

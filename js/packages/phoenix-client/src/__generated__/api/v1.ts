@@ -2075,7 +2075,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -2128,7 +2128,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -2195,7 +2195,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
@@ -2226,7 +2226,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -2419,7 +2419,7 @@ export interface components {
              * Reasoning Effort
              * @enum {string}
              */
-            reasoning_effort?: "minimal" | "low" | "medium" | "high";
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** SessionAnnotation */
         SessionAnnotation: {

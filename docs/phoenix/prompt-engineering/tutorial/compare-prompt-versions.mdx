@@ -30,7 +30,7 @@ Let's upload a new prompt version with this instruction added in.
     </Frame>
   </Tab>
 
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 from phoenix.client import Client
 from phoenix.client.types.prompts import PromptVersion
@@ -67,7 +67,7 @@ created = px_client.prompts.create(
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { getPrompt, createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
@@ -132,7 +132,7 @@ Let's edit our parameters.
     </Frame>
   </Tab>
 
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 ```python
 from phoenix.client import Client
 from phoenix.client.types.prompts import PromptVersion
@@ -163,7 +163,7 @@ updated_params_prompt = px_client.prompts.create(
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { getPrompt, createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
@@ -200,7 +200,7 @@ console.log(`New version ID: ${updatedParamsPrompt.id}`);
 Now that we've created 2 new versions of our prompt, we need to test them on our dataset to see if our accuracy improved. This will help us figure out if our prompts improved, and what changes lead to the most improvements.&#x20;
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
 First, head to your support-classifier prompt in the Phoenix UI and copy the corresponding version IDs for Version 3 and Version 4.
 
 ```python
@@ -258,7 +258,7 @@ experiment_v4 = await async_run_experiment(
 ```
   </Tab>
 
-  <Tab title="TS">
+  <Tab title="TypeScript" icon="js">
 ```typescript
 import { getPrompt, createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
