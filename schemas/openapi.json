@@ -1060,7 +1060,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Upload dataset from JSON, CSV, or PyArrow",
+        "summary": "Upload dataset from JSON, JSONL, CSV, or PyArrow",
         "operationId": "uploadDataset",
         "parameters": [
           {
