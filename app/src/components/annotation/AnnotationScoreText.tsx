@@ -16,10 +16,16 @@ type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
 
 const positiveOptimizationCSS = css`
   color: var(--ac-global-color-optimization-direction-positive);
+  background-color: var(
+    --ac-global-color-background-optimization-direction-positive
+  );
 `;
 
 const negativeOptimizationCSS = css`
   color: var(--ac-global-color-optimization-direction-negative);
+  background-color: var(
+    --ac-global-color-background-optimization-direction-negative
+  );
 `;
 
 /**
@@ -49,7 +55,16 @@ export function AnnotationScoreText({
         : undefined;
 
   return (
-    <Text {...textProps} css={colorCSS}>
+    <Text
+      {...textProps}
+      css={css(
+        colorCSS,
+        `
+        padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-50);
+        border-radius: var(--ac-global-rounding-small);
+        `
+      )}
+    >
       {children}
     </Text>
   );

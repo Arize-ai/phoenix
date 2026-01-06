@@ -680,10 +680,16 @@ export const darkThemeCSS = css`
 
     // Optimization Direction Colors
     --ac-global-color-optimization-direction-positive: var(
-      --ac-global-color-green-700
+      --ac-global-color-green-1000
+    );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-green-100
     );
     --ac-global-color-optimization-direction-negative: var(
-      --ac-global-color-red-700
+      --ac-global-color-red-1000
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
+      --ac-global-color-red-100
     );
   }
 `;
@@ -940,7 +946,13 @@ export const lightThemeCSS = css`
     --ac-global-color-optimization-direction-positive: var(
       --ac-global-color-green-700
     );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-green-700
+    );
     --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-red-700
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
       --ac-global-color-red-700
     );
   }
