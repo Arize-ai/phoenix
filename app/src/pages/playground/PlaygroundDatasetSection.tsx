@@ -2,23 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 
-<<<<<<< HEAD
 import { Flex } from "@phoenix/components";
-=======
-import {
-  Flex,
-  Icon,
-  Icons,
-  LinkButton,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
-import {
-  type AnnotationConfig,
-  AnnotationNameAndValue,
-} from "@phoenix/components/annotation";
->>>>>>> 991745b9b (feat: Parse and display evaluator outputConfig optimization direction on playground runs)
+import { type AnnotationConfig } from "@phoenix/components/annotation";
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import {
