@@ -7,6 +7,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -41,6 +42,48 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+async def _ensure_evaluator_prompt_label(
+    session: AsyncSession,
+    prompt_id: int,
+) -> None:
+    """
+    Ensures the "evaluator" label exists and is associated with the given prompt.
+
+    Args:
+        session: The active database session (must be within a transaction)
+        prompt_id: The ID of the prompt to label
+    """
+    # Get or create the "evaluator" label
+    stmt = select(models.PromptLabel).where(models.PromptLabel.name == "evaluator")
+    result = await session.execute(stmt)
+    label = result.scalar_one_or_none()
+
+    if label is None:
+        # Create the label if it doesn't exist
+        label = models.PromptLabel(
+            name="evaluator",
+            description="Automatically assigned to prompts created for LLM evaluators",
+        )
+        session.add(label)
+        await session.flush()  # Flush to get the ID
+
+    # Step 2: Check if association already exists
+    assoc_stmt = select(models.PromptPromptLabel).where(
+        models.PromptPromptLabel.prompt_id == prompt_id,
+        models.PromptPromptLabel.prompt_label_id == label.id,
+    )
+    assoc_result = await session.execute(assoc_stmt)
+    existing_association = assoc_result.scalar_one_or_none()
+
+    if existing_association is None:
+        # Create the association if it doesn't exist
+        association = models.PromptPromptLabel(
+            prompt_id=prompt_id,
+            prompt_label_id=label.id,
+        )
+        session.add(association)
 
 
 def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
@@ -286,6 +329,9 @@ class EvaluatorMutationMixin:
 
                 session.add(llm_evaluator)
                 await session.flush()
+
+                # Ensure the prompt is labeled as an evaluator prompt
+                await _ensure_evaluator_prompt_label(session, prompt.id)
                 tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
                 # Use the target prompt version ID (newly created if prompt_version_id
                 # provided, otherwise the new prompt version)
@@ -410,6 +456,10 @@ class EvaluatorMutationMixin:
                 )
                 session.add(new_prompt)
                 await session.flush()
+
+                # Ensure the new prompt is labeled as an evaluator prompt
+                await _ensure_evaluator_prompt_label(session, new_prompt.id)
+
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
                 # Use the newly created prompt_version for comparison (it will always be "new")
