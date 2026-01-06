@@ -3,6 +3,7 @@ import {
   memo,
   type ReactNode,
   SetStateAction,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -46,7 +47,12 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { ExperimentRunCellAnnotationsList } from "@phoenix/components/experiment";
+import {
+  ConnectedExperimentCostAndLatencySummary,
+  ExperimentCostAndLatencySummary,
+  ExperimentCostAndLatencySummarySkeleton,
+  ExperimentRunCellAnnotationsList,
+} from "@phoenix/components/experiment";
 import {
   CellTop,
   JSONCell,
@@ -1026,21 +1032,36 @@ export function PlaygroundDatasetExamplesTable({
         instance: enrichedInstance,
         templateFormat,
       });
+      const isRunning = instance.activeRunId !== null;
+      const experimentId = instance.experimentId;
       return {
         id: `instance-${instance.id}`,
         header: () => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            justifyContent="space-between"
-            width="100%"
-          >
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <AlphabeticIndexIcon index={index} size="XS" />
-              <span>Output</span>
+          <Flex direction="column" gap="size-50" width="100%">
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              justifyContent="space-between"
+              width="100%"
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <AlphabeticIndexIcon index={index} size="XS" />
+                <span>Output</span>
+              </Flex>
+              <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
             </Flex>
-            <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
+            {isRunning ? (
+              <ExperimentCostAndLatencySummary executionState="running" />
+            ) : experimentId != null ? (
+              <Suspense fallback={<ExperimentCostAndLatencySummarySkeleton />}>
+                <ConnectedExperimentCostAndLatencySummary
+                  experimentId={experimentId}
+                />
+              </Suspense>
+            ) : (
+              <ExperimentCostAndLatencySummary executionState="idle" />
+            )}
           </Flex>
         ),
 
