@@ -40,25 +40,21 @@ export function PlaygroundExperimentSettingsButton({
         <PopoverArrow />
         <Dialog>
           <View padding="size-200">
-            <Heading level={2} weight="heavy">
-              Settings
-            </Heading>
-            <View paddingTop="size-200" paddingBottom="size-100">
-              <Flex direction="column" gap="size-200">
-                <TextField
-                  value={appendedMessagesPath ?? ""}
-                  onChange={(value) => {
-                    setAppendedMessagesPath(value || null);
-                  }}
-                >
-                  <Label>Appended dataset messages path</Label>
-                  <Input placeholder="Disabled" />
-                  <Text slot="description">
-                    Path to messages from the dataset to append to prompts
-                  </Text>
-                </TextField>
-              </Flex>
-            </View>
+            <Flex direction="column" gap="size-200">
+              <TextField
+                value={appendedMessagesPath ?? ""}
+                size="S"
+                onChange={(value) => {
+                  setAppendedMessagesPath(value || null);
+                }}
+              >
+                <Label>Appended dataset messages path</Label>
+                <Input placeholder="Disabled" />
+                <Text slot="description">
+                  Path to messages from the dataset to append to prompts
+                </Text>
+              </TextField>
+            </Flex>
           </View>
         </Dialog>
       </Popover>
