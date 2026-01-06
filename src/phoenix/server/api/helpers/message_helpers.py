@@ -18,7 +18,9 @@ ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Opt
 _ROLE_MAPPING = {
     "user": ChatCompletionMessageRole.USER,
     "assistant": ChatCompletionMessageRole.AI,
+    "model": ChatCompletionMessageRole.AI,
     "system": ChatCompletionMessageRole.SYSTEM,
+    "developer": ChatCompletionMessageRole.SYSTEM,
     "tool": ChatCompletionMessageRole.TOOL,
     # Also handle our internal names
     "ai": ChatCompletionMessageRole.AI,
