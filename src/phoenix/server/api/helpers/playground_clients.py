@@ -2336,56 +2336,70 @@ async def _get_custom_provider_client(
     headers = dict(obj.extra_headers) if obj.extra_headers else None
     cfg = config.root
     if cfg.type == "openai":
-        client_factory: ClientFactory = cfg.get_client_factory(extra_headers=headers)
+        try:
+            openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if model_name in OPENAI_REASONING_MODELS:
             return OpenAIReasoningNonStreamingClient(
-                client_factory=client_factory,
+                client_factory=openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
         return OpenAIStreamingClient(
-            client_factory=client_factory,
+            client_factory=openai_client_factory,
             model_name=model_name,
             provider=provider,
         )
     elif cfg.type == "azure_openai":
-        client_factory = cfg.get_client_factory(extra_headers=headers)
+        try:
+            azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if model_name in OPENAI_REASONING_MODELS:
             return AzureOpenAIReasoningNonStreamingClient(
-                client_factory=client_factory,
+                client_factory=azure_openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
         return AzureOpenAIStreamingClient(
-            client_factory=client_factory,
+            client_factory=azure_openai_client_factory,
             model_name=model_name,
             provider=provider,
         )
     elif cfg.type == "anthropic":
-        client_factory = cfg.get_client_factory(extra_headers=headers)
+        try:
+            anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if model_name in ANTHROPIC_REASONING_MODELS:
             return AnthropicReasoningStreamingClient(
-                client_factory=client_factory, model_name=model_name, provider=provider
+                client_factory=anthropic_client_factory,
+                model_name=model_name,
+                provider=provider,
             )
         return AnthropicStreamingClient(
-            client_factory=client_factory,
+            client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
         )
     elif cfg.type == "aws_bedrock":
         try:
-            client_factory = cfg.get_client_factory(extra_headers=headers)
+            aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         return BedrockStreamingClient(
-            client_factory=client_factory,
+            client_factory=aws_bedrock_client_factory,
             model_name=model_name,
             provider=provider,
         )
     elif cfg.type == "google_genai":
-        client_factory = cfg.get_client_factory(extra_headers=headers)
+        try:
+            google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         return GoogleStreamingClient(
-            client_factory=client_factory,
+            client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,
         )
