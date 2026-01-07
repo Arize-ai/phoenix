@@ -1,70 +1,46 @@
 ---
-title: "Prompt Playground"
+title: "Prompt Engineering"
 ---
-Now that you have Phoenix up and running, you're now able to use **Prompt Playground** & the **Prompt** **Hub**.
+
+Now that you have Phoenix up and running, you're able to use **Prompt Playground** & the **Prompt Hub**.
 
 * Prompt Playground lets you experiment with prompts in real time, explore variations across models, and fine-tune responses with a versatile, interactive workflow.
 * Prompt Hub lets you organize, version, and share prompts across projects.
 
-First, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started).
+## Configure Your Environment
 
-<Tabs>
-  <Tab title="Phoenix Cloud">
-    Before sending traces, make sure Phoenix is running. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started).
+Set environment variables to connect to your Phoenix instance:
 
-        Log in, create a space, navigate to the settings page in your space, and create your API keys.
+```bash
+export PHOENIX_API_KEY="your-api-key"
 
-        Set your environment variables.
+# Local (default, no API key required)
+export PHOENIX_HOST="http://localhost:6006"
 
-        ```bash
-        export PHOENIX_API_KEY = "ADD YOUR PHOENIX API KEY"
-        export PHOENIX_COLLECTOR_ENDPOINT = "ADD YOUR PHOENIX COLLECTOR ENDPOINT"
-        ```
+# Phoenix Cloud
+# export PHOENIX_HOST="https://app.phoenix.arize.com/s/your-space-name"
 
-        You can find your collector endpoint here:
+# Self-hosted
+# export PHOENIX_HOST="https://your-phoenix-instance.com"
+```
 
-        <Frame caption="Launch your space, navigate to settings & copy your hostname for your collector endpoint">
-          <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/phoenix_hostname_settings.png" alt="After launching your space, go to settings." />
-        </Frame>
+<Tip>
+You can find your host URL and API key in the **Settings** page of your Phoenix instance.
+</Tip>
 
-        Your Collector Endpoint is: [https://app.phoenix.arize.com/s/](https://app.phoenix.arize.com/s/) + your space name.
+Choose the best path for you:
 
-  </Tab>
-
-  <Tab title="Local (Self-hosted)">
-    If you installed Phoenix locally, you have a variety of options for deployment methods including: Terminal, Docker, Kubernetes, Railway, & AWS CloudFormation. ([Learn more: Self-Hosting](https://arize.com/docs/phoenix/self-hosting))
-
-    To host on your local machine, run `phoenix serve` in your terminal.
-
-    Navigate to your localhost in your browser. (example: localhost:6006)
-  </Tab>
-</Tabs>
-
-There's multiple ways to get around Prompts in Phoenix, choose the best path for you!
-
-<Columns cols={3}>
-  <Card
-    title="Prompts (UI)"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started-prompts-ui.png"
-    href="#prompts-ui"
-  >
+<CardGroup cols={3}>
+  <Card title="Prompts (UI)" icon="browser" href="#prompts-ui">
     Use the visual interface to experiment with prompts
   </Card>
-  <Card
-    title="Prompts (Python SDK)"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started-prompts-python.png"
-    href="#prompts-python-sdk"
-  >
+  <Card title="Prompts (Python)" icon="python" href="#prompts-python-sdk">
     Create and manage prompts programmatically with Python
   </Card>
-  <Card
-    title="Prompts (TS SDK)"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started-prompts-ts.png"
-    href="#prompts-ts-sdk"
-  >
+  <Card title="Prompts (TypeScript)" icon="js" href="#prompts-ts-sdk">
     Create and manage prompts programmatically with TypeScript
   </Card>
-</Columns>
+</CardGroup>
 
 ## Prompts (UI)
 
@@ -435,9 +411,19 @@ Congratulations! You can now create, update, access and use prompts using the Ph
 
 Now you're ready to create, test, save, and iterate on your Prompts in Phoenix!
 
-## Learn More:
+## Learn More
 
-<Columns cols={2}>
-  <Card title="Prompt Concepts" href="/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts" />
-  <Card title="Prompts in Phoenix" href="/docs/phoenix/prompt-engineering/overview-prompts" />
-</Columns>
+<CardGroup cols={2}>
+  <Card title="Prompt Concepts" icon="lightbulb" href="/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts">
+    Understand prompt engineering fundamentals and best practices
+  </Card>
+  <Card title="Using the Playground" icon="play" href="/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground">
+    Deep dive into playground features and workflows
+  </Card>
+  <Card title="Test Prompts at Scale" icon="flask" href="/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale">
+    Run prompts over datasets to evaluate performance
+  </Card>
+  <Card title="Prompts in Code" icon="code" href="/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code">
+    Use prompts programmatically in your applications
+  </Card>
+</CardGroup>

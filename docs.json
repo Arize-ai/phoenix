@@ -352,6 +352,7 @@
                 "group": " ",
                 "pages": [
                   "docs/phoenix/self-hosting",
+                  "docs/phoenix/phoenix-deployment-options",
                   "docs/phoenix/self-hosting/license",
                   {
                     "group": "Configuration",
