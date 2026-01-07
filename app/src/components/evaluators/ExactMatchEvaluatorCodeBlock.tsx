@@ -4,33 +4,31 @@ import { CodeBlock } from "@phoenix/components/CodeBlock";
 import { usePreferencesContext } from "@phoenix/contexts";
 
 const PYTHON_CODE = `
-def contains(
-  text: str,
-  words: str,
-  case_sensitive: bool = False,
+def exact_match(
+  expected: str,
+  actual: str,
+  case_sensitive: bool = True,
 ) -> bool:
-  words = [word.strip() for word in words.split(",")]
   if case_sensitive:
-    return any(word in text for word in words)
+    return expected == actual
   else:
-    return any(word.lower() in text.lower() for word in words)
+    return expected.lower() == actual.lower()
 `.trim();
 
 const TYPESCRIPT_CODE = `
-function contains(
-  text: string,
-  words: string,
-  caseSensitive: boolean = false,
+function exactMatch(
+  expected: string,
+  actual: string,
+  caseSensitive: boolean = true,
 ): boolean {
-  words = words.split(",").map((word) => word.trim());
   if (caseSensitive) {
-    return words.some((word) => text.includes(word));
+    return expected === actual;
   }
-  return words.some((word) => text.toLowerCase().includes(word.toLowerCase()));
+  return expected.toLowerCase() === actual.toLowerCase();
 }
 `.trim();
 
-export const ContainsEvaluatorCodeBlock = () => {
+export const ExactMatchEvaluatorCodeBlock = () => {
   const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
     (state) => ({
       programmingLanguage: state.programmingLanguage,
