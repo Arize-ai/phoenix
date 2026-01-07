@@ -1,9 +1,7 @@
-import React, { useState } from "react";
-
 import { Card, Flex } from "@phoenix/components";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeBlock } from "@phoenix/components/CodeBlock";
-import { ProgrammingLanguage } from "@phoenix/types/code";
+import { usePreferencesContext } from "@phoenix/contexts";
 
 const PYTHON_CODE = `
 def exact_match(
@@ -31,23 +29,28 @@ function exactMatch(
 `.trim();
 
 export const ExactMatchEvaluatorCodeBlock = () => {
-  const [language, setLanguage] = useState<ProgrammingLanguage>("Python");
+  const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
+    (state) => ({
+      programmingLanguage: state.programmingLanguage,
+      setProgrammingLanguage: state.setProgrammingLanguage,
+    })
+  );
   return (
     <Card
       title="Code"
       extra={
         <Flex gap="size-100" alignItems="center">
           <CodeLanguageRadioGroup
-            language={language}
-            onChange={setLanguage}
+            language={programmingLanguage}
+            onChange={setProgrammingLanguage}
             size="S"
           />
         </Flex>
       }
     >
       <CodeBlock
-        language={language}
-        value={language === "Python" ? PYTHON_CODE : TYPESCRIPT_CODE}
+        language={programmingLanguage}
+        value={programmingLanguage === "Python" ? PYTHON_CODE : TYPESCRIPT_CODE}
       />
     </Card>
   );
