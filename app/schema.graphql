@@ -437,7 +437,7 @@ type ChatCompletionRepetition {
   toolCalls: [ChatCompletionToolCall!]!
   span: Span
   errorMessage: String
-  evaluations: [ExperimentRunAnnotation!]!
+  evaluations: [EvaluationResultUnion!]!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -1531,6 +1531,24 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   spanEvaluation: SpanAnnotation
 }
 
+type EvaluationError {
+  evaluatorName: String!
+  message: String!
+}
+
+type EvaluationErrorChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  evaluatorName: String!
+  message: String!
+}
+
+union EvaluationResultUnion = EvaluationSuccess | EvaluationError
+
+type EvaluationSuccess {
+  annotation: ExperimentRunAnnotation!
+}
+
 interface Evaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1610,7 +1628,7 @@ input EvaluatorPreviewsInput {
 }
 
 type EvaluatorPreviewsPayload {
-  annotations: [ExperimentRunAnnotation!]!
+  results: [EvaluationResultUnion!]!
 }
 
 """The sort key and direction for evaluator connections"""
