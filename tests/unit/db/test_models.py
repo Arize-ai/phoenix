@@ -768,9 +768,9 @@ class TestNumDocuments:
 
                 stmt = select(models.Span.num_documents).where(models.Span.id == span.id)
                 result = await session.scalar(stmt)
-                assert (
-                    result == expected
-                ), f"Case {i} ({span_kind}): expected {expected}, got {result}"
+                assert result == expected, (
+                    f"Case {i} ({span_kind}): expected {expected}, got {result}"
+                )
 
 
 class TestEvaluatorPolymorphism:
