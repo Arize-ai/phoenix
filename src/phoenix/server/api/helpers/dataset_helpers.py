@@ -59,11 +59,16 @@ def get_dataset_example_output(span: Span) -> dict[str, Any]:
     output_messages = get_attribute_value(attributes, LLM_OUTPUT_MESSAGES)
     retrieval_documents = get_attribute_value(attributes, RETRIEVAL_DOCUMENTS)
     if span_kind == LLM:
-        return _get_llm_span_output(
+        messages_or_output = _get_llm_span_output(
             output_messages=output_messages,
             output_value=output_value,
             output_mime_type=output_mime_type,
         )
+        tools = get_attribute_value(attributes, LLM_TOOLS)
+        return {
+            **messages_or_output,
+            **({"tools": tools} if tools else {}),
+        }
     if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         return _get_retriever_span_output(
             retrieval_documents=retrieval_documents,
