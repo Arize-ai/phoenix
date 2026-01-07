@@ -23,14 +23,14 @@ class SingletonMeta(type):
 class PlaygroundClientRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._registry: dict[
-            GenerativeProviderKey, dict[ModelName, Optional[type["PlaygroundStreamingClient"]]]
+            GenerativeProviderKey, dict[ModelName, Optional[type["PlaygroundStreamingClient[Any]"]]]
         ] = {}
 
     def get_client(
         self,
         provider_key: GenerativeProviderKey,
         model_name: ModelName,
-    ) -> Optional[type["PlaygroundStreamingClient"]]:
+    ) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
         provider_registry = self._registry.get(provider_key, {})
         client_class = provider_registry.get(model_name)
         if client_class is None and None in provider_registry:
@@ -60,8 +60,10 @@ PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry(
 def register_llm_client(
     provider_key: GenerativeProviderKey,
     model_names: Sequence[ModelName],
-) -> Callable[[type["PlaygroundStreamingClient"]], type["PlaygroundStreamingClient"]]:
-    def decorator(cls: type["PlaygroundStreamingClient"]) -> type["PlaygroundStreamingClient"]:
+) -> Callable[[type["PlaygroundStreamingClient[Any]"]], type["PlaygroundStreamingClient[Any]"]]:
+    def decorator(
+        cls: type["PlaygroundStreamingClient[Any]"],
+    ) -> type["PlaygroundStreamingClient[Any]"]:
         provider_registry = PLAYGROUND_CLIENT_REGISTRY._registry.setdefault(provider_key, {})
         for model_name in model_names:
             provider_registry[model_name] = cls

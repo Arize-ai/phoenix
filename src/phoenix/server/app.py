@@ -646,6 +646,7 @@ def _lifespan(
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
+            _warn_if_missing_aioboto3()
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -1294,3 +1295,27 @@ def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]
 
     app.state.get_token_store = MethodType(get_token_store, app.state)
     return app
+
+
+def _warn_if_missing_aioboto3() -> None:
+    """
+    Check if boto3 is installed without aioboto3 and log a warning.
+
+    This helps users who have boto3 installed but haven't migrated to
+    aioboto3 for Phoenix's AWS Bedrock integration in Playground.
+    """
+
+    try:
+        import aioboto3  # type: ignore[import-untyped] # noqa: F401
+
+        return
+    except ImportError:
+        try:
+            import boto3  # type: ignore[import-untyped] # noqa: F401
+
+            logger.warning(
+                "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
+                "in Playground, install aioboto3: pip install aioboto3"
+            )
+        except ImportError:
+            pass
