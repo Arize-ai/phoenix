@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Checkbox, Flex, Label, Text } from "@phoenix/components";
+import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
@@ -45,7 +45,6 @@ export const ContainsEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <ContainsEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
         <SwitchableEvaluatorInput
           fieldName="text"
@@ -76,7 +75,7 @@ export const ContainsEvaluatorForm = () => {
           control={control}
           defaultValue={false}
           render={({ field }) => (
-            <Checkbox
+            <Switch
               {...field}
               value={String(field.value ?? "")}
               onChange={(value) => field.onChange(value)}
@@ -92,10 +91,11 @@ export const ContainsEvaluatorForm = () => {
               <Text slot="description">
                 Whether to match the words case sensitive.
               </Text>
-            </Checkbox>
+            </Switch>
           )}
         />
       </Flex>
+      <ContainsEvaluatorCodeBlock />
     </Flex>
   );
 };

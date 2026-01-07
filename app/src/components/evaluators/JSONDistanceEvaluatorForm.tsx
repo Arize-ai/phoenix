@@ -48,7 +48,6 @@ export const JSONDistanceEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <JSONDistanceEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
         <Controller
           name={`pathMapping.expected`}
@@ -125,6 +124,7 @@ export const JSONDistanceEvaluatorForm = () => {
           )}
         />
       </Flex>
+      <JSONDistanceEvaluatorCodeBlock />
     </Flex>
   );
 };

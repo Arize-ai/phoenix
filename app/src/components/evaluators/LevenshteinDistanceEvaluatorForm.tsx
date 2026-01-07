@@ -3,11 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Checkbox,
   ComboBox,
   ComboBoxItem,
   Flex,
   Label,
+  Switch,
   Text,
 } from "@phoenix/components";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -55,7 +55,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <LevenshteinDistanceEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
         <Controller
           name={`pathMapping.expected`}
@@ -136,7 +135,7 @@ export const LevenshteinDistanceEvaluatorForm = () => {
           control={control}
           defaultValue={true}
           render={({ field }) => (
-            <Checkbox
+            <Switch
               {...field}
               value={String(field.value ?? "")}
               onChange={(value) => field.onChange(value)}
@@ -152,10 +151,11 @@ export const LevenshteinDistanceEvaluatorForm = () => {
               <Text slot="description">
                 Whether comparison is case-sensitive.
               </Text>
-            </Checkbox>
+            </Switch>
           )}
         />
       </Flex>
+      <LevenshteinDistanceEvaluatorCodeBlock />
     </Flex>
   );
 };

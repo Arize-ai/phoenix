@@ -3,11 +3,11 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Checkbox,
   ComboBox,
   ComboBoxItem,
   Flex,
   Label,
+  Switch,
   Text,
 } from "@phoenix/components";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -53,7 +53,6 @@ export const RegexEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <RegexEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
         <Controller
           control={control}
@@ -112,7 +111,7 @@ export const RegexEvaluatorForm = () => {
           control={control}
           defaultValue={false}
           render={({ field }) => (
-            <Checkbox
+            <Switch
               {...field}
               value={String(field.value ?? "")}
               onChange={(value) => field.onChange(value)}
@@ -129,10 +128,11 @@ export const RegexEvaluatorForm = () => {
                 If true, pattern must match entire text; if false, searches for
                 pattern anywhere.
               </Text>
-            </Checkbox>
+            </Switch>
           )}
         />
       </Flex>
+      <RegexEvaluatorCodeBlock />
     </Flex>
   );
 };
