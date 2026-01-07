@@ -167,7 +167,7 @@ pg = [
   "psycopg[binary,pool]",
 ]
 aws = [
-  "boto3",
+  "aioboto3",
 ]
 container = [
   "anthropic>=0.49.0",
@@ -192,7 +192,7 @@ container = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
-  "boto3",
+  "aioboto3",
 ]
 test = [
 ]
