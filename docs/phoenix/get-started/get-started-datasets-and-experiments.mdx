@@ -20,9 +20,9 @@ If you haven’t done this yet, start with [Get Started with Tracing](https://ar
 
 ## **Step 1: Use Explanations to Identify Improvements**
 
-We’ll be using our dataset to group our application failures together – the main question now is what to fix.
+We’ll be using our dataset to group our application failures together – the next step is deciding which issues to fix. 
 
-Phoenix provides explanations and trace context that help you understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+Using the explanations apart of the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
 
 The easiest way to see these is to go back into the trace view for these failed runs & read the explanations for why they were each labeled as "incomplete" answers.
 
@@ -79,7 +79,7 @@ Experiments in Phoenix let you rerun the same inputs through different versions 
 
 To define an experiment, we need to specify:
 
-- **The experiment task **
+- **The experiment task**
 
   A task is a function or process that takes each example from a dataset and produces an output, typically by running your application logic or model on the input.
 
