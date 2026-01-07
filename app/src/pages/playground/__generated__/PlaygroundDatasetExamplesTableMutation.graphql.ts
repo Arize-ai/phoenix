@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e0644e6d67207318f540d7ea0ba8b86>>
+ * @generated SignedSource<<120640b7e92ce4f8284bd504d187cc96>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -90,18 +90,29 @@ export type PlaygroundDatasetExamplesTableMutation$data = {
         readonly content: string | null;
         readonly errorMessage: string | null;
         readonly evaluations: ReadonlyArray<{
-          readonly annotatorKind: ExperimentRunAnnotatorKind;
-          readonly explanation: string | null;
-          readonly id: string;
-          readonly label: string | null;
-          readonly metadata: any;
-          readonly name: string;
-          readonly score: number | null;
-          readonly startTime: string;
-          readonly trace: {
-            readonly projectId: string;
-            readonly traceId: string;
-          } | null;
+          readonly __typename: "EvaluationError";
+          readonly evaluatorName: string;
+          readonly message: string;
+        } | {
+          readonly __typename: "EvaluationSuccess";
+          readonly annotation: {
+            readonly annotatorKind: ExperimentRunAnnotatorKind;
+            readonly explanation: string | null;
+            readonly id: string;
+            readonly label: string | null;
+            readonly metadata: any;
+            readonly name: string;
+            readonly score: number | null;
+            readonly startTime: string;
+            readonly trace: {
+              readonly projectId: string;
+              readonly traceId: string;
+            } | null;
+          };
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
         }>;
         readonly span: {
           readonly context: {
@@ -329,50 +340,78 @@ v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "__typename",
   "storageKey": null
 },
 v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "score",
+  "name": "label",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "annotatorKind",
+  "name": "score",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "explanation",
+  "name": "annotatorKind",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "metadata",
+  "name": "explanation",
   "storageKey": null
 },
 v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "metadata",
   "storageKey": null
 },
 v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "startTime",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "projectId",
   "storageKey": null
+},
+v21 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluatorName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "message",
+      "storageKey": null
+    }
+  ],
+  "type": "EvaluationError",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -416,32 +455,52 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentRunAnnotation",
+                    "concreteType": null,
                     "kind": "LinkedField",
                     "name": "evaluations",
                     "plural": true,
                     "selections": [
-                      (v8/*: any*/),
-                      (v11/*: any*/),
                       (v13/*: any*/),
-                      (v14/*: any*/),
-                      (v15/*: any*/),
-                      (v16/*: any*/),
-                      (v17/*: any*/),
-                      (v18/*: any*/),
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "Trace",
-                        "kind": "LinkedField",
-                        "name": "trace",
-                        "plural": false,
+                        "kind": "InlineFragment",
                         "selections": [
-                          (v9/*: any*/),
-                          (v19/*: any*/)
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "ExperimentRunAnnotation",
+                            "kind": "LinkedField",
+                            "name": "annotation",
+                            "plural": false,
+                            "selections": [
+                              (v8/*: any*/),
+                              (v11/*: any*/),
+                              (v14/*: any*/),
+                              (v15/*: any*/),
+                              (v16/*: any*/),
+                              (v17/*: any*/),
+                              (v18/*: any*/),
+                              (v19/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "Trace",
+                                "kind": "LinkedField",
+                                "name": "trace",
+                                "plural": false,
+                                "selections": [
+                                  (v9/*: any*/),
+                                  (v20/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
                         ],
-                        "storageKey": null
-                      }
+                        "type": "EvaluationSuccess",
+                        "abstractKey": null
+                      },
+                      (v21/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -499,33 +558,53 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentRunAnnotation",
+                    "concreteType": null,
                     "kind": "LinkedField",
                     "name": "evaluations",
                     "plural": true,
                     "selections": [
-                      (v8/*: any*/),
-                      (v11/*: any*/),
                       (v13/*: any*/),
-                      (v14/*: any*/),
-                      (v15/*: any*/),
-                      (v16/*: any*/),
-                      (v17/*: any*/),
-                      (v18/*: any*/),
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "Trace",
-                        "kind": "LinkedField",
-                        "name": "trace",
-                        "plural": false,
+                        "kind": "InlineFragment",
                         "selections": [
-                          (v9/*: any*/),
-                          (v19/*: any*/),
-                          (v8/*: any*/)
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "ExperimentRunAnnotation",
+                            "kind": "LinkedField",
+                            "name": "annotation",
+                            "plural": false,
+                            "selections": [
+                              (v8/*: any*/),
+                              (v11/*: any*/),
+                              (v14/*: any*/),
+                              (v15/*: any*/),
+                              (v16/*: any*/),
+                              (v17/*: any*/),
+                              (v18/*: any*/),
+                              (v19/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "Trace",
+                                "kind": "LinkedField",
+                                "name": "trace",
+                                "plural": false,
+                                "selections": [
+                                  (v9/*: any*/),
+                                  (v20/*: any*/),
+                                  (v8/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
                         ],
-                        "storageKey": null
-                      }
+                        "type": "EvaluationSuccess",
+                        "abstractKey": null
+                      },
+                      (v21/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -541,16 +620,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "34c45498b7aee9435bf246bcf6d55531",
+    "cacheID": "77cfe75ab6ba48b9f4cfb913cc38fdbd",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      repetitionNumber\n      repetition {\n        content\n        errorMessage\n        span {\n          id\n          tokenCountTotal\n          costSummary {\n            total {\n              cost\n            }\n          }\n          latencyMs\n          project {\n            id\n          }\n          context {\n            traceId\n          }\n        }\n        toolCalls {\n          id\n          function {\n            name\n            arguments\n          }\n        }\n        evaluations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          explanation\n          metadata\n          startTime\n          trace {\n            traceId\n            projectId\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      repetitionNumber\n      repetition {\n        content\n        errorMessage\n        span {\n          id\n          tokenCountTotal\n          costSummary {\n            total {\n              cost\n            }\n          }\n          latencyMs\n          project {\n            id\n          }\n          context {\n            traceId\n          }\n        }\n        toolCalls {\n          id\n          function {\n            name\n            arguments\n          }\n        }\n        evaluations {\n          __typename\n          ... on EvaluationSuccess {\n            annotation {\n              id\n              name\n              label\n              score\n              annotatorKind\n              explanation\n              metadata\n              startTime\n              trace {\n                traceId\n                projectId\n                id\n              }\n            }\n          }\n          ... on EvaluationError {\n            evaluatorName\n            message\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "408c5f4c7be483c10b33f761d78c0dfc";
+(node as any).hash = "ba7a223b18139fc45eb47b427a3175bc";
 
 export default node;

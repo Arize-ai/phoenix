@@ -69,6 +69,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
     EvaluationChunk,
+    EvaluationErrorChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -179,6 +180,14 @@ async def _stream_single_chat_completion(
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
                     )
+                    if result["error"] is not None:
+                        yield EvaluationErrorChunk(
+                            evaluator_name=builtin.name,
+                            message=result["error"],
+                            dataset_example_id=None,
+                            repetition_number=repetition_number,
+                        )
+                        continue
                     annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": result["name"],
@@ -204,6 +213,14 @@ async def _stream_single_chat_completion(
                     context=context_dict,
                     input_mapping=input_mapping,
                 )
+                if result["error"] is not None:
+                    yield EvaluationErrorChunk(
+                        evaluator_name=llm_evaluator.name,
+                        message=result["error"],
+                        dataset_example_id=None,
+                        repetition_number=repetition_number,
+                    )
+                    continue
                 annotation = ExperimentRunAnnotation.from_dict(
                     {
                         "name": result["name"],
@@ -626,6 +643,14 @@ class Subscription:
                                     context=context_dict,
                                     input_mapping=evaluator.input_mapping,
                                 )
+                                if result["error"] is not None:
+                                    yield EvaluationErrorChunk(
+                                        evaluator_name=builtin.name,
+                                        message=result["error"],
+                                        dataset_example_id=example_id,
+                                        repetition_number=repetition_number,
+                                    )
+                                    continue
                                 annotation_model = evaluation_result_to_model(
                                     result,
                                     experiment_run_id=run.id,
@@ -652,6 +677,14 @@ class Subscription:
                                 context=context_dict,
                                 input_mapping=input_mapping,
                             )
+                            if result["error"] is not None:
+                                yield EvaluationErrorChunk(
+                                    evaluator_name=llm_evaluator.name,
+                                    message=result["error"],
+                                    dataset_example_id=example_id,
+                                    repetition_number=repetition_number,
+                                )
+                                continue
                             annotation_model = evaluation_result_to_model(
                                 result,
                                 experiment_run_id=run.id,
