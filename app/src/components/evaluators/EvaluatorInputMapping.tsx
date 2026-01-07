@@ -1,17 +1,11 @@
 import { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  ComboBox,
-  ComboBoxItem,
-  Icon,
-  Icons,
-  Loading,
-  Text,
-} from "@phoenix/components";
+import { Icon, Icons, Loading, Text } from "@phoenix/components";
 import { Heading } from "@phoenix/components/content/Heading";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
+import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { Flex } from "@phoenix/components/layout/Flex";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -46,20 +40,24 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
 
 const useEvaluatorInputMappingControlsForm = () => {
   const store = useEvaluatorStoreInstance();
-  const pathMapping = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping.pathMapping
+  const { pathMapping, literalMapping } = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
   );
-  const form = useForm({ defaultValues: { pathMapping }, mode: "onChange" });
+  const form = useForm({
+    defaultValues: { pathMapping, literalMapping },
+    mode: "onChange",
+  });
   const subscribe = form.subscribe;
   useEffect(() => {
     return subscribe({
       formState: { isValid: true, values: true },
-      callback({ values: { pathMapping }, isValid }) {
+      callback({ values: { pathMapping, literalMapping }, isValid }) {
         if (!isValid) {
           return;
         }
-        const { setPathMapping } = store.getState();
+        const { setPathMapping, setLiteralMapping } = store.getState();
         setPathMapping({ ...pathMapping });
+        setLiteralMapping({ ...literalMapping });
       },
     });
   }, [subscribe, store]);
@@ -67,7 +65,7 @@ const useEvaluatorInputMappingControlsForm = () => {
 };
 
 const EvaluatorInputMappingControls = () => {
-  const { control } = useEvaluatorInputMappingControlsForm();
+  const { control, setValue } = useEvaluatorInputMappingControlsForm();
   const variables = useEvaluatorInputVariables();
   const evaluatorPreMappedInput = useEvaluatorStore(
     (state) => state.preMappedInput
@@ -95,43 +93,21 @@ const EvaluatorInputMappingControls = () => {
             width: 100%;
           `}
         >
-          <Controller
-            name={`pathMapping.${variable}`}
+          <SwitchableEvaluatorInput
+            fieldName={variable}
+            label={variable}
+            size="S"
+            defaultMode="path"
             control={control}
-            render={({ field }) => (
-              <ComboBox
-                aria-label={`Select an example field for ${variable}`}
-                placeholder="Select an example field"
-                defaultItems={allExampleKeys}
-                selectedKey={field.value ?? ""}
-                allowsCustomValue
-                onSelectionChange={(key) => {
-                  if (!key) {
-                    return;
-                  }
-                  field.onChange(key);
-                }}
-                onInputChange={(value) => field.onChange(value)}
-                inputValue={inputValues[variable] ?? ""}
-                css={css`
-                  width: 100%;
-                  min-width: 0 !important;
-                  // allow the combobox to shrink to prevent blowing up page layout
-                  .px-combobox-container {
-                    min-width: 0 !important;
-                    input {
-                      min-width: 0 !important;
-                    }
-                  }
-                `}
-              >
-                {(item) => (
-                  <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                    {item.label}
-                  </ComboBoxItem>
-                )}
-              </ComboBox>
-            )}
+            setValue={setValue}
+            pathOptions={allExampleKeys}
+            pathPlaceholder="Select an example field"
+            literalPlaceholder="Enter a value"
+            pathInputValue={inputValues[variable] ?? ""}
+            onPathInputChange={(val) =>
+              setValue(`pathMapping.${variable}`, val)
+            }
+            hideLabel
           />
           <Icon svg={<Icons.ArrowRightWithStem />} />
           <Text
