@@ -53,3 +53,9 @@ class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
 class EvaluationChunk(ChatCompletionSubscriptionPayload):
     experiment_run_evaluation: Optional[ExperimentRunAnnotation] = None
     span_evaluation: Optional[SpanAnnotation] = None
+
+
+@strawberry.type
+class EvaluationErrorChunk(ChatCompletionSubscriptionPayload):
+    evaluator_name: str
+    message: str
