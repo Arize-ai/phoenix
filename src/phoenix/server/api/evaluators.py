@@ -848,7 +848,7 @@ class RegexEvaluator(BuiltInEvaluator):
                 name=self.name,
                 annotator_kind="CODE",
                 label=None,
-                score=1.0 if matched else 0.0,
+                score=1.0 if matched else 0.0 if not error else None,
                 explanation=explanation,
                 metadata={"pattern": pattern, "text": text, "full_match": full_match},
                 error=error,
