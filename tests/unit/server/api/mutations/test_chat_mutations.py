@@ -503,11 +503,19 @@ class TestChatCompletionMutationMixin:
                 content
                 errorMessage
                 evaluations {
-                  name
-                  label
-                  score
-                  explanation
-                  annotatorKind
+                  ... on EvaluationSuccess {
+                    annotation {
+                      name
+                      label
+                      score
+                      explanation
+                      annotatorKind
+                    }
+                  }
+                  ... on EvaluationError {
+                    evaluatorName
+                    message
+                  }
                 }
                 span {
                   id
@@ -560,7 +568,7 @@ class TestChatCompletionMutationMixin:
             # Verify evaluations are returned
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
-            eval_result = evaluations[0]
+            eval_result = evaluations[0]["annotation"]
             assert eval_result["name"] == "correctness"
             assert eval_result["annotatorKind"] == "LLM"
             assert eval_result["label"] == "correct"
@@ -596,9 +604,17 @@ class TestChatCompletionMutationMixin:
                 content
                 errorMessage
                 evaluations {
-                  name
-                  label
-                  score
+                  ... on EvaluationSuccess {
+                    annotation {
+                      name
+                      label
+                      score
+                    }
+                  }
+                  ... on EvaluationError {
+                    evaluatorName
+                    message
+                  }
                 }
                 span {
                   id
@@ -698,10 +714,18 @@ class TestChatCompletionMutationMixin:
                   content
                   errorMessage
                   evaluations {
-                    name
-                    label
-                    score
-                    annotatorKind
+                    ... on EvaluationSuccess {
+                      annotation {
+                        name
+                        label
+                        score
+                        annotatorKind
+                      }
+                    }
+                    ... on EvaluationError {
+                      evaluatorName
+                      message
+                    }
                   }
                   span {
                     id
@@ -755,7 +779,7 @@ class TestChatCompletionMutationMixin:
             # Verify evaluations are returned
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
-            eval_result = evaluations[0]
+            eval_result = evaluations[0]["annotation"]
             assert eval_result["name"] == "correctness"
             assert eval_result["annotatorKind"] == "LLM"
 
@@ -812,9 +836,17 @@ class TestChatCompletionMutationMixin:
                   content
                   errorMessage
                   evaluations {
-                    name
-                    label
-                    score
+                    ... on EvaluationSuccess {
+                      annotation {
+                        name
+                        label
+                        score
+                      }
+                    }
+                    ... on EvaluationError {
+                      evaluatorName
+                      message
+                    }
                   }
                   span {
                     id

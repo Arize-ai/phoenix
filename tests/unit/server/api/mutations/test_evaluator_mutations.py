@@ -2469,44 +2469,42 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             )
             await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
 
-        # Failure: Duplicate display name (create another builtin evaluator first)
-        if len(builtin_evaluator_ids) > 1:
-            second_builtin_evaluator_id = builtin_evaluator_ids[1]
-            second_builtin_evaluator_gid = str(
-                GlobalID("BuiltInEvaluator", str(second_builtin_evaluator_id))
-            )
-            create_result2 = await gql_client.execute(
-                """
-                mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
-                  createDatasetBuiltinEvaluator(input: $input) {
-                    evaluator {
-                      id
-                      displayName
-                    }
-                  }
+        # Failure: Duplicate display name for same builtin evaluator
+        # The unique constraint is on (dataset_id, builtin_evaluator_id, display_name),
+        # so we need to create another assignment of the SAME builtin evaluator
+        create_result2 = await gql_client.execute(
+            """
+            mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+              createDatasetBuiltinEvaluator(input: $input) {
+                evaluator {
+                  id
+                  displayName
                 }
-                """,
-                {
-                    "input": {
-                        "datasetId": dataset_id,
-                        "evaluatorId": second_builtin_evaluator_gid,
-                        "displayName": "other-evaluator",
-                    }
-                },
-            )
-            assert create_result2.data and not create_result2.errors
+              }
+            }
+            """,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": builtin_evaluator_gid,  # Same builtin evaluator
+                    "displayName": "other-evaluator",
+                }
+            },
+        )
+        assert create_result2.data and not create_result2.errors
 
-            # Try to update the first evaluator to have the same name as the second
-            result = await gql_client.execute(
-                self._UPDATE_MUTATION,
-                {
-                    "input": {
-                        "datasetEvaluatorId": dataset_evaluator_id,
-                        "displayName": "other-evaluator",  # Same as second evaluator
-                    }
-                },
-            )
-            assert result.errors and "already exists" in result.errors[0].message.lower()
+        # Try to update the first evaluator to have the same name as the second
+        # (both are the same builtin_evaluator_id, so this should fail)
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "other-evaluator",  # Same as second assignment
+                }
+            },
+        )
+        assert result.errors and "already exists" in result.errors[0].message.lower()
 
 
 @pytest.fixture
