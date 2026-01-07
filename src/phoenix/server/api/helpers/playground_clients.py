@@ -2138,7 +2138,7 @@ async def _get_builtin_provider_client(
 
         # Create factory that returns fresh Google GenAI async client (native async context manager)
         # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
-        def create_google_client() -> Any:
+        def create_google_client() -> "GoogleAsyncClient":
             return GoogleGenAIClient(api_key=api_key).aio
 
         client_factory = create_google_client
@@ -2183,8 +2183,8 @@ async def _get_builtin_provider_client(
         )
 
         # Create factory that returns aioboto3's ClientCreatorContext (async context manager)
-        def create_bedrock_client() -> Any:
-            return aioboto3_session.client(service_name="bedrock-runtime")
+        def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
+            return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
 
         client_factory = create_bedrock_client
 
