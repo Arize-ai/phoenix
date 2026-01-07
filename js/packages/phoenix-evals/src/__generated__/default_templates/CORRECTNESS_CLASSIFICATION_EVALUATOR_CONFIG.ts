@@ -4,7 +4,7 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "correctness",
-  description: "A specialized evaluator for assessing factual accuracy and completeness of model outputs.",
+  description: "Assess factual accuracy and completeness of model outputs.",
   optimizationDirection: "MAXIMIZE",
   template: [
     {

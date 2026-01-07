@@ -5,7 +5,7 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 
 CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="correctness",
-    description="A specialized evaluator for assessing factual accuracy and completeness of model outputs.",
+    description="Assess factual accuracy and completeness of model outputs.",
     optimization_direction="maximize",
     messages=[
         PromptMessage(
