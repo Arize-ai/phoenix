@@ -638,8 +638,8 @@ class ContainsEvaluator(BuiltInEvaluator):
             else:
                 matched = any(word.lower() in text.lower() for word in words)
             explanation = (
-                f"one or more of the words {repr(words)} were {'found' if matched else 'not found'} "
-                "in the text"
+                f"one or more of the words {repr(words)} were {'found' if matched else 'not found'}"
+                " in the text"
             )
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
