@@ -15,13 +15,20 @@ class TestEvaluatorPreviewMutation:
     _MUTATION = """
       mutation($input: EvaluatorPreviewsInput!) {
         evaluatorPreviews(input: $input) {
-          annotations {
-            name
-            label
-            score
-            explanation
-            error
-            annotatorKind
+          results {
+            ... on EvaluationSuccess {
+              annotation {
+                name
+                label
+                score
+                explanation
+                annotatorKind
+              }
+            }
+            ... on EvaluationError {
+              evaluatorName
+              message
+            }
           }
         }
       }
@@ -53,14 +60,13 @@ class TestEvaluatorPreviewMutation:
         )
 
         assert result.data and not result.errors, f"Unexpected errors: {result.errors}"
-        annotations = result.data["evaluatorPreviews"]["annotations"]
-        assert len(annotations) == 1
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 1
 
-        annotation = annotations[0]
+        annotation = results[0]["annotation"]
         assert annotation["name"] == "Contains"
         assert annotation["annotatorKind"] == "CODE"
         assert annotation["score"] == 1.0
-        assert annotation["error"] is None
         assert "found" in annotation["explanation"]
 
     async def test_preview_builtin_evaluator_not_found(
@@ -86,10 +92,10 @@ class TestEvaluatorPreviewMutation:
         )
 
         assert result.data and not result.errors
-        annotations = result.data["evaluatorPreviews"]["annotations"]
-        assert len(annotations) == 1
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 1
 
-        annotation = annotations[0]
+        annotation = results[0]["annotation"]
         assert annotation["score"] == 0.0
         assert "not found" in annotation["explanation"]
 
@@ -125,11 +131,11 @@ class TestEvaluatorPreviewMutation:
         )
 
         assert result.data and not result.errors
-        annotations = result.data["evaluatorPreviews"]["annotations"]
-        assert len(annotations) == 2
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 2
 
-        assert annotations[0]["score"] == 1.0
-        assert annotations[1]["score"] == 0.0
+        assert results[0]["annotation"]["score"] == 1.0
+        assert results[1]["annotation"]["score"] == 0.0
 
     async def test_preview_requires_evaluator_or_inline(
         self,
