@@ -47,7 +47,9 @@ type EvaluationPreviewResult =
 
 const EvaluatorOutputPreviewContent = () => {
   const [error, setError] = useState<string | null>(null);
-  const [previewResults, setPreviewResults] = useState<EvaluationPreviewResult[]>([]);
+  const [previewResults, setPreviewResults] = useState<
+    EvaluationPreviewResult[]
+  >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
   const playgroundStore = usePlaygroundStore();
   const [previewEvaluator, isLoadingEvaluatorPreview] =
@@ -123,31 +125,34 @@ const EvaluatorOutputPreviewContent = () => {
         if (errors) {
           setError(errors[0].message);
         } else {
-          const results: EvaluationPreviewResult[] = response.evaluatorPreviews.results
-            .filter(
-              (result): result is Exclude<typeof result, { __typename: "%other" }> =>
-                result.__typename !== "%other"
-            )
-            .map((result) => {
-              if (result.__typename === "EvaluationSuccess") {
-                return {
-                  kind: "success" as const,
-                  annotation: {
-                    id: result.annotation.id,
-                    name: result.annotation.name,
-                    label: result.annotation.label,
-                    score: result.annotation.score,
-                    explanation: result.annotation.explanation,
-                  },
-                };
-              } else {
-                return {
-                  kind: "error" as const,
-                  evaluatorName: result.evaluatorName,
-                  message: result.message,
-                };
-              }
-            });
+          const results: EvaluationPreviewResult[] =
+            response.evaluatorPreviews.results
+              .filter(
+                (
+                  result
+                ): result is Exclude<typeof result, { __typename: "%other" }> =>
+                  result.__typename !== "%other"
+              )
+              .map((result) => {
+                if (result.__typename === "EvaluationSuccess") {
+                  return {
+                    kind: "success" as const,
+                    annotation: {
+                      id: result.annotation.id,
+                      name: result.annotation.name,
+                      label: result.annotation.label,
+                      score: result.annotation.score,
+                      explanation: result.annotation.explanation,
+                    },
+                  };
+                } else {
+                  return {
+                    kind: "error" as const,
+                    evaluatorName: result.evaluatorName,
+                    message: result.message,
+                  };
+                }
+              });
           setPreviewResults(results);
         }
       },
