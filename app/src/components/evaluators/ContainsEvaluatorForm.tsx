@@ -1,20 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { css } from "@emotion/react";
 
-import {
-  Checkbox,
-  ComboBox,
-  ComboBoxItem,
-  FieldError,
-  Flex,
-  Input,
-  Label,
-  Text,
-  TextField,
-} from "@phoenix/components";
+import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -47,7 +37,7 @@ const useContainsEvaluatorForm = () => {
 };
 
 export const ContainsEvaluatorForm = () => {
-  const { control, getValues } = useContainsEvaluatorForm();
+  const { control, getValues, setValue } = useContainsEvaluatorForm();
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
@@ -55,72 +45,37 @@ export const ContainsEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <ContainsEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
-        <Controller
-          name={`pathMapping.text`}
+        <SwitchableEvaluatorInput
+          fieldName="text"
+          label="Text"
+          description="The text to search for the words in."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Text parameter`}
-              placeholder="Map an example field to the Text parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Text"
-              size="L"
-              description={`The text to search for the words in. Choose an example field from the list to map to the Text parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setContainsTextPath(key as string);
-              }}
-              onInputChange={(value) => setContainsTextPath(value)}
-              inputValue={containsTextPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                // allow the combobox to shrink to prevent blowing up page layout
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Text"
+          literalPlaceholder="Enter literal text value"
+          pathInputValue={containsTextPath}
+          onPathInputChange={setContainsTextPath}
         />
-        <Controller
+        <SwitchableEvaluatorInput
+          fieldName="words"
+          label="Words"
+          description="A comma separated list of words to search for in the text."
+          defaultMode="literal"
           control={control}
-          name="literalMapping.words"
-          render={({ field, fieldState: { error } }) => (
-            <TextField
-              {...field}
-              value={String(field.value ?? "")}
-              isInvalid={!!error}
-            >
-              <Label>Words</Label>
-              <Input />
-              {!error && (
-                <Text slot="description">
-                  A comma separated list of words to search for in the text.
-                </Text>
-              )}
-              {error && <FieldError>{error.message}</FieldError>}
-            </TextField>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Words"
+          literalPlaceholder="e.g. word1, word2, word3"
         />
         <Controller
           name="literalMapping.case_sensitive"
           control={control}
           defaultValue={false}
           render={({ field }) => (
-            <Checkbox
+            <Switch
               {...field}
               value={String(field.value ?? "")}
               onChange={(value) => field.onChange(value)}
@@ -136,10 +91,11 @@ export const ContainsEvaluatorForm = () => {
               <Text slot="description">
                 Whether to match the words case sensitive.
               </Text>
-            </Checkbox>
+            </Switch>
           )}
         />
       </Flex>
+      <ContainsEvaluatorCodeBlock />
     </Flex>
   );
 };
