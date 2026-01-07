@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -10,14 +10,18 @@ import {
   Icon,
   IconButton,
   Icons,
+  Modal,
+  ModalOverlay,
   Text,
   Toolbar,
   View,
 } from "@phoenix/components";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
@@ -38,7 +42,7 @@ export function ExperimentSelectionToolbar(
   props: ExperimentSelectionToolbarProps
 ) {
   const navigate = useNavigate();
-  const [dialog, setDialog] = useState<ReactNode>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteExperiments, isDeletingExperiments] = useMutation(graphql`
     mutation ExperimentSelectionToolbarDeleteExperimentsMutation(
       $input: DeleteExperimentsInput!
@@ -73,6 +77,7 @@ export function ExperimentSelectionToolbar(
         // Clear the selection
         onExperimentsDeleted();
         onClearSelection();
+        setIsDeleteDialogOpen(false);
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -80,6 +85,7 @@ export function ExperimentSelectionToolbar(
           title: "An error occurred",
           message: `Failed to delete experiments: ${formattedError?.[0] ?? error.message}`,
         });
+        setIsDeleteDialogOpen(false);
       },
     });
   }, [
@@ -93,40 +99,8 @@ export function ExperimentSelectionToolbar(
   ]);
 
   const onPressDelete = useCallback(() => {
-    setDialog(
-      <Dialog>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Experiments</DialogTitle>
-          </DialogHeader>
-          <View padding="size-200">
-            <Text color="danger">
-              {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
-            </Text>
-          </View>
-          <View
-            paddingEnd="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            borderTopColor="light"
-            borderTopWidth="thin"
-          >
-            <Flex direction="row" justifyContent="end">
-              <Button
-                variant="danger"
-                onPress={() => {
-                  handleDelete();
-                  setDialog(null);
-                }}
-              >
-                Delete Experiments
-              </Button>
-            </Flex>
-          </View>
-        </DialogContent>
-      </Dialog>
-    );
-  }, [handleDelete]);
+    setIsDeleteDialogOpen(true);
+  }, []);
 
   return (
     <FloatingToolbarContainer>
@@ -181,7 +155,50 @@ export function ExperimentSelectionToolbar(
           />
         </Group>
       </Toolbar>
-      {dialog}
+      <ModalOverlay
+        isDismissable
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Experiments</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end" gap="size-100">
+                  <Button size="S" onPress={() => setIsDeleteDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="S"
+                    onPress={handleDelete}
+                    isDisabled={isDeletingExperiments}
+                  >
+                    Delete
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </FloatingToolbarContainer>
   );
 }
