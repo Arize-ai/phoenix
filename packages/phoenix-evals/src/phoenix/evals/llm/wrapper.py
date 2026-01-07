@@ -169,6 +169,15 @@ class LLM:
                 api_version="api-version",
                 base_url="base-url",
             )
+
+            # Using sync_client_kwargs and async_client_kwargs for different timeouts
+            llm = LLM(
+                provider="openai",
+                model="gpt-4o",
+                api_key="your-api-key",
+                sync_client_kwargs={"timeout": 60.0},
+                async_client_kwargs={"timeout": 120.0},
+            )
         """
         self.provider = provider
         self.model = model
