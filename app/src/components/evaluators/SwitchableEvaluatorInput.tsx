@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Key } from "react-aria-components";
 import {
   Control,
@@ -15,8 +15,6 @@ import {
   ComboBoxItem,
   CompositeField,
   Flex,
-  Icon,
-  Icons,
   Input,
   Label,
   ListBox,
@@ -103,35 +101,32 @@ const inputContainerCSS = css`
   flex: 1;
   min-width: 0;
 
-  // ComboBox adjustments within composite field (middle element)
+  // ComboBox adjustments within composite field (right element)
   .px-combobox-container {
     min-width: 0 !important;
     input {
       min-width: 0 !important;
-      border-radius: 0;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
     }
   }
 
-  // TextField adjustments within composite field (middle element)
+  // TextField adjustments within composite field (right element)
   .ac-textfield {
     .react-aria-Input {
-      border-radius: 0;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
     }
     input {
-      border-radius: 0;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
     }
   }
-`;
-
-const clearButtonCSS = css`
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  border-left: none;
 `;
 
 const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
   { id: "path", label: "Path" },
-  { id: "literal", label: "Literal" },
+  { id: "literal", label: "Text" },
 ];
 
 export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
@@ -174,21 +169,14 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     }
   };
 
-  const handleClear = () => {
-    if (mode === "path") {
-      setValue(pathFieldName, undefined as TFieldValues[typeof pathFieldName]);
-      onPathInputChange?.("");
-    } else {
-      setValue(
-        literalFieldName,
-        undefined as TFieldValues[typeof literalFieldName]
-      );
-    }
-  };
+  const pathOptionsWithUnset = useMemo(
+    () => [{ id: "__unset__", label: "unset" }, ...pathOptions],
+    [pathOptions]
+  );
 
   return (
     <Flex direction="column" gap="size-75">
-      <Label htmlFor={`${fieldName}-mode`}>{label}</Label>
+      <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>
       <CompositeField>
         <Select
           aria-label={`Select input mode for ${label}`}
@@ -197,7 +185,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           css={modeSelectCSS}
           size="M"
         >
-          <Button className="left-child" size="M" id={`${fieldName}-mode`}>
+          <Button className="left-child" size="M">
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
@@ -221,14 +209,20 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                 <ComboBox
                   aria-label={`${label} path mapping`}
                   placeholder={pathPlaceholder}
-                  defaultItems={pathOptions}
+                  defaultItems={pathOptionsWithUnset}
                   selectedKey={field.value ?? ""}
                   size="L"
-                  id={`${fieldName}-path`}
+                  id={`${fieldName}-${mode}`}
                   allowsCustomValue
                   onSelectionChange={(key) => {
-                    field.onChange(key);
-                    onPathInputChange?.(key as string);
+                    // Toggle: if selecting the same value, clear it
+                    if (key === "__unset__") {
+                      field.onChange(undefined);
+                      onPathInputChange?.("");
+                    } else {
+                      field.onChange(key);
+                      onPathInputChange?.(key as string);
+                    }
                   }}
                   onInputChange={(value) => {
                     field.onChange(value);
@@ -236,15 +230,25 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   }}
                   inputValue={pathInputValue ?? (field.value as string) ?? ""}
                 >
-                  {(item) => (
-                    <ComboBoxItem
-                      key={item.id}
-                      id={item.id}
-                      textValue={item.id}
-                    >
-                      {item.label}
-                    </ComboBoxItem>
-                  )}
+                  {(item) =>
+                    item.id !== "__unset__" ? (
+                      <ComboBoxItem
+                        key={item.id}
+                        id={item.id}
+                        textValue={item.id}
+                      >
+                        {item.label}
+                      </ComboBoxItem>
+                    ) : (
+                      <ComboBoxItem
+                        key={item.id}
+                        id={item.id}
+                        textValue={item.id}
+                      >
+                        <Text fontStyle="italic">{item.label}</Text>
+                      </ComboBoxItem>
+                    )
+                  }
                 </ComboBox>
               )}
             />
@@ -259,6 +263,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   value={String(field.value ?? "")}
                   onChange={field.onChange}
                   size="M"
+                  id={`${fieldName}-${mode}`}
                 >
                   <Input placeholder={literalPlaceholder} />
                 </TextField>
@@ -266,14 +271,6 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
             />
           )}
         </div>
-        <Button
-          aria-label={`Clear ${label}`}
-          className="right-child"
-          size="M"
-          onPress={handleClear}
-          css={clearButtonCSS}
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-        />
       </CompositeField>
       {description && (
         <Text color="text-500" size="S">
