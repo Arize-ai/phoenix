@@ -44,7 +44,10 @@ from phoenix.server.api.evaluators import (
     get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
+from phoenix.server.api.helpers.message_helpers import (
+    ChatCompletionMessage,
+    extract_and_convert_example_messages,
+)
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -62,7 +65,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -98,9 +100,6 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-ChatCompletionMessage: TypeAlias = tuple[
-    ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
-]
 DatasetExampleID: TypeAlias = GlobalID
 ChatCompletionResult: TypeAlias = tuple[
     DatasetExampleID, Optional[models.Span], models.ExperimentRun
@@ -905,7 +904,7 @@ def _formatted_messages(
     messages: Iterable[ChatCompletionMessage],
     template_format: PromptTemplateFormat,
     template_variables: Mapping[str, Any],
-) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
+) -> Iterator[ChatCompletionMessage]:
     """
     Formats the messages using the given template options.
     """
