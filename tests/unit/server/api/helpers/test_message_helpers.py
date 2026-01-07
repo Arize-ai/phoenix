@@ -1,4 +1,3 @@
-import json
 from typing import Any
 
 import pytest
@@ -241,10 +240,8 @@ class TestConvertOpenaiMessageToInternal:
         assert result[0] == ChatCompletionMessageRole.AI
         assert result[1] == ""
         assert result[2] is None
-        assert result[3] is not None
-        assert len(result[3]) == 1
-        # Tool calls are JSON-serialized
-        assert json.loads(result[3][0]) == tool_calls[0]
+        # Tool calls are passed through directly
+        assert result[3] == tool_calls
 
     def test_assistant_message_with_multiple_tool_calls(self) -> None:
         tool_calls = [
@@ -267,10 +264,8 @@ class TestConvertOpenaiMessageToInternal:
         result = convert_openai_message_to_internal(openai_message)
         assert result[0] == ChatCompletionMessageRole.AI
         assert result[1] == "Let me check both for you."
-        assert result[3] is not None
-        assert len(result[3]) == 2
-        assert json.loads(result[3][0]) == tool_calls[0]
-        assert json.loads(result[3][1]) == tool_calls[1]
+        # Tool calls are passed through directly
+        assert result[3] == tool_calls
 
     def test_assistant_message_with_empty_tool_calls_list(self) -> None:
         openai_message = {
@@ -279,8 +274,8 @@ class TestConvertOpenaiMessageToInternal:
             "tool_calls": [],
         }
         result = convert_openai_message_to_internal(openai_message)
-        # Empty list is falsy, so tool_calls should be None
-        assert result[3] is None
+        # Empty list is passed through directly
+        assert result[3] == []
 
 
 class TestExtractAndConvertExampleMessages:
