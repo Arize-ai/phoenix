@@ -252,14 +252,13 @@ const examplesByCategory = {
       input: "What is DNA?",
       correct_answer:
         "DNA (deoxyribonucleic acid) is a double-helix molecule that carries the genetic instructions for the development, functioning, growth, and reproduction of all known organisms. It consists of nucleotides containing four bases: adenine, thymine, guanine, and cytosine.",
-      incorrect_answer:
-        "DNA is the genetic material found in cells that determines hereditary traits.",
+      incorrect_answer: "DNA is the genetic material",
     },
     {
       input: "What is the Great Wall of China?",
       correct_answer:
         "The Great Wall of China is a series of fortifications built across northern China over many centuries, starting in the 7th century BC, with most of the current wall built during the Ming Dynasty (1368-1644). It stretches over 13,000 miles and was built to protect against invasions. Contrary to popular belief, it is not visible from space with the naked eye.",
-      incorrect_answer: "The Great Wall of China is an ancient wall in China.",
+      incorrect_answer: "It is a ancient wall",
     },
     {
       input: "What causes tides?",
