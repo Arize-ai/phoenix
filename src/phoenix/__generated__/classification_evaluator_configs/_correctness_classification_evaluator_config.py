@@ -1,0 +1,17 @@
+# This file is generated. Do not edit by hand.
+# ruff: noqa: E501
+
+from ._models import ClassificationEvaluatorConfig, PromptMessage
+
+CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
+    name="correctness",
+    description="Assess factual accuracy and completeness of model outputs.",
+    optimization_direction="maximize",
+    messages=[
+        PromptMessage(
+            role="user",
+            content="You are an expert evaluator labeling model outputs for correctness. Your task is to assign a classification based on the following criteria:\n\n<rubric>\nCORRECT - The response:\n- Provides accurate and complete information with no factual errors\n- Addresses all parts of the question\n- Is logically consistent with no contradictions\n- Uses precise, domain-appropriate terminology\n- Avoids ambiguous or misleading language\n\nINCORRECT - The response contains any of:\n- Factual errors or inaccuracies\n- Incomplete or partial answers\n- Misleading or ambiguous statements\n- Incorrect terminology\n- Logical inconsistencies\n- Missing key information\n</rubric>\n\n<data>\n<input>\n{{input}}\n</input>\n<output>\n{{output}}\n</output>\n</data>\n\nCarefully read the input and output and check for factual accuracy and completeness. Focus on correctness of information rather than verboseness or style.\n\nIs the output correct or incorrect?",
+        )
+    ],
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
