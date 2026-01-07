@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { css } from "@emotion/react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
-import { ComboBox, ComboBoxItem, Flex } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { JSONDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/JSONDistanceEvaluatorCodeBlock";
+import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -37,7 +37,7 @@ const useJSONDistanceEvaluatorForm = () => {
 };
 
 export const JSONDistanceEvaluatorForm = () => {
-  const { control, getValues } = useJSONDistanceEvaluatorForm();
+  const { control, getValues, setValue } = useJSONDistanceEvaluatorForm();
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
   );
@@ -48,83 +48,35 @@ export const JSONDistanceEvaluatorForm = () => {
   const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
   return (
     <Flex direction="column" gap="size-200">
-      <JSONDistanceEvaluatorCodeBlock />
       <Flex direction="column" gap="size-100">
-        <Controller
-          name={`pathMapping.expected`}
+        <SwitchableEvaluatorInput
+          fieldName="expected"
+          label="Expected"
+          description="The expected JSON string."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Expected parameter`}
-              placeholder="Map an example field to the Expected parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Expected"
-              size="L"
-              description={`The expected JSON string. Choose an example field from the list to map to the Expected parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setExpectedPath(key as string);
-              }}
-              onInputChange={(value) => setExpectedPath(value)}
-              inputValue={expectedPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Expected"
+          literalPlaceholder="Enter expected JSON"
+          pathInputValue={expectedPath}
+          onPathInputChange={setExpectedPath}
         />
-        <Controller
-          name={`pathMapping.actual`}
+        <SwitchableEvaluatorInput
+          fieldName="actual"
+          label="Actual"
+          description="The actual JSON string to compare."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Actual parameter`}
-              placeholder="Map an example field to the Actual parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Actual"
-              size="L"
-              description={`The actual JSON string to compare. Choose an example field from the list to map to the Actual parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setActualPath(key as string);
-              }}
-              onInputChange={(value) => setActualPath(value)}
-              inputValue={actualPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Actual"
+          literalPlaceholder="Enter actual JSON"
+          pathInputValue={actualPath}
+          onPathInputChange={setActualPath}
         />
       </Flex>
+      <JSONDistanceEvaluatorCodeBlock />
     </Flex>
   );
 };
