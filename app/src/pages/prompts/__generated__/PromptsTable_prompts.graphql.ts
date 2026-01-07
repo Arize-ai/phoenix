@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fb9b8dad4718c905f103058a08a00544>>
+ * @generated SignedSource<<5e93685810b01465b956606350eb59b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PromptsTable_prompts$data = {
         readonly description: string | null;
         readonly id: string;
         readonly labels: ReadonlyArray<{
-          readonly color: string;
+          readonly color: string | null;
           readonly id: string;
           readonly name: string;
         }>;
