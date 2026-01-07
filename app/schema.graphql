@@ -2952,7 +2952,7 @@ type PromptLabel implements Node {
   id: ID!
   name: Identifier!
   description: String
-  color: String!
+  color: String
 }
 
 type PromptLabelAssociationMutationPayload {

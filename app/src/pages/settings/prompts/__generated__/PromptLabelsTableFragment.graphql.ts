@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2a5ea2f61fe3387a6f093c4d614b2aa>>
+ * @generated SignedSource<<017995d817e4e166f6b16ac88e75dabf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptLabelsTableFragment$data = {
   readonly promptLabels: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly color: string;
+        readonly color: string | null;
         readonly description: string | null;
         readonly id: string;
         readonly name: string;
