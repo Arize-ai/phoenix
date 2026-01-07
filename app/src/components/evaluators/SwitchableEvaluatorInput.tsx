@@ -26,6 +26,7 @@ import {
   TextField,
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
+import type { SizingProps } from "@phoenix/components/types";
 
 type MappingMode = "path" | "literal";
 
@@ -34,9 +35,8 @@ interface PathOption {
   label: string;
 }
 
-export interface SwitchableEvaluatorInputProps<
-  TFieldValues extends FieldValues,
-> {
+export interface SwitchableEvaluatorInputProps<TFieldValues extends FieldValues>
+  extends SizingProps {
   /**
    * The field name used for both pathMapping and literalMapping
    * e.g. "text" results in "pathMapping.text" and "literalMapping.text"
@@ -83,6 +83,10 @@ export interface SwitchableEvaluatorInputProps<
    * Callback when path input value changes
    */
   onPathInputChange?: (value: string) => void;
+  /**
+   * Whether to hide the label
+   */
+  hideLabel?: boolean;
 }
 
 const modeSelectCSS = css`
@@ -141,6 +145,8 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   literalPlaceholder = "Enter a value",
   pathInputValue,
   onPathInputChange,
+  hideLabel,
+  size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
   const [mode, setMode] = useState<MappingMode>(defaultMode);
 
@@ -159,11 +165,11 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
         );
       } else {
         // Switching to literal mode, clear the path value
+        onPathInputChange?.("");
         setValue(
           pathFieldName,
           undefined as TFieldValues[typeof pathFieldName]
         );
-        onPathInputChange?.("");
       }
       setMode(newMode);
     }
@@ -176,16 +182,16 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
 
   return (
     <Flex direction="column" gap="size-75">
-      <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>
+      {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
       <CompositeField>
         <Select
           aria-label={`Select input mode for ${label}`}
           value={mode}
           onChange={handleModeChange}
           css={modeSelectCSS}
-          size="M"
+          size={size}
         >
-          <Button className="left-child" size="M">
+          <Button className="left-child" size={size}>
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
@@ -211,7 +217,8 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   placeholder={pathPlaceholder}
                   defaultItems={pathOptionsWithUnset}
                   selectedKey={field.value ?? ""}
-                  size="L"
+                  // for some reason combobox sizing is out of sync with everything else
+                  size={size === "M" ? "L" : size === "S" ? "M" : size}
                   id={`${fieldName}-${mode}`}
                   allowsCustomValue
                   onSelectionChange={(key) => {
@@ -262,7 +269,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   {...field}
                   value={String(field.value ?? "")}
                   onChange={field.onChange}
-                  size="M"
+                  size={size}
                   id={`${fieldName}-${mode}`}
                 >
                   <Input placeholder={literalPlaceholder} />
