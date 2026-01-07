@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.28.0...arize-phoenix-v12.28.1) (2026-01-07)
+
+
+### Bug Fixes
+
+* handle non-array values in NumDocuments to prevent PostgreSQL jsonb_array_length error ([#10830](https://github.com/Arize-ai/phoenix/issues/10830)) ([70b7b72](https://github.com/Arize-ai/phoenix/commit/70b7b72322663182aa3b168bb826a10612e4bda0))
+
 ## [12.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.27.0...arize-phoenix-v12.28.0) (2026-01-06)
 
 
