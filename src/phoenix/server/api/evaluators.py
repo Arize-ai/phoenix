@@ -80,7 +80,7 @@ class LLMEvaluator:
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: PlaygroundStreamingClient,
+        llm_client: "PlaygroundStreamingClient[Any]",
         id: Optional[int] = None,
     ):
         validate_evaluator_prompt_and_config(
@@ -143,7 +143,7 @@ class LLMEvaluator:
     def from_orm(
         llm_evaluator_orm: models.LLMEvaluator,
         prompt_version_orm: models.PromptVersion,
-        llm_client: PlaygroundStreamingClient,
+        llm_client: "PlaygroundStreamingClient[Any]",
     ) -> "LLMEvaluator":
         template = prompt_version_orm.template
         assert isinstance(template, PromptChatTemplate)
@@ -545,7 +545,7 @@ def create_llm_evaluator_from_inline(
     prompt_version_orm: models.PromptVersion,
     annotation_name: str,
     output_config: CategoricalAnnotationConfig,
-    llm_client: PlaygroundStreamingClient,
+    llm_client: "PlaygroundStreamingClient[Any]",
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """

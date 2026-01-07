@@ -12,6 +12,13 @@ This change requires `openai>=2.14.0`.
 - [Azure OpenAI API Version Lifecycle](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle)
 - [Migration from Azure AI Inference to OpenAI SDK](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-inference-to-openai-migration)
 
+### AWS Bedrock Async Client
+
+AWS Bedrock integration now uses `aioboto3` instead of `boto3` for fully async client operations. If you have `boto3` installed for Bedrock support, you should install `aioboto3` instead:
+
+```shell
+pip install aioboto3
+```
 
 
 ## v11.0.0 to v12.0.0
