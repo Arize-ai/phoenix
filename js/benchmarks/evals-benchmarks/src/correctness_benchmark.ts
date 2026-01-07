@@ -119,7 +119,7 @@ const examplesByCategory = {
       correct_answer:
         "Mass is the amount of matter in an object, measured in kilograms, and remains constant regardless of location. Weight is the gravitational force acting on that mass, measured in Newtons, and varies based on gravitational field strength.",
       incorrect_answer:
-        "Mass and weight are basically the same thing - they both tell you how heavy something is. Mass is just the scientific word for weight.",
+        "Mass and weight are the same. Mass is the scientific word for weight.",
     },
     {
       input: "What is the difference between weather and climate?",
@@ -252,7 +252,7 @@ const examplesByCategory = {
       input: "What is DNA?",
       correct_answer:
         "DNA (deoxyribonucleic acid) is a double-helix molecule that carries the genetic instructions for the development, functioning, growth, and reproduction of all known organisms. It consists of nucleotides containing four bases: adenine, thymine, guanine, and cytosine.",
-      incorrect_answer: "DNA is the genetic material",
+      incorrect_answer: "DNA is a genetic material",
     },
     {
       input: "What is the Great Wall of China?",
