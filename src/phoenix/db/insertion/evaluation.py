@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.exceptions import PhoenixException
 from phoenix.trace import v1 as pb
@@ -153,12 +153,11 @@ async def _insert_document_evaluation(
     score: Optional[float],
     explanation: Optional[str],
 ) -> EvaluationInsertionEvent:
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
     stmt = (
         select(
             models.Trace.project_rowid,
             models.Span.id,
-            num_docs_col(dialect),
+            models.Span.num_documents,
         )
         .join_from(models.Span, models.Trace)
         .where(models.Span.span_id == span_id)

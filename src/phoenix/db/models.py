@@ -44,6 +44,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
 from typing_extensions import TypeAlias
 
@@ -829,14 +830,27 @@ class NumDocuments(expression.FunctionElement[int]):
 @compiles(NumDocuments)
 def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
-    array_length = (
-        func.json_array_length if isinstance(compiler, SQLiteCompiler) else func.jsonb_array_length
-    )
     attributes, span_kind = list(element.clauses)
     retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
-    num_retrieval_docs = coalesce(array_length(retrieval_docs), 0)
+    num_retrieval_docs: Case[Any] | coalesce[Any]
     reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
-    num_reranker_docs = coalesce(array_length(reranker_docs), 0)
+    num_reranker_docs: Case[Any] | coalesce[Any]
+    if isinstance(compiler, SQLiteCompiler):
+        # SQLite's json_array_length returns 0 for non-array values
+        num_retrieval_docs = coalesce(func.json_array_length(retrieval_docs), 0)
+        num_reranker_docs = coalesce(func.json_array_length(reranker_docs), 0)
+    else:
+        # PostgreSQL's jsonb_array_length throws "cannot get array length of a scalar"
+        # for non-array values, so check the type first
+        num_retrieval_docs = sql.case(
+            (func.jsonb_typeof(retrieval_docs) == "array", func.jsonb_array_length(retrieval_docs)),
+            else_=0,
+        )
+        num_reranker_docs = sql.case(
+            (func.jsonb_typeof(reranker_docs) == "array", func.jsonb_array_length(reranker_docs)),
+            else_=0,
+        )
+
     return compiler.process(
         sql.case(
             (func.upper(span_kind) == "RERANKER", num_reranker_docs),

@@ -651,3 +651,107 @@ def _decode_if_sqlite(values: Sequence[Any], dialect: SupportedSQLDialect) -> li
     queries on mapped columns already return Python objects across dialects.
     """
     return list(map(json.loads, values)) if dialect is SupportedSQLDialect.SQLITE else list(values)
+
+
+class TestNumDocuments:
+    """Test NumDocuments SQL expression handles non-array values gracefully."""
+
+    async def test_num_documents_handles_non_array_values(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """num_documents returns array length for arrays and 0 for non-array values."""
+        start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        end_time = datetime.fromisoformat("2024-01-01T00:01:00+00:00")
+
+        # Test cases: (span_kind, attributes, expected_num_documents)
+        test_cases: list[tuple[str, dict[str, Any], int]] = [
+            # RETRIEVER: Valid array - should return count
+            (
+                "RETRIEVER",
+                {
+                    "retrieval": {
+                        "documents": [
+                            {"document": {"content": "doc1"}},
+                            {"document": {"content": "doc2"}},
+                            {"document": {"content": "doc3"}},
+                        ]
+                    }
+                },
+                3,
+            ),
+            # RETRIEVER: Scalar string - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": "not an array"}}, 0),
+            # RETRIEVER: Object - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": {"key": "value"}}}, 0),
+            # RETRIEVER: Number - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": 42}}, 0),
+            # RETRIEVER: Null/missing - should return 0
+            ("RETRIEVER", {}, 0),
+            # RETRIEVER: Parent key exists but documents missing - should return 0
+            ("RETRIEVER", {"retrieval": {}}, 0),
+            # RETRIEVER: Parent key is a scalar - should return 0
+            ("RETRIEVER", {"retrieval": 42}, 0),
+            # RERANKER: Valid array - should return count
+            (
+                "RERANKER",
+                {
+                    "reranker": {
+                        "output_documents": [
+                            {"document": {"content": "doc1"}},
+                            {"document": {"content": "doc2"}},
+                        ]
+                    }
+                },
+                2,
+            ),
+            # RERANKER: Scalar string - should return 0
+            ("RERANKER", {"reranker": {"output_documents": "not an array"}}, 0),
+            # RERANKER: Object - should return 0
+            ("RERANKER", {"reranker": {"output_documents": {"key": "value"}}}, 0),
+            # RERANKER: Null/missing - should return 0
+            ("RERANKER", {}, 0),
+            # RERANKER: Parent key exists but output_documents missing - should return 0
+            ("RERANKER", {"reranker": {}}, 0),
+            # RERANKER: Parent key is a scalar - should return 0
+            ("RERANKER", {"reranker": 42}, 0),
+        ]
+
+        async with db() as session:
+            project = models.Project(name=f"test_project_{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=f"test-trace-{token_hex(4)}",
+                start_time=start_time,
+                end_time=end_time,
+            )
+            session.add(trace)
+            await session.flush()
+
+            for i, (span_kind, attributes, expected) in enumerate(test_cases):
+                span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"span-{i}-{token_hex(4)}",
+                    name="test-span",
+                    span_kind=span_kind,
+                    start_time=start_time,
+                    end_time=end_time,
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(span)
+                await session.flush()
+
+                stmt = select(models.Span.num_documents).where(models.Span.id == span.id)
+                result = await session.scalar(stmt)
+                assert result == expected, (
+                    f"Case {i} ({span_kind}): expected {expected}, got {result}"
+                )
