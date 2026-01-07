@@ -1,4 +1,5 @@
 import {
+  flattenObject,
   formatContentAsString,
   isJSONObjectString,
   jsonStringToFlatObject,
@@ -25,6 +26,385 @@ describe("isJSONObjectString", () => {
     expect(isJSONObjectString('{"a": "b"}')).toEqual(true);
     expect(isJSONObjectString('{"a": {"b": 1}}')).toEqual(true);
     expect(isJSONObjectString('{"a": [1, 2, 3]}')).toEqual(true);
+  });
+});
+
+describe("flattenObject", () => {
+  describe("basic flattening", () => {
+    it("returns empty object for empty input", () => {
+      expect(flattenObject({ obj: {} })).toEqual({});
+    });
+
+    it("flattens simple objects with no nesting", () => {
+      expect(flattenObject({ obj: { a: 1, b: 2 } })).toEqual({ a: 1, b: 2 });
+    });
+
+    it("flattens single-level nested objects", () => {
+      expect(flattenObject({ obj: { a: { b: 1 } } })).toEqual({ "a.b": 1 });
+    });
+
+    it("flattens deeply nested objects", () => {
+      expect(flattenObject({ obj: { a: { b: { c: { d: 1 } } } } })).toEqual({
+        "a.b.c.d": 1,
+      });
+    });
+
+    it("flattens objects with multiple branches", () => {
+      expect(
+        flattenObject({
+          obj: {
+            a: { b: 1 },
+            c: { d: 2 },
+            e: 3,
+          },
+        })
+      ).toEqual({
+        "a.b": 1,
+        "c.d": 2,
+        e: 3,
+      });
+    });
+
+    it("handles various primitive types as values", () => {
+      expect(
+        flattenObject({
+          obj: {
+            num: 42,
+            str: "hello",
+            bool: true,
+            falseBool: false,
+            zero: 0,
+          },
+        })
+      ).toEqual({
+        num: 42,
+        str: "hello",
+        bool: true,
+        falseBool: false,
+        zero: 0,
+      });
+    });
+  });
+
+  describe("separator parameter", () => {
+    it("uses default dot separator", () => {
+      expect(flattenObject({ obj: { a: { b: 1 } } })).toEqual({ "a.b": 1 });
+    });
+
+    it("uses custom separator when provided", () => {
+      expect(flattenObject({ obj: { a: { b: 1 } }, separator: "/" })).toEqual({
+        "a/b": 1,
+      });
+    });
+
+    it("uses underscore separator", () => {
+      expect(flattenObject({ obj: { a: { b: 1 } }, separator: "_" })).toEqual({
+        a_b: 1,
+      });
+    });
+
+    it("uses multi-character separator", () => {
+      expect(flattenObject({ obj: { a: { b: 1 } }, separator: "->" })).toEqual({
+        "a->b": 1,
+      });
+    });
+
+    it("applies separator throughout deep nesting", () => {
+      expect(
+        flattenObject({
+          obj: { a: { b: { c: { d: 1 } } } },
+          separator: "::",
+        })
+      ).toEqual({
+        "a::b::c::d": 1,
+      });
+    });
+  });
+
+  describe("parentKey parameter", () => {
+    it("uses no parent key by default", () => {
+      expect(flattenObject({ obj: { a: 1 } })).toEqual({ a: 1 });
+    });
+
+    it("prepends parent key to all keys", () => {
+      expect(flattenObject({ obj: { a: 1, b: 2 }, parentKey: "root" })).toEqual(
+        {
+          "root.a": 1,
+          "root.b": 2,
+        }
+      );
+    });
+
+    it("combines parent key with nested objects", () => {
+      expect(
+        flattenObject({ obj: { a: { b: 1 } }, parentKey: "prefix" })
+      ).toEqual({
+        "prefix.a.b": 1,
+      });
+    });
+
+    it("uses parent key with custom separator", () => {
+      expect(
+        flattenObject({
+          obj: { a: { b: 1 } },
+          parentKey: "root",
+          separator: "/",
+        })
+      ).toEqual({
+        "root/a/b": 1,
+      });
+    });
+  });
+
+  describe("keepNonTerminalValues parameter", () => {
+    it("excludes non-terminal values by default", () => {
+      const result = flattenObject({ obj: { a: { b: 1 } } });
+      expect(result).toEqual({ "a.b": 1 });
+      expect(result).not.toHaveProperty("a");
+    });
+
+    it("keeps non-terminal values when enabled", () => {
+      const result = flattenObject({
+        obj: { a: { b: 1 } },
+        keepNonTerminalValues: true,
+      });
+      expect(result).toEqual({
+        a: { b: 1 },
+        "a.b": 1,
+      });
+    });
+
+    it("keeps all intermediate values in deep nesting", () => {
+      const result = flattenObject({
+        obj: { a: { b: { c: 1 } } },
+        keepNonTerminalValues: true,
+      });
+      expect(result).toEqual({
+        a: { b: { c: 1 } },
+        "a.b": { c: 1 },
+        "a.b.c": 1,
+      });
+    });
+
+    it("keeps non-terminal values for multiple branches", () => {
+      const result = flattenObject({
+        obj: {
+          x: { y: 1 },
+          a: { b: { c: 2 } },
+        },
+        keepNonTerminalValues: true,
+      });
+      expect(result).toEqual({
+        x: { y: 1 },
+        "x.y": 1,
+        a: { b: { c: 2 } },
+        "a.b": { c: 2 },
+        "a.b.c": 2,
+      });
+    });
+
+    it("keeps non-terminal array values when enabled", () => {
+      const result = flattenObject({
+        obj: { items: [1, 2] },
+        keepNonTerminalValues: true,
+      });
+      expect(result["items"]).toEqual([1, 2]);
+      expect(result["items.0"]).toBe(1);
+      expect(result["items.1"]).toBe(2);
+    });
+
+    it("combines keepNonTerminalValues with custom separator", () => {
+      const result = flattenObject({
+        obj: { a: { b: 1 } },
+        keepNonTerminalValues: true,
+        separator: "/",
+      });
+      expect(result).toEqual({
+        a: { b: 1 },
+        "a/b": 1,
+      });
+    });
+  });
+
+  describe("formatIndices parameter", () => {
+    it("uses dot notation for array indices by default", () => {
+      expect(flattenObject({ obj: { items: [1, 2, 3] } })).toEqual({
+        "items.0": 1,
+        "items.1": 2,
+        "items.2": 3,
+      });
+    });
+
+    it("uses bracket notation when formatIndices is true", () => {
+      expect(
+        flattenObject({ obj: { items: [1, 2, 3] }, formatIndices: true })
+      ).toEqual({
+        "items[0]": 1,
+        "items[1]": 2,
+        "items[2]": 3,
+      });
+    });
+
+    it("formats indices in nested arrays", () => {
+      expect(
+        flattenObject({
+          obj: { outer: { inner: ["a", "b"] } },
+          formatIndices: true,
+        })
+      ).toEqual({
+        "outer.inner[0]": "a",
+        "outer.inner[1]": "b",
+      });
+    });
+
+    it("formats indices in array of objects", () => {
+      expect(
+        flattenObject({
+          obj: { users: [{ name: "Alice" }, { name: "Bob" }] },
+          formatIndices: true,
+        })
+      ).toEqual({
+        "users[0].name": "Alice",
+        "users[1].name": "Bob",
+      });
+    });
+
+    it("handles nested arrays with formatIndices", () => {
+      expect(
+        flattenObject({
+          obj: {
+            matrix: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+          formatIndices: true,
+        })
+      ).toEqual({
+        "matrix[0][0]": 1,
+        "matrix[0][1]": 2,
+        "matrix[1][0]": 3,
+        "matrix[1][1]": 4,
+      });
+    });
+
+    it("combines formatIndices with custom separator", () => {
+      expect(
+        flattenObject({
+          obj: { data: { items: [1, 2] } },
+          formatIndices: true,
+          separator: "/",
+        })
+      ).toEqual({
+        "data/items[0]": 1,
+        "data/items[1]": 2,
+      });
+    });
+
+    it("combines formatIndices with keepNonTerminalValues", () => {
+      const result = flattenObject({
+        obj: { items: [{ a: 1 }] },
+        formatIndices: true,
+        keepNonTerminalValues: true,
+      });
+      expect(result).toEqual({
+        items: [{ a: 1 }],
+        "items[0]": { a: 1 },
+        "items[0].a": 1,
+      });
+    });
+
+    it("handles empty arrays", () => {
+      expect(
+        flattenObject({ obj: { empty: [] }, formatIndices: true })
+      ).toEqual({});
+    });
+
+    it("handles top-level array", () => {
+      expect(
+        flattenObject({
+          obj: ["first", "second"],
+          formatIndices: true,
+        })
+      ).toEqual({
+        "[0]": "first",
+        "[1]": "second",
+      });
+    });
+  });
+
+  describe("complex combinations", () => {
+    it("combines all parameters together", () => {
+      const result = flattenObject({
+        obj: { data: [{ value: 1 }] },
+        parentKey: "root",
+        separator: "/",
+        keepNonTerminalValues: true,
+        formatIndices: true,
+      });
+      expect(result).toEqual({
+        "root/data": [{ value: 1 }],
+        "root/data[0]": { value: 1 },
+        "root/data[0]/value": 1,
+      });
+    });
+
+    it("handles mixed objects and arrays deeply nested", () => {
+      const result = flattenObject({
+        obj: {
+          config: {
+            servers: [
+              { host: "localhost", ports: [8080, 8443] },
+              { host: "remote", ports: [9090] },
+            ],
+          },
+        },
+        formatIndices: true,
+      });
+      expect(result).toEqual({
+        "config.servers[0].host": "localhost",
+        "config.servers[0].ports[0]": 8080,
+        "config.servers[0].ports[1]": 8443,
+        "config.servers[1].host": "remote",
+        "config.servers[1].ports[0]": 9090,
+      });
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles null values as terminal values", () => {
+      // Note: null is typeof "object" but should be treated as terminal
+      // Looking at the implementation, null will be treated as a terminal value
+      // because the check is `value && typeof value === "object"`
+      expect(flattenObject({ obj: { a: null } })).toEqual({ a: null });
+    });
+
+    it("handles objects with numeric string keys", () => {
+      expect(flattenObject({ obj: { "0": "zero", "1": "one" } })).toEqual({
+        "0": "zero",
+        "1": "one",
+      });
+    });
+
+    it("handles objects with special characters in keys", () => {
+      expect(
+        flattenObject({ obj: { "key.with.dots": { nested: 1 } } })
+      ).toEqual({
+        "key.with.dots.nested": 1,
+      });
+    });
+
+    it("handles empty nested objects", () => {
+      expect(flattenObject({ obj: { a: {} } })).toEqual({});
+    });
+
+    it("handles empty nested objects with keepNonTerminalValues", () => {
+      expect(
+        flattenObject({ obj: { a: {} }, keepNonTerminalValues: true })
+      ).toEqual({
+        a: {},
+      });
+    });
   });
 });
 

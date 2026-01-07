@@ -155,6 +155,7 @@ export const useFlattenedEvaluatorInputKeys = (
     const flat = flattenObject({
       obj: evaluatorPreMappedInput,
       keepNonTerminalValues: true,
+      formatIndices: true,
     });
     return Object.keys(flat).map((key) => ({
       id: key,

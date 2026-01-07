@@ -4,33 +4,31 @@ import { CodeBlock } from "@phoenix/components/CodeBlock";
 import { usePreferencesContext } from "@phoenix/contexts";
 
 const PYTHON_CODE = `
-def contains(
+import re
+
+def regex_match(
+  pattern: str,
   text: str,
-  words: str,
-  case_sensitive: bool = False,
+  full_match: bool = False,
 ) -> bool:
-  words = [word.strip() for word in words.split(",")]
-  if case_sensitive:
-    return any(word in text for word in words)
+  if full_match:
+    return re.fullmatch(pattern, text) is not None
   else:
-    return any(word.lower() in text.lower() for word in words)
+    return re.search(pattern, text) is not None
 `.trim();
 
 const TYPESCRIPT_CODE = `
-function contains(
+function regexMatch(
+  pattern: string,
   text: string,
-  words: string,
-  caseSensitive: boolean = false,
+  fullMatch: boolean = false,
 ): boolean {
-  words = words.split(",").map((word) => word.trim());
-  if (caseSensitive) {
-    return words.some((word) => text.includes(word));
-  }
-  return words.some((word) => text.toLowerCase().includes(word.toLowerCase()));
+  const regex = new RegExp(fullMatch ? \`^\${pattern}$\` : pattern);
+  return regex.test(text);
 }
 `.trim();
 
-export const ContainsEvaluatorCodeBlock = () => {
+export const RegexEvaluatorCodeBlock = () => {
   const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
     (state) => ({
       programmingLanguage: state.programmingLanguage,
