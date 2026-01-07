@@ -7,6 +7,8 @@ messages:
       You are an expert evaluator labeling model outputs for correctness. Your task is to assign a classification based on the following criteria:
 
 
+      <rubric>
+
       CORRECT - The response:
 
       - Provides accurate and complete information with no factual errors
@@ -33,6 +35,8 @@ messages:
       - Logical inconsistencies
 
       - Missing key information
+
+      </rubric>
 
 
       <data>

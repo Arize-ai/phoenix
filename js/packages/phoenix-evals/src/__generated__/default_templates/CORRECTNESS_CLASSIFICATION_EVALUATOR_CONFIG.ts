@@ -12,6 +12,7 @@ export const CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluato
       content: `
 You are an expert evaluator labeling model outputs for correctness. Your task is to assign a classification based on the following criteria:
 
+<rubric>
 CORRECT - The response:
 - Provides accurate and complete information with no factual errors
 - Addresses all parts of the question
@@ -26,6 +27,7 @@ INCORRECT - The response contains any of:
 - Incorrect terminology
 - Logical inconsistencies
 - Missing key information
+</rubric>
 
 <data>
 <input>
