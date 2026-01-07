@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
@@ -14,11 +14,12 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  CodeLanguage,
   CodeLanguageRadioGroup,
   PythonBlock,
   TypeScriptBlock,
 } from "@phoenix/components/code";
+import { usePreferencesContext } from "@phoenix/contexts";
+import { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
@@ -32,7 +33,12 @@ export function PromptCodeExportCard({
 }: {
   promptVersion: PromptCodeExportCard__main$key;
 }) {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
+    (state) => ({
+      programmingLanguage: state.programmingLanguage,
+      setProgrammingLanguage: state.setProgrammingLanguage,
+    })
+  );
   const data = useFragment<PromptCodeExportCard__main$key>(
     graphql`
       fragment PromptCodeExportCard__main on PromptVersion {
@@ -89,20 +95,27 @@ export function PromptCodeExportCard({
     promptVersion
   );
   const sdkSnippet = useMemo(
-    () => mapPromptToSDKSnippet({ promptVersion: data, language }),
-    [data, language]
+    () =>
+      mapPromptToSDKSnippet({
+        promptVersion: data,
+        language: programmingLanguage,
+      }),
+    [data, programmingLanguage]
   );
   const clientSnippet = useMemo(() => {
-    return mapPromptToClientSnippet({ promptVersion: data, language });
-  }, [data, language]);
+    return mapPromptToClientSnippet({
+      promptVersion: data,
+      language: programmingLanguage,
+    });
+  }, [data, programmingLanguage]);
   return (
     <Card
       title="Code"
       extra={
         <Flex gap="size-100" alignItems="center">
           <CodeLanguageRadioGroup
-            language={language}
-            onChange={setLanguage}
+            language={programmingLanguage}
+            onChange={setProgrammingLanguage}
             size="S"
           />
         </Flex>
@@ -130,7 +143,7 @@ export function PromptCodeExportCard({
                 </Text>
               </View>
             ) : (
-              <CodeBlock language={language} value={sdkSnippet} />
+              <CodeBlock language={programmingLanguage} value={sdkSnippet} />
             )}
           </DisclosurePanel>
         </Disclosure>
@@ -157,7 +170,7 @@ export function PromptCodeExportCard({
                 </Text>
               </View>
             ) : (
-              <CodeBlock language={language} value={clientSnippet} />
+              <CodeBlock language={programmingLanguage} value={clientSnippet} />
             )}
           </DisclosurePanel>
         </Disclosure>
@@ -170,7 +183,7 @@ function CodeBlock({
   language,
   value,
 }: {
-  language: CodeLanguage;
+  language: ProgrammingLanguage;
   value: string;
 }) {
   switch (language) {

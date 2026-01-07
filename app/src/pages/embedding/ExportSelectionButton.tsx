@@ -30,7 +30,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { usePointCloudContext, useTheme } from "@phoenix/contexts";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";

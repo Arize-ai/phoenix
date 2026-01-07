@@ -33,33 +33,6 @@ This workflow breaks a task into smaller steps, where the output of one agent be
 
 * Compare chained vs. single-step prompting to see if chaining improves quality or structure
 
-### Router
-
-Routing is used to send inputs to the appropriate downstream agent or workflow based on their content. The routing logic is handled by a dedicated agent, often using lightweight classification.
-
-**Notebook**: [*Candidate Interview Router*](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/smolagents/smolagents_router.ipynb) The agent classifies candidate profiles into Software, Product, or Design categories, then hands them off to the appropriate evaluation pipeline.
-
-**How to evaluate**: Compare the routing decision to human judgment or labeled examples (*e.g., did the router choose the right department for a given candidate?*)
-
-* Compare routing decisions to human-labeled ground truth or expectations
-
-* Track precision/recall if framed as a classification task
-
-* Monitor for edge cases and routing errors (e.g., ambiguous or mixed-signal profiles)
-
-### Evaluator–Optimizer Loop
-
-This pattern uses two agents in a loop: one generates a solution, the other critiques it. The generator revises until the evaluator accepts the result or a retry limit is reached. It’s useful when quality varies across generations.
-
-**Notebook**: [*Rejection Email Generator with Evaluation Loop*](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/smolagents/smolagents_evaluator_optimizer.ipynb) An agent writes a candidate rejection email. If the evaluator agent finds the tone or feedback lacking, it asks for a revision.
-
-**How to evaluate**: Track how many iterations are needed to converge and whether final outputs meet predefined criteria (*e.g., is the message respectful, clear, and specific?*)
-
-* Measure how many iterations are needed to reach an acceptable result
-
-* Evaluate final output quality against criteria like tone, clarity, and specificity
-
-* Compare the evaluator’s judgment to human reviewers to calibrate reliability
 
 ### Orchestrator + Worker Pattern
 
@@ -74,19 +47,3 @@ In this approach, a central agent coordinates multiple agents, each with a speci
 * Check if the orchestrator integrates worker outputs into a consistent final result
 
 * Look for agreement or contradictions between components (e.g., technical fit vs. recommendation)
-
-### Parallel Agent Execution
-
-When you need to process many inputs using the same logic, parallel execution improves speed and resource efficiency. Agents can be launched concurrently without changing their individual behavior.
-
-**Notebook**: [*Reviewing Candidate Profiles in Parallel*](https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/smolagents/smolagents_parallelization.ipynb) Candidate reviews are distributed using `asyncio`, enabling faster batch processing without compromising output quality.
-
-**How to evaluate**: Ensure results remain consistent with sequential runs and monitor for improvements in latency and throughput (*e.g., are profiles processed correctly and faster when run in parallel?*)
-
-* Confirm that outputs are consistent with those from a sequential execution
-
-* Track total latency and per-task runtime to assess parallel speedup
-
-* Watch for race conditions, dropped inputs, or silent failures in concurrency
-
-

@@ -1,11 +1,11 @@
 import { template } from "lodash";
 
-import { CodeLanguage } from "@phoenix/components/code";
 import {
   fromOpenAIMessage,
   OpenAIMessage,
   promptMessageToOpenAI,
 } from "@phoenix/schemas/messageSchemas";
+import { ProgrammingLanguage } from "@phoenix/types/code";
 import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
@@ -479,7 +479,7 @@ export const mapPromptToSDKSnippet = ({
   language,
 }: {
   promptVersion: Omit<PromptVersion, " $fragmentType">;
-  language: CodeLanguage;
+  language: ProgrammingLanguage;
 }) => {
   const generator =
     promptSDKCodeSnippets[language.toLocaleLowerCase()][
@@ -523,7 +523,7 @@ export function mapPromptToClientSnippet({
   language,
 }: {
   promptVersion: Omit<PromptVersion, " $fragmentType">;
-  language: CodeLanguage;
+  language: ProgrammingLanguage;
 }) {
   const generator =
     promptClientCodeSnippets[language.toLocaleLowerCase()][

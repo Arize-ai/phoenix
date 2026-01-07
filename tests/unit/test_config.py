@@ -1645,6 +1645,44 @@ class TestLDAPConfigFromEnv:
                 {
                     "PHOENIX_LDAP_HOST": "ldap.example.com",
                     "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    # No-email mode (via "null" sentinel) requires unique_id
+                },
+                "PHOENIX_LDAP_ATTR_UNIQUE_ID is required",
+                id="attr_email_null_sentinel_requires_unique_id",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+                    # No-email mode (via "null" sentinel) requires allow_sign_up=true
+                },
+                "PHOENIX_LDAP_ALLOW_SIGN_UP must be True",
+                id="attr_email_null_sentinel_requires_allow_sign_up",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                    "PHOENIX_ADMINS": "Admin User=admin@example.com",
+                    # No-email mode (via "null" sentinel) rejects PHOENIX_ADMINS
+                },
+                "PHOENIX_ADMINS is not supported",
+                id="attr_email_null_sentinel_rejects_phoenix_admins",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
                     "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
                 },
                 "must contain at least one mapping",
@@ -1916,6 +1954,40 @@ class TestLDAPConfigFromEnv:
                     "allow_sign_up": True,
                 },
                 id="no_email_mode_valid",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # "null" sentinel becomes None in no-email mode
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_null_sentinel",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "NULL",  # Case-insensitive
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # "NULL" (uppercase) also becomes None
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_null_sentinel_uppercase",
             ),
             pytest.param(
                 {

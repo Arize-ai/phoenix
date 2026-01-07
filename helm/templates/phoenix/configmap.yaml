@@ -118,6 +118,7 @@ data:
   PHOENIX_ROOT_URL: {{ .Values.server.rootUrl | quote }}
   PHOENIX_ENABLE_PROMETHEUS: {{ .Values.server.enablePrometheus | quote }}
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
+  PHOENIX_TELEMETRY_ENABLED: {{ .Values.server.telemetryEnabled | quote }}
   PHOENIX_MAX_SPANS_QUEUE_SIZE: {{ .Values.server.maxSpansQueueSize | default 20000 | quote }}
 
   # Database configuration

@@ -68,9 +68,21 @@ export const convertInstanceToolsToProvider = ({
           definition,
         };
       }
-      // TODO(apowell): #5348 Add Google tool definition
-      case "GOOGLE":
-        return tool;
+      case "GOOGLE": {
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+        const definition = maybeOpenAIToolDefinition
+          ? fromOpenAIToolDefinition({
+              toolDefinition: maybeOpenAIToolDefinition,
+              targetProvider: provider,
+            })
+          : tool.definition;
+        return {
+          ...tool,
+          definition,
+        };
+      }
       default:
         assertUnreachable(provider);
     }

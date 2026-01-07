@@ -12,7 +12,8 @@ import { Button, ExternalLink, Flex, Icon, Icons } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useInferences, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 import { ModelEvent } from "./types";
 import { useDefaultColorScheme } from "./useDefaultColorScheme";

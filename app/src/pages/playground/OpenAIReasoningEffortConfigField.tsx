@@ -1,19 +1,23 @@
+import { Label } from "react-aria-components";
+
 import {
-  Button,
-  Label,
   ListBox,
-  Popover,
   Select,
-  SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
+  Text,
 } from "@phoenix/components";
+import { Button } from "@phoenix/components/button";
+import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
+import { Popover } from "@phoenix/components/overlay";
 
 type OpenAIReasoningEffortConfigFieldProps = {
   value: unknown;
   onChange: (value: unknown) => void;
   label?: string;
 };
+
+const UNSET_VALUE = "__unset__";
 
 export const OpenAIReasoningEffortConfigField = ({
   value,
@@ -22,9 +26,15 @@ export const OpenAIReasoningEffortConfigField = ({
 }: OpenAIReasoningEffortConfigFieldProps) => {
   return (
     <Select
-      value={typeof value === "string" ? value : null}
-      onChange={(key) => onChange(key === "none" ? undefined : key)}
-      placeholder="Select effort"
+      value={typeof value === "string" ? value : UNSET_VALUE}
+      onChange={(key) => {
+        if (key === UNSET_VALUE) {
+          onChange(undefined);
+        } else {
+          onChange(key);
+        }
+      }}
+      aria-label={label}
     >
       <Label>{label}</Label>
       <Button>
@@ -33,18 +43,17 @@ export const OpenAIReasoningEffortConfigField = ({
       </Button>
       <Popover>
         <ListBox>
-          <SelectItem id="none" textValue="None">
-            None
+          <SelectItem id={UNSET_VALUE}>
+            <Text color="text-500" fontStyle="italic">
+              unset
+            </Text>
           </SelectItem>
-          <SelectItem id="low" textValue="Low">
-            Low
-          </SelectItem>
-          <SelectItem id="medium" textValue="Medium">
-            Medium
-          </SelectItem>
-          <SelectItem id="high" textValue="High">
-            High
-          </SelectItem>
+          <SelectItem id="none">none</SelectItem>
+          <SelectItem id="minimal">minimal</SelectItem>
+          <SelectItem id="low">low</SelectItem>
+          <SelectItem id="medium">medium</SelectItem>
+          <SelectItem id="high">high</SelectItem>
+          <SelectItem id="xhigh">xhigh</SelectItem>
         </ListBox>
       </Popover>
     </Select>

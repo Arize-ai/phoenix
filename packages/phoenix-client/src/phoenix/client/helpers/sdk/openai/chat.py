@@ -430,7 +430,7 @@ class _InvocationParametersConversion:
             content["seed"] = obj["seed"]
         if "reasoning_effort" in obj:
             v = obj["reasoning_effort"]
-            if v in ("minimal", "low", "medium", "high"):
+            if v in ("none", "minimal", "low", "medium", "high", "xhigh"):
                 content["reasoning_effort"] = v
         if model_provider == "OPENAI":
             return v1.PromptOpenAIInvocationParameters(

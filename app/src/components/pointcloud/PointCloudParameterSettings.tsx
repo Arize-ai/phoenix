@@ -20,8 +20,8 @@ import {
   MIN_MIN_DIST,
   MIN_N_NEIGHBORS,
 } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext } from "@phoenix/contexts";
-import { UMAPParameters } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
+import type { UMAPParameters } from "@phoenix/store/pointCloudStore";
 
 export function PointCloudParameterSettings() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);

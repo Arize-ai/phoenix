@@ -152,6 +152,9 @@ importers:
       '@arizeai/openinference-vercel':
         specifier: ^2.3.1
         version: 2.3.4(@opentelemetry/api@1.9.0)
+      '@arizeai/phoenix-config':
+        specifier: workspace:*
+        version: link:../phoenix-config
       '@arizeai/phoenix-otel':
         specifier: workspace:*
         version: link:../phoenix-otel
@@ -203,8 +206,20 @@ importers:
         specifier: ^5.0.76
         version: 5.0.76(zod@3.25.76)
       openai:
-        specifier: ^5.12.1
-        version: 5.23.2(zod@3.25.76)
+        specifier: ^6.10.0
+        version: 6.10.0(zod@3.25.76)
+
+  packages/phoenix-config:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.22
+        version: 20.19.23
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.10
+        version: 4.0.10(@types/node@20.19.23)(jiti@2.6.1)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1)
 
   packages/phoenix-evals:
     dependencies:
@@ -273,8 +288,8 @@ importers:
         specifier: ^1.24.0
         version: 1.24.0(zod@3.25.76)
       glob:
-        specifier: ^11.1.0
-        version: 11.1.0
+        specifier: ^12.0.0
+        version: 12.0.0
       minimist:
         specifier: ^1.2.8
         version: 1.2.8
@@ -2242,8 +2257,8 @@ packages:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
     hasBin: true
 
-  glob@11.1.0:
-    resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
+  glob@12.0.0:
+    resolution: {integrity: sha512-5Qcll1z7IKgHr5g485ePDdHcNQY0k2dtv/bjYy0iuyGxQw2qSOiiXUXJ+AYQpg3HNoUMHqAruX478Jeev7UULw==}
     engines: {node: 20 || >=22}
     hasBin: true
 
@@ -2487,8 +2502,8 @@ packages:
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
-  lru-cache@11.2.2:
-    resolution: {integrity: sha512-F9ODfyqML2coTIsQpSkRHnLSZMtkU8Q+mSfcaIyKwy58u+8k5nvAYeiNhsyMARvzNcXJ9QfWVrcPsC9e9rAxtg==}
+  lru-cache@11.2.4:
+    resolution: {integrity: sha512-B5Y16Jr9LB9dHVkh6ZevG+vAbOsNOYCX+sXvFWFu7B3Iz5mijW3zdbMyhsh8ANd2mSWBYdJgnqi+mL7/LrOPYg==}
     engines: {node: 20 || >=22}
 
   lunr@2.3.9:
@@ -2671,12 +2686,12 @@ packages:
     resolution: {integrity: sha512-WWSxhC/69ZhYWxH/OBsLEirIjUcfpQ5+ihkXKp06hmeYXgBBIUCa9IptMzYx6NdkiOCsSGYCnTIsxaic3AjRCQ==}
     hasBin: true
 
-  openai@5.23.2:
-    resolution: {integrity: sha512-MQBzmTulj+MM5O8SKEk/gL8a7s5mktS9zUtAkU257WjvobGc9nKcBuVwjyEEcb9SI8a8Y2G/mzn3vm9n1Jlleg==}
+  openai@6.10.0:
+    resolution: {integrity: sha512-ITxOGo7rO3XRMiKA5l7tQ43iNNu+iXGFAcf2t+aWVzzqRaS0i7m1K2BhxNdaveB+5eENhO0VY1FkiZzhBk4v3A==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
-      zod: ^3.23.8
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -4666,7 +4681,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 20.19.23
+      '@types/node': 24.9.1
       form-data: 4.0.4
 
   '@types/node@12.20.55': {}
@@ -4813,14 +4828,32 @@ snapshots:
       msw: 2.11.6(@types/node@18.19.130)(typescript@5.9.3)
       vite: 5.4.21(@types/node@18.19.130)
 
-  '@vitest/mocker@4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))':
+  '@vitest/mocker@4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))':
     dependencies:
       '@vitest/spy': 4.0.10
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
-      vite: 7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1)
+      vite: 7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1)
+
+  '@vitest/mocker@4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))':
+    dependencies:
+      '@vitest/spy': 4.0.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.11.6(@types/node@20.19.23)(typescript@5.9.3)
+      vite: 7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1)
+
+  '@vitest/mocker@4.0.10(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))':
+    dependencies:
+      '@vitest/spy': 4.0.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.11.6(@types/node@24.9.1)(typescript@5.9.3)
+      vite: 7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1)
 
   '@vitest/mocker@4.0.10(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))':
     dependencies:
@@ -5581,7 +5614,7 @@ snapshots:
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
-  glob@11.1.0:
+  glob@12.0.0:
     dependencies:
       foreground-child: 3.3.1
       jackspeak: 4.1.1
@@ -5803,7 +5836,7 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
-  lru-cache@11.2.2: {}
+  lru-cache@11.2.4: {}
 
   lunr@2.3.9: {}
 
@@ -6042,7 +6075,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  openai@5.23.2(zod@3.25.76):
+  openai@6.10.0(zod@3.25.76):
     optionalDependencies:
       zod: 3.25.76
     optional: true
@@ -6139,7 +6172,7 @@ snapshots:
 
   path-scurry@2.0.1:
     dependencies:
-      lru-cache: 11.2.2
+      lru-cache: 11.2.4
       minipass: 7.1.2
 
   path-to-regexp@6.3.0: {}
@@ -6212,7 +6245,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 20.19.23
+      '@types/node': 24.9.1
       long: 5.3.2
 
   proxy-addr@2.0.7:
@@ -6655,6 +6688,21 @@ snapshots:
       tsx: 4.20.6
       yaml: 2.8.1
 
+  vite@7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1):
+    dependencies:
+      esbuild: 0.25.11
+      fdir: 6.5.0(picomatch@4.0.3)
+      picomatch: 4.0.3
+      postcss: 8.5.6
+      rollup: 4.52.5
+      tinyglobby: 0.2.15
+    optionalDependencies:
+      '@types/node': 20.19.23
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      tsx: 4.21.0
+      yaml: 2.8.1
+
   vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1):
     dependencies:
       esbuild: 0.25.11
@@ -6723,7 +6771,7 @@ snapshots:
   vitest@4.0.10(@types/node@20.19.23)(jiti@2.6.1)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(tsx@4.20.6)(yaml@2.8.1):
     dependencies:
       '@vitest/expect': 4.0.10
-      '@vitest/mocker': 4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))
+      '@vitest/mocker': 4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))
       '@vitest/pretty-format': 4.0.10
       '@vitest/runner': 4.0.10
       '@vitest/snapshot': 4.0.10
@@ -6758,10 +6806,48 @@ snapshots:
       - tsx
       - yaml
 
+  vitest@4.0.10(@types/node@20.19.23)(jiti@2.6.1)(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1):
+    dependencies:
+      '@vitest/expect': 4.0.10
+      '@vitest/mocker': 4.0.10(msw@2.11.6(@types/node@20.19.23)(typescript@5.9.3))(vite@7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))
+      '@vitest/pretty-format': 4.0.10
+      '@vitest/runner': 4.0.10
+      '@vitest/snapshot': 4.0.10
+      '@vitest/spy': 4.0.10
+      '@vitest/utils': 4.0.10
+      debug: 4.4.3(supports-color@10.2.2)
+      es-module-lexer: 1.7.0
+      expect-type: 1.2.2
+      magic-string: 0.30.21
+      pathe: 2.0.3
+      picomatch: 4.0.3
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.0.3
+      vite: 7.2.2(@types/node@20.19.23)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 20.19.23
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
   vitest@4.0.10(@types/node@24.9.1)(jiti@2.6.1)(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(tsx@4.20.6)(yaml@2.8.1):
     dependencies:
       '@vitest/expect': 4.0.10
-      '@vitest/mocker': 4.0.10(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.1))
+      '@vitest/mocker': 4.0.10(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(vite@7.2.2(@types/node@24.9.1)(jiti@2.6.1)(tsx@4.20.6)(yaml@2.8.1))
       '@vitest/pretty-format': 4.0.10
       '@vitest/runner': 4.0.10
       '@vitest/snapshot': 4.0.10

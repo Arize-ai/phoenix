@@ -60,7 +60,7 @@ First, head to experiment we ran for version 4 and copy the experiment ID. Our e
 </Frame>
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     # Process experiment V4 data
     # Use the experiment ID from your Version 4 experiment
@@ -89,7 +89,7 @@ First, head to experiment we ran for version 4 and copy the experiment ID. Our e
 Let's load our unoptimized prompt from Phoenix so that we can funnel it through Prompt Learning.
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     from phoenix.client import Client
     from prompt_learning import PromptLearningOptimizer
@@ -112,7 +112,7 @@ Let's load our unoptimized prompt from Phoenix so that we can funnel it through 
 Now, let's optimize our prompt and push the optimized version back to Phoenix. 
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     from prompt_learning import PromptLearningOptimizer
     from phoenix.client.types.prompts import PromptVersion
@@ -172,7 +172,7 @@ Now that we've used Prompt Learning to build a new, optimized Prompt Version, le
 Let's run another Phoenix experiment on the support query dataset with our new prompt. 
 
 <Tabs>
-  <Tab title="Python">
+  <Tab title="Python" icon="python">
     ```python
     from phoenix.client.experiments import async_run_experiment
     

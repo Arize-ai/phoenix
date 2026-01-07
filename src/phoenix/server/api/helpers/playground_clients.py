@@ -1189,10 +1189,12 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 _OPENAI_REASONING_MODELS = [
+    "gpt-5.2",
+    "gpt-5.2-2025-12-11",
+    "gpt-5.2-chat-latest",
     "gpt-5.1",
     "gpt-5.1-2025-11-13",
     "gpt-5.1-chat-latest",
-    "gpt-5.1-codex-mini",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1805,6 +1807,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
+            JSONInvocationParameter(
+                invocation_name="tool_config",
+                label="Tool Config",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
         ]
 
     async def chat_completion_create(
@@ -1815,18 +1822,24 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from google.genai import types
+
         contents, system_prompt = self._build_google_messages(messages)
 
-        # Build config object for the new API
-        config = invocation_parameters
-        if system_prompt:
-            config["system_instruction"] = system_prompt
+        config_dict = invocation_parameters.copy()
 
-        # Use the client's async models.generate_content_stream method
+        if system_prompt:
+            config_dict["system_instruction"] = system_prompt
+
+        if tools:
+            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
+
+        config = types.GenerateContentConfig.model_validate(config_dict)
         stream = await self.client.aio.models.generate_content_stream(
             model=f"models/{self.model_name}",
             contents=contents,
-            config=config if config else None,
+            config=config,
         )
         async for event in stream:
             self._attributes.update(
@@ -1836,9 +1849,21 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
                     LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
                 }
             )
-            # google genai thinking returns thought tokens captured under
-            # event.candidates and event.parts
-            yield TextChunk(content=event.text or "")
+
+            if event.candidates:
+                candidate = event.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if function_call := part.function_call:
+                            yield ToolCallChunk(
+                                id=function_call.id or "",
+                                function=FunctionCallChunk(
+                                    name=function_call.name or "",
+                                    arguments=json.dumps(function_call.args or {}),
+                                ),
+                            )
+                        elif text := part.text:
+                            yield TextChunk(content=text)
 
     def _build_google_messages(
         self,
@@ -1904,6 +1929,11 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
             FloatInvocationParameter(
                 invocation_name="top_k",
                 label="Top K",
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_config",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
             ),
         ]
 

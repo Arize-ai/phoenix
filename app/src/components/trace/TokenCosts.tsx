@@ -36,7 +36,7 @@ function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
       {...otherProps}
     >
       <Icon
-        svg={<Icons.PriceTagsOutline />}
+        svg={<Icons.DollarSignOutline />}
         css={css`
           color: var(--ac-global-text-color-900);
         `}

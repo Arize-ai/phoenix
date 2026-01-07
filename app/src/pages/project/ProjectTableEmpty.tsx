@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -17,12 +16,18 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
+import { usePreferencesContext } from "@phoenix/contexts";
 
 function SetupProjectDialog({ projectName }: { projectName: string }) {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
+    (state) => ({
+      programmingLanguage: state.programmingLanguage,
+      setProgrammingLanguage: state.setProgrammingLanguage,
+    })
+  );
   return (
     <Dialog>
       <DialogContent>
@@ -35,11 +40,11 @@ function SetupProjectDialog({ projectName }: { projectName: string }) {
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-100">
             <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
+              language={programmingLanguage}
+              onChange={setProgrammingLanguage}
             />
           </View>
-          {language === "Python" ? (
+          {programmingLanguage === "Python" ? (
             <PythonProjectGuide projectName={projectName} />
           ) : (
             <TypeScriptProjectGuide projectName={projectName} />

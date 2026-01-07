@@ -21,7 +21,7 @@ import {
   getBinName,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useInferences } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts/InferencesContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { useTimeFormatters } from "@phoenix/hooks";
 

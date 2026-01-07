@@ -1,0 +1,318 @@
+---
+title: "Translating Semantic Conventions"
+description: "Convert traces from OpenLIT, OpenLLMetry, and OpenTelemetry GenAI to OpenInference format so they appear in Phoenix"
+---
+
+## Why Translation is Needed
+
+Semantic conventions are standardized attribute names and values that ensure consistent tracing across different LLM providers, models, and frameworks. Different instrumentation standards use different semantic conventions to describe LLM operations. 
+
+Phoenix uses [OpenInference semantic conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) as its standard format. To ensure all traces are displayed consistently in Phoenix, traces from other libraries must be translated to the OpenInference format using **[span processors](#how-translation-works---span-processors)**. 
+
+## How Translation Works - Span Processors
+
+[Span processors](https://opentelemetry.io/docs/collector/configuration/#processors) are components that process spans before they are exported, allowing them to be modified, filtered, or transformed. These processors:
+
+1. **Map attribute names** from source conventions to OpenInference conventions
+2. **Transform attribute values** to match expected formats
+3. **Preserve all data** while normalizing the structure 
+
+
+## View OpenLIT Traces in Phoenix
+
+Convert OpenLIT traces to OpenInference format using the `OpenInferenceSpanProcessor` from the `openinference-instrumentation-openlit` package.
+
+<Card title="OpenInference OpenLit Instrumentation
+" href="https://pypi.org/project/openinference-instrumentation-openlit/" icon="box" horizontal>
+View on PyPI
+</Card> 
+
+<Steps>
+  <Step title={<span className="step-title">Install Required Packages</span>}>
+    Install the necessary packages:
+
+    ```bash
+    pip install arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp openinference-instrumentation-openlit openlit semantic-kernel
+    ```
+  </Step>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    Start Phoenix in the background as a collector. By default, it listens on `http://localhost:6006`. You can visit the app via a browser at the same address.
+
+    ```bash
+    phoenix serve
+    ```
+  </Step>
+  <Step title={<span className="step-title">Set Up Tracer Provider and Span Processors</span>}>
+    Configure the tracer provider and add the span processors. The `OpenInferenceSpanProcessor` converts OpenLIT traces to OpenInference format, and the `BatchSpanProcessor` exports them to Phoenix via the OTLP gRPC endpoint:
+
+    ```python
+    import os
+    import grpc
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from phoenix.otel import register
+    from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
+
+    # Set your OpenAI API key
+    os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
+
+    # Set up the tracer provider
+    tracer_provider = register(
+        project_name="default"  # Phoenix project name
+    )
+
+    # Add the OpenInference span processor first to convert OpenLIT traces
+    tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+        
+    # Add the batch span processor to export traces to Phoenix (OTLP gRPC endpoint)
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (if using phoenix cloud, change to phoenix cloud endpoint from settings)
+                headers={},
+                compression=grpc.Compression.Gzip,
+            )
+        )
+    )
+    ```
+  </Step>
+  <Step title={<span className="step-title">Initialize OpenLIT and Semantic Kernel</span>}>
+    Initialize OpenLIT with the tracer and set up Semantic Kernel:
+
+    ```python
+    from semantic_kernel import Kernel
+    from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
+    import openlit
+
+    # Initialize OpenLit tracer
+    tracer = tracer_provider.get_tracer(__name__)
+    openlit.init(tracer=tracer)
+
+    # Set up Semantic Kernel with OpenLIT
+    kernel = Kernel()
+    kernel.add_service(
+        OpenAIChatCompletion(
+            service_id="default",
+            ai_model_id="gpt-4o-mini",
+        ),
+    )
+    ```
+  </Step>
+  <Step title={<span className="step-title">Run Query and View Traces</span>}>
+    Invoke your model and view the converted traces in Phoenix:
+
+    ```python
+    # Define and invoke your model
+    result = await kernel.invoke_prompt(
+        prompt="What is the national food of Yemen?",
+        arguments={},
+    )
+
+    # Now view your converted OpenLIT traces in Phoenix!
+    ```
+
+    The traces will be visible in the Phoenix UI at `http://localhost:6006`.
+  </Step>
+</Steps>
+
+
+## View OpenLLMetry Traces in Phoenix
+
+Convert OpenLLMetry traces to OpenInference format using the `OpenInferenceSpanProcessor` from the `openinference-instrumentation-openllmetry` package.
+
+<Card title="OpenInference OpenLLMetry Instrumentation" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" icon="box" horizontal>
+View on PyPI
+</Card>
+
+<Steps>
+  <Step title={<span className="step-title">Install Required Packages</span>}>
+    Install the necessary packages:
+
+    ```bash
+    pip install arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation-openai openinference-instrumentation-openllmetry
+    ```
+  </Step>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    Start Phoenix in the background as a collector. By default, it listens on `http://localhost:6006`. You can visit the app via a browser at the same address. (Phoenix does not send data over the internet. It only operates locally on your machine.)
+
+    ```bash
+    phoenix serve
+    ```
+  </Step>
+  <Step title={<span className="step-title">Set Up Tracer Provider and Span Processors</span>}>
+    Configure the tracer provider and add the span processors. The `OpenInferenceSpanProcessor` converts OpenLLMetry traces to OpenInference format, and the `BatchSpanProcessor` exports them to Phoenix via the OTLP gRPC endpoint:
+
+    ```python
+    import os
+    import grpc
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from phoenix.otel import register
+    from openinference.instrumentation.openllmetry import OpenInferenceSpanProcessor
+
+    # Set your OpenAI API key
+    os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
+
+    # Set up the tracer provider
+    tracer_provider = register(
+        project_name="default"  # Phoenix project name
+    )
+
+    # Add the OpenInference span processor first to convert OpenLLMetry traces
+    tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+        
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint="http://localhost:4317",  # Phoenix OTLP gRPC endpoint (if using phoenix cloud, change to phoenix cloud endpoint from settings)
+                headers={},
+                compression=grpc.Compression.Gzip,
+            )
+        )
+    )
+    ```
+  </Step>
+  <Step title={<span className="step-title">Initialize OpenAI Instrumentor for OpenLLMetry</span>}>
+    Initialize the OpenAI instrumentor with the tracer provider to generate OpenLLMetry traces:
+
+    ```python
+    from opentelemetry.instrumentation.openai import OpenAIInstrumentor
+
+    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+    ```
+  </Step>
+  <Step title={<span className="step-title">Run Query and View Traces</span>}>
+    Invoke your model and view the converted traces in Phoenix:
+
+    ```python
+    import openai
+
+    # Define and invoke your OpenAI model
+    client = openai.OpenAI()
+
+    messages = [
+        {"role": "user", "content": "What is the national food of Yemen?"}
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=messages,
+    )
+
+    # Now view your converted OpenLLMetry traces in Phoenix!
+    ```
+
+    The traces will be visible in the Phoenix UI at `http://localhost:6006`.
+  </Step>
+</Steps>
+
+## View OpenTelemetry GenAI Traces in Phoenix
+
+Convert OpenTelemetry GenAI span attributes to OpenInference format using the `@arizeai/openinference-genai` package for TypeScript/JavaScript applications. 
+
+This example:
+1. Creates a custom TraceExporter that converts OpenTelemetry GenAI spans to OpenInference spans
+2. Uses the custom exporter in a SpanProcessor
+3. Exports traces to Phoenix
+
+<Card title="OpenInference GenAI Package" href="https://www.npmjs.com/package/@arizeai/openinference-genai" icon="box" horizontal>
+View on npm
+</Card>
+
+<Steps>
+  <Step title={<span className="step-title">Install Required Packages</span>}>
+    Install the necessary packages:
+
+    ```bash
+    pnpm add @opentelemetry/api @opentelemetry/core @opentelemetry/exporter-trace-otlp-proto @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/semantic-conventions @opentelemetry/resources @arizeai/openinference-genai
+    ```
+  </Step>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    Start Phoenix in the background as a collector. By default, it listens on `http://localhost:6006`. You can visit the app via a browser at the same address.
+
+    ```bash
+    phoenix serve
+    ```
+  </Step>
+  <Step title={<span className="step-title">Create Custom TraceExporter</span>}>
+    Create a custom TraceExporter file (e.g., `openinferenceOTLPTraceExporter.ts`) that converts the OpenTelemetry GenAI attributes to OpenInference attributes:
+
+    ```typescript
+    // openinferenceOTLPTraceExporter.ts
+    import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+    import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+    import type { ExportResult } from "@opentelemetry/core";
+
+    import { convertGenAISpanAttributesToOpenInferenceSpanAttributes } from "@arizeai/openinference-genai";
+    import type { Mutable } from "@arizeai/openinference-genai/types";
+
+    class OpenInferenceOTLPTraceExporter extends OTLPTraceExporter {
+      export(
+        spans: ReadableSpan[],
+        resultCallback: (result: ExportResult) => void,
+      ) {
+        const processedSpans = spans.map((span) => {
+          const processedAttributes =
+            convertGenAISpanAttributesToOpenInferenceSpanAttributes(
+              span.attributes,
+            );
+          // optionally you can replace the entire attributes object with the
+          // processed attributes if you want _only_ the OpenInference attributes
+          (span as Mutable<ReadableSpan>).attributes = {
+            ...span.attributes,
+            ...processedAttributes,
+          };
+          return span;
+        });
+
+        super.export(processedSpans, resultCallback);
+      }
+    }
+    ```
+  </Step>
+  <Step title={<span className="step-title">Set Up Tracer Provider with Span Processor</span>}>
+    Use the custom exporter in a SpanProcessor and configure the tracer provider. Set the `COLLECTOR_ENDPOINT` environment variable to your Phoenix endpoint (e.g., `http://localhost:6006` for local Phoenix):
+
+    ```typescript
+    // instrumentation.ts
+    import { resourceFromAttributes } from "@opentelemetry/resources";
+    import {
+      NodeTracerProvider,
+      BatchSpanProcessor,
+    } from "@opentelemetry/sdk-trace-node";
+    import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+
+    import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+
+    import { OpenInferenceOTLPTraceExporter } from "./openinferenceOTLPTraceExporter";
+
+    const COLLECTOR_ENDPOINT = process.env.COLLECTOR_ENDPOINT;
+    const SERVICE_NAME = "openinference-genai-app";
+
+    export const provider = new NodeTracerProvider({
+      resource: resourceFromAttributes({
+        [ATTR_SERVICE_NAME]: SERVICE_NAME,
+        [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
+      }),
+      spanProcessors: [
+        new BatchSpanProcessor(
+          new OpenInferenceOTLPTraceExporter({
+            url: `${COLLECTOR_ENDPOINT}/v1/traces`,
+          }),
+        ),
+      ],
+    });
+
+    provider.register();
+    ```
+  </Step>
+  <Step title={<span className="step-title">View Traces in Phoenix</span>}>
+    Once your application is running and generating traces, the converted OpenTelemetry GenAI traces will be visible in the Phoenix UI. The custom exporter automatically converts GenAI span attributes to OpenInference format before exporting to Phoenix.
+  </Step>
+</Steps>
+
+## Learn More
+
+- [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md)
+- [OpenTelemetry Processors](https://opentelemetry.io/docs/collector/configuration/#processors)
+- [What are Traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces)

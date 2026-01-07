@@ -2,9 +2,9 @@ arize-phoenix==12.20.0
 arize-phoenix-evals==2.7.0
 arize-phoenix-otel==0.14.0
 beautifulsoup4==4.12.3
-langchain==0.3.14
+langchain>=0.3.26,<1.0.0
 langchain-community==0.3.27
-langchain-core==0.3.63
+langchain-core==0.3.80
 langchain-openai==0.3.19
 langgraph==0.2.62
 loguru==0.7.2

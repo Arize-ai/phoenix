@@ -12,6 +12,10 @@
     </div>
 </h1>
 
+<p align="center">
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/README.md" />
+</p>
+
 Official TypeScript libraries for interacting with a running [Arize Phoenix](https://github.com/Arize-ai/phoenix) instance.
 
 | Package                   | Description                                                                            | Version                                                          |

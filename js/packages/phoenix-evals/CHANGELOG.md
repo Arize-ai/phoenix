@@ -1,5 +1,23 @@
 # @arizeai/phoenix-evals
 
+## 0.6.5
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+
+## 0.6.4
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
+## 0.6.3
+
+### Patch Changes
+
+- 857b617: add links to packages
+
 ## 0.6.2
 
 ### Patch Changes

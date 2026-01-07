@@ -1,13 +1,6 @@
 import { useMemo } from "react";
 
-import {
-  Counter,
-  Disclosure,
-  DisclosurePanel,
-  DisclosureTrigger,
-  Flex,
-  View,
-} from "@phoenix/components";
+import { Card, Counter, Flex, View } from "@phoenix/components";
 import {
   isSupportedToolChoiceProvider,
   ToolChoiceSelector,
@@ -51,42 +44,44 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   }
 
   return (
-    <Disclosure id="tools">
-      <DisclosureTrigger arrowPosition="start">
-        Tools
-        <Counter>{tools.length}</Counter>
-      </DisclosureTrigger>
-      <DisclosurePanel>
-        <View padding="size-200">
-          <Flex direction="column" gap="size-200">
-            <ToolChoiceSelector
-              provider={provider}
-              choice={instance.toolChoice}
-              onChange={(choice) => {
-                updateInstance({
-                  instanceId,
-                  patch: {
-                    toolChoice: choice,
-                  },
-                  dirty: true,
-                });
-              }}
-              toolNames={toolNames}
-            />
-            <Flex direction={"column"} gap="size-200">
-              {tools.map((tool) => {
-                return (
-                  <PlaygroundTool
-                    key={tool.id}
-                    playgroundInstanceId={instanceId}
-                    toolId={tool.id}
-                  />
-                );
-              })}
-            </Flex>
+    <Card
+      title={
+        <Flex direction="row" gap="size-100" alignItems="center">
+          Tools
+          <Counter>{tools.length}</Counter>
+        </Flex>
+      }
+      collapsible
+    >
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <ToolChoiceSelector
+            provider={provider}
+            choice={instance.toolChoice}
+            onChange={(choice) => {
+              updateInstance({
+                instanceId,
+                patch: {
+                  toolChoice: choice,
+                },
+                dirty: true,
+              });
+            }}
+            toolNames={toolNames}
+          />
+          <Flex direction={"column"} gap="size-200">
+            {tools.map((tool) => {
+              return (
+                <PlaygroundTool
+                  key={tool.id}
+                  playgroundInstanceId={instanceId}
+                  toolId={tool.id}
+                />
+              );
+            })}
           </Flex>
-        </View>
-      </DisclosurePanel>
-    </Disclosure>
+        </Flex>
+      </View>
+    </Card>
   );
 }

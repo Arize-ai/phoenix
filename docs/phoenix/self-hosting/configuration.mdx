@@ -76,3 +76,5 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
 
 * **PHOENIX\_DEFAULT\_ADMIN\_INITIAL\_PASSWORD:** Sets the initial password for the built-in admin user (email `admin@localhost`) when that account is created on first startup. Defaults to `admin`. Changing this after the default admin already exists has no effect—update the password via the UI or an admin reset instead.
+
+* **PHOENIX\_TELEMETRY\_ENABLED:** Toggle for telemetry (enabled by default). Set to `false` if you want to disable all analytics tracking. Only basic web analytics are collected (e.g., page views, UI interactions). No trace data or sensitive information is ever collected.

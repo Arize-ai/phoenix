@@ -1,0 +1,144 @@
+---
+title: "Phoenix to Arize AX Migration"
+description: Seamlessly migrate your data from Phoenix to Arize AX
+---
+
+
+
+If you are looking to migrate to Arize AX but want to preserve your data, this tool will help migrate your traces, evaluations, annotations, datasets, and experiments from Phoenix.
+
+<Card 
+  title="Migration Tool Repo" 
+  href="https://github.com/Arize-ai/phoenix-to-ax-migration"
+  icon="code"
+>
+</Card>
+
+## Setup
+
+### Step 1: Download the Migration Tool
+
+```bash
+git clone https://github.com/Arize-ai/phoenix-to-ax-migration
+cd phoenix-to-ax-migration
+```
+
+### Step 2: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 3: Configure Environment
+
+Create a `.env` file with your configuration:
+
+```bash
+# Phoenix (include PHOENIX_API_KEY if using Phoenix Cloud)
+PHOENIX_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
+PHOENIX_API_KEY=your-phoenix-api-key 
+
+# Arize
+ARIZE_API_KEY=your-arize-api-key
+ARIZE_SPACE_ID=your-arize-space-id
+
+# Export directory where Phoenix data will be saved locally
+PHOENIX_EXPORT_DIR="phoenix_export"
+```
+
+<Info>
+You can find your Arize API key and Space ID in your Arize AX account settings.
+
+</Info>
+
+## Supported Data Types
+
+| Data Type | Details |
+|-----------|------------------------|
+| **Datasets & Experiments** | • All datasets and their corresponding experiments<br/>• Experiment evaluations not yet migrated |
+| **Project Traces** | • Contains traces, evaluation, and human annotations |
+
+## ⚠️ Import Warning for Annotations ⚠️
+
+* **Wait for traces to be indexed**: After importing traces, you must wait a few minutes for them to be loaded and indexed in Arize AX before sending annotation data. The import process will prompt you to verify traces are available before proceeding with annotations.
+
+* **31-day window**: Only annotations for traces from the past 31 days can be logged to Arize. If your traces are older than 31 days, their annotations will be skipped with a warning message.
+
+
+## Usage
+
+### Export from Phoenix
+
+```bash
+# Export everything
+python export_all_projects.py --all
+
+# Export specific types
+python export_all_projects.py --de      # datasets and experiments
+python export_all_projects.py --traces   # traces with evaluations and annotations
+```
+
+### Import to Arize
+
+```bash
+# Import everything
+python import_to_arize.py --all
+
+# Import specific types
+python import_to_arize.py --de      # datasets and experiments
+python import_to_arize.py --traces  # traces with evaluations and annotations
+```
+
+## Generated Files
+
+After export and import, you'll see this structure:
+
+```
+phoenix_export/ # All data lives here
+├── datasets/
+│   ├── datasets.json
+│   ├── dataset_{id}_examples.json
+│   └── dataset_{id}_experiments.json
+└── projects/
+    └── {project_name}/
+        ├── project_metadata.json
+        ├── traces.json
+        ├── evaluations.json
+        └── annotations.json
+
+results/  # Overview of import and export jobs
+├── dataset_experiment_export_results.json
+├── dataset_experiment_import_results.json
+├── trace_export_results.json
+└── trace_import_results.json
+```
+
+## Troubleshooting
+
+### Import issues with traces
+
+The formatting of some span attributes may not be compatible between Arize and Phoenix. We tried to cover as many cases as possible, but there may be some missing ones. If you encounter errors:
+
+1. Check the `results/` folder to see what errors have occured
+2. Fix them in the project's `traces.json` file
+3. Re-import the data to Arize
+
+### Import issues with annotations
+
+* Wait for traces to be fully indexed in Arize AX before importing annotations
+* Check that your traces are within the 31-day window
+* Review the `results/` folder for detailed error messages
+
+### For Large Projects and Datasets
+
+* Be patient - large imports can take time
+* Monitor the `results/` folder for progress
+
+<Check>
+🎉 Congratulations - Your Phoenix data is now available in Arize AX!
+</Check>
+
+### More Support
+
+* **Detailed documentation**: Check the [GitHub repository](https://github.com/Arize-ai/phoenix-to-ax-migration)
+* **Report issues**: [GitHub Issues](https://github.com/Arize-ai/phoenix-to-ax-migration/issues)

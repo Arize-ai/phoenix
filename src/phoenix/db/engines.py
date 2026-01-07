@@ -122,7 +122,7 @@ def aio_sqlite_engine(
             lambda: sqlean.connect(f"file:{database}", uri=True),
             iter_chunk_size=64,
         )
-        conn.daemon = True
+        conn.daemon = True  # type: ignore[attr-defined]
         return conn
 
     engine = create_async_engine(

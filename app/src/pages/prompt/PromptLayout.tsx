@@ -4,17 +4,24 @@ import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Counter,
+  DialogTrigger,
   Flex,
-  Heading,
+  Icon,
+  Icons,
   LazyTabPanel,
   Link,
+  LinkButton,
+  Modal,
+  ModalOverlay,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
   Text,
-  View,
 } from "@phoenix/components";
+import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
@@ -71,6 +78,7 @@ export function PromptLayout() {
         id
         name
         description
+        metadata
         sourcePrompt {
           id
           name
@@ -89,31 +97,50 @@ export function PromptLayout() {
 
   return (
     <main css={mainCSS}>
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        flex="none"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Flex direction="column">
-            <Heading level={1}>{data.name}</Heading>
-            {data.sourcePrompt && (
-              <Text color="text-700">
-                cloned from{" "}
-                <Link to={`/prompts/${data.sourcePrompt.id}`}>
-                  {data.sourcePrompt.name}
-                </Link>
-              </Text>
-            )}
+      <PageHeader
+        title={data.name}
+        subTitle={
+          data.sourcePrompt && (
+            <Text color="text-700">
+              cloned from{" "}
+              <Link to={`/prompts/${data.sourcePrompt.id}`}>
+                {data.sourcePrompt.name}
+              </Link>
+            </Text>
+          )
+        }
+        extra={
+          <Flex direction="row" gap="size-100" justifyContent="end">
+            <DialogTrigger>
+              <Button
+                size="M"
+                leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+              >
+                Clone
+              </Button>
+              <ModalOverlay>
+                <Modal size="M">
+                  <ClonePromptDialog
+                    promptId={data.id}
+                    promptName={data.name}
+                    promptDescription={data.description ?? undefined}
+                    promptMetadata={data.metadata ?? undefined}
+                  />
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
+            <LinkButton
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              to="playground"
+              size="M"
+              aria-label="Open this Prompt in Playground"
+            >
+              Playground
+            </LinkButton>
           </Flex>
-        </Flex>
-      </View>
+        }
+      />
       <Tabs
         defaultSelectedKey={defaultTab}
         onSelectionChange={(key) => {

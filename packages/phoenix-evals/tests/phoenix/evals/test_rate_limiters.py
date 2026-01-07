@@ -88,10 +88,10 @@ def test_token_bucket_gains_tokens_over_time():
         )
 
     with freeze_time(start + 5):
-        assert isclose(bucket.available_requests(), 5)
+        assert isclose(bucket.available_requests(), 6)
 
     with freeze_time(start + 10):
-        assert isclose(bucket.available_requests(), 10)
+        assert isclose(bucket.available_requests(), 11)
 
 
 def test_token_rate_limiter_can_max_out_on_requests():
@@ -108,7 +108,7 @@ def test_token_rate_limiter_can_max_out_on_requests():
         )
 
     with freeze_time(start + 30):
-        assert bucket.available_requests() == 30
+        assert bucket.available_requests() == 31
 
     with freeze_time(start + 120):
         assert bucket.available_requests() == 120
@@ -131,9 +131,9 @@ def test_token_rate_limiter_spends_tokens():
         )
 
     with freeze_time(start + 3):
-        assert bucket.available_requests() == 3
+        assert bucket.available_requests() == 4  # 1.0 + 3
         bucket.make_request_if_ready()
-        assert bucket.available_requests() == 2
+        assert bucket.available_requests() == 3  # 4 - 1
 
 
 def test_token_rate_limiter_cannot_spend_unavailable_tokens():
@@ -148,6 +148,8 @@ def test_token_rate_limiter_cannot_spend_unavailable_tokens():
             rate_increase_factor=0,
             cooldown_seconds=5,
         )
+        assert bucket.available_requests() == 1.0
+        bucket.make_request_if_ready()
         assert bucket.available_requests() == 0
         with pytest.raises(UnavailableTokensError):
             bucket.make_request_if_ready()
@@ -168,7 +170,11 @@ def test_token_rate_limiter_can_block_until_tokens_are_available():
         )
 
     with warp_time(start):
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
+        bucket.wait_until_ready()
+        sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        assert sum(sleeps) == 0
+
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
         time_cost = 1 / rate
@@ -190,11 +196,10 @@ async def test_token_rate_limiter_async_waits_until_tokens_are_available():
         )
 
     with async_warp_time(start):
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
         await bucket.async_wait_until_ready()
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = 1 / rate
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
@@ -212,11 +217,10 @@ def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
@@ -234,11 +238,10 @@ async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
         )
 
     with async_warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         await bucket.async_wait_until_ready()
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 def test_token_bucket_adaptively_increases_rate_over_time():
@@ -256,7 +259,9 @@ def test_token_bucket_adaptively_increases_rate_over_time():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
         elapsed_time = sum(sleeps) + 5
@@ -278,7 +283,9 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
@@ -298,7 +305,9 @@ def test_token_bucket_resets_rate_after_inactivity():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 

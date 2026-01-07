@@ -11,6 +11,8 @@ import { css } from "@emotion/react";
 import {
   Button,
   Flex,
+  Icon,
+  Icons,
   LinkButton,
   Menu,
   MenuContainer,
@@ -19,6 +21,7 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
+  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   Token,
@@ -147,6 +150,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
       <Button
         data-testid="dataset-picker"
         className="dataset-picker-button"
+        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
       >
@@ -174,6 +178,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
+              <SearchIcon />
               <Input placeholder="Search datasets" />
             </SearchField>
           </MenuHeader>
@@ -308,10 +313,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       )}
                     </Flex>
                   </MenuItem>
-                  <MenuContainer placement="end top">
+                  <MenuContainer placement="end top" shouldFlip>
                     <Autocomplete filter={contains}>
                       <MenuHeader>
                         <SearchField aria-label="Search" autoFocus>
+                          <SearchIcon />
                           <Input placeholder="Search splits" />
                         </SearchField>
                       </MenuHeader>
@@ -431,7 +437,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Menu>
         </Autocomplete>
         <MenuFooter>
-          <LinkButton to="/datasets">Go to Datasets</LinkButton>
+          <LinkButton to="/datasets" size="S" variant="quiet">
+            Go to Datasets
+          </LinkButton>
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
