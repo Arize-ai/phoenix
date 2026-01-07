@@ -103,16 +103,40 @@ export function flattenObject({
   parentKey = "",
   separator = ".",
   keepNonTerminalValues = false,
+  formatIndices = false,
 }: {
   obj: object;
+  /**
+   * The parent key to use for nested objects.
+   */
   parentKey?: string;
+  /**
+   * The separator to use between keys.
+   */
   separator?: string;
+  /**
+   * If true, non-terminal values will be kept in the result.
+   * For example, if the object is `{ a: { b: 1 } }` and `keepNonTerminalValues` is true,
+   * the result will be `{ a: { b: 1 }, a.b: 1 }`.
+   */
   keepNonTerminalValues?: boolean;
+  /**
+   * If true, the indices (key names) will be formatted like [0] instead of .0
+   */
+  formatIndices?: boolean;
 }) {
   const result: Record<string, string | boolean | number> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    const newKey = parentKey ? `${parentKey}${separator}${key}` : key;
+    let newKey: string;
+    if (formatIndices && Array.isArray(obj)) {
+      // For arrays with formatIndices, use bracket notation: parentKey[0] or just [0]
+      newKey = parentKey ? `${parentKey}[${key}]` : `[${key}]`;
+    } else if (parentKey) {
+      newKey = `${parentKey}${separator}${key}`;
+    } else {
+      newKey = key;
+    }
 
     if (value && typeof value === "object") {
       if (keepNonTerminalValues) {
@@ -125,6 +149,7 @@ export function flattenObject({
           parentKey: newKey,
           separator,
           keepNonTerminalValues,
+          formatIndices,
         })
       );
     } else {
