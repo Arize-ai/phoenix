@@ -1,17 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { css } from "@emotion/react";
 
-import {
-  ComboBox,
-  ComboBoxItem,
-  Flex,
-  Label,
-  Switch,
-  Text,
-} from "@phoenix/components";
+import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
+import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { RegexField } from "@phoenix/components/RegexField";
 import {
   useEvaluatorStore,
@@ -45,7 +38,7 @@ const useRegexEvaluatorForm = () => {
 };
 
 export const RegexEvaluatorForm = () => {
-  const { control, getValues } = useRegexEvaluatorForm();
+  const { control, getValues, setValue } = useRegexEvaluatorForm();
   const [textPath, setTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
@@ -69,42 +62,18 @@ export const RegexEvaluatorForm = () => {
             />
           )}
         />
-        <Controller
-          name={`pathMapping.text`}
+        <SwitchableEvaluatorInput
+          fieldName="text"
+          label="Text"
+          description="The text to search."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Text parameter`}
-              placeholder="Map an example field to the Text parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Text"
-              size="L"
-              description={`The text to search. Choose an example field from the list to map to the Text parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setTextPath(key as string);
-              }}
-              onInputChange={(value) => setTextPath(value)}
-              inputValue={textPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Text"
+          literalPlaceholder="Enter text value"
+          pathInputValue={textPath}
+          onPathInputChange={setTextPath}
         />
         <Controller
           name="literalMapping.full_match"

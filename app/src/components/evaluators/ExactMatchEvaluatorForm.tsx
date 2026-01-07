@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { css } from "@emotion/react";
 
-import {
-  ComboBox,
-  ComboBoxItem,
-  Flex,
-  Label,
-  Switch,
-  Text,
-} from "@phoenix/components";
+import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { ExactMatchEvaluatorCodeBlock } from "@phoenix/components/evaluators/ExactMatchEvaluatorCodeBlock";
+import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -44,7 +37,7 @@ const useExactMatchEvaluatorForm = () => {
 };
 
 export const ExactMatchEvaluatorForm = () => {
-  const { control, getValues } = useExactMatchEvaluatorForm();
+  const { control, getValues, setValue } = useExactMatchEvaluatorForm();
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
   );
@@ -56,79 +49,31 @@ export const ExactMatchEvaluatorForm = () => {
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
-        <Controller
-          name={`pathMapping.expected`}
+        <SwitchableEvaluatorInput
+          fieldName="expected"
+          label="Expected"
+          description="The expected text to compare against."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Expected parameter`}
-              placeholder="Map an example field to the Expected parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Expected"
-              size="L"
-              description={`The expected text to compare against. Choose an example field from the list to map to the Expected parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setExpectedPath(key as string);
-              }}
-              onInputChange={(value) => setExpectedPath(value)}
-              inputValue={expectedPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Expected"
+          literalPlaceholder="Enter expected value"
+          pathInputValue={expectedPath}
+          onPathInputChange={setExpectedPath}
         />
-        <Controller
-          name={`pathMapping.actual`}
+        <SwitchableEvaluatorInput
+          fieldName="actual"
+          label="Actual"
+          description="The actual text to compare."
+          defaultMode="path"
           control={control}
-          render={({ field }) => (
-            <ComboBox
-              aria-label={`Map an example field to the Actual parameter`}
-              placeholder="Map an example field to the Actual parameter"
-              defaultItems={allExampleKeys}
-              selectedKey={field.value ?? ""}
-              label="Actual"
-              size="L"
-              description={`The actual text to compare. Choose an example field from the list to map to the Actual parameter.`}
-              onSelectionChange={(key) => {
-                field.onChange(key);
-                setActualPath(key as string);
-              }}
-              onInputChange={(value) => setActualPath(value)}
-              inputValue={actualPath ?? ""}
-              css={css`
-                width: 100%;
-                min-width: 0 !important;
-                .px-combobox-container {
-                  min-width: 0 !important;
-                  input {
-                    min-width: 0 !important;
-                  }
-                }
-              `}
-            >
-              {(item) => (
-                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
-                  {item.label}
-                </ComboBoxItem>
-              )}
-            </ComboBox>
-          )}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Actual"
+          literalPlaceholder="Enter actual value"
+          pathInputValue={actualPath}
+          onPathInputChange={setActualPath}
         />
         <Controller
           name="literalMapping.case_sensitive"
