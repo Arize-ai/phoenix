@@ -640,7 +640,6 @@ class ContainsEvaluator(BuiltInEvaluator):
             text = inputs.get("text", "")
             case_sensitive = inputs.get("case_sensitive", False)
             require_all = inputs.get("require_all", False)
-            now = datetime.now(timezone.utc)
 
             match_fn = all if require_all else any
             if case_sensitive:
@@ -656,6 +655,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                 explanation = (
                     f"one or more of the words {repr(words)} were {found_or_not} in the text"
                 )
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
@@ -670,8 +670,8 @@ class ContainsEvaluator(BuiltInEvaluator):
                 },
                 error=None,
                 trace_id=None,
-                start_time=now,
-                end_time=now,
+                start_time=start_time,
+                end_time=end_time,
             )
         except Exception as e:
             logger.exception(f"Builtin evaluator '{self.name}' failed")
@@ -738,7 +738,6 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             expected = inputs.get("expected", "")
             actual = inputs.get("actual", "")
             case_sensitive = inputs.get("case_sensitive", True)
-            end_time = datetime.now(timezone.utc)
 
             if case_sensitive:
                 matched = expected == actual
@@ -746,6 +745,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 matched = expected.lower() == actual.lower()
 
             explanation = f"expected {'matches' if matched else 'does not match'} actual"
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
@@ -826,7 +826,6 @@ class RegexEvaluator(BuiltInEvaluator):
             pattern = inputs.get("pattern", "")
             text = inputs.get("text", "")
             full_match = inputs.get("full_match", False)
-            end_time = datetime.now(timezone.utc)
 
             try:
                 if full_match:
@@ -844,7 +843,7 @@ class RegexEvaluator(BuiltInEvaluator):
             else:
                 match_type = "full match" if full_match else "search"
                 explanation = f"pattern {'matched' if matched else 'did not match'} ({match_type})"
-
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
@@ -941,7 +940,6 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             expected = inputs.get("expected", "")
             actual = inputs.get("actual", "")
             case_sensitive = inputs.get("case_sensitive", True)
-            end_time = datetime.now(timezone.utc)
 
             if case_sensitive:
                 distance = levenshtein_distance(expected, actual)
@@ -949,6 +947,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 distance = levenshtein_distance(expected.lower(), actual.lower())
 
             explanation = f"edit distance between expected and actual is {distance}"
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
@@ -1046,7 +1045,6 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             )
             expected_str = inputs.get("expected", "")
             actual_str = inputs.get("actual", "")
-            end_time = datetime.now(timezone.utc)
 
             try:
                 expected = json.loads(expected_str)
@@ -1059,6 +1057,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 error = f"Invalid JSON: {e}"
                 explanation = error
 
+            end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self.name,
                 annotator_kind="CODE",
