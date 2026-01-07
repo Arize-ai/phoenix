@@ -6,13 +6,14 @@ users to specify a path to conversation messages within dataset examples that
 should be appended to prompt templates when running experiments.
 """
 
-import json
 from typing import Any, Optional
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
-# Type alias matching the one used in subscriptions.py
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+# The fourth element (tool_calls) can be a list of dicts in OpenAI format
+ChatCompletionMessage = tuple[
+    ChatCompletionMessageRole, str, Optional[str], Optional[list[dict[str, Any]]]
+]
 
 # Mapping from OpenAI role strings to internal enum values
 _ROLE_MAPPING = {
@@ -75,21 +76,6 @@ def _role_to_enum(role: str) -> ChatCompletionMessageRole:
     return _ROLE_MAPPING[role_lower]
 
 
-def _convert_tool_calls_to_json_strings(tool_calls: list[dict[str, Any]]) -> list[str]:
-    """
-    Convert OpenAI tool_calls format to list of JSON strings.
-
-    The internal format stores tool_calls as JSON strings for flexibility.
-
-    Args:
-        tool_calls: List of tool call dicts in OpenAI format
-
-    Returns:
-        List of JSON-serialized tool call strings
-    """
-    return [json.dumps(tc) for tc in tool_calls]
-
-
 def convert_openai_message_to_internal(
     message: dict[str, Any],
 ) -> ChatCompletionMessage:
@@ -133,10 +119,7 @@ def convert_openai_message_to_internal(
     tool_call_id: Optional[str] = message.get("tool_call_id")
 
     # Extract tool_calls (for assistant messages with function calls)
-    tool_calls_raw = message.get("tool_calls")
-    tool_calls: Optional[list[str]] = None
-    if tool_calls_raw and isinstance(tool_calls_raw, list):
-        tool_calls = _convert_tool_calls_to_json_strings(tool_calls_raw)
+    tool_calls = message.get("tool_calls")
 
     return (role, content, tool_call_id, tool_calls)
 
