@@ -10,7 +10,7 @@ from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -122,7 +122,7 @@ def _get_stmt(
         select(
             mda.name,
             models.Span.id,
-            num_docs_col(dialect),
+            models.Span.num_documents.label("num_docs"),
             mda.score,
             mda.document_position,
         )

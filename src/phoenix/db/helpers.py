@@ -4,14 +4,8 @@ from enum import Enum
 from typing import Any, Literal, Optional, Sequence, TypeVar, Union
 
 import sqlalchemy as sa
-from openinference.semconv.trace import (
-    OpenInferenceSpanKindValues,
-    RerankerAttributes,
-    SpanAttributes,
-)
 from sqlalchemy import (
     Insert,
-    Integer,
     Select,
     SQLColumnExpression,
     and_,
@@ -44,30 +38,6 @@ class SupportedSQLDialect(Enum):
         if isinstance(v, str) and v and v.isascii() and not v.islower():
             return cls(v.lower())
         raise ValueError(f"`{v}` is not a supported SQL backend/dialect.")
-
-
-def num_docs_col(dialect: SupportedSQLDialect) -> SQLColumnExpression[Integer]:
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        array_length = func.jsonb_array_length
-    elif dialect is SupportedSQLDialect.SQLITE:
-        array_length = func.json_array_length
-    else:
-        assert_never(dialect)
-    retrieval_docs = models.Span.attributes[_RETRIEVAL_DOCUMENTS]
-    num_retrieval_docs = array_length(retrieval_docs)
-    reranker_docs = models.Span.attributes[_RERANKER_OUTPUT_DOCUMENTS]
-    num_reranker_docs = array_length(reranker_docs)
-    return case(
-        (
-            func.upper(models.Span.span_kind) == OpenInferenceSpanKindValues.RERANKER.value.upper(),
-            num_reranker_docs,
-        ),
-        else_=num_retrieval_docs,
-    ).label("num_docs")
-
-
-_RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
-_RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
