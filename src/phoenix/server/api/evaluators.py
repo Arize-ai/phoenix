@@ -1,4 +1,5 @@
 import json
+import logging
 import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -45,6 +46,8 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
+
+logger = logging.getLogger(__name__)
 
 ToolCallId: TypeAlias = str
 
@@ -203,45 +206,47 @@ class LLMEvaluator:
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
-        template_variables = apply_input_mapping(
-            input_schema=self.input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        template_variables = cast_template_variable_types(
-            template_variables=template_variables,
-            input_schema=self.input_schema,
-        )
-        validate_template_variables(
-            template_variables=template_variables,
-            input_schema=self.input_schema,
-        )
-        template_formatter = get_template_formatter(self._template_format)
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
-        ] = []
-        for msg in self._template.messages:
-            role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
-            if isinstance(msg.content, str):
-                formatted_content = template_formatter.format(msg.content, **template_variables)
-            else:
-                text_parts = []
-                for part in msg.content:
-                    if isinstance(part, TextContentPart):
-                        formatted_text = template_formatter.format(part.text, **template_variables)
-                        text_parts.append(formatted_text)
-                formatted_content = "".join(text_parts)
-            messages.append((role, formatted_content, None, None))
-
-        denormalized_tools, denormalized_tool_choice = denormalize_tools(
-            self._tools, self._model_provider
-        )
-        invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-        invocation_parameters.update(denormalized_tool_choice)
-        tool_call_by_id: dict[ToolCallId, ToolCall] = {}
-        error_message: Optional[str] = None
         start_time = datetime.now(timezone.utc)
         try:
+            template_variables = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            template_variables = cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=template_variables,
+                input_schema=self.input_schema,
+            )
+            template_formatter = get_template_formatter(self._template_format)
+            messages: list[
+                tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+            ] = []
+            for msg in self._template.messages:
+                role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                if isinstance(msg.content, str):
+                    formatted_content = template_formatter.format(msg.content, **template_variables)
+                else:
+                    text_parts = []
+                    for part in msg.content:
+                        if isinstance(part, TextContentPart):
+                            formatted_text = template_formatter.format(
+                                part.text, **template_variables
+                            )
+                            text_parts.append(formatted_text)
+                    formatted_content = "".join(text_parts)
+                messages.append((role, formatted_content, None, None))
+
+            denormalized_tools, denormalized_tool_choice = denormalize_tools(
+                self._tools, self._model_provider
+            )
+            invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
+            invocation_parameters.update(denormalized_tool_choice)
+            tool_call_by_id: dict[ToolCallId, ToolCall] = {}
+
             async for chunk in self._llm_client.chat_completion_create(
                 messages=messages,
                 tools=denormalized_tools,
@@ -255,8 +260,38 @@ class LLMEvaluator:
                         )
                     else:
                         tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+
+            if not tool_call_by_id:
+                raise ValueError("No tool calls received from LLM")
+
+            tool_call = next(iter(tool_call_by_id.values()))
+            args = json.loads(tool_call["arguments"])
+            label = args.get("label")
+            if label is None:
+                raise ValueError("LLM response missing required 'label' field")
+
+            scores_by_label = {
+                config_value.label: config_value.score
+                for config_value in self._output_config.values
+            }
+            score = scores_by_label.get(label)
+            explanation = args.get("explanation")
+
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self._annotation_name,
+                annotator_kind="LLM",
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata={},
+                error=None,
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
         except Exception as e:
-            error_message = str(e)
+            logger.exception(f"LLM evaluator '{self._name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
                 name=self._annotation_name,
@@ -265,35 +300,11 @@ class LLMEvaluator:
                 score=None,
                 explanation=None,
                 metadata={},
-                error=error_message or "No tool calls received",
+                error=str(e),
                 trace_id=None,
                 start_time=start_time,
                 end_time=end_time,
             )
-        finally:
-            end_time = datetime.now(timezone.utc)
-
-        tool_call = next(iter(tool_call_by_id.values()))
-        args = json.loads(tool_call["arguments"])
-        label = args["label"]
-        scores_by_label = {
-            config_value.label: config_value.score for config_value in self._output_config.values
-        }
-        score = scores_by_label.get(label)
-        explanation = args.get("explanation")
-
-        return EvaluationResult(
-            name=self._annotation_name,
-            annotator_kind="LLM",
-            label=label,
-            score=score,
-            explanation=explanation,
-            metadata={},
-            error=None,
-            trace_id=None,
-            start_time=start_time,
-            end_time=end_time,
-        )
 
 
 class BuiltInEvaluator(ABC):
@@ -603,41 +614,58 @@ class ContainsEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
     ) -> EvaluationResult:
-        inputs = apply_input_mapping(
-            input_schema=self.input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        inputs = cast_template_variable_types(
-            template_variables=inputs,
-            input_schema=self.input_schema,
-        )
-        validate_template_variables(
-            template_variables=inputs,
-            input_schema=self.input_schema,
-        )
-        words = [word.strip() for word in inputs.get("words", "").split(",")]
-        text = inputs.get("text", "")
-        case_sensitive = inputs.get("case_sensitive", False)
-        now = datetime.now(timezone.utc)
-        matched = False
-        if case_sensitive:
-            matched = any(word in text for word in words)
-        else:
-            matched = any(word.lower() in text.lower() for word in words)
-        explanation = (
-            f"one or more of the words {repr(words)} were {'found' if matched else 'not found'} "
-            "in the text"
-        )
-        return EvaluationResult(
-            name=self.name,
-            annotator_kind="CODE",
-            label=None,
-            score=1.0 if matched else 0.0,
-            explanation=explanation,
-            metadata={"words": words, "text": text, "case_sensitive": case_sensitive},
-            error=None,
-            trace_id=None,
-            start_time=now,
-            end_time=now,
-        )
+        start_time = datetime.now(timezone.utc)
+        try:
+            inputs = apply_input_mapping(
+                input_schema=self.input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+            inputs = cast_template_variable_types(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            validate_template_variables(
+                template_variables=inputs,
+                input_schema=self.input_schema,
+            )
+            words = [word.strip() for word in inputs.get("words", "").split(",")]
+            text = inputs.get("text", "")
+            case_sensitive = inputs.get("case_sensitive", False)
+            matched = False
+            if case_sensitive:
+                matched = any(word in text for word in words)
+            else:
+                matched = any(word.lower() in text.lower() for word in words)
+            explanation = (
+                f"one or more of the words {repr(words)} were {'found' if matched else 'not found'}"
+                " in the text"
+            )
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=1.0 if matched else 0.0,
+                explanation=explanation,
+                metadata={"words": words, "text": text, "case_sensitive": case_sensitive},
+                error=None,
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except Exception as e:
+            logger.exception(f"Builtin evaluator '{self.name}' failed")
+            end_time = datetime.now(timezone.utc)
+            return EvaluationResult(
+                name=self.name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=str(e),
+                trace_id=None,
+                start_time=start_time,
+                end_time=end_time,
+            )

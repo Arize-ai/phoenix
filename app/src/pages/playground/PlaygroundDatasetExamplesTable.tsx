@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Pressable } from "react-aria";
 import {
   Disposable,
   graphql,
@@ -103,7 +104,9 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
+  type EvaluationError,
   ExampleRunData,
+  type ExperimentRunEvaluation,
   InstanceResponses,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
@@ -138,6 +141,14 @@ const createExampleResponsesForInstance = (
       } = example;
       const { errorMessage, content, span, toolCalls, evaluations } =
         repetition;
+      const successfulEvaluations = evaluations
+        .filter((e) => e.__typename === "EvaluationSuccess")
+        .map((e) => {
+          if (e.__typename !== "EvaluationSuccess") {
+            throw new Error("Unexpected evaluation type");
+          }
+          return e.annotation;
+        });
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -155,7 +166,7 @@ const createExampleResponsesForInstance = (
               },
               {}
             ),
-            evaluations: [...evaluations],
+            evaluations: successfulEvaluations,
           },
         },
       };
@@ -301,6 +312,22 @@ function ExampleOutputContent({
     onViewTracePress,
   ]);
 
+  const successfulEvaluations = useMemo(() => {
+    return (
+      evaluations?.filter(
+        (e): e is ExperimentRunEvaluation => !("__typename" in e)
+      ) ?? []
+    );
+  }, [evaluations]);
+  const evaluationErrors = useMemo(() => {
+    return (
+      evaluations?.filter(
+        (e): e is EvaluationError =>
+          "__typename" in e && e.__typename === "EvaluationErrorChunk"
+      ) ?? []
+    );
+  }, [evaluations]);
+
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={spanControls}>
@@ -351,9 +378,9 @@ function ExampleOutputContent({
           </View>
         ) : null}
       </Flex>
-      {evaluations != null && evaluations.length > 0 && (
+      {successfulEvaluations != null && successfulEvaluations.length > 0 && (
         <ExperimentRunCellAnnotationsList
-          annotations={evaluations}
+          annotations={successfulEvaluations}
           annotationOutputConfigs={evaluatorOutputConfigs}
           onTraceClick={({ traceId, projectId, annotationName }) => {
             if (traceId && projectId) {
@@ -361,6 +388,54 @@ function ExampleOutputContent({
             }
           }}
         />
+      )}
+      {evaluationErrors != null && evaluationErrors.length > 0 && (
+        <ul
+          css={css`
+            display: flex;
+            flex-direction: column;
+            gap: var(--ac-global-dimension-static-size-100);
+          `}
+        >
+          {evaluationErrors.map((error, index) => {
+            return (
+              <li key={`${error.evaluatorName}-${index}`}>
+                <TooltipTrigger delay={0}>
+                  <Pressable>
+                    <button
+                      className="button--reset"
+                      css={css`
+                        cursor: pointer;
+                        padding: var(--ac-global-dimension-size-50)
+                          var(--ac-global-dimension-size-100);
+                        flex: 1 1 auto;
+                        border-radius: var(--ac-global-rounding-small);
+                        width: 100%;
+                        min-width: 0;
+                        &:hover {
+                          background-color: var(--ac-global-color-grey-200);
+                        }
+                      `}
+                    >
+                      <Flex
+                        direction="row"
+                        gap="size-100"
+                        alignItems="center"
+                        justifyContent="start"
+                      >
+                        <Text color="danger">{error.evaluatorName}</Text>
+                      </Flex>
+                    </button>
+                  </Pressable>
+                  <Tooltip placement="top">
+                    <TooltipArrow />
+                    <Text>{error.message}</Text>
+                  </Tooltip>
+                </TooltipTrigger>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Flex>
   );
@@ -690,6 +765,19 @@ export function PlaygroundDatasetExamplesTable({
             incrementEvalsCompleted(instanceId);
             break;
           }
+          case "EvaluationErrorChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            appendExampleDataEvaluationChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
+              evaluationChunk: chatCompletion,
+            });
+            incrementEvalsCompleted(instanceId);
+            break;
+          }
           // This should never happen
           // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
           case "%other":
@@ -748,17 +836,26 @@ export function PlaygroundDatasetExamplesTable({
                 }
               }
               evaluations {
-                id
-                name
-                label
-                score
-                annotatorKind
-                explanation
-                metadata
-                startTime
-                trace {
-                  traceId
-                  projectId
+                __typename
+                ... on EvaluationSuccess {
+                  annotation {
+                    id
+                    name
+                    label
+                    score
+                    annotatorKind
+                    explanation
+                    metadata
+                    startTime
+                    trace {
+                      traceId
+                      projectId
+                    }
+                  }
+                }
+                ... on EvaluationError {
+                  evaluatorName
+                  message
                 }
               }
             }
@@ -1433,6 +1530,12 @@ graphql`
             projectId
           }
         }
+      }
+      ... on EvaluationErrorChunk {
+        datasetExampleId
+        repetitionNumber
+        evaluatorName
+        message
       }
     }
   }

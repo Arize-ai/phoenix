@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<62dc636afd9239691f7ad7d99a92ce4c>>
+ * @generated SignedSource<<7322f9ec89fd5164aec3e32f00cece24>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -89,12 +89,23 @@ export type EvaluatorOutputPreviewMutation$variables = {
 };
 export type EvaluatorOutputPreviewMutation$data = {
   readonly evaluatorPreviews: {
-    readonly annotations: ReadonlyArray<{
-      readonly explanation: string | null;
-      readonly id: string;
-      readonly label: string | null;
-      readonly name: string;
-      readonly score: number | null;
+    readonly results: ReadonlyArray<{
+      readonly __typename: "EvaluationError";
+      readonly evaluatorName: string;
+      readonly message: string;
+    } | {
+      readonly __typename: "EvaluationSuccess";
+      readonly annotation: {
+        readonly explanation: string | null;
+        readonly id: string;
+        readonly label: string | null;
+        readonly name: string;
+        readonly score: number | null;
+      };
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
   };
 };
@@ -141,45 +152,91 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "ExperimentRunAnnotation",
+        "concreteType": null,
         "kind": "LinkedField",
-        "name": "annotations",
+        "name": "results",
         "plural": true,
         "selections": [
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "explanation",
+            "name": "__typename",
             "storageKey": null
           },
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "label",
-            "storageKey": null
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "ExperimentRunAnnotation",
+                "kind": "LinkedField",
+                "name": "annotation",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "explanation",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "label",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "score",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "EvaluationSuccess",
+            "abstractKey": null
           },
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "score",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "evaluatorName",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "message",
+                "storageKey": null
+              }
+            ],
+            "type": "EvaluationError",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -206,16 +263,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "555fea2f64843706400479c845231744",
+    "cacheID": "81bcf7d2f2eba21181d4b0c50f3b8019",
     "id": null,
     "metadata": {},
     "name": "EvaluatorOutputPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    annotations {\n      explanation\n      label\n      score\n      name\n      id\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    results {\n      __typename\n      ... on EvaluationSuccess {\n        annotation {\n          explanation\n          label\n          score\n          name\n          id\n        }\n      }\n      ... on EvaluationError {\n        evaluatorName\n        message\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d66596c4485f68799c7a69164b3a5004";
+(node as any).hash = "837674865d0b95985f11109e9e07fdb4";
 
 export default node;
