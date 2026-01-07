@@ -157,7 +157,7 @@ export function PromptsTable(props: PromptsTableProps) {
               `}
             >
               {row.original.labels.map((label) => (
-                <Token key={label.id} color={label.color}>
+                <Token key={label.id} color={label.color ?? undefined}>
                   {label.name}
                 </Token>
               ))}

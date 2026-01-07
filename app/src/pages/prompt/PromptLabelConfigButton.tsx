@@ -296,7 +296,11 @@ function PromptLabelListBoxItem({ item }: { item: PromptLabel }) {
       {({ isSelected }) => (
         <Flex direction="row" justifyContent="space-between">
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ColorSwatch color={item.color} size="M" shape="circle" />
+            <ColorSwatch
+              color={item.color ?? undefined}
+              size="M"
+              shape="circle"
+            />
             {item.name}
           </Flex>
           {isSelected ? <Icon svg={<Icons.CheckmarkOutline />} /> : null}

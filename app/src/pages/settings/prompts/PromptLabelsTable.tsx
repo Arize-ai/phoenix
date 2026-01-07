@@ -51,7 +51,11 @@ export function PromptLabelsTable({
         header: "label",
         accessorKey: "name",
         cell: ({ row }) => {
-          return <Token color={row.original.color}>{row.original.name}</Token>;
+          return (
+            <Token color={row.original.color ?? undefined}>
+              {row.original.name}
+            </Token>
+          );
         },
       },
       {

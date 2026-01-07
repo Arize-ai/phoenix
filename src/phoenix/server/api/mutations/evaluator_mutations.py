@@ -65,6 +65,7 @@ async def _ensure_evaluator_prompt_label(
         label = models.PromptLabel(
             name="evaluator",
             description="Automatically assigned to prompts created for LLM evaluators",
+            color="#4ecf50",
         )
         session.add(label)
         await session.flush()  # Flush to get the ID

@@ -30,7 +30,7 @@ export function PromptLabels({ prompt }: { prompt: PromptLabels$key }) {
     <ul css={ulCSS}>
       {data.labels.map((label) => (
         <li key={label.name}>
-          <Token size="M" color={label.color}>
+          <Token size="M" color={label.color ?? undefined}>
             {label.name}
           </Token>
         </li>

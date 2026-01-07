@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<011de0319ed701cc7c1d07ea7283ff82>>
+ * @generated SignedSource<<9e6a0b62cb7eb230b54a845685b364d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptLabelConfigButton_allLabels$data = {
   readonly promptLabels: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly color: string;
+        readonly color: string | null;
         readonly id: string;
         readonly name: string;
       };
