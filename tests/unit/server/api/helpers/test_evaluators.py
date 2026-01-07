@@ -14,6 +14,8 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
     cast_template_variable_types,
+    json_diff_count,
+    levenshtein_distance,
     validate_template_variables,
 )
 from phoenix.server.api.helpers.evaluators import (
@@ -943,6 +945,108 @@ class TestValidateTemplateVariables:
             template_variables=template_variables,
             input_schema=input_schema,
         )
+
+
+class TestLevenshteinDistance:
+    def test_identical_strings_returns_zero(self) -> None:
+        assert levenshtein_distance("hello", "hello") == 0
+
+    def test_empty_strings_returns_zero(self) -> None:
+        assert levenshtein_distance("", "") == 0
+
+    def test_one_empty_string_returns_length_of_other(self) -> None:
+        assert levenshtein_distance("hello", "") == 5
+        assert levenshtein_distance("", "world") == 5
+
+    def test_single_character_difference(self) -> None:
+        assert levenshtein_distance("cat", "bat") == 1
+
+    def test_insertion(self) -> None:
+        assert levenshtein_distance("cat", "cats") == 1
+
+    def test_deletion(self) -> None:
+        assert levenshtein_distance("cats", "cat") == 1
+
+    def test_multiple_operations(self) -> None:
+        assert levenshtein_distance("kitten", "sitting") == 3
+
+    def test_completely_different_strings(self) -> None:
+        assert levenshtein_distance("abc", "xyz") == 3
+
+    def test_case_sensitive(self) -> None:
+        assert levenshtein_distance("Hello", "hello") == 1
+
+    def test_unicode_characters(self) -> None:
+        assert levenshtein_distance("café", "cafe") == 1
+
+
+class TestJsonDiffCount:
+    def test_identical_objects_returns_zero(self) -> None:
+        obj = {"a": 1, "b": 2}
+        assert json_diff_count(obj, obj.copy()) == 0
+
+    def test_identical_arrays_returns_zero(self) -> None:
+        arr = [1, 2, 3]
+        assert json_diff_count(arr, arr.copy()) == 0
+
+    def test_identical_primitives_returns_zero(self) -> None:
+        assert json_diff_count(42, 42) == 0
+        assert json_diff_count("hello", "hello") == 0
+        assert json_diff_count(True, True) == 0
+        assert json_diff_count(None, None) == 0
+
+    def test_different_primitives_returns_one(self) -> None:
+        assert json_diff_count(42, 43) == 1
+        assert json_diff_count("hello", "world") == 1
+        assert json_diff_count(True, False) == 1
+
+    def test_different_types_returns_one(self) -> None:
+        assert json_diff_count(42, "42") == 1
+        assert json_diff_count([1, 2], {"a": 1}) == 1
+        assert json_diff_count(None, 0) == 1
+
+    def test_object_with_missing_key(self) -> None:
+        assert json_diff_count({"a": 1}, {"a": 1, "b": 2}) == 1
+        assert json_diff_count({"a": 1, "b": 2}, {"a": 1}) == 1
+
+    def test_object_with_different_value(self) -> None:
+        assert json_diff_count({"a": 1}, {"a": 2}) == 1
+
+    def test_nested_objects(self) -> None:
+        expected = {"a": {"b": 1}}
+        actual = {"a": {"b": 2}}
+        assert json_diff_count(expected, actual) == 1
+
+    def test_deeply_nested_difference(self) -> None:
+        expected = {"a": {"b": {"c": 1}}}
+        actual = {"a": {"b": {"c": 2}}}
+        assert json_diff_count(expected, actual) == 1
+
+    def test_multiple_nested_differences(self) -> None:
+        expected = {"a": 1, "b": {"c": 2, "d": 3}}
+        actual = {"a": 2, "b": {"c": 2, "d": 4}}
+        assert json_diff_count(expected, actual) == 2
+
+    def test_array_with_different_length(self) -> None:
+        assert json_diff_count([1, 2, 3], [1, 2]) == 1
+        assert json_diff_count([1, 2], [1, 2, 3]) == 1
+
+    def test_array_with_different_elements(self) -> None:
+        assert json_diff_count([1, 2, 3], [1, 2, 4]) == 1
+
+    def test_array_length_and_element_differences(self) -> None:
+        assert json_diff_count([1, 2, 3], [1, 4]) == 2
+
+    def test_complex_nested_structure(self) -> None:
+        expected = {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}
+        actual = {"users": [{"name": "Alice", "age": 31}, {"name": "Charlie", "age": 25}]}
+        assert json_diff_count(expected, actual) == 2
+
+    def test_empty_objects_returns_zero(self) -> None:
+        assert json_diff_count({}, {}) == 0
+
+    def test_empty_arrays_returns_zero(self) -> None:
+        assert json_diff_count([], []) == 0
 
 
 @pytest.fixture
