@@ -8,12 +8,14 @@ export interface CompositeFieldProps {
 const compositeFieldCSS = css`
   display: flex;
 
-  > *:not(:last-child) {
+  > *:not(:last-child),
+  .left-child {
     border-right: none;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
-  > *:last-child {
+  > *:last-child,
+  .right-child {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
