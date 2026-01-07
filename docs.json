@@ -43,7 +43,7 @@
             "groups": [
               {
                 "group": " ",
-                "pages": ["docs/phoenix", "docs/phoenix/phoenix-demo"]
+                "pages": ["docs/phoenix"]
               },
               {
                 "group": "Quick Start",
@@ -58,7 +58,8 @@
                       "docs/phoenix/get-started/get-started-datasets-and-experiments"
                     ]
                   },
-                  "docs/phoenix/end-to-end-features-notebook"
+                  "docs/phoenix/end-to-end-features-notebook",
+                  "docs/phoenix/phoenix-demo"
                 ]
               },
               {
@@ -840,7 +841,7 @@
                 "icon": "clipboard-check",
                 "pages": [
                   "docs/phoenix/integrations/evaluation-integrations/cleanlab",
-                  "docs/phoenix/integrations/evaluation-integrations/ragas", 
+                  "docs/phoenix/integrations/evaluation-integrations/ragas",
                   "docs/phoenix/integrations/evaluation-integrations/uqlm"
                 ]
               },

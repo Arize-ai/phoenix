@@ -1,5 +1,5 @@
 ---
-title: "Get Started with Experiments"
+title: "Optimize Your App with Experiments"
 ---
 
 In this guide, we’ll run experiments in Phoenix to systematically improve an application.
@@ -10,13 +10,8 @@ At this point, you should already have a dataset created from previous runs and 
 
 To follow along, you should already have:
 
-- A Phoenix Cloud account
-- An OpenAI API key
-- A SerperDev API key
 - Traces & Evals attached to a project in Phoenix
 - A dataset created from previous runs, such as failed traces
-
-If you haven’t done this yet, start with [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing),[ Get Started with Evals](https://arize.com/docs/phoenix/get-started/get-started-evaluations), & [Get Started with Prompts](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground) then come back here once you have evaluation results in the UI.
 
 ## **Step 1: Use Explanations to Identify Improvements**
 
@@ -58,7 +53,7 @@ writer = Agent(
 )
 ```
 
-Created an updated crew w/ these new, updated agents.
+Create an updated crew with these new, updated agents.
 
 ```python
 updated_crew = Crew(
@@ -73,7 +68,7 @@ At this point, we’ve made a targeted change based on the explanations for why 
 
 ## **Step 2: Define an Experiment**
 
-Now that we’ve updated the agent, we want to test whether the change actually improves quality.
+Now that we’ve updated the agent, we will run this new Crew to test whether the changes actually improve quality.
 
 Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This helps ensure that improvements are measured, not assumed.
 
@@ -85,9 +80,9 @@ To define an experiment, we need to specify:
 
 - **The experiment evaluation**
 
-  An expeirment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
+  An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
 
-In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. The evaluation stays the same so we can directly compare results.
+In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we are re-running our agent system on these inputs and getting new outputs, we will rerun the same evaluation to directly compare results.
 
 ```python
 def my_task(example):
@@ -138,17 +133,19 @@ Head back to Phoenix and open the **Experiments** view.
 
 Here, you can see:
 
-- The original runs compared against the new ones
+- The original runs compared against the new ones under 'reference output' 
+- New application runs as a reults of our task  
 - Evaluation results for each version
-- Whether previously failing traces now pass
 
 In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
 
+<Frame caption="View Experiment Results">
 <video
   controls
   className="w-full aspect-video rounded-xl"
   src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
 />
+</Frame>
 
 **Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
 

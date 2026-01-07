@@ -24,15 +24,15 @@ Together, these pieces let you move from inspecting individual runs to making ch
 
 Tracing answers a basic question: what is happening under the hood of my application when it runs?
 
-In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
 
-With these traces, you can then build on them in later steps.
+This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone. 
 
 ### **Evals**
 
 Once you can see what happened, the next question is whether the output was correct.
 
-In this guide, you define evaluations and run them on existing trace data. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case.
+An evaluation produces a score or label for an output, so you can track quality across runs. In this guide, you define evaluations and run them on existing trace data. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case.
 
 This turns traces from observations into something you can measure.
 
@@ -40,7 +40,7 @@ This turns traces from observations into something you can measure.
 
 Prompt changes often have a direct impact on application behavior.
 
-In this guide, you start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants. Prompt Hub is used to save and reuse prompts across runs.
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants. Prompt Hub is used to save and reuse prompts across runs.
 
 This lets you evaluate prompt changes using the same data and criteria instead of relying on spot checks.
 
@@ -48,7 +48,9 @@ This lets you evaluate prompt changes using the same data and criteria instead o
 
 Once you have changes you want to test, experiments let you compare versions in a controlled way.
 
-In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
+An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
+
+This lets you compare versions using the exact same inputs, so differences in results come from your changes. 
 
 ## **Where to Start**
 

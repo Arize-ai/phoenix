@@ -1,8 +1,10 @@
 ---
-title: "Get Started with Tracing"
+title: "Send Traces From Your App"
 ---
 
-In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent using CrewAI, and then send a single trace so we can see everything end to end.
+In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
+
+We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page. ](https://arize.com/docs/phoenix/integrations)
 
 ## **Before We Start**
 
@@ -25,17 +27,21 @@ In this step, we’ll create a Phoenix Cloud account and configure it for our ap
 5. Create and save an API key. We’ll use this in the next step.
 6. Note your **Hostname** — this is the endpoint we’ll configure in code shortly.
 
+<Frame caption="How to Create a Phoenix Cloud account & a space">
 <video
   controls
   className="w-full aspect-video rounded-xl"
   src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4"
 />
+</Frame>
 
+<Frame caption="How to Make an API Key">
 <video
   controls
   className="w-full aspect-video rounded-xl"
   src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4"
 />
+</Frame>
 
 ## **Step 2: Configure your Environment**
 
@@ -43,38 +49,23 @@ Now that Phoenix is running, we need to connect our application to it so we can 
 
 In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
 
-We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page. ](https://arize.com/docs/phoenix/integrations)
-
 We’ll now install both the CrewAI package and the OpenInference CrewAI auto-instrumentation package, which handles tracing for us without requiring manual instrumentation.
 
 ### **Install Your Packages**
 
 ```
-%pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openai getpass
+%pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openai
 ```
 
 ### **Set Your API Keys**
 
 ```python
 import os
-from getpass import getpass
 
-if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-    openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-if not (serper_api_key := os.getenv("SERPER_API_KEY")):
-    serper_api_key = getpass("🔑 Enter your Serper API key: ")
-
-if not (phoenix_api_key := os.getenv("PHOENIX_API_KEY")):
-    phoenix_api_key = getpass("🔑 Enter your Phoenix API key: ")
-
-if not (phoenix_endpoint := os.getenv("PHOENIX_COLLECTOR_ENDPOINT")):
-    phoenix_endpoint = getpass("🔑 Enter your Phoenix Endpoint: ")
-
-os.environ["PHOENIX_API_KEY"] = phoenix_api_key
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_endpoint
-os.environ["SERPER_API_KEY"] = serper_api_key
-os.environ["OPENAI_API_KEY"] = openai_api_key
+os.environ["PHOENIX_API_KEY"] = <ENTER YOUR PHOENIX API KEY>
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = <ENTER YOUR PHOENIX ENDPOINT>
+os.environ["SERPER_API_KEY"] = <ENTER YOUR SERPER API KEY>
+os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
 ```
 
 ### **Register Your Project in Phoenix** 
@@ -93,7 +84,7 @@ At this point, your application is configured to send traces to Phoenix!
 
 Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
 
-In this step, we’ll create a simple Financial Analysis and Research chatbot.
+In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix. 
 
 This agent is made up of:
 

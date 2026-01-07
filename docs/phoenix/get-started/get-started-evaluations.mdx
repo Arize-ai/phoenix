@@ -1,5 +1,5 @@
 ---
-title: "Get Started with Evaluations"
+title: "Measure Performance with Evaluations"
 ---
 
 In this guide, we’ll set up evaluations in Phoenix so we can measure the quality of model outputs from a real application.
@@ -12,13 +12,10 @@ Since we already have traces, we can take this a step further by scoring them ag
 
 ## **Before We Start**
 
-To follow along, you’ll need:
+To follow along, you’ll need to have completed [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing) which means we have: 
 
-- A Phoenix Cloud account
-- An OpenAI API key
-- SerperDev API key
-
-This guide builds on [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing). We recommend completing that first and coming back here once you have data flowing into Phoenix.
+- Financial Analysis and Research Chatbot 
+- Trace Data in Phoenix
 
 ## **Step 1: Make Sure You Have Data in Phoenix**
 
@@ -68,7 +65,7 @@ In this step, we’ll define a basic completeness evaluation that checks whether
 
 ### **Define the Evaluation Prompt**
 
-We’ll start by defining the prompt that tells the evaluator how to judge an answer.
+We’ll start by defining the prompt that tells the evaluator how to judge an answer. We're using `attributes.input.value` & `attributes.output.value` as that is how our span data saves input & output. 
 
 ```python
 financial_completeness_template = """
@@ -165,7 +162,7 @@ df = px_client.spans.get_spans_dataframe(project_name="crewai-tracing-quickstart
 parent_spans = df[df["span_kind"] == "CHAIN"]
 ```
 
-Then run the evaluator over that data:
+Then run the evaluator over that data. We are adding in `suppress_tracing()` since auto-instrumentation enabled and we do not want to trace each of these OpenAI evaluation calls in our project. 
 
 ```python
 from phoenix.evals import evaluate_dataframe
@@ -198,13 +195,15 @@ Client().spans.log_span_annotations_dataframe(
 
 Once this completes, head back to Phoenix.
 
-You’ll now see evaluation results attached to your trace data, making it easy to understand which runs passed, which failed, and how quality varies across executions.
+You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
 
+<Frame caption="Tracing Project with Evaluation Annotations">
 <video
   controls
   className="w-full aspect-video rounded-xl"
   src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/completeness%20evals%20quickstart.mp4"
 />
+</Frame>
 
 **Congratulations**! You’ve run your first evaluation in Phoenix.
 
@@ -212,7 +211,7 @@ You’ll now see evaluation results attached to your trace data, making it easy 
 
 Now that you have evaluation results in Phoenix, you can start using them to guide iteration.
 
-You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The [Datasets and Experiments guide](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments) walks through this workflow in more detail.
+You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to make iterations to your application with no code is through prompt playground. The [Iterate on Your Prompts guide](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground) walks through this workflow in more detail.
 
 To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
 
