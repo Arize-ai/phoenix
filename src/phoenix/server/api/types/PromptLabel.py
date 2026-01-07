@@ -48,7 +48,7 @@ class PromptLabel(Node):
     async def color(
         self,
         info: Info[Context, None],
-    ) -> str:
+    ) -> Optional[str]:
         if self.db_record:
             val = self.db_record.color
         else:

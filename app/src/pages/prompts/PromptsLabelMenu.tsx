@@ -129,7 +129,7 @@ const LabelMenuFilterContent = ({
       >
         {({ id, name, color }) => (
           <MenuItem id={id} textValue={name}>
-            <Token color={color}>{name}</Token>
+            <Token color={color ?? undefined}>{name}</Token>
           </MenuItem>
         )}
       </Menu>

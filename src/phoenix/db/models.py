@@ -1800,7 +1800,7 @@ class PromptLabel(HasId):
     __tablename__ = "prompt_labels"
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
-    color: Mapped[str] = mapped_column(String, nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
         "PromptPromptLabel",
