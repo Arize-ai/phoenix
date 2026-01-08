@@ -149,7 +149,7 @@ export const AddEvaluatorMenuContents = ({
           query={query}
           onAction={onSelectBuiltInLLMEvaluator}
         >
-          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+          <MenuItem leadingContent={<Icon svg={<Icons.TemplateLlm />} />}>
             Use LLM evaluator template
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
@@ -167,7 +167,7 @@ export const AddEvaluatorMenuContents = ({
           query={query}
           onAction={onSelectBuiltInCodeEvaluator}
         >
-          <MenuItem leadingContent={<Icon svg={<Icons.SquiggleOutline />} />}>
+          <MenuItem leadingContent={<Icon svg={<Icons.Code />} />}>
             Use built-in code evaluator
           </MenuItem>
         </CodeEvaluatorTemplateSubmenu>
