@@ -212,8 +212,8 @@ def get_input_output_context(
         return None
 
     # Group by trace_id (index level 0) and concatenate contexts
-    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
-        lambda x: _concat_contexts(x, separator)
+    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(  # pyright: ignore[reportCallIssue]
+        lambda x: _concat_contexts(x, separator)  # pyright: ignore[reportArgumentType]
     )
     df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")
@@ -418,8 +418,8 @@ async def async_get_input_output_context(
         return None
 
     # Group by trace_id (index level 0) and concatenate contexts
-    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(
-        lambda x: _concat_contexts(x, separator)
+    ref: pd.Series[str] = df_docs.groupby(level=0)["context"].apply(  # pyright: ignore[reportCallIssue]
+        lambda x: _concat_contexts(x, separator)  # pyright: ignore[reportArgumentType]
     )
     df_ref = pd.DataFrame({"context": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner")

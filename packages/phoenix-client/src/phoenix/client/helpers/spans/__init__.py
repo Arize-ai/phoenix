@@ -293,10 +293,18 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
     for idx, row in df.iterrows():  # pyright: ignore
         span: dict[str, Any] = {}
 
-        if df.index.name == "span_id" or df.index.name is None:  # pyright: ignore
+        # Determine span_id: prefer context.span_id column, fall back to index only if it's
+        # actually a span_id (not a default integer index)
+        span_id = ""
+        if "context.span_id" in row and pd.notna(row["context.span_id"]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
+            span_id = str(row["context.span_id"])  # pyright: ignore
+        elif "span_id" in row and pd.notna(row["span_id"]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
+            span_id = str(row["span_id"])  # pyright: ignore
+        elif isinstance(idx, str):  # pyright: ignore
             span_id = str(idx)
-        else:
-            span_id = str(row.get("context.span_id", ""))  # pyright: ignore
+
+        if not span_id:
+            raise ValueError(f"Row {idx}: Missing span_id")
 
         # Build context
         context: dict[str, str] = {}
