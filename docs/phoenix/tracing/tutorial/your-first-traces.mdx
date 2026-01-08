@@ -12,7 +12,19 @@ When building agents and LLM applications, it's hard to see what's actually goin
 
 In this tutorial, with just a few additional lines of code, you'll be able to monitor every LLM call, tool execution, and retrieval operation that powers your agents. You'll learn how to debug, monitor, and analyze your agents more effectively and efficiently, transforming them from personal projects to production-ready applications.
 
-> **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+**Follow along with code**
+
+Throughout the tutorial we will include key code snippets, but to see the full implementation, check out the companion projects below.
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial">
+    Companion TypeScript project with runnable examples
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+</Columns>
 
 # SupportBot
 
@@ -33,31 +45,84 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
 
 ## Install Dependencies
 
-```bash
-npm install ai @ai-sdk/openai @arizeai/openinference-vercel \
-  @arizeai/openinference-semantic-conventions @opentelemetry/api \
-  @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto \
-  @opentelemetry/resources @opentelemetry/semantic-conventions zod
-```
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```bash
+    npm install ai @ai-sdk/openai @arizeai/openinference-vercel \
+      @arizeai/openinference-semantic-conventions @opentelemetry/api \
+      @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto \
+      @opentelemetry/resources @opentelemetry/semantic-conventions zod
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```bash
+    pip install arize-phoenix-otel arize-phoenix-client openai openinference-instrumentation-openai numpy
+    ```
+  </Tab>
+</Tabs>
 
 ## Set up Phoenix Cloud
 
 In order to send traces to Phoenix, you must sign up for a free space and account. Follow these [instructions](https://arize.com/docs/phoenix/get-started#setup-and-run-phoenix-cloud) to configure Phoenix Cloud, if you haven't already.
 
-## Configure OpenTelemetry
+Once you have Phoenix Cloud configured, set your keys:
 
-Create an `instrumentation.ts` file that sends traces to Phoenix:
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    Create a `.env` file in your project root:
 
-```typescript
-import { register } from "@arizeai/phoenix-otel";
+    ```bash
+    PHOENIX_API_KEY=<ENTER YOUR PHOENIX API KEY>
+    PHOENIX_COLLECTOR_ENDPOINT=<ENTER YOUR PHOENIX ENDPOINT>
+    OPENAI_API_KEY=<ENTER YOUR OPENAI API KEY>
+    ```
+  </Tab>
 
-// Register with Phoenix - this handles all the OpenTelemetry boilerplate
-export const provider = register({
-  projectName: "support-bot",
-});
-```
+  <Tab title="Python" icon="python">
+    ```python
+    import os
 
-Import this file at the top of your application to enable tracing.
+    os.environ["PHOENIX_API_KEY"] = <ENTER YOUR PHOENIX API KEY>
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = <ENTER YOUR PHOENIX ENDPOINT>
+    os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
+    ```
+  </Tab>
+</Tabs>
+
+
+
+## Configure Tracing
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    Create an `instrumentation.ts` file:
+
+    ```typescript
+    import { register } from "@arizeai/phoenix-otel";
+
+    // Register with Phoenix - this handles all the OpenTelemetry boilerplate
+    export const provider = register({
+      projectName: "support-bot",
+    });
+    ```
+
+    Import this file at the top of your application to enable tracing.
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    Setting `auto_instrument=True` in the `register` function looks at the installed [OpenInference](https://github.com/Arize-ai/openinference) packages and automatically instruments them, so you don't need to do manual configuration for each library.
+
+    ```python
+    from phoenix.otel import register
+
+    tracer_provider = register(
+        project_name="support-bot",
+        auto_instrument=True
+    )
+    ```
+  </Tab>
+</Tabs>
 
 # Tracing LLM Calls
 
@@ -76,19 +141,40 @@ For SupportBot, tracing LLM calls will give us observability into the classifica
 
 It will also give us observability into the final generation stage. How was the final output delivered to the user, and what context went into that final LLM call that generated the final output?
 
-The key to tracing AI SDK calls is one parameter: `experimental_telemetry: { isEnabled: true }`. Add this to any `generateText` or `embed` call:
 
-```typescript
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    The key to tracing AI SDK calls is one parameter: `experimental_telemetry: { isEnabled: true }`. Add this to any `generateText` or `embed` call:
 
-const result = await generateText({
-  model: openai.chat("gpt-4o-mini"),
-  system: "Classify the query as 'order_status' or 'faq'",
-  prompt: userQuery,
-  experimental_telemetry: { isEnabled: true },  // This enables tracing
-});
-```
+    ```typescript
+    import { generateText } from "ai";
+    import { openai } from "@ai-sdk/openai";
+
+    const result = await generateText({
+      model: openai.chat("gpt-4o-mini"),
+      system: "Classify the query as 'order_status' or 'faq'",
+      prompt: userQuery,
+      experimental_telemetry: { isEnabled: true },  // This enables tracing
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    Calls will be automatically traced when instrumentation is enabled:
+
+    ```python
+    user_query = "Where is my order?"
+
+    result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Classify the query as 'order_status' or 'faq'"},
+            {"role": "user", "content": user_query},
+        ],
+    )
+    ```
+  </Tab>
+</Tabs>
 
 **In Phoenix, you'll see:**
 
@@ -104,28 +190,99 @@ Tools allow your agent to interact with databases, APIs, external systems. In or
 
 With tracing, you see the complete chain, including the LLM's decision, the exact parameters passed, and the tool's response, without having to guess which step broke.
 
-When your LLM calls tools, those executions are automatically traced as child spans. With Phoenix, you can simply define your tools using the AI SDK configuration, as the tracing happens automatically when `experimental_telemetry` is enabled.
+When your LLM calls tools, those executions are automatically traced as child spans. With Phoenix, you can see the complete chain, including the LLM's decision, the exact parameters passed, and the tool's response.
 
-```typescript
-const result = await generateText({
-  model: openai.chat("gpt-4o-mini"),
-  prompt: userQuery,
-  tools: {
-    lookupOrderStatus: tool({
-      description: "Look up order status by order ID",
-      inputSchema: z.object({
-        orderId: z.string(),
-      }),
-      execute: async ({ orderId }) => {
-        // Your tool logic here
-        return orderDatabase[orderId];
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    With the AI SDK, you can simply define your tools using the AI SDK configuration, as the tracing happens automatically when `experimental_telemetry` is enabled:
+
+    ```typescript
+    const result = await generateText({
+      model: openai.chat("gpt-4o-mini"),
+      prompt: userQuery,
+      tools: {
+        lookupOrderStatus: tool({
+          description: "Look up order status by order ID",
+          inputSchema: z.object({
+            orderId: z.string(),
+          }),
+          execute: async ({ orderId }) => {
+            // Your tool logic here
+            return orderDatabase[orderId];
+          },
+        }),
       },
-    }),
-  },
-  maxSteps: 2,
-  experimental_telemetry: { isEnabled: true },  // Tools are traced automatically
-});
-```
+      maxSteps: 2,
+      experimental_telemetry: { isEnabled: true },  // Tools are traced automatically
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    For the OpenAI Python SDK, you need a helper function to execute tool calls and manually create spans to trace tool execution. 
+
+    ```python
+    tools = [
+      # tools defined here
+    ]
+
+    # Helper function to execute tools
+    def execute_tool_call(tool_call, database):
+        """Execute a tool call and return the result."""
+        function_name = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+
+        with tracer.start_as_current_span(
+            function_name,
+            attributes={
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: "TOOL",
+                SpanAttributes.TOOL_NAME: function_name,
+                SpanAttributes.TOOL_PARAMETERS: json.dumps(function_args),
+                SpanAttributes.INPUT_VALUE: json.dumps(function_args),
+            },
+        ) as tool_span:
+          # Helper function logic here
+      
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful customer support agent....",
+        },
+        {"role": "user", "content": user_query},
+    ]
+
+    result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        tools=tools,
+        tool_choice="auto",
+    )
+
+    message = result.choices[0].message
+    messages.append(message)
+
+    # Execute tool if called, then get final response
+    if message.tool_calls:
+        for tool_call in message.tool_calls:
+            tool_result = execute_tool_call(tool_call, ORDER_DATABASE)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(tool_result),
+            })
+
+        # Final LLM call with tool result
+        final_result = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+        )
+        final_response = final_result.choices[0].message.content
+    else:
+        final_response = message.content
+    ```
+  </Tab>
+</Tabs>
 
 **In Phoenix, you'll see:**
 
@@ -141,24 +298,51 @@ RAG pipelines can fail in many places. The embedding might not capture the query
 
 For RAG, trace both the embedding calls and the generation call. Each `embed` call becomes its own span:
 
-```typescript
-// Embed the user's query - traced automatically
-const { embedding } = await embed({
-  model: openai.embedding("text-embedding-ada-002"),
-  value: userQuery,
-  experimental_telemetry: { isEnabled: true },
-});
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    // Embed the user's query - traced automatically
+    const { embedding } = await embed({
+      model: openai.embedding("text-embedding-ada-002"),
+      value: userQuery,
+      experimental_telemetry: { isEnabled: true },
+    });
 
-// ... semantic search logic ...
+    // ... semantic search logic ...
 
-// Generate with retrieved context - traced automatically
-const { text } = await generateText({
-  model: openai.chat("gpt-4o-mini"),
-  system: `Answer using ONLY this context:\n\n${retrievedContext}`,
-  prompt: userQuery,
-  experimental_telemetry: { isEnabled: true },
-});
-```
+    // Generate with retrieved context - traced automatically
+    const { text } = await generateText({
+      model: openai.chat("gpt-4o-mini"),
+      system: `Answer using ONLY this context:\n\n${retrievedContext}`,
+      prompt: userQuery,
+      experimental_telemetry: { isEnabled: true },
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python wrap
+    # Embed the query - traced automatically
+    embedding_response = client.embeddings.create(
+        model="text-embedding-ada-002",
+        input=user_query
+    )
+    query_embedding = embedding_response.data[0].embedding
+
+    # Generate with retrieved context - traced automatically
+    rag_result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": f"You are a helpful customer support agent. Answer the user's question using ONLY the information provided in the context below. Be friendly and concise.\n\nContext:\n{rag_context}",
+            },
+            {"role": "user", "content": user_query},
+        ],
+    )
+    ```
+  </Tab>
+</Tabs>
 
 **In Phoenix, you'll see:**
 
@@ -176,42 +360,70 @@ A single user request might trigger multiple LLM calls, tool executions, and ret
 
 To see all operations for a single request as one trace, wrap them in a parent span using the OpenTelemetry API:
 
-```typescript
-import { trace, SpanStatusCode } from "@opentelemetry/api";
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { trace, SpanStatusCode } from "@opentelemetry/api";
 
-const tracer = trace.getTracer("support-agent");
+    const tracer = trace.getTracer("support-agent");
 
-async function handleSupportQuery(userQuery: string) {
-  return tracer.startActiveSpan(
-    "support-agent",
-    { attributes: { "openinference.span.kind": "AGENT", "input.value": userQuery } },
-    async (span) => {
-      try {
-        // All LLM calls, tool executions, and embeddings inside here
-        // will appear as children of this span
-        const result = await processQuery(userQuery);
-        
-        span.setAttribute("output.value", result);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return result;
-      } catch (error) {
-        span.setStatus({ code: SpanStatusCode.ERROR });
-        throw error;
-      } finally {
-        span.end();
-      }
+    async function handleSupportQuery(userQuery: string) {
+      return tracer.startActiveSpan(
+        "support-agent",
+        { attributes: { "openinference.span.kind": "AGENT", "input.value": userQuery } },
+        async (span) => {
+          try {
+            // All LLM calls, tool executions, and embeddings inside here
+            // will appear as children of this span
+            const result = await processQuery(userQuery);
+            
+            span.setAttribute("output.value", result);
+            span.setStatus({ code: SpanStatusCode.OK });
+            return result;
+          } catch (error) {
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            throw error;
+          } finally {
+            span.end();
+          }
+        }
+      );
     }
-  );
-}
-```
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from opentelemetry import trace
+    from openinference.semantic_conventions import SpanAttributes
+
+    def handle_support_query(user_query: str) -> AgentResponse:
+        tracer = trace.get_tracer("support-agent")
+
+        with tracer.start_as_current_span(
+            "support-agent",
+            attributes={
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: "AGENT",
+                SpanAttributes.INPUT_VALUE: user_query,
+            },
+        ) as agent_span:
+            try:
+                # All LLM calls, tool executions, and embeddings inside here
+                # will appear as children of this span
+                
+                agent_span.set_attribute(SpanAttributes.OUTPUT_VALUE, result)
+                agent_span.set_status(trace.Status(trace.StatusCode.OK))
+                return result
+            except Exception as error:
+                agent_span.set_status(trace.Status(trace.StatusCode.ERROR))
+                raise
+    ```
+  </Tab>
+</Tabs>
 
 # Running the Demo
 
-The final SupportBot agent combines the classifier, the order status tool, and the FAQ retrieval into a single agent. You can see the code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts), and run it with:
-
-```bash
-pnpm start
-```
+The final SupportBot agent combines the classifier, the order status tool, and the FAQ retrieval into a single agent. 
 
 The tutorial code runs 7 test queries against the agent:
 
@@ -227,7 +439,15 @@ const queries = [
 ];
 ```
 
-The code will prompt for feedback on each response - you can skip this for now (press `s`) and focus on the traces.
+<Columns cols={2}>
+  <Card title="Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts">
+  </Card>
+
+  <Card title="Complete Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+  </Card>
+</Columns>
+
+The code may prompt for feedback on each response - you can skip this for now (press `s`) and focus on the traces.
 
 # Viewing Your Traces
 
@@ -237,7 +457,7 @@ Open your Phoenix Cloud space. You'll see 7 `support-agent` traces - one for eac
 
 Click into any trace to see the full execution tree. Let's look at two interesting cases:
 
-## Trace 1: "Can you help me with something random?"
+### Trace 1: "Can you help me with something random?"
 
 Our support query classifier gave the following classification:
 
@@ -270,7 +490,7 @@ Therefore, our traces have given us proper insight into why the final answer was
 I’d be happy to help, but I can only assist with questions related to account settings, passwords, and profile information. Let me know if you need help with those!
 ```
 
-## Trace 2: "What's the status of order ORD-99999?"
+### Trace 2: "What's the status of order ORD-99999?"
 
 Our support query classifier gave us the following classification:
 
