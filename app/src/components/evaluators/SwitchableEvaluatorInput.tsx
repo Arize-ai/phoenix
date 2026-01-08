@@ -222,13 +222,16 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   id={`${fieldName}-${mode}`}
                   allowsCustomValue
                   onSelectionChange={(key) => {
+                    if (!key) {
+                      return;
+                    }
                     // Toggle: if selecting the same value, clear it
                     if (key === "__unset__") {
-                      field.onChange(undefined);
                       onPathInputChange?.("");
+                      field.onChange(undefined);
                     } else {
-                      field.onChange(key);
                       onPathInputChange?.(key as string);
+                      field.onChange(key);
                     }
                   }}
                   onInputChange={(value) => {
