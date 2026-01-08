@@ -129,6 +129,12 @@ a `postgresql` database as well, use the `--run-postgres` flag
 tox run -e unit_tests -- --run-postgres
 ```
 
+To run unit tests faster using parallel execution:
+
+```bash
+tox r -e unit_tests -- -n auto
+```
+
 Check the output of `tox list` to find commands for type-checks, linters, formatters, etc.
 
 ## Installing Pre-Commit Hooks
@@ -352,6 +358,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
    This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
 
    > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
+   >
    > ```bash
    > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
    > ```
