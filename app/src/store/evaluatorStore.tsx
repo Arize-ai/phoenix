@@ -13,6 +13,7 @@ import type {
   EvaluatorPreMappedInput,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
+import { compressObject } from "@phoenix/utils/objectUtils";
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -215,13 +216,21 @@ export const createEvaluatorStore = (
             );
           },
           setPathMapping(pathMapping) {
+            const newPathMapping =
+              // filter out undefined and empty key value pairs
+              compressObject(pathMapping) ?? {};
             set(
               {
                 evaluator: {
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    pathMapping,
+                    // We have to perform this cast because the type system cannot distinguish between
+                    // a partial object where some keys are actually missing, and a partial object where some keys have undefined values.
+                    pathMapping: newPathMapping as unknown as Record<
+                      string,
+                      string
+                    >,
                   },
                 },
               },
@@ -230,13 +239,19 @@ export const createEvaluatorStore = (
             );
           },
           setLiteralMapping(literalMapping) {
+            const newLiteralMapping =
+              // filter out undefined and empty key value pairs
+              compressObject(literalMapping) ?? {};
             set(
               {
                 evaluator: {
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    literalMapping,
+                    literalMapping: newLiteralMapping as unknown as Record<
+                      string,
+                      boolean | string | number
+                    >,
                   },
                 },
               },
@@ -245,16 +260,24 @@ export const createEvaluatorStore = (
             );
           },
           setInputMappingPath(path, value) {
+            const newPathMapping =
+              // filter out undefined and empty key value pairs
+              compressObject({
+                ...get().evaluator.inputMapping.pathMapping,
+                [path]: value,
+              }) ?? {};
             set(
               {
                 evaluator: {
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    pathMapping: {
-                      ...get().evaluator.inputMapping.pathMapping,
-                      [path]: value,
-                    },
+                    // We have to perform this cast because the type system cannot distinguish between
+                    // a partial object where some keys are actually missing, and a partial object where some keys have undefined values.
+                    pathMapping: newPathMapping as unknown as Record<
+                      string,
+                      string
+                    >,
                   },
                 },
               },
@@ -263,16 +286,22 @@ export const createEvaluatorStore = (
             );
           },
           setInputMappingLiteral(literal, value) {
+            const newLiteralMapping =
+              // filter out undefined and empty key value pairs
+              compressObject({
+                ...get().evaluator.inputMapping.literalMapping,
+                [literal]: value,
+              }) ?? {};
             set(
               {
                 evaluator: {
                   ...get().evaluator,
                   inputMapping: {
                     ...get().evaluator.inputMapping,
-                    literalMapping: {
-                      ...get().evaluator.inputMapping.literalMapping,
-                      [literal]: value,
-                    },
+                    literalMapping: newLiteralMapping as unknown as Record<
+                      string,
+                      boolean | string | number
+                    >,
                   },
                 },
               },
