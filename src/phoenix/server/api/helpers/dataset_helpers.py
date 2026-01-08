@@ -59,11 +59,28 @@ def get_dataset_example_output(span: Span) -> dict[str, Any]:
     output_messages = get_attribute_value(attributes, LLM_OUTPUT_MESSAGES)
     retrieval_documents = get_attribute_value(attributes, RETRIEVAL_DOCUMENTS)
     if span_kind == LLM:
-        return _get_llm_span_output(
+        messages_or_output = _get_llm_span_output(
             output_messages=output_messages,
             output_value=output_value,
             output_mime_type=output_mime_type,
         )
+        # Extract tools using the same pattern as input tools (lines 32-35)
+        tool_definitions = []
+        if tools := get_attribute_value(attributes, LLM_TOOLS):
+            for tool in tools:
+                # Use get_attribute_value to safely navigate tool["tool"]["json_schema"]
+                if definition := get_attribute_value(tool, TOOL_DEFINITION):
+                    tool_definitions.append(definition)
+        # Deserialize JSON strings to provide structured data to evaluators
+        # This matches the input pattern at line 103
+        tool_definitions_data = [
+            _safely_json_decode(tool_definition) for tool_definition in tool_definitions
+        ]
+        # Only include available_tools if there are actual tools (keeps output clean)
+        return {
+            **messages_or_output,
+            **({"available_tools": tool_definitions_data} if tool_definitions_data else {}),
+        }
     if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         return _get_retriever_span_output(
             retrieval_documents=retrieval_documents,
