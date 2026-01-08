@@ -149,13 +149,9 @@ export const updateLLMEvaluatorPayload = ({
     description,
     datasetEvaluatorId,
     datasetId,
-    // deep clone the input mapping to ensure relay doesn't mutate the original object
-    // TODO: remove this once we are using zustand
-    inputMapping: structuredClone(inputMapping),
+    inputMapping: inputMapping,
     promptVersion,
-    // deep clone the output config to ensure relay doesn't mutate the original object
-    // TODO: remove this once we are using zustand
-    outputConfig: structuredClone(outputConfig),
+    outputConfig: outputConfig,
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -222,13 +218,9 @@ export const createLLMEvaluatorPayload = ({
     name,
     description,
     datasetId,
-    // deep clone the input mapping to ensure relay doesn't mutate the original object
-    // TODO: remove this once we are using zustand
-    inputMapping: structuredClone(inputMapping),
+    inputMapping: inputMapping,
     promptVersion,
-    // deep clone the output config to ensure relay doesn't mutate the original object
-    // TODO: remove this once we are using zustand
-    outputConfig: structuredClone(outputConfig),
+    outputConfig: outputConfig,
     promptVersionId: promptVersionId ?? null,
   };
 };
