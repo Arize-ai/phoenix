@@ -89,7 +89,7 @@ export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
 export const EVALUATOR_PRE_MAPPED_INPUT_DEFAULT: EvaluatorPreMappedInput = {
   input: {},
   output: {},
-  expected: {},
+  reference: {},
 };
 
 /**
