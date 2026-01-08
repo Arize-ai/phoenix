@@ -33,14 +33,12 @@ import {
   Icons,
   Modal,
   ModalOverlay,
-  Switch,
   Text,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   ExperimentCostAndLatencySummary,
   ExperimentRunCellAnnotationsList,
@@ -49,9 +47,7 @@ import {
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import {
   CellTop,
-  CompactJSONCell,
-  JSONCell,
-  LargeTextWrap,
+  DynamicContentCell,
   PaddedCell,
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -119,7 +115,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
 
@@ -327,13 +322,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </CellTop>
 
               <PaddedCell>
-                <LargeTextWrap>
-                  <JSONText
-                    json={row.original.input}
-                    disableTitle
-                    space={displayFullText ? 2 : 0}
-                  />
-                </LargeTextWrap>
+                <DynamicContentCell
+                  value={row.original.input}
+                  maxHeight={300}
+                />
               </PaddedCell>
             </Flex>
           );
@@ -351,17 +343,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </Text>
             </CellTop>
             <PaddedCell>
-              {displayFullText ? (
-                <JSONCell {...props} />
-              ) : (
-                <CompactJSONCell {...props} />
-              )}
+              <DynamicContentCell value={props.getValue()} maxHeight={300} />
             </PaddedCell>
           </>
         ),
       },
     ];
-  }, [baseExperiment?.datasetVersionId, displayFullText, setDialog]);
+  }, [baseExperiment?.datasetVersionId, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -432,7 +420,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
-              displayFullText={displayFullText}
               setDialog={setDialog}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
@@ -445,7 +432,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
-    displayFullText,
     experimentInfoById,
     getExperimentColor,
   ]);
@@ -538,20 +524,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <ExperimentRunFilterConditionField
-              onValidCondition={setFilterCondition}
-            />
-            <Switch
-              onChange={(isSelected) => {
-                setDisplayFullText(isSelected);
-              }}
-              defaultSelected={false}
-              labelPlacement="start"
-            >
-              <Text>Full Text</Text>
-            </Switch>
-          </Flex>
+          <ExperimentRunFilterConditionField
+            onValidCondition={setFilterCondition}
+          />
         </View>
         <div
           css={tableWrapCSS}
@@ -789,12 +764,11 @@ export const MemoizedTableBody = React.memo(
 function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
-    displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
     annotationSummaries: readonly AnnotationSummary[];
   }
 ) {
-  const { output, error, annotations, displayFullText, setDialog } = props;
+  const { output, error, annotations, setDialog } = props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -805,13 +779,7 @@ function ExperimentRunOutput(
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
       <View padding="size-200" flex="1 1 auto">
-        <LargeTextWrap>
-          <JSONText
-            json={output}
-            disableTitle
-            space={displayFullText ? 2 : 0}
-          />
-        </LargeTextWrap>
+        <DynamicContentCell value={output} maxHeight={300} />
       </View>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
@@ -844,7 +812,6 @@ function RunError({ error }: { error: string }) {
 function ExperimentRunOutputCell({
   experimentRepetitionCount,
   repeatedRunGroup,
-  displayFullText,
   setDialog,
   rowIndex,
   setSelectedExampleIndex,
@@ -852,7 +819,6 @@ function ExperimentRunOutputCell({
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
-  displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
@@ -945,7 +911,6 @@ function ExperimentRunOutputCell({
         <ExperimentRunOutput
           {...run}
           numRepetitions={experimentRepetitionCount}
-          displayFullText={displayFullText}
           setDialog={setDialog}
           annotationSummaries={annotationSummaries}
         />

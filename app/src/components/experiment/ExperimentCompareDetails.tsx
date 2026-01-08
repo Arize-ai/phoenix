@@ -46,6 +46,7 @@ import {
   compactResizeHandleCSS,
   resizeHandleCSS,
 } from "@phoenix/components/resize";
+import { DynamicContentCell } from "@phoenix/components/table";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -1015,7 +1016,9 @@ export function ExperimentItem({
                   {experimentRepetition.experimentRun.error}
                 </View>
               ) : (
-                <FullSizeJSONBlock value={experimentRunOutputStr ?? ""} />
+                <FullSizeDynamicContent
+                  value={experimentRepetition.experimentRun.output}
+                />
               )}
             </View>
           </>
@@ -1044,7 +1047,7 @@ function ReferenceOutputItem() {
         <ExperimentItemMetadata />
         <ExperimentItemAnnotations />
         <View flex={1}>
-          <FullSizeJSONBlock value={referenceOutputStr} />
+          <FullSizeDynamicContent value={referenceOutput} />
         </View>
       </Flex>
     </div>
@@ -1068,6 +1071,28 @@ function FullSizeJSONBlock({ value }: { value: string }) {
       `}
     >
       <JSONBlock value={value} />
+    </div>
+  );
+}
+
+/**
+ * Wrapper to make DynamicContentCell fill available vertical and horizontal space
+ */
+function FullSizeDynamicContent({ value }: { value: unknown }) {
+  return (
+    <div
+      css={css`
+        height: 100%;
+        width: 100%;
+        overflow: auto;
+        & .cm-theme, // CodeMirror wrapper component
+        & .cm-editor {
+          height: 100%;
+          width: 100%;
+        }
+      `}
+    >
+      <DynamicContentCell value={value} />
     </div>
   );
 }

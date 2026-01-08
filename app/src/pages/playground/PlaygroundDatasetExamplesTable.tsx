@@ -56,6 +56,7 @@ import {
 } from "@phoenix/components/experiment";
 import {
   CellTop,
+  DynamicContentCell,
   JSONCell,
   LargeTextWrap,
   PaddedCell,
@@ -233,7 +234,7 @@ function EmptyExampleOutput({
   return (
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <div css={outputContentCSS}>{content}</div>
+      <DynamicContentCell value={content} maxHeight={OUTPUT_CONTENT_HEIGHT} />
       <ExperimentRunCellAnnotationsList
         annotations={[]}
         annotationConfigs={evaluatorOutputConfigs}
