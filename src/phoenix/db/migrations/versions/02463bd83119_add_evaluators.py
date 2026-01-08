@@ -100,7 +100,7 @@ def upgrade() -> None:
     op.create_table(
         "evaluators",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String),
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(

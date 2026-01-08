@@ -2139,7 +2139,7 @@ class Evaluator(HasId):
         CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
         nullable=False,
     )
-    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     user_id: Mapped[Optional[int]] = mapped_column(

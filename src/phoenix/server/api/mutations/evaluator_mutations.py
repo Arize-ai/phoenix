@@ -232,7 +232,10 @@ class EvaluatorMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
-            raise BadRequest(f"Evaluator with name {input.name} already exists")
+            raise BadRequest(
+                f"DatasetEvaluator with display name {input.name} already exists "
+                f"for dataset {dataset_id}"
+            )
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
             query=Query(),
@@ -355,7 +358,10 @@ class EvaluatorMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
-            raise BadRequest(f"Evaluator with name {input.name} already exists")
+            raise BadRequest(
+                f"DatasetEvaluator with display name {input.name} already exists "
+                f"for dataset {dataset_id}"
+            )
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(
                 id=dataset_evaluator_record.id, db_record=dataset_evaluator_record
