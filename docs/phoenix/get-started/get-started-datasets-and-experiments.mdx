@@ -13,9 +13,18 @@ To follow along, you should already have:
 - Traces & Evals attached to a project in Phoenix
 - A dataset created from previous runs, such as failed traces
 
+---
+
+<Info>
+  **Follow along with code**: This guide has a companion notebook with runnable
+  code examples. Find it
+  [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
+</Info>
+---
+
 ## **Step 1: Use Explanations to Identify Improvements**
 
-We’ll be using our dataset to group our application failures together – the next step is deciding which issues to fix. 
+We’ll be using our dataset to group our application failures together – the next step is deciding which issues to fix.
 
 Using the explanations apart of the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
 
@@ -133,18 +142,18 @@ Head back to Phoenix and open the **Experiments** view.
 
 Here, you can see:
 
-- The original runs compared against the new ones under 'reference output' 
-- New application runs as a reults of our task  
+- The original runs compared against the new ones under 'reference output'
+- New application runs as a results of our task
 - Evaluation results for each version
 
 In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
 
 <Frame caption="View Experiment Results">
-<video
-  controls
-  className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
-/>
+  <video
+    controls
+    className="w-full aspect-video rounded-xl"
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
+  />
 </Frame>
 
 **Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
