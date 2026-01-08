@@ -18,7 +18,9 @@ When creating an `LLM`, specify:
 - `provider`: The provider name (e.g., `"openai"`, `"azure"`, `"anthropic"`)
 - `model`: The model identifier
 - `client` (optional): Which client SDK to use if multiple are installed (e.g., `"openai"`, `"langchain"`, `"litellm"`)
-- `**kwargs`: Client configuration parameters forwarded to the underlying client constructor.
+- `sync_client_kwargs` (optional): Client configuration forwarded only to the sync client
+- `async_client_kwargs` (optional): Client configuration forwarded only to the async client
+- `**kwargs`: Client configuration parameters forwarded to both sync and async client constructors.
 
 To see the currently supported LLM providers and their availability, use the `show_provider_availability` function:
 
@@ -216,6 +218,43 @@ evaluator = ClassificationEvaluator(
     choices={"positive": 1, "negative": 0},
     llm=llm,
     temperature=0.0,
+)
+```
+
+### Separate Sync/Async Client Configuration
+
+Some providers (OpenAI, Anthropic) create separate sync and async SDK clients internally. The `sync_client_kwargs` and `async_client_kwargs` parameters allow passing configuration that applies only to one client type, useful for:
+
+- **Different timeouts**: Longer timeouts for async batch operations
+- **Different HTTP clients**: Custom httpx clients for sync vs async
+- **Different retry configurations**: More aggressive retries for batch async calls
+
+**Example: Different Timeouts for Sync and Async Clients**
+
+```python
+from phoenix.evals.llm import LLM
+
+llm = LLM(
+    provider="openai",
+    model="gpt-4o",
+    api_key="your-api-key",
+    sync_client_kwargs={"timeout": 30.0},
+    async_client_kwargs={"timeout": 120.0},
+)
+```
+
+**Example: Custom HTTP Clients**
+
+```python
+import httpx
+from phoenix.evals.llm import LLM
+
+llm = LLM(
+    provider="openai",
+    model="gpt-4o",
+    api_key="your-api-key",
+    sync_client_kwargs={"http_client": httpx.Client(timeout=30.0)},
+    async_client_kwargs={"http_client": httpx.AsyncClient(timeout=120.0)},
 )
 ```
 

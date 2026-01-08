@@ -129,6 +129,8 @@ class LLM:
         model: Optional[str] = None,
         client: Optional[str] = None,
         initial_per_second_request_rate: Optional[float] = None,
+        sync_client_kwargs: Optional[Dict[str, Any]] = None,
+        async_client_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ):
         """Initialize the LLM wrapper.
@@ -140,9 +142,22 @@ class LLM:
                 first available client for the provider will be used.
             initial_per_second_request_rate (Optional[float]): Optionally, the initial per-second
                 request rate. If not specified, the default rate limit will be used.
-            **kwargs (Any): Additional keyword arguments forwarded to the underlying SDK client
-                constructor(s) if applicable. Use this to pass provider/client-specific options
-                such as API keys, timeouts, base URLs, etc.
+            sync_client_kwargs (Optional[Dict[str, Any]]): Additional keyword arguments forwarded
+                exclusively to the synchronous SDK client constructor. For providers that create
+                separate sync and async SDK clients (e.g., OpenAI, Anthropic), these kwargs are
+                passed only when constructing the sync client. This allows configuring sync-specific
+                options such as different timeouts or HTTP clients. Values here override any
+                matching keys in **kwargs for the sync client only.
+            async_client_kwargs (Optional[Dict[str, Any]]): Additional keyword arguments forwarded
+                exclusively to the asynchronous SDK client constructor. For providers that create
+                separate sync and async SDK clients (e.g., OpenAI, Anthropic), these kwargs are
+                passed only when constructing the async client. This allows configuring
+                async-specific options such as different timeouts or HTTP clients. Values here
+                override any matching keys in **kwargs for the async client only.
+            **kwargs (Any): Additional keyword arguments forwarded to both sync and async SDK
+                client constructors. Use this to pass shared provider/client-specific options such
+                as API keys, base URLs, etc. These are merged with sync_client_kwargs or
+                async_client_kwargs, with the specific kwargs taking precedence.
 
         Example::
 
@@ -153,6 +168,15 @@ class LLM:
                 api_key="your-api-key",
                 api_version="api-version",
                 base_url="base-url",
+            )
+
+            # Using sync_client_kwargs and async_client_kwargs for different timeouts
+            llm = LLM(
+                provider="openai",
+                model="gpt-4o",
+                api_key="your-api-key",
+                sync_client_kwargs={"timeout": 60.0},
+                async_client_kwargs={"timeout": 120.0},
             )
         """
         self.provider = provider
@@ -186,8 +210,12 @@ class LLM:
                 registration = provider_registrations[0]
 
             try:
-                sync_client = registration.client_factory(model=model, is_async=False, **kwargs)
-                async_client = registration.client_factory(model=model, is_async=True, **kwargs)
+                sync_client = registration.client_factory(
+                    model=model, is_async=False, **kwargs, **(sync_client_kwargs or {})
+                )
+                async_client = registration.client_factory(
+                    model=model, is_async=True, **kwargs, **(async_client_kwargs or {})
+                )
                 rate_limit_errors = (
                     registration.get_rate_limit_errors()
                     if registration.get_rate_limit_errors
