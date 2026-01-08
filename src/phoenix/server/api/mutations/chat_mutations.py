@@ -404,6 +404,7 @@ class ChatCompletionMutationMixin:
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
                             )
+                            eval_result["name"] = evaluator.display_name
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_model(
                                     eval_result,
@@ -412,19 +413,20 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations[evaluation_key].append(
-                                _to_evaluation_result_union(eval_result, builtin.name)
+                                _to_evaluation_result_union(eval_result, evaluator.display_name)
                             )
 
                     # Run LLM evaluators
-                    input_mappings_by_evaluator_node_id = {
-                        evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                    evaluator_info_by_node_id = {
+                        evaluator.id: evaluator for evaluator in input.evaluators
                     }
                     for llm_evaluator in llm_evaluators:
-                        input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                        evaluator_input = evaluator_info_by_node_id[llm_evaluator.node_id]
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=input_mapping,
+                            input_mapping=evaluator_input.input_mapping,
                         )
+                        eval_result["name"] = evaluator_input.display_name
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
                                 eval_result,
@@ -433,7 +435,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations[evaluation_key].append(
-                            _to_evaluation_result_union(eval_result, llm_evaluator.name)
+                            _to_evaluation_result_union(eval_result, evaluator_input.display_name)
                         )
 
         for (revision, repetition_number), experiment_run, result in zip(
@@ -528,6 +530,7 @@ class ChatCompletionMutationMixin:
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
                             )
+                            eval_result["name"] = evaluator.display_name
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_span_annotation(
                                     eval_result,
@@ -536,19 +539,20 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations_by_repetition[repetition_number].append(
-                                _to_evaluation_result_union(eval_result, builtin.name)
+                                _to_evaluation_result_union(eval_result, evaluator.display_name)
                             )
 
                     # Run LLM evaluators
-                    input_mappings_by_evaluator_node_id = {
-                        evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                    evaluator_info_by_node_id = {
+                        evaluator.id: evaluator for evaluator in input.evaluators
                     }
                     for llm_evaluator in llm_evaluators:
-                        input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                        evaluator_input = evaluator_info_by_node_id[llm_evaluator.node_id]
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=input_mapping,
+                            input_mapping=evaluator_input.input_mapping,
                         )
+                        eval_result["name"] = evaluator_input.display_name
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_span_annotation(
                                 eval_result,
@@ -557,7 +561,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations_by_repetition[repetition_number].append(
-                            _to_evaluation_result_union(eval_result, llm_evaluator.name)
+                            _to_evaluation_result_union(eval_result, evaluator_input.display_name)
                         )
 
         repetitions: list[ChatCompletionRepetition] = []

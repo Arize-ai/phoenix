@@ -2605,6 +2605,7 @@ type PerformanceTimeSeries implements TimeSeries {
 
 input PlaygroundEvaluatorInput {
   id: ID!
+  displayName: String!
   inputMapping: EvaluatorInputMappingInput! = {}
 }
 

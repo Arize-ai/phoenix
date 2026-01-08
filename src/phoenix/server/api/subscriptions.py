@@ -181,7 +181,7 @@ async def _stream_single_chat_completion(
                     )
                     if result["error"] is not None:
                         yield EvaluationErrorChunk(
-                            evaluator_name=builtin.name,
+                            evaluator_name=evaluator.display_name,
                             message=result["error"],
                             dataset_example_id=None,
                             repetition_number=repetition_number,
@@ -189,7 +189,7 @@ async def _stream_single_chat_completion(
                         continue
                     annotation = ExperimentRunAnnotation.from_dict(
                         {
-                            "name": result["name"],
+                            "name": evaluator.display_name,
                             "label": result["label"],
                             "score": result["score"],
                             "explanation": result["explanation"],
@@ -203,18 +203,18 @@ async def _stream_single_chat_completion(
                         repetition_number=repetition_number,
                     )
 
-            input_mappings_by_evaluator_node_id = {
-                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+            evaluator_info_by_node_id = {
+                evaluator.id: evaluator for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                evaluator_input = evaluator_info_by_node_id[llm_evaluator.node_id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
-                    input_mapping=input_mapping,
+                    input_mapping=evaluator_input.input_mapping,
                 )
                 if result["error"] is not None:
                     yield EvaluationErrorChunk(
-                        evaluator_name=llm_evaluator.name,
+                        evaluator_name=evaluator_input.display_name,
                         message=result["error"],
                         dataset_example_id=None,
                         repetition_number=repetition_number,
@@ -222,7 +222,7 @@ async def _stream_single_chat_completion(
                     continue
                 annotation = ExperimentRunAnnotation.from_dict(
                     {
-                        "name": result["name"],
+                        "name": evaluator_input.display_name,
                         "label": result["label"],
                         "score": result["score"],
                         "explanation": result["explanation"],
@@ -644,12 +644,13 @@ class Subscription:
                                 )
                                 if result["error"] is not None:
                                     yield EvaluationErrorChunk(
-                                        evaluator_name=builtin.name,
+                                        evaluator_name=evaluator.display_name,
                                         message=result["error"],
                                         dataset_example_id=example_id,
                                         repetition_number=repetition_number,
                                     )
                                     continue
+                                result["name"] = evaluator.display_name
                                 annotation_model = evaluation_result_to_model(
                                     result,
                                     experiment_run_id=run.id,
@@ -665,25 +666,26 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        input_mappings_by_evaluator_node_id = {
-                            evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                        evaluator_info_by_node_id = {
+                            evaluator.id: evaluator for evaluator in input.evaluators
                         }
                         for llm_evaluator in llm_evaluators:
-                            input_mapping = input_mappings_by_evaluator_node_id[
+                            evaluator_input = evaluator_info_by_node_id[
                                 llm_evaluator.node_id
                             ]
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
-                                input_mapping=input_mapping,
+                                input_mapping=evaluator_input.input_mapping,
                             )
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(
-                                    evaluator_name=llm_evaluator.name,
+                                    evaluator_name=evaluator_input.display_name,
                                     message=result["error"],
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
                                 continue
+                            result["name"] = evaluator_input.display_name
                             annotation_model = evaluation_result_to_model(
                                 result,
                                 experiment_run_id=run.id,

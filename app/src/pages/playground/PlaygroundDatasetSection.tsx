@@ -16,6 +16,7 @@ import { Mutable } from "@phoenix/typeUtils";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
+import type { EvaluatorMappingEntry } from "./playgroundUtils";
 
 export function PlaygroundDatasetSection({
   datasetId,
@@ -110,11 +111,14 @@ export function PlaygroundDatasetSection({
       )
       .reduce(
         (acc, datasetEvaluator) => {
-          acc[datasetEvaluator.evaluator.id] =
-            datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
+          acc[datasetEvaluator.evaluator.id] = {
+            inputMapping:
+              datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
+            displayName: datasetEvaluator.displayName,
+          };
           return acc;
         },
-        {} as Record<string, EvaluatorInputMappingInput>
+        {} as Record<string, EvaluatorMappingEntry>
       );
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {

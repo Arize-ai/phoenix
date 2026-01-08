@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<64389c804d2b28a4cb30839e32555b0c>>
+ * @generated SignedSource<<7286143285e2804be1c603a82a7d4306>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -71,6 +71,7 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type PlaygroundEvaluatorInput = {
+  displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
 };

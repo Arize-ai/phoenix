@@ -22,6 +22,7 @@ class EvaluatorInputMappingInput:
 @strawberry.input
 class PlaygroundEvaluatorInput:
     id: GlobalID
+    display_name: str
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
     )

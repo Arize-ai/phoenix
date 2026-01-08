@@ -119,6 +119,7 @@ import {
 } from "./PlaygroundToolCall";
 import {
   denormalizePlaygroundInstance,
+  type EvaluatorMappingEntry,
   extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
@@ -576,9 +577,9 @@ export function PlaygroundDatasetExamplesTable({
   splitIds?: string[];
   evaluatorOutputConfigs: AnnotationConfig[];
   /**
-   * Record of evaluator id to input mappings
+   * Record of evaluator id to input mapping and display name
    */
-  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
+  evaluatorMappings: Record<string, EvaluatorMappingEntry>;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
