@@ -388,7 +388,7 @@ class ChatCompletionMutationMixin:
 
                     context_dict: dict[str, Any] = {
                         "input": json.dumps(revision.input),
-                        "expected": json.dumps(revision.output),
+                        "reference": json.dumps(revision.output),
                         "output": json.dumps(experiment_run.output),
                     }
 

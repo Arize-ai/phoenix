@@ -249,7 +249,7 @@ export const datasetExampleToEvaluatorInput = ({
   return {
     input: example.input,
     output: taskOutput,
-    expected: example.output,
+    reference: example.output,
   };
 };
 
