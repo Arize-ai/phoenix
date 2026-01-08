@@ -924,6 +924,10 @@ async def assign_correctness_llm_evaluator_to_dataset(
                 display_name=correctness_llm_evaluator.name,
                 input_mapping={},
                 output_config_override=None,
+                project=models.Project(
+                    name="correctness-evaluator-project",
+                    description="Project for llm evaluator",
+                ),
             )
             session.add(dataset_evaluator)
             await session.flush()

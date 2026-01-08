@@ -2320,6 +2320,10 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     description="test description",
                     output_config_override=None,
                     input_mapping={},
+                    project=models.Project(
+                        name=f"{empty_dataset.name}/{llm_evaluator_name}",
+                        description="Project for llm evaluator",
+                    ),
                 )
             ],
         )
@@ -2489,6 +2493,10 @@ async def code_evaluator(
                 input_mapping={},
             )
         ],
+        project=models.Project(
+            name=f"{empty_dataset.name}/{evaluator_name}",
+            description="Project for code evaluator",
+        ),
     )
     async with db() as session:
         session.add(evaluator)
@@ -2584,7 +2592,11 @@ async def llm_evaluator(
                 description="correctness description",
                 output_config_override=None,
                 input_mapping={},
-            )
+                project=models.Project(
+                    name=f"{empty_dataset.name}/{evaluator_name}",
+                    description="Project for evaluator",
+                ),
+            ),
         ],
     )
     async with db() as session:

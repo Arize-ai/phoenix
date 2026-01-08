@@ -2342,6 +2342,10 @@ class DatasetEvaluators(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -2353,6 +2357,7 @@ class DatasetEvaluators(HasId):
         "Evaluator", back_populates="dataset_evaluators"
     )
     user: Mapped[Optional["User"]] = relationship("User")
+    project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
         CheckConstraint(
