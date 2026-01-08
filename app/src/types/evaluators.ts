@@ -5,14 +5,14 @@
  *   output: {
  *     "answer": "The capital of France is Paris"
  *   },
- *   expected: {
+ *   reference: {
  *     "answer": "The capital of France is Paris"
  *   },
  * }
  *
  * The pseudo code for the evaluator execution would be:
  * ```
- * evaluator(output, expected, input)
+ * evaluator(output, reference, input)
  *   return score
  * ```
  */
@@ -22,9 +22,9 @@ export type EvaluatorParams = {
    */
   output: Record<string, unknown>;
   /**
-   * The expected output of the task that is being evaluated
+   * The reference output of the task that is being evaluated
    */
-  expected: Record<string, unknown>;
+  reference: Record<string, unknown>;
   /**
    * The input of the task that is being evaluated
    * @example
@@ -111,5 +111,5 @@ export type EvaluatorKind = "LLM" | "CODE";
 export type EvaluatorPreMappedInput = {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
-  expected: Record<string, unknown>;
+  reference: Record<string, unknown>;
 };

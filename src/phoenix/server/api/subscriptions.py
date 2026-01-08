@@ -628,7 +628,7 @@ class Subscription:
                             continue
                         context_dict: dict[str, Any] = {
                             "input": json.dumps(revision.input),
-                            "expected": json.dumps(revision.output),
+                            "reference": json.dumps(revision.output),
                             "output": json.dumps(run.output),
                         }
                         for evaluator in input.evaluators:
