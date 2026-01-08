@@ -1458,6 +1458,97 @@ class TestClientForSpanCreation:
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_log_spans_dataframe_with_integer_index(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        """Test log_spans_dataframe with default integer index (not span_id index).
+
+        This test verifies that when a DataFrame has a default integer index (0, 1, 2...),
+        the span IDs are correctly extracted from the context.span_id column instead of
+        incorrectly using the integer index values as span IDs.
+        """
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        import pandas as pd
+
+        trace_id = f"int_idx_{token_hex(16)}"
+        span_id_1 = f"span_{token_hex(8)}"
+        span_id_2 = f"span_{token_hex(8)}"
+
+        base_time = datetime.now(timezone.utc)
+
+        # Create DataFrame with default integer index (NOT setting span_id as index)
+        test_data: dict[str, Any] = {
+            "name": ["IntIndexSpan1", "IntIndexSpan2"],
+            "span_kind": ["CHAIN", "CHAIN"],
+            "parent_id": [None, None],
+            "start_time": [
+                base_time.isoformat(),
+                (base_time + timedelta(milliseconds=100)).isoformat(),
+            ],
+            "end_time": [
+                (base_time + timedelta(seconds=1)).isoformat(),
+                (base_time + timedelta(seconds=1, milliseconds=100)).isoformat(),
+            ],
+            "status_code": ["OK", "OK"],
+            "context.span_id": [span_id_1, span_id_2],
+            "context.trace_id": [trace_id, trace_id],
+            "attributes.test.value": ["test1", "test2"],
+        }
+
+        # Create DataFrame with default integer index (0, 1)
+        input_df = pd.DataFrame(test_data)
+        # Explicitly verify the index is integer-based, not span_id
+        assert input_df.index.tolist() == [0, 1]
+        assert input_df.index.name is None
+
+        project_name = _existing_project.name
+
+        # Log spans using DataFrame with integer index
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans_dataframe=input_df,
+            )
+        )
+        assert result["total_queued"] == 2
+
+        # Wait for spans to be processed - use the actual span IDs from the column
+        await _until_spans_exist(_app, [span_id_1, span_id_2])
+
+        # Retrieve spans and verify they have the correct span IDs
+        output_df = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                limit=10,
+            )
+        )
+
+        # Filter to our test spans
+        our_spans = output_df[output_df["context.trace_id"] == trace_id]
+        assert len(our_spans) == 2
+
+        # Verify the span IDs are the ones from context.span_id column, NOT "0" and "1"
+        retrieved_span_ids = set(our_spans.index.tolist())
+        expected_span_ids = {span_id_1, span_id_2}
+        assert retrieved_span_ids == expected_span_ids, (
+            f"Expected span IDs {expected_span_ids}, got {retrieved_span_ids}. "
+            "Integer index values may have been incorrectly used as span IDs."
+        )
+
+        # Verify span names to ensure correct data mapping
+        span_names = set(our_spans["name"].tolist())
+        assert span_names == {"IntIndexSpan1", "IntIndexSpan2"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_unflatten_attributes_on_span_creation(
         self,
         is_async: bool,
