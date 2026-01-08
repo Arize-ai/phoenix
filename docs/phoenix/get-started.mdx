@@ -1,285 +1,59 @@
 ---
-title: "Quickstart: Overview"
+title: "Overview"
 ---
 
-To begin using Phoenix, you can either run it locally or launch a Phoenix Cloud instance.
+This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.
 
-For most first time users, trying out a Phoenix cloud account is the simplest option.
+The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
 
-<Columns cols={3}>
-  <Card
-    title="Phoenix Cloud"
-    href="#setup-and-run-phoenix-cloud"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-cloud-icon.png"
-  >
-    Connect to a pre-configured, managed Phoenix instance
-  </Card>
-  <Card
-    title="As a Container"
-    href="#run-phoenix-using-docker"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-container-icon.png"
-  >
-    Self-host your own Phoenix
-  </Card>
-  <Card
-    title="From the Terminal"
-    href="#run-phoenix-through-your-terminal"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-local-icon.png"
-  >
-    Run Phoenix via the CLI on your local machine
-  </Card>
-</Columns>
+## **What You’ll End Up With**
 
-<Tip>
-**Phoenix is free to self-host.** Deploy on Docker, Kubernetes, Helm, AWS, Railway, and more. See the [Self-Hosting Guide](/docs/phoenix/self-hosting) for all deployment options.
-</Tip>
+By the end of this series, you will have:
 
-# Setup Phoenix Cloud
+- An application instrumented with tracing so you can see how requests execute
+- Evaluation results attached to those executions so you can tell whether outputs are correct
+- Datasets that group related runs, such as failures or edge cases
+- Experiments that compare changes using the same inputs
+- A way to iterate on prompts and logic and verify whether those changes help
 
-<Steps>
-  <Step title={<span className="step-title">Log In & Create a Phoenix Space</span>}>
-    * Make a free Phoenix Cloud [account](https://app.arize.com/auth/phoenix/login)
-    * Click the **Create a Space** button in the upper-right corner of the dashboard.
-    * Enter a name for your new space.
-    * After creating your space, launch your Phoenix instance directly from the dashboard.
+Together, these pieces let you move from inspecting individual runs to making changes with evidence.
 
-    You can navigate back to [https://app.phoenix.arize.com/management/spaces](https://app.phoenix.arize.com/management/spaces) anytime to manage your spaces.
+## **How the Guides Fit Together**
 
-    <Frame><video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" controls /></Frame>
-  </Step>
+### **Tracing**
 
-  <Step title={<span className="step-title">Set Up Keys</span>}>
-    To create a new API key, go to your **Settings** page & click down to the **API Keys** section. Click the **Add System Key** button, then provide a name for your API key. You may also include an optional description and set an expiration date if desired. All your API keys will be listed and manageable in this section.
+Tracing answers a basic question: what is happening under the hood of my application when it runs?
 
-    ### System vs User API Keys
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
 
-    * System API keys represent the actions taken by the system as a whole (not tied to specific user)
-    * User API keys represent the actions of a particular user. They are tied to lifespan of the user that created them.
+This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone. 
 
-    <Frame><video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4" controls /></Frame>
-  </Step>
+### **Evals**
 
-  <Step title={<span className="step-title">(optional) Add Collaborators</span>}>
-    Phoenix Cloud supports team collaboration by allowing you to invite members to your space. You can also assign roles and permissions to manage access levels securely.
-    ### Roles
+Once you can see what happened, the next question is whether the output was correct.
 
-    * **Admins** have full control over the space, including managing members, settings, system and user API keys, and roles.
-    * **Members** can access their own profile and manage their own user API keys
+An evaluation produces a score or label for an output, so you can track quality across runs. In this guide, you define evaluations and run them on existing trace data. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case.
 
-    ### Adding Collaborators
+This turns traces from observations into something you can measure.
 
-    On the Settings page, click the **Add User** button. Enter the user's name, email address, and assign a role. The user will receive an email invitation to log in to the Phoenix instance.
+### **Prompts**
 
-    <Frame><video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/adding_users.mp4" controls /></Frame>
+Prompt changes often have a direct impact on application behavior.
 
-    **Congratulations!** You now have Phoenix up and running. From here, you can start sending traces, create and upload datasets, run experiments, and explore everything else Phoenix has to offer.
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants. Prompt Hub is used to save and reuse prompts across runs.
 
-    Continue to the next guide to send your first trace and begin working with Phoenix in action.
-  </Step>
-</Steps>
+This lets you evaluate prompt changes using the same data and criteria instead of relying on spot checks.
 
-# Run Phoenix through your Terminal
+### **Experiments**
 
-Running Phoenix through your terminal is the fastest way to get Phoenix up and running locally.
+Once you have changes you want to test, experiments let you compare versions in a controlled way.
 
-<Steps>
-  <Step title={<span className="step-title">Install the Phoenix Library</span>}>
-    Run the following command in your terminal to install Phoenix:
+An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
 
-    `pip install arize-phoenix`
-  </Step>
+This lets you compare versions using the exact same inputs, so differences in results come from your changes. 
 
-  <Step title={<span className="step-title">Start Phoenix</span>}>
-    Once installed, start the Phoenix server with:
+## **Where to Start**
 
-    `phoenix serve`
+If you are new to Phoenix, start with [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing) and follow the guides in order. Each step assumes the previous one is in place.
 
-    This will launch Phoenix locally and make the application available in your browser. It should look something like this:
-
-    <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/local_phoenix_start.jpeg" alt="Local Phoenix Start" /></Frame>
-  </Step>
-
-  <Step title={<span className="step-title">Open Phoenix UI</span>}>
-    Once Phoenix is running, you can open the UI directly from the links displayed in your terminal. By default, the Phoenix UI will be available at:
-
-    👉 [http://localhost:6006](http://localhost:6006)
-
-    This launches the Phoenix dashboard in your browser, where you can begin exploring logs, traces, and other features.
-
-    **Congratulations!** You now have Phoenix up and running. From here, you can start sending traces, create and upload datasets, run experiments, and explore everything else Phoenix has to offer.
-
-    Continue to the next guide to send your first trace and begin working with Phoenix in action.
-  </Step>
-</Steps>
-
-# Run Phoenix using Docker
-
-<Card title="Docker Hub" href="https://hub.docker.com/r/arizephoenix/phoenix" />
-
-<Steps>
-  <Step title={<span className="step-title">Prerequisites</span>}>
-    1. Ensure Docker is installed and running on your system. You can verify this by running:
-
-    ```bash
-    docker info
-    ```
-
-        If you don't see any server information in the output, make sure Docker is installed correctly and launch the Docker daemon.
-
-    2. Phoenix Version: Our Docker Compose files are pegged to the latest release of Phoenix. If you want to use a different version, you can specify it in the `docker-compose.yml` file.
-
-    Some Optional Steps
-
-    1. Persistent Disc: You can configure external disc storage to store your data in a SQLite database
-
-    2. External Postgres: You will need to set the `PHOENIX_SQL_DATABASE_URL` environment variable to the connection string for your Postgres instance.
-  </Step>
-
-  <Step title={<span className="step-title">Run Local Instance of Arize Phoenix</span>}>
-    <Tabs>
-      <Tab title="Docker">
-        Pull the image you would like to run:
-
-        ```bash
-        docker pull arizephoenix/phoenix
-        ```
-
-        Pick an image you would like to run or simply run the latest:
-
-        <Warning>
-        Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:4.0.0
-        </Warning>
-
-        ```bash
-        docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
-        ```
-
-        See for details on the ports for the container.
-
-        Navigate to [http://localhost:6006](http://localhost:6006) and you should see your local Arize Phoenix.
-
-        Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car. Look at the next tab for an example **compose.yaml** file.
-      </Tab>
-
-      <Tab title="compose.yaml">
-        A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car.
-
-        Here is an example **compose.yaml:**
-
-        ```yaml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest
-            ports:
-              - "6006:6006"  # UI and OTLP HTTP collector
-              - "4317:4317"  # OTLP gRPC collector
-          backend:
-            build:
-              context: ./backend
-              dockerfile: Dockerfile
-              args:
-                OPENAI_API_KEY: ${OPENAI_API_KEY}
-            ports:
-              - "8000:8000"
-            environment:
-              - OPENAI_API_KEY=${OPENAI_API_KEY}
-              - COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
-              - PROD_CORS_ORIGIN=http://localhost:3000
-              # Set INSTRUMENT_LLAMA_INDEX=false to disable instrumentation
-              - INSTRUMENT_LLAMA_INDEX=true
-            healthcheck:
-              test: ["CMD", "wget", "--spider", "http://0.0.0.0:8000/api/chat/healthcheck"]
-              interval: 5s
-              timeout: 1s
-              retries: 5
-          frontend:
-            build: frontend
-            ports:
-              - "3000:3000"
-            depends_on:
-              backend:
-                condition: service_healthy
-        ```
-
-        This way you will always have a running Phoenix instance when you run
-
-        ```bash
-        docker compose up
-        ```
-
-        For the full details of on how to configure Phoenix, check out the Configuration section
-      </Tab>
-
-      <Tab title="PostgreSQL">
-        You can quickly launch Phoenix with a PostGreSQL backend using docker compose.
-
-        First, ensure that Docker Compose is installed on your machine [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/).
-
-        Copy the following YAML file into a new file called `docker-compose.yml`
-
-        ```yaml
-        # docker-compose.yml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest # Must be greater than 4.0 version to work
-            depends_on:
-              - db
-            ports:
-              - 6006:6006  # PHOENIX_PORT
-              - 4317:4317  # PHOENIX_GRPC_PORT
-              - 9090:9090  # [Optional] PROMETHEUS PORT IF ENABLED
-            environment:
-              - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-          db:
-            image: postgres
-            restart: always
-            environment:
-              - POSTGRES_USER=postgres
-              - POSTGRES_PASSWORD=postgres
-              - POSTGRES_DB=postgres
-            ports:
-              - 5432
-            volumes:
-              - database_data:/var/lib/postgresql/data
-        volumes:
-          database_data:
-            driver: local
-        ```
-
-        Run docker compose to run phoenix with postgres
-
-        ```bash
-        docker compose up --build
-        ```
-
-        Note that the above setup is using your local disc as a volume mount to store the postgres data. For production deployments you will have to setup a persistent volume. You can also run Phoenix using SQLite with a persistent disc attached.
-      </Tab>
-
-      <Tab title="SQLite">
-        You can also run Phoenix using SQLite with a persistent disc attached:
-
-        ```yaml
-        # docker-compose.yml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest # Must be greater than 4.0 version to work
-            ports:
-              - 6006:6006  # PHOENIX_PORT
-              - 4317:4317  # PHOENIX_GRPC_PORT
-              - 9090:9090  # [Optional] PROMETHEUS PORT IF ENABLED
-            environment:
-              - PHOENIX_WORKING_DIR=/mnt/data
-            volumes:
-              - phoenix_data:/mnt/data   # PHOENIX_WORKING_DIR
-        volumes:
-          phoenix_data:
-            driver: local
-        ```
-      </Tab>
-    </Tabs>
-
-    **Congratulations!** You now have Phoenix up and running. From here, you can start sending traces, create and upload datasets, run experiments, and explore everything else Phoenix has to offer.
-
-    Continue to the next guide to send your first trace and begin working with Phoenix in action.
-  </Step>
-</Steps>
+Taken together, these guides describe a single workflow for understanding behavior, measuring quality, and improving an application in a controlled way.

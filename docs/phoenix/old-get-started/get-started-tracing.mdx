@@ -1,0 +1,175 @@
+---
+title: "Tracing"
+---
+
+Traces let you see what's happening inside your application—LLM calls, tool invocations, retrieval steps, and more. This guide walks you through sending your first traces to Phoenix.
+
+<Steps>
+  <Step title={<span className="step-title">Configure Your Environment</span>}>
+    Set environment variables to connect to your Phoenix instance:
+
+    ```bash
+    export PHOENIX_API_KEY="your-api-key"
+
+    # Local (default, no API key required)
+    export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+
+    # Phoenix Cloud
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space-name"
+
+    # Self-hosted
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
+    ```
+
+    <Tip>
+    You can find your collector endpoint and API key in the **Settings** page of your Phoenix instance.
+    </Tip>
+  </Step>
+
+  <Step title={<span className="step-title">Install Dependencies</span>}>
+    Install the Phoenix OTEL package and an instrumentation library. This quickstart uses OpenAI, but Phoenix supports [many providers and frameworks](/docs/phoenix/integrations) including Anthropic, LangChain, LlamaIndex, Vercel AI SDK, Mastra, and more.
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```bash
+        pip install arize-phoenix-otel openinference-instrumentation-openai openai
+        ```
+
+        See [all Python integrations](/docs/phoenix/integrations#by-language).
+      </Tab>
+
+      <Tab title="TypeScript" icon="js">
+        ```bash
+        npm install @arizeai/phoenix-otel @arizeai/openinference-core @arizeai/openinference-instrumentation-openai openai
+        ```
+
+        See [all TypeScript integrations](/docs/phoenix/integrations#by-language).
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title={<span className="step-title">Initialize Tracing</span>}>
+    Register Phoenix as your trace collector. The `register` function configures your application to export spans to Phoenix and auto-instruments supported libraries.
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```python
+        from phoenix.otel import register
+
+        tracer_provider = register(
+            project_name="my-llm-app",
+            auto_instrument=True,  # Auto-instruments OpenAI, LangChain, etc.
+            batch=False,  # Send spans immediately (recommended for local dev)
+        )
+        ```
+
+        See the [arize-phoenix-otel reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for all options.
+      </Tab>
+
+      <Tab title="TypeScript" icon="js">
+        Create an `instrumentation.ts` file:
+
+        ```typescript
+        import OpenAI from "openai";
+        import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+        import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+        register({ projectName: "my-llm-app", batch: false });
+
+        const instrumentation = new OpenAIInstrumentation();
+        instrumentation.manuallyInstrument(OpenAI);
+
+        registerInstrumentations({
+          instrumentations: [instrumentation],
+        });
+        ```
+
+        Import this file at the top of your entrypoint:
+
+        ```typescript
+        import "./instrumentation";
+        ```
+
+        <Info>
+        TypeScript tracing setup varies based on your module system (ESM vs CommonJS), runtime (Node.js, Bun, Deno), and framework (Next.js, Express, etc.). For detailed configuration options including batching, gRPC, and advanced setups, see the [complete tracing setup guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel).
+        </Info>
+
+        See the [@arizeai/phoenix-otel reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel) for all options.
+      </Tab>
+    </Tabs>
+
+    <Tip>
+    **Local vs Production:** We set `batch=False` here so traces appear immediately—ideal for local development. In production, use `batch=True` (the default) for better performance. See the [SDK reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) for configuration options like batching, gRPC transport, and custom headers.
+    </Tip>
+  </Step>
+
+  <Step title={<span className="step-title">Run Your Application</span>}>
+    Make an LLM call to generate your first trace. OpenAI calls are automatically captured:
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```python
+        import openai
+
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Why is the sky blue?"}],
+        )
+        print(response.choices[0].message.content)
+        ```
+
+        <Tip>
+        Use `@tracer.agent`, `@tracer.tool`, and `@tracer.chain` decorators to create custom spans around your own functions. See the [tracing guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for details.
+        </Tip>
+      </Tab>
+
+      <Tab title="TypeScript" icon="js">
+        ```typescript
+        import "./instrumentation";
+        import OpenAI from "openai";
+
+        const openai = new OpenAI();
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: "Why is the sky blue?" }],
+        });
+        console.log(response.choices[0].message.content);
+        ```
+
+        <Tip>
+        Use `traceAgent`, `traceTool`, and `withSpan` wrappers to create custom spans around your own functions. See the [tracing guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for details.
+        </Tip>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title={<span className="step-title">View Your Traces</span>}>
+    Open Phoenix to see your traces:
+
+    <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-get-started-tracing.avif" alt="Phoenix Traces View" /></Frame>
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tracing Concepts" icon="book" href="/docs/phoenix/tracing/concepts-tracing">
+    Understand spans, traces, and how observability works
+  </Card>
+  <Card title="Add Metadata & Tags" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
+    Enrich traces with custom attributes for filtering and analysis
+  </Card>
+  <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
+    Connect LangChain, LlamaIndex, Anthropic, and 20+ frameworks
+  </Card>
+  <Card title="Manual Instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Add custom spans with decorators and wrappers
+  </Card>
+  <Card title="Run Evaluations" icon="chart-line" href="/docs/phoenix/get-started/get-started-evaluations">
+    Score your traces with LLM-as-a-judge evaluators
+  </Card>
+  <Card title="Advanced Setup" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Configure batching, gRPC, headers, and more
+  </Card>
+</CardGroup>

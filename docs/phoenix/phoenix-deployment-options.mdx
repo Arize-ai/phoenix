@@ -1,0 +1,76 @@
+---
+title: "Phoenix Deployment Options"
+---
+
+## Architecture
+
+<Frame caption="Phoenix running on your virtual private cloud">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8a36a30e-image.jpeg" />
+</Frame>
+
+Phoenix is a containerized application designed to collect and analyze traces from your LLM or AI application. It operates with a SQL database backend and provides a robust tracing UI. By default, Phoenix uses SQLite for storage, but it can be configured to use PostgreSQL for production deployments.
+
+### SQLite
+
+By default, Phoenix uses SQLite, storing data in `~/.phoenix/` or the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable. This allows for simple deployments using a volume mount, making it easy to get started without additional database setup.
+
+### PostgreSQL
+
+For production and scalable deployments, Phoenix supports PostgreSQL. Configure the **PHOENIX\_SQL\_DATABASE\_URL** environment variable to connect Phoenix to your PostgreSQL instance.
+
+<Info>
+  See the [SQLite](/docs/phoenix/self-hosting/deployment-options/docker#sqlite) and [PostgreSQL](/docs/phoenix/self-hosting/deployment-options/docker#postgresql) sections for details.
+</Info>
+
+## Deployment Options
+
+Phoenix can be deployed using several methods, including Docker and Kubernetes. Choose the option that best fits your infrastructure and operational requirements.
+
+<Info>
+  For other ways to run Phoenix, including Phoenix Cloud, see [Phoenix Deployments](/docs/phoenix/environments).
+</Info>
+
+<CardGroup cols={2}>
+  <Card title="Docker" href="/docs/phoenix/self-hosting/deployment-options/docker" icon="docker">
+    How to deploy Phoenix using Docker
+  </Card>
+  <Card title="Kubernetes" href="/docs/phoenix/self-hosting/deployment-options/kubernetes" icon="rocket-launch">
+    How to deploy Phoenix on K8S
+  </Card>
+  <Card title="Kubernetes (Helm)" href="/docs/phoenix/self-hosting/deployment-options/kubernetes-helm" icon="dharmachakra">
+    Deploy Phoenix via Helm
+  </Card>
+  <Card title="AWS with CloudFormation" href="/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation" icon="aws">
+    Deploy Phoenix on AWS Fargate using CloudFormation
+  </Card>
+  <Card title="Railway" href="/docs/phoenix/self-hosting/deployment-options/railway" icon="train">
+    Deploy Phoenix on Railway via a prebuilt template
+  </Card>
+</CardGroup>
+
+## Configure Phoenix
+
+* See available [ports](/docs/phoenix/self-hosting/configuration#ports) to run Phoenix
+
+* Customize Phoenix using [environment variables](/docs/phoenix/self-hosting/configuration#environment-variables)
+
+## Setup Authentication
+
+* Setup [authentication](/docs/phoenix/self-hosting/features/authentication)
+
+* Configuring [OAuth2 identity providers](/docs/phoenix/self-hosting/features/authentication#configuring-oauth2-identity-providers)
+
+* Configuring [LDAP authentication](/docs/phoenix/self-hosting/features/authentication#configuring-ldap-authentication)
+
+## Images
+
+This table lists the [images](https://hub.docker.com/r/arizephoenix/phoenix/tags) we publish that can be used to run Phoenix.
+
+| Image Tag                                    | Description                                                                                                                              |
+| :-------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| `arizephoenix/phoenix:latest`                | Latest released version of Phoenix using root permissions.                                                                               |
+| `arizephoenix/phoenix:latest-nonroot`        | Latest released version of Phoenix using nonroot permissions. **Ensure the image has the required filesystem permissions before using.** |
+| `arizephoenix/phoenix:latest-debug`          | Latest released version of Phoenix using a debug base image.                                                                             |
+| `arizephoenix/phoenix:version-X.X.X`         | Build for a specific release version using root permissions.                                                                             |
+| `arizephoenix/phoenix:version-X.X.X-nonroot` | Build for a specific release version using nonroot permissions.                                                                          |
+| `arizephoenix/phoenix:version-X.X.X-debug`   | Build for a specific release version using a debug image.                                                                                |

@@ -1,9 +1,9 @@
 ---
-title: "Arize Phoenix"
+title: "What is Arize Phoenix?"
 description: AI Observability and Evaluation
 ---
 
-Phoenix is an open-source AI development platform for experimentation, evaluation, and troubleshooting. Trace your application, evaluate its outputs, iterate on prompts, and ship with confidence.
+Phoenix helps you understand and improve AI applications by giving you a workflow for debugging and iteration. You can send detailed logging information, known as traces, from your app to see exactly what happened during a run, score outputs using evaluation tests to identify failures and regressions, iterate on your prompts using real production examples, and optimize your app with experiments that compare changes on the same inputs. Together, these tools help you move from inspecting individual runs to improving quality with evidence.
 
 Phoenix is built by [Arize AI](https://www.arize.com) and the open-source community. It is built on top of OpenTelemetry and is powered by [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [Integrations](/docs/phoenix/integrations) for details.
 
@@ -17,7 +17,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    [Tracing](/docs/phoenix/tracing/llm-traces) gives you visibility into every step of your LLM application—model calls, retrieval, tool use, and more.
+    [Tracing](/docs/phoenix/tracing/llm-traces) lets you see what happened during a single run of your AI application, step by step. A trace captures model calls, retrieval, tool use, and custom logic so you can debug behavior and understand where time is spent.
 
     Phoenix accepts traces over OpenTelemetry (OTLP) and provides [auto-instrumentation](/docs/phoenix/integrations) for popular frameworks (LlamaIndex, LangChain, DSPy, Mastra, Vercel AI SDK), providers (OpenAI, Bedrock, Anthropic), and languages (Python, TypeScript, Java).
   </Tab>
@@ -28,7 +28,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-    [Evaluate your application](/docs/phoenix/evaluation/llm-evals) to understand its true performance:
+    [Evaluations](/docs/phoenix/evaluation/llm-evals) help you measure the output quality of your application. You can score traces & spans with LLM-based evaluators, code-based checks, or human labels so you can track performance and identify failures consistently.
 
     * [LLM-based evaluations](/docs/phoenix/evaluation/running-pre-tested-evals) — Run pre-built or custom evaluators on your data
     * [Evaluator integrations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces) — Use Phoenix evals, or bring your own from [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/)
@@ -42,7 +42,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-      [Streamline your prompt engineering](/docs/phoenix/prompt-engineering/overview-prompts) workflow:
+    Phoenix helps you [iterate on prompts](/docs/phoenix/prompt-engineering/overview-prompts) using real examples from your application. You can version prompts, test prompt variants across datasets, and replay calls to see how changes affect outputs before rolling them out.
 
       * [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management) — Version, store, and deploy prompts
       * [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) — Experiment with prompts and models side-by-side
@@ -57,7 +57,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
     </Frame>
 
-      [Datasets & Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) help you test systematically and track improvements:
+    [Datasets & Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) help you test changes systematically using the same inputs. You can group traces into datasets, rerun them through different versions of your application, and compare evaluation results to confirm whether a change actually improved performance.
 
       * [Run Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) — Compare different versions of your application
       * [Create Datasets](/docs/phoenix/datasets-and-experiments/how-to-datasets) — Collect traces or upload from code/CSV
@@ -72,21 +72,24 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
 Running Phoenix for the first time? Select a quick start below.
 
 <CardGroup cols={2}>
-  <Card title="Tracing" icon="telescope" href="/docs/phoenix/get-started/get-started-tracing">
+  <Card title="Send Traces From Your App" icon="telescope" href="/docs/phoenix/get-started/get-started-tracing">
     See what's happening inside your LLM application with distributed tracing
   </Card>
-  <Card title="Prompt Engineering" icon="wand-magic-sparkles" href="/docs/phoenix/get-started/get-started-prompt-playground">
+  <Card title="Measure Performance with Evaluations" icon="clipboard-check" href="/docs/phoenix/get-started/get-started-evaluations">
+    Measure quality with LLM-as-a-judge and custom evaluators
+  </Card>
+  <Card title="Iterate on Your Prompts" icon="wand-magic-sparkles" href="/docs/phoenix/get-started/get-started-prompt-playground">
     Experiment with prompts, compare models, and version your work
   </Card>
-  <Card title="Datasets & Experiments" icon="flask" href="/docs/phoenix/get-started/get-started-datasets-and-experiments">
+  <Card title="Optimize Your App with Experiments" icon="flask" href="/docs/phoenix/get-started/get-started-datasets-and-experiments">
     Test your application systematically and track performance over time
-  </Card>
-  <Card title="Evaluation" icon="clipboard-check" href="/docs/phoenix/get-started/get-started-evaluations">
-    Measure quality with LLM-as-a-judge and custom evaluators
   </Card>
 </CardGroup>
 
 ## Next Steps
+The best next step is to start using Phoenix. Start with a quickstart to send data into Phoenix, then build from there. See the [Quickstart Overview](https://arize.com/docs/phoenix/get-started) for more information about what you'll build.
+
+## Other Resources
 
 <CardGroup cols={2}>
   <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
@@ -95,10 +98,10 @@ Running Phoenix for the first time? Select a quick start below.
   <Card title="Self-Host" icon="server" href="/docs/phoenix/self-hosting/environments">
     Deploy Phoenix on Docker, Kubernetes, or your cloud of choice
   </Card>
-  <Card title="Tutorials" icon="book-open" href="/docs/phoenix/cookbook">
+  <Card title="Cookbooks" icon="book-open" href="/docs/phoenix/cookbook">
     Example notebooks for tracing, evals, RAG analysis, and more
   </Card>
-  <Card title="Community" icon="users" href="https://join.slack.com/t/arize-ai/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw">
+  <Card title="Community" icon="users" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3lqwr2oc3-7rhdyYEh82zJL_UhPKrb0A">
     Join the Phoenix Slack to ask questions and connect with developers
   </Card>
 </CardGroup>
