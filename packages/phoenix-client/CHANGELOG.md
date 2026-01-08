@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.1...arize-phoenix-client-v1.27.2) (2026-01-08)
+
+
+### Bug Fixes
+
+* use context.span_id column when DataFrame has integer index ([#10861](https://github.com/Arize-ai/phoenix/issues/10861)) ([607558d](https://github.com/Arize-ai/phoenix/commit/607558dff70500eee53d00f369936d4f5dce2db7))
+
 ## [1.27.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.0...arize-phoenix-client-v1.27.1) (2025-12-16)
 
 
