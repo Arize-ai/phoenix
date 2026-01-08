@@ -12,6 +12,16 @@ To follow along, you’ll need an [OpenAI API key](https://platform.openai.com/a
 
 We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for our chatbot.
 
+---
+
+<Info>
+  **Follow along with code**: This guide has a companion notebook with runnable
+  code examples. Find it
+  [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
+</Info>
+
+---
+
 ## **Step 1: Set Up Phoenix Cloud**
 
 Before we can send traces anywhere, we need Phoenix running.
@@ -28,19 +38,19 @@ In this step, we’ll create a Phoenix Cloud account and configure it for our ap
 6. Note your **Hostname** — this is the endpoint we’ll configure in code shortly.
 
 <Frame caption="How to Create a Phoenix Cloud account & a space">
-<video
-  controls
-  className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4"
-/>
+  <video
+    controls
+    className="w-full aspect-video rounded-xl"
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4"
+  />
 </Frame>
 
 <Frame caption="How to Make an API Key">
-<video
-  controls
-  className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4"
-/>
+  <video
+    controls
+    className="w-full aspect-video rounded-xl"
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4"
+  />
 </Frame>
 
 ## **Step 2: Configure your Environment**
@@ -84,7 +94,7 @@ At this point, your application is configured to send traces to Phoenix!
 
 Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
 
-In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix. 
+In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix.
 
 This agent is made up of:
 
