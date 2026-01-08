@@ -144,7 +144,7 @@ function EvaluatorPromptPreviewErrorFallback(
           <Text color="text-700">
             The template variables in your prompt may not match the available
             input mappings or parameters. Please check that all template
-            variables (e.g. {"{{input}}"}, {"{{output}}"}, {"{{expected}}"})
+            variables (e.g. {"{{input}}"}, {"{{output}}"}, {"{{reference}}"})
             have corresponding values defined.
           </Text>
         </Flex>
