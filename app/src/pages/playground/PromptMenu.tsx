@@ -1,17 +1,12 @@
 import { useMemo } from "react";
-import {
-  Autocomplete,
-  Input,
-  type MenuProps,
-  SubmenuTrigger,
-  useFilter,
-} from "react-aria-components";
+import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
   Button,
+  CompositeField,
   Flex,
   LazyTabPanel,
   Menu,
@@ -32,79 +27,32 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
-import {
-  PromptMenuQuery,
-  PromptMenuQuery$data,
-} from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
+import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
-type PromptItem = {
-  type: "prompt" | "version" | "tag";
-  /**
-   * Prompt or Prompt Version ID
-   */
+type PromptVersion = {
   id: string;
-  /**
-   * Prompt Name
-   */
-  name: string;
-  /**
-   * Prompt or Prompt Version Creation Date
-   */
-  createdAt?: string;
-  /**
-   * Prompt Version description
-   */
-  description?: string;
-  /**
-   * Prompt Version Tags
-   */
-  tags?: Omit<PromptItem, "tags" | "versions">[];
-  /**
-   * May contain prompt versions, prompt tags
-   */
-  versions: Omit<PromptItem, "versions">[];
+  createdAt: string;
+  description: string | null;
+  isLatest: boolean;
+  tags: readonly { name: string }[];
 };
 
-const createItemsFromPrompts = (
-  prompts: PromptMenuQuery$data["prompts"]["edges"]
-): PromptItem[] =>
-  prompts.map(({ prompt }) => {
-    return {
-      type: "prompt",
-      id: prompt.id,
-      name: prompt.name,
-      tags:
-        (prompt?.versionTags ?? []).map((tag) => ({
-          type: "tag",
-          id: tag.name,
-          name: tag.name,
-        })) || [],
-      versions: (prompt?.promptVersions?.versions ?? []).map(({ version }) => ({
-        type: "version",
-        id: version.id,
-        name: version.id,
-        createdAt: version.createdAt,
-        description: version.description || undefined,
-        tags:
-          version.tags.map((tag) => ({
-            type: "tag",
-            id: tag.name,
-            name: tag.name,
-          })) || [],
-      })),
-    };
-  });
+type PromptData = {
+  id: string;
+  name: string;
+  versionTags: readonly { name: string }[];
+  versions: readonly PromptVersion[];
+};
 
-export type PromptMenuProps<T extends object> = Omit<
-  MenuProps<T>,
-  "onChange" | "value"
-> & {
-  value?: {
-    promptId: string;
-    promptVersionId: string;
-    promptTagName: string | null;
-  } | null;
+export type PromptMenuValue = {
+  promptId: string;
+  promptVersionId: string;
+  promptTagName: string | null;
+};
+
+export type PromptMenuProps = {
+  value?: PromptMenuValue | null;
   onChange: (changes: {
     promptId: string | null;
     promptVersionId: string | null;
@@ -112,16 +60,17 @@ export type PromptMenuProps<T extends object> = Omit<
   }) => void;
 };
 
-export const PromptMenu = <T extends object>({
-  value,
-  onChange,
-  ...props
-}: PromptMenuProps<T>) => {
-  const { fullTimeFormatter } = useTimeFormatters();
+/**
+ * A composite dropdown for selecting prompts and their versions.
+ * - Left dropdown: Searchable prompt list. Clicking a prompt selects it with the latest version.
+ * - Right dropdown: Version/tag selector. Defaults to "latest", allows switching versions.
+ */
+export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
   const { promptId, promptVersionId, promptTagName } = value || {};
   const fetchKey = promptVersionId
     ? `PromptMenu:${promptId}:${promptVersionId}`
     : (promptId ?? undefined);
+
   const data = useLazyLoadQuery<PromptMenuQuery>(
     graphql`
       query PromptMenuQuery {
@@ -157,245 +106,352 @@ export const PromptMenu = <T extends object>({
     {},
     { fetchPolicy: "store-and-network", fetchKey }
   );
-  const { contains } = useFilter({ sensitivity: "base" });
-  const prompts = data.prompts.edges;
-  /**
-   * All prompts and prompt versions in a flat array
-   * There may be duplicate promptIds, but each versionId is unique
-   */
-  const promptsAndVersions = useMemo(() => {
-    return prompts.flatMap(({ prompt }) => {
-      return prompt.promptVersions.versions.map(({ version }) => ({
-        promptId: prompt.id,
-        promptName: prompt.name,
-        versionId: version.id,
-        tags: version.tags.map((tag) => tag.name) || [],
-        isLatest: version.isLatest,
+
+  // Transform GraphQL data into a more usable format
+  const prompts: PromptData[] = useMemo(() => {
+    return data.prompts.edges.map(({ prompt }) => ({
+      id: prompt.id,
+      name: prompt.name,
+      versionTags: prompt.versionTags ?? [],
+      versions: (prompt.promptVersions?.versions ?? []).map(({ version }) => ({
+        id: version.id,
         createdAt: version.createdAt,
-        description: version.description,
-      }));
+        description: version.description ?? null,
+        isLatest: version.isLatest,
+        tags: version.tags,
+      })),
+    }));
+  }, [data.prompts.edges]);
+
+  // Find the currently selected prompt
+  const selectedPrompt = useMemo(() => {
+    if (!promptId) return null;
+    return prompts.find((p) => p.id === promptId) ?? null;
+  }, [promptId, prompts]);
+
+  // Find the currently selected version info
+  const selectedVersionInfo = useMemo(() => {
+    if (!selectedPrompt || !promptVersionId) return null;
+    return (
+      selectedPrompt.versions.find((v) => v.id === promptVersionId) ?? null
+    );
+  }, [selectedPrompt, promptVersionId]);
+
+  const handleSelectPrompt = (newPromptId: string) => {
+    const prompt = prompts.find((p) => p.id === newPromptId);
+    if (!prompt) return;
+
+    // Find the latest version
+    const latestVersion = prompt.versions.find((v) => v.isLatest);
+    if (latestVersion) {
+      onChange({
+        promptId: newPromptId,
+        promptVersionId: latestVersion.id,
+        promptTagName: null,
+      });
+    }
+  };
+
+  const handleSelectVersion = (versionId: string) => {
+    if (!promptId) return;
+    onChange({
+      promptId,
+      promptVersionId: versionId,
+      promptTagName: null,
     });
+  };
+
+  const handleSelectTag = (tagName: string) => {
+    if (!promptId) return;
+    onChange({
+      promptId,
+      promptTagName: tagName,
+      promptVersionId: null,
+    });
+  };
+
+  const hasSelection = selectedPrompt !== null;
+
+  return (
+    <div
+      css={css`
+        display: inline-grid;
+        min-width: 200px;
+      `}
+    >
+      {hasSelection ? (
+        <CompositeField>
+          <PromptSelector
+            prompts={prompts}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={handleSelectPrompt}
+          />
+          <PromptVersionSelector
+            prompt={selectedPrompt}
+            selectedVersionInfo={selectedVersionInfo}
+            selectedTagName={promptTagName}
+            onSelectVersion={handleSelectVersion}
+            onSelectTag={handleSelectTag}
+          />
+        </CompositeField>
+      ) : (
+        <PromptSelector
+          prompts={prompts}
+          selectedPrompt={selectedPrompt}
+          onSelectPrompt={handleSelectPrompt}
+        />
+      )}
+    </div>
+  );
+};
+
+/**
+ * Left dropdown: Searchable prompt selector.
+ * Clicking a prompt selects it and automatically loads the latest version.
+ */
+function PromptSelector({
+  prompts,
+  selectedPrompt,
+  onSelectPrompt,
+}: {
+  prompts: PromptData[];
+  selectedPrompt: PromptData | null;
+  onSelectPrompt: (promptId: string) => void;
+}) {
+  const { contains } = useFilter({ sensitivity: "base" });
+
+  const promptItems = useMemo(() => {
+    return prompts.map((p) => ({
+      id: p.id,
+      name: p.name,
+    }));
   }, [prompts]);
-  const promptItems = useMemo(() => createItemsFromPrompts(prompts), [prompts]);
-  const selectedPromptDatum = useMemo(() => {
-    if (promptTagName) {
-      return promptsAndVersions.find(
-        (item) =>
-          item.promptId === promptId &&
-          item.versionId === promptVersionId &&
-          item.tags.includes(promptTagName)
-      );
-    }
-    if (promptVersionId) {
-      return promptsAndVersions.find(
-        (item) =>
-          item.versionId === promptVersionId && item.promptId === promptId
-      );
-    }
-    return promptsAndVersions.find((item) => item.promptId === promptId);
-  }, [promptId, promptVersionId, promptsAndVersions, promptTagName]);
-  const selectedPromptIdKey = selectedPromptDatum?.promptId
-    ? [selectedPromptDatum.promptId]
-    : undefined;
-  const selectedPromptVersionIdKey = selectedPromptDatum?.versionId
-    ? [selectedPromptDatum.versionId]
-    : undefined;
-  const selectedPromptTagNameKey = selectedPromptDatum?.tags.includes(
-    promptTagName as string
-  )
-    ? [promptTagName as string]
-    : undefined;
 
   return (
     <MenuTrigger>
-      <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
-        {selectedPromptDatum ? (
-          <Flex alignItems="center" gap="size-50">
-            {selectedPromptDatum.promptName}
-            {/* Render priority:
-            - selected tag
-            - truncated version id
-            */}
-            {selectedPromptTagNameKey ? (
-              <TagVersionLabel>{selectedPromptTagNameKey[0]}</TagVersionLabel>
-            ) : (
-              <PromptVersionLabel
-                id={selectedPromptDatum.versionId}
-                isLatest={selectedPromptDatum.isLatest}
-              />
-            )}
-          </Flex>
+      <Button
+        size="S"
+        className="left-child"
+        css={css`
+          justify-content: space-between;
+        `}
+      >
+        {selectedPrompt ? (
+          <Text>{selectedPrompt.name}</Text>
         ) : (
-          <Text color="text-300">Select a prompt</Text>
+          <Text color="text-700">Select prompt</Text>
         )}
+        <SelectChevronUpDownIcon />
       </Button>
       <MenuContainer>
         <Autocomplete filter={contains}>
           <MenuHeader>
-            <SearchField aria-label="Search" autoFocus>
+            <SearchField aria-label="Search prompts" autoFocus>
               <SearchIcon />
               <Input placeholder="Search prompts" />
             </SearchField>
           </MenuHeader>
           <Menu
-            {...props}
             selectionMode="single"
-            selectedKeys={selectedPromptIdKey}
+            selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
             items={promptItems}
-            renderEmptyState={() => "No prompts found"}
-          >
-            {function renderMenuItem({ id, name, versions, tags }) {
-              // Start by rendering a prompt as a Submenu Item
-              return (
-                <SubmenuTrigger>
-                  <MenuItem>{name}</MenuItem>
-                  <MenuContainer placement="end top" shouldFlip offset={4}>
-                    <Tabs
-                      defaultSelectedKey={
-                        selectedPromptTagNameKey && (tags?.length ?? 0) > 0
-                          ? "tags"
-                          : "versions"
-                      }
-                    >
-                      <TabList>
-                        <Tab id="versions">Versions</Tab>
-                        <Tab id="tags">Tags</Tab>
-                      </TabList>
-                      <LazyTabPanel id="versions">
-                        <Autocomplete filter={contains}>
-                          <MenuHeader>
-                            <SearchField aria-label="Search" autoFocus>
-                              <SearchIcon />
-                              <Input placeholder="Search prompt versions" />
-                            </SearchField>
-                          </MenuHeader>
-                          <Menu
-                            items={versions}
-                            renderEmptyState={() => (
-                              <View padding="size-200">
-                                <Text color="text-700">
-                                  No prompt versions found
-                                </Text>
-                              </View>
-                            )}
-                            selectionMode="single"
-                            selectedKeys={selectedPromptVersionIdKey}
-                            onSelectionChange={(keys) => {
-                              const newSelection =
-                                keys instanceof Set
-                                  ? keys.values().next().value
-                                  : null;
-                              onChange(
-                                newSelection == null
-                                  ? {
-                                      promptId: null,
-                                      promptVersionId: null,
-                                      promptTagName: null,
-                                    }
-                                  : {
-                                      promptId: id,
-                                      promptVersionId: newSelection as string,
-                                      promptTagName: null,
-                                    }
-                              );
-                            }}
-                          >
-                            {({ createdAt, name, description }) => (
-                              <MenuItem
-                                textValue={`${name}\n${description}\n${createdAt}`}
-                              >
-                                <Flex direction="column" gap="size-100">
-                                  <Truncate maxWidth="100%">
-                                    {description ? (
-                                      <Text>{description}</Text>
-                                    ) : (
-                                      <Text fontStyle="italic" color="text-300">
-                                        No change description
-                                      </Text>
-                                    )}
-                                  </Truncate>
-                                  <Flex alignItems="center" gap="size-100">
-                                    <IdTruncate
-                                      id={name}
-                                      textProps={{ size: "S" }}
-                                    />
-                                    {createdAt && (
-                                      <Text size="XS" color="text-300">
-                                        {fullTimeFormatter(new Date(createdAt))}
-                                      </Text>
-                                    )}
-                                  </Flex>
-                                </Flex>
-                              </MenuItem>
-                            )}
-                          </Menu>
-                        </Autocomplete>
-                      </LazyTabPanel>
-                      <LazyTabPanel id="tags">
-                        <Autocomplete filter={contains}>
-                          <MenuHeader>
-                            <SearchField aria-label="Search" autoFocus>
-                              <SearchIcon />
-                              <Input placeholder="Search prompt tags" />
-                            </SearchField>
-                          </MenuHeader>
-                          <Menu
-                            items={tags}
-                            renderEmptyState={() => (
-                              <View padding="size-200">
-                                <Text color="text-700">
-                                  No prompt tags found
-                                </Text>
-                              </View>
-                            )}
-                            selectionMode="single"
-                            selectedKeys={
-                              selectedPromptDatum?.promptId === id
-                                ? selectedPromptTagNameKey
-                                : undefined
-                            }
-                            onSelectionChange={(keys) => {
-                              const newSelection =
-                                keys instanceof Set
-                                  ? keys.values().next().value
-                                  : null;
-                              onChange(
-                                newSelection == null
-                                  ? {
-                                      promptId: null,
-                                      promptVersionId: null,
-                                      promptTagName: null,
-                                    }
-                                  : {
-                                      promptId: id,
-                                      promptTagName: newSelection as string,
-                                      promptVersionId: null,
-                                    }
-                              );
-                            }}
-                          >
-                            {({ name }) => (
-                              <MenuItem textValue={name}>
-                                <TagVersionLabel>{name}</TagVersionLabel>
-                              </MenuItem>
-                            )}
-                          </Menu>
-                        </Autocomplete>
-                      </LazyTabPanel>
-                    </Tabs>
-                  </MenuContainer>
-                </SubmenuTrigger>
-              );
+            renderEmptyState={() => (
+              <View padding="size-200">
+                <Text color="text-700">No prompts found</Text>
+              </View>
+            )}
+            onAction={(key) => {
+              onSelectPrompt(String(key));
             }}
+          >
+            {({ id, name }) => (
+              <MenuItem id={id} textValue={name}>
+                {name}
+              </MenuItem>
+            )}
           </Menu>
         </Autocomplete>
       </MenuContainer>
     </MenuTrigger>
   );
-};
+}
 
 /**
- * Renders a label for a prompt version. If the version is the latest, it just shows "latest" as a tag.
+ * Right dropdown: Version/tag selector with tabs.
+ * Defaults to showing "latest", allows switching between versions and tags.
+ */
+function PromptVersionSelector({
+  prompt,
+  selectedVersionInfo,
+  selectedTagName,
+  onSelectVersion,
+  onSelectTag,
+}: {
+  prompt: PromptData | null;
+  selectedVersionInfo: PromptVersion | null;
+  selectedTagName: string | null | undefined;
+  onSelectVersion: (versionId: string) => void;
+  onSelectTag: (tagName: string) => void;
+}) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  const { contains } = useFilter({ sensitivity: "base" });
+
+  const versionItems = useMemo(() => {
+    if (!prompt) return [];
+    return prompt.versions.map((v) => ({
+      id: v.id,
+      createdAt: v.createdAt,
+      description: v.description,
+      isLatest: v.isLatest,
+    }));
+  }, [prompt]);
+
+  const tagItems = useMemo(() => {
+    if (!prompt) return [];
+    return prompt.versionTags.map((t) => ({
+      id: t.name,
+      name: t.name,
+    }));
+  }, [prompt]);
+
+  // Determine what to show on the button
+  const buttonContent = useMemo(() => {
+    if (!prompt) {
+      return <Text color="text-700">Version</Text>;
+    }
+    if (selectedTagName) {
+      return <TagVersionLabel>{selectedTagName}</TagVersionLabel>;
+    }
+    if (selectedVersionInfo) {
+      return (
+        <PromptVersionLabel
+          id={selectedVersionInfo.id}
+          isLatest={selectedVersionInfo.isLatest}
+        />
+      );
+    }
+    return <Text color="text-700">Version</Text>;
+  }, [prompt, selectedTagName, selectedVersionInfo]);
+
+  // Determine which tab should be default
+  const defaultTab =
+    selectedTagName && tagItems.length > 0 ? "tags" : "versions";
+
+  return (
+    <MenuTrigger>
+      <Button
+        size="S"
+        className="right-child"
+        css={css`
+          justify-content: space-between;
+        `}
+      >
+        {buttonContent}
+        <SelectChevronUpDownIcon />
+      </Button>
+      <MenuContainer>
+        <Tabs defaultSelectedKey={defaultTab}>
+          <TabList>
+            <Tab id="versions">Versions</Tab>
+            <Tab id="tags">Tags</Tab>
+          </TabList>
+          <LazyTabPanel id="versions">
+            <Autocomplete filter={contains}>
+              <MenuHeader>
+                <SearchField aria-label="Search versions" autoFocus>
+                  <SearchIcon />
+                  <Input placeholder="Search versions" />
+                </SearchField>
+              </MenuHeader>
+              <Menu
+                items={versionItems}
+                renderEmptyState={() => (
+                  <View padding="size-200">
+                    <Text color="text-700">No versions found</Text>
+                  </View>
+                )}
+                selectionMode="single"
+                selectedKeys={
+                  selectedVersionInfo ? [selectedVersionInfo.id] : []
+                }
+                onAction={(key) => {
+                  onSelectVersion(String(key));
+                }}
+              >
+                {({ id, createdAt, description, isLatest }) => (
+                  <MenuItem
+                    id={id}
+                    textValue={`${id}\n${description ?? ""}\n${createdAt}`}
+                  >
+                    <Flex direction="column" gap="size-100">
+                      <Truncate maxWidth="100%">
+                        {description ? (
+                          <Text>{description}</Text>
+                        ) : (
+                          <Text fontStyle="italic" color="text-300">
+                            No change description
+                          </Text>
+                        )}
+                      </Truncate>
+                      <Flex alignItems="center" gap="size-100">
+                        <IdTruncate id={id} textProps={{ size: "S" }} />
+                        {isLatest && (
+                          <Token
+                            size="S"
+                            color="var(--ac-global-color-grey-700)"
+                          >
+                            latest
+                          </Token>
+                        )}
+                        {createdAt && (
+                          <Text size="XS" color="text-300">
+                            {fullTimeFormatter(new Date(createdAt))}
+                          </Text>
+                        )}
+                      </Flex>
+                    </Flex>
+                  </MenuItem>
+                )}
+              </Menu>
+            </Autocomplete>
+          </LazyTabPanel>
+          <LazyTabPanel id="tags">
+            <Autocomplete filter={contains}>
+              <MenuHeader>
+                <SearchField aria-label="Search tags" autoFocus>
+                  <SearchIcon />
+                  <Input placeholder="Search tags" />
+                </SearchField>
+              </MenuHeader>
+              <Menu
+                items={tagItems}
+                renderEmptyState={() => (
+                  <View padding="size-200">
+                    <Text color="text-700">No tags found</Text>
+                  </View>
+                )}
+                selectionMode="single"
+                selectedKeys={selectedTagName ? [selectedTagName] : []}
+                onAction={(key) => {
+                  onSelectTag(String(key));
+                }}
+              >
+                {({ name }) => (
+                  <MenuItem id={name} textValue={name}>
+                    <TagVersionLabel>{name}</TagVersionLabel>
+                  </MenuItem>
+                )}
+              </Menu>
+            </Autocomplete>
+          </LazyTabPanel>
+        </Tabs>
+      </MenuContainer>
+    </MenuTrigger>
+  );
+}
+
+/**
+ * Renders a label for a prompt version. If the version is the latest, it shows "latest" as a tag.
  * Otherwise, it shows the ID truncated to 6 characters.
  */
 function PromptVersionLabel({
@@ -414,10 +470,10 @@ function PromptVersionLabel({
   }
   return <IdTruncate id={id} />;
 }
+
 /**
  * Character based truncation for IDs.
  * Truncates from the start, preserving the last 6 characters (by default).
- *
  * Adds underline as an affordance for hovering, to show the un-truncated ID.
  */
 export function IdTruncate({
