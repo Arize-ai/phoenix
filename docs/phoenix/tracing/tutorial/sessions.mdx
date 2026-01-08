@@ -32,124 +32,239 @@ The key insight is that session IDs are just span attributes. Set them on your p
 
 You'll need the OpenInference core package to set session context:
 
-```bash
-npm install @arizeai/openinference-core
-```
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```bash
+    npm install @arizeai/openinference-core
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```bash
+    pip install openinference-instrumentation
+    ```
+  </Tab>
+</Tabs>
 
 ## Add Session Tracking to Your Agent
 
 Here's how to modify your support agent to support sessions:
 
-```typescript
-import { setSession } from "@arizeai/openinference-core";
-import { context, trace } from "@opentelemetry/api";
-import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { setSession } from "@arizeai/openinference-core";
+    import { context, trace } from "@opentelemetry/api";
+    import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
 
-const tracer = trace.getTracer("support-agent");
+    const tracer = trace.getTracer("support-agent");
 
-async function handleSupportQuery(
-  userQuery: string,
-  sessionId?: string,
-  conversationHistory: Message[] = []
-): Promise<AgentResponse> {
-  const runAgent = async (): Promise<AgentResponse> => {
-    return tracer.startActiveSpan(
-      "support-agent",
-      {
-        attributes: {
-          "openinference.span.kind": "AGENT",
-          "input.value": userQuery,
-          // Add session ID to the span
-          ...(sessionId && { [SemanticConventions.SESSION_ID]: sessionId }),
-        },
-      },
-      async (agentSpan) => {
-        // ... agent logic ...
+    async function handleSupportQuery(
+      userQuery: string,
+      sessionId?: string,
+      conversationHistory: Message[] = []
+    ): Promise<AgentResponse> {
+      const runAgent = async (): Promise<AgentResponse> => {
+        return tracer.startActiveSpan(
+          "support-agent",
+          {
+            attributes: {
+              "openinference.span.kind": "AGENT",
+              "input.value": userQuery,
+              // Add session ID to the span
+              ...(sessionId && { [SemanticConventions.SESSION_ID]: sessionId }),
+            },
+          },
+          async (agentSpan) => {
+            // ... agent logic ...
+          }
+        );
+      };
+
+      // Propagate session context to all child spans
+      if (sessionId) {
+        return context.with(
+          setSession(context.active(), { sessionId }),
+          runAgent
+        );
       }
-    );
-  };
+      
+      return runAgent();
+    }
+    ```
 
-  // Propagate session context to all child spans
-  if (sessionId) {
-    return context.with(
-      setSession(context.active(), { sessionId }),
-      runAgent
-    );
-  }
-  
-  return runAgent();
-}
-```
+    The key additions:
 
-The key additions:
+    1. **`SemanticConventions.SESSION_ID`**: The standard attribute name for session IDs
+    2. **`setSession()`**: Propagates the session ID to all child spans
+    3. **`context.with()`**: Ensures the session context is active during execution
+  </Tab>
 
-1. **`SemanticConventions.SESSION_ID`**: The standard attribute name for session IDs
-2. **`setSession()`**: Propagates the session ID to all child spans
-3. **`context.with()`**: Ensures the session context is active during execution
+  <Tab title="Python" icon="python">
+    ```python
+    from opentelemetry import trace
+    from openinference.instrumentation import using_session
+    from openinference.semantic_conventions import SpanAttributes
+
+    tracer = trace.get_tracer("support-agent")
+
+    def handle_support_query(
+        user_query: str,
+        session_id: Optional[str] = None,
+        conversation_history: List[Message] = None,
+        session_context: SessionContext = None,
+    ) -> AgentResponse:
+        if conversation_history is None:
+            conversation_history = []
+        if session_context is None:
+            session_context = {"lastMentionedOrderId": None, "turnCount": 0}
+
+        def run_agent() -> AgentResponse:
+            with tracer.start_as_current_span(
+                "support-agent",
+                attributes={
+                    SpanAttributes.OPENINFERENCE_SPAN_KIND: "AGENT",
+                    SpanAttributes.INPUT_VALUE: user_query,
+                    **({SpanAttributes.SESSION_ID: session_id} if session_id else {}),
+                    "conversation.turn": session_context["turnCount"] + 1,
+                },
+            ) as agent_span:
+                # ... agent logic ...
+
+        # If we have a session ID, propagate it to all child spans
+        if session_id:
+            with using_session(session_id):
+                return run_agent()
+            
+        return run_agent()
+    ```
+
+    The key additions:
+
+    1. **`SpanAttributes.SESSION_ID`**: The standard attribute name for session IDs
+    2. **`using_session()`**: Context manager that propagates the session ID to all child spans
+  </Tab>
+</Tabs>
 
 ## Track Conversation History
 
 For multi-turn conversations, you also need to track what's been said. Here's a simple message type:
 
-```typescript
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    interface Message {
+      role: "user" | "assistant";
+      content: string;
+    }
 
-interface SessionContext {
-  lastMentionedOrderId?: string;
-  turnCount: number;
-}
-```
+    interface SessionContext {
+      lastMentionedOrderId?: string;
+      turnCount: number;
+    }
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from typing import Literal, List, TypedDict
+
+    class Message(TypedDict):
+        role: Literal["user", "assistant"]
+        content: str
+
+    class SessionContext(TypedDict):
+        lastMentionedOrderId: Optional[str]
+        turnCount: int  
+    ```
+  </Tab>
+</Tabs>
 
 Between turns, append messages to the history and update any context the agent should remember (like order IDs the customer mentioned).
 
 # 3.2 Running Multi-Turn Conversations
 
-<Info>
-  See the multi-turn conversation demo code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
-</Info>
 
 Now let's see sessions in action. Here's a conversation scenario that tests the agent's ability to maintain context:
 
-```typescript
-const sessionId = crypto.randomUUID();
-const conversationHistory: Message[] = [];
-const sessionContext: SessionContext = { turnCount: 0 };
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    const sessionId = crypto.randomUUID();
+    const conversationHistory: Message[] = [];
+    const sessionContext: SessionContext = { turnCount: 0 };
 
-// Turn 1: Ask about an order
-const turn1 = await handleSupportQuery(
-  "What's the status of order ORD-12345?",
-  sessionId,
-  conversationHistory,
-  sessionContext
-);
+    // Turn 1: Ask about an order
+    const turn1 = await handleSupportQuery(
+      "What's the status of order ORD-12345?",
+      sessionId,
+      conversationHistory,
+      sessionContext
+    );
 
-// Update history
-conversationHistory.push(
-  { role: "user", content: "What's the status of order ORD-12345?" },
-  { role: "assistant", content: turn1.response }
-);
-sessionContext.lastMentionedOrderId = "ORD-12345";
-sessionContext.turnCount++;
+    // Update history
+    conversationHistory.push(
+      { role: "user", content: "What's the status of order ORD-12345?" },
+      { role: "assistant", content: turn1.response }
+    );
+    sessionContext.lastMentionedOrderId = "ORD-12345";
+    sessionContext.turnCount++;
 
-// Turn 2: Follow-up question (no order ID)
-const turn2 = await handleSupportQuery(
-  "When will it arrive?",
-  sessionId,
-  conversationHistory,
-  sessionContext
-);
+    // Turn 2: Follow-up question (no order ID)
+    const turn2 = await handleSupportQuery(
+      "When will it arrive?",
+      sessionId,
+      conversationHistory,
+      sessionContext
+    );
 
-// The agent should remember ORD-12345 from the previous turn
-```
+    // The agent should remember ORD-12345 from the previous turn
+    ```
+  </Tab>
 
-Run the sessions demo:
+  <Tab title="Python" icon="python">
+    ```python
+    import uuid
 
-```bash
-pnpm sessions
-```
+    session_id = str(uuid.uuid4())
+    conversation_history: List[Message] = []
+    session_context: SessionContext = {"lastMentionedOrderId": None, "turnCount": 0}
+
+    # Turn 1: Ask about an order
+    turn1 = handle_support_query(
+        "What's the status of order ORD-12345?",
+        session_id,
+        conversation_history,
+        session_context
+    )
+
+    # Update history
+    conversation_history.append({"role": "user", "content": "What's the status of order ORD-12345?"})
+    conversation_history.append({"role": "assistant", "content": turn1["response"]})
+    session_context["lastMentionedOrderId"] = "ORD-12345"
+    session_context["turnCount"] += 1
+
+    # Turn 2: Follow-up question (no order ID)
+    turn2 = handle_support_query(
+        "When will it arrive?",
+        session_id,
+        conversation_history,
+        session_context
+    )
+
+    # The agent should remember ORD-12345 from the previous turn
+    ```
+  </Tab>
+</Tabs>
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts">
+    Run the sessions demo: `pnpm sessions`
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="#">
+  </Card>
+</Columns>
 
 This runs three conversation scenarios:
 
