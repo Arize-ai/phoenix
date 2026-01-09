@@ -44,5 +44,9 @@ export function TagVersionLabel({ children }: { children: string }) {
         return "var(--ac-global-color-grey-900)";
     }
   }, [children]);
-  return <Token color={color}>{children}</Token>;
+  return (
+    <Token color={color} size="S">
+      {children}
+    </Token>
+  );
 }

@@ -10,7 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Pressable } from "react-aria";
 import {
   Disposable,
   graphql,
@@ -125,6 +124,19 @@ import {
 
 const PAGE_SIZE = 10;
 
+/**
+ * Fixed height for the output content area to prevent layout shifts
+ * between loading, empty, and loaded states
+ */
+const OUTPUT_CONTENT_HEIGHT = 300;
+
+const outputContentCSS = css`
+  height: ${OUTPUT_CONTENT_HEIGHT}px;
+  overflow: auto;
+  flex: none;
+  padding: var(--ac-global-dimension-size-200);
+`;
+
 type ChatCompletionOverDatasetMutationPayload =
   PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"];
 
@@ -180,10 +192,12 @@ function EmptyExampleOutput({
   isRunning,
   instanceVariables,
   datasetExampleInput,
+  evaluatorOutputConfigs,
 }: {
   isRunning: boolean;
   instanceVariables: string[];
   datasetExampleInput: unknown;
+  evaluatorOutputConfigs: AnnotationConfig[];
 }) {
   const parsedDatasetExampleInput = useMemo(() => {
     return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
@@ -217,12 +231,15 @@ function EmptyExampleOutput({
     );
   }
   return (
-    <>
+    <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <View padding="size-200" key="content-wrap">
-        {content}
-      </View>
-    </>
+      <div css={outputContentCSS}>{content}</div>
+      <ExperimentRunCellAnnotationsList
+        annotations={[]}
+        annotationConfigs={evaluatorOutputConfigs}
+        executionState={isRunning ? "running" : "idle"}
+      />
+    </Flex>
   );
 }
 
@@ -234,6 +251,7 @@ function ExampleOutputContent({
   onViewExperimentRunDetailsPress,
   onViewTracePress,
   evaluatorOutputConfigs,
+  isRunning,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
@@ -246,6 +264,7 @@ function ExampleOutputContent({
     evaluatorName?: string
   ) => void;
   evaluatorOutputConfigs: AnnotationConfig[];
+  isRunning: boolean;
 }) {
   const {
     span,
@@ -312,20 +331,19 @@ function ExampleOutputContent({
     onViewTracePress,
   ]);
 
-  const successfulEvaluations = useMemo(() => {
-    return (
-      evaluations?.filter(
-        (e): e is ExperimentRunEvaluation => !("__typename" in e)
-      ) ?? []
-    );
-  }, [evaluations]);
-  const evaluationErrors = useMemo(() => {
-    return (
-      evaluations?.filter(
-        (e): e is EvaluationError =>
-          "__typename" in e && e.__typename === "EvaluationErrorChunk"
-      ) ?? []
-    );
+  const { successfulEvaluations, evaluationErrors } = useMemo(() => {
+    const successful: ExperimentRunEvaluation[] = [];
+    const errors: EvaluationError[] = [];
+
+    for (const e of evaluations ?? []) {
+      if ("__typename" in e && e.__typename === "EvaluationErrorChunk") {
+        errors.push(e);
+      } else {
+        successful.push(e as ExperimentRunEvaluation);
+      }
+    }
+
+    return { successfulEvaluations: successful, evaluationErrors: errors };
   }, [evaluations]);
 
   return (
@@ -355,88 +373,38 @@ function ExampleOutputContent({
         )}
       </CellTop>
 
-      <Flex direction={"column"} gap="size-100" key="content-wrap">
-        {errorMessage != null ? (
-          <View padding="size-200" key="error-message-wrap">
+      <div css={outputContentCSS}>
+        <Flex direction={"column"} gap="size-100">
+          {errorMessage != null ? (
             <PlaygroundErrorWrap key="error-message">
               {errorMessage}
             </PlaygroundErrorWrap>
-          </View>
-        ) : null}
-        {content != null ? (
-          <View padding="size-200" key="content-wrap">
+          ) : null}
+          {content != null ? (
             <LargeTextWrap key="content">{content}</LargeTextWrap>
-          </View>
-        ) : null}
-        {toolCalls != null ? (
-          <View padding="size-200" key="tool-calls-wrap">
-            {Object.values(toolCalls).map((toolCall) =>
-              toolCall == null ? null : (
-                <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
-              )
-            )}
-          </View>
-        ) : null}
-      </Flex>
-      {successfulEvaluations != null && successfulEvaluations.length > 0 && (
-        <ExperimentRunCellAnnotationsList
-          annotations={successfulEvaluations}
-          annotationOutputConfigs={evaluatorOutputConfigs}
-          onTraceClick={({ traceId, projectId, annotationName }) => {
-            if (traceId && projectId) {
-              onViewTracePress(traceId, projectId, annotationName);
-            }
-          }}
-        />
-      )}
-      {evaluationErrors != null && evaluationErrors.length > 0 && (
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: column;
-            gap: var(--ac-global-dimension-static-size-100);
-          `}
-        >
-          {evaluationErrors.map((error, index) => {
-            return (
-              <li key={`${error.evaluatorName}-${index}`}>
-                <TooltipTrigger delay={0}>
-                  <Pressable>
-                    <button
-                      className="button--reset"
-                      css={css`
-                        cursor: pointer;
-                        padding: var(--ac-global-dimension-size-50)
-                          var(--ac-global-dimension-size-100);
-                        flex: 1 1 auto;
-                        border-radius: var(--ac-global-rounding-small);
-                        width: 100%;
-                        min-width: 0;
-                        &:hover {
-                          background-color: var(--ac-global-color-grey-200);
-                        }
-                      `}
-                    >
-                      <Flex
-                        direction="row"
-                        gap="size-100"
-                        alignItems="center"
-                        justifyContent="start"
-                      >
-                        <Text color="danger">{error.evaluatorName}</Text>
-                      </Flex>
-                    </button>
-                  </Pressable>
-                  <Tooltip placement="top">
-                    <TooltipArrow />
-                    <Text>{error.message}</Text>
-                  </Tooltip>
-                </TooltipTrigger>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+          ) : null}
+          {toolCalls != null ? (
+            <View key="tool-calls-wrap">
+              {Object.values(toolCalls).map((toolCall) =>
+                toolCall == null ? null : (
+                  <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
+                )
+              )}
+            </View>
+          ) : null}
+        </Flex>
+      </div>
+      <ExperimentRunCellAnnotationsList
+        annotations={successfulEvaluations}
+        annotationErrors={evaluationErrors}
+        annotationConfigs={evaluatorOutputConfigs}
+        executionState={isRunning ? "running" : "idle"}
+        onTraceClick={({ traceId, projectId, annotationName }) => {
+          if (traceId && projectId) {
+            onViewTracePress(traceId, projectId, annotationName);
+          }
+        }}
+      />
     </Flex>
   );
 }
@@ -479,6 +447,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       isRunning={isRunning}
       instanceVariables={instanceVariables}
       datasetExampleInput={datasetExampleInput}
+      evaluatorOutputConfigs={evaluatorOutputConfigs}
     />
   ) : (
     <ExampleOutputContent
@@ -489,6 +458,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
       onViewTracePress={onViewTracePress}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
+      isRunning={isRunning}
     />
   );
 });
