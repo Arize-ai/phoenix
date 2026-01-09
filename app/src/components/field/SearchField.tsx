@@ -75,6 +75,12 @@ const searchFieldCSS = css`
     display: flex;
     align-items: center;
     justify-content: center;
+    outline: none;
+
+    &[data-focus-visible] {
+      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline-offset: 1px;
+    }
 
     &:hover {
       color: var(--ac-global-text-color-900);
@@ -166,6 +172,15 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
               className="ac-searchfield-clear"
               data-empty={!renderProps.state.value || undefined}
               aria-label="Clear search"
+              excludeFromTabOrder={false}
+              onPress={() => renderProps.state.setValue("")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  renderProps.state.setValue("");
+                }
+              }}
             >
               <Icon svg={<Icons.CloseOutline />} />
             </Button>
