@@ -32,7 +32,7 @@ export const disclosureCSS = css`
     margin: 0;
   }
 
-  .react-aria-Button[slot="trigger"] {
+  [slot="trigger"] {
     // reset trigger styles
     background: none;
     border: none;

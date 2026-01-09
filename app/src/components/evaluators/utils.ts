@@ -17,7 +17,7 @@ import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
-  EvaluatorPreMappedInput,
+  EvaluatorMappingSource,
 } from "@phoenix/types";
 
 const createPromptVersionInput = ({
@@ -235,7 +235,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorPreMappedInput => {
+}): EvaluatorMappingSource => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision

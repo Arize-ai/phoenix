@@ -1,18 +1,15 @@
 import { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
-import { css } from "@emotion/react";
 
-import { Icon, Icons, Loading, Text } from "@phoenix/components";
-import { Heading } from "@phoenix/components/content/Heading";
+import { Loading, Text } from "@phoenix/components";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { Flex } from "@phoenix/components/layout/Flex";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import type { EvaluatorPreMappedInput } from "@phoenix/types";
+import type { EvaluatorMappingSource } from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 export const EvaluatorInputMapping = () => {
@@ -28,11 +25,6 @@ export const EvaluatorInputMapping = () => {
 const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   return (
     <Flex direction="column" gap="size-100">
-      <Heading level={3}>Map fields</Heading>
-      <Text color="text-500">
-        Your evaluator requires certain fields to be available in its input. Map
-        these fields to those available in its context.
-      </Text>
       {children}
     </Flex>
   );
@@ -67,12 +59,10 @@ const useEvaluatorInputMappingControlsForm = () => {
 const EvaluatorInputMappingControls = () => {
   const { control, setValue } = useEvaluatorInputMappingControlsForm();
   const variables = useEvaluatorInputVariables();
-  const evaluatorPreMappedInput = useEvaluatorStore(
-    (state) => state.preMappedInput
+  const evaluatorMappingSource = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(
-    evaluatorPreMappedInput
-  );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
   const inputValues = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
@@ -82,54 +72,36 @@ const EvaluatorInputMappingControls = () => {
   return (
     <Flex direction="column" gap="size-100" width="100%">
       {variables.map((variable) => (
-        <div
+        <SwitchableEvaluatorInput
           key={variable}
-          css={css`
-            display: grid;
-            grid-template-columns: 4fr 1fr 4fr;
-            gap: var(--ac-global-dimension-static-size-100);
-            align-items: center;
-            justify-items: center;
-            width: 100%;
-          `}
-        >
-          <SwitchableEvaluatorInput
-            fieldName={variable}
-            label={variable}
-            size="S"
-            defaultMode="path"
-            control={control}
-            setValue={setValue}
-            pathOptions={allExampleKeys}
-            pathPlaceholder="Select an example field"
-            literalPlaceholder="Enter a value"
-            pathInputValue={inputValues[variable] ?? ""}
-            onPathInputChange={(val) =>
-              setValue(`pathMapping.${variable}`, val)
-            }
-            hideLabel
-          />
-          <Icon svg={<Icons.ArrowRightWithStem />} />
-          <Text
-            css={css`
-              white-space: nowrap;
-            `}
-            title={variable}
-          >
-            <Truncate maxWidth="200px">{variable}</Truncate>
-          </Text>
-        </div>
+          fieldName={variable}
+          label={variable}
+          size="M"
+          defaultMode="path"
+          control={control}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder={variable}
+          literalPlaceholder="Enter a value"
+          pathInputValue={inputValues[variable] ?? ""}
+          onPathInputChange={(val) => setValue(`pathMapping.${variable}`, val)}
+        />
       ))}
+      {variables.length === 0 && (
+        <Text color="text-500">
+          Variables that you add to your prompt will be available to map here.
+        </Text>
+      )}
     </Flex>
   );
 };
 
 export const useFlattenedEvaluatorInputKeys = (
-  evaluatorPreMappedInput: EvaluatorPreMappedInput
+  evaluatorMappingSource: EvaluatorMappingSource
 ) => {
   return useMemo(() => {
     const flat = flattenObject({
-      obj: evaluatorPreMappedInput,
+      obj: evaluatorMappingSource,
       keepNonTerminalValues: true,
       formatIndices: true,
     });
@@ -137,5 +109,5 @@ export const useFlattenedEvaluatorInputKeys = (
       id: key,
       label: key,
     }));
-  }, [evaluatorPreMappedInput]);
+  }, [evaluatorMappingSource]);
 };
