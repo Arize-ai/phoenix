@@ -1,5 +1,4 @@
-import { CSSProperties, useMemo } from "react";
-import { Pressable } from "react-aria";
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -31,46 +30,44 @@ import { ExecutionState } from "@phoenix/components/types";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-// Shared styles for annotation list components
-const annotationListCSS = css`
+const listCSS = css`
   display: flex;
   flex-direction: column;
-  flex: none;
   padding: 0 var(--ac-global-dimension-static-size-100)
-    var(--ac-global-dimension-static-size-100)
     var(--ac-global-dimension-static-size-100);
 `;
 
-const annotationListItemCSS = css`
+const listItemCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
   gap: var(--ac-global-dimension-static-size-50);
   min-height: 32px;
 `;
 
-const annotationButtonContainerCSS = css`
-  container-type: inline-size;
+const placeholderButtonCSS = css`
+  flex: 1 1 auto;
   padding: var(--ac-global-dimension-size-50)
     var(--ac-global-dimension-size-100);
-  flex: 1 1 auto;
-  border-radius: var(--ac-global-rounding-small);
-  width: 100%;
   min-width: 0;
 `;
 
-const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  .ac-text {
-    display: inline-block;
-    max-width: ${maxWidth};
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+const errorButtonCSS = css`
+  flex: 1 1 auto;
+  padding: var(--ac-global-dimension-size-50)
+    var(--ac-global-dimension-size-100);
+  border-radius: var(--ac-global-rounding-small);
+  min-width: 0;
+  &:hover {
+    background-color: var(--ac-global-color-grey-200);
   }
+`;
+
+const nameTextCSS = css`
+  min-width: 5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 type AnnotationSummary = {
@@ -236,7 +233,7 @@ export function ExperimentRunCellAnnotationsList(
   }
 
   return (
-    <ul css={annotationListCSS}>
+    <ul css={listCSS}>
       {unifiedItems.map((item) => {
         if (item.type === "pending") {
           return (
@@ -271,7 +268,7 @@ export function ExperimentRunCellAnnotationsList(
         });
 
         return (
-          <li key={annotation.id} css={annotationListItemCSS}>
+          <li key={annotation.id} css={listItemCSS}>
             <TooltipTrigger delay={0}>
               <ExperimentAnnotationButton
                 annotation={annotation}
@@ -361,64 +358,29 @@ function AnnotationPlaceholder({
   executionState: ExecutionState;
 }) {
   return (
-    <li css={annotationListItemCSS}>
-      <div css={annotationButtonContainerCSS}>
-        <Flex
-          direction="row"
-          gap="size-100"
-          alignItems="center"
-          className="annotation-name-and-value"
-          minWidth="5rem"
-        >
-          <div css={css(textCSS("9rem"), { minWidth: "5rem" })} title={name}>
-            <Text weight="heavy" color="inherit">
-              {name}
+    <li css={listItemCSS}>
+      <div css={placeholderButtonCSS}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text weight="heavy" css={nameTextCSS} title={name}>
+            {name}
+          </Text>
+          {executionState === "idle" ? (
+            <Text fontFamily="mono" color="text-300">
+              --
             </Text>
-          </div>
-          <div
-            css={css(
-              textCSS("9rem"),
-              css`
-                margin-left: var(--ac-global-dimension-100);
-              `
-            )}
-          >
-            {executionState === "idle" ? (
-              <Text fontFamily="mono" color="text-300">
-                --
-              </Text>
-            ) : (
-              <Skeleton width={50} height={24} />
-            )}
-          </div>
+          ) : (
+            <Skeleton width={50} height={24} />
+          )}
         </Flex>
       </div>
-      <IconButton
-        size="S"
-        isDisabled
-        aria-label="View evaluation trace"
-        css={css`
-          visibility: ${executionState === "idle" ? "hidden" : "visible"};
-        `}
-      >
-        <Icon svg={<Icons.Trace />} />
-      </IconButton>
+      {executionState !== "idle" && (
+        <IconButton size="S" isDisabled aria-label="View evaluation trace">
+          <Icon svg={<Icons.Trace />} />
+        </IconButton>
+      )}
     </li>
   );
 }
-
-const errorButtonCSS = css`
-  cursor: pointer;
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-100);
-  flex: 1 1 auto;
-  border-radius: var(--ac-global-rounding-small);
-  width: 100%;
-  min-width: 0;
-  &:hover {
-    background-color: var(--ac-global-color-grey-200);
-  }
-`;
 
 /**
  * Displays an annotation that failed during evaluation
@@ -426,31 +388,19 @@ const errorButtonCSS = css`
  */
 function AnnotationErrorItem({ error }: { error: AnnotationError }) {
   return (
-    <li css={annotationListItemCSS}>
+    <li css={listItemCSS}>
       <TooltipTrigger delay={0}>
-        <Pressable>
-          <button className="button--reset" css={errorButtonCSS}>
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              justifyContent="start"
-            >
-              <div
-                css={css(textCSS("9rem"), { minWidth: "5rem" })}
-                title={error.evaluatorName}
-              >
-                <Text weight="heavy" color="danger">
-                  {error.evaluatorName}
-                </Text>
-              </div>
-              <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
-            </Flex>
-          </button>
-        </Pressable>
+        <button className="button--reset" css={errorButtonCSS}>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Text weight="heavy" color="danger" css={nameTextCSS}>
+              {error.evaluatorName}
+            </Text>
+            <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+          </Flex>
+        </button>
         <Tooltip placement="top start">
           <TooltipArrow />
-          <Text>{error.message}</Text>
+          {error.message}
         </Tooltip>
       </TooltipTrigger>
       <IconButton size="S" isDisabled aria-label="View evaluation trace">
