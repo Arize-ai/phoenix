@@ -203,11 +203,11 @@ async def _stream_single_chat_completion(
                         repetition_number=repetition_number,
                     )
 
-            evaluator_info_by_node_id = {
+            evaluator_input_by_node_id = {
                 evaluator.id: evaluator for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                evaluator_input = evaluator_info_by_node_id[llm_evaluator.node_id]
+                evaluator_input = evaluator_input_by_node_id[llm_evaluator.node_id]
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
