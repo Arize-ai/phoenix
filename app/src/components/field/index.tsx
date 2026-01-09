@@ -3,7 +3,6 @@ export * from "./SearchField";
 export * from "./CredentialField";
 export * from "./CredentialInput";
 export * from "./NumberField";
-export * from "./SearchIcon";
 export * from "./DebouncedSearch";
 export * from "./FieldDangerIcon";
 export * from "./FieldSuccessIcon";

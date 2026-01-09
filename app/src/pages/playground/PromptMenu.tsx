@@ -20,7 +20,6 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Tab,
   TabList,
@@ -230,7 +229,6 @@ export const PromptMenu = <T extends object>({
         <Autocomplete filter={contains}>
           <MenuHeader>
             <SearchField aria-label="Search" autoFocus>
-              <SearchIcon />
               <Input placeholder="Search prompts" />
             </SearchField>
           </MenuHeader>
@@ -262,7 +260,6 @@ export const PromptMenu = <T extends object>({
                         <Autocomplete filter={contains}>
                           <MenuHeader>
                             <SearchField aria-label="Search" autoFocus>
-                              <SearchIcon />
                               <Input placeholder="Search prompt versions" />
                             </SearchField>
                           </MenuHeader>
@@ -332,7 +329,6 @@ export const PromptMenu = <T extends object>({
                         <Autocomplete filter={contains}>
                           <MenuHeader>
                             <SearchField aria-label="Search" autoFocus>
-                              <SearchIcon />
                               <Input placeholder="Search prompt tags" />
                             </SearchField>
                           </MenuHeader>
