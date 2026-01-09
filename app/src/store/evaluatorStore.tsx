@@ -99,7 +99,15 @@ export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
     messages: [
       {
         role: "assistant",
-        content: "How may I help you today?",
+        content: "I'll check the weather for you.",
+        tool_calls: [
+          {
+            function: {
+              name: "get_weather",
+              arguments: '{"location": "San Francisco, CA"}',
+            },
+          },
+        ],
       },
     ],
     available_tools: [
