@@ -172,38 +172,31 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
     });
   };
 
-  const hasSelection = selectedPrompt !== null;
-
-  return (
-    <div
-      css={css`
-        display: inline-grid;
-        min-width: 200px;
-      `}
-    >
-      {hasSelection ? (
-        <CompositeField>
-          <PromptSelector
-            prompts={prompts}
-            selectedPrompt={selectedPrompt}
-            onSelectPrompt={handleSelectPrompt}
-          />
-          <PromptVersionSelector
-            prompt={selectedPrompt}
-            selectedVersionInfo={selectedVersionInfo}
-            selectedTagName={promptTagName}
-            onSelectVersion={handleSelectVersion}
-            onSelectTag={handleSelectTag}
-          />
-        </CompositeField>
-      ) : (
+  if (selectedPrompt) {
+    return (
+      <CompositeField>
         <PromptSelector
           prompts={prompts}
           selectedPrompt={selectedPrompt}
           onSelectPrompt={handleSelectPrompt}
         />
-      )}
-    </div>
+        <PromptVersionSelector
+          prompt={selectedPrompt}
+          selectedVersionInfo={selectedVersionInfo}
+          selectedTagName={promptTagName}
+          onSelectVersion={handleSelectVersion}
+          onSelectTag={handleSelectTag}
+        />
+      </CompositeField>
+    );
+  }
+
+  return (
+    <PromptSelector
+      prompts={prompts}
+      selectedPrompt={selectedPrompt}
+      onSelectPrompt={handleSelectPrompt}
+    />
   );
 };
 
@@ -230,6 +223,7 @@ export function PromptSelector({
   }, [prompts]);
 
   const hasPrompts = prompts.length > 0;
+  const minWidthVar = `var(--ac-global-dimension-size-${selectedPrompt ? "1800" : "2500"})`;
 
   return (
     <MenuTrigger>
@@ -239,6 +233,7 @@ export function PromptSelector({
         isDisabled={!hasPrompts}
         css={css`
           justify-content: space-between;
+          min-width: ${minWidthVar};
         `}
       >
         {selectedPrompt ? (

@@ -1,7 +1,6 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "@storybook/test";
-import { css } from "@emotion/react";
 
 import { CompositeField } from "@phoenix/components";
 import {
@@ -132,15 +131,6 @@ function generatePrompts(
 }
 
 // ============================================================================
-// Container styling - matches the real PromptMenu container
-// ============================================================================
-
-const containerCSS = css`
-  display: inline-grid;
-  min-width: 200px;
-`;
-
-// ============================================================================
 // Shared types and components
 // ============================================================================
 
@@ -250,33 +240,31 @@ function PresetRender({
     }));
   };
 
-  const hasSelection = selectedPrompt !== null;
-
-  return (
-    <div css={containerCSS}>
-      {hasSelection ? (
-        <CompositeField>
-          <PromptSelector
-            prompts={prompts}
-            selectedPrompt={selectedPrompt}
-            onSelectPrompt={handleSelectPrompt}
-          />
-          <PromptVersionSelector
-            prompt={selectedPrompt}
-            selectedVersionInfo={selectedVersionInfo}
-            selectedTagName={selectedTagName}
-            onSelectVersion={handleSelectVersion}
-            onSelectTag={handleSelectTag}
-          />
-        </CompositeField>
-      ) : (
+  if (selectedPrompt) {
+    return (
+      <CompositeField>
         <PromptSelector
           prompts={prompts}
-          selectedPrompt={null}
+          selectedPrompt={selectedPrompt}
           onSelectPrompt={handleSelectPrompt}
         />
-      )}
-    </div>
+        <PromptVersionSelector
+          prompt={selectedPrompt}
+          selectedVersionInfo={selectedVersionInfo}
+          selectedTagName={selectedTagName}
+          onSelectVersion={handleSelectVersion}
+          onSelectTag={handleSelectTag}
+        />
+      </CompositeField>
+    );
+  }
+
+  return (
+    <PromptSelector
+      prompts={prompts}
+      selectedPrompt={null}
+      onSelectPrompt={handleSelectPrompt}
+    />
   );
 }
 
@@ -376,33 +364,31 @@ function PlaygroundRender(args: StoryArgs) {
     }));
   };
 
-  const hasSelection = selectedPrompt !== null;
-
-  return (
-    <div css={containerCSS}>
-      {hasSelection ? (
-        <CompositeField>
-          <PromptSelector
-            prompts={prompts}
-            selectedPrompt={selectedPrompt}
-            onSelectPrompt={handleSelectPrompt}
-          />
-          <PromptVersionSelector
-            prompt={selectedPrompt}
-            selectedVersionInfo={selectedVersionInfo}
-            selectedTagName={selectedTagName}
-            onSelectVersion={handleSelectVersion}
-            onSelectTag={handleSelectTag}
-          />
-        </CompositeField>
-      ) : (
+  if (selectedPrompt) {
+    return (
+      <CompositeField>
         <PromptSelector
           prompts={prompts}
-          selectedPrompt={null}
+          selectedPrompt={selectedPrompt}
           onSelectPrompt={handleSelectPrompt}
         />
-      )}
-    </div>
+        <PromptVersionSelector
+          prompt={selectedPrompt}
+          selectedVersionInfo={selectedVersionInfo}
+          selectedTagName={selectedTagName}
+          onSelectVersion={handleSelectVersion}
+          onSelectTag={handleSelectTag}
+        />
+      </CompositeField>
+    );
+  }
+
+  return (
+    <PromptSelector
+      prompts={prompts}
+      selectedPrompt={null}
+      onSelectPrompt={handleSelectPrompt}
+    />
   );
 }
 
