@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 
 import {
+  ExternalLinkButton,
   Flex,
   Heading,
   Icon,
   Icons,
-  LinkButton,
   Text,
   View,
 } from "@phoenix/components";
@@ -70,14 +70,15 @@ export function PlaygroundExperimentToolbar({
             </Flex>
           ) : null}
           {experimentIds.length > 0 && !isRunning ? (
-            <LinkButton
+            <ExternalLinkButton
               size="S"
               isDisabled={isRunning}
-              leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
-              to={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              variant="quiet"
+              trailingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
+              href={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
             >
               View Experiment{instances.length > 1 ? "s" : ""}
-            </LinkButton>
+            </ExternalLinkButton>
           ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
