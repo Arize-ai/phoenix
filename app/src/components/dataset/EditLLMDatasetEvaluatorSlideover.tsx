@@ -210,6 +210,7 @@ const EditEvaluatorDialog = ({
                 name
               }
               ...DatasetEvaluatorsTable_row
+              ...PlaygroundDatasetSection_evaluator
               ...EditLLMDatasetEvaluatorSlideover_evaluator
               ...LLMDatasetEvaluatorDetails_datasetEvaluator
             }
