@@ -243,7 +243,7 @@ export function PromptSelector({
         `}
       >
         {selectedPrompt ? (
-          <Text>{selectedPrompt.name}</Text>
+          <Truncate title={selectedPrompt.name}>{selectedPrompt.name}</Truncate>
         ) : hasPrompts ? (
           <Text color="text-700">Select prompt</Text>
         ) : (
@@ -276,7 +276,9 @@ export function PromptSelector({
           >
             {({ id, name }) => (
               <MenuItem id={id} textValue={name}>
-                {name}
+                <Truncate maxLines={2} title={name}>
+                  {name}
+                </Truncate>
               </MenuItem>
             )}
           </Menu>
@@ -398,7 +400,10 @@ export function PromptVersionSelector({
                     textValue={`${id}\n${description ?? ""}\n${createdAt}`}
                   >
                     <Flex direction="column" gap="size-100">
-                      <Truncate maxWidth="100%">
+                      <Truncate
+                        maxLines={2}
+                        title={description ?? "No change description"}
+                      >
                         {description ? (
                           <Text>{description}</Text>
                         ) : (
@@ -454,7 +459,9 @@ export function PromptVersionSelector({
               >
                 {({ name }) => (
                   <MenuItem id={name} textValue={name}>
-                    <TagVersionLabel>{name}</TagVersionLabel>
+                    <Truncate maxLines={2} title={name}>
+                      <TagVersionLabel>{name}</TagVersionLabel>
+                    </Truncate>
                   </MenuItem>
                 )}
               </Menu>
