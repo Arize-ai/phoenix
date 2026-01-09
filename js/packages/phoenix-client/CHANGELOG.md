@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 5.6.1
+
+### Patch Changes
+
+- ed59696: feat: Bump generated api schema
+
 ## 5.6.0
 
 ### Minor Changes
