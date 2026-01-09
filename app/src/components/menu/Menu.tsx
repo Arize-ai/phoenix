@@ -239,11 +239,13 @@ export const MenuContainer = ({
   children,
   placement = "bottom end",
   minHeight = 300,
+  maxHeight = 650,
   maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
   Omit<PopoverProps, "maxHeight" | "maxWidth"> & {
     minHeight?: React.CSSProperties["minHeight"];
+    maxHeight?: React.CSSProperties["maxHeight"];
     maxWidth?: React.CSSProperties["maxWidth"];
   }) => {
   return (
@@ -254,13 +256,12 @@ export const MenuContainer = ({
       {...popoverProps}
     >
       <div
-        style={{ minHeight, maxWidth }}
+        style={{ minHeight, maxHeight, maxWidth }}
         css={css`
           display: flex;
           flex-direction: column;
           height: 100%;
           min-width: 300px;
-          max-height: inherit;
         `}
       >
         {children}
