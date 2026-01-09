@@ -174,31 +174,42 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
 
   if (selectedPrompt) {
     return (
-      <CompositeField>
-        <PromptSelector
-          prompts={prompts}
-          selectedPrompt={selectedPrompt}
-          onSelectPrompt={handleSelectPrompt}
-        />
-        <PromptVersionSelector
-          prompt={selectedPrompt}
-          selectedVersionInfo={selectedVersionInfo}
-          selectedTagName={promptTagName}
-          onSelectVersion={handleSelectVersion}
-          onSelectTag={handleSelectTag}
-        />
-      </CompositeField>
+      <div css={promptMenuContainerCSS}>
+        <CompositeField>
+          <PromptSelector
+            prompts={prompts}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={handleSelectPrompt}
+          />
+          <PromptVersionSelector
+            prompt={selectedPrompt}
+            selectedVersionInfo={selectedVersionInfo}
+            selectedTagName={promptTagName}
+            onSelectVersion={handleSelectVersion}
+            onSelectTag={handleSelectTag}
+          />
+        </CompositeField>
+      </div>
     );
   }
 
   return (
-    <PromptSelector
-      prompts={prompts}
-      selectedPrompt={selectedPrompt}
-      onSelectPrompt={handleSelectPrompt}
-    />
+    <div css={promptMenuContainerCSS}>
+      <PromptSelector
+        prompts={prompts}
+        selectedPrompt={selectedPrompt}
+        onSelectPrompt={handleSelectPrompt}
+      />
+    </div>
   );
 };
+
+const promptMenuContainerCSS = css`
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  display: flex;
+`;
 
 /**
  * Left dropdown: Searchable prompt selector.
@@ -223,7 +234,6 @@ export function PromptSelector({
   }, [prompts]);
 
   const hasPrompts = prompts.length > 0;
-  const minWidthVar = `var(--ac-global-dimension-size-${selectedPrompt ? "1800" : "2500"})`;
 
   return (
     <MenuTrigger>
@@ -233,18 +243,19 @@ export function PromptSelector({
         isDisabled={!hasPrompts}
         css={css`
           justify-content: space-between;
-          min-width: ${minWidthVar};
+          flex: 1 1 auto;
+          min-width: var(--ac-global-dimension-size-1800);
+          max-width: ${selectedPrompt
+            ? "none"
+            : "var(--ac-global-dimension-size-2400)"};
+          overflow: hidden;
+          ${!selectedPrompt && `color: var(--ac-global-text-color-700);`}
         `}
       >
-        {selectedPrompt ? (
-          <Truncate maxWidth="30ch" title={selectedPrompt.name}>
-            {selectedPrompt.name}
-          </Truncate>
-        ) : hasPrompts ? (
-          <Text color="text-700">Select prompt</Text>
-        ) : (
-          <Text color="text-700">No saved prompts</Text>
-        )}
+        <Truncate maxWidth="30ch" title={selectedPrompt?.name}>
+          {selectedPrompt?.name ??
+            (hasPrompts ? "Select prompt" : "No saved prompts")}
+        </Truncate>
         <SelectChevronUpDownIcon />
       </Button>
       <MenuContainer placement="bottom start" minHeight={0}>
@@ -359,6 +370,7 @@ export function PromptVersionSelector({
         className="right-child"
         css={css`
           justify-content: space-between;
+          flex-shrink: 0;
         `}
       >
         {buttonContent}

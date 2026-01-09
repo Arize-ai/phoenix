@@ -7,6 +7,7 @@ export interface CompositeFieldProps {
 
 const compositeFieldCSS = css`
   display: flex;
+  min-width: 0;
 
   > * {
     position: relative;

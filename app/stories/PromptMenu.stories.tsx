@@ -1,6 +1,7 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "@storybook/test";
+import { css } from "@emotion/react";
 
 import { CompositeField } from "@phoenix/components";
 import {
@@ -9,6 +10,17 @@ import {
   PromptVersion,
   PromptVersionSelector,
 } from "@phoenix/pages/playground/PromptMenu";
+
+/**
+ * Container CSS that matches the PromptMenu component's wrapper.
+ * This ensures stories render identically to the actual playground.
+ */
+const promptMenuContainerCSS = css`
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  display: flex;
+`;
 
 const meta: Meta = {
   title: "PromptMenu",
@@ -32,6 +44,13 @@ const meta: Meta = {
       description: "Number of tags per prompt (search appears at 10+)",
     },
   },
+  decorators: [
+    (Story) => (
+      <div style={{ width: "600px" }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
@@ -242,29 +261,33 @@ function PresetRender({
 
   if (selectedPrompt) {
     return (
-      <CompositeField>
-        <PromptSelector
-          prompts={prompts}
-          selectedPrompt={selectedPrompt}
-          onSelectPrompt={handleSelectPrompt}
-        />
-        <PromptVersionSelector
-          prompt={selectedPrompt}
-          selectedVersionInfo={selectedVersionInfo}
-          selectedTagName={selectedTagName}
-          onSelectVersion={handleSelectVersion}
-          onSelectTag={handleSelectTag}
-        />
-      </CompositeField>
+      <div css={promptMenuContainerCSS}>
+        <CompositeField>
+          <PromptSelector
+            prompts={prompts}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={handleSelectPrompt}
+          />
+          <PromptVersionSelector
+            prompt={selectedPrompt}
+            selectedVersionInfo={selectedVersionInfo}
+            selectedTagName={selectedTagName}
+            onSelectVersion={handleSelectVersion}
+            onSelectTag={handleSelectTag}
+          />
+        </CompositeField>
+      </div>
     );
   }
 
   return (
-    <PromptSelector
-      prompts={prompts}
-      selectedPrompt={null}
-      onSelectPrompt={handleSelectPrompt}
-    />
+    <div css={promptMenuContainerCSS}>
+      <PromptSelector
+        prompts={prompts}
+        selectedPrompt={null}
+        onSelectPrompt={handleSelectPrompt}
+      />
+    </div>
   );
 }
 
@@ -366,29 +389,33 @@ function PlaygroundRender(args: StoryArgs) {
 
   if (selectedPrompt) {
     return (
-      <CompositeField>
-        <PromptSelector
-          prompts={prompts}
-          selectedPrompt={selectedPrompt}
-          onSelectPrompt={handleSelectPrompt}
-        />
-        <PromptVersionSelector
-          prompt={selectedPrompt}
-          selectedVersionInfo={selectedVersionInfo}
-          selectedTagName={selectedTagName}
-          onSelectVersion={handleSelectVersion}
-          onSelectTag={handleSelectTag}
-        />
-      </CompositeField>
+      <div css={promptMenuContainerCSS}>
+        <CompositeField>
+          <PromptSelector
+            prompts={prompts}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={handleSelectPrompt}
+          />
+          <PromptVersionSelector
+            prompt={selectedPrompt}
+            selectedVersionInfo={selectedVersionInfo}
+            selectedTagName={selectedTagName}
+            onSelectVersion={handleSelectVersion}
+            onSelectTag={handleSelectTag}
+          />
+        </CompositeField>
+      </div>
     );
   }
 
   return (
-    <PromptSelector
-      prompts={prompts}
-      selectedPrompt={null}
-      onSelectPrompt={handleSelectPrompt}
-    />
+    <div css={promptMenuContainerCSS}>
+      <PromptSelector
+        prompts={prompts}
+        selectedPrompt={null}
+        onSelectPrompt={handleSelectPrompt}
+      />
+    </div>
   );
 }
 
@@ -424,6 +451,22 @@ export const NoPrompts: PresetStory = {
     promptNames: [],
     tagNames: [],
     versionCount: 0,
+    initialSelectedPromptIndex: null,
+    initialVersionType: "latest",
+  },
+};
+
+/**
+ * Prompts available but none selected (P7V2T0).
+ * Shows "Select prompt" placeholder. Button should have constrained width.
+ */
+export const PromptsAvailableNotSelected: PresetStory = {
+  parameters: presetParameters,
+  render: (args) => <PresetRender {...args} />,
+  args: {
+    promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
+    tagNames: [],
+    versionCount: 2,
     initialSelectedPromptIndex: null,
     initialVersionType: "latest",
   },

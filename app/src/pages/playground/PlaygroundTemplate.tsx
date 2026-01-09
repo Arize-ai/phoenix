@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -118,15 +119,22 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           gap="size-100"
           alignItems="center"
           marginEnd="size-100"
+          minWidth={0}
+          flex="1 1 auto"
+          css={css`
+            overflow: hidden;
+          `}
         >
           {!disableAlphabeticIndex ? (
-            <AlphabeticIndexIcon index={index} />
+            <View flex="none">
+              <AlphabeticIndexIcon index={index} />
+            </View>
           ) : null}
           {!disablePromptMenu ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
         </Flex>
-        <Flex direction="row" gap="size-100">
+        <Flex direction="row" gap="size-100" flex="none">
           <Suspense
             fallback={
               <div>
