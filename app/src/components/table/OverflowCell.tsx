@@ -1,4 +1,11 @@
-import { PropsWithChildren, useLayoutEffect, useRef, useState } from "react";
+import {
+  memo,
+  PropsWithChildren,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
@@ -32,15 +39,16 @@ const expandButtonCSS = css`
   left: 0;
   right: 0;
   width: 100%;
-  height: var(--ac-global-dimension-size-500);
+  height: 50px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   gap: var(--ac-global-dimension-size-50);
-  padding-bottom: var(--ac-global-dimension-size-50);
+  padding-bottom: var(--ac-global-dimension-size-100);
   background: linear-gradient(
     to bottom,
     transparent 0%,
+    var(--ac-global-background-color-dark) 80%,
     var(--ac-global-background-color-dark) 100%
   );
   cursor: pointer;
@@ -60,14 +68,13 @@ const expandButtonCSS = css`
 `;
 
 export interface OverflowCellProps extends PropsWithChildren {
-  /**
-   * Maximum height in pixels before overflow is triggered
-   * @default 150
-   */
-  height?: number;
+  height: number;
 }
 
-export function OverflowCell({ children, height = 150 }: OverflowCellProps) {
+export const OverflowCell = memo(function OverflowCell({
+  children,
+  height,
+}: OverflowCellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   // NB: need to figure out why calculation is incorrect
@@ -82,6 +89,10 @@ export function OverflowCell({ children, height = 150 }: OverflowCellProps) {
       setIsOverflowing(content.scrollHeight > container.clientHeight);
     }
   }, [children, height]);
+
+  const handleExpand = useCallback(() => {
+    setIsExpanded(true);
+  }, []);
 
   return (
     <div
@@ -100,9 +111,9 @@ export function OverflowCell({ children, height = 150 }: OverflowCellProps) {
       </div>
       {isOverflowing && !isExpanded && (
         <button
-          className="button--reset"
+          className="expand-button button--reset"
           css={expandButtonCSS}
-          onClick={() => setIsExpanded(true)}
+          onClick={handleExpand}
           aria-label="Show more"
         >
           <span>expand</span>
@@ -111,4 +122,4 @@ export function OverflowCell({ children, height = 150 }: OverflowCellProps) {
       )}
     </div>
   );
-}
+});
