@@ -234,7 +234,6 @@ export const DatasetEvaluatorsTable = ({
         cell: ({ row }) => (
           <DatasetEvaluatorActionMenu
             datasetEvaluatorId={row.original.id}
-            evaluatorDisplayName={row.original.displayName}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
             isBuiltIn={row.original.evaluator.isBuiltin}
