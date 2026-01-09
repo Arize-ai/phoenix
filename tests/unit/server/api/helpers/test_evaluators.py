@@ -760,6 +760,175 @@ class TestApplyInputMapping:
         )
         assert result == {"obj": {"a": 1, "b": 2}}
 
+    def test_path_mapping_with_llm_messages_structure(self) -> None:
+        """Test deep path access into LLM message structures like those from subscriptions.py.
+
+        The context_dict in chat_completion subscriptions contains input/output keys
+        with values that are message arrays. This test verifies JSONPath can traverse
+        into these structures (important after removing json.dumps from context values).
+        """
+        input_schema = {
+            "type": "object",
+            "properties": {"content": {"type": "string"}},
+            "required": ["content"],
+        }
+        # Simulates the structure of LLM_INPUT_MESSAGES attribute
+        context = {
+            "input": [
+                {"message": {"role": "user", "content": "What is 2+2?"}},
+            ],
+            "output": [
+                {"message": {"role": "assistant", "content": "4"}},
+            ],
+        }
+        # Extract content from first output message
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"content": "$.output[0].message.content"},
+            literal_mapping={},
+        )
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        assert result == {"content": "4"}
+
+    def test_path_mapping_extracts_all_message_contents(self) -> None:
+        """Test extracting all message contents from a multi-message conversation."""
+        input_schema = {
+            "type": "object",
+            "properties": {"messages": {}},
+            "required": ["messages"],
+        }
+        context = {
+            "input": [
+                {"message": {"role": "user", "content": "Hello"}},
+                {"message": {"role": "assistant", "content": "Hi there!"}},
+                {"message": {"role": "user", "content": "How are you?"}},
+            ],
+        }
+        # Extract all message contents using wildcard
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"messages": "$.input[*].message.content"},
+            literal_mapping={},
+        )
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        assert result == {"messages": ["Hello", "Hi there!", "How are you?"]}
+
+    def test_path_mapping_with_dataset_revision_structure(self) -> None:
+        """Test path access with dataset revision input/output structures.
+
+        The context_dict in chat_completion_over_dataset uses revision.input,
+        revision.output, and run.output which are typically dict objects.
+        """
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "expected_answer": {"type": "string"},
+                "actual_answer": {"type": "string"},
+            },
+            "required": ["question", "expected_answer", "actual_answer"],
+        }
+        # Simulates context from chat_completion_over_dataset
+        context = {
+            "input": {"question": "What is the capital of France?", "category": "geography"},
+            "expected": {"answer": "Paris", "confidence": 0.99},
+            "output": {"messages": [{"role": "assistant", "content": "Paris"}]},
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "question": "$.input.question",
+                "expected_answer": "$.expected.answer",
+                "actual_answer": "$.output.messages[0].content",
+            },
+            literal_mapping={},
+        )
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        assert result == {
+            "question": "What is the capital of France?",
+            "expected_answer": "Paris",
+            "actual_answer": "Paris",
+        }
+
+    def test_path_mapping_cannot_traverse_stringified_json(self) -> None:
+        """Test that JSONPath cannot traverse into stringified JSON values.
+
+        This validates the importance of NOT using json.dumps on context values -
+        if values are strings, deep path expressions will not match.
+        """
+        import json
+
+        input_schema = {
+            "type": "object",
+            "properties": {"content": {"type": "string"}},
+            "required": ["content"],
+        }
+        # If context values were stringified, deep paths wouldn't work
+        context = {
+            "output": json.dumps([{"message": {"role": "assistant", "content": "4"}}]),
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"content": "$.output[0].message.content"},
+            literal_mapping={},
+        )
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        # Path doesn't match because output is a string, not an object
+        # Falls back to context which also doesn't have "content" key
+        assert "content" not in result
+
+    def test_path_mapping_with_complex_nested_tool_calls(self) -> None:
+        """Test path access into complex tool call structures."""
+        input_schema = {
+            "type": "object",
+            "properties": {"function_name": {"type": "string"}},
+            "required": ["function_name"],
+        }
+        context = {
+            "output": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "tool_call": {
+                                    "id": "call_123",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "arguments": '{"city": "NYC"}',
+                                    },
+                                }
+                            }
+                        ],
+                    }
+                }
+            ],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "function_name": "$.output[0].message.tool_calls[0].tool_call.function.name"
+            },
+            literal_mapping={},
+        )
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+        )
+        assert result == {"function_name": "get_weather"}
+
 
 class TestCastTemplateVariableTypes:
     def test_converts_int_to_string(self) -> None:
@@ -1047,6 +1216,230 @@ class TestJsonDiffCount:
 
     def test_empty_arrays_returns_zero(self) -> None:
         assert json_diff_count([], []) == 0
+
+
+class TestBuiltInEvaluatorsWithLLMContextStructures:
+    """Tests for builtin evaluators using context structures similar to subscriptions.py.
+
+    These tests verify that evaluators work correctly when context values are
+    objects/dicts (not stringified JSON), allowing deep path access via JSONPath.
+    """
+
+    def test_contains_evaluator_with_deep_path_into_output_messages(self) -> None:
+        """Test ContainsEvaluator with path mapping into nested message structures."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        # Context similar to subscriptions.py chat_completion context_dict
+        context = {
+            "input": [{"message": {"role": "user", "content": "Tell me about Paris"}}],
+            "output": [
+                {"message": {"role": "assistant", "content": "Paris is the capital of France."}}
+            ],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.output[0].message.content"},
+            literal_mapping={"words": "France,capital"},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
+        assert result["explanation"] is not None
+        assert "found" in result["explanation"]
+
+    def test_contains_evaluator_with_dataset_context_structure(self) -> None:
+        """Test ContainsEvaluator with dataset experiment context structure."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        # Context similar to subscriptions.py chat_completion_over_dataset context_dict
+        context = {
+            "input": {"question": "What is the capital of France?", "topic": "geography"},
+            "expected": {"answer": "Paris", "country": "France"},
+            "output": {
+                "messages": [{"role": "assistant", "content": "The capital of France is Paris."}]
+            },
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.output.messages[0].content"},
+            literal_mapping={"words": "Paris"},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
+
+    def test_exact_match_evaluator_with_nested_paths(self) -> None:
+        """Test ExactMatchEvaluator extracting values from nested structures."""
+        from phoenix.server.api.evaluators import ExactMatchEvaluator
+
+        evaluator = ExactMatchEvaluator()
+        context = {
+            "expected": {"answer": "Paris"},
+            "output": {"response": {"text": "Paris"}},
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected.answer",
+                "actual": "$.output.response.text",
+            },
+            literal_mapping={},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
+        assert result["explanation"] is not None
+        assert "matches" in result["explanation"]
+
+    def test_exact_match_evaluator_mismatch_with_nested_paths(self) -> None:
+        """Test ExactMatchEvaluator with mismatched values from nested paths."""
+        from phoenix.server.api.evaluators import ExactMatchEvaluator
+
+        evaluator = ExactMatchEvaluator()
+        context = {
+            "expected": {"answer": "Paris"},
+            "output": {"response": {"text": "London"}},
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected.answer",
+                "actual": "$.output.response.text",
+            },
+            literal_mapping={},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 0.0
+        assert result["explanation"] is not None
+        assert "does not match" in result["explanation"]
+
+    def test_json_distance_evaluator_with_json_string_values(self) -> None:
+        """Test JSONDistanceEvaluator with JSON string values in context.
+
+        Note: JSONDistanceEvaluator expects valid JSON strings, not Python objects.
+        When extracting objects via JSONPath and casting to string, they become
+        Python repr strings (single quotes), not valid JSON. For this evaluator,
+        context values should be pre-serialized JSON strings or provided via literals.
+        """
+        import json
+
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        # Provide JSON strings directly in context
+        context = {
+            "expected_json": json.dumps({"items": [1, 2, 3]}),
+            "actual_json": json.dumps({"items": [1, 2, 4]}),
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected_json",
+                "actual": "$.actual_json",
+            },
+            literal_mapping={},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        # Distance is 1 because one element differs
+        assert result["score"] == 1.0
+
+    def test_contains_evaluator_with_context_fallback(self) -> None:
+        """Test evaluator using context fallback when no path mapping provided."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        # Direct context values (fallback behavior)
+        context = {
+            "words": "hello,world",
+            "text": "Hello, World! How are you?",
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
+
+    def test_levenshtein_evaluator_with_message_content_paths(self) -> None:
+        """Test LevenshteinDistanceEvaluator with LLM message structures."""
+        from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
+
+        evaluator = LevenshteinDistanceEvaluator()
+        context = {
+            "expected": [{"message": {"content": "Hello"}}],
+            "output": [{"message": {"content": "Hallo"}}],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected[0].message.content",
+                "actual": "$.output[0].message.content",
+            },
+            literal_mapping={},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        # Distance between "Hello" and "Hallo" is 1
+        assert result["score"] == 1.0
+
+    def test_regex_evaluator_with_deep_path_extraction(self) -> None:
+        """Test RegexEvaluator extracting text from nested structures."""
+        from phoenix.server.api.evaluators import RegexEvaluator
+
+        evaluator = RegexEvaluator()
+        context = {
+            "output": {
+                "response": {
+                    "content": "The answer is 42.",
+                }
+            }
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.output.response.content"},
+            literal_mapping={"pattern": r"\d+"},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
+        assert result["explanation"] is not None
+        assert "matched" in result["explanation"]
+
+    def test_evaluator_handles_list_values_from_context(self) -> None:
+        """Test that evaluators can handle list values extracted from context."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        context = {
+            "output": [
+                {"message": {"content": "First response"}},
+                {"message": {"content": "Second response with keyword"}},
+            ],
+        }
+        # When extracting all message contents, the result is stringified by cast_template_variable_types
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.output[*].message.content"},
+            literal_mapping={"words": "keyword"},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        # The list gets stringified and searched
+        assert result["score"] == 1.0
+
+    def test_evaluator_handles_dict_values_cast_to_string(self) -> None:
+        """Test that dict values are properly cast to strings for evaluators expecting string input."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        context = {
+            "output": {"nested": {"value": "contains target word"}},
+        }
+        # Extracting the whole nested object, which will be stringified
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"text": "$.output.nested"},
+            literal_mapping={"words": "target"},
+        )
+        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        assert result["error"] is None
+        assert result["score"] == 1.0
 
 
 @pytest.fixture
