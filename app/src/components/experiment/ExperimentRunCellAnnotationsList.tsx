@@ -36,8 +36,10 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 const listCSS = css`
   display: flex;
   flex-direction: column;
-  padding: 0 var(--ac-global-dimension-static-size-100)
-    var(--ac-global-dimension-static-size-100);
+  padding: var(--ac-global-dimension-static-size-100);
+  border-top: var(--ac-global-border-size-thin) solid
+    var(--ac-global-color-grey-100);
+  background-color: var(--ac-global-color-grey-50);
 `;
 
 const listItemCSS = css`

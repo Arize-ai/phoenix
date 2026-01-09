@@ -8,8 +8,6 @@ import {
 } from "@phoenix/components/markdown";
 import { useContentType } from "@phoenix/hooks/useContentType";
 
-import { LargeTextWrap } from "./LargeTextWrap";
-
 const jsonBlockCSS = css`
   .cm-editor {
     background: transparent;
@@ -33,11 +31,6 @@ export interface DynamicContentCellProps {
    * All other values will be rendered as text
    */
   value: unknown;
-  /**
-   * Maximum height of the content area in pixels
-   * @default 300
-   */
-  maxHeight?: number;
 }
 
 /**
@@ -48,10 +41,10 @@ export interface DynamicContentCellProps {
  * This component is designed to be performant with streaming content and
  * works well within virtualized tables.
  */
-export const DynamicContentCell = memo(function DynamicContentCell({
-  value,
-  maxHeight = 300,
-}: DynamicContentCellProps) {
+export const DynamicContentCell = memo(function DynamicContentCell(
+  props: DynamicContentCellProps
+) {
+  const { value } = props;
   const { contentType, displayValue } = useContentType(value);
 
   const content = useMemo(() => {
@@ -84,7 +77,7 @@ export const DynamicContentCell = memo(function DynamicContentCell({
     );
   }, [contentType, displayValue, value]);
 
-  return <LargeTextWrap height={maxHeight}>{content}</LargeTextWrap>;
+  return content;
 });
 
 export interface DynamicContentPreviewProps {

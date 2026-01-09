@@ -43,7 +43,6 @@ import {
   ModalOverlay,
   ParagraphSkeleton,
   Text,
-  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
@@ -57,8 +56,8 @@ import {
 import {
   CellTop,
   DynamicContentCell,
-  JSONCell,
   LargeTextWrap,
+  OverflowCell,
   PaddedCell,
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -78,6 +77,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { useUnnestedValue } from "@phoenix/hooks/useUnnestedValue";
 import {
   assertUnreachable,
   isStringArray,
@@ -113,10 +113,7 @@ import {
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import {
-  PartialOutputToolCall,
-  PlaygroundToolCall,
-} from "./PlaygroundToolCall";
+import { PartialOutputToolCall } from "./PlaygroundToolCall";
 import {
   denormalizePlaygroundInstance,
   extractVariablesFromInstance,
@@ -126,14 +123,12 @@ import {
 const PAGE_SIZE = 10;
 
 /**
- * Fixed height for the output content area to prevent layout shifts
- * between loading, empty, and loaded states
+ * The height of the primary content area of a cell in pixels.
+ * This is used to set the height of the overflow cell and the padded cell.
  */
-const OUTPUT_CONTENT_HEIGHT = 300;
+const CELL_PRIMARY_CONTENT_HEIGHT = 300;
 
 const outputContentCSS = css`
-  height: ${OUTPUT_CONTENT_HEIGHT}px;
-  overflow: auto;
   flex: none;
   padding: var(--ac-global-dimension-size-200);
 `;
@@ -234,7 +229,9 @@ function EmptyExampleOutput({
   return (
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <DynamicContentCell value={content} maxHeight={OUTPUT_CONTENT_HEIGHT} />
+      <OverflowCell height={CELL_PRIMARY_CONTENT_HEIGHT}>
+        <div css={outputContentCSS}>{content}</div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={[]}
         annotationConfigs={evaluatorOutputConfigs}
@@ -373,28 +370,23 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
-
-      <div css={outputContentCSS}>
-        <Flex direction={"column"} gap="size-100">
-          {errorMessage != null ? (
-            <PlaygroundErrorWrap key="error-message">
-              {errorMessage}
-            </PlaygroundErrorWrap>
-          ) : null}
-          {content != null ? (
-            <LargeTextWrap key="content">{content}</LargeTextWrap>
-          ) : null}
-          {toolCalls != null ? (
-            <View key="tool-calls-wrap">
-              {Object.values(toolCalls).map((toolCall) =>
-                toolCall == null ? null : (
-                  <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
-                )
-              )}
-            </View>
-          ) : null}
-        </Flex>
-      </div>
+      <OverflowCell height={CELL_PRIMARY_CONTENT_HEIGHT}>
+        <div css={outputContentCSS}>
+          <Flex direction={"column"} gap="size-100">
+            {errorMessage != null ? (
+              <PlaygroundErrorWrap key="error-message">
+                {errorMessage}
+              </PlaygroundErrorWrap>
+            ) : null}
+            {content != null ? (
+              <DynamicContentCell value={content} key="content" />
+            ) : null}
+            {toolCalls != null ? (
+              <DynamicContentCell value={toolCalls} key="tool-calls-wrap" />
+            ) : null}
+          </Flex>
+        </div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={successfulEvaluations}
         annotationErrors={evaluationErrors}
@@ -463,6 +455,31 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     />
   );
 });
+
+/**
+ * Cell component for rendering reference output with configurable height
+ */
+function ReferenceOutputCell({
+  value,
+  primaryContentHeight,
+}: {
+  value: unknown;
+  primaryContentHeight: number;
+}) {
+  const unnestedValue = useUnnestedValue(value);
+  return (
+    <Flex direction="column" height="100%">
+      <CellTop>
+        <Text color="text-500">reference output</Text>
+      </CellTop>
+      <OverflowCell height={primaryContentHeight}>
+        <div css={outputContentCSS}>
+          <DynamicContentCell value={unnestedValue} />
+        </div>
+      </OverflowCell>
+    </Flex>
+  );
+}
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
@@ -570,6 +587,12 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.allInstanceMessages
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const numEnabledEvaluators = evaluatorOutputConfigs.length;
+
+  const annotationListHeight = useMemo(() => {
+    // Calculate the height of the annotation list based on the number of enabled evaluators
+    return numEnabledEvaluators * 32 + 16 + 1; // 32px is the height of a single annotation card, 16px is the padding on both top and bottom. 1px is the top border.
+  }, [numEnabledEvaluators]);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
@@ -1226,18 +1249,14 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "reference output",
       accessorKey: "output",
-      cell: (props) => {
-        return (
-          <>
-            <CellTop>
-              <Text color="text-500">{`reference output`}</Text>
-            </CellTop>
-            <PaddedCell>
-              <JSONCell {...props} collapseSingleKey={true} height={200} />
-            </PaddedCell>
-          </>
-        );
-      },
+      cell: ({ row }) => (
+        <ReferenceOutputCell
+          value={row.original.output}
+          primaryContentHeight={
+            CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight
+          }
+        />
+      ),
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
