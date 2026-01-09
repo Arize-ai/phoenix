@@ -206,10 +206,10 @@ function EvaluatorPromptPreviewContent(
   props: EvaluatorPromptPreviewContentProps
 ) {
   const { gqlTemplate, templateFormat } = props;
-  const { inputMappingRaw, preMappedInput } = useEvaluatorStore(
+  const { inputMappingRaw, evaluatorMappingSource } = useEvaluatorStore(
     useShallow((state) => ({
       inputMappingRaw: state.evaluator.inputMapping,
-      preMappedInput: state.preMappedInput,
+      evaluatorMappingSource: state.evaluatorMappingSource,
     }))
   );
   // When used as a query input, Relay mutates the object to make it read-only.
@@ -245,7 +245,7 @@ function EvaluatorPromptPreviewContent(
     {
       template: gqlTemplate,
       templateOptions: {
-        variables: preMappedInput ?? {},
+        variables: evaluatorMappingSource ?? {},
         format: templateFormat,
       },
       inputMapping,

@@ -41,8 +41,10 @@ export const ContainsEvaluatorForm = () => {
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
-  const preMappedInput = useEvaluatorStore((state) => state.preMappedInput);
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(preMappedInput);
+  const evaluatorMappingSource = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
+  );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
