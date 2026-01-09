@@ -12,9 +12,13 @@ import {
   Icons,
   Input,
   Label,
+  ListBox,
   NumberField,
-  Radio,
-  RadioGroup,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
   Switch,
   Text,
   TextField,
@@ -27,11 +31,14 @@ import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-const optimizationDirections = [
-  "MAXIMIZE",
-  "MINIMIZE",
-  "NONE",
-] satisfies EvaluatorOptimizationDirection[];
+const optimizationDirectionOptions: {
+  value: EvaluatorOptimizationDirection;
+  label: string;
+}[] = [
+  { value: "MAXIMIZE", label: "Maximize (higher is better)" },
+  { value: "MINIMIZE", label: "Minimize (lower is better)" },
+  { value: "NONE", label: "None" },
+];
 
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
@@ -96,50 +103,52 @@ export const EvaluatorLLMChoice = () => {
       `}
     >
       <Flex direction="column" gap="size-200">
-        <Controller
-          control={control}
-          name="outputConfig.name"
-          rules={{
-            required: "Name is required",
-          }}
-          render={({ field, fieldState: { error } }) => (
-            <TextField {...field} isInvalid={!!error}>
-              <Label>Name</Label>
-              <Input placeholder="e.g. correctness" />
-              <FieldError>{error?.message}</FieldError>
-            </TextField>
-          )}
-        />
-        <Controller
-          control={control}
-          name="outputConfig.optimizationDirection"
-          render={({ field }) => (
-            <RadioGroup
-              {...field}
-              aria-label="Optimization Direction"
-              data-testid="optimization-direction-picker"
-              css={css`
-                height: 100%;
-              `}
-            >
-              <Label>Optimization Direction</Label>
-              {optimizationDirections.map((direction) => (
-                <Radio key={direction} value={direction}>
-                  {direction.charAt(0).toUpperCase() +
-                    direction.slice(1).toLowerCase()}
-                </Radio>
-              ))}
-              <Text marginTop="auto" slot="description">
-                Maximize - higher the score the better - e.g., correctness
-                <br />
-                Minimize - lower the score the better - e.g., hallucinations
-                <br />
-                None - higher is not better or worse
-                <br />
-              </Text>
-            </RadioGroup>
-          )}
-        />
+        <Flex alignItems="center" justifyContent="space-between" gap="size-200">
+          <Controller
+            control={control}
+            name="outputConfig.name"
+            rules={{
+              required: "Name is required",
+            }}
+            render={({ field, fieldState: { error } }) => (
+              <TextField {...field} isInvalid={!!error}>
+                <Label>Name</Label>
+                <Input placeholder="e.g. correctness" />
+                <FieldError>{error?.message}</FieldError>
+              </TextField>
+            )}
+          />
+          <Controller
+            control={control}
+            name="outputConfig.optimizationDirection"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onChange={field.onChange}
+                aria-label="Optimization direction"
+                data-testid="optimization-direction-picker"
+                css={css`
+                  width: 100%;
+                `}
+              >
+                <Label>Optimization direction</Label>
+                <Button>
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    {optimizationDirectionOptions.map((option) => (
+                      <SelectItem key={option.value} id={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </ListBox>
+                </Popover>
+              </Select>
+            )}
+          />
+        </Flex>
         <Flex direction="column" gap="size-100">
           <GridRow>
             <Text>Choice</Text>
@@ -217,31 +226,37 @@ export const EvaluatorLLMChoice = () => {
               </Flex>
             </GridRow>
           ))}
-          <Button
-            type="button"
-            size="S"
-            variant="quiet"
-            css={css`
-              width: fit-content;
-            `}
-            leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-            aria-label="Add choice"
-            onPress={() => {
-              append({ label: "", score: undefined });
-            }}
+          <Flex
+            alignItems="center"
+            justifyContent="space-between"
+            gap="size-200"
           >
-            Add choice
-          </Button>
+            <Controller
+              control={control}
+              name="includeExplanation"
+              render={({ field }) => (
+                <Switch isSelected={field.value} onChange={field.onChange}>
+                  <Text>Include explanation</Text>
+                </Switch>
+              )}
+            />
+            <Button
+              type="button"
+              size="S"
+              variant="quiet"
+              css={css`
+                width: fit-content;
+              `}
+              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              aria-label="Add choice"
+              onPress={() => {
+                append({ label: "", score: undefined });
+              }}
+            >
+              Add choice
+            </Button>
+          </Flex>
         </Flex>
-        <Controller
-          control={control}
-          name="includeExplanation"
-          render={({ field }) => (
-            <Switch isSelected={field.value} onChange={field.onChange}>
-              <Text>Include explanation</Text>
-            </Switch>
-          )}
-        />
       </Flex>
     </div>
   );

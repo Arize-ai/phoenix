@@ -2,6 +2,7 @@
 export { useLocale } from "react-aria-components";
 
 // Custom hooks
+export * from "./useDebouncedJSONSync";
 export * from "./useInterval";
 export * from "./useWordColor";
 export * from "./useLocalTimeFormatPattern";
