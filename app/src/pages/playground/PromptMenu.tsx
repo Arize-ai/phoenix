@@ -30,7 +30,10 @@ import { useTimeFormatters } from "@phoenix/hooks";
 import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
-type PromptVersion = {
+/** Minimum number of items before showing search field */
+const SEARCH_THRESHOLD = 10;
+
+export type PromptVersion = {
   id: string;
   createdAt: string;
   description: string | null;
@@ -38,7 +41,7 @@ type PromptVersion = {
   tags: readonly { name: string }[];
 };
 
-type PromptData = {
+export type PromptData = {
   id: string;
   name: string;
   versionTags: readonly { name: string }[];
@@ -209,7 +212,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
  * Left dropdown: Searchable prompt selector.
  * Clicking a prompt selects it and automatically loads the latest version.
  */
-function PromptSelector({
+export function PromptSelector({
   prompts,
   selectedPrompt,
   onSelectPrompt,
@@ -227,30 +230,37 @@ function PromptSelector({
     }));
   }, [prompts]);
 
+  const hasPrompts = prompts.length > 0;
+
   return (
     <MenuTrigger>
       <Button
         size="S"
         className="left-child"
+        isDisabled={!hasPrompts}
         css={css`
           justify-content: space-between;
         `}
       >
         {selectedPrompt ? (
           <Text>{selectedPrompt.name}</Text>
-        ) : (
+        ) : hasPrompts ? (
           <Text color="text-700">Select prompt</Text>
+        ) : (
+          <Text color="text-700">No saved prompts</Text>
         )}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer>
+      <MenuContainer placement="bottom start">
         <Autocomplete filter={contains}>
-          <MenuHeader>
-            <SearchField aria-label="Search prompts" autoFocus>
-              <SearchIcon />
-              <Input placeholder="Search prompts" />
-            </SearchField>
-          </MenuHeader>
+          {promptItems.length >= SEARCH_THRESHOLD && (
+            <MenuHeader>
+              <SearchField aria-label="Search prompts" autoFocus>
+                <SearchIcon />
+                <Input placeholder="Search prompts" />
+              </SearchField>
+            </MenuHeader>
+          )}
           <Menu
             selectionMode="single"
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
@@ -280,7 +290,7 @@ function PromptSelector({
  * Right dropdown: Version/tag selector with tabs.
  * Defaults to showing "latest", allows switching between versions and tags.
  */
-function PromptVersionSelector({
+export function PromptVersionSelector({
   prompt,
   selectedVersionInfo,
   selectedTagName,
@@ -349,20 +359,24 @@ function PromptVersionSelector({
         {buttonContent}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer>
+      <MenuContainer placement="bottom start">
         <Tabs defaultSelectedKey={defaultTab}>
           <TabList>
             <Tab id="versions">Versions</Tab>
-            <Tab id="tags">Tags</Tab>
+            <Tab id="tags" isDisabled={tagItems.length === 0}>
+              {tagItems.length === 0 ? "No tags" : "Tags"}
+            </Tab>
           </TabList>
           <LazyTabPanel id="versions">
             <Autocomplete filter={contains}>
-              <MenuHeader>
-                <SearchField aria-label="Search versions" autoFocus>
-                  <SearchIcon />
-                  <Input placeholder="Search versions" />
-                </SearchField>
-              </MenuHeader>
+              {versionItems.length >= SEARCH_THRESHOLD && (
+                <MenuHeader>
+                  <SearchField aria-label="Search versions" autoFocus>
+                    <SearchIcon />
+                    <Input placeholder="Search versions" />
+                  </SearchField>
+                </MenuHeader>
+              )}
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
@@ -417,12 +431,14 @@ function PromptVersionSelector({
           </LazyTabPanel>
           <LazyTabPanel id="tags">
             <Autocomplete filter={contains}>
-              <MenuHeader>
-                <SearchField aria-label="Search tags" autoFocus>
-                  <SearchIcon />
-                  <Input placeholder="Search tags" />
-                </SearchField>
-              </MenuHeader>
+              {tagItems.length >= SEARCH_THRESHOLD && (
+                <MenuHeader>
+                  <SearchField aria-label="Search tags" autoFocus>
+                    <SearchIcon />
+                    <Input placeholder="Search tags" />
+                  </SearchField>
+                </MenuHeader>
+              )}
               <Menu
                 items={tagItems}
                 renderEmptyState={() => (
@@ -454,7 +470,7 @@ function PromptVersionSelector({
  * Renders a label for a prompt version. If the version is the latest, it shows "latest" as a tag.
  * Otherwise, it shows the ID truncated to 6 characters.
  */
-function PromptVersionLabel({
+export function PromptVersionLabel({
   id,
   isLatest,
 }: {
