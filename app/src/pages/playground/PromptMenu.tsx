@@ -330,7 +330,9 @@ export function PromptVersionSelector({
     }
     if (selectedTagName) {
       return (
-        <TagVersionLabel maxWidth="10ch">{selectedTagName}</TagVersionLabel>
+        <TagVersionLabel size="S" maxWidth="10ch">
+          {selectedTagName}
+        </TagVersionLabel>
       );
     }
     if (selectedVersionInfo) {
