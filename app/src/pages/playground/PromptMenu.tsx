@@ -15,7 +15,6 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Tab,
   TabList,
@@ -256,7 +255,6 @@ export function PromptSelector({
           {promptItems.length >= SEARCH_THRESHOLD && (
             <MenuHeader>
               <SearchField aria-label="Search prompts" autoFocus>
-                <SearchIcon />
                 <Input placeholder="Search prompts" />
               </SearchField>
             </MenuHeader>
@@ -374,7 +372,6 @@ export function PromptVersionSelector({
               {versionItems.length >= SEARCH_THRESHOLD && (
                 <MenuHeader>
                   <SearchField aria-label="Search versions" autoFocus>
-                    <SearchIcon />
                     <Input placeholder="Search versions" />
                   </SearchField>
                 </MenuHeader>
@@ -439,7 +436,6 @@ export function PromptVersionSelector({
               {tagItems.length >= SEARCH_THRESHOLD && (
                 <MenuHeader>
                   <SearchField aria-label="Search tags" autoFocus>
-                    <SearchIcon />
                     <Input placeholder="Search tags" />
                   </SearchField>
                 </MenuHeader>

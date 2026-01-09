@@ -103,7 +103,7 @@ export const textFieldCSS = css`
   &[data-size="M"] {
     --textfield-input-height: var(--ac-global-input-height-m);
     --textfield-vertical-padding: 10px;
-    --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --textfield-horizontal-padding: 10px;
     --icon-size: var(--ac-global-font-size-l);
   }
 

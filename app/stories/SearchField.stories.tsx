@@ -10,7 +10,6 @@ import {
   SearchFieldProps,
   Text,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field/SearchIcon";
 
 const meta: Meta = {
   title: "SearchField",
@@ -35,18 +34,27 @@ const meta: Meta = {
     isInvalid: {
       control: { type: "boolean" },
     },
+    showIcon: {
+      control: { type: "boolean" },
+    },
+    variant: {
+      control: { type: "radio" },
+      options: ["default", "quiet"],
+    },
   },
   args: {
     onSubmit: fn(),
     onChange: fn(),
     onClear: fn(),
+    showIcon: true,
   },
 };
 
 export default meta;
 
 /**
- * Basic SearchField with label and input
+ * Basic SearchField with label and input.
+ * The search icon is shown by default.
  */
 const Template: StoryFn<SearchFieldProps> = (args) => (
   <SearchField {...args}>
@@ -58,29 +66,25 @@ const Template: StoryFn<SearchFieldProps> = (args) => (
 export const Default = Template.bind({});
 
 /**
- * SearchField with search icon positioned at the start of the input
+ * SearchField without the search icon
  */
-export const WithIcon: StoryFn<SearchFieldProps> = (args) => (
-  <SearchField {...args}>
-    <Label>Search with Icon</Label>
-
-    <SearchIcon />
-    <Input placeholder="Search..." style={{ paddingLeft: "2rem" }} />
+export const WithoutIcon: StoryFn<SearchFieldProps> = (args) => (
+  <SearchField {...args} showIcon={false}>
+    <Label>Search without Icon</Label>
+    <Input placeholder="Search..." />
   </SearchField>
 );
 
 /**
- * SearchField with both search icon and clear button
+ * Quiet variant - no border, transparent background
  */
-export const WithIconAndClearButton: StoryFn<SearchFieldProps> = (args) => (
-  <SearchField {...args}>
-    <Label>Full Featured Search</Label>
-    <SearchIcon />
-    <Input
-      placeholder="Search with clear button..."
-      style={{ paddingLeft: "2rem", paddingRight: "2rem" }}
-    />
-  </SearchField>
+export const Quiet: StoryFn<SearchFieldProps> = (args) => (
+  <div style={{ background: "var(--ac-global-color-grey-200)", padding: 16 }}>
+    <SearchField {...args} variant="quiet">
+      <Label>Quiet Search</Label>
+      <Input placeholder="Search..." />
+    </SearchField>
+  </div>
 );
 
 /**
@@ -88,80 +92,65 @@ export const WithIconAndClearButton: StoryFn<SearchFieldProps> = (args) => (
  */
 export const Gallery = () => (
   <Flex direction="column" gap="size-200" width="400px">
-    {/* Basic */}
+    {/* Basic with icon (default) */}
     <SearchField>
-      <Label>Basic Search</Label>
-      <Input placeholder="Basic search field" />
+      <Label>Default Search</Label>
+      <Input placeholder="Search..." />
     </SearchField>
 
-    {/* With Icon */}
-    <SearchField>
-      <Label>With Search Icon</Label>
-      <SearchIcon />
-      <Input placeholder="Search..." style={{ paddingLeft: "2rem" }} />
+    {/* Without Icon */}
+    <SearchField showIcon={false}>
+      <Label>Without Icon</Label>
+      <Input placeholder="No icon..." />
     </SearchField>
 
     {/* With Description */}
     <SearchField>
       <Label>Search Products</Label>
-      <SearchIcon />
-      <Input
-        placeholder="Enter product name..."
-        style={{ paddingLeft: "2rem" }}
-      />
+      <Input placeholder="Enter product name..." />
       <Text slot="description">Search across all product categories</Text>
     </SearchField>
 
     {/* Small Size */}
     <SearchField size="S">
       <Label>Small Search</Label>
-      <SearchIcon />
-      <Input placeholder="Small size..." style={{ paddingLeft: "2rem" }} />
+      <Input placeholder="Small size..." />
     </SearchField>
 
     {/* Disabled */}
     <SearchField isDisabled>
       <Label>Disabled Search</Label>
-      <SearchIcon />
-      <Input placeholder="Disabled..." style={{ paddingLeft: "2rem" }} />
+      <Input placeholder="Disabled..." />
     </SearchField>
 
     {/* Read Only */}
-    <SearchField isReadOnly>
+    <SearchField isReadOnly defaultValue="Cannot be edited">
       <Label>Read Only Search</Label>
-      <SearchIcon />
-      <Input
-        placeholder="Read only..."
-        style={{ paddingLeft: "2rem" }}
-        value="Cannot be edited"
-      />
-      <Text slot="description">This search field is read-only</Text>
+      <Input placeholder="Read only..." />
+      <Text slot="description">
+        This search field is read-only (no clear button)
+      </Text>
     </SearchField>
 
     {/* Invalid State */}
     <SearchField isInvalid>
       <Label>Search with Error</Label>
-      <SearchIcon />
-      <Input placeholder="Invalid input..." style={{ paddingLeft: "2rem" }} />
+      <Input placeholder="Invalid input..." />
       <FieldError>Please enter a valid search term</FieldError>
     </SearchField>
 
     {/* Required */}
     <SearchField isRequired>
       <Label>Required Search</Label>
-      <SearchIcon />
-      <Input
-        placeholder="This field is required..."
-        style={{ paddingLeft: "2rem" }}
-      />
+      <Input placeholder="This field is required..." />
     </SearchField>
+
+    {/* Quiet variant */}
+    <div style={{ background: "var(--ac-global-color-grey-200)", padding: 16 }}>
+      <SearchField variant="quiet">
+        <Label>Quiet Variant</Label>
+        <Input placeholder="Blends with background..." />
+      </SearchField>
+    </div>
   </Flex>
 );
-
-WithIcon.args = {
-  size: "M",
-};
-
-WithIconAndClearButton.args = {
-  size: "M",
-};
