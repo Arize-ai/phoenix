@@ -102,7 +102,9 @@ def get_experiment_example_output(span: Span) -> dict[str, Any]:
                 if definition := get_attribute_value(tool, TOOL_DEFINITION):
                     tool_definitions.append(definition)
         tool_definitions_data = [
-            _safely_json_decode(tool_definition) for tool_definition in tool_definitions
+            decoded
+            for tool_definition in tool_definitions
+            if (decoded := _safely_json_decode(tool_definition)) is not None
         ]
         return {
             **messages_or_output,
