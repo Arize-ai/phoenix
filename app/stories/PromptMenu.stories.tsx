@@ -18,7 +18,7 @@ import {
 const promptMenuContainerCSS = css`
   min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
 `;
 
