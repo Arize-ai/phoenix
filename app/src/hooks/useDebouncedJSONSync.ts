@@ -9,15 +9,17 @@ const DEFAULT_DEBOUNCE_DELAY = 500;
  * This is useful for JSON editors where you want to sync the parsed value
  * to a parent component or store, but only after the user has stopped typing.
  *
- * @param onSync - Callback that receives the parsed JSON value
+ * @param onSync - Callback that receives the parsed JSON value. Ensure this is a stable function reference!
  * @param delay - Debounce delay in milliseconds (default: 500)
  * @returns A debounced function that parses JSON and calls onSync on success
  *
  * @example
  * ```tsx
- * const syncToStore = useDebouncedJSONSync((value) => {
+ * // this will only be called with valid json, after the 500ms debounce delay
+ * const stableOnSync = useCallback((value: JSONValue) => {
  *   store.setValue(value);
- * });
+ * }, [store]);
+ * const syncToStore = useDebouncedJSONSync(stableOnSync, 500);
  *
  * return <JSONEditor onChange={syncToStore} />;
  * ```

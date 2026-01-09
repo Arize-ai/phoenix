@@ -72,6 +72,17 @@ export function EvaluatorMappingSourceEditor({
   onFieldChange,
   editorKeyPrefix = "",
 }: EvaluatorMappingSourceEditorProps) {
+  // memoize the field callbacks to avoid re-creating them on every render
+  const fieldCallbacks = useMemo(() => {
+    return Object.fromEntries(
+      FIELD_CONFIG.map(({ field }) => {
+        return [
+          field,
+          (newValue: Record<string, unknown>) => onFieldChange(field, newValue),
+        ];
+      })
+    );
+  }, [onFieldChange]);
   return (
     <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_KEYS}>
       {FIELD_CONFIG.map(({ field, label, description }) => (
@@ -81,7 +92,7 @@ export function EvaluatorMappingSourceEditor({
           label={label}
           description={description}
           value={value[field]}
-          onChange={(newValue) => onFieldChange(field, newValue)}
+          onChange={fieldCallbacks[field]}
           editorKey={`${editorKeyPrefix}-${field}`}
         />
       ))}

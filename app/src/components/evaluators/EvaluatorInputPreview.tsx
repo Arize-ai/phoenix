@@ -9,7 +9,6 @@ import { EvaluatorMappingSourceEditor } from "@phoenix/components/evaluators/Eva
 import { datasetExampleToEvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
 import { EVALUATOR_MAPPING_SOURCE_DEFAULT } from "@phoenix/store/evaluatorStore";
-import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
  * Given a datasetId, splitIds, and optional exampleId, this component will
@@ -124,17 +123,10 @@ const EvaluatorInputPreviewContent = () => {
     setEvaluatorInputObject(defaultValue);
   }, [defaultValue]);
 
-  const handleFieldChange = (
-    field: keyof EvaluatorMappingSource,
-    value: Record<string, unknown>
-  ) => {
-    setEvaluatorMappingSourceField(field, value);
-  };
-
   return (
     <EvaluatorMappingSourceEditor
       value={evaluatorMappingSource}
-      onFieldChange={handleFieldChange}
+      onFieldChange={setEvaluatorMappingSourceField}
       editorKeyPrefix={`${datasetId}-${exampleId}`}
     />
   );
