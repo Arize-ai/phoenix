@@ -212,6 +212,23 @@ const promptMenuContainerCSS = css`
 `;
 
 /**
+ * Width strategy for PromptSelector:
+ *
+ * The button width is controlled by these factors:
+ * - min-width: Ensures the button is always usably wide
+ * - max-width (placeholder): Prevents "Select prompt" from stretching too wide
+ * - max-width (selected): Uncapped, allows button to use available space
+ * - text max-width: Truncates long prompt names with ellipsis
+ *
+ * The button uses flex: 1 1 auto so it grows/shrinks within these bounds.
+ */
+const promptSelectorWidthCSS = css`
+  --button-min-width: var(--ac-global-dimension-size-1800);
+  --button-max-width-placeholder: var(--ac-global-dimension-size-2400);
+  --text-max-width: 30ch;
+`;
+
+/**
  * Left dropdown: Searchable prompt selector.
  * Clicking a prompt selects it and automatically loads the latest version.
  */
@@ -241,18 +258,20 @@ export function PromptSelector({
         size="S"
         className="left-child"
         isDisabled={!hasPrompts}
+        data-has-selection={selectedPrompt ? true : undefined}
         css={css`
+          ${promptSelectorWidthCSS}
           justify-content: space-between;
           flex: 1 1 auto;
-          min-width: var(--ac-global-dimension-size-1800);
-          max-width: ${selectedPrompt
-            ? "none"
-            : "var(--ac-global-dimension-size-2400)"};
+          min-width: var(--button-min-width);
+          max-width: var(--button-max-width-placeholder);
           overflow: hidden;
-          ${!selectedPrompt && `color: var(--ac-global-text-color-700);`}
+          &[data-has-selection] {
+            max-width: none;
+          }
         `}
       >
-        <Truncate maxWidth="30ch" title={selectedPrompt?.name}>
+        <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
           {selectedPrompt?.name ??
             (hasPrompts ? "Select prompt" : "No saved prompts")}
         </Truncate>
