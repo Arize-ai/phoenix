@@ -36,9 +36,17 @@ interface TokenProps
    * If provided, an icon button will be displayed to the right of the token.
    */
   onRemove?: () => void;
+  /**
+   * Maximum width for the token. Text truncates with an ellipsis when exceeded.
+   *
+   * @default "var(--ac-global-dimension-size-2000)" (160px)
+   * @example "200px" | "100%" | "10ch"
+   */
+  maxWidth?: React.CSSProperties["maxWidth"];
 }
 
 const tokenBaseCSS = css`
+  --ac-token-max-width: var(--ac-global-dimension-size-2000);
   display: inline-flex;
   align-items: center;
   gap: var(--ac-global-dimension-static-size-100);
@@ -50,7 +58,13 @@ const tokenBaseCSS = css`
     lch(from var(--ac-internal-token-color) calc((l) * infinity) c h / 0.3);
   color: lch(from var(--ac-internal-token-color) calc((50 - l) * infinity) 0 0);
   user-select: none;
-  text-wrap: nowrap;
+  max-width: var(--ac-token-max-width);
+
+  .ac-token__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   &[data-size="S"] {
     height: var(--ac-global-dimension-static-size-200);
@@ -104,6 +118,8 @@ const tokenBaseCSS = css`
     cursor: pointer;
     display: flex;
     align-items: center;
+    min-width: 0;
+    overflow: hidden;
 
     &[disabled] {
       cursor: not-allowed;
@@ -158,6 +174,7 @@ function Token(
     size = "M",
     style,
     leadingVisual,
+    maxWidth,
     ...rest
   }: TokenProps,
   ref: Ref<HTMLDivElement>
@@ -184,6 +201,8 @@ function Token(
     </button>
   ) : null;
 
+  const textContent = <span className="ac-token__text">{children}</span>;
+
   const renderContent = () => {
     if (onPress && onRemove) {
       return (
@@ -195,7 +214,7 @@ function Token(
             disabled={isDisabled}
           >
             {wrappedLeadingVisual}
-            {children}
+            {textContent}
           </button>
           {removeButton}
         </>
@@ -211,7 +230,7 @@ function Token(
           disabled={isDisabled}
         >
           {wrappedLeadingVisual}
-          {children}
+          {textContent}
         </button>
       );
     }
@@ -221,7 +240,7 @@ function Token(
         <>
           <span>
             {wrappedLeadingVisual}
-            {children}
+            {textContent}
           </span>
           {removeButton}
         </>
@@ -231,7 +250,7 @@ function Token(
     return (
       <>
         {wrappedLeadingVisual}
-        {children}
+        {textContent}
       </>
     );
   };
@@ -240,8 +259,12 @@ function Token(
     <div
       ref={ref}
       css={css(tokenBaseCSS, cssProp)}
-      // @ts-expect-error --px-token-color is a custom property
-      style={{ "--ac-internal-token-color": color, ...style }}
+      style={{
+        // @ts-expect-error custom CSS properties
+        "--ac-internal-token-color": color,
+        ...(maxWidth && { "--ac-token-max-width": maxWidth }),
+        ...style,
+      }}
       data-theme={theme}
       data-size={size}
       {...(onPress && { "data-interactive": true })}

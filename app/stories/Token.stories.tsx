@@ -166,3 +166,40 @@ export const Group: Meta<typeof Token> = {
     onRemove: () => alert("Token removed!"),
   },
 };
+
+const TruncatedTemplate: StoryFn<TokenProps> = (args) => (
+  <Card title="Token Truncation (hover for full text)">
+    <View width="600px" padding="size-200">
+      <Flex gap="size-100" direction="column" alignItems="start">
+        <Token {...args}>
+          Default truncates at 160px - this long text will be cut off
+        </Token>
+        <Token {...args} maxWidth="100px">
+          Custom maxWidth="100px" for narrower spaces
+        </Token>
+        <Token
+          {...args}
+          maxWidth="300px"
+          color="var(--ac-global-color-primary)"
+        >
+          Custom maxWidth="300px" allows more text before truncation happens
+        </Token>
+        <Token {...args} maxWidth="none">
+          maxWidth="none" is technically possible but unwise to use because it
+          enables unreasonable behavior and some very wide noodles.
+        </Token>
+      </Flex>
+    </View>
+  </Card>
+);
+
+/**
+ * Tokens have a default max-width of 160px and truncate with an ellipsis.
+ * Use the `maxWidth` prop to customize the truncation point.
+ */
+export const Truncated: Meta<typeof Token> = {
+  render: TruncatedTemplate,
+  args: {
+    isDisabled: false,
+  },
+};

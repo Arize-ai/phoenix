@@ -334,7 +334,9 @@ export function PromptVersionSelector({
       return <Text color="text-700">Version</Text>;
     }
     if (selectedTagName) {
-      return <TagVersionLabel>{selectedTagName}</TagVersionLabel>;
+      return (
+        <TagVersionLabel maxWidth="10ch">{selectedTagName}</TagVersionLabel>
+      );
     }
     if (selectedVersionInfo) {
       return (
@@ -467,9 +469,7 @@ export function PromptVersionSelector({
               >
                 {({ name }) => (
                   <MenuItem id={name} textValue={name}>
-                    <Truncate maxLines={2} title={name}>
-                      <TagVersionLabel>{name}</TagVersionLabel>
-                    </Truncate>
+                    <TagVersionLabel maxWidth="30ch">{name}</TagVersionLabel>
                   </MenuItem>
                 )}
               </Menu>
