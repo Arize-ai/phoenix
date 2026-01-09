@@ -177,7 +177,12 @@ function PresetRender({
     selectedVersionIndex: initialSelectedVersionIndex,
   });
 
-  const prompts = generatePrompts(promptNames, versionCount, tagNames);
+  // Memoize prompts to maintain stable references - prevents react-aria
+  // from re-initializing collections on every render
+  const prompts = React.useMemo(
+    () => generatePrompts(promptNames, versionCount, tagNames),
+    [promptNames, versionCount, tagNames]
+  );
 
   const selectedPrompt =
     selection.selectedPromptIndex !== null && selection.selectedPromptIndex >= 0
@@ -287,9 +292,13 @@ function PlaygroundRender(args: StoryArgs) {
     selectedVersionIndex: 1,
   });
 
-  const promptNames = DEFAULT_PROMPT_NAMES.slice(0, args.promptCount);
-  const tagNames = DEFAULT_TAG_NAMES.slice(0, args.tagCount);
-  const prompts = generatePrompts(promptNames, args.versionCount, tagNames);
+  // Memoize prompts to maintain stable references - prevents react-aria
+  // from re-initializing collections on every render
+  const prompts = React.useMemo(() => {
+    const promptNames = DEFAULT_PROMPT_NAMES.slice(0, args.promptCount);
+    const tagNames = DEFAULT_TAG_NAMES.slice(0, args.tagCount);
+    return generatePrompts(promptNames, args.versionCount, tagNames);
+  }, [args.promptCount, args.versionCount, args.tagCount]);
 
   // Reset selection if prompt count changes and current selection is out of range
   React.useEffect(() => {
