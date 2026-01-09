@@ -51,6 +51,14 @@ const searchFieldCSS = css`
   .react-aria-Input {
     grid-area: input;
     width: 100%;
+
+    /* Hide browser native clear button since we have a custom one */
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+      display: none;
+    }
   }
 
   [slot="description"],
