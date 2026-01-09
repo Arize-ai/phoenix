@@ -9,8 +9,8 @@ import type {
   ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorKind,
+  EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
-  EvaluatorPreMappedInput,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
@@ -36,7 +36,7 @@ export type EvaluatorStoreProps = {
     selectedExampleId: string | null;
     selectedSplitIds: string[];
   };
-  preMappedInput: EvaluatorPreMappedInput;
+  evaluatorMappingSource: EvaluatorMappingSource;
   showPromptPreview: boolean;
 };
 
@@ -71,8 +71,15 @@ export type EvaluatorStoreActions = {
   setDataset: (dataset: EvaluatorStoreProps["dataset"]) => void;
   /** Sets the dataset ID, or clears the dataset if null. */
   setDatasetId: (datasetId: string | null) => void;
-  /** Sets the pre-mapped input data (input, output, expected). */
-  setPreMappedInput: (preMappedInput: EvaluatorPreMappedInput) => void;
+  /** Sets the evaluator mapping source data (input, output, reference). */
+  setEvaluatorMappingSource: (
+    evaluatorMappingSource: EvaluatorMappingSource
+  ) => void;
+  /** Sets a single field of the evaluator mapping source. */
+  setEvaluatorMappingSourceField: (
+    field: keyof EvaluatorMappingSource,
+    value: Record<string, unknown>
+  ) => void;
   /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
   /** Sets the selected split IDs for filtering dataset examples. */
@@ -84,19 +91,27 @@ export type EvaluatorStoreActions = {
 export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
 
 /**
- * Default value for the pre-mapped input.
+ * Default value for the evaluator mapping source.
  */
-export const EVALUATOR_PRE_MAPPED_INPUT_DEFAULT: EvaluatorPreMappedInput = {
+export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
   input: {},
-  output: {},
+  output: {
+    messages: [
+      {
+        role: "assistant",
+        content: "How may I help you today?",
+      },
+    ],
+    available_tools: [],
+  },
   reference: {},
 };
 
 /**
- * Default value for the pre-mapped input as a string.
+ * Default value for the evaluator mapping source as a string.
  */
-export const EVALUATOR_PRE_MAPPED_INPUT_DEFAULT_STRING = JSON.stringify(
-  EVALUATOR_PRE_MAPPED_INPUT_DEFAULT,
+export const EVALUATOR_MAPPING_SOURCE_DEFAULT_STRING = JSON.stringify(
+  EVALUATOR_MAPPING_SOURCE_DEFAULT,
   null,
   2
 );
@@ -115,7 +130,7 @@ export const DEFAULT_STORE_VALUES = {
     },
     includeExplanation: true,
   },
-  preMappedInput: EVALUATOR_PRE_MAPPED_INPUT_DEFAULT,
+  evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   showPromptPreview: false,
 } satisfies DeepPartial<EvaluatorStoreProps>;
 
@@ -325,8 +340,24 @@ export const createEvaluatorStore = (
               "setDatasetId"
             );
           },
-          setPreMappedInput(preMappedInput) {
-            set({ preMappedInput }, undefined, "setPreMappedInput");
+          setEvaluatorMappingSource(evaluatorMappingSource) {
+            set(
+              { evaluatorMappingSource },
+              undefined,
+              "setEvaluatorMappingSource"
+            );
+          },
+          setEvaluatorMappingSourceField(field, value) {
+            set(
+              {
+                evaluatorMappingSource: {
+                  ...get().evaluatorMappingSource,
+                  [field]: value,
+                },
+              },
+              undefined,
+              "setEvaluatorMappingSourceField"
+            );
           },
           setSelectedExampleId(selectedExampleId) {
             const baseDataset = get().dataset;

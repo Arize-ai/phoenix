@@ -6,13 +6,14 @@ import { css } from "@emotion/react";
 import {
   Button,
   Card,
-  ContentSkeleton,
   DialogTrigger,
   Flex,
   Heading,
   Icon,
+  IconButton,
   Icons,
   Popover,
+  Skeleton,
   Text,
   View,
 } from "@phoenix/components";
@@ -25,32 +26,23 @@ import type {
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-
-export const EvaluatorOutputPreview = () => {
-  return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={3}>Test your evaluator</Heading>
-      <Text color="text-500">
-        Give your evaluator a test run against the selected dataset example, and
-        the hypothetical task output.
-      </Text>
-      <EvaluatorOutputPreviewContent />
-    </Flex>
-  );
-};
 
 type EvaluationPreviewResult =
   | { kind: "success"; annotation: Annotation }
   | { kind: "error"; evaluatorName: string; message: string };
 
-const EvaluatorOutputPreviewContent = () => {
+export const EvaluatorOutputPreview = () => {
   const [error, setError] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<
     EvaluationPreviewResult[]
   >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
+  const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const playgroundStore = usePlaygroundStore();
   const [previewEvaluator, isLoadingEvaluatorPreview] =
     useMutation<EvaluatorOutputPreviewMutation>(graphql`
@@ -116,7 +108,7 @@ const EvaluatorOutputPreviewContent = () => {
     previewEvaluator({
       variables: {
         input: {
-          context: state.preMappedInput,
+          context: state.evaluatorMappingSource,
           evaluator: params,
           inputMapping: state.evaluator.inputMapping,
         },
@@ -161,93 +153,131 @@ const EvaluatorOutputPreviewContent = () => {
       },
     });
   };
+  const isShowingPreview =
+    isLoadingEvaluatorPreview || previewResults.length > 0 || error != null;
+  const helpTextByEvaluatorKind = {
+    LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
+    CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
+  };
+  const helpText =
+    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.LLM;
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex
-        direction="row"
-        gap="size-100"
-        width="100%"
-        justifyContent="space-between"
-      >
-        <Button
-          onPress={onTestEvaluator}
-          isPending={isLoadingEvaluatorPreview}
-          variant="primary"
-          leadingVisual={
-            <Icon
-              svg={
-                isLoadingEvaluatorPreview ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.PlayCircleOutline />
-                )
-              }
-            />
-          }
-        >
-          {isLoadingEvaluatorPreview ? "Testing..." : "Test"}
-        </Button>
-      </Flex>
-      {isLoadingEvaluatorPreview ? (
-        <ContentSkeleton />
-      ) : (
+    <>
+      {isShowingPreview && (
         <Flex direction="column" gap="size-100">
-          {previewResults.map((result, i) => (
-            <Flex direction="column" gap="size-100" key={i}>
-              {result.kind === "success" ? (
-                <Card title="Annotation Preview">
-                  <AnnotationPreviewJSONBlock annotation={result.annotation} />
-                  <View padding="size-100">
-                    <DialogTrigger>
-                      <ExperimentAnnotationButton
-                        annotation={result.annotation}
-                      />
-                      <Popover>
-                        <View padding="size-200">
-                          <AnnotationDetailsContent
-                            annotation={result.annotation}
-                          />
-                        </View>
-                      </Popover>
-                    </DialogTrigger>
-                  </View>
-                </Card>
-              ) : (
-                <Card title={`Evaluator Error: ${result.evaluatorName}`}>
-                  <div
-                    css={css`
-                      padding: var(--ac-global-dimension-size-100);
-                      background-color: var(--ac-global-color-danger-100);
-                      border-radius: var(--ac-global-rounding-small);
-                      white-space: pre-wrap;
-                      overflow: auto;
-                      max-height: 200px;
-                    `}
+          <Flex
+            direction="column"
+            gap="size-100"
+            width="100%"
+            marginBottom="size-100"
+          >
+            {isLoadingEvaluatorPreview && (
+              <Card title="Evaluator Annotation Preview">
+                <View padding="size-100">
+                  <Flex direction="column" gap="size-100">
+                    <Skeleton height={144} borderRadius={8} animation="wave" />
+                    <Skeleton height={44} width="80%" animation="wave" />
+                  </Flex>
+                </View>
+              </Card>
+            )}
+            {previewResults.map((result, i) => (
+              <Flex direction="column" gap="size-100" key={i} width="100%">
+                {result.kind === "success" ? (
+                  <Card
+                    title="Evaluator Annotation Preview"
+                    width="100%"
+                    extra={
+                      <IconButton
+                        size="S"
+                        onPress={() => setPreviewResults([])}
+                      >
+                        <Icon svg={<Icons.CloseOutline />} />
+                      </IconButton>
+                    }
                   >
-                    <Text color="danger">{result.message}</Text>
-                  </div>
-                </Card>
-              )}
-            </Flex>
-          ))}
+                    <AnnotationPreviewJSONBlock
+                      annotation={result.annotation}
+                    />
+                    <View padding="size-100">
+                      <DialogTrigger>
+                        <ExperimentAnnotationButton
+                          annotation={result.annotation}
+                        />
+                        <Popover>
+                          <View padding="size-200">
+                            <AnnotationDetailsContent
+                              annotation={result.annotation}
+                            />
+                          </View>
+                        </Popover>
+                      </DialogTrigger>
+                    </View>
+                  </Card>
+                ) : (
+                  <Card title={`Evaluator Error: ${result.evaluatorName}`}>
+                    <div
+                      css={css`
+                        padding: var(--ac-global-dimension-size-100);
+                        background-color: var(--ac-global-color-danger-100);
+                        border-radius: var(--ac-global-rounding-small);
+                        white-space: pre-wrap;
+                        overflow: auto;
+                        max-height: 200px;
+                      `}
+                    >
+                      <Text color="danger">{result.message}</Text>
+                    </div>
+                  </Card>
+                )}
+              </Flex>
+            ))}
+          </Flex>
+
+          {error && (
+            <div
+              css={css`
+                padding: var(--ac-global-dimension-size-100);
+                background-color: var(--ac-global-color-danger-100);
+                border-radius: var(--ac-global-rounding-small);
+                white-space: pre-wrap;
+                overflow: auto;
+                max-height: 200px;
+              `}
+            >
+              <Text color="danger">{error}</Text>
+            </div>
+          )}
         </Flex>
       )}
-
-      {error && (
-        <div
-          css={css`
-            padding: var(--ac-global-dimension-size-100);
-            background-color: var(--ac-global-color-danger-100);
-            border-radius: var(--ac-global-rounding-small);
-            white-space: pre-wrap;
-            overflow: auto;
-            max-height: 200px;
-          `}
-        >
-          <Text color="danger">{error}</Text>
-        </div>
-      )}
-    </Flex>
+      <Flex direction="column" gap="size-100">
+        <Flex justifyContent="space-between" alignItems="center">
+          <Heading weight="heavy" level={2}>
+            Test with an Example
+          </Heading>
+          <Button
+            size="S"
+            onPress={onTestEvaluator}
+            isPending={isLoadingEvaluatorPreview}
+            variant="primary"
+            leadingVisual={
+              <Icon
+                svg={
+                  isLoadingEvaluatorPreview ? (
+                    <Icons.LoadingOutline />
+                  ) : (
+                    <Icons.PlayCircleOutline />
+                  )
+                }
+              />
+            }
+          >
+            {isLoadingEvaluatorPreview ? "Testing..." : "Test"}
+          </Button>
+        </Flex>
+        <Text color="text-500">{helpText}</Text>
+      </Flex>
+    </>
   );
 };
 

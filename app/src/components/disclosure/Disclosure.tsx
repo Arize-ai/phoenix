@@ -86,6 +86,8 @@ export const DisclosurePanel = ({
 export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end" | "none";
   justifyContent?: FlexStyleProps["justifyContent"];
+  alignItems?: FlexStyleProps["alignItems"];
+  direction?: FlexStyleProps["direction"];
   asHeading?: boolean;
   width?: CSSProperties["width"];
 }>;
@@ -99,6 +101,8 @@ export const DisclosureTrigger = ({
   children,
   arrowPosition,
   justifyContent,
+  alignItems = "center",
+  direction = "row",
   width,
 }: DisclosureTriggerProps) => {
   return (
@@ -110,9 +114,10 @@ export const DisclosureTrigger = ({
       >
         <Flex
           justifyContent={justifyContent}
-          alignItems="center"
+          direction={direction}
+          alignItems={alignItems}
           width="100%"
-          gap="size-100"
+          gap={direction === "row" ? "size-100" : "size-50"}
         >
           {children}
         </Flex>

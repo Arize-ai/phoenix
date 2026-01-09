@@ -1,85 +1,75 @@
-import { useState } from "react";
+import { Suspense } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useShallow } from "zustand/react/shallow";
-import { css } from "@emotion/react";
 
-import { Flex, Heading, Text } from "@phoenix/components";
-import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
-import { DatasetExampleSelect } from "@phoenix/components/dataset/DatasetExampleSelect";
-import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { EvaluatorExampleDatasetQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleDatasetQuery.graphql";
+import { EvaluatorExampleSelect } from "@phoenix/components/evaluators/EvaluatorExampleSelect";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
 export const EvaluatorExampleDataset = () => {
-  const {
-    selectedDatasetId,
-    selectedSplitIds,
-    selectedExampleId,
-    setSelectedExampleId,
-    setSelectedSplitIds,
-    setDatasetId,
-    datasetSelectIsDisabled,
-  } = useEvaluatorStore(
-    useShallow((state) => {
-      if (!state.dataset) {
-        throw new Error("Dataset is required to preview the evaluator input");
-      }
-      return {
-        selectedDatasetId: state.dataset.id,
-        selectedSplitIds: state.dataset.selectedSplitIds,
-        selectedExampleId: state.dataset.selectedExampleId,
-        setSelectedExampleId: state.setSelectedExampleId,
-        setSelectedSplitIds: state.setSelectedSplitIds,
-        setDatasetId: state.setDatasetId,
-        datasetSelectIsDisabled: state.dataset.readonly,
-      };
-    })
+  return (
+    <Suspense>
+      <EvaluatorExampleDatasetContent />
+    </Suspense>
   );
-  const [datasetSelectIsOpen, setDatasetSelectIsOpen] = useState(false);
+};
+
+const EvaluatorExampleDatasetContent = () => {
+  const { selectedDatasetId, selectedExampleId, setSelectedExampleId } =
+    useEvaluatorStore(
+      useShallow((state) => {
+        if (!state.dataset) {
+          throw new Error("Dataset is required to preview the evaluator input");
+        }
+        return {
+          selectedDatasetId: state.dataset.id,
+          selectedExampleId: state.dataset.selectedExampleId,
+          setSelectedExampleId: state.setSelectedExampleId,
+        };
+      })
+    );
+
+  const data = useLazyLoadQuery<EvaluatorExampleDatasetQuery>(
+    graphql`
+      query EvaluatorExampleDatasetQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            id
+            name
+          }
+        }
+      }
+    `,
+    { datasetId: selectedDatasetId }
+  );
+
+  const datasetName = data.dataset?.name ?? "Unknown Dataset";
+
   return (
     <>
       <Flex direction="column" gap="size-100">
         <Flex direction="column" gap="size-100">
-          <Heading level={3}>Dataset</Heading>
-          <Text color="text-500">
-            Define a connection between this evaluator and a dataset.
-          </Text>
+          <DatasetNameDisplay name={datasetName} />
         </Flex>
-        <div
-          css={css`
-            width: 100%;
-            display: grid;
-            grid-template-columns: 3fr 1fr;
-            gap: var(--ac-global-dimension-size-100);
-          `}
-        >
-          <DatasetSelectWithSplits
-            shouldFlip
-            value={{ datasetId: selectedDatasetId, splitIds: selectedSplitIds }}
-            onSelectionChange={({ datasetId, splitIds }) => {
-              setDatasetId(datasetId);
-              setSelectedSplitIds(splitIds);
-              setDatasetSelectIsOpen(false);
-            }}
-            hideSplits
-            isDisabled={datasetSelectIsDisabled}
-            isOpen={datasetSelectIsOpen}
-            onOpenChange={setDatasetSelectIsOpen}
-          />
-          <DatasetExampleSelect
-            datasetId={selectedDatasetId}
-            selectedExampleId={selectedExampleId}
-            onSelectExampleId={setSelectedExampleId}
-          />
-        </div>
+        <EvaluatorExampleSelect
+          datasetId={selectedDatasetId}
+          selectedExampleId={selectedExampleId}
+          onSelectExampleId={setSelectedExampleId}
+        />
       </Flex>
-      <Flex direction="column" gap="size-100">
-        <Heading level={3}>Preview evaluator input context</Heading>
-        <Text color="text-500">
-          You can edit the input context below in order to simulate different
-          shapes of data your evaluator may encounter. By default, the input
-          context is derived from the connected dataset.
-        </Text>
-      </Flex>
-      <EvaluatorInputPreview />
     </>
+  );
+};
+
+const DatasetNameDisplay = ({ name }: { name: string }) => {
+  return (
+    <Flex direction="row" alignItems="center" gap="size-100">
+      <Icon svg={<Icons.DatabaseOutline />} />
+      <Text>
+        <Truncate maxWidth="100%">{name}</Truncate>
+      </Text>
+    </Flex>
   );
 };

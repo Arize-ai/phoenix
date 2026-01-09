@@ -107,7 +107,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     };
   }, [promptId, promptVersionId, promptTagName]);
 
-  const { disablePromptMenu, disablePromptSave } = props;
+  const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
+    props;
 
   return (
     <>
@@ -118,7 +119,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           alignItems="center"
           marginEnd="size-100"
         >
-          <AlphabeticIndexIcon index={index} />
+          {!disableAlphabeticIndex ? (
+            <AlphabeticIndexIcon index={index} />
+          ) : null}
           {!disablePromptMenu ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}

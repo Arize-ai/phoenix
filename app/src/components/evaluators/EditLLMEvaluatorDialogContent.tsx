@@ -54,7 +54,6 @@ export const EditLLMEvaluatorDialogContent = ({
           display: flex;
           flex-direction: column;
           gap: var(--ac-global-dimension-size-200);
-          padding: var(--ac-global-dimension-size-200);
           overflow: auto;
         `}
       >

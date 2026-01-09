@@ -25,4 +25,8 @@ export interface PlaygroundInstanceProps {
    * Whether to disable rendering response format.
    */
   disableResponseFormat?: boolean;
+  /**
+   * Whether to disable rendering the alphabetic index.
+   */
+  disableAlphabeticIndex?: boolean;
 }

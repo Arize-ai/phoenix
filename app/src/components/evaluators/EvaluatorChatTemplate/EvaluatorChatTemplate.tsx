@@ -11,6 +11,7 @@ export const EvaluatorChatTemplate = () => {
       disableResponseFormat
       disableNewTool
       disableTools
+      disableAlphabeticIndex
     />
   );
 };
