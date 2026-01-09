@@ -251,7 +251,7 @@ export function PromptSelector({
         )}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer placement="bottom start">
+      <MenuContainer placement="bottom start" minHeight={0}>
         <Autocomplete filter={contains}>
           {promptItems.length >= SEARCH_THRESHOLD && (
             <MenuHeader>
@@ -266,7 +266,7 @@ export function PromptSelector({
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
             items={promptItems}
             renderEmptyState={() => (
-              <View padding="size-200">
+              <View padding="size-400">
                 <Text color="text-700">No prompts found</Text>
               </View>
             )}
@@ -359,7 +359,7 @@ export function PromptVersionSelector({
         {buttonContent}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer placement="bottom start">
+      <MenuContainer placement="bottom start" minHeight={0}>
         <Tabs defaultSelectedKey={defaultTab}>
           <TabList>
             <Tab id="versions">Versions</Tab>
@@ -380,7 +380,7 @@ export function PromptVersionSelector({
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
-                  <View padding="size-200">
+                  <View padding="size-400">
                     <Text color="text-700">No versions found</Text>
                   </View>
                 )}
@@ -442,7 +442,7 @@ export function PromptVersionSelector({
               <Menu
                 items={tagItems}
                 renderEmptyState={() => (
-                  <View padding="size-200">
+                  <View padding="size-400">
                     <Text color="text-700">No tags found</Text>
                   </View>
                 )}
