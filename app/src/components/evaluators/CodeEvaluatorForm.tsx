@@ -13,7 +13,7 @@ export const CodeEvaluatorForm = () => {
       evaluatorKind: state.evaluator.kind,
       isBuiltin: state.evaluator.isBuiltin,
       builtInEvaluatorName: state.evaluator.name,
-      preMappedInput: state.preMappedInput,
+      evaluatorMappingSource: state.evaluatorMappingSource,
     }))
   );
   if (evaluatorKind !== "CODE") {

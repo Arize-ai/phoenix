@@ -4,15 +4,19 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
-import { Flex } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
-import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
 import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import {
@@ -115,13 +119,23 @@ const evaluatorFormSelector = (state: EvaluatorStore) => ({
  * ```
  */
 export const EvaluatorForm = () => {
-  const { evaluatorKind, isBuiltin } = useEvaluatorStore(
+  const { evaluatorKind } = useEvaluatorStore(
     useShallow(evaluatorFormSelector)
   );
   return (
     <PanelGroup direction="horizontal">
-      <Panel defaultSize={65} css={panelCSS} style={panelStyle}>
-        <PanelContainer>
+      <Panel
+        defaultSize={65}
+        style={panelStyle}
+        css={css`
+          display: flex;
+          flex-direction: column;
+          padding: var(--ac-global-dimension-size-100)
+            var(--ac-global-dimension-size-200);
+          box-sizing: border-box;
+        `}
+      >
+        <View marginBottom="size-200" flex="none">
           <Flex
             direction="row"
             alignItems="baseline"
@@ -131,54 +145,35 @@ export const EvaluatorForm = () => {
             <EvaluatorNameInput />
             <EvaluatorDescriptionInput />
           </Flex>
-          {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
-          {evaluatorKind === "CODE" && <CodeEvaluatorForm />}
-        </PanelContainer>
+        </View>
+        {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
+        {evaluatorKind === "CODE" && <CodeEvaluatorForm />}
       </Panel>
-      <PanelResizeHandle disabled />
-      <Panel defaultSize={35} css={panelCSS} style={panelStyle}>
-        <PanelContainer>
-          <div
-            css={css`
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
-              background-color: var(--ac-global-background-color-dark);
-              border-radius: var(--ac-global-rounding-medium);
-              padding: var(--ac-global-dimension-static-size-200);
-              border: 1px solid var(--ac-global-border-color-default);
-            `}
-          >
-            <EvaluatorExampleDataset />
-            {/* only show input mapping for non-builtin evaluators */}
-            {/* builtin evaluators have hand made forms for their input mapping */}
-            {!isBuiltin && <EvaluatorInputMapping />}
-            <EvaluatorOutputPreview />
-          </div>
-        </PanelContainer>
+      <PanelResizeHandle css={compactResizeHandleCSS} />
+      <Panel
+        defaultSize={35}
+        style={panelStyle}
+        css={css`
+          display: flex;
+          flex-direction: column;
+          gap: var(--ac-global-dimension-size-200);
+          padding: var(--ac-global-dimension-size-100) 0;
+          box-sizing: border-box;
+        `}
+      >
+        <Flex direction="column" gap="size-200">
+          <View paddingX="size-100">
+            <Flex direction="column" gap="size-100">
+              <EvaluatorOutputPreview />
+              <EvaluatorExampleDataset />
+            </Flex>
+          </View>
+          <EvaluatorInputPreview />
+        </Flex>
       </Panel>
     </PanelGroup>
   );
 };
-
-const PanelContainer = ({ children }: PropsWithChildren) => {
-  return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        gap: var(--ac-global-dimension-size-200);
-        padding: var(--ac-global-dimension-size-100) 0;
-      `}
-    >
-      {children}
-    </div>
-  );
-};
-
-const panelCSS = css`
-  padding: 0 var(--ac-global-dimension-size-200);
-`;
 
 const panelStyle = {
   height: "100%",
