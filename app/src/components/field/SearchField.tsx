@@ -8,7 +8,11 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SizingProps } from "@phoenix/components/types";
+import {
+  BaseVariant,
+  QuietVariant,
+  SizingProps,
+} from "@phoenix/components/types";
 
 import { textFieldCSS } from "./styles";
 
@@ -18,7 +22,7 @@ export interface SearchFieldProps extends AriaSearchFieldProps, SizingProps {
    * - "default": Standard bordered input
    * - "quiet": No border, transparent background (inherits from parent)
    */
-  variant?: "default" | "quiet";
+  variant?: BaseVariant | QuietVariant;
   /**
    * Whether to show the search icon. Defaults to true.
    */
@@ -178,17 +182,7 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
           {!isReadOnly && (
             <Button
               className="ac-searchfield-clear"
-              data-empty={!renderProps.state.value || undefined}
-              aria-label="Clear search"
-              excludeFromTabOrder={false}
-              onPress={() => renderProps.state.setValue("")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  renderProps.state.setValue("");
-                }
-              }}
+              data-empty={renderProps.isEmpty || undefined}
             >
               <Icon svg={<Icons.CloseOutline />} />
             </Button>
