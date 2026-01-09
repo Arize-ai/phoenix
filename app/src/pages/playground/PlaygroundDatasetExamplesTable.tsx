@@ -47,6 +47,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -59,7 +60,6 @@ import {
 } from "@phoenix/components/experiment";
 import {
   CellTop,
-  DynamicContentCell,
   LargeTextWrap,
   OverflowCell,
   PaddedCell,
@@ -376,10 +376,10 @@ function ExampleOutputContent({
               </PlaygroundErrorWrap>
             ) : null}
             {content != null ? (
-              <DynamicContentCell value={content} key="content" />
+              <DynamicContent value={content} key="content" />
             ) : null}
             {toolCalls != null ? (
-              <DynamicContentCell value={toolCalls} key="tool-calls-wrap" />
+              <DynamicContent value={toolCalls} key="tool-calls-wrap" />
             ) : null}
           </Flex>
         </div>

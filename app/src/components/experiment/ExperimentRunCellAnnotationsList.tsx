@@ -73,7 +73,6 @@ const nameTextCSS = css`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 `;
 
 type AnnotationSummary = {

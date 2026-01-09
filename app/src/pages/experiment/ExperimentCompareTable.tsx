@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -49,12 +50,7 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import {
-  CellTop,
-  DynamicContentCell,
-  OverflowCell,
-  PaddedCell,
-} from "@phoenix/components/table";
+import { CellTop, OverflowCell, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -344,7 +340,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </CellTop>
               <OverflowCell height={cellContentHeight}>
                 <PaddedCell>
-                  <DynamicContentCell value={row.original.input} />
+                  <DynamicContent value={row.original.input} />
                 </PaddedCell>
               </OverflowCell>
             </Flex>
@@ -804,7 +800,7 @@ function ExperimentRunOutput(
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
       <View padding="size-200" flex="1 1 auto">
-        <DynamicContentCell value={output} />
+        <DynamicContent value={output} />
       </View>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}

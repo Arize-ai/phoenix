@@ -1,11 +1,8 @@
 import { css } from "@emotion/react";
 
 import { Flex, Text } from "@phoenix/components";
-import {
-  CellTop,
-  DynamicContentCell,
-  OverflowCell,
-} from "@phoenix/components/table";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { useUnnestedValue } from "@phoenix/hooks/useUnnestedValue";
 
 const contentCSS = css`
@@ -40,7 +37,7 @@ export function ExperimentReferenceOutputCell({
       </CellTop>
       <OverflowCell height={height}>
         <div css={contentCSS}>
-          <DynamicContentCell value={unnestedValue} />
+          <DynamicContent value={unnestedValue} />
         </div>
       </OverflowCell>
     </Flex>

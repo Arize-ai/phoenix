@@ -40,13 +40,13 @@ import {
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
   compactResizeHandleCSS,
   resizeHandleCSS,
 } from "@phoenix/components/resize";
-import { DynamicContentCell } from "@phoenix/components/table";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -1092,7 +1092,7 @@ function FullSizeDynamicContent({ value }: { value: unknown }) {
         }
       `}
     >
-      <DynamicContentCell value={value} />
+      <DynamicContent value={value} />
     </div>
   );
 }
