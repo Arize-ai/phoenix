@@ -201,8 +201,9 @@ if TYPE_CHECKING:
 
     from phoenix.config import LDAPConfig
 
-# Fix incorrect MIME types on Windows where the registry may have wrong entries
+# Fix incorrect MIME types on Windows where the registry may have wrong entries.
 # See: https://github.com/python/cpython/issues/88141
+# Using text/javascript per RFC 9239: https://www.rfc-editor.org/rfc/rfc9239
 mimetypes.add_type("text/javascript", ".js", strict=True)
 mimetypes.add_type("text/javascript", ".mjs", strict=True)
 
