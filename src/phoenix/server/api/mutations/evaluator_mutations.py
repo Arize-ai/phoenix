@@ -262,7 +262,13 @@ class EvaluatorMutationMixin:
         dataset_evaluator_record = models.DatasetEvaluators(
             dataset_id=dataset_id,
             display_name=evaluator_name,
-            input_mapping=input.input_mapping or {"literal_mapping": {}, "path_mapping": {}},
+            # ensure input_mapping is persisted as a dict
+            # otherwise, if you immediately query this evaluator in the return payload,
+            # the input_mapping will not be inspectable as a dictionary
+            # crashing the return payload
+            input_mapping=input.input_mapping.to_dict()
+            if input.input_mapping is not None
+            else {"literal_mapping": {}, "path_mapping": {}},
         )
 
         try:

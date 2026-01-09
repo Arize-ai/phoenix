@@ -114,6 +114,7 @@ const CreateEvaluatorDialog = ({
               ) {
               id
               displayName
+              ...PlaygroundDatasetSection_evaluator
               evaluator {
                 ... on LLMEvaluator {
                   prompt {

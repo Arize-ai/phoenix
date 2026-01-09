@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b6354634b4ec22e93ca961f223a31cf6>>
+ * @generated SignedSource<<f600f500c97828ccf80b0a7d9bef073d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,7 +93,7 @@ export type EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$data = {
         readonly name: string;
       };
       readonly id: string;
-      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row" | "EditLLMDatasetEvaluatorSlideover_evaluator" | "LLMDatasetEvaluatorDetails_datasetEvaluator">;
+      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row" | "EditLLMDatasetEvaluatorSlideover_evaluator" | "LLMDatasetEvaluatorDetails_datasetEvaluator" | "PlaygroundDatasetSection_evaluator">;
     };
   };
 };
@@ -195,11 +195,68 @@ v12 = {
 v13 = {
   "alias": null,
   "args": null,
+  "concreteType": "EvaluatorInputMapping",
+  "kind": "LinkedField",
+  "name": "inputMapping",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "literalMapping",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pathMapping",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "CategoricalAnnotationValue",
+  "kind": "LinkedField",
+  "name": "values",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v14 = [
+v17 = [
   {
     "alias": null,
     "args": null,
@@ -208,7 +265,7 @@ v14 = [
     "storageKey": null
   }
 ],
-v15 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -301,6 +358,52 @@ return {
                 "argumentDefinitions": []
               },
               {
+                "kind": "InlineDataFragmentSpread",
+                "name": "PlaygroundDatasetSection_evaluator",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v13/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      (v8/*: any*/),
+                      (v11/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "CategoricalAnnotationConfig",
+                            "kind": "LinkedField",
+                            "name": "outputConfig",
+                            "plural": false,
+                            "selections": [
+                              (v5/*: any*/),
+                              (v14/*: any*/),
+                              (v15/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "LLMEvaluator",
+                        "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "EditLLMDatasetEvaluatorSlideover_evaluator"
@@ -355,7 +458,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v13/*: any*/),
+                  (v16/*: any*/),
                   (v5/*: any*/),
                   (v3/*: any*/),
                   (v8/*: any*/),
@@ -383,6 +486,21 @@ return {
                       {
                         "alias": null,
                         "args": null,
+                        "concreteType": "CategoricalAnnotationConfig",
+                        "kind": "LinkedField",
+                        "name": "outputConfig",
+                        "plural": false,
+                        "selections": [
+                          (v5/*: any*/),
+                          (v14/*: any*/),
+                          (v15/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
                         "concreteType": "PromptVersion",
                         "kind": "LinkedField",
                         "name": "promptVersion",
@@ -395,7 +513,7 @@ return {
                             "kind": "LinkedField",
                             "name": "tools",
                             "plural": true,
-                            "selections": (v14/*: any*/),
+                            "selections": (v17/*: any*/),
                             "storageKey": null
                           },
                           (v3/*: any*/),
@@ -427,7 +545,7 @@ return {
                             "kind": "LinkedField",
                             "name": "responseFormat",
                             "plural": false,
-                            "selections": (v14/*: any*/),
+                            "selections": (v17/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -438,7 +556,7 @@ return {
                             "name": "template",
                             "plural": false,
                             "selections": [
-                              (v13/*: any*/),
+                              (v16/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -465,7 +583,7 @@ return {
                                         "name": "content",
                                         "plural": true,
                                         "selections": [
-                                          (v13/*: any*/),
+                                          (v16/*: any*/),
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
@@ -502,7 +620,7 @@ return {
                                                 "name": "toolCall",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v15/*: any*/),
+                                                  (v18/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -540,7 +658,7 @@ return {
                                                 "name": "toolResult",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v15/*: any*/),
+                                                  (v18/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -584,51 +702,6 @@ return {
                           }
                         ],
                         "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "CategoricalAnnotationConfig",
-                        "kind": "LinkedField",
-                        "name": "outputConfig",
-                        "plural": false,
-                        "selections": [
-                          (v5/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "optimizationDirection",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "CategoricalAnnotationValue",
-                            "kind": "LinkedField",
-                            "name": "values",
-                            "plural": true,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "label",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "score",
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          },
-                          (v3/*: any*/)
-                        ],
-                        "storageKey": null
                       }
                     ],
                     "type": "LLMEvaluator",
@@ -638,31 +711,7 @@ return {
                 "storageKey": null
               },
               (v7/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "EvaluatorInputMapping",
-                "kind": "LinkedField",
-                "name": "inputMapping",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "literalMapping",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "pathMapping",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
+              (v13/*: any*/)
             ],
             "storageKey": null
           },
@@ -693,16 +742,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "03bfa2cbd68b5037d3bb502ad44bd5c9",
+    "cacheID": "57b4385ee5d689c7ad3a84c0cffbf9b6",
     "id": null,
     "metadata": {},
     "name": "EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      evaluator {\n        __typename\n        name\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n      ...LLMDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      evaluator {\n        __typename\n        name\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n      ...LLMDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "34d25dc928b9abed5115db62cd1d377e";
+(node as any).hash = "c429b7866885d84c9ee1b5afc3dd0f26";
 
 export default node;
