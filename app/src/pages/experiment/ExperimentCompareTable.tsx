@@ -40,7 +40,11 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  calculateAnnotationListHeight,
+  calculateEstimatedRowHeight,
+  CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentCostAndLatencySummary,
+  ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
@@ -48,6 +52,7 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import {
   CellTop,
   DynamicContentCell,
+  OverflowCell,
   PaddedCell,
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -277,6 +282,23 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return tableData.map((row) => row.id);
   }, [tableData]);
 
+  // Calculate the max annotation count across all repeated run groups for consistent row heights
+  const maxAnnotationCount = useMemo(() => {
+    let max = 0;
+    for (const row of tableData) {
+      for (const group of Object.values(row.repeatedRunGroupsByExperimentId)) {
+        const count = group.annotationSummaries.length;
+        if (count > max) max = count;
+      }
+    }
+    return max;
+  }, [tableData]);
+
+  // Calculate cell content height to account for annotation list
+  const cellContentHeight =
+    CELL_PRIMARY_CONTENT_HEIGHT +
+    calculateAnnotationListHeight(maxAnnotationCount);
+
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
@@ -320,13 +342,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   color="text-500"
                 >{`example ${row.original.example.id}`}</Text>
               </CellTop>
-
-              <PaddedCell>
-                <DynamicContentCell
-                  value={row.original.input}
-                  maxHeight={300}
-                />
-              </PaddedCell>
+              <OverflowCell height={cellContentHeight}>
+                <PaddedCell>
+                  <DynamicContentCell value={row.original.input} />
+                </PaddedCell>
+              </OverflowCell>
             </Flex>
           );
         },
@@ -335,21 +355,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header: "reference output",
         accessorKey: "referenceOutput",
         enableSorting: false,
-        cell: (props) => (
-          <>
-            <CellTop>
-              <Text size="S" color="text-500">
-                reference
-              </Text>
-            </CellTop>
-            <PaddedCell>
-              <DynamicContentCell value={props.getValue()} maxHeight={300} />
-            </PaddedCell>
-          </>
+        cell: ({ getValue }) => (
+          <ExperimentReferenceOutputCell
+            value={getValue()}
+            height={cellContentHeight}
+          />
         ),
       },
     ];
-  }, [baseExperiment?.datasetVersionId, setDialog]);
+  }, [baseExperiment?.datasetVersionId, cellContentHeight, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -610,9 +624,18 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <MemoizedTableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
+                estimatedRowHeight={calculateEstimatedRowHeight(
+                  maxAnnotationCount
+                )}
               />
             ) : (
-              <TableBody table={table} tableContainerRef={tableContainerRef} />
+              <TableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={calculateEstimatedRowHeight(
+                  maxAnnotationCount
+                )}
+              />
             )}
           </table>
         </div>
@@ -689,9 +712,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 function TableBody<T>({
   table,
   tableContainerRef,
+  estimatedRowHeight,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
+  estimatedRowHeight: number;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
@@ -699,7 +724,7 @@ function TableBody<T>({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 350,
+    estimateSize: () => estimatedRowHeight,
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
@@ -779,7 +804,7 @@ function ExperimentRunOutput(
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
       <View padding="size-200" flex="1 1 auto">
-        <DynamicContentCell value={output} maxHeight={300} />
+        <DynamicContentCell value={output} />
       </View>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}

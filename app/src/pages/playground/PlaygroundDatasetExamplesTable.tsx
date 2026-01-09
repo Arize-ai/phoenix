@@ -48,9 +48,13 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
+  calculateAnnotationListHeight,
+  calculateEstimatedRowHeight,
+  CELL_PRIMARY_CONTENT_HEIGHT,
   ConnectedExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummarySkeleton,
+  ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
 import {
@@ -77,7 +81,6 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { useUnnestedValue } from "@phoenix/hooks/useUnnestedValue";
 import {
   assertUnreachable,
   isStringArray,
@@ -121,12 +124,6 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
-
-/**
- * The height of the primary content area of a cell in pixels.
- * This is used to set the height of the overflow cell and the padded cell.
- */
-const CELL_PRIMARY_CONTENT_HEIGHT = 300;
 
 const outputContentCSS = css`
   flex: none;
@@ -456,31 +453,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   );
 });
 
-/**
- * Cell component for rendering reference output with configurable height
- */
-function ReferenceOutputCell({
-  value,
-  primaryContentHeight,
-}: {
-  value: unknown;
-  primaryContentHeight: number;
-}) {
-  const unnestedValue = useUnnestedValue(value);
-  return (
-    <Flex direction="column" height="100%">
-      <CellTop>
-        <Text color="text-500">reference output</Text>
-      </CellTop>
-      <OverflowCell height={primaryContentHeight}>
-        <div css={outputContentCSS}>
-          <DynamicContentCell value={unnestedValue} />
-        </div>
-      </OverflowCell>
-    </Flex>
-  );
-}
-
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
@@ -588,11 +560,8 @@ export function PlaygroundDatasetExamplesTable({
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
-
-  const annotationListHeight = useMemo(() => {
-    // Calculate the height of the annotation list based on the number of enabled evaluators
-    return numEnabledEvaluators * 32 + 16 + 1; // 32px is the height of a single annotation card, 16px is the padding on both top and bottom. 1px is the top border.
-  }, [numEnabledEvaluators]);
+  const annotationListHeight =
+    calculateAnnotationListHeight(numEnabledEvaluators);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
@@ -1250,11 +1219,9 @@ export function PlaygroundDatasetExamplesTable({
       header: "reference output",
       accessorKey: "output",
       cell: ({ row }) => (
-        <ReferenceOutputCell
+        <ExperimentReferenceOutputCell
           value={row.original.output}
-          primaryContentHeight={
-            CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight
-          }
+          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
         />
       ),
       size: 200,
@@ -1273,7 +1240,7 @@ export function PlaygroundDatasetExamplesTable({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 40 + CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight, // estimated row height
+    estimateSize: () => calculateEstimatedRowHeight(numEnabledEvaluators),
     overscan: 5,
   });
 
