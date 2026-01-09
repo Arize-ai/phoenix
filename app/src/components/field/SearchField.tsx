@@ -183,7 +183,7 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
               excludeFromTabOrder={false}
               onPress={() => renderProps.state.setValue("")}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
                   e.preventDefault();
                   e.stopPropagation();
                   renderProps.state.setValue("");
