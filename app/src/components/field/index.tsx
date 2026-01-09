@@ -1,5 +1,6 @@
 export * from "./TextField";
 export * from "./SearchField";
+export * from "./CompositeField";
 export * from "./CredentialField";
 export * from "./CredentialInput";
 export * from "./NumberField";

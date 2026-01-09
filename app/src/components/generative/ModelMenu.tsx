@@ -19,7 +19,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   useFilter,
@@ -275,10 +274,10 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
         <MenuHeader>
           <SearchField
             aria-label="Search models"
+            variant="quiet"
             value={searchValue}
             onChange={setSearchValue}
           >
-            <SearchIcon />
             <Input placeholder="Search models..." />
           </SearchField>
         </MenuHeader>
@@ -610,11 +609,11 @@ function ProviderModelsSubmenu({
         <MenuHeader>
           <SearchField
             aria-label="Search models"
+            variant="quiet"
             autoFocus
             value={searchValue}
             onChange={setSearchValue}
           >
-            <SearchIcon />
             <Input placeholder="Search or enter model name" />
           </SearchField>
         </MenuHeader>

@@ -254,7 +254,11 @@ export function PromptSelector({
         <Autocomplete filter={contains}>
           {promptItems.length >= SEARCH_THRESHOLD && (
             <MenuHeader>
-              <SearchField aria-label="Search prompts" autoFocus>
+              <SearchField
+                aria-label="Search prompts"
+                variant="quiet"
+                autoFocus
+              >
                 <Input placeholder="Search prompts" />
               </SearchField>
             </MenuHeader>
@@ -371,7 +375,11 @@ export function PromptVersionSelector({
             <Autocomplete filter={contains}>
               {versionItems.length >= SEARCH_THRESHOLD && (
                 <MenuHeader>
-                  <SearchField aria-label="Search versions" autoFocus>
+                  <SearchField
+                    aria-label="Search versions"
+                    variant="quiet"
+                    autoFocus
+                  >
                     <Input placeholder="Search versions" />
                   </SearchField>
                 </MenuHeader>
@@ -435,7 +443,11 @@ export function PromptVersionSelector({
             <Autocomplete filter={contains}>
               {tagItems.length >= SEARCH_THRESHOLD && (
                 <MenuHeader>
-                  <SearchField aria-label="Search tags" autoFocus>
+                  <SearchField
+                    aria-label="Search tags"
+                    variant="quiet"
+                    autoFocus
+                  >
                     <Input placeholder="Search tags" />
                   </SearchField>
                 </MenuHeader>

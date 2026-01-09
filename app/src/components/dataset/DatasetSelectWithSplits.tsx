@@ -215,7 +215,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
       <MenuContainer placement={props.placement} shouldFlip={props.shouldFlip}>
         <Autocomplete filter={contains}>
           <MenuHeader>
-            <SearchField aria-label="Search" autoFocus>
+            <SearchField aria-label="Search" variant="quiet" autoFocus>
               <Input placeholder="Search datasets" />
             </SearchField>
           </MenuHeader>
@@ -353,7 +353,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                   >
                     <Autocomplete filter={contains}>
                       <MenuHeader>
-                        <SearchField aria-label="Search" autoFocus>
+                        <SearchField
+                          aria-label="Search"
+                          variant="quiet"
+                          autoFocus
+                        >
                           <Input placeholder="Search splits" />
                         </SearchField>
                       </MenuHeader>

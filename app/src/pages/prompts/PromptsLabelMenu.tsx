@@ -109,7 +109,7 @@ const LabelMenuFilterContent = ({
           <Heading level={4} weight="heavy">
             Filter prompts by labels
           </Heading>
-          <SearchField aria-label="Search" autoFocus>
+          <SearchField aria-label="Search" variant="quiet" autoFocus>
             <Input placeholder="Search labels" />
           </SearchField>
         </Flex>

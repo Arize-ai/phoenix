@@ -316,12 +316,16 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-static-size-100);
         border-bottom: 1px solid var(--ac-global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        gap: var(--ac-global-dimension-static-size-100);
+
+        /* Add vertical padding to quiet SearchFields in header */
+        .ac-searchfield[data-variant="quiet"] .react-aria-Input {
+          padding-top: var(--ac-global-dimension-size-300);
+          padding-bottom: var(--ac-global-dimension-size-300);
+        }
       `}
     >
       {children}

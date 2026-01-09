@@ -250,7 +250,7 @@ const SplitMenu = ({
               : "Apply splits to selected examples"
             : "Filter examples by splits"}
         </MenuHeaderTitle>
-        <SearchField aria-label="Search" autoFocus>
+        <SearchField aria-label="Search" variant="quiet" autoFocus>
           <Input placeholder="Search splits" />
         </SearchField>
       </MenuHeader>
