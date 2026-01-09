@@ -210,25 +210,19 @@ export const PromptMenu = <T extends object>({
     <MenuTrigger>
       <Button trailingVisual={<SelectChevronUpDownIcon />} size="S">
         {selectedPromptDatum ? (
-          <Flex alignItems="center">
+          <Flex alignItems="center" gap="size-50">
             {selectedPromptDatum.promptName}
             {/* Render priority:
             - selected tag
             - truncated version id
             */}
             {selectedPromptTagNameKey ? (
-              <Text color="text-300">
-                &nbsp;@{" "}
-                <TagVersionLabel>{selectedPromptTagNameKey[0]}</TagVersionLabel>
-              </Text>
+              <TagVersionLabel>{selectedPromptTagNameKey[0]}</TagVersionLabel>
             ) : (
-              <Text color="text-300">
-                &nbsp;@{" "}
-                <PromptVersionLabel
-                  id={selectedPromptDatum.versionId}
-                  isLatest={selectedPromptDatum.isLatest}
-                />
-              </Text>
+              <PromptVersionLabel
+                id={selectedPromptDatum.versionId}
+                isLatest={selectedPromptDatum.isLatest}
+              />
             )}
           </Flex>
         ) : (
@@ -413,7 +407,7 @@ function PromptVersionLabel({
 }) {
   if (isLatest) {
     return (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
+      <Token size="S" color="var(--ac-global-color-blue-1000)">
         latest
       </Token>
     );
