@@ -1273,7 +1273,7 @@ export function PlaygroundDatasetExamplesTable({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 310, // estimated row height
+    estimateSize: () => 40 + CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight, // estimated row height
     overscan: 5,
   });
 
