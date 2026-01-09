@@ -138,6 +138,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
+              ...PlaygroundDatasetSection_evaluator
               ...DatasetEvaluatorsTable_row
             }
           }
