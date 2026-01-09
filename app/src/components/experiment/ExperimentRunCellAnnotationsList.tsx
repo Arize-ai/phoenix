@@ -12,6 +12,8 @@ import {
   Popover,
   PopoverArrow,
   RichTooltip,
+  RichTooltipDescription,
+  RichTooltipTitle,
   Text,
   Tooltip,
   TooltipArrow,
@@ -398,10 +400,13 @@ function AnnotationErrorItem({ error }: { error: AnnotationError }) {
             <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
           </Flex>
         </button>
-        <Tooltip placement="top start">
+        <RichTooltip placement="top start">
           <TooltipArrow />
-          {error.message}
-        </Tooltip>
+          <RichTooltipTitle>
+            Error running evaluator &quot;{error.evaluatorName}&quot;
+          </RichTooltipTitle>
+          <RichTooltipDescription>{error.message}</RichTooltipDescription>
+        </RichTooltip>
       </TooltipTrigger>
       <IconButton size="S" isDisabled aria-label="View evaluation trace">
         <Icon svg={<Icons.Trace />} />
