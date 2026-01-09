@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from dataclasses import asdict, field
 from datetime import datetime, timezone
@@ -387,9 +386,9 @@ class ChatCompletionMutationMixin:
                     evaluations[evaluation_key] = []
 
                     context_dict: dict[str, Any] = {
-                        "input": json.dumps(revision.input),
-                        "reference": json.dumps(revision.output),
-                        "output": json.dumps(experiment_run.output),
+                        "input": revision.input,
+                        "reference": revision.output,
+                        "output": experiment_run.output,
                     }
 
                     # Run builtin evaluators
@@ -508,12 +507,8 @@ class ChatCompletionMutationMixin:
                     evaluations_by_repetition[repetition_number] = []
 
                     context_dict: dict[str, Any] = {
-                        "input": json.dumps(
-                            get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES)
-                        ),
-                        "output": json.dumps(
-                            get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES)
-                        ),
+                        "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+                        "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
                     }
 
                     # Run builtin evaluators
