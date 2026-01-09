@@ -43,4 +43,3 @@ export function calculateEstimatedRowHeight(annotationCount: number): number {
     calculateAnnotationListHeight(annotationCount)
   );
 }
-
