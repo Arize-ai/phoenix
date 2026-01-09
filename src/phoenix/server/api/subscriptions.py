@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from collections import deque
 from collections.abc import AsyncIterator, Iterator
@@ -164,8 +163,8 @@ async def _stream_single_chat_completion(
 
     if input.evaluators and span.status_code is StatusCode.OK:
         context_dict: dict[str, Any] = {
-            "input": json.dumps(get_attribute_value(span.attributes, LLM_INPUT_MESSAGES)),
-            "output": json.dumps(get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)),
+            "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
+            "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
         }
         async with info.context.db() as session:
             for evaluator in input.evaluators:
@@ -627,9 +626,9 @@ class Subscription:
                         if run is None or run.error is not None:
                             continue
                         context_dict: dict[str, Any] = {
-                            "input": json.dumps(revision.input),
-                            "reference": json.dumps(revision.output),
-                            "output": json.dumps(run.output),
+                            "input": revision.input,
+                            "reference": revision.output,
+                            "output": run.output,
                         }
                         for evaluator in input.evaluators:
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
