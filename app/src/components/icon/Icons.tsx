@@ -2454,7 +2454,8 @@ export const SquiggleOutline = () => (
   </svg>
 );
 
-export const TemplateLlm = () => (
+//T
+export const TemplateOutline = () => (
   <svg
     width="24"
     height="24"
