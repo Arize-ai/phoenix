@@ -17,6 +17,7 @@ If you'd like to follow along with this evaluation example, you can check out th
 </Info>
 
 <Steps>
+  ## Step 1: Set up and Connect to Phoenix
   <Step title={<span className="step-title">Set up and Connect to Phoenix</span>}>
     Before running your experiment and evaluations, make sure your environment is set up by installing the required dependencies and connecting your application to [Phoenix Cloud](https://app.arize.com/auth/phoenix/).
 
@@ -32,6 +33,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
+  ## Step 2: Define a Task
   <Step title={<span className="step-title">Define a Task</span>}>
     Simply put, the task defines how your application should behave. The task specifies exactly which input fields to pass in and how the application should process that input. By standardizing execution across examples, tasks ensure that evaluations are consistent, repeatable, and comparable as your application evolves.
 
@@ -46,6 +48,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
+  ## Step 3: Define a Dataset
   <Step title={<span className="step-title">Define a Dataset</span>}>
     A meaningful evaluation starts with a well-constructed dataset. This dataset should contain a diverse set of examples that capture both typical success cases and realistic failure modes.
 
@@ -87,6 +90,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
+  ## Step 4: Create an Evaluator
   <Step title={<span className="step-title">Create an Evaluator</span>}>
     Once a task and dataset are defined, the final piece of the experimentation workflow is the evaluator.
 
@@ -117,6 +121,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
+  ## Step 5: Run the Experiment
   <Step title={<span className="step-title">Run the Experiment</span>}>
     An experiment ties the dataset, task, and evaluator together into an end-to-end process.
 
@@ -135,6 +140,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     ```
   </Step>
 
+  ## Step 6: View Results in Phoenix Cloud
   <Step title={<span className="step-title">View Results in Phoenix Cloud</span>}>
     After the experiment completes, the results provide a detailed breakdown of how the application performed across all examples. You can quickly identify success cases, pinpoint failure modes, and analyze patterns across the dataset.
 
