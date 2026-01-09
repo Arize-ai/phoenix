@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Pressable } from "react-aria";
 import { css } from "@emotion/react";
 
 import {
@@ -12,6 +13,8 @@ import {
   Popover,
   PopoverArrow,
   RichTooltip,
+  RichTooltipDescription,
+  RichTooltipTitle,
   Text,
   Tooltip,
   TooltipArrow,
@@ -68,6 +71,7 @@ const nameTextCSS = css`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 type AnnotationSummary = {
@@ -390,18 +394,23 @@ function AnnotationErrorItem({ error }: { error: AnnotationError }) {
   return (
     <li css={listItemCSS}>
       <TooltipTrigger delay={0}>
-        <button className="button--reset" css={errorButtonCSS}>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <Text weight="heavy" color="danger" css={nameTextCSS}>
-              {error.evaluatorName}
-            </Text>
-            <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
-          </Flex>
-        </button>
-        <Tooltip placement="top start">
+        <Pressable>
+          <button className="button--reset" css={errorButtonCSS}>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <Text weight="heavy" color="danger" css={nameTextCSS}>
+                {error.evaluatorName}
+              </Text>
+              <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+            </Flex>
+          </button>
+        </Pressable>
+        <RichTooltip placement="top start">
           <TooltipArrow />
-          {error.message}
-        </Tooltip>
+          <RichTooltipTitle>
+            Error running evaluator &quot;{error.evaluatorName}&quot;
+          </RichTooltipTitle>
+          <RichTooltipDescription>{error.message}</RichTooltipDescription>
+        </RichTooltip>
       </TooltipTrigger>
       <IconButton size="S" isDisabled aria-label="View evaluation trace">
         <Icon svg={<Icons.Trace />} />
