@@ -203,8 +203,8 @@ if TYPE_CHECKING:
 
 # Fix incorrect MIME types on Windows where the registry may have wrong entries
 # See: https://github.com/python/cpython/issues/88141
-mimetypes.add_type("application/javascript", ".js", strict=True)
-mimetypes.add_type("application/javascript", ".mjs", strict=True)
+mimetypes.add_type("text/javascript", ".js", strict=True)
+mimetypes.add_type("text/javascript", ".mjs", strict=True)
 
 logger = logging.getLogger(__name__)
 
