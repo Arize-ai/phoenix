@@ -12,7 +12,7 @@ import {
   Icons,
   Popover,
   PopoverArrow,
-  Separator,
+  RichTooltip,
   Text,
   Tooltip,
   TooltipArrow,
@@ -272,7 +272,7 @@ export function ExperimentRunCellAnnotationsList(
 
         return (
           <li key={annotation.id} css={annotationListItemCSS}>
-            <DialogTrigger>
+            <TooltipTrigger delay={0}>
               <ExperimentAnnotationButton
                 annotation={annotation}
                 positiveOptimization={positiveOptimization ?? undefined}
@@ -289,29 +289,38 @@ export function ExperimentRunCellAnnotationsList(
                   ) : null
                 }
               />
-              <Popover placement="top start">
-                <Dialog style={{ width: 400 }}>
-                  <View padding="size-200">
+              <RichTooltip placement="top start">
+                <AnnotationDetailsContent annotation={annotation} />
+              </RichTooltip>
+            </TooltipTrigger>
+            {renderFilters && (
+              <DialogTrigger>
+                <TooltipTrigger>
+                  <IconButton size="S" aria-label="Filter by annotation">
+                    <Icon svg={<Icons.FunnelOutline />} />
+                  </IconButton>
+                  <Tooltip>
+                    <TooltipArrow />
+                    Filter by annotation
+                  </Tooltip>
+                </TooltipTrigger>
+                <Popover placement="top">
+                  <PopoverArrow />
+                  <Dialog>
                     <Flex direction="column" gap="size-50">
-                      <AnnotationDetailsContent annotation={annotation} />
-                      {renderFilters && (
-                        <>
-                          <Separator />
-                          <section>
-                            <Heading level={4} weight="heavy">
-                              Filters
-                            </Heading>
-                            <ExperimentRunAnnotationFiltersList
-                              annotation={annotation}
-                            />
-                          </section>
-                        </>
-                      )}
+                      <View paddingX="size-200" paddingTop="size-100">
+                        <Heading level={4} weight="heavy">
+                          Filters
+                        </Heading>
+                      </View>
+                      <ExperimentRunAnnotationFiltersList
+                        annotation={annotation}
+                      />
                     </Flex>
-                  </View>
-                </Dialog>
-              </Popover>
-            </DialogTrigger>
+                  </Dialog>
+                </Popover>
+              </DialogTrigger>
+            )}
             <TooltipTrigger>
               <IconButton
                 size="S"
