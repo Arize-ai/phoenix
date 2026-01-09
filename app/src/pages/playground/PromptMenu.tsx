@@ -237,7 +237,9 @@ export function PromptSelector({
         `}
       >
         {selectedPrompt ? (
-          <Truncate title={selectedPrompt.name}>{selectedPrompt.name}</Truncate>
+          <Truncate maxWidth="30ch" title={selectedPrompt.name}>
+            {selectedPrompt.name}
+          </Truncate>
         ) : hasPrompts ? (
           <Text color="text-700">Select prompt</Text>
         ) : (
