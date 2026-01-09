@@ -1906,6 +1906,44 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
+    async def test_create_dataset_builtin_evaluator_duplicate_display_name_different_evaluators(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        first_builtin_evaluator_id = builtin_evaluator_ids[0]
+        second_builtin_evaluator_id = builtin_evaluator_ids[1]
+
+        first_builtin_evaluator_gid = str(
+            GlobalID("BuiltInEvaluator", str(first_builtin_evaluator_id))
+        )
+        second_builtin_evaluator_gid = str(
+            GlobalID("BuiltInEvaluator", str(second_builtin_evaluator_id))
+        )
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=first_builtin_evaluator_gid,
+            displayName="shared_name",
+        )
+        assert result.data and not result.errors
+        assert (
+            result.data["createDatasetBuiltinEvaluator"]["evaluator"]["displayName"]
+            == "shared_name"
+        )
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=second_builtin_evaluator_gid,
+            displayName="shared_name",
+        )
+        assert result.errors and "already exists" in result.errors[0].message.lower()
+
 
 class TestUpdateDatasetBuiltinEvaluatorMutation:
     _UPDATE_MUTATION = """
@@ -2150,9 +2188,9 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             )
             await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
 
-        # Failure: Duplicate display name for same builtin evaluator
-        # The unique constraint is on (dataset_id, builtin_evaluator_id, display_name),
-        # so we need to create another assignment of the SAME builtin evaluator
+        # Failure: Duplicate display name on the same dataset
+        # The unique constraint is on (dataset_id, display_name),
+        # so any evaluator with a duplicate display_name on the same dataset should fail
         create_result2 = await gql_client.execute(
             """
             mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
