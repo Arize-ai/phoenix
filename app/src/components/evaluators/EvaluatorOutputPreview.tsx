@@ -154,7 +154,7 @@ export const EvaluatorOutputPreview = () => {
     });
   };
   const isShowingPreview =
-    isLoadingEvaluatorPreview || previewResults.length > 0;
+    isLoadingEvaluatorPreview || previewResults.length > 0 || error != null;
   const helpTextByEvaluatorKind = {
     LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
     CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
