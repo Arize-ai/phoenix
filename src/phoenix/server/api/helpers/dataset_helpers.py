@@ -64,6 +64,38 @@ def get_dataset_example_output(span: Span) -> dict[str, Any]:
             output_value=output_value,
             output_mime_type=output_mime_type,
         )
+        return {
+            **messages_or_output,
+        }
+    if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
+        return _get_retriever_span_output(
+            retrieval_documents=retrieval_documents,
+            output_value=output_value,
+            output_mime_type=output_mime_type,
+        )
+    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
+
+
+def get_experiment_example_output(span: Span) -> dict[str, Any]:
+    """
+    Extracts the output value from an experiment run span and returns it as a dictionary. Output
+    values from LLM spans are extracted from the output messages (if present).
+    Output from retriever spans are extracted from the retrieval documents (if
+    present). For other span kinds, the output is extracted from the output
+    value and output mime type attributes.
+    """
+    span_kind = span.span_kind
+    attributes = span.attributes
+    output_value = get_attribute_value(attributes, OUTPUT_VALUE)
+    output_mime_type = get_attribute_value(attributes, OUTPUT_MIME_TYPE)
+    output_messages = get_attribute_value(attributes, LLM_OUTPUT_MESSAGES)
+    retrieval_documents = get_attribute_value(attributes, RETRIEVAL_DOCUMENTS)
+    if span_kind == LLM:
+        messages_or_output = _get_llm_span_output(
+            output_messages=output_messages,
+            output_value=output_value,
+            output_mime_type=output_mime_type,
+        )
         tool_definitions = []
         if tools := get_attribute_value(attributes, LLM_TOOLS):
             for tool in tools:

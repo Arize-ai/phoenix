@@ -16,6 +16,7 @@ from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
+    get_experiment_example_output,
 )
 from phoenix.trace.attributes import unflatten
 
@@ -391,6 +392,29 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 span_kind=LLM,
                 attributes=unflatten(
                     (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
+            ),
+            {"messages": [{"content": "No tools here.", "role": "assistant"}]},
+            id="llm-span-without-tools",
+        ),
+    ],
+)
+def test_get_dataset_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
+    output_value = get_dataset_example_output(span)
+    assert expected_output_value == output_value
+
+
+@pytest.mark.parametrize(
+    "span, expected_output_value",
+    [
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I can help with weather."),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                         (
@@ -529,6 +553,6 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
         ),
     ],
 )
-def test_get_dataset_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
-    output_value = get_dataset_example_output(span)
+def test_get_experiment_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
+    output_value = get_experiment_example_output(span)
     assert expected_output_value == output_value
