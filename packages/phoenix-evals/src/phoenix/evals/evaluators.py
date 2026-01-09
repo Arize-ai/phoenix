@@ -22,12 +22,11 @@ from typing import (
 )
 
 import pandas as pd
-from opentelemetry.trace import NoOpTracer
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
-from phoenix.evals.tracing import get_current_trace_id, get_tracer
+from phoenix.evals.tracing import trace_evaluation
 
 from .legacy.evaluators import (
     HallucinationEvaluator,
@@ -321,15 +320,12 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        tracer = get_tracer()
-        if isinstance(tracer, NoOpTracer):
-            return self._evaluate(remapped_eval_input)
-
-        with tracer.start_as_current_span(f"{self.name}.evaluate"):
+        with trace_evaluation(f"{self.name}.evaluate") as get_trace_id:
             scores = self._evaluate(remapped_eval_input)
-            trace_id = get_current_trace_id()
-            if trace_id is not None:
-                scores = _inject_trace_id_into_scores(scores, trace_id)
+            if get_trace_id:
+                trace_id = get_trace_id()
+                if trace_id is not None:
+                    scores = _inject_trace_id_into_scores(scores, trace_id)
             return scores
 
     async def async_evaluate(
@@ -355,16 +351,12 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        tracer = get_tracer()
-
-        if isinstance(tracer, NoOpTracer):
-            return await self._async_evaluate(remapped_eval_input)
-
-        with tracer.start_as_current_span(f"{self.name}.evaluate"):
+        with trace_evaluation(f"{self.name}.evaluate") as get_trace_id:
             scores = await self._async_evaluate(remapped_eval_input)
-            trace_id = get_current_trace_id()
-            if trace_id is not None:
-                scores = _inject_trace_id_into_scores(scores, trace_id)
+            if get_trace_id:
+                trace_id = get_trace_id()
+                if trace_id is not None:
+                    scores = _inject_trace_id_into_scores(scores, trace_id)
             return scores
 
     def bind(self, input_mapping: InputMappingType) -> None:

@@ -1,8 +1,20 @@
 import logging
 from binascii import hexlify
+from contextlib import contextmanager
 from functools import wraps
 from inspect import BoundArguments, iscoroutinefunction, signature
-from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVar, cast, overload
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Iterator,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import opentelemetry.trace as trace_api
 from openinference.instrumentation import OITracer, TraceConfig
@@ -313,3 +325,40 @@ def get_current_trace_id() -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+@contextmanager
+def trace_evaluation(
+    span_name: str, tracer: Optional[Tracer] = None
+) -> Iterator[Optional[Callable[[], Optional[str]]]]:
+    """Context manager for tracing evaluations with automatic trace_id capture.
+
+    This context manager creates a span for the evaluation and yields a function
+    that can be called to get the current trace_id. If tracing is disabled (NoOpTracer),
+    it yields None.
+
+    Args:
+        span_name (str): The name of the span to create.
+        tracer (Optional[Tracer]): The tracer to use. If None, uses the global tracer.
+
+    Yields:
+        Optional[Callable[[], Optional[str]]]: A function that returns the current trace_id,
+            or None if tracing is disabled.
+
+    Example:
+        with trace_evaluation("my_evaluation") as get_trace_id:
+            result = do_evaluation()
+            if get_trace_id:
+                trace_id = get_trace_id()
+                if trace_id:
+                    result = inject_trace_id(result, trace_id)
+            return result
+    """
+    _tracer = get_tracer(tracer)
+
+    if isinstance(_tracer, NoOpTracer):
+        yield None
+        return
+
+    with _tracer.start_as_current_span(span_name):
+        yield get_current_trace_id
