@@ -95,7 +95,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-experiments
 
 - content: Implement snapshot/experiments.ts: fetch experiments and runs
-- status: pending
+- status: complete
 - dependencies: phoenix-client-integration
 
 ### snapshot-prompts

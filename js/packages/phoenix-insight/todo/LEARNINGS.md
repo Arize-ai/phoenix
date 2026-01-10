@@ -129,3 +129,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Dataset names with special characters**: Dataset names can contain spaces, slashes, and other special characters. The execution modes should handle creating these directory paths correctly
 - **Phoenix client error patterns**: Error messages from the Phoenix client follow the pattern "URL: STATUS STATUS_TEXT" (e.g., "localhost:6006: 401 Unauthorized")
 - **Test assertion specificity**: When checking pagination calls, be specific about expected parameters including adjusted limits based on already fetched items
+
+## snapshot-experiments
+
+- **Phoenix experiments API structure**: Experiments are not fetched globally but per-dataset at `/v1/datasets/{dataset_id}/experiments`. This means we need to fetch all datasets first, then iterate through them to get experiments
+- **Experiment runs API**: Runs are fetched at `/v1/experiments/{experiment_id}/runs` with pagination support. The response includes detailed execution results for each run
+- **TypeScript module resolution**: When importing from phoenix-client submodules like `@arizeai/phoenix-client/experiments`, TypeScript complains about module resolution. The package exports are configured but TypeScript's Node resolution mode doesn't support them. Used direct client.GET calls instead
+- **API response typing**: Defined minimal interfaces for API responses (Experiment, ExperimentRun) to avoid importing complex types from phoenix-client. This keeps the implementation self-contained
+- **Dataset name enrichment**: Since experiments don't include the dataset name in the API response, we enrich each experiment object with `datasetName` during fetching for better context in the snapshot
+- **Error handling strategy**: When fetching experiments for multiple datasets, catch and log errors per dataset rather than failing the entire operation. This ensures partial data can still be captured
+- **Multiple file outputs per experiment**: For each experiment, create three files: metadata.json (full details), runs.jsonl (execution data), and summary.json (quick stats). This provides different levels of detail for different use cases
+- **Console.warn for errors**: Used console.warn instead of throwing when individual dataset/experiment fetching fails. This shows up in test output but allows the operation to continue
+- **Pagination for both experiments and runs**: Both the experiments list and runs list support pagination. Handle cursor-based pagination with while loops, checking for null cursor to end iteration
+- **Test warning suppression**: The vitest test runner shows console.warn output which is expected behavior. The tests still pass - these warnings are part of the error handling strategy
