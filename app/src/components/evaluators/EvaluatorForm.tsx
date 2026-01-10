@@ -159,7 +159,7 @@ export const EvaluatorForm = () => {
         `}
       >
         <Flex direction="column" gap="size-200">
-          <View paddingX="size-100">
+          <View paddingX="size-200">
             <Flex direction="column" gap="size-100">
               <EvaluatorOutputPreview />
               <EvaluatorExampleDataset />
