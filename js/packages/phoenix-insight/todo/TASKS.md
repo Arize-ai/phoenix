@@ -263,3 +263,13 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 - content: Audit README.md to ensure ALL CLI flags from src/cli.ts are documented. Compare the commander definitions in cli.ts with the README CLI reference section. Add any missing flags with descriptions and examples.
 - status: complete
 - dependencies: documentation, cli-flags
+
+## Phase 11: Self-improvement
+
+Because phoenix-insight can ingest data from Phoenix, and it can trace its own execution back to Phoenix, it can be used to improve itself.
+
+### self-improvement
+
+- content: Use `pnpm dev "read the latest trace from 'phoenix-insight' project and analyze the bottlenecks to performance"` and then use the results to edit the code and improve the performance of the agent.
+- status: pending
+- dependencies: agent-setup, cli-flags, snapshot-orchestrator, agent-observability
