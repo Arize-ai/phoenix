@@ -23,7 +23,7 @@
     "build": "tsc",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --typecheck"
+    "test": "vitest run --typecheck"
   },
   "keywords": [
     "phoenix",
