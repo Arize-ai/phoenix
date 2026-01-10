@@ -177,7 +177,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-interactive
 
 - content: Implement interactive mode: REPL for multiple queries in one session
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ---

@@ -266,3 +266,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Mode selection logic**: Sandbox mode takes precedence when both --sandbox and --local are specified. This provides a safe default if users accidentally specify both
 - **Commander.js behavior**: Commander automatically handles --help flag and invalid option parsing. Our tests verify this behavior works correctly
 - **ESM build requirement**: Like other packages in the monorepo, phoenix-insight needs tsconfig.esm.json for proper ESM builds. The regular tsconfig.json with "composite": true doesn't emit files
+
+## cli-interactive
+
+- **Node.js readline module**: Used the built-in `node:readline` module for the REPL interface. It provides an async iterator interface that works well with `for await...of` loops
+- **Reusable agent instance**: Created a single agent instance for the entire interactive session rather than recreating it for each query. This improves performance and maintains context across queries
+- **Snapshot creation strategy**: In interactive mode, create the snapshot once at startup. For sandbox mode or --refresh flag, always create fresh snapshot. For local mode without refresh, use incremental update
+- **Exit handling**: Support both "exit" and "quit" commands for user convenience. Always close the readline interface and cleanup mode resources before exiting
+- **Empty line handling**: Skip empty lines gracefully and re-prompt without processing. This provides a better user experience when hitting enter accidentally
+- **Streaming support in REPL**: The --stream flag works in interactive mode too. Stream responses character by character for a more responsive feel, especially for longer analyses
+- **Error recovery**: Wrap query processing in try-catch so errors don't crash the REPL. Display error message and continue to next prompt. This makes the interactive mode more robust
+- **Testing challenges**: Testing readline-based interactive CLIs is difficult. Process spawning tests are fragile and timeout-prone. Opted for simpler unit tests that verify the code structure and logic
+- **Help text updates**: Added examples to the CLI help text showing how to use interactive mode. This helps users discover the feature
+- **Prompt design**: Used "phoenix>" as the prompt to clearly indicate the user is in Phoenix Insight interactive mode. Short and distinctive
