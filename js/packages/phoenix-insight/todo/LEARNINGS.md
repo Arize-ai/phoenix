@@ -167,3 +167,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Mock testing patterns**: When testing context generation, mock the ExecutionMode exec method to return different outputs based on the command. This allows testing various snapshot states
 - **Test organization**: Separate tests for different aspects: basic generation, empty snapshots, recent activity, time formatting, status determination, and error handling
 - **TypeScript any type**: Used any type for parsed JSON from JSONL files since the data structures come from external APIs and vary. Focus on runtime safety with try-catch blocks
+
+## snapshot-orchestrator
+
+- **API key header format**: The Phoenix client expects the API key to be passed as "api_key" header, not "Authorization Bearer". This differs from typical REST APIs
+- **ExecutionMode file paths**: When using mode.writeFile(), paths should start with "/" to be relative to the Phoenix root directory (e.g., "/_meta/snapshot.json")
+- **Parallel fetching strategy**: Datasets, experiments, and prompts can be fetched in parallel using Promise.all() since they don't depend on each other. This improves performance
+- **Cursor tracking design**: While the plan mentions cursor tracking for incremental updates, the current span fetcher doesn't return cursors. Added TODO comment and empty cursor objects as placeholders
+- **Metadata file location**: The _meta/snapshot.json file stores snapshot metadata in a dedicated directory to avoid conflicts with data directories
+- **Error propagation**: Let errors bubble up from individual fetchers rather than catching them locally. This ensures the CLI can handle errors appropriately (retry, user notification, etc.)
+- **Progress logging**: Conditional progress logging using a showProgress flag provides flexibility for both interactive and programmatic usage
+- **Incremental snapshot fallback**: When no existing metadata is found, createIncrementalSnapshot falls back to creating a full snapshot. This simplifies the CLI logic
+- **Test mocking pattern**: Mock all individual snapshot modules to test the orchestration logic in isolation. This avoids complex setup and focuses on coordination behavior
+- **Time filtering**: Pass startTime/endTime options through to the spans fetcher to support time-based queries. Other fetchers don't currently support time filtering

@@ -113,7 +113,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-orchestrator
 
 - content: Implement snapshot/index.ts: orchestrate all fetchers, write \_meta/snapshot.json
-- status: pending
+- status: complete
 - dependencies: snapshot-context
 
 ---
