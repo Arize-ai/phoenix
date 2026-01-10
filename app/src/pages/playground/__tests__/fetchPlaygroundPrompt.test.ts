@@ -111,4 +111,37 @@ describe("invocationParametersToObject", () => {
     const result = invocationParametersToObject([], []);
     expect(result).toEqual({});
   });
+
+  it("should preserve parameters without matching definitions", () => {
+    const params = [
+      {
+        invocationName: "reasoning_effort",
+        canonicalName: "REASONING_EFFORT",
+        valueString: "minimal",
+      },
+      {
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        valueFloat: 0.7,
+      },
+    ] satisfies InvocationParameterInput;
+
+    const supportedParams = [
+      {
+        __typename: "FloatInvocationParameter",
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        invocationInputField: "value_float",
+      },
+      // Note: reasoning_effort is intentionally not in supported params
+      // to simulate the case where supported params haven't been fetched yet
+    ] satisfies SupportedParamsType;
+
+    const result = invocationParametersToObject(params, supportedParams);
+
+    expect(result).toEqual({
+      temperature: 0.7,
+      reasoning_effort: "minimal", // Should be preserved even without definition
+    });
+  });
 });

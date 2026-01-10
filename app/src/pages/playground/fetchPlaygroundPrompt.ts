@@ -286,6 +286,21 @@ export const invocationParametersToObject = (
               definition.invocationInputField as string
             ) as keyof typeof curr
           ];
+      } else {
+        // If no definition is found, preserve the parameter value
+        // This ensures parameters like reasoning_effort are not lost
+        // when supported parameters haven't been fetched yet
+        const value =
+          curr.valueString ??
+          curr.valueInt ??
+          curr.valueFloat ??
+          curr.valueBool ??
+          curr.valueJson ??
+          curr.valueStringList ??
+          null;
+        if (value !== null) {
+          acc[curr.invocationName] = value;
+        }
       }
       return acc;
     },
