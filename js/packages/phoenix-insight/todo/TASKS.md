@@ -83,7 +83,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-spans
 
 - content: Implement snapshot/spans.ts: fetch spans with time filtering, pagination, limits
-- status: pending
+- status: complete
 - dependencies: snapshot-projects
 
 ### snapshot-datasets

@@ -103,3 +103,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test organization**: Created comprehensive tests covering happy path, empty data, error cases, and edge cases with special characters. Mock both the client and execution mode for full control
 - **Error handling flow**: Use the withErrorHandling wrapper from client.ts to properly categorize errors. This ensures consistent error messages and types across all snapshot modules
 - **TypeScript module imports**: When importing types from other packages, use `import type` to avoid runtime dependencies. Regular imports are only needed for runtime values
+
+## snapshot-spans
+
+- **Phoenix client spans API**: The spans endpoint is at `/v1/projects/{project_identifier}/spans` and accepts query parameters for pagination (cursor, limit) and time filtering (start_time, end_time)
+- **Response structure**: Like projects, spans are wrapped in `{ data: spans[], next_cursor: string | null }`. The data array contains span objects with detailed tracing information
+- **Pagination strategy**: Implemented pagination with a while loop instead of do-while to avoid TypeScript circular reference errors. Fetch spans in chunks of 100 until reaching the per-project limit
+- **Time filtering**: Support both Date objects and ISO 8601 strings for start_time/end_time. Convert Date objects to ISO strings when passing to the API
+- **Query parameter building**: Build query object separately before passing to client.GET() to avoid complex spread operations that can cause TypeScript inference issues
+- **Reading projects from snapshot**: Use `mode.exec("cat /phoenix/projects/index.jsonl")` to read project names from the existing snapshot. Parse each line as JSON to extract project names
+- **Empty data handling**: Empty projects list (empty stdout) should exit early. Projects with no spans should write empty JSONL file and metadata with spanCount: 0
+- **Metadata files**: Write a metadata.json file alongside spans data containing: project name, span count, time filters used, and snapshot timestamp. This helps users understand what data was captured
+- **Test mocking pattern**: Create a helper function `createMockClient()` that returns mock responses in sequence. This makes tests cleaner and easier to understand than inline mocking
+- **Error message expectations**: The withErrorHandling wrapper prepends "Unexpected error during" to unknown errors, so test expectations need to match this format
