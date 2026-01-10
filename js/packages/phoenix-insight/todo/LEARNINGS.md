@@ -40,3 +40,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test strategy**: For interface testing, created mock implementations using vitest's `vi.fn()` to verify the interface shape and method signatures. This ensures any concrete implementation will have the correct structure
 - **Index exports**: Created an index.ts file in the modes directory to re-export types. This follows TypeScript best practices and makes imports cleaner for consumers
 - **Pre-commit hooks**: The project has prettier configured as a pre-commit hook, which automatically formats code on commit. No manual formatting needed
+
+## sandbox-mode
+
+- **ESM module imports**: just-bash and bash-tool are ESM-only modules. Since our package is CommonJS (no "type": "module" in package.json), we must use dynamic imports: `await import('just-bash')` instead of static imports
+- **createBashTool API**: The createBashTool function accepts a `sandbox` option (not `bash` as I initially tried). It returns a Promise that resolves to a BashToolkit object with properties: `bash`, `tools`, and `sandbox`
+- **Async initialization pattern**: Since we need dynamic imports, I implemented a lazy initialization pattern with an `init()` method that's called on first use. This avoids constructor async issues
+- **getBashTool return type**: The ExecutionMode interface needed to be updated to return `Promise<any>` instead of `any` since createBashTool is async
+- **just-bash filesystem**: Use `bash.fs.writeFileSync()` directly for better performance than executing echo commands. The filesystem is available as a property on the Bash instance
+- **Testing challenges**:
+  - wc -l counts newlines, so strings must end with \n to get expected line counts
+  - awk in just-bash might have limitations, so using jq for JSON processing is more reliable (e.g., `jq -s 'map(.latency) | add'` instead of piping to awk)
+- **@vercel/sandbox optional dependency**: bash-tool has an optional dependency on @vercel/sandbox that causes TypeScript errors when not installed. These can be safely ignored as it's only needed for Vercel's sandbox, not just-bash

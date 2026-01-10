@@ -22,7 +22,7 @@ export interface ExecutionMode {
    * Get the bash tool for the AI SDK agent
    * @returns A tool that can be used by the AI SDK
    */
-  getBashTool(): any; // We'll use 'any' for now since we don't have the Tool type from AI SDK yet
+  getBashTool(): Promise<any>; // We'll use 'any' for now since we don't have the Tool type from AI SDK yet
 
   /**
    * Clean up resources

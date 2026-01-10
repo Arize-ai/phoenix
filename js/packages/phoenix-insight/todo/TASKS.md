@@ -49,7 +49,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### sandbox-mode
 
 - content: Implement SandboxMode using just-bash with InMemoryFs, integrate bash-tool
-- status: pending
+- status: complete
 - dependencies: execution-mode-interface
 
 ### local-mode
@@ -57,6 +57,12 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - content: Implement LocalMode with ~/.phoenix-insight/ directory and child_process bash
 - status: pending
 - dependencies: execution-mode-interface
+
+### ESM-only
+
+- content: Convert phoenix-insight to ESM-only module, remove CommonJS compatibility
+- status: pending
+- dependencies: sandbox-mode, local-mode
 
 ---
 
