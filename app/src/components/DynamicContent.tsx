@@ -7,10 +7,7 @@ import { useContentType } from "@phoenix/hooks/useContentType";
 
 const jsonBlockCSS = css`
   .cm-editor {
-    background: transparent;
-  }
-  .cm-gutters {
-    background: transparent;
+    background: transparent !important;
   }
 `;
 

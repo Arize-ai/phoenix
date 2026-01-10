@@ -54,6 +54,7 @@ import {
   ConnectedExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummarySkeleton,
+  ExperimentInputCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
@@ -104,8 +105,8 @@ import {
   type EvaluationError,
   ExampleRunData,
   type ExperimentRunEvaluation,
-  getExpandedCellKey,
   InstanceResponses,
+  makeExpandedCellKey,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
@@ -440,7 +441,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
     (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
   );
-  const expandedCellKey = getExpandedCellKey(
+  const expandedCellKey = makeExpandedCellKey(
     instanceId,
     exampleId,
     repetitionNumber
@@ -1205,48 +1206,19 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "input",
       accessorKey: "input",
-      cell: ({ row }) => {
-        return (
-          <>
-            <CellTop
-              extra={
-                <TooltipTrigger>
-                  <IconButton
-                    size="S"
-                    aria-label="View example details"
-                    onPress={() => {
-                      setSearchParams((prev) => {
-                        prev.set("exampleId", row.original.id);
-                        return prev;
-                      });
-                    }}
-                  >
-                    <Icon svg={<Icons.ExpandOutline />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    view example
-                  </Tooltip>
-                </TooltipTrigger>
-              }
-            >
-              <Text
-                color="text-500"
-                css={css`
-                  white-space: nowrap;
-                `}
-              >{`Example ${row.original.id}`}</Text>
-            </CellTop>
-            <OverflowCell
-              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-            >
-              <div css={outputContentCSS}>
-                <DynamicContent value={row.original.input} />
-              </div>
-            </OverflowCell>
-          </>
-        );
-      },
+      cell: ({ row }) => (
+        <ExperimentInputCell
+          exampleId={row.original.id}
+          value={row.original.input}
+          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+          onExpand={() => {
+            setSearchParams((prev) => {
+              prev.set("exampleId", row.original.id);
+              return prev;
+            });
+          }}
+        />
+      ),
       size: 200,
     },
     {

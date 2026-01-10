@@ -62,6 +62,7 @@ const errorButtonCSS = css`
   padding: var(--ac-global-dimension-size-50)
     var(--ac-global-dimension-size-100);
   border-radius: var(--ac-global-rounding-small);
+  text-align: left;
   min-width: 0;
   &:hover {
     background-color: var(--ac-global-color-grey-200);
@@ -70,9 +71,6 @@ const errorButtonCSS = css`
 
 const nameTextCSS = css`
   min-width: 5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 `;
 
 type AnnotationSummary = {

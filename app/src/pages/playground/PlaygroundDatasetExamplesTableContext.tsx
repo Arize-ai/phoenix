@@ -97,13 +97,11 @@ type PlaygroundDatasetExamplesTableState = {
   expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
 
-const getExpandedCellKey = (
+export const makeExpandedCellKey = (
   instanceId: InstanceId,
   exampleId: ExampleId,
   repetitionNumber: RepetitionNumber
 ) => `${instanceId}-${exampleId}-${repetitionNumber}`;
-
-export { getExpandedCellKey };
 
 const createPlaygroundDatasetExamplesTableStore = () => {
   const playgroundDatasetExamplesTableStore: StateCreator<
@@ -253,7 +251,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       repetitionNumber,
       isExpanded,
     }) => {
-      const key = getExpandedCellKey(instanceId, exampleId, repetitionNumber);
+      const key = makeExpandedCellKey(instanceId, exampleId, repetitionNumber);
       const expandedCells = get().expandedCells;
       set({
         expandedCells: {

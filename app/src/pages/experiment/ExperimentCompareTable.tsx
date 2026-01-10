@@ -39,12 +39,12 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentCostAndLatencySummary,
+  ExperimentInputCell,
   ExperimentOutputContent,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
@@ -302,51 +302,21 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header: "input",
         accessorKey: "input",
         enableSorting: false,
-        cell: ({ row }) => {
-          return (
-            <Flex
-              direction="column"
-              height="100%"
-              css={css`
-                overflow: hidden;
-              `}
-            >
-              <CellTop
-                extra={
-                  <TooltipTrigger>
-                    <IconButton
-                      size="S"
-                      onPress={() => {
-                        setDialog(
-                          <ExampleDetailsDialog
-                            exampleId={row.original.example.id}
-                            datasetVersionId={baseExperiment?.datasetVersionId}
-                          />
-                        );
-                      }}
-                    >
-                      <Icon svg={<Icons.ExpandOutline />} />
-                    </IconButton>
-                    <Tooltip>
-                      <TooltipArrow />
-                      view example
-                    </Tooltip>
-                  </TooltipTrigger>
-                }
-              >
-                <Text
-                  size="S"
-                  color="text-500"
-                >{`example ${row.original.example.id}`}</Text>
-              </CellTop>
-              <OverflowCell height={cellContentHeight}>
-                <PaddedCell>
-                  <DynamicContent value={row.original.input} />
-                </PaddedCell>
-              </OverflowCell>
-            </Flex>
-          );
-        },
+        cell: ({ row }) => (
+          <ExperimentInputCell
+            exampleId={row.original.example.id}
+            value={row.original.input}
+            height={cellContentHeight}
+            onExpand={() => {
+              setDialog(
+                <ExampleDetailsDialog
+                  exampleId={row.original.example.id}
+                  datasetVersionId={baseExperiment?.datasetVersionId}
+                />
+              );
+            }}
+          />
+        ),
       },
       {
         header: "reference output",
@@ -434,6 +404,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
+              height={cellContentHeight}
             />
           );
         },
@@ -442,6 +413,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [
     baseExperimentId,
     baseExperimentColor,
+    cellContentHeight,
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
@@ -785,14 +757,20 @@ export const MemoizedTableBody = React.memo(
  * If the output is a chat message format with an assistant message,
  * it extracts and renders just the content as markdown.
  */
+const outputContentCSS = css`
+  flex: none;
+  padding: var(--ac-global-dimension-size-200);
+`;
+
 function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
     setDialog: (dialog: ReactNode) => void;
     annotationSummaries: readonly AnnotationSummary[];
+    height: number;
   }
 ) {
-  const { output, error, annotations, setDialog } = props;
+  const { output, error, annotations, setDialog, height } = props;
 
   if (error) {
     return <RunError error={error} />;
@@ -803,9 +781,11 @@ function ExperimentRunOutput(
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
-      <View padding="size-200" flex="1 1 auto">
-        <ExperimentOutputContent value={output} />
-      </View>
+      <OverflowCell height={height}>
+        <div css={outputContentCSS}>
+          <ExperimentOutputContent value={output} />
+        </div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         annotationSummaries={props.annotationSummaries}
@@ -841,6 +821,7 @@ function ExperimentRunOutputCell({
   rowIndex,
   setSelectedExampleIndex,
   annotationSummaries,
+  height,
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
@@ -848,6 +829,7 @@ function ExperimentRunOutputCell({
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
+  height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -938,6 +920,7 @@ function ExperimentRunOutputCell({
           numRepetitions={experimentRepetitionCount}
           setDialog={setDialog}
           annotationSummaries={annotationSummaries}
+          height={height}
         />
       ) : (
         <PaddedCell>

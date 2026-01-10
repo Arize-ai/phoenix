@@ -49,8 +49,8 @@ const expandButtonCSS = css`
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    var(--ac-global-background-color-dark) 80%,
-    var(--ac-global-background-color-dark) 100%
+    var(--ac-global-background-color-default) 80%,
+    var(--ac-global-background-color-default) 100%
   );
   cursor: pointer;
   border: none;
