@@ -46,7 +46,6 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   calculateAnnotationListHeight,
@@ -58,12 +57,7 @@ import {
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
-import {
-  CellTop,
-  LargeTextWrap,
-  OverflowCell,
-  PaddedCell,
-} from "@phoenix/components/table";
+import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -110,6 +104,7 @@ import {
   type EvaluationError,
   ExampleRunData,
   type ExperimentRunEvaluation,
+  getExpandedCellKey,
   InstanceResponses,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
@@ -186,11 +181,15 @@ function EmptyExampleOutput({
   instanceVariables,
   datasetExampleInput,
   evaluatorOutputConfigs,
+  isExpanded,
+  onExpandedChange,
 }: {
   isRunning: boolean;
   instanceVariables: string[];
   datasetExampleInput: unknown;
   evaluatorOutputConfigs: AnnotationConfig[];
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const parsedDatasetExampleInput = useMemo(() => {
     return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
@@ -226,7 +225,11 @@ function EmptyExampleOutput({
   return (
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <OverflowCell height={CELL_PRIMARY_CONTENT_HEIGHT}>
+      <OverflowCell
+        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        isExpanded={isExpanded}
+        onExpandedChange={onExpandedChange}
+      >
         <div css={outputContentCSS}>{content}</div>
       </OverflowCell>
       <ExperimentRunCellAnnotationsList
@@ -247,6 +250,8 @@ function ExampleOutputContent({
   onViewTracePress,
   evaluatorOutputConfigs,
   isRunning,
+  isExpanded,
+  onExpandedChange,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
@@ -260,6 +265,8 @@ function ExampleOutputContent({
   ) => void;
   evaluatorOutputConfigs: AnnotationConfig[];
   isRunning: boolean;
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const {
     span,
@@ -367,7 +374,11 @@ function ExampleOutputContent({
           </Text>
         )}
       </CellTop>
-      <OverflowCell height={CELL_PRIMARY_CONTENT_HEIGHT}>
+      <OverflowCell
+        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        isExpanded={isExpanded}
+        onExpandedChange={onExpandedChange}
+      >
         <div css={outputContentCSS}>
           <Flex direction={"column"} gap="size-100">
             {errorMessage != null ? (
@@ -429,6 +440,28 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
     (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
   );
+  const expandedCellKey = getExpandedCellKey(
+    instanceId,
+    exampleId,
+    repetitionNumber
+  );
+  const isExpanded = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.expandedCells[expandedCellKey] ?? false
+  );
+  const setExpandedCell = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setExpandedCell
+  );
+  const onExpandedChange = useCallback(
+    (expanded: boolean) => {
+      setExpandedCell({
+        instanceId,
+        exampleId,
+        repetitionNumber,
+        isExpanded: expanded,
+      });
+    },
+    [setExpandedCell, instanceId, exampleId, repetitionNumber]
+  );
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
@@ -438,6 +471,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       instanceVariables={instanceVariables}
       datasetExampleInput={datasetExampleInput}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
+      isExpanded={isExpanded}
+      onExpandedChange={onExpandedChange}
     />
   ) : (
     <ExampleOutputContent
@@ -449,6 +484,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       onViewTracePress={onViewTracePress}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
       isRunning={isRunning}
+      isExpanded={isExpanded}
+      onExpandedChange={onExpandedChange}
     />
   );
 });
@@ -1200,16 +1237,11 @@ export function PlaygroundDatasetExamplesTable({
                 `}
               >{`Example ${row.original.id}`}</Text>
             </CellTop>
-            <PaddedCell>
-              <LargeTextWrap height={200}>
-                <JSONText
-                  json={row.original.input}
-                  disableTitle
-                  space={2}
-                  collapseSingleKey={false}
-                />
-              </LargeTextWrap>
-            </PaddedCell>
+            <OverflowCell
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+            >
+              <DynamicContent value={row.original.input} />
+            </OverflowCell>
           </>
         );
       },

@@ -69,17 +69,33 @@ const expandButtonCSS = css`
 
 export interface OverflowCellProps extends PropsWithChildren {
   height: number;
+  /**
+   * Controlled expanded state. If provided, the component will use this value
+   * instead of managing its own internal state.
+   */
+  isExpanded?: boolean;
+  /**
+   * Callback fired when the expanded state changes.
+   * Use this with `isExpanded` for controlled mode.
+   */
+  onExpandedChange?: (isExpanded: boolean) => void;
 }
 
 export const OverflowCell = memo(function OverflowCell({
   children,
   height,
+  isExpanded: controlledExpanded,
+  onExpandedChange,
 }: OverflowCellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   // NB: need to figure out why calculation is incorrect
   const [isOverflowing, setIsOverflowing] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+
+  // Use controlled value if provided, otherwise use internal state
+  const isControlled = controlledExpanded !== undefined;
+  const isExpanded = isControlled ? controlledExpanded : internalExpanded;
 
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -91,8 +107,11 @@ export const OverflowCell = memo(function OverflowCell({
   }, [children, height]);
 
   const handleExpand = useCallback(() => {
-    setIsExpanded(true);
-  }, []);
+    if (!isControlled) {
+      setInternalExpanded(true);
+    }
+    onExpandedChange?.(true);
+  }, [isControlled, onExpandedChange]);
 
   return (
     <div

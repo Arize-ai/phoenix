@@ -83,12 +83,27 @@ type PlaygroundDatasetExamplesTableActions = {
   }) => void;
   resetData: () => void;
   setRepetitions: (repetitions: number) => void;
+  setExpandedCell: (args: {
+    instanceId: InstanceId;
+    exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
+    isExpanded: boolean;
+  }) => void;
 };
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
   repetitions: number;
+  expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
+
+const getExpandedCellKey = (
+  instanceId: InstanceId,
+  exampleId: ExampleId,
+  repetitionNumber: RepetitionNumber
+) => `${instanceId}-${exampleId}-${repetitionNumber}`;
+
+export { getExpandedCellKey };
 
 const createPlaygroundDatasetExamplesTableStore = () => {
   const playgroundDatasetExamplesTableStore: StateCreator<
@@ -96,6 +111,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
   > = (set, get) => ({
     exampleResponsesMap: {},
     repetitions: 1,
+    expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
@@ -226,10 +242,25 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       });
     },
     resetData: () => {
-      set({ exampleResponsesMap: {}, repetitions: 1 });
+      set({ exampleResponsesMap: {}, repetitions: 1, expandedCells: {} });
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });
+    },
+    setExpandedCell: ({
+      instanceId,
+      exampleId,
+      repetitionNumber,
+      isExpanded,
+    }) => {
+      const key = getExpandedCellKey(instanceId, exampleId, repetitionNumber);
+      const expandedCells = get().expandedCells;
+      set({
+        expandedCells: {
+          ...expandedCells,
+          [key]: isExpanded,
+        },
+      });
     },
   });
   return create<PlaygroundDatasetExamplesTableState>()(
