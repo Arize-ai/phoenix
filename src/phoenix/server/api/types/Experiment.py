@@ -151,6 +151,23 @@ class Experiment(Node):
             )
         return val
 
+    @strawberry.field(description="The user that created the experiment.")
+    async def user(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.experiment_fields.load(
+                (self.id, models.Experiment.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import User
+
+        return User(id=user_id)
+
     @strawberry.field(
         description="Sequence number (1-based) of experiments belonging to the same dataset"
     )  # type: ignore
