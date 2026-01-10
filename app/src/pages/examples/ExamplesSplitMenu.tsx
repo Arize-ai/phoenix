@@ -30,8 +30,8 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
-import { SearchIcon } from "@phoenix/components/field";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
+import { SearchIcon } from "@phoenix/components/field";
 import { ExamplesSplitMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitMenuQuery.graphql";
 import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { Mutable } from "@phoenix/typeUtils";
