@@ -29,16 +29,37 @@ function runCLI(
 
 describe("cli-flags", () => {
   describe("flag parsing", () => {
-    it("should show help when no query is provided", async () => {
-      const result = await runCLI([]);
-      expect(result.stdout).toContain("Usage: phoenix-insight");
-      expect(result.stdout).toContain("--sandbox");
-      expect(result.stdout).toContain("--local");
-      expect(result.stdout).toContain("--base-url");
-      expect(result.stdout).toContain("--api-key");
-      expect(result.stdout).toContain("--refresh");
-      expect(result.stdout).toContain("--limit");
-      expect(result.stdout).toContain("--stream");
+    it("should start interactive mode when no query is provided", async () => {
+      // Start CLI and kill it after checking output
+      const proc = spawn("tsx", [CLI_PATH], {
+        env: { ...process.env, NODE_ENV: "test" },
+      });
+
+      let stdout = "";
+      let killed = false;
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+        // Kill the process once we see interactive mode started
+        if (stdout.includes("Phoenix Insight Interactive Mode") && !killed) {
+          killed = true;
+          proc.kill();
+        }
+      });
+
+      await new Promise<void>((resolve) => {
+        proc.on("close", () => resolve());
+        // Fallback timeout to prevent hanging
+        setTimeout(() => {
+          if (!killed) {
+            killed = true;
+            proc.kill();
+          }
+        }, 2000);
+      });
+
+      expect(stdout).toContain("Phoenix Insight Interactive Mode");
+      expect(stdout).toContain("Type your queries below");
     });
 
     it("should accept --base-url flag", async () => {

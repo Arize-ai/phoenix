@@ -377,6 +377,17 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Progress message updates**: Updated AgentProgress to show "Running command" for bash tools and added more descriptive tool result messages like "Command executed completed" instead of generic "Tool bash completed"
 - **Stream mode compatibility**: The improved visibility works in both streaming and non-streaming modes by using the onStepFinish callback. Tool progress is shown even when streaming responses
 
+## Start interactive mode if no arguments are provided
+
+- **Default behavior change**: Modified the CLI to start interactive mode automatically when no arguments are provided. This makes the tool more user-friendly - users can just run `phoenix-insight` without remembering flags
+- **Help command in interactive mode**: Added a "help" command within interactive mode that shows available commands, usage tips, and options. This helps users discover features while they're using the tool
+- **Top-level help command**: Added a dedicated "help" command to the CLI using Commander.js command() method. This provides an alternative to the --help flag and follows common CLI conventions
+- **Test updates needed**: When changing default behavior, multiple tests need updating. Tests that expected help output when no args provided now need to expect interactive mode startup instead
+- **Process spawning in tests**: Testing interactive mode requires spawning child processes and killing them after checking output. Use timeouts as fallbacks to prevent hanging tests
+- **Help text organization**: Interactive mode help is different from CLI help. Interactive help focuses on commands within the session (exit, help, px-fetch-more), while CLI help covers flags and startup options
+- **Documentation updates**: Updated README to reflect that no arguments starts interactive mode, added help command to commands list, and updated examples throughout to show this new default behavior
+- **Exit handling patterns**: Interactive mode supports both "exit" and "quit" for user convenience. The help command mentions both options to avoid user confusion
+
 ## Idempotent and side-effect free tests
 
 - **Global setup approach**: Initially tried to mock all I/O operations globally (fs, http, https, net) but many Node.js built-in properties are not configurable/writable. This caused "Cannot redefine property" errors
@@ -412,6 +423,7 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Incremental snapshot parallelization**: Also applied parallel fetching to incremental snapshots for consistency and performance benefits
 - **Type safety challenges**: The Promise.allSettled() results needed careful type handling. Used array indexing with fallback to "unknown" for type safety when accessing failed promise reasons
 - **Real-world impact**: These optimizations significantly reduce snapshot creation time, especially when Phoenix server has high latency. A snapshot that would take 140ms sequentially now takes ~50ms (the longest operation)
+
 ## Use sandbox mode by default
 
 - **Mode selection logic reversal**: Changed from sandbox being opt-in (--sandbox flag) to local being opt-in (--local flag). This makes sandbox the safe default for new users
@@ -422,7 +434,6 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Help text clarity**: Updated the CLI help text to indicate "(default)" next to sandbox mode description to make the behavior clear to users
 - **Backwards compatibility**: This is a breaking change in behavior, but safer default. Users who relied on local mode being default now need to add --local flag
 - **Incremental snapshot logic**: Sandbox mode always creates fresh snapshots (no persistence), while local mode with --refresh also creates fresh. Only local without refresh uses incremental
-
 
 ## Add a top level "prune" command
 

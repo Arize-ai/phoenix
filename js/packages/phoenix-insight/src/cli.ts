@@ -177,10 +177,12 @@ program
     "after",
     `
 Examples:
+  $ phoenix-insight                                               # Start interactive mode
   $ phoenix-insight "What are the slowest traces?"                # Single query (sandbox mode)
-  $ phoenix-insight --interactive                                  # Interactive REPL mode
+  $ phoenix-insight --interactive                                  # Explicitly start interactive mode
   $ phoenix-insight --local "Show me error patterns"              # Local mode with persistence
   $ phoenix-insight --local --stream "Analyze recent experiments"  # Local mode with streaming
+  $ phoenix-insight help                                          # Show this help message
 `
   );
 
@@ -229,6 +231,13 @@ program
     } catch (error) {
       handleError(error, "creating snapshot");
     }
+  });
+
+program
+  .command("help")
+  .description("Show help information")
+  .action(() => {
+    program.outputHelp();
   });
 
 program
@@ -317,8 +326,9 @@ program
       return;
     }
 
+    // If no query is provided and no specific flag, start interactive mode
     if (!query && !options.help) {
-      program.outputHelp();
+      await runInteractiveMode(options);
       return;
     }
 
@@ -467,7 +477,9 @@ program
 
 async function runInteractiveMode(options: any): Promise<void> {
   console.log("🚀 Phoenix Insight Interactive Mode");
-  console.log("Type your queries below. Type 'exit' or 'quit' to end.\n");
+  console.log(
+    "Type your queries below. Type 'help' for available commands or 'exit' to quit.\n"
+  );
 
   // Initialize observability if --trace flag is set
   if (options.trace) {
@@ -538,6 +550,37 @@ async function runInteractiveMode(options: any): Promise<void> {
         console.log("\n👋 Goodbye!");
         rl.close();
         break;
+      }
+
+      if (query === "help") {
+        console.log("\n📖 Interactive Mode Commands:");
+        console.log("   help              - Show this help message");
+        console.log("   exit, quit        - Exit interactive mode");
+        console.log(
+          "   px-fetch-more     - Fetch additional data (e.g., px-fetch-more spans --project <name> --limit <n>)"
+        );
+        console.log("\n💡 Usage Tips:");
+        console.log(
+          "   • Ask natural language questions about your Phoenix data"
+        );
+        console.log(
+          "   • The agent has access to bash commands to analyze the data"
+        );
+        console.log(
+          "   • Use px-fetch-more commands to get additional data on-demand"
+        );
+        console.log("\n🔧 Options (set when starting phoenix-insight):");
+        console.log(
+          "   --local           - Use local mode with persistent storage"
+        );
+        console.log(
+          "   --stream          - Stream agent responses in real-time"
+        );
+        console.log("   --refresh         - Force fresh snapshot data");
+        console.log("   --limit <n>       - Set max spans per project");
+        console.log("   --trace           - Enable observability tracing");
+        rl.prompt();
+        continue;
       }
 
       if (query === "") {

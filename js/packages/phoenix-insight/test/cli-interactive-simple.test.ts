@@ -93,6 +93,6 @@ describe("CLI Interactive Mode", () => {
 
     // Check help text includes interactive example
     expect(cliContent).toContain("phoenix-insight --interactive");
-    expect(cliContent).toContain("Interactive REPL mode");
+    expect(cliContent).toContain("Explicitly start interactive mode");
   });
 });

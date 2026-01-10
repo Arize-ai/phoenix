@@ -20,17 +20,20 @@ npx @arizeai/phoenix-insight "your query"
 ## Quick Start
 
 ```bash
+# Start interactive mode (no arguments needed)
+phoenix-insight
+
 # Query Phoenix data with natural language
 phoenix-insight "What are the most common errors in the last hour?"
-
-# Interactive mode for multiple queries
-phoenix-insight --interactive
 
 # Local mode with persistent storage
 phoenix-insight --local "analyze trace patterns"
 
 # Force fresh data
 phoenix-insight --refresh "show me the slowest endpoints"
+
+# Show help
+phoenix-insight help
 ```
 
 ## How It Works
@@ -144,6 +147,10 @@ phoenix-insight "analyze performance" --trace
 Start an interactive REPL session for multiple queries:
 
 ```bash
+# Start interactive mode (default when no query is provided)
+$ phoenix-insight
+
+# Or explicitly with --interactive flag
 $ phoenix-insight --interactive
 
 phoenix> What projects have the most spans?
@@ -154,6 +161,9 @@ phoenix> Show me error patterns in the chatbot-prod project
 
 phoenix> px-fetch-more trace --trace-id abc123
 [Agent fetches specific trace data...]
+
+phoenix> help
+[Shows available commands and tips...]
 
 phoenix> exit
 ```
@@ -213,7 +223,9 @@ px-fetch-more trace --trace-id abc123
 
 Phoenix Insight provides several commands:
 
-- **Default (query mode)**: `phoenix-insight "your query"` - Analyze Phoenix data with natural language
+- **Default (interactive mode)**: `phoenix-insight` - Start interactive REPL when no query is provided
+- **Query mode**: `phoenix-insight "your query"` - Analyze Phoenix data with natural language
+- **`help`**: Show help information
 - **`snapshot`**: Create or update a data snapshot from Phoenix
 - **`prune`**: Delete local snapshot directory to free up space
 

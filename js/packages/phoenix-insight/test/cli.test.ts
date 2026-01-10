@@ -15,12 +15,36 @@ describe("phoenix-insight CLI", () => {
     vi.clearAllMocks();
   });
 
-  it("should display help when no arguments provided", async () => {
-    const { stdout } = await execAsync(`tsx ${cliPath}`);
-    expect(stdout).toContain("Usage: phoenix-insight");
-    expect(stdout).toContain("A CLI for Phoenix data analysis with AI agents");
-    expect(stdout).toContain("Commands:");
-    expect(stdout).toContain("snapshot");
+  it("should start interactive mode when no arguments provided", async () => {
+    // Use a child process that we can kill after checking output
+    const { exec } = await import("node:child_process");
+    const proc = exec(`tsx ${cliPath}`);
+
+    let stdout = "";
+    let killed = false;
+
+    proc.stdout?.on("data", (data) => {
+      stdout += data.toString();
+      // Kill the process once we see interactive mode started
+      if (stdout.includes("Phoenix Insight Interactive Mode") && !killed) {
+        killed = true;
+        proc.kill();
+      }
+    });
+
+    await new Promise<void>((resolve) => {
+      proc.on("close", () => resolve());
+      // Fallback timeout
+      setTimeout(() => {
+        if (!killed) {
+          killed = true;
+          proc.kill();
+        }
+      }, 2000);
+    });
+
+    expect(stdout).toContain("Phoenix Insight Interactive Mode");
+    expect(stdout).toContain("Type your queries below");
   });
 
   it("should display version", async () => {
@@ -36,9 +60,12 @@ describe("phoenix-insight CLI", () => {
     expect(stdout).toContain("--refresh");
   });
 
-  it("should require query argument", async () => {
-    const { stdout } = await execAsync(`tsx ${cliPath}`);
+  it("should show help with --help flag", async () => {
+    const { stdout } = await execAsync(`tsx ${cliPath} --help`);
     expect(stdout).toContain("Usage: phoenix-insight");
+    expect(stdout).toContain("A CLI for Phoenix data analysis with AI agents");
+    expect(stdout).toContain("Commands:");
+    expect(stdout).toContain("snapshot");
   });
 
   it("should accept sandbox option", async () => {

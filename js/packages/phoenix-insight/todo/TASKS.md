@@ -241,7 +241,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### Start interactive mode if no arguments are provided
 
 - content: Start interactive mode if no arguments are provided. Add help command to interactive mode and top level help command.
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ### Add a top level "help" command
