@@ -14,6 +14,7 @@ import {
   type FetchMoreTraceOptions,
 } from "../commands/index.js";
 import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { PhoenixClientError } from "../snapshot/client.js";
 
 /**
  * Configuration for the Phoenix Insight agent
@@ -149,19 +150,52 @@ export class PhoenixInsightAgent {
       onStepFinish?: (step: any) => void;
     }
   ): Promise<any> {
-    const tools = await this.initializeTools();
+    let tools;
+    try {
+      tools = await this.initializeTools();
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize agent tools: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
-    const result = await generateText({
-      model: this.model,
-      system: INSIGHT_SYSTEM_PROMPT,
-      prompt: userQuery,
-      tools,
-      maxToolRoundtrips: this.maxSteps,
-      onStepStart: options?.onStepStart,
-      onStepFinish: options?.onStepFinish,
-    } as any);
+    try {
+      const result = await generateText({
+        model: this.model,
+        system: INSIGHT_SYSTEM_PROMPT,
+        prompt: userQuery,
+        tools,
+        maxToolRoundtrips: this.maxSteps,
+        onStepStart: options?.onStepStart,
+        onStepFinish: options?.onStepFinish,
+      } as any);
 
-    return result;
+      return result;
+    } catch (error) {
+      // Check for specific AI SDK errors
+      if (error instanceof Error) {
+        if (error.message.includes("rate limit")) {
+          throw new Error(
+            "AI model rate limit exceeded. Please wait and try again."
+          );
+        }
+        if (error.message.includes("timeout")) {
+          throw new Error("AI model request timed out. Please try again.");
+        }
+        if (
+          error.message.includes("authentication") ||
+          error.message.includes("API key")
+        ) {
+          throw new Error(
+            "AI model authentication failed. Check your API key configuration."
+          );
+        }
+      }
+
+      throw new Error(
+        `AI generation failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**
@@ -174,19 +208,52 @@ export class PhoenixInsightAgent {
       onStepFinish?: (step: any) => void;
     }
   ): Promise<any> {
-    const tools = await this.initializeTools();
+    let tools;
+    try {
+      tools = await this.initializeTools();
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize agent tools: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
-    const result = streamText({
-      model: this.model,
-      system: INSIGHT_SYSTEM_PROMPT,
-      prompt: userQuery,
-      tools,
-      maxToolRoundtrips: this.maxSteps,
-      onStepStart: options?.onStepStart,
-      onStepFinish: options?.onStepFinish,
-    } as any);
+    try {
+      const result = streamText({
+        model: this.model,
+        system: INSIGHT_SYSTEM_PROMPT,
+        prompt: userQuery,
+        tools,
+        maxToolRoundtrips: this.maxSteps,
+        onStepStart: options?.onStepStart,
+        onStepFinish: options?.onStepFinish,
+      } as any);
 
-    return result;
+      return result;
+    } catch (error) {
+      // Check for specific AI SDK errors
+      if (error instanceof Error) {
+        if (error.message.includes("rate limit")) {
+          throw new Error(
+            "AI model rate limit exceeded. Please wait and try again."
+          );
+        }
+        if (error.message.includes("timeout")) {
+          throw new Error("AI model request timed out. Please try again.");
+        }
+        if (
+          error.message.includes("authentication") ||
+          error.message.includes("API key")
+        ) {
+          throw new Error(
+            "AI model authentication failed. Check your API key configuration."
+          );
+        }
+      }
+
+      throw new Error(
+        `AI streaming failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**

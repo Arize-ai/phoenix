@@ -279,3 +279,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Testing challenges**: Testing readline-based interactive CLIs is difficult. Process spawning tests are fragile and timeout-prone. Opted for simpler unit tests that verify the code structure and logic
 - **Help text updates**: Added examples to the CLI help text showing how to use interactive mode. This helps users discover the feature
 - **Prompt design**: Used "phoenix>" as the prompt to clearly indicate the user is in Phoenix Insight interactive mode. Short and distinctive
+
+## error-handling
+
+- **Error categorization strategy**: Created a custom PhoenixClientError class with specific error codes (NETWORK_ERROR, AUTH_ERROR, INVALID_RESPONSE, UNKNOWN_ERROR) to categorize different failure modes. This enables targeted error handling and user-friendly messages
+- **User-friendly error messages**: The handleError function in cli.ts provides context-specific guidance for each error type. Network errors suggest checking Phoenix connectivity, auth errors mention API keys, etc. This helps users quickly resolve issues
+- **Debug mode support**: When DEBUG=1 is set, show stack traces and original errors. This balances clean output for regular users with detailed info for troubleshooting
+- **Partial failure handling**: In snapshot creation, use Promise.allSettled() instead of Promise.all() for parallel fetches. This allows datasets/experiments/prompts to partially succeed if one fails. Only throw if all three fail
+- **Error context enhancement**: The withErrorHandling wrapper adds operation context to errors (e.g., "fetching projects"). This makes error messages more informative without cluttering the actual operation code
+- **HTTP status parsing**: Phoenix client errors follow the pattern "URL: STATUS STATUS_TEXT". Parse this format to extract status codes and provide appropriate error categorization (401→AUTH_ERROR, 5xx→NETWORK_ERROR, etc.)
+- **Tips and recovery suggestions**: Error messages include actionable tips like running with DEBUG=1, checking connection with snapshot command, or using --help. This empowers users to solve problems independently
+- **Interactive mode error isolation**: In interactive mode, query errors are caught and displayed without exiting the session. This provides a better user experience - one failed query doesn't end the session
+- **AI SDK error patterns**: Added specific handling for common AI SDK errors (rate limits, timeouts, auth). These have different solutions than Phoenix errors, so they get tailored messages
+- **Testing challenges**: Testing error handling with mocked modules is complex. Focus on testing the error categorization logic rather than the full integration. Some tests verify error message patterns rather than exact execution paths

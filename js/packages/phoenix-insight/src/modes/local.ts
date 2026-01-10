@@ -36,8 +36,14 @@ export class LocalMode implements ExecutionMode {
    * Initialize the working directory
    */
   private async init() {
-    // Create the directory structure if it doesn't exist
-    await fs.mkdir(this.workDir, { recursive: true });
+    try {
+      // Create the directory structure if it doesn't exist
+      await fs.mkdir(this.workDir, { recursive: true });
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize local mode directory at ${this.workDir}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   async writeFile(filePath: string, content: string): Promise<void> {

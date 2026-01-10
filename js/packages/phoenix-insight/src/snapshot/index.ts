@@ -14,7 +14,11 @@ export { generateContext } from "./context.js";
 // Import necessary types and modules for orchestration
 import type { ExecutionMode } from "../modes/types.js";
 import type { PhoenixClient } from "@arizeai/phoenix-client";
-import { createPhoenixClient, type PhoenixClientConfig } from "./client.js";
+import {
+  createPhoenixClient,
+  PhoenixClientError,
+  type PhoenixClientConfig,
+} from "./client.js";
 import { fetchProjects } from "./projects.js";
 import { snapshotSpans, type SnapshotSpansOptions } from "./spans.js";
 import { fetchDatasets } from "./datasets.js";
@@ -97,24 +101,68 @@ export async function createSnapshot(
   try {
     // 1. Fetch projects first (required for spans)
     log("Fetching projects...");
-    await fetchProjects(client, mode);
+    try {
+      await fetchProjects(client, mode);
+    } catch (error) {
+      throw new PhoenixClientError(
+        `Failed to fetch projects: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof PhoenixClientError ? error.code : "UNKNOWN_ERROR",
+        error
+      );
+    }
 
     // 2. Fetch spans for each project
     log("Fetching spans...");
-    const spansOptions: SnapshotSpansOptions = {
-      spansPerProject,
-      startTime,
-      endTime,
-    };
-    await snapshotSpans(client, mode, spansOptions);
+    try {
+      const spansOptions: SnapshotSpansOptions = {
+        spansPerProject,
+        startTime,
+        endTime,
+      };
+      await snapshotSpans(client, mode, spansOptions);
+    } catch (error) {
+      throw new PhoenixClientError(
+        `Failed to fetch spans: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof PhoenixClientError ? error.code : "UNKNOWN_ERROR",
+        error
+      );
+    }
 
     // 3. Fetch datasets in parallel with experiments and prompts
     log("Fetching datasets, experiments, and prompts...");
-    await Promise.all([
+    const results = await Promise.allSettled([
       fetchDatasets(client, mode),
       fetchExperiments(client, mode),
       fetchPrompts(client, mode),
     ]);
+
+    // Check for failures and collect errors
+    const errors: Array<{ type: string; error: unknown }> = [];
+    if (results[0].status === "rejected")
+      errors.push({ type: "datasets", error: results[0].reason });
+    if (results[1].status === "rejected")
+      errors.push({ type: "experiments", error: results[1].reason });
+    if (results[2].status === "rejected")
+      errors.push({ type: "prompts", error: results[2].reason });
+
+    if (errors.length > 0) {
+      // Log individual errors
+      errors.forEach(({ type, error }) => {
+        console.error(
+          `Warning: Failed to fetch ${type}:`,
+          error instanceof Error ? error.message : String(error)
+        );
+      });
+
+      // If all failed, throw error. If partial success, continue with warning
+      if (errors.length === 3) {
+        throw new PhoenixClientError(
+          "Failed to fetch all supplementary data (datasets, experiments, prompts)",
+          "UNKNOWN_ERROR",
+          errors
+        );
+      }
+    }
 
     // 4. Generate context file
     log("Generating context...");
@@ -147,8 +195,16 @@ export async function createSnapshot(
 
     log("Snapshot complete!");
   } catch (error) {
-    console.error("Failed to create snapshot:", error);
-    throw error;
+    // Enhance error with context before rethrowing
+    if (error instanceof PhoenixClientError) {
+      throw error; // Already has good context
+    }
+
+    throw new PhoenixClientError(
+      `Failed to create snapshot: ${error instanceof Error ? error.message : String(error)}`,
+      "UNKNOWN_ERROR",
+      error
+    );
   }
 }
 
@@ -284,7 +340,15 @@ export async function createIncrementalSnapshot(
 
     log("Incremental update complete!");
   } catch (error) {
-    console.error("Failed to create incremental snapshot:", error);
-    throw error;
+    // Enhance error with context before rethrowing
+    if (error instanceof PhoenixClientError) {
+      throw error; // Already has good context
+    }
+
+    throw new PhoenixClientError(
+      `Failed to create incremental snapshot: ${error instanceof Error ? error.message : String(error)}`,
+      "UNKNOWN_ERROR",
+      error
+    );
   }
 }

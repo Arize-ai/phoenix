@@ -8,6 +8,7 @@ import {
   createSnapshot,
   createIncrementalSnapshot,
   createPhoenixClient,
+  PhoenixClientError,
 } from "./snapshot/index.js";
 import type { ExecutionMode } from "./modes/types.js";
 import type { PhoenixInsightAgentConfig } from "./agent/index.js";
@@ -16,6 +17,87 @@ import type { PhoenixInsightAgentConfig } from "./agent/index.js";
 const VERSION = "0.0.1";
 
 const program = new Command();
+
+/**
+ * Handle errors with appropriate exit codes and user-friendly messages
+ */
+function handleError(error: unknown, context: string): never {
+  console.error(`\n❌ Error ${context}:`);
+
+  if (error instanceof PhoenixClientError) {
+    switch (error.code) {
+      case "NETWORK_ERROR":
+        console.error(
+          "\n🌐 Network Error: Unable to connect to Phoenix server"
+        );
+        console.error(`   Make sure Phoenix is running and accessible`);
+        console.error(`   You can specify a different URL with --base-url`);
+        break;
+      case "AUTH_ERROR":
+        console.error("\n🔒 Authentication Error: Invalid or missing API key");
+        console.error(
+          `   Set the PHOENIX_API_KEY environment variable or use --api-key`
+        );
+        break;
+      case "INVALID_RESPONSE":
+        console.error(
+          "\n⚠️  Invalid Response: Phoenix returned unexpected data"
+        );
+        console.error(`   This might be a version compatibility issue`);
+        break;
+      default:
+        console.error("\n❓ Phoenix Client Error:", error.message);
+    }
+    if (error.originalError && process.env.DEBUG) {
+      console.error("\nOriginal error:", error.originalError);
+    }
+  } else if (error instanceof Error) {
+    // Check for specific error patterns
+    if (error.message.includes("ENOENT")) {
+      console.error(
+        "\n📁 File System Error: Required file or directory not found"
+      );
+      console.error(`   ${error.message}`);
+    } else if (
+      error.message.includes("EACCES") ||
+      error.message.includes("EPERM")
+    ) {
+      console.error("\n🚫 Permission Error: Insufficient permissions");
+      console.error(`   ${error.message}`);
+      if (error.message.includes(".phoenix-insight")) {
+        console.error(
+          `   Try running with appropriate permissions or check ~/.phoenix-insight/`
+        );
+      }
+    } else if (
+      error.message.includes("rate limit") ||
+      error.message.includes("429")
+    ) {
+      console.error("\n⏱️  Rate Limit Error: Too many requests to Phoenix");
+      console.error(`   Please wait a moment and try again`);
+    } else if (error.message.includes("timeout")) {
+      console.error("\n⏰ Timeout Error: Request took too long");
+      console.error(`   The Phoenix server might be slow or unresponsive`);
+    } else {
+      console.error(`\n${error.message}`);
+    }
+
+    if (error.stack && process.env.DEBUG) {
+      console.error("\nStack trace:", error.stack);
+    }
+  } else {
+    console.error("\nUnexpected error:", error);
+  }
+
+  console.error("\n💡 Tips:");
+  console.error("   • Run with DEBUG=1 for more detailed error information");
+  console.error(
+    "   • Check your Phoenix connection with: phoenix-insight snapshot --base-url <url>"
+  );
+  console.error("   • Use --help to see all available options");
+
+  process.exit(1);
+}
 
 program
   .name("phoenix-insight")
@@ -44,8 +126,28 @@ program
   .option("--api-key <key>", "Phoenix API key", process.env.PHOENIX_API_KEY)
   .option("--refresh", "Force refresh of snapshot data")
   .action(async (options) => {
-    console.log("Snapshot command not yet implemented");
-    console.log("Options:", options);
+    try {
+      // Determine the execution mode
+      const mode: ExecutionMode = await createLocalMode();
+
+      // Create snapshot with the provided options
+      const snapshotOptions = {
+        baseURL: options.baseUrl,
+        apiKey: options.apiKey,
+        spansPerProject: 1000,
+        showProgress: true,
+      };
+
+      console.log("Creating Phoenix data snapshot...");
+      await createSnapshot(mode, snapshotOptions);
+
+      console.log("\n✅ Snapshot created successfully!");
+
+      // Cleanup
+      await mode.cleanup();
+    } catch (error) {
+      handleError(error, "creating snapshot");
+    }
   });
 
 program
@@ -175,8 +277,7 @@ program
 
       console.log("\n✅ Done!");
     } catch (error) {
-      console.error("\n❌ Error:", error);
-      process.exit(1);
+      handleError(error, "executing query");
     }
   });
 
@@ -312,7 +413,15 @@ async function runInteractiveMode(options: any): Promise<void> {
           console.log(result.text);
         }
       } catch (error) {
-        console.error("\n❌ Error:", error);
+        console.error("\n❌ Query Error:");
+        if (error instanceof PhoenixClientError) {
+          console.error(`   ${error.message}`);
+        } else if (error instanceof Error) {
+          console.error(`   ${error.message}`);
+        } else {
+          console.error(`   ${String(error)}`);
+        }
+        console.error("   You can try again with a different query");
       }
 
       console.log("\n" + "─".repeat(50) + "\n");
@@ -322,8 +431,7 @@ async function runInteractiveMode(options: any): Promise<void> {
     // Cleanup
     await mode.cleanup();
   } catch (error) {
-    console.error("\n❌ Error setting up interactive mode:", error);
-    process.exit(1);
+    handleError(error, "setting up interactive mode");
   }
 }
 

@@ -187,7 +187,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### error-handling
 
 - content: Add comprehensive error handling: network errors, auth failures, invalid responses
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ### progress-indicators

@@ -18,34 +18,46 @@ export class SandboxMode implements ExecutionMode {
   private async init() {
     if (this.initialized) return;
 
-    // Dynamic imports for ESM modules
-    const { Bash } = await import("just-bash");
-    const { createBashTool } = await import("bash-tool");
+    try {
+      // Dynamic imports for ESM modules
+      const { Bash } = await import("just-bash");
+      const { createBashTool } = await import("bash-tool");
 
-    this.createBashToolFn = createBashTool;
-    // Initialize just-bash with /phoenix as the working directory
-    this.bash = new Bash({ cwd: "/phoenix" });
+      this.createBashToolFn = createBashTool;
+      // Initialize just-bash with /phoenix as the working directory
+      this.bash = new Bash({ cwd: "/phoenix" });
 
-    this.initialized = true;
+      this.initialized = true;
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize sandbox mode: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   async writeFile(path: string, content: string): Promise<void> {
     await this.init();
 
-    // Ensure the path starts with /phoenix
-    const fullPath = path.startsWith("/phoenix")
-      ? path
-      : `/phoenix${path.startsWith("/") ? "" : "/"}${path}`;
+    try {
+      // Ensure the path starts with /phoenix
+      const fullPath = path.startsWith("/phoenix")
+        ? path
+        : `/phoenix${path.startsWith("/") ? "" : "/"}${path}`;
 
-    // Create parent directories if they don't exist
-    const dirname = fullPath.substring(0, fullPath.lastIndexOf("/"));
-    if (dirname) {
-      await this.bash.exec(`mkdir -p ${dirname}`);
+      // Create parent directories if they don't exist
+      const dirname = fullPath.substring(0, fullPath.lastIndexOf("/"));
+      if (dirname) {
+        await this.bash.exec(`mkdir -p ${dirname}`);
+      }
+
+      // Write the file using just-bash's filesystem
+      // We'll use the InMemoryFs directly for better performance
+      this.bash.fs.writeFileSync(fullPath, content);
+    } catch (error) {
+      throw new Error(
+        `Failed to write file ${path}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-
-    // Write the file using just-bash's filesystem
-    // We'll use the InMemoryFs directly for better performance
-    this.bash.fs.writeFileSync(fullPath, content);
   }
 
   async exec(
