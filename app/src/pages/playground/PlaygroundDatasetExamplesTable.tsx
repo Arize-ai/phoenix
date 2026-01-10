@@ -1,7 +1,7 @@
-"use no memo";
 import {
   memo,
   type ReactNode,
+  type RefObject,
   SetStateAction,
   Suspense,
   useCallback,
@@ -26,7 +26,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   GraphQLSubscriptionConfig,
   PayloadError,
@@ -503,14 +503,22 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  virtualizer,
+  tableContainerRef,
+  estimatedRowHeight,
 }: {
   table: Table<T>;
-  virtualizer: Virtualizer<HTMLDivElement, Element>;
+  tableContainerRef: RefObject<HTMLDivElement | null>;
+  estimatedRowHeight: number;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
-
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => estimatedRowHeight,
+    overscan: 5,
+  });
   const virtualRows = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
@@ -1076,7 +1084,15 @@ export function PlaygroundDatasetExamplesTable({
     setRepetitions,
   ]);
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  // Use useState + callback ref instead of useRef so that the component
+  // re-renders when the container element mounts (needed for virtualizer)
+  const [_tableContainerEl, setTableContainerEl] =
+    useState<HTMLDivElement | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const tableContainerCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    tableContainerRef.current = el;
+    setTableContainerEl(el);
+  }, []);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     PlaygroundDatasetExamplesTableRefetchQuery,
     PlaygroundDatasetExamplesTableFragment$key
@@ -1252,12 +1268,7 @@ export function PlaygroundDatasetExamplesTable({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => calculateEstimatedRowHeight(numEnabledEvaluators),
-    overscan: 10,
-  });
+  const estimatedRowHeight = calculateEstimatedRowHeight(numEnabledEvaluators);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -1308,7 +1319,7 @@ export function PlaygroundDatasetExamplesTable({
         overflow: auto;
         height: 100%;
       `}
-      ref={tableContainerRef}
+      ref={tableContainerCallbackRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
@@ -1352,9 +1363,17 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} virtualizer={virtualizer} />
+          <MemoizedTableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+            estimatedRowHeight={estimatedRowHeight}
+          />
         ) : (
-          <TableBody table={table} virtualizer={virtualizer} />
+          <TableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+            estimatedRowHeight={estimatedRowHeight}
+          />
         )}
       </table>
       <ModalOverlay
