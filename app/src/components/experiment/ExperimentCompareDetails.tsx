@@ -41,6 +41,7 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
   compactResizeHandleCSS,
@@ -1015,7 +1016,9 @@ export function ExperimentItem({
                   {experimentRepetition.experimentRun.error}
                 </View>
               ) : (
-                <FullSizeJSONBlock value={experimentRunOutputStr ?? ""} />
+                <FullSizeExperimentOutputContent
+                  value={experimentRepetition.experimentRun.output}
+                />
               )}
             </View>
           </>
@@ -1044,7 +1047,7 @@ function ReferenceOutputItem() {
         <ExperimentItemMetadata />
         <ExperimentItemAnnotations />
         <View flex={1}>
-          <FullSizeJSONBlock value={referenceOutputStr} />
+          <FullSizeExperimentOutputContent value={referenceOutput} />
         </View>
       </Flex>
     </div>
@@ -1068,6 +1071,30 @@ function FullSizeJSONBlock({ value }: { value: string }) {
       `}
     >
       <JSONBlock value={value} />
+    </div>
+  );
+}
+
+/**
+ * Wrapper to make ExperimentOutputContent fill available vertical and horizontal space
+ */
+function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
+  return (
+    <div
+      css={css`
+        height: 100%;
+        width: 100%;
+        overflow: auto;
+        padding: var(--ac-global-dimension-size-200);
+        box-sizing: border-box;
+        & .cm-theme, // CodeMirror wrapper component
+        & .cm-editor {
+          height: 100%;
+          width: 100%;
+        }
+      `}
+    >
+      <ExperimentOutputContent value={value} />
     </div>
   );
 }
