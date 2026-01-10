@@ -43,7 +43,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### execution-mode-interface
 
 - content: Define ExecutionMode interface: writeFile, exec, getBashTool, cleanup methods
-- status: in_progress
+- status: complete
 - dependencies: scaffold-structure
 
 ### sandbox-mode

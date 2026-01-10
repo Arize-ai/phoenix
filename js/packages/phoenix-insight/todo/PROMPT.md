@@ -15,9 +15,9 @@ Implement ONE task from TASKS.md, test it with vitest, commit it, log your learn
 5. **Write tests** - Create vitest tests in `test/` directory (*.test.ts)
 6. **Run tests** - Execute `pnpm test` from the package directory
 7. **Fix failures** - If tests fail, debug and fix. DO NOT PROCEED WITH FAILING TESTS.
-8. **Commit** - Stage and commit: `git add -A && git commit -m "feat(phoenix-insight): <task-id> - <description>"`
-9. **Mark complete** - Update the task's status to `complete` in TASKS.md
-10. **Log learnings** - Append insights to LEARNINGS.md
+8. **Mark complete** - Update the task's status to `complete` in TASKS.md
+9. **Log learnings** - Append insights to LEARNINGS.md
+10. **Commit** - Stage and commit: `git add -A && git commit -m "feat(phoenix-insight): <task-id> - <description>"`
 11. **EXIT** - Stop. The loop will reinvoke you for the next task.
 
 ---

@@ -32,3 +32,11 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test path resolution**: When writing tests that check file existence, use absolute paths via `path.join(__dirname, "..", "src")` to ensure tests work regardless of where they're run from
 - **Vitest console output**: Debug logs in tests (console.log) are shown in the test output, which is helpful for diagnosing path issues
 - **Git status awareness**: Always check `pwd` and `git status` to ensure you're in the right directory before making changes, especially when working with nested directory structures
+
+## execution-mode-interface
+
+- **TypeScript interface design**: Created a simple interface with 4 methods as specified in the plan. Used TypeScript doc comments to document each method's purpose and parameters
+- **Tool type from AI SDK**: Since we don't have the AI SDK installed yet, I used `any` type for the `getBashTool()` return type. Future agents implementing concrete modes should import the proper Tool type from the AI SDK
+- **Test strategy**: For interface testing, created mock implementations using vitest's `vi.fn()` to verify the interface shape and method signatures. This ensures any concrete implementation will have the correct structure
+- **Index exports**: Created an index.ts file in the modes directory to re-export types. This follows TypeScript best practices and makes imports cleaner for consumers
+- **Pre-commit hooks**: The project has prettier configured as a pre-commit hook, which automatically formats code on commit. No manual formatting needed
