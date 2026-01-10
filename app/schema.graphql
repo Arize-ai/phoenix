@@ -1668,6 +1668,9 @@ type Experiment implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
 
+  """The user that created the experiment."""
+  user: User
+
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
   runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
