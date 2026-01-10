@@ -14,7 +14,6 @@ import {
   ComboBox,
   ComboBoxItem,
   CompositeField,
-  Flex,
   Input,
   Label,
   ListBox,
@@ -25,6 +24,7 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import type { SizingProps } from "@phoenix/components/types";
 
@@ -181,7 +181,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   );
 
   return (
-    <Flex direction="column" gap="size-75">
+    <div css={fieldBaseCSS}>
       {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
       <CompositeField>
         <Select
@@ -287,6 +287,6 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           {description}
         </Text>
       )}
-    </Flex>
+    </div>
   );
 }
