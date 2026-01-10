@@ -136,7 +136,7 @@ export class AgentProgress {
 
     // Map tool names to more user-friendly descriptions
     const friendlyNames: Record<string, string> = {
-      bash: "Exploring files",
+      bash: "Running command",
       px_fetch_more_spans: "Fetching additional spans",
       px_fetch_more_trace: "Fetching trace details",
     };
@@ -157,7 +157,16 @@ export class AgentProgress {
 
     const icon = success ? "✓" : "✗";
     const status = success ? "completed" : "failed";
-    const message = `${icon} Tool ${toolName} ${status}`;
+
+    // More informative messages for each tool
+    const toolMessages: Record<string, string> = {
+      bash: "Command executed",
+      px_fetch_more_spans: "Additional spans fetched",
+      px_fetch_more_trace: "Trace details fetched",
+    };
+
+    const baseMessage = toolMessages[toolName] || `Tool ${toolName}`;
+    const message = `${icon} ${baseMessage} ${status}`;
 
     // Brief flash of the result before moving on
     this.spinner.text = message;

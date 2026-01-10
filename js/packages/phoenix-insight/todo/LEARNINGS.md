@@ -368,3 +368,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test mocking strategy**: Used vi.mock() to mock the phoenix-otel register function, returning a mock provider with a shutdown method. This avoids actual network calls in tests
 - **Mock reset importance**: Tests were failing because mocks persisted between test runs. Added vi.clearAllMocks() in beforeEach and afterEach hooks to ensure clean test isolation
 - **Project name configuration**: Used different project names for different modes (phoenix-insight for agent queries, phoenix-insight-snapshot for snapshot command) to help distinguish trace sources
+
+## Agent Improved Visibility
+
+- **formatBashCommand function**: Created a helper function to format bash commands for display. It extracts the actual command from tool arguments and formats it in a user-friendly way (e.g., "cat /phoenix/\_context.md" instead of just showing 50 characters)
+- **Pipeline detection order**: When formatting bash commands, check for pipelines (3+ commands) first before checking specific command patterns. Otherwise, commands like "cat file | grep | wc" would match the "cat" pattern and not show the pipeline summary
+- **Test organization**: Created a separate test file (cli-progress.test.ts) for testing command formatting logic. This keeps tests focused and avoids cluttering the main progress tests
+- **Progress message updates**: Updated AgentProgress to show "Running command" for bash tools and added more descriptive tool result messages like "Command executed completed" instead of generic "Tool bash completed"
+- **Stream mode compatibility**: The improved visibility works in both streaming and non-streaming modes by using the onStepFinish callback. Tool progress is shown even when streaming responses
+- **Test expectations vs implementation**: When writing tests, be careful to match the actual implementation behavior. Several test failures occurred because the test's mock formatBashCommand function didn't exactly match the real implementation
+- **ESM import fixes**: All relative imports must use .js extension, not .ts. This caught me when the function was initially placed in the wrong location
+- **Regex patterns for commands**: Used regex patterns to extract meaningful information from commands like grep (pattern and target) and find (filename pattern and directory). This provides better context than just truncating

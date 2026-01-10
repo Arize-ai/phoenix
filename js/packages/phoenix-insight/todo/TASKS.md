@@ -215,8 +215,9 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - dependencies: cli-interactive
 
 ### Agent Improved Visibility
+
 - content: Progress is reported by the agent as "Tool bash completed" etc. Enhance this to show the actual command being executed.
-- status: pending
+- status: complete
 - dependencies: agent-setup
 
 ## Phase 9: Bug Fixes

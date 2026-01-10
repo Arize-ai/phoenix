@@ -24,6 +24,67 @@ const VERSION = "0.0.1";
 const program = new Command();
 
 /**
+ * Format bash command for display in progress indicator
+ */
+function formatBashCommand(command: string): string {
+  if (!command) return "";
+
+  // Split by newline and get first line
+  const lines = command.split("\n");
+  const firstLine = lines[0]?.trim() || "";
+
+  // Check for pipeline first (3+ commands)
+  if (firstLine.includes(" | ") && firstLine.split(" | ").length > 2) {
+    const parts = firstLine.split(" | ");
+    const firstCmd = parts[0]?.split(" ")[0] || "";
+    const lastCmd = parts[parts.length - 1]?.split(" ")[0] || "";
+    return `${firstCmd} | ... | ${lastCmd}`;
+  }
+
+  // Common command patterns to display nicely
+  if (firstLine.startsWith("cat ")) {
+    const file = firstLine.substring(4).trim();
+    return `cat ${file}`;
+  } else if (firstLine.startsWith("grep ")) {
+    // Extract pattern and file/directory
+    const match = firstLine.match(
+      /grep\s+(?:-[^\s]+\s+)*['"]?([^'"]+)['"]?\s+(.+)/
+    );
+    if (match && match[1] && match[2]) {
+      return `grep "${match[1]}" in ${match[2]}`;
+    }
+    return firstLine.substring(0, 60) + (firstLine.length > 60 ? "..." : "");
+  } else if (firstLine.startsWith("find ")) {
+    const match = firstLine.match(
+      /find\s+([^\s]+)(?:\s+-name\s+['"]?([^'"]+)['"]?)?/
+    );
+    if (match && match[1]) {
+      return match[2]
+        ? `find "${match[2]}" in ${match[1]}`
+        : `find in ${match[1]}`;
+    }
+    return firstLine.substring(0, 60) + (firstLine.length > 60 ? "..." : "");
+  } else if (firstLine.startsWith("ls ")) {
+    const path = firstLine.substring(3).trim();
+    return path ? `ls ${path}` : "ls";
+  } else if (firstLine.startsWith("ls")) {
+    return "ls";
+  } else if (firstLine.startsWith("jq ")) {
+    return `jq processing JSON data`;
+  } else if (firstLine.startsWith("head ") || firstLine.startsWith("tail ")) {
+    const cmd = firstLine.split(" ")[0];
+    const fileMatch = firstLine.match(/(?:head|tail)\s+(?:-[^\s]+\s+)*(.+)/);
+    if (fileMatch && fileMatch[1]) {
+      return `${cmd} ${fileMatch[1]}`;
+    }
+    return firstLine.substring(0, 60) + (firstLine.length > 60 ? "..." : "");
+  } else {
+    // For other commands, show up to 80 characters
+    return firstLine.substring(0, 80) + (firstLine.length > 80 ? "..." : "");
+  }
+}
+
+/**
  * Handle errors with appropriate exit codes and user-friendly messages
  */
 function handleError(error: unknown, context: string): never {
@@ -256,11 +317,8 @@ program
                 if (toolName === "bash") {
                   // Extract bash command for better visibility
                   const command = toolCall.args?.command || "";
-                  const shortCmd = command.split("\n")[0].substring(0, 50);
-                  agentProgress.updateTool(
-                    toolName,
-                    shortCmd + (command.length > 50 ? "..." : "")
-                  );
+                  const formattedCmd = formatBashCommand(command);
+                  agentProgress.updateTool(toolName, formattedCmd);
                 } else {
                   agentProgress.updateTool(toolName);
                 }
@@ -302,11 +360,8 @@ program
                 if (toolName === "bash") {
                   // Extract bash command for better visibility
                   const command = toolCall.args?.command || "";
-                  const shortCmd = command.split("\n")[0].substring(0, 50);
-                  agentProgress.updateTool(
-                    toolName,
-                    shortCmd + (command.length > 50 ? "..." : "")
-                  );
+                  const formattedCmd = formatBashCommand(command);
+                  agentProgress.updateTool(toolName, formattedCmd);
                 } else {
                   agentProgress.updateTool(toolName);
                 }

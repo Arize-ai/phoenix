@@ -146,7 +146,7 @@ describe("AgentProgress", () => {
 
     progress.startThinking();
     progress.updateTool("bash", "listing files");
-    expect(mockSpinner.text).toBe("🔧 Exploring files: listing files");
+    expect(mockSpinner.text).toBe("🔧 Running command: listing files");
 
     progress.updateTool("px_fetch_more_spans");
     expect(mockSpinner.text).toBe("🔧 Fetching additional spans (step 2)");
@@ -169,10 +169,13 @@ describe("AgentProgress", () => {
 
     progress.startThinking();
     progress.updateToolResult("bash", true);
-    expect(mockSpinner.text).toBe("✓ Tool bash completed");
+    expect(mockSpinner.text).toBe("✓ Command executed completed");
 
     progress.updateToolResult("px_fetch_more_spans", false);
-    expect(mockSpinner.text).toBe("✗ Tool px_fetch_more_spans failed");
+    expect(mockSpinner.text).toBe("✗ Additional spans fetched failed");
+
+    progress.updateToolResult("px_fetch_more_trace", true);
+    expect(mockSpinner.text).toBe("✓ Trace details fetched completed");
   });
 
   it("should update with specific action", async () => {
