@@ -35,6 +35,7 @@ _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE = 50
 
 if TYPE_CHECKING:
     from .Project import Project
+    from .User import User
 
 
 @strawberry.type
