@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { resolve } from "path";
-import { readFile } from "fs/promises";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import * as url from "node:url";
+import * as path from "node:path";
+import { readFile } from "node:fs/promises";
 
 const execAsync = promisify(exec);
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 describe("phoenix-insight CLI", () => {
-  const cliPath = resolve(__dirname, "../src/cli.ts");
+  const cliPath = path.resolve(__dirname, "../src/cli.ts");
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,13 +67,14 @@ describe("phoenix-insight CLI", () => {
 
 describe("Package configuration", () => {
   it("should have correct package.json configuration", async () => {
-    const packagePath = resolve(__dirname, "../package.json");
+    const packagePath = path.resolve(__dirname, "../package.json");
     const packageContent = await readFile(packagePath, "utf-8");
     const pkg = JSON.parse(packageContent);
 
     expect(pkg.name).toBe("@arizeai/phoenix-insight");
+    expect(pkg.type).toBe("module");
     expect(pkg.bin).toHaveProperty("phoenix-insight");
-    expect(pkg.bin["phoenix-insight"]).toBe("dist/src/cli.js");
+    expect(pkg.bin["phoenix-insight"]).toBe("./dist/cli.js");
     expect(pkg.dependencies).toHaveProperty("commander");
     expect(pkg.dependencies).toHaveProperty("@arizeai/phoenix-client");
     expect(pkg.dependencies).toHaveProperty("ai");
@@ -81,19 +84,20 @@ describe("Package configuration", () => {
   });
 
   it("should have correct tsconfig.json configuration", async () => {
-    const tsconfigPath = resolve(__dirname, "../tsconfig.json");
+    const tsconfigPath = path.resolve(__dirname, "../tsconfig.json");
     const tsconfigContent = await readFile(tsconfigPath, "utf-8");
     const tsconfig = JSON.parse(tsconfigContent);
 
     expect(tsconfig.extends).toBe("../../tsconfig.base.json");
     expect(tsconfig.compilerOptions.resolveJsonModule).toBe(true);
     expect(tsconfig.compilerOptions.types).toContain("node");
+    expect(tsconfig.compilerOptions.module).toBe("ES2022");
+    expect(tsconfig.compilerOptions.target).toBe("ES2022");
     expect(tsconfig.include).toContain("src/**/*.ts");
-    expect(tsconfig.include).toContain("test/**/*.ts");
   });
 
   it("should have README.md file", async () => {
-    const readmePath = resolve(__dirname, "../README.md");
+    const readmePath = path.resolve(__dirname, "../README.md");
     const readmeContent = await readFile(readmePath, "utf-8");
 
     expect(readmeContent).toContain("Phoenix Insight CLI");

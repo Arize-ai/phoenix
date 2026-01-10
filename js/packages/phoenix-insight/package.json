@@ -2,11 +2,15 @@
   "name": "@arizeai/phoenix-insight",
   "version": "0.0.1",
   "description": "A CLI for Phoenix data analysis with AI agents",
-  "main": "dist/src/index.js",
-  "module": "dist/esm/index.js",
-  "types": "dist/src/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
-    "phoenix-insight": "dist/src/cli.js"
+    "phoenix-insight": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -16,8 +20,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
-    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "build": "tsc",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest --typecheck"

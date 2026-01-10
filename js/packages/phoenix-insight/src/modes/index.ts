@@ -1,3 +1,3 @@
-export * from "./types";
-export * from "./sandbox";
-export * from "./local";
+export * from "./types.js";
+export * from "./sandbox.js";
+export * from "./local.js";

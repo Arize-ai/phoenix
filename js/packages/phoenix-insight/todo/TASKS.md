@@ -61,7 +61,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### ESM-only
 
 - content: Convert phoenix-insight to ESM-only module, remove CommonJS compatibility
-- status: pending
+- status: complete
 - dependencies: sandbox-mode, local-mode
 
 ---

@@ -68,3 +68,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - jq is available on most systems and more reliable than complex awk scripts
   - Always check both stdout and exitCode in command execution tests
 - **No cleanup by default**: Following the plan, LocalMode doesn't delete snapshots on cleanup(). This preserves data for user reference. A separate cleanup command could be added later
+
+## ESM-only
+
+- **Package.json changes**: Added `"type": "module"` and replaced `main`/`module` fields with a single `exports` field. The bin entry needs `./` prefix for ESM packages
+- **Import extensions required**: All relative imports in TypeScript must use `.js` extension, even though the source files are `.ts`. This is how TypeScript handles ESM - it doesn't rewrite import paths
+- **Build simplification**: Removed the dual CommonJS/ESM build setup. Only need single tsconfig.json with ESM output. Deleted tsconfig.esm.json and simplified build script
+- **tsconfig module settings**: Set `"module": "ES2022"` and `"target": "ES2022"` in tsconfig.json. Also need `"moduleResolution": "Node"` for Node.js-style resolution
+- **Node.js built-ins**: Already using `node:` prefix for built-in modules (e.g., `node:fs`, `node:path`), which is best practice for ESM
+- **Dynamic imports remain**: The dynamic imports in SandboxMode for just-bash and bash-tool are still needed since they're conditional/lazy loading, not because of module format
+- **Test updates**: Tests needed to use `import.meta.url` instead of `__dirname`. Use `url.fileURLToPath(import.meta.url)` and `path.dirname()` to get directory path
+- **Vitest already ESM**: Vitest config and tests were already using ESM syntax, so minimal changes needed there
+- **Index.ts addition**: Added src/index.ts as the package entry point that re-exports from modes/index.js. This provides a clean package API
+- **CLI shebang preserved**: The `#!/usr/bin/env node` shebang is preserved in the built cli.js file, ensuring the CLI works correctly when installed globally
