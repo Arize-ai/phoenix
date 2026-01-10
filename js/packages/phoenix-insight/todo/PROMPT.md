@@ -10,7 +10,7 @@ Implement ONE task from TASKS.md, test it with vitest, commit it, log your learn
 
 1. **Read TASKS.md** - Find the first task with `status: pending` where ALL dependencies have `status: complete`
 2. **Mark in_progress** - Update the task's status to `in_progress` in TASKS.md
-3. **Read the plan** - Review the full specification at `.cursor/plans/phoenix_insight_cli_60e373b7.plan.md`
+3. **Read the plan** - Review the full specification at `../../../.cursor/plans/phoenix_insight_cli_60e373b7.plan.md`
 4. **Implement** - Write the code following the plan's architecture and patterns
 5. **Write tests** - Create vitest tests in `test/` directory (*.test.ts)
 6. **Run tests** - Execute `pnpm test` from the package directory
@@ -203,10 +203,10 @@ If you encounter an error:
 
 ## Context Files
 
-- **Plan**: `.cursor/plans/phoenix_insight_cli_60e373b7.plan.md` - Full specification
+- **Plan**: `../../../.cursor/plans/phoenix_insight_cli_60e373b7.plan.md` - Full specification
 - **Tasks**: `todo/TASKS.md` - Task list with status tracking
 - **Learnings**: `todo/LEARNINGS.md` - Accumulated knowledge from previous tasks
-- **Reference**: `js/packages/phoenix-cli/` - Similar package for patterns
+- **Reference**: `../phoenix-cli/` - Similar package for patterns
 
 ---
 

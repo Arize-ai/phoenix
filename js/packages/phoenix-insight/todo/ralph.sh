@@ -20,6 +20,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"  # phoenix-insight root (where opencode.json lives)
 PROMPT_FILE="$SCRIPT_DIR/PROMPT.md"
 TASKS_FILE="$SCRIPT_DIR/TASKS.md"
 LOG_FILE="$SCRIPT_DIR/ralph.log"
@@ -120,14 +121,14 @@ while true; do
     # Feed prompt to agent
     log "Invoking agent..."
     
-    # Run opencode from the todo directory so it can access PROMPT.md and TASKS.md
-    cd "$SCRIPT_DIR"
+    # Run opencode from the package root (where opencode.json lives for permissions)
+    cd "$PACKAGE_DIR"
     
     # OpenCode run format: opencode run "message" -f file1 -f file2
     # Message must come BEFORE -f flags
     if opencode run -m "$MODEL" \
         "Read the attached PROMPT.md and TASKS.md files. Follow the instructions in PROMPT.md to complete the next pending task." \
-        -f PROMPT.md -f TASKS.md; then
+        -f todo/PROMPT.md -f todo/TASKS.md; then
         log_success "Agent completed iteration $iteration"
     else
         exit_code=$?
