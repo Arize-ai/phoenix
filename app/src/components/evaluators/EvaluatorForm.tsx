@@ -120,7 +120,7 @@ export const EvaluatorForm = () => {
     useShallow(evaluatorFormSelector)
   );
   return (
-    <PanelGroup direction="horizontal">
+    <PanelGroup direction="horizontal" style={{ flex: 1, minHeight: 0 }}>
       <Panel
         defaultSize={65}
         style={panelStyle}
