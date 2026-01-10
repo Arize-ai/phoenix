@@ -1,3 +1,4 @@
+import json
 import logging
 from binascii import hexlify
 from contextlib import contextmanager
@@ -7,7 +8,9 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Dict,
     Iterator,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -329,27 +332,36 @@ def get_current_trace_id() -> Optional[str]:
 
 @contextmanager
 def trace_evaluation(
-    span_name: str, tracer: Optional[Tracer] = None
-) -> Iterator[Optional[Callable[[], Optional[str]]]]:
+    span_name: str,
+    tracer: Optional[Tracer] = None,
+    eval_input: Optional[Dict[str, Any]] = None,
+    evaluator_kind: Optional[str] = None,
+) -> Iterator[Optional[Callable[[Optional[List[Any]]], Optional[str]]]]:
     """Context manager for tracing evaluations with automatic trace_id capture.
 
-    This context manager creates a span for the evaluation and yields a function
-    that can be called to get the current trace_id. If tracing is disabled (NoOpTracer),
-    it yields None.
+    This context manager creates a span for the evaluation with proper EVALUATOR
+    span kind and captures input/output values for observability.
 
     Args:
         span_name (str): The name of the span to create.
         tracer (Optional[Tracer]): The tracer to use. If None, uses the global tracer.
+        eval_input (Optional[Dict[str, Any]]): The evaluation input data to record.
+        evaluator_kind (Optional[str]): The kind of evaluator (llm, code, human, heuristic).
 
     Yields:
-        Optional[Callable[[], Optional[str]]]: A function that returns the current trace_id,
-            or None if tracing is disabled.
+        Optional[Callable[[Optional[List[Any]]], Optional[str]]]: A function that accepts
+            the evaluation output (list of scores) and returns the current trace_id.
+            Returns None if tracing is disabled.
 
     Example:
-        with trace_evaluation("my_evaluation") as get_trace_id:
+        with trace_evaluation(
+            "my_evaluation",
+            eval_input=data,
+            evaluator_kind="llm"
+        ) as finish:
             result = do_evaluation()
-            if get_trace_id:
-                trace_id = get_trace_id()
+            if finish:
+                trace_id = finish(result)
                 if trace_id:
                     result = inject_trace_id(result, trace_id)
             return result
@@ -360,5 +372,43 @@ def trace_evaluation(
         yield None
         return
 
-    with _tracer.start_as_current_span(span_name):
-        yield get_current_trace_id
+    with _tracer.start_as_current_span(span_name) as span:
+        # Set span kind to EVALUATOR
+        try:
+            span.set_attribute(
+                SpanAttributes.OPENINFERENCE_SPAN_KIND,
+                OpenInferenceSpanKindValues.EVALUATOR.value,
+            )
+        except Exception:
+            pass
+
+        # Set input value
+        if eval_input is not None:
+            try:
+                span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(eval_input))
+                span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, "application/json")
+            except Exception:
+                pass
+
+        # Set evaluator kind as metadata
+        if evaluator_kind is not None:
+            try:
+                span.set_attribute("evaluator.kind", evaluator_kind)
+            except Exception:
+                pass
+
+        def finish_with_output(scores: Optional[List[Any]] = None) -> Optional[str]:
+            """Finish the span with output scores and return trace_id."""
+            if scores is not None:
+                try:
+                    # Convert scores to serializable format if they have to_dict method
+                    serializable_scores = [
+                        s.to_dict() if hasattr(s, "to_dict") else s for s in scores
+                    ]
+                    span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(serializable_scores))
+                    span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+                except Exception:
+                    pass
+            return get_current_trace_id()
+
+        yield finish_with_output

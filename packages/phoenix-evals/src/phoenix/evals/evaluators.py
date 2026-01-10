@@ -320,10 +320,14 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        with trace_evaluation(f"{self.name}.evaluate") as get_trace_id:
+        with trace_evaluation(
+            f"{self.name}.evaluate",
+            eval_input=remapped_eval_input,
+            evaluator_kind=self.kind,
+        ) as finish:
             scores = self._evaluate(remapped_eval_input)
-            if get_trace_id:
-                trace_id = get_trace_id()
+            if finish:
+                trace_id = finish(scores)
                 if trace_id is not None:
                     scores = _inject_trace_id_into_scores(scores, trace_id)
             return scores
@@ -351,10 +355,14 @@ class Evaluator(ABC):
             except ValidationError as e:
                 raise ValueError(f"Input validation failed: {e}")
 
-        with trace_evaluation(f"{self.name}.evaluate") as get_trace_id:
+        with trace_evaluation(
+            f"{self.name}.evaluate",
+            eval_input=remapped_eval_input,
+            evaluator_kind=self.kind,
+        ) as finish:
             scores = await self._async_evaluate(remapped_eval_input)
-            if get_trace_id:
-                trace_id = get_trace_id()
+            if finish:
+                trace_id = finish(scores)
                 if trace_id is not None:
                     scores = _inject_trace_id_into_scores(scores, trace_id)
             return scores
