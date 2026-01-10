@@ -20,7 +20,9 @@ export class LocalMode implements ExecutionMode {
 
   constructor() {
     // Create a timestamped directory for this snapshot
-    const timestamp = Date.now().toString();
+    // Add a small random component to ensure uniqueness even if created at the same millisecond
+    const timestamp =
+      Date.now().toString() + "-" + Math.random().toString(36).substring(7);
     this.workDir = path.join(
       os.homedir(),
       ".phoenix-insight",

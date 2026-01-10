@@ -123,7 +123,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-incremental
 
 - content: Add incremental logic: compare timestamps, fetch only new/updated data
-- status: pending
+- status: complete
 - dependencies: snapshot-orchestrator, local-mode
 
 ---

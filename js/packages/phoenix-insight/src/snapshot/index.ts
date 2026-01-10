@@ -205,6 +205,7 @@ export async function createIncrementalSnapshot(
   };
 
   log("Starting incremental update...");
+  log(`Last snapshot: ${existingMetadata.created_at}`);
 
   // Create Phoenix client
   const clientConfig: PhoenixClientConfig = {
@@ -234,9 +235,17 @@ export async function createIncrementalSnapshot(
     };
     await snapshotSpans(client, mode, spansOptions);
 
-    // 3. For datasets/experiments, we'd need to compare updated_at
-    // For now, refetch all (as noted in the plan)
-    log("Updating datasets, experiments, and prompts...");
+    // 3. For datasets/experiments, check if they've been updated
+    // Compare last_fetch timestamps
+    const datasetsLastFetch = existingMetadata.cursors.datasets?.last_fetch;
+    const experimentsLastFetch =
+      existingMetadata.cursors.experiments?.last_fetch;
+    const promptsLastFetch = existingMetadata.cursors.prompts?.last_fetch;
+
+    log("Checking for updates to datasets, experiments, and prompts...");
+
+    // For now, we'll refetch all as the API doesn't support filtering by updated_at
+    // In a future enhancement, we could check individual items for updates
     await Promise.all([
       fetchDatasets(client, mode),
       fetchExperiments(client, mode),

@@ -199,7 +199,9 @@ describe("LocalMode", () => {
   describe("directory structure", () => {
     it("should create directories under ~/.phoenix-insight/snapshots/", async () => {
       // Verify the directory structure
-      expect(testDir).toMatch(/\.phoenix-insight\/snapshots\/\d+\/phoenix$/);
+      expect(testDir).toMatch(
+        /\.phoenix-insight\/snapshots\/\d+(-\w+)?\/phoenix$/
+      );
 
       // Check if parent directories exist
       const snapshotsDir = path.dirname(path.dirname(testDir));
