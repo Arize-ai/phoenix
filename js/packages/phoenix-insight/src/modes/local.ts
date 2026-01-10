@@ -74,11 +74,12 @@ export class LocalMode implements ExecutionMode {
     await this.init();
 
     try {
-      // Execute the command in the phoenix directory
+      // Execute the command in the phoenix directory with a timeout
       const { stdout, stderr } = await execAsync(command, {
         cwd: this.workDir,
         shell: "/bin/bash",
         encoding: "utf-8",
+        timeout: 60000, // 60 second timeout for bash commands
       });
 
       return {

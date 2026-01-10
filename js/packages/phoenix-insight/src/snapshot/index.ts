@@ -108,27 +108,20 @@ export async function createSnapshot(
       );
     }
 
-    // 2. Fetch spans for each project
-    progress.update("Fetching spans", `${spansPerProject} per project`);
-    try {
-      const spansOptions: SnapshotSpansOptions = {
-        spansPerProject,
-        startTime,
-        endTime,
-      };
-      await snapshotSpans(client, mode, spansOptions);
-    } catch (error) {
-      progress.fail("Failed to fetch spans");
-      throw new PhoenixClientError(
-        `Failed to fetch spans: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof PhoenixClientError ? error.code : "UNKNOWN_ERROR",
-        error
-      );
-    }
+    // 2. Fetch spans and other data in parallel
+    progress.update(
+      "Fetching all data",
+      "spans, datasets, experiments, prompts"
+    );
+    const spansOptions: SnapshotSpansOptions = {
+      spansPerProject,
+      startTime,
+      endTime,
+    };
 
-    // 3. Fetch datasets in parallel with experiments and prompts
-    progress.update("Fetching datasets, experiments, and prompts");
+    // Fetch all data types in parallel for better performance
     const results = await Promise.allSettled([
+      snapshotSpans(client, mode, spansOptions),
       fetchDatasets(client, mode),
       fetchExperiments(client, mode),
       fetchPrompts(client, mode),
@@ -136,12 +129,16 @@ export async function createSnapshot(
 
     // Check for failures and collect errors
     const errors: Array<{ type: string; error: unknown }> = [];
-    if (results[0].status === "rejected")
-      errors.push({ type: "datasets", error: results[0].reason });
-    if (results[1].status === "rejected")
-      errors.push({ type: "experiments", error: results[1].reason });
-    if (results[2].status === "rejected")
-      errors.push({ type: "prompts", error: results[2].reason });
+    const dataTypes = ["spans", "datasets", "experiments", "prompts"];
+
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        errors.push({
+          type: dataTypes[index] || "unknown",
+          error: result.reason,
+        });
+      }
+    });
 
     if (errors.length > 0) {
       // Log individual errors
@@ -152,11 +149,21 @@ export async function createSnapshot(
         );
       });
 
-      // If all failed, throw error. If partial success, continue with warning
-      if (errors.length === 3) {
-        progress.fail("Failed to fetch supplementary data");
+      // If spans failed, that's critical - throw error
+      if (errors.some((e) => e.type === "spans")) {
+        progress.fail("Failed to fetch spans");
         throw new PhoenixClientError(
-          "Failed to fetch all supplementary data (datasets, experiments, prompts)",
+          `Failed to fetch spans: ${errors.find((e) => e.type === "spans")?.error}`,
+          "UNKNOWN_ERROR",
+          errors
+        );
+      }
+
+      // If all other data failed, throw error. If partial success, continue with warning
+      if (errors.length === 4) {
+        progress.fail("Failed to fetch all data");
+        throw new PhoenixClientError(
+          "Failed to fetch all data types",
           "UNKNOWN_ERROR",
           errors
         );
@@ -278,8 +285,9 @@ export async function createIncrementalSnapshot(
     progress.update("Updating projects");
     await fetchProjects(client, mode);
 
-    // 2. Fetch new spans using cursors from metadata
-    progress.update("Fetching new spans");
+    // 2. Fetch spans and other data in parallel for better performance
+    progress.update("Fetching updates", "new spans and refreshing other data");
+
     const spansOptions: SnapshotSpansOptions = {
       spansPerProject,
       // Use the last end time from previous snapshot as start time
@@ -291,26 +299,45 @@ export async function createIncrementalSnapshot(
             .pop()
         : undefined,
     };
-    await snapshotSpans(client, mode, spansOptions);
 
-    // 3. For datasets/experiments, check if they've been updated
-    // Compare last_fetch timestamps
+    // For datasets/experiments/prompts, check if they've been updated
     const datasetsLastFetch = existingMetadata.cursors.datasets?.last_fetch;
     const experimentsLastFetch =
       existingMetadata.cursors.experiments?.last_fetch;
     const promptsLastFetch = existingMetadata.cursors.prompts?.last_fetch;
 
-    progress.update(
-      "Checking for updates to datasets, experiments, and prompts"
-    );
-
+    // Fetch all data types in parallel
     // For now, we'll refetch all as the API doesn't support filtering by updated_at
     // In a future enhancement, we could check individual items for updates
-    await Promise.all([
+    const updateResults = await Promise.allSettled([
+      snapshotSpans(client, mode, spansOptions),
       fetchDatasets(client, mode),
       fetchExperiments(client, mode),
       fetchPrompts(client, mode),
     ]);
+
+    // Check for critical errors
+    const updateErrors: Array<{ type: string; error: unknown }> = [];
+    const updateDataTypes = ["spans", "datasets", "experiments", "prompts"];
+
+    updateResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        updateErrors.push({
+          type: updateDataTypes[index] || "unknown",
+          error: result.reason,
+        });
+      }
+    });
+
+    if (updateErrors.length > 0) {
+      // Log individual errors
+      updateErrors.forEach(({ type, error }) => {
+        console.error(
+          `Warning: Failed to update ${type}:`,
+          error instanceof Error ? error.message : String(error)
+        );
+      });
+    }
 
     // 4. Regenerate context with updated data
     progress.update("Regenerating context");

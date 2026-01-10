@@ -271,5 +271,5 @@ Because phoenix-insight can ingest data from Phoenix, and it can trace its own e
 ### self-improvement
 
 - content: Use `pnpm dev "read the latest trace from 'phoenix-insight' project and analyze the bottlenecks to performance"` and then use the results to edit the code and improve the performance of the agent.
-- status: pending
+- status: complete
 - dependencies: agent-setup, cli-flags, snapshot-orchestrator, agent-observability

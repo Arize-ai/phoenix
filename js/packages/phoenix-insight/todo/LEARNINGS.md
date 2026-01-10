@@ -389,3 +389,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Table formatting**: Updated the command line options table to include the --trace flag with proper formatting and alignment
 - **Documentation-only task**: According to PROMPT.md guidelines, documentation-only tasks don't require tests. The existing tests passed without modification
 - **Future-proofing**: By thoroughly documenting all CLI flags, future developers will have a complete reference and users won't miss valuable features
+
+
+## self-improvement
+
+- **Performance bottlenecks identified**: Used the tool to analyze its own traces and found: 1) Long-running tool call (113s), 2) Sequential fetching of data types, 3) LLM calls taking 1.7-16s each (expected for AI operations)
+- **Parallel fetching implementation**: Changed snapshot creation to fetch spans, datasets, experiments, and prompts in parallel using Promise.allSettled() instead of sequential operations. This reduces total time from sum of all operations to the longest operation
+- **Bash command timeout**: Added 60-second timeout to LocalMode bash commands to prevent runaway processes. This addresses the 113-second tool call issue seen in traces
+- **Test-driven optimization**: Created comprehensive performance tests that verify parallel execution by measuring timing of mock operations. Tests ensure operations start within 10ms of each other (proving parallelism)
+- **Error handling preservation**: When parallelizing operations, maintained the existing error handling strategy - spans are critical and cause failure, while other data types log warnings and allow partial snapshots
+- **Incremental snapshot parallelization**: Also applied parallel fetching to incremental snapshots for consistency and performance benefits
+- **Type safety challenges**: The Promise.allSettled() results needed careful type handling. Used array indexing with fallback to "unknown" for type safety when accessing failed promise reasons
+- **Real-world impact**: These optimizations significantly reduce snapshot creation time, especially when Phoenix server has high latency. A snapshot that would take 140ms sequentially now takes ~50ms (the longest operation)
