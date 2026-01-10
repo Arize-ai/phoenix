@@ -376,6 +376,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test organization**: Created a separate test file (cli-progress.test.ts) for testing command formatting logic. This keeps tests focused and avoids cluttering the main progress tests
 - **Progress message updates**: Updated AgentProgress to show "Running command" for bash tools and added more descriptive tool result messages like "Command executed completed" instead of generic "Tool bash completed"
 - **Stream mode compatibility**: The improved visibility works in both streaming and non-streaming modes by using the onStepFinish callback. Tool progress is shown even when streaming responses
+
+## Idempotent and side-effect free tests
+
+- **Global setup approach**: Initially tried to mock all I/O operations globally (fs, http, https, net) but many Node.js built-in properties are not configurable/writable. This caused "Cannot redefine property" errors
+- **Simplified approach**: Instead of trying to catch all I/O globally, focused on mocking the main external dependency (@arizeai/phoenix-client) and letting individual tests handle their specific I/O mocking needs
+- **Console mocking trade-off**: Originally mocked console methods globally to keep test output clean, but this broke tests that verify console output (like observability tests). Removed global console mocking - tests that need clean output can mock console themselves
+- **Test categorization**: Some tests legitimately need real I/O (LocalMode tests need file system, CLI tests read package.json). Rather than forcing all tests to mock everything, allow specific tests to use real I/O when necessary
+- **Vitest setup file**: Created test/setup.ts and configured it in vitest.config.ts with setupFiles option. This runs before all tests and provides a central place for global test configuration
+- **Phoenix client mock**: Mocking @arizeai/phoenix-client globally prevents accidental network calls. Any test that needs the client must explicitly mock its behavior, ensuring no real API calls
+- **Child process mocking**: Initially tried to mock child_process to prevent subprocess spawning, but this interfered with tests that legitimately test CLI behavior. Better to let individual tests control their mocking
+- **Test utilities**: Created a testUtils object with helper functions, though ended up not needing most of them. Sometimes simpler is better - don't over-engineer the test infrastructure
+- **io-safety.test.ts**: Added a specific test file to verify our I/O safety measures are working. This gives confidence that the setup is functioning correctly
 - **Command parsing patterns**: Created specific patterns for common commands (cat, grep, find, ls, jq, head/tail) to show meaningful summaries instead of truncated strings
 - **Avoid showing raw newlines**: When displaying commands, only show the first line and truncate at 80 characters to avoid messing up the terminal display
 - **Special cases handling**: Handle edge cases like commands without arguments (e.g., plain "ls" command) and complex pipelines to ensure clean display
@@ -389,7 +401,6 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Table formatting**: Updated the command line options table to include the --trace flag with proper formatting and alignment
 - **Documentation-only task**: According to PROMPT.md guidelines, documentation-only tasks don't require tests. The existing tests passed without modification
 - **Future-proofing**: By thoroughly documenting all CLI flags, future developers will have a complete reference and users won't miss valuable features
-
 
 ## self-improvement
 

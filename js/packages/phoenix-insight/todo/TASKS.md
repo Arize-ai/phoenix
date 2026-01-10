@@ -220,6 +220,12 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - status: complete
 - dependencies: agent-setup
 
+### Idempotent and side-effect free tests
+
+- content: Tests should be idempotent and side-effect free. Ensure that the existing tests do not make real network calls or have any side effects. If you can, catch any non-mocked I/O operations globally and fail the test.
+- status: complete
+- dependencies:
+
 ## Phase 9: Bug Fixes
 
 ### agent-tools
