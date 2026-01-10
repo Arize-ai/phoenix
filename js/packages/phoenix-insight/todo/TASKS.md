@@ -89,7 +89,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-datasets
 
 - content: Implement snapshot/datasets.ts: fetch datasets and examples
-- status: pending
+- status: complete
 - dependencies: phoenix-client-integration
 
 ### snapshot-experiments

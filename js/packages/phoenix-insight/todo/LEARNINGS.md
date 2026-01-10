@@ -116,3 +116,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Metadata files**: Write a metadata.json file alongside spans data containing: project name, span count, time filters used, and snapshot timestamp. This helps users understand what data was captured
 - **Test mocking pattern**: Create a helper function `createMockClient()` that returns mock responses in sequence. This makes tests cleaner and easier to understand than inline mocking
 - **Error message expectations**: The withErrorHandling wrapper prepends "Unexpected error during" to unknown errors, so test expectations need to match this format
+
+## snapshot-datasets
+
+- **Phoenix datasets API structure**: The datasets endpoint is at `/v1/datasets` with pagination, and examples are fetched separately at `/v1/datasets/{id}/examples`. Both use the standard Phoenix response wrapper pattern
+- **Dataset examples response**: Unlike other endpoints, the examples endpoint returns `{ data: { dataset_id, version_id, filtered_splits?, examples[] } }` with an extra nesting level
+- **Pagination limit adjustment**: When implementing pagination with a user-specified limit, calculate remaining items needed: `Math.min(limit - datasets.length, 100)` to avoid over-fetching
+- **Empty JSONL handling**: For empty arrays, return empty string ("") not "[]". Use conditional: `items.length === 0 ? "" : items.map(JSON.stringify).join("\n")`
+- **Multiple metadata files**: For each dataset, write three files: metadata.json (dataset info + timestamp), examples.jsonl (the actual data), and info.json (counts and version info)
+- **Test file corruption recovery**: If test files get corrupted during editing (duplicate code blocks, syntax errors), it's often easier to rewrite the entire file than to fix incrementally
+- **Mock error handling tests**: When testing error scenarios, use `mockClient.GET.mockRejectedValue()` not `mockRejectedValueOnce()` if you're testing the same error multiple times
+- **Dataset names with special characters**: Dataset names can contain spaces, slashes, and other special characters. The execution modes should handle creating these directory paths correctly
+- **Phoenix client error patterns**: Error messages from the Phoenix client follow the pattern "URL: STATUS STATUS_TEXT" (e.g., "localhost:6006: 401 Unauthorized")
+- **Test assertion specificity**: When checking pagination calls, be specific about expected parameters including adjusted limits based on already fetched items
