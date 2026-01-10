@@ -26,8 +26,8 @@ phoenix-insight "What are the most common errors in the last hour?"
 # Interactive mode for multiple queries
 phoenix-insight --interactive
 
-# Safe sandbox mode (no disk writes)
-phoenix-insight --sandbox "analyze trace patterns"
+# Local mode with persistent storage
+phoenix-insight --local "analyze trace patterns"
 
 # Force fresh data
 phoenix-insight --refresh "show me the slowest endpoints"
@@ -82,7 +82,7 @@ Phoenix data is organized into an intuitive REST-like hierarchy:
 
 Phoenix Insight supports two execution modes:
 
-### Sandbox Mode (--sandbox)
+### Sandbox Mode (default)
 
 Uses [just-bash](https://github.com/vercel-labs/just-bash) for complete isolation:
 
@@ -91,7 +91,7 @@ Uses [just-bash](https://github.com/vercel-labs/just-bash) for complete isolatio
 - **Zero risk**: Cannot access your system
 - **Perfect for**: CI/CD, demos, safe exploration
 
-### Local Mode (--local, default)
+### Local Mode (--local)
 
 Uses real bash and persistent storage:
 
@@ -132,8 +132,8 @@ phoenix-insight "deep trace analysis" --limit 5000
 # Stream responses in real-time
 phoenix-insight "complex analysis task" --stream
 
-# Force sandbox mode for safety
-phoenix-insight "experimental query" --sandbox
+# Use local mode for persistent storage
+phoenix-insight "experimental query" --local
 
 # Enable observability tracing (sends traces to Phoenix)
 phoenix-insight "analyze performance" --trace
@@ -200,15 +200,15 @@ px-fetch-more trace --trace-id abc123
 | ---------------------- | -------------------------- | ----------------------- |
 | `PHOENIX_BASE_URL`     | Phoenix server URL         | `http://localhost:6006` |
 | `PHOENIX_API_KEY`      | API key for authentication | (none)                  |
-| `PHOENIX_INSIGHT_MODE` | Default execution mode     | `local`                 |
+| `PHOENIX_INSIGHT_MODE` | Default execution mode     | `sandbox`               |
 | `DEBUG`                | Show detailed error info   | `0`                     |
 
 ### Command Line Options
 
 | Option                | Description                        | Default          |
 | --------------------- | ---------------------------------- | ---------------- |
-| `--sandbox`           | Run in sandbox mode (safe)         | false            |
-| `--local`             | Run in local mode (default)        | true             |
+| `--sandbox`           | Run in sandbox mode (default)      | true             |
+| `--local`             | Run in local mode                  | false            |
 | `--base-url <url>`    | Phoenix server URL                 | env or localhost |
 | `--api-key <key>`     | Phoenix API key                    | env or none      |
 | `--refresh`           | Force fresh snapshot               | false            |

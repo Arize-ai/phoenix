@@ -43,9 +43,9 @@ describe("CLI Interactive Mode", () => {
       fs.promises.readFile(cliPath, "utf-8")
     );
 
-    // Check that it creates mode
+    // Check that it creates mode (new behavior: local flag determines mode)
     expect(cliContent).toContain(
-      "options.sandbox ? createSandboxMode() : await createLocalMode()"
+      "options.local ? await createLocalMode() : createSandboxMode()"
     );
 
     // Check that it creates snapshot

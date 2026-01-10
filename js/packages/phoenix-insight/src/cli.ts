@@ -174,9 +174,9 @@ program
     "after",
     `
 Examples:
-  $ phoenix-insight "What are the slowest traces?"                # Single query
+  $ phoenix-insight "What are the slowest traces?"                # Single query (sandbox mode)
   $ phoenix-insight --interactive                                  # Interactive REPL mode
-  $ phoenix-insight --sandbox "Show me error patterns"             # Sandbox mode (safe)
+  $ phoenix-insight --local "Show me error patterns"              # Local mode with persistence
   $ phoenix-insight --local --stream "Analyze recent experiments"  # Local mode with streaming
 `
   );
@@ -230,8 +230,11 @@ program
 
 program
   .argument("[query]", "Query to run against Phoenix data")
-  .option("--sandbox", "Run in sandbox mode with in-memory filesystem")
-  .option("--local", "Run in local mode with real filesystem (default)")
+  .option(
+    "--sandbox",
+    "Run in sandbox mode with in-memory filesystem (default)"
+  )
+  .option("--local", "Run in local mode with real filesystem")
   .option(
     "--base-url <url>",
     "Phoenix base URL",
@@ -268,9 +271,9 @@ program
 
     try {
       // Determine the execution mode
-      const mode: ExecutionMode = options.sandbox
-        ? createSandboxMode()
-        : await createLocalMode();
+      const mode: ExecutionMode = options.local
+        ? await createLocalMode()
+        : createSandboxMode();
 
       // Create Phoenix client
       const client = createPhoenixClient({
@@ -286,8 +289,8 @@ program
         showProgress: true,
       };
 
-      if (options.refresh || options.sandbox) {
-        // For sandbox mode or when refresh is requested, always create a fresh snapshot
+      if (options.refresh || !options.local) {
+        // For sandbox mode (default) or when refresh is requested, always create a fresh snapshot
         await createSnapshot(mode, snapshotOptions);
       } else {
         // For local mode without refresh, try incremental update
@@ -419,7 +422,7 @@ async function runInteractiveMode(options: any): Promise<void> {
 
   try {
     // Determine the execution mode
-    mode = options.sandbox ? createSandboxMode() : await createLocalMode();
+    mode = options.local ? await createLocalMode() : createSandboxMode();
 
     // Create Phoenix client
     const client = createPhoenixClient({
@@ -435,7 +438,7 @@ async function runInteractiveMode(options: any): Promise<void> {
       showProgress: true,
     };
 
-    if (options.refresh || options.sandbox) {
+    if (options.refresh || !options.local) {
       await createSnapshot(mode, snapshotOptions);
     } else {
       await createIncrementalSnapshot(mode, snapshotOptions);

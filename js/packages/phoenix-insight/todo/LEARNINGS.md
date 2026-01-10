@@ -412,3 +412,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Incremental snapshot parallelization**: Also applied parallel fetching to incremental snapshots for consistency and performance benefits
 - **Type safety challenges**: The Promise.allSettled() results needed careful type handling. Used array indexing with fallback to "unknown" for type safety when accessing failed promise reasons
 - **Real-world impact**: These optimizations significantly reduce snapshot creation time, especially when Phoenix server has high latency. A snapshot that would take 140ms sequentially now takes ~50ms (the longest operation)
+## Use sandbox mode by default
+
+- **Mode selection logic reversal**: Changed from sandbox being opt-in (--sandbox flag) to local being opt-in (--local flag). This makes sandbox the safe default for new users
+- **Implementation approach**: Rather than checking options.sandbox, now check options.local and invert the logic. This was cleaner than changing flag parsing behavior
+- **Snapshot creation condition**: Updated the condition from checking options.sandbox to checking !options.local for deciding when to create fresh snapshots
+- **Test updates needed**: The cli-interactive-simple test was checking for the old pattern. Updated it to expect the new mode selection logic
+- **Documentation updates**: Updated README.md to reflect sandbox as default - changed flag descriptions, environment variable defaults, and usage examples
+- **Help text clarity**: Updated the CLI help text to indicate "(default)" next to sandbox mode description to make the behavior clear to users
+- **Backwards compatibility**: This is a breaking change in behavior, but safer default. Users who relied on local mode being default now need to add --local flag
+- **Incremental snapshot logic**: Sandbox mode always creates fresh snapshots (no persistence), while local mode with --refresh also creates fresh. Only local without refresh uses incremental
+

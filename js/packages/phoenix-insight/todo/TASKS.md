@@ -229,7 +229,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### Use sandbox mode by default
 
 - content: Use sandbox mode by default.
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ### Add a top level "prune" command
