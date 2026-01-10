@@ -11,9 +11,9 @@ Implement ONE task from TASKS.md, test it with vitest, commit it, log your learn
 1. **Read TASKS.md** - Find the first task with `status: pending` where ALL dependencies have `status: complete`
 2. **Mark in_progress** - Update the task's status to `in_progress` in TASKS.md
 3. **Read the plan** - Review the full specification at `../../../.cursor/plans/phoenix_insight_cli_60e373b7.plan.md`
-4. **Implement** - Write the code following the plan's architecture and patterns
-5. **Write tests** - Create vitest tests in `test/` directory (*.test.ts)
-6. **Run tests** - Execute `pnpm test` from the package directory
+4. **Implement** - Write the code/docs following the plan's architecture and patterns
+5. **Write tests (if applicable)** - For code changes, create vitest tests in `test/` directory (*.test.ts). Skip for documentation-only tasks.
+6. **Run tests** - Execute `pnpm test` from the package directory (ensures existing tests still pass)
 7. **Fix failures** - If tests fail, debug and fix. DO NOT PROCEED WITH FAILING TESTS.
 8. **Mark complete** - Update the task's status to `complete` in TASKS.md
 9. **Log learnings** - Append insights to LEARNINGS.md
@@ -63,18 +63,29 @@ Do NOT skip ahead. Do NOT work on tasks out of order.
 
 ---
 
-### SIGN: Testing is Mandatory
+### SIGN: Testing Requirements
 
-Every task **MUST** have tests. No exceptions.
+Most tasks require tests. Some do not.
+
+**Tasks that REQUIRE tests:**
+- Any task that adds or modifies code in `src/`
+- Interface definitions, implementations, utilities
+- CLI commands and options
+
+**Tasks that do NOT require tests:**
+- Documentation-only tasks (README, comments, docs/)
+- Configuration file changes (tsconfig, package.json metadata)
+- Pure refactoring with no behavior change (existing tests cover it)
 
 ```
-❌ WRONG: "I'll add tests later"
-❌ WRONG: Commit without running tests
+❌ WRONG: "I'll add tests later" for code changes
+❌ WRONG: Commit code changes without running tests
 ❌ WRONG: Commit with failing tests
-✅ RIGHT: Write tests, run tests, see green, then commit
+✅ RIGHT: Write tests for code, run tests, see green, then commit
+✅ RIGHT: Skip tests for documentation-only changes
 ```
 
-Tests should cover:
+When tests ARE required, cover:
 - Happy path functionality
 - Edge cases where reasonable
 - Error conditions

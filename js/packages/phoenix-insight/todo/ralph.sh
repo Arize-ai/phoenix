@@ -98,18 +98,26 @@ while true; do
     
     log "=== Iteration $iteration ==="
     
-    # Count task statuses
-    pending=$(grep -c "status: pending" "$TASKS_FILE" 2>/dev/null || echo "0")
-    in_progress=$(grep -c "status: in_progress" "$TASKS_FILE" 2>/dev/null || echo "0")
-    complete=$(grep -c "status: complete" "$TASKS_FILE" 2>/dev/null || echo "0")
+    # Count task statuses using awk for precise matching
+    # Only count lines that are exactly "- status: <value>" (task status lines)
+    pending=$(awk '/^- status: pending$/ {count++} END {print count+0}' "$TASKS_FILE")
+    in_progress=$(awk '/^- status: in_progress$/ {count++} END {print count+0}' "$TASKS_FILE")
+    complete=$(awk '/^- status: complete$/ {count++} END {print count+0}' "$TASKS_FILE")
+    total=$((pending + in_progress + complete))
     
-    log "Tasks: $complete complete, $in_progress in progress, $pending pending"
+    log "Tasks: $complete/$total complete, $in_progress in progress, $pending pending"
     
-    # Check if all tasks are complete
-    if [[ "$pending" == "0" && "$in_progress" == "0" ]]; then
-        log_success "All tasks complete!"
+    # Check if all tasks are complete (must have at least 1 task to be valid)
+    if [[ "$total" -gt 0 && "$pending" -eq 0 && "$in_progress" -eq 0 ]]; then
+        log_success "All $complete tasks complete!"
         log_success "Total iterations: $iteration"
         exit 0
+    fi
+    
+    # Sanity check - if no tasks found, something is wrong
+    if [[ "$total" -eq 0 ]]; then
+        log_error "No tasks found in $TASKS_FILE - check file format"
+        exit 1
     fi
     
     # Check for stuck in_progress tasks (from previous failed run)
@@ -136,7 +144,7 @@ while true; do
         
         # Don't immediately fail - agent might have partially succeeded
         # Check if any progress was made
-        new_complete=$(grep -c "status: complete" "$TASKS_FILE" 2>/dev/null || echo "0")
+        new_complete=$(awk '/^- status: complete$/ {count++} END {print count+0}' "$TASKS_FILE")
         if [[ "$new_complete" -gt "$complete" ]]; then
             log_warning "Progress was made despite error, continuing..."
         else
