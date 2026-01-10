@@ -5,6 +5,7 @@ import {
   safelyJSONStringify,
   safelyParseJSONObjectString,
   safelyParseJSONString,
+  unnestSingleStringValue,
 } from "../jsonUtils";
 
 describe("isJSONObjectString", () => {
@@ -811,4 +812,94 @@ describe("safelyParseJSONObjectString", () => {
       });
     }
   );
+});
+
+describe("unnestSingleStringValue", () => {
+  describe("returns unnested value when object has single string key with string value", () => {
+    it("unnests simple wrapped response", () => {
+      const result = unnestSingleStringValue({ response: "Hello world" });
+      expect(result).toEqual({ value: "Hello world", wasUnnested: true });
+    });
+
+    it("unnests with any key name", () => {
+      const result = unnestSingleStringValue({ output: "Some output" });
+      expect(result).toEqual({ value: "Some output", wasUnnested: true });
+    });
+
+    it("unnests empty string value", () => {
+      const result = unnestSingleStringValue({ data: "" });
+      expect(result).toEqual({ value: "", wasUnnested: true });
+    });
+  });
+
+  describe("returns original value (wasUnnested: false) for non-unnestable values", () => {
+    it("does not unnest object with multiple keys", () => {
+      const input = { a: "1", b: "2" };
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+
+    it("does not unnest object where value is not a string", () => {
+      const input = { data: { nested: true } };
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+
+    it("does not unnest object with number value", () => {
+      const input = { count: 42 };
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+
+    it("does not unnest object with array value", () => {
+      const input = { items: ["a", "b", "c"] };
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+
+    it("does not unnest object with null value", () => {
+      const input = { data: null };
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+
+    it("does not unnest empty object", () => {
+      const input = {};
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+  });
+
+  describe("returns original value for non-object types", () => {
+    it("returns string as-is", () => {
+      const result = unnestSingleStringValue("plain string");
+      expect(result).toEqual({ value: "plain string", wasUnnested: false });
+    });
+
+    it("returns number as-is", () => {
+      const result = unnestSingleStringValue(42);
+      expect(result).toEqual({ value: 42, wasUnnested: false });
+    });
+
+    it("returns boolean as-is", () => {
+      const result = unnestSingleStringValue(true);
+      expect(result).toEqual({ value: true, wasUnnested: false });
+    });
+
+    it("returns null as-is", () => {
+      const result = unnestSingleStringValue(null);
+      expect(result).toEqual({ value: null, wasUnnested: false });
+    });
+
+    it("returns undefined as-is", () => {
+      const result = unnestSingleStringValue(undefined);
+      expect(result).toEqual({ value: undefined, wasUnnested: false });
+    });
+
+    it("returns array as-is", () => {
+      const input = [1, 2, 3];
+      const result = unnestSingleStringValue(input);
+      expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+  });
 });

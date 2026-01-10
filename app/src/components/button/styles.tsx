@@ -57,7 +57,7 @@ export const buttonCSS = css`
   background-color: var(--ac-global-input-field-background-color);
   border-color: var(--button-border-color);
   &:hover:not([disabled]) {
-    background-color: var(--ac-global-input-field-border-color-hover);
+    background-color: var(--ac-global-input-field-background-color-hover);
   }
 
   &[data-variant="primary"] {

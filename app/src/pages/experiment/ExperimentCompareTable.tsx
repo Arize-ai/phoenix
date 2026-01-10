@@ -33,27 +33,25 @@ import {
   Icons,
   Modal,
   ModalOverlay,
-  Switch,
   Text,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import {
+  calculateAnnotationListHeight,
+  calculateEstimatedRowHeight,
+  CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentCostAndLatencySummary,
+  ExperimentInputCell,
+  ExperimentOutputContent,
+  ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import {
-  CellTop,
-  CompactJSONCell,
-  JSONCell,
-  LargeTextWrap,
-  PaddedCell,
-} from "@phoenix/components/table";
+import { CellTop, OverflowCell, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -119,7 +117,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const [displayFullText, setDisplayFullText] = useState(false);
   const { datasetId, baseExperimentId, compareExperimentIds } = props;
   const [filterCondition, setFilterCondition] = useState("");
 
@@ -282,86 +279,58 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return tableData.map((row) => row.id);
   }, [tableData]);
 
+  // Calculate the max annotation count across all repeated run groups for consistent row heights
+  const maxAnnotationCount = useMemo(() => {
+    let max = 0;
+    for (const row of tableData) {
+      for (const group of Object.values(row.repeatedRunGroupsByExperimentId)) {
+        const count = group.annotationSummaries.length;
+        if (count > max) max = count;
+      }
+    }
+    return max;
+  }, [tableData]);
+
+  // Calculate cell content height to account for annotation list
+  const cellContentHeight =
+    CELL_PRIMARY_CONTENT_HEIGHT +
+    calculateAnnotationListHeight(maxAnnotationCount);
+
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
       {
         header: "input",
         accessorKey: "input",
         enableSorting: false,
-        cell: ({ row }) => {
-          return (
-            <Flex
-              direction="column"
-              height="100%"
-              css={css`
-                overflow: hidden;
-              `}
-            >
-              <CellTop
-                extra={
-                  <TooltipTrigger>
-                    <IconButton
-                      size="S"
-                      onPress={() => {
-                        setDialog(
-                          <ExampleDetailsDialog
-                            exampleId={row.original.example.id}
-                            datasetVersionId={baseExperiment?.datasetVersionId}
-                          />
-                        );
-                      }}
-                    >
-                      <Icon svg={<Icons.ExpandOutline />} />
-                    </IconButton>
-                    <Tooltip>
-                      <TooltipArrow />
-                      view example
-                    </Tooltip>
-                  </TooltipTrigger>
-                }
-              >
-                <Text
-                  size="S"
-                  color="text-500"
-                >{`example ${row.original.example.id}`}</Text>
-              </CellTop>
-
-              <PaddedCell>
-                <LargeTextWrap>
-                  <JSONText
-                    json={row.original.input}
-                    disableTitle
-                    space={displayFullText ? 2 : 0}
-                  />
-                </LargeTextWrap>
-              </PaddedCell>
-            </Flex>
-          );
-        },
+        cell: ({ row }) => (
+          <ExperimentInputCell
+            exampleId={row.original.example.id}
+            value={row.original.input}
+            height={cellContentHeight}
+            onExpand={() => {
+              setDialog(
+                <ExampleDetailsDialog
+                  exampleId={row.original.example.id}
+                  datasetVersionId={baseExperiment?.datasetVersionId}
+                />
+              );
+            }}
+          />
+        ),
       },
       {
         header: "reference output",
         accessorKey: "referenceOutput",
         enableSorting: false,
-        cell: (props) => (
-          <>
-            <CellTop>
-              <Text size="S" color="text-500">
-                reference
-              </Text>
-            </CellTop>
-            <PaddedCell>
-              {displayFullText ? (
-                <JSONCell {...props} />
-              ) : (
-                <CompactJSONCell {...props} />
-              )}
-            </PaddedCell>
-          </>
+        cell: ({ getValue }) => (
+          <ExperimentReferenceOutputCell
+            value={getValue()}
+            height={cellContentHeight}
+          />
         ),
       },
     ];
-  }, [baseExperiment?.datasetVersionId, displayFullText, setDialog]);
+  }, [baseExperiment?.datasetVersionId, cellContentHeight, setDialog]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -432,10 +401,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
-              displayFullText={displayFullText}
               setDialog={setDialog}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
+              height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
         },
@@ -445,7 +414,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
-    displayFullText,
     experimentInfoById,
     getExperimentColor,
   ]);
@@ -538,20 +506,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <ExperimentRunFilterConditionField
-              onValidCondition={setFilterCondition}
-            />
-            <Switch
-              onChange={(isSelected) => {
-                setDisplayFullText(isSelected);
-              }}
-              defaultSelected={false}
-              labelPlacement="start"
-            >
-              <Text>Full Text</Text>
-            </Switch>
-          </Flex>
+          <ExperimentRunFilterConditionField
+            onValidCondition={setFilterCondition}
+          />
         </View>
         <div
           css={tableWrapCSS}
@@ -635,9 +592,18 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <MemoizedTableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
+                estimatedRowHeight={calculateEstimatedRowHeight(
+                  maxAnnotationCount
+                )}
               />
             ) : (
-              <TableBody table={table} tableContainerRef={tableContainerRef} />
+              <TableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={calculateEstimatedRowHeight(
+                  maxAnnotationCount
+                )}
+              />
             )}
           </table>
         </div>
@@ -714,9 +680,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 function TableBody<T>({
   table,
   tableContainerRef,
+  estimatedRowHeight,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
+  estimatedRowHeight: number;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
@@ -724,7 +692,7 @@ function TableBody<T>({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 350,
+    estimateSize: () => estimatedRowHeight,
     overscan: 5,
   });
   const virtualRows = virtualizer.getVirtualItems();
@@ -785,16 +753,24 @@ export const MemoizedTableBody = React.memo(
 
 /**
  * Display the output of an experiment run.
+ * If the output is a chat message format with an assistant message,
+ * it extracts and renders just the content as markdown.
  */
+const outputContentCSS = css`
+  flex: none;
+  padding: var(--ac-global-dimension-size-200);
+`;
+
 function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
-    displayFullText: boolean;
     setDialog: (dialog: ReactNode) => void;
     annotationSummaries: readonly AnnotationSummary[];
+    height: number;
   }
 ) {
-  const { output, error, annotations, displayFullText, setDialog } = props;
+  const { output, error, annotations, setDialog, height } = props;
+
   if (error) {
     return <RunError error={error} />;
   }
@@ -804,15 +780,11 @@ function ExperimentRunOutput(
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
-      <View padding="size-200" flex="1 1 auto">
-        <LargeTextWrap>
-          <JSONText
-            json={output}
-            disableTitle
-            space={displayFullText ? 2 : 0}
-          />
-        </LargeTextWrap>
-      </View>
+      <OverflowCell height={height}>
+        <div css={outputContentCSS}>
+          <ExperimentOutputContent value={output} />
+        </div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         annotationSummaries={props.annotationSummaries}
@@ -844,19 +816,19 @@ function RunError({ error }: { error: string }) {
 function ExperimentRunOutputCell({
   experimentRepetitionCount,
   repeatedRunGroup,
-  displayFullText,
   setDialog,
   rowIndex,
   setSelectedExampleIndex,
   annotationSummaries,
+  height,
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
-  displayFullText: boolean;
   setDialog: (dialog: ReactNode) => void;
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
+  height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
 
@@ -945,9 +917,9 @@ function ExperimentRunOutputCell({
         <ExperimentRunOutput
           {...run}
           numRepetitions={experimentRepetitionCount}
-          displayFullText={displayFullText}
           setDialog={setDialog}
           annotationSummaries={annotationSummaries}
+          height={height}
         />
       ) : (
         <PaddedCell>

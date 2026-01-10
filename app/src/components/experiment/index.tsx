@@ -11,3 +11,7 @@ export * from "./ExperimentCostAndLatencySummary";
 export * from "./ExperimentCodeModal";
 export * from "./RunExperimentCodeDialog";
 export * from "./ExperimentRunCellAnnotationsList";
+export * from "./ExperimentReferenceOutputCell";
+export * from "./ExperimentInputCell";
+export * from "./ExperimentOutputContent";
+export * from "./experimentTableUtils";
