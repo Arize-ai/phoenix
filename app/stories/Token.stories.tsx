@@ -175,18 +175,20 @@ const TruncatedTemplate: StoryFn<TokenProps> = (args) => (
           Default truncates at 160px - this long text will be cut off
         </Token>
         <Token {...args} maxWidth="100px">
-          Custom maxWidth="100px" for narrower spaces
+          Custom maxWidth=`&quot;`100px`&quot;` for narrower spaces
         </Token>
         <Token
           {...args}
           maxWidth="300px"
           color="var(--ac-global-color-primary)"
         >
-          Custom maxWidth="300px" allows more text before truncation happens
+          Custom maxWidth=`&quot;`300px`&quot;` allows more text before
+          truncation happens
         </Token>
         <Token {...args} maxWidth="none">
-          maxWidth="none" is technically possible but unwise to use because it
-          enables unreasonable behavior and some very wide noodles.
+          maxWidth=`&quot;`none`&quot;` is technically possible but unwise to
+          use because it enables unreasonable behavior and some very wide
+          noodles.
         </Token>
       </Flex>
     </View>
