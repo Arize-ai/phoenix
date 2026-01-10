@@ -169,8 +169,8 @@ program
       return;
     }
 
-    if (!query) {
-      program.help();
+    if (!query && !options.help) {
+      program.outputHelp();
       return;
     }
 

@@ -79,7 +79,7 @@ describe("CLI Interactive Mode", () => {
     );
 
     // Check error handling in interactive loop
-    expect(cliContent).toContain('console.error("\\n❌ Error:"');
+    expect(cliContent).toContain('console.error("\\n❌ Query Error:"');
     expect(cliContent).toContain("await mode.cleanup()");
   });
 

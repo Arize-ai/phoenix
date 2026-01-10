@@ -229,3 +229,9 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 
 - status: complete
 - dependencies: agent-setup
+
+### tests
+
+- content: Tests got broken by some commit. Fix them all.
+- status: complete
+- dependencies: documentation

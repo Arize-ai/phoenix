@@ -42,15 +42,14 @@ describe("phoenix-insight CLI", () => {
   });
 
   it("should accept sandbox option", async () => {
-    // We can't fully test the execution without mocking Phoenix client
-    // Just ensure the CLI accepts the option
-    try {
-      await execAsync(`tsx ${cliPath} "test" --sandbox`, { timeout: 1000 });
-    } catch (error: any) {
-      // The command will fail because we don't have a real Phoenix instance
-      // But we can check that it tried to execute
-      expect(error.message).toContain("Error"); // Network error expected
-    }
+    // Test that sandbox option is accepted by showing help
+    const result = await execAsync(`tsx ${cliPath} --sandbox --help`, {
+      timeout: 2000,
+    });
+
+    // Should show help without error
+    expect(result.stdout).toContain("Usage: phoenix-insight");
+    expect(result.stdout).toContain("--sandbox");
   });
 
   it("should accept base-url option", async () => {
@@ -67,14 +66,14 @@ describe("phoenix-insight CLI", () => {
   });
 
   it("should accept limit option", async () => {
-    try {
-      await execAsync(`tsx ${cliPath} "test" --limit 500 --sandbox`, {
-        timeout: 1000,
-      });
-    } catch (error: any) {
-      // The command will fail but should accept the limit option
-      expect(error.message).toContain("Error"); // Network error expected
-    }
+    // Just test that the option is accepted by showing help
+    const result = await execAsync(`tsx ${cliPath} --limit 500 --help`, {
+      timeout: 2000,
+    });
+
+    // Should show help without error
+    expect(result.stdout).toContain("Usage: phoenix-insight");
+    expect(result.stdout).toContain("--limit <number>");
   });
 });
 

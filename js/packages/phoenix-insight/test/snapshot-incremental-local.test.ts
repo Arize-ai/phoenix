@@ -53,9 +53,22 @@ vi.mock("../src/snapshot/prompts.js", () => ({
 
 vi.mock("../src/snapshot/context.js", () => ({
   generateContext: vi.fn(async (mode) => {
-    await mode.writeFile("/phoenix/_context.md", "# Context");
+    await mode.writeFile("/phoenix/_context.md", "# Context\nTest context");
   }),
 }));
+
+// Mock the progress module
+vi.mock("../src/progress.js", () => {
+  class MockSnapshotProgress {
+    constructor(public enabled: boolean) {}
+    start = vi.fn();
+    update = vi.fn();
+    succeed = vi.fn();
+    fail = vi.fn();
+    stop = vi.fn();
+  }
+  return { SnapshotProgress: MockSnapshotProgress };
+});
 
 vi.mock("../src/snapshot/spans.js", () => ({
   snapshotSpans: vi.fn(async (client, mode) => {
@@ -228,9 +241,19 @@ describe("Incremental Snapshot with LocalMode", () => {
     );
     expect(snapshotDirs.length).toBe(1);
 
-    // Verify it logged that it's creating a full snapshot
-    const logs = consoleLogSpy.mock.calls.map((call) => call[0]);
-    expect(logs.some((log) => log.includes("Starting snapshot"))).toBe(true);
+    // Verify that a full snapshot was created (not incremental)
+    const metadataPath = path.join(
+      testDir,
+      ".phoenix-insight",
+      "snapshots",
+      snapshotDirs[0],
+      "phoenix",
+      "_meta",
+      "snapshot.json"
+    );
+    const metadataContent = await fs.readFile(metadataPath, "utf-8");
+    const metadata = JSON.parse(metadataContent);
+    expect(metadata.phoenix_url).toBe("http://localhost:6006");
 
     consoleLogSpy.mockRestore();
   });

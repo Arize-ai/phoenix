@@ -331,3 +331,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **PhoenixClient mock structure**: The PhoenixClient uses GET method with path and query parameters, not a nested API like `client.spans.getSpans()`. Tests need to mock the GET method properly
 - **Trace fetching mock data**: The fetchMoreTrace function filters spans by trace_id from the context property. Test mocks must include proper context objects with trace_id and span_id
 - **TypeScript generics complexity**: The AI SDK has complex generic types for tools and results. Using `any` types in several places was necessary to avoid TypeScript compilation errors while maintaining runtime correctness
+
+## tests
+
+- **Test file organization**: When tests fail after package refactoring, check multiple potential issues: import paths, mock setups, and whether the test is using built or source files
+- **ESM test imports**: Tests in an ESM package must use .js extensions for relative imports, even when importing TypeScript files. This matches the runtime behavior
+- **CLI test strategies**: For CLI flag tests, it's easier to test help output than to mock entire execution flows. Use `--help` flag to verify options are accepted without running actual queries
+- **Progress class mocking**: When the implementation changes from console.log to using ora spinners, update tests to check the actual behavior (file writes, completions) rather than console output
+- **Mock module exports**: When mocking ES modules with vi.mock(), ensure all exports are included. Missing exports like PhoenixClientError can cause confusing test failures
+- **Path construction in tests**: Be careful with path construction in tests. Missing base directory segments can cause file not found errors. Always use full paths from the test directory root
+- **Incremental test fixes**: When many tests fail, fix them incrementally - start with the simplest (like flag parsing) and work up to complex integration tests
+- **Error message changes**: When implementation error messages change (e.g., "Failed to create snapshot" vs "Failed to create incremental snapshot"), update test expectations to match
+- **Test timeout issues**: CLI tests that spawn processes may timeout. Adjust test timeouts or simplify tests to avoid flaky behavior in CI environments
+- **Mock reset between tests**: Some test failures come from mocks not being properly reset between tests. Use beforeEach hooks consistently to reset mock state
