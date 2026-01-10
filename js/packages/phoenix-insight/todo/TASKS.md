@@ -226,6 +226,30 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - status: complete
 - dependencies:
 
+### Use sandbox mode by default
+
+- content: Use sandbox mode by default.
+- status: pending
+- dependencies: cli-flags
+
+### Add a top level "prune" command
+
+- content: Add a top level "prune" command that deletes the local snapshot directory.
+- status: pending
+- dependencies: cli-flags
+
+### Start interactive mode if no arguments are provided
+
+- content: Start interactive mode if no arguments are provided. Add help command to interactive mode and top level help command.
+- status: pending
+- dependencies: cli-flags
+
+### Add a top level "help" command
+
+- content: Add a top level "help" command that shows the help message.
+- status: pending
+- dependencies: cli-flags
+
 ## Phase 9: Bug Fixes
 
 ### agent-tools
