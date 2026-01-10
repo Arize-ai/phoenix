@@ -107,7 +107,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-context
 
 - content: Implement snapshot/context.ts: generate \_context.md summary file
-- status: pending
+- status: complete
 - dependencies: snapshot-projects, snapshot-spans, snapshot-datasets, snapshot-experiments, snapshot-prompts
 
 ### snapshot-orchestrator

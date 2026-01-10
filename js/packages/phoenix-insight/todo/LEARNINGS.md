@@ -155,3 +155,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test data structure**: When mocking prompt versions, be careful with the template field structure. It varies based on template_format and the actual Phoenix implementation
 - **Console.warn for missing latest**: Used console.warn when latest version fetch fails, similar to the experiments pattern. This is expected behavior for some prompts
 - **JSONL consistency**: Maintained the same JSONL conversion pattern as other snapshot modules: empty arrays produce empty string, use newline separation without trailing newline
+## snapshot-context
+
+- **ExecutionMode usage**: The context generator needs to read data from the snapshot filesystem using mode.exec() with bash commands like cat, wc -l. This is because we only have access to the ExecutionMode interface, not direct file reading
+- **JSONL parsing**: When reading JSONL files, split by newlines and parse each line separately. Always filter out empty lines to avoid JSON parse errors
+- **Experiment status determination**: Determining experiment status requires checking both completion percentage and failure ratio. Failed experiments (more failures than successes) should be identified separately from in-progress ones
+- **Summary formatting**: When showing counts like "3 experiments: 1 completed, 1 in progress, 1 failed", only include non-zero counts. If all experiments are completed, just show "3 experiments: 3 completed"
+- **Recent activity detection**: Use a time window (e.g., 24 hours) to identify recent updates. The isRecent helper function calculates time differences in milliseconds
+- **Relative time formatting**: Format timestamps as human-readable relative times like "2 hours ago" or "just now". Handle edge cases for very recent times (< 1 minute)
+- **Error resilience**: Wrap all exec calls and JSON parsing in try-catch blocks. Continue processing even if individual operations fail to ensure partial context can still be generated
+- **Mock testing patterns**: When testing context generation, mock the ExecutionMode exec method to return different outputs based on the command. This allows testing various snapshot states
+- **Test organization**: Separate tests for different aspects: basic generation, empty snapshots, recent activity, time formatting, status determination, and error handling
+- **TypeScript any type**: Used any type for parsed JSON from JSONL files since the data structures come from external APIs and vary. Focus on runtime safety with try-catch blocks
