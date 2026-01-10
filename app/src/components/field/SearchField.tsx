@@ -181,6 +181,7 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
           {typeof children === "function" ? children(renderProps) : children}
           {!isReadOnly && (
             <Button
+              slot="clear"
               className="ac-searchfield-clear"
               data-empty={renderProps.isEmpty || undefined}
             >
