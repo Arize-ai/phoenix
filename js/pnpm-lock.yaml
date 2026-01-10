@@ -287,6 +287,12 @@ importers:
       '@arizeai/phoenix-client':
         specifier: workspace:*
         version: link:../phoenix-client
+      '@arizeai/phoenix-otel':
+        specifier: workspace:*
+        version: link:../phoenix-otel
+      '@opentelemetry/api':
+        specifier: 1.9.0
+        version: 1.9.0
       ai:
         specifier: ^6.0.0
         version: 6.0.27(zod@4.3.5)

@@ -13,6 +13,10 @@ import {
 import type { ExecutionMode } from "./modes/types.js";
 import type { PhoenixInsightAgentConfig } from "./agent/index.js";
 import { AgentProgress } from "./progress.js";
+import {
+  initializeObservability,
+  shutdownObservability,
+} from "./observability/index.js";
 
 // Version will be read from package.json during build
 const VERSION = "0.0.1";
@@ -126,7 +130,19 @@ program
   )
   .option("--api-key <key>", "Phoenix API key", process.env.PHOENIX_API_KEY)
   .option("--refresh", "Force refresh of snapshot data")
+  .option("--trace", "Enable tracing of the snapshot process to Phoenix")
   .action(async (options) => {
+    // Initialize observability if --trace flag is set
+    if (options.trace) {
+      initializeObservability({
+        enabled: true,
+        baseUrl: options.baseUrl,
+        apiKey: options.apiKey,
+        projectName: "phoenix-insight-snapshot",
+        debug: !!process.env.DEBUG,
+      });
+    }
+
     try {
       // Determine the execution mode
       const mode: ExecutionMode = await createLocalMode();
@@ -143,6 +159,9 @@ program
 
       // Cleanup
       await mode.cleanup();
+
+      // Shutdown observability if enabled
+      await shutdownObservability();
     } catch (error) {
       handleError(error, "creating snapshot");
     }
@@ -162,6 +181,7 @@ program
   .option("--limit <number>", "Limit number of spans to fetch", parseInt)
   .option("--stream", "Stream agent responses")
   .option("-i, --interactive", "Run in interactive mode (REPL)")
+  .option("--trace", "Enable tracing of the agent to Phoenix")
   .action(async (query, options) => {
     // If interactive mode is requested, ignore query argument
     if (options.interactive) {
@@ -172,6 +192,17 @@ program
     if (!query && !options.help) {
       program.outputHelp();
       return;
+    }
+
+    // Initialize observability if --trace flag is set
+    if (options.trace) {
+      initializeObservability({
+        enabled: true,
+        baseUrl: options.baseUrl,
+        apiKey: options.apiKey,
+        projectName: "phoenix-insight",
+        debug: !!process.env.DEBUG,
+      });
     }
 
     try {
@@ -306,12 +337,26 @@ program
       console.log("\n✅ Done!");
     } catch (error) {
       handleError(error, "executing query");
+    } finally {
+      // Shutdown observability if enabled
+      await shutdownObservability();
     }
   });
 
 async function runInteractiveMode(options: any): Promise<void> {
   console.log("🚀 Phoenix Insight Interactive Mode");
   console.log("Type your queries below. Type 'exit' or 'quit' to end.\n");
+
+  // Initialize observability if --trace flag is set
+  if (options.trace) {
+    initializeObservability({
+      enabled: true,
+      baseUrl: options.baseUrl,
+      apiKey: options.apiKey,
+      projectName: "phoenix-insight",
+      debug: !!process.env.DEBUG,
+    });
+  }
 
   // Setup mode and snapshot once for the session
   let mode: ExecutionMode;
@@ -485,6 +530,9 @@ async function runInteractiveMode(options: any): Promise<void> {
 
     // Cleanup
     await mode.cleanup();
+
+    // Shutdown observability if enabled
+    await shutdownObservability();
   } catch (error) {
     handleError(error, "setting up interactive mode");
   }

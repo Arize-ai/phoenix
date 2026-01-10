@@ -18,7 +18,14 @@ describe("scaffold-structure", () => {
     expect(stats.isFile()).toBe(true);
   });
 
-  const subdirectories = ["modes", "snapshot", "commands", "agent", "prompts"];
+  const subdirectories = [
+    "modes",
+    "snapshot",
+    "commands",
+    "agent",
+    "prompts",
+    "observability",
+  ];
 
   subdirectories.forEach((dir) => {
     it(`should have created the ${dir} subdirectory`, () => {
@@ -31,8 +38,8 @@ describe("scaffold-structure", () => {
 
   it("should have the correct number of items in src directory", () => {
     const items = fs.readdirSync(srcPath);
-    // cli.ts + index.ts + progress.ts + 5 subdirectories = 8 items
-    expect(items.length).toBe(8);
+    // cli.ts + index.ts + progress.ts + 6 subdirectories = 9 items
+    expect(items.length).toBe(9);
     expect(items).toContain("cli.ts");
     expect(items).toContain("index.ts");
     expect(items).toContain("progress.ts");

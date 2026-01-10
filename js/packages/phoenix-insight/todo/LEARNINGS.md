@@ -355,3 +355,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Type casting workarounds**: The union type result from runOneShotQuery needed type assertions (`as any`) to access streaming properties. This is a TypeScript limitation with union types
 - **Existing test updates**: When modifying existing functionality, check for tests that assert specific string patterns. CLI interactive tests were checking for exact method signatures that changed
 - **Stream mode progress**: Even in streaming mode, tool usage can be shown via onStepFinish. The progress indicator is stopped before streaming the response to avoid terminal conflicts
+
+## agent-observability
+
+- **Phoenix-otel integration**: The @arizeai/phoenix-otel package provides a convenient register() function that sets up OpenTelemetry tracing with Phoenix. It handles OTLP export configuration automatically
+- **Workspace dependencies**: When adding workspace dependencies in pnpm, use "workspace:\*" syntax. The phoenix-otel package was available as a sibling package in the monorepo
+- **DiagLogLevel import issue**: DiagLogLevel is exported as a type from phoenix-otel but as a value enum from @opentelemetry/api. Had to add @opentelemetry/api as a direct dependency to use DiagLogLevel values
+- **Observability module pattern**: Created a separate observability module with initialization and shutdown functions to encapsulate tracing setup. This keeps the CLI code clean and makes testing easier
+- **Optional tracing**: Made tracing opt-in via --trace flag rather than always-on. This prevents unnecessary overhead and allows users to control when traces are sent to Phoenix
+- **Graceful error handling**: Observability initialization errors should not break the main functionality. Wrapped initialization in try-catch and logged errors without throwing
+- **Shutdown cleanup**: Added observability shutdown to all exit paths (normal completion, error handling, interactive mode exit) to ensure proper resource cleanup
+- **Test mocking strategy**: Used vi.mock() to mock the phoenix-otel register function, returning a mock provider with a shutdown method. This avoids actual network calls in tests
+- **Mock reset importance**: Tests were failing because mocks persisted between test runs. Added vi.clearAllMocks() in beforeEach and afterEach hooks to ensure clean test isolation
+- **Project name configuration**: Used different project names for different modes (phoenix-insight for agent queries, phoenix-insight-snapshot for snapshot command) to help distinguish trace sources

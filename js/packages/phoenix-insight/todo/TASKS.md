@@ -167,7 +167,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### agent-observability
 
 - content: Add observability to the agent. Use the @arizeai/phoenix-otel package. Optionally enable tracing of the agent with --trace flag.
-- status: pending
+- status: complete
 - dependencies: agent-setup, cli-flags
 
 ---
