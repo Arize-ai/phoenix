@@ -1,7 +1,7 @@
-"use no memo";
 import {
   memo,
   type ReactNode,
+  type RefObject,
   SetStateAction,
   Suspense,
   useCallback,
@@ -26,7 +26,7 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   GraphQLSubscriptionConfig,
   PayloadError,
@@ -42,24 +42,24 @@ import {
   Modal,
   ModalOverlay,
   ParagraphSkeleton,
+  ProgressCircle,
   Text,
-  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import { JSONText } from "@phoenix/components/code/JSONText";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
+  calculateAnnotationListHeight,
+  calculateEstimatedRowHeight,
+  CELL_PRIMARY_CONTENT_HEIGHT,
   ConnectedExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummarySkeleton,
+  ExperimentInputCell,
+  ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
-import {
-  CellTop,
-  JSONCell,
-  LargeTextWrap,
-  PaddedCell,
-} from "@phoenix/components/table";
+import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import {
@@ -107,15 +107,13 @@ import {
   ExampleRunData,
   type ExperimentRunEvaluation,
   InstanceResponses,
+  makeExpandedCellKey,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import {
-  PartialOutputToolCall,
-  PlaygroundToolCall,
-} from "./PlaygroundToolCall";
+import { PartialOutputToolCall } from "./PlaygroundToolCall";
 import {
   denormalizePlaygroundInstance,
   extractVariablesFromInstance,
@@ -124,15 +122,7 @@ import {
 
 const PAGE_SIZE = 10;
 
-/**
- * Fixed height for the output content area to prevent layout shifts
- * between loading, empty, and loaded states
- */
-const OUTPUT_CONTENT_HEIGHT = 300;
-
 const outputContentCSS = css`
-  height: ${OUTPUT_CONTENT_HEIGHT}px;
-  overflow: auto;
   flex: none;
   padding: var(--ac-global-dimension-size-200);
 `;
@@ -193,11 +183,15 @@ function EmptyExampleOutput({
   instanceVariables,
   datasetExampleInput,
   evaluatorOutputConfigs,
+  isExpanded,
+  onExpandedChange,
 }: {
   isRunning: boolean;
   instanceVariables: string[];
   datasetExampleInput: unknown;
   evaluatorOutputConfigs: AnnotationConfig[];
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const parsedDatasetExampleInput = useMemo(() => {
     return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
@@ -214,7 +208,12 @@ function EmptyExampleOutput({
   );
   if (isRunning) {
     content = <ParagraphSkeleton lines={4} />;
-    cellTopContent = <Text color="text-500">Queued</Text>;
+    cellTopContent = (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Icon svg={<Icons.LoaderOutline />} />
+        <Text color="text-500">Queued</Text>
+      </Flex>
+    );
   }
   if (missingVariables.length > 0) {
     cellTopContent = <Text color="danger">Missing variables</Text>;
@@ -233,7 +232,13 @@ function EmptyExampleOutput({
   return (
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <div css={outputContentCSS}>{content}</div>
+      <OverflowCell
+        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        isExpanded={isExpanded}
+        onExpandedChange={onExpandedChange}
+      >
+        <div css={outputContentCSS}>{content}</div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={[]}
         annotationConfigs={evaluatorOutputConfigs}
@@ -252,6 +257,8 @@ function ExampleOutputContent({
   onViewTracePress,
   evaluatorOutputConfigs,
   isRunning,
+  isExpanded,
+  onExpandedChange,
 }: {
   exampleData: ExampleRunData;
   repetitionNumber: number;
@@ -265,6 +272,8 @@ function ExampleOutputContent({
   ) => void;
   evaluatorOutputConfigs: AnnotationConfig[];
   isRunning: boolean;
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const {
     span,
@@ -367,33 +376,35 @@ function ExampleOutputContent({
             />
           </Flex>
         ) : (
-          <Text color="text-500" fontStyle="italic">
-            Generating...
-          </Text>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <ProgressCircle isIndeterminate size="S" aria-label="Generating" />
+            <Text color="text-500" fontStyle="italic">
+              Generating...
+            </Text>
+          </Flex>
         )}
       </CellTop>
-
-      <div css={outputContentCSS}>
-        <Flex direction={"column"} gap="size-100">
-          {errorMessage != null ? (
-            <PlaygroundErrorWrap key="error-message">
-              {errorMessage}
-            </PlaygroundErrorWrap>
-          ) : null}
-          {content != null ? (
-            <LargeTextWrap key="content">{content}</LargeTextWrap>
-          ) : null}
-          {toolCalls != null ? (
-            <View key="tool-calls-wrap">
-              {Object.values(toolCalls).map((toolCall) =>
-                toolCall == null ? null : (
-                  <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
-                )
-              )}
-            </View>
-          ) : null}
-        </Flex>
-      </div>
+      <OverflowCell
+        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        isExpanded={isExpanded}
+        onExpandedChange={onExpandedChange}
+      >
+        <div css={outputContentCSS}>
+          <Flex direction={"column"} gap="size-100">
+            {errorMessage != null ? (
+              <PlaygroundErrorWrap key="error-message">
+                {errorMessage}
+              </PlaygroundErrorWrap>
+            ) : null}
+            {content != null ? (
+              <DynamicContent value={content} key="content" />
+            ) : null}
+            {toolCalls != null ? (
+              <DynamicContent value={toolCalls} key="tool-calls-wrap" />
+            ) : null}
+          </Flex>
+        </div>
+      </OverflowCell>
       <ExperimentRunCellAnnotationsList
         annotations={successfulEvaluations}
         annotationErrors={evaluationErrors}
@@ -439,6 +450,28 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
     (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
   );
+  const expandedCellKey = makeExpandedCellKey(
+    instanceId,
+    exampleId,
+    repetitionNumber
+  );
+  const isExpanded = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.expandedCells[expandedCellKey] ?? false
+  );
+  const setExpandedCell = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setExpandedCell
+  );
+  const onExpandedChange = useCallback(
+    (expanded: boolean) => {
+      setExpandedCell({
+        instanceId,
+        exampleId,
+        repetitionNumber,
+        isExpanded: expanded,
+      });
+    },
+    [setExpandedCell, instanceId, exampleId, repetitionNumber]
+  );
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
@@ -448,6 +481,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       instanceVariables={instanceVariables}
       datasetExampleInput={datasetExampleInput}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
+      isExpanded={isExpanded}
+      onExpandedChange={onExpandedChange}
     />
   ) : (
     <ExampleOutputContent
@@ -459,6 +494,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       onViewTracePress={onViewTracePress}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
       isRunning={isRunning}
+      isExpanded={isExpanded}
+      onExpandedChange={onExpandedChange}
     />
   );
 });
@@ -466,14 +503,22 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
-  virtualizer,
+  tableContainerRef,
+  estimatedRowHeight,
 }: {
   table: Table<T>;
-  virtualizer: Virtualizer<HTMLDivElement, Element>;
+  tableContainerRef: RefObject<HTMLDivElement | null>;
+  estimatedRowHeight: number;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
-
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => estimatedRowHeight,
+    overscan: 5,
+  });
   const virtualRows = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
@@ -569,6 +614,9 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.allInstanceMessages
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const numEnabledEvaluators = evaluatorOutputConfigs.length;
+  const annotationListHeight =
+    calculateAnnotationListHeight(numEnabledEvaluators);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
@@ -1036,7 +1084,15 @@ export function PlaygroundDatasetExamplesTable({
     setRepetitions,
   ]);
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  // Use useState + callback ref instead of useRef so that the component
+  // re-renders when the container element mounts (needed for virtualizer)
+  const [_tableContainerEl, setTableContainerEl] =
+    useState<HTMLDivElement | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const tableContainerCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    tableContainerRef.current = el;
+    setTableContainerEl(el);
+  }, []);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     PlaygroundDatasetExamplesTableRefetchQuery,
     PlaygroundDatasetExamplesTableFragment$key
@@ -1175,68 +1231,30 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "input",
       accessorKey: "input",
-      cell: ({ row }) => {
-        return (
-          <>
-            <CellTop
-              extra={
-                <TooltipTrigger>
-                  <IconButton
-                    size="S"
-                    aria-label="View example details"
-                    onPress={() => {
-                      setSearchParams((prev) => {
-                        prev.set("exampleId", row.original.id);
-                        return prev;
-                      });
-                    }}
-                  >
-                    <Icon svg={<Icons.ExpandOutline />} />
-                  </IconButton>
-                  <Tooltip>
-                    <TooltipArrow />
-                    view example
-                  </Tooltip>
-                </TooltipTrigger>
-              }
-            >
-              <Text
-                color="text-500"
-                css={css`
-                  white-space: nowrap;
-                `}
-              >{`Example ${row.original.id}`}</Text>
-            </CellTop>
-            <PaddedCell>
-              <LargeTextWrap height={200}>
-                <JSONText
-                  json={row.original.input}
-                  disableTitle
-                  space={2}
-                  collapseSingleKey={false}
-                />
-              </LargeTextWrap>
-            </PaddedCell>
-          </>
-        );
-      },
+      cell: ({ row }) => (
+        <ExperimentInputCell
+          exampleId={row.original.id}
+          value={row.original.input}
+          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+          onExpand={() => {
+            setSearchParams((prev) => {
+              prev.set("exampleId", row.original.id);
+              return prev;
+            });
+          }}
+        />
+      ),
       size: 200,
     },
     {
       header: "reference output",
       accessorKey: "output",
-      cell: (props) => {
-        return (
-          <>
-            <CellTop>
-              <Text color="text-500">{`reference output`}</Text>
-            </CellTop>
-            <PaddedCell>
-              <JSONCell {...props} collapseSingleKey={true} height={200} />
-            </PaddedCell>
-          </>
-        );
-      },
+      cell: ({ row }) => (
+        <ExperimentReferenceOutputCell
+          value={row.original.output}
+          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+        />
+      ),
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
@@ -1250,12 +1268,7 @@ export function PlaygroundDatasetExamplesTable({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 310, // estimated row height
-    overscan: 5,
-  });
+  const estimatedRowHeight = calculateEstimatedRowHeight(numEnabledEvaluators);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -1306,7 +1319,7 @@ export function PlaygroundDatasetExamplesTable({
         overflow: auto;
         height: 100%;
       `}
-      ref={tableContainerRef}
+      ref={tableContainerCallbackRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
@@ -1350,9 +1363,17 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} virtualizer={virtualizer} />
+          <MemoizedTableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+            estimatedRowHeight={estimatedRowHeight}
+          />
         ) : (
-          <TableBody table={table} virtualizer={virtualizer} />
+          <TableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+            estimatedRowHeight={estimatedRowHeight}
+          />
         )}
       </table>
       <ModalOverlay

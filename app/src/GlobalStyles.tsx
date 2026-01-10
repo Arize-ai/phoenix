@@ -1033,7 +1033,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-input-field-border-color: var(--ac-global-color-grey-400);
     --ac-global-input-field-border-color-hover: var(--ac-global-color-grey-300);
     --ac-global-input-field-border-color-active: var(--ac-global-color-primary);
-    --ac-global-input-field-background-color: var(--ac-global-color-grey-200);
+    --ac-global-input-field-background-color: var(--ac-global-color-grey-100);
+    --ac-global-input-field-background-color-hover: var(
+      --ac-global-color-grey-300
+    );
     --ac-global-input-field-background-color-active: var(
       --ac-global-color-grey-300
     );
@@ -1249,8 +1252,8 @@ const appGlobalStylesCSS = css`
 
     /* Modal */
     --ac-global-modal-width-S: 500px;
-    --ac-global-modal-width-M: 700px;
-    --ac-global-modal-width-L: 900px;
+    --ac-global-modal-width-M: 750px;
+    --ac-global-modal-width-L: 1000px;
     --ac-global-modal-width-FULLSCREEN: calc(
       100vw - var(--ac-global-dimension-static-size-1700)
     );
