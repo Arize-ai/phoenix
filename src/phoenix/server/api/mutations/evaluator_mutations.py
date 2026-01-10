@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Optional
 
 import strawberry
 from fastapi import Request
@@ -14,7 +14,6 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -148,20 +147,6 @@ class DatasetEvaluatorMutationPayload:
 class CodeEvaluatorMutationPayload:
     evaluator: CodeEvaluator
     query: Query
-
-
-@strawberry.input
-class AssignEvaluatorToDatasetInput:
-    dataset_id: GlobalID
-    evaluator_id: GlobalID
-    display_name: Optional[Identifier] = None
-    input_mapping: Optional[EvaluatorInputMappingInput] = None
-
-
-@strawberry.input
-class UnassignEvaluatorFromDatasetInput:
-    dataset_id: GlobalID
-    dataset_evaluator_id: GlobalID
 
 
 @strawberry.input
@@ -566,85 +551,6 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def assign_evaluator_to_dataset(
-        self, info: Info[Context, None], input: AssignEvaluatorToDatasetInput
-    ) -> DatasetEvaluatorMutationPayload:
-        try:
-            dataset_rowid = from_global_id_with_expected_type(
-                global_id=input.dataset_id,
-                expected_type_name=Dataset.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
-
-        try:
-            evaluator_rowid, _ = _parse_evaluator_id(input.evaluator_id)
-        except ValueError as e:
-            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
-
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
-        )
-
-        is_builtin = evaluator_rowid < 0
-
-        assignment_name: IdentifierModel
-        if input.display_name is not None:
-            assignment_name = IdentifierModel.model_validate(input.display_name)
-        elif is_builtin:
-            builtin_evaluator = get_builtin_evaluator_by_id(evaluator_rowid)
-            if builtin_evaluator is None:
-                raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
-            assignment_name = IdentifierModel.model_validate(
-                builtin_evaluator.name.lower().replace(" ", "_")
-            )
-        else:
-            async with info.context.db() as session:
-                evaluator = await session.get(models.Evaluator, evaluator_rowid)
-                if evaluator is None:
-                    raise NotFound(f"Evaluator with id {input.evaluator_id} not found")
-                assignment_name = evaluator.name
-
-        values: dict[str, Any] = {
-            "dataset_id": dataset_rowid,
-            "display_name": assignment_name,
-            "input_mapping": input_mapping.to_dict(),
-        }
-        if is_builtin:
-            values["builtin_evaluator_id"] = evaluator_rowid
-            values["evaluator_id"] = None
-            unique_by = ("dataset_id", "builtin_evaluator_id", "display_name")
-        else:
-            values["evaluator_id"] = evaluator_rowid
-            values["builtin_evaluator_id"] = None
-            unique_by = ("dataset_id", "evaluator_id", "display_name")
-
-        try:
-            async with info.context.db() as session:
-                result = await session.execute(
-                    insert_on_conflict(
-                        values,
-                        dialect=info.context.db.dialect,
-                        table=models.DatasetEvaluators,
-                        unique_by=unique_by,
-                        on_conflict=OnConflict.DO_UPDATE,
-                    ).returning(models.DatasetEvaluators)
-                )
-                dataset_evaluator = result.scalar_one()
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            if "foreign" in str(e).lower():
-                raise NotFound(
-                    f"Dataset with id {input.dataset_id} or "
-                    f"evaluator with id {input.evaluator_id} not found"
-                )
-            raise
-
-        return DatasetEvaluatorMutationPayload(
-            evaluator=DatasetEvaluator(id=dataset_evaluator.id),
-            query=Query(),
-        )
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_builtin_evaluator(
         self, info: Info[Context, None], input: CreateDatasetBuiltinEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
@@ -736,60 +642,5 @@ class EvaluatorMutationMixin:
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
-            query=Query(),
-        )
-
-    # TODO: should this always just get deleted in favor of always calling
-    # delete_evaluators for DatasetEvaluators?
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def unassign_evaluator_from_dataset(
-        self, info: Info[Context, None], input: UnassignEvaluatorFromDatasetInput
-    ) -> DatasetEvaluatorMutationPayload:
-        try:
-            dataset_rowid = from_global_id_with_expected_type(
-                global_id=input.dataset_id,
-                expected_type_name=Dataset.__name__,
-            )
-        except ValueError:
-            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
-
-        try:
-            dataset_evaluator_rowid = from_global_id_with_expected_type(
-                global_id=input.dataset_evaluator_id,
-                expected_type_name=DatasetEvaluator.__name__,
-            )
-        except ValueError as e:
-            raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}. {e}")
-
-        select_stmt = select(models.DatasetEvaluators).where(
-            models.DatasetEvaluators.dataset_id == dataset_rowid,
-            models.DatasetEvaluators.id == dataset_evaluator_rowid,
-        )
-
-        async with info.context.db() as session:
-            dataset_evaluator = await session.scalar(select_stmt)
-            if dataset_evaluator is None:
-                raise NotFound(
-                    f"DatasetEvaluator not found for dataset {input.dataset_id}, "
-                    f"dataset evaluator {input.dataset_evaluator_id}"
-                )
-            dataset_evaluator_id = dataset_evaluator.id
-            dataset_evaluator_display_name = dataset_evaluator.display_name
-            dataset_evaluator_evaluator_id = dataset_evaluator.evaluator_id
-            dataset_evaluator_builtin_evaluator_id = dataset_evaluator.builtin_evaluator_id
-            dataset_evaluator_dataset_id = dataset_evaluator.dataset_id
-            dataset_evaluator_input_mapping = dataset_evaluator.input_mapping
-            await session.delete(dataset_evaluator)
-
-        deleted_record = models.DatasetEvaluators(
-            id=dataset_evaluator_id,
-            display_name=dataset_evaluator_display_name,
-            evaluator_id=dataset_evaluator_evaluator_id,
-            builtin_evaluator_id=dataset_evaluator_builtin_evaluator_id,
-            dataset_id=dataset_evaluator_dataset_id,
-            input_mapping=dataset_evaluator_input_mapping,
-        )
-        return DatasetEvaluatorMutationPayload(
-            evaluator=DatasetEvaluator(id=dataset_evaluator_id, db_record=deleted_record),
             query=Query(),
         )
