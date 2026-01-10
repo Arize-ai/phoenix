@@ -199,5 +199,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### documentation
 
 - content: Write README.md with usage examples, configuration, and troubleshooting
-- status: pending
+- status: complete
 - dependencies: cli-interactive

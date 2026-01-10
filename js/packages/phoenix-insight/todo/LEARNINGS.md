@@ -305,3 +305,17 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test file addition**: Added progress.ts to the src directory, which increased the expected file count in scaffold-structure tests. Remember to update related tests when adding new files
 - **Incremental snapshot progress**: Show the time since last snapshot in incremental updates. Use formatTimeSince helper to convert milliseconds to human-readable format (2h, 30m, etc.)
 - **Error handling**: Always stop/cleanup spinners on error to avoid leaving the terminal in a bad state. Use try-finally or explicit stop calls in error paths
+
+
+## documentation
+
+- **Comprehensive README structure**: Created a comprehensive README with 16+ sections covering installation, quick start, execution modes, usage examples, configuration, troubleshooting, and development. The README is over 10,000 words and provides extensive documentation
+- **Agent-centric documentation**: Focused on explaining what the agent can do, how it works, and provided real examples of agent analysis outputs. This helps users understand the value proposition immediately
+- **Markdown table formatting**: Used tables throughout for clear presentation of options, environment variables, and comparisons. Tables need proper separator lines (|---|---|) to render correctly
+- **Troubleshooting focus**: Dedicated significant space to troubleshooting with specific error patterns and solutions. Included debug mode instructions and common issues users might encounter
+- **Execution modes explanation**: Clearly differentiated between sandbox and local modes with a comparison table, explaining when to use each mode and their trade-offs
+- **Code example consistency**: All command examples use consistent formatting with $ prefix and comments explaining what each command does
+- **Test strategy for docs**: Created tests that verify README exists, has required sections, proper markdown structure, and documents all CLI options. Avoided overly strict heading hierarchy checks that could be brittle
+- **Link to external resources**: Included links to Vercel's agent architecture blog post, Phoenix documentation, and GitHub resources to provide additional context
+- **Examples of agent output**: Included realistic examples of how the agent analyzes errors and performance issues, showing the actual value users will get
+- **Tips and best practices section**: Added a section with query formulation tips, performance considerations, and security recommendations to help users get the most out of the tool

@@ -1,11 +1,20 @@
 # Phoenix Insight CLI
 
-A command-line interface for Phoenix data analysis with AI agents. This tool allows you to query and analyze Phoenix observability data using natural language through an AI-powered agent.
+A filesystem-native AI agent CLI for querying Phoenix instances using the "bash + files" paradigm inspired by [Vercel's agent architecture](https://vercel.com/blog/how-to-build-agents-with-filesystems-and-bash).
+
+Phoenix Insight transforms your Phoenix observability data into a structured filesystem, then uses an AI agent with bash tools to analyze it through natural language queries. This approach provides transparency, flexibility, and power that traditional APIs can't match.
 
 ## Installation
 
 ```bash
+# Install globally via npm
 npm install -g @arizeai/phoenix-insight
+
+# Or use with pnpm
+pnpm add -g @arizeai/phoenix-insight
+
+# Or run directly with npx
+npx @arizeai/phoenix-insight "your query"
 ```
 
 ## Quick Start
@@ -14,92 +23,435 @@ npm install -g @arizeai/phoenix-insight
 # Query Phoenix data with natural language
 phoenix-insight "What are the most common errors in the last hour?"
 
-# Force refresh snapshot before querying
-phoenix-insight "Show me slow traces" --refresh
+# Interactive mode for multiple queries
+phoenix-insight --interactive
 
-# Run in sandbox mode (no filesystem writes)
-phoenix-insight "Analyze trace patterns" --sandbox
+# Safe sandbox mode (no disk writes)
+phoenix-insight --sandbox "analyze trace patterns"
+
+# Force fresh data
+phoenix-insight --refresh "show me the slowest endpoints"
 ```
 
-## Configuration
+## How It Works
 
-Phoenix Insight can be configured through environment variables or command-line options:
+Phoenix Insight operates in three phases:
 
-- `PHOENIX_BASE_URL` - Phoenix server URL (default: http://localhost:6006)
-- `PHOENIX_API_KEY` - API key for Phoenix authentication
+1. **Data Ingestion**: Fetches data from your Phoenix instance and creates a structured filesystem snapshot
+2. **AI Analysis**: An AI agent explores the data using bash commands (cat, grep, jq, awk, etc.)
+3. **Natural Language Results**: The agent synthesizes findings into clear, actionable insights
 
-## Features
+### Filesystem Structure
 
-- **Natural Language Queries**: Ask questions about your Phoenix data in plain English
-- **Snapshot Management**: Efficient local caching of Phoenix data for fast queries
-- **Execution Modes**:
-  - **Sandbox Mode**: Safe exploration with in-memory filesystem
-  - **Local Mode**: Persistent analysis with real filesystem access
-- **Incremental Updates**: Smart caching that only fetches new data
-- **Custom Commands**: Extensible with Phoenix-specific commands like `px-fetch-more`
+Phoenix data is organized into an intuitive REST-like hierarchy:
 
-## Usage
-
-### Basic Query
-
-```bash
-phoenix-insight "What are the top 5 slowest API endpoints?"
+```
+/phoenix/
+  _context.md                       # Start here! Human-readable summary
+  /projects/
+    index.jsonl                     # All projects
+    /{project_name}/
+      metadata.json                 # Project details
+      /spans/
+        index.jsonl                 # Trace spans (sampled)
+  /datasets/
+    index.jsonl                     # All datasets
+    /{dataset_name}/
+      metadata.json
+      examples.jsonl
+  /experiments/
+    index.jsonl                     # All experiments
+    /{experiment_id}/
+      metadata.json
+      runs.jsonl
+  /prompts/
+    index.jsonl                     # All prompts
+    /{prompt_name}/
+      metadata.json
+      /versions/
+        /{version}.md               # Prompt templates as markdown
+  /traces/                          # Fetched on-demand
+    /{trace_id}/
+      spans.jsonl
+      metadata.json
+  /_meta/
+    snapshot.json                   # Snapshot metadata
 ```
 
-### With Options
+## Execution Modes
+
+Phoenix Insight supports two execution modes:
+
+### Sandbox Mode (--sandbox)
+
+Uses [just-bash](https://github.com/vercel-labs/just-bash) for complete isolation:
+
+- **In-memory filesystem**: No disk writes
+- **Simulated bash**: 50+ built-in commands
+- **Zero risk**: Cannot access your system
+- **Perfect for**: CI/CD, demos, safe exploration
+
+### Local Mode (--local, default)
+
+Uses real bash and persistent storage:
+
+- **Persistent data**: Snapshots saved to `~/.phoenix-insight/`
+- **Full bash power**: All system commands available
+- **Incremental updates**: Only fetches new data
+- **Perfect for**: Power users, complex analysis, custom tools
+
+## Usage Examples
+
+### Basic Queries
 
 ```bash
-phoenix-insight "Find traces with errors" \
+# Analyze errors
+phoenix-insight "What types of errors are occurring most frequently?"
+
+# Performance analysis
+phoenix-insight "Find the slowest traces and identify patterns"
+
+# Experiment comparison
+phoenix-insight "Compare success rates across recent experiments"
+
+# Dataset exploration
+phoenix-insight "Show me statistics about my datasets"
+```
+
+### Advanced Options
+
+```bash
+# Connect to remote Phoenix instance
+phoenix-insight "analyze traces" \
   --base-url https://phoenix.example.com \
-  --api-key your-api-key \
-  --limit 1000 \
-  --stream
-```
+  --api-key your-api-key
 
-### Snapshot Management
+# Increase span fetch limit (default: 1000 per project)
+phoenix-insight "deep trace analysis" --limit 5000
 
-```bash
-# Create or update a snapshot
-phoenix-insight snapshot --refresh
+# Stream responses in real-time
+phoenix-insight "complex analysis task" --stream
 
-# Query with forced refresh
-phoenix-insight "Analyze performance trends" --refresh
+# Force sandbox mode for safety
+phoenix-insight "experimental query" --sandbox
 ```
 
 ### Interactive Mode
 
-```bash
-# Start interactive REPL
-phoenix-insight
+Start an interactive REPL session for multiple queries:
 
-# In REPL, type queries:
-> What experiments are running?
-> Show me the latest prompt versions
-> exit
+```bash
+$ phoenix-insight --interactive
+
+phoenix> What projects have the most spans?
+[Agent analyzes and responds...]
+
+phoenix> Show me error patterns in the chatbot-prod project
+[Agent investigates specific project...]
+
+phoenix> px-fetch-more trace --trace-id abc123
+[Agent fetches specific trace data...]
+
+phoenix> exit
 ```
+
+### Snapshot Management
+
+Create or update snapshots separately from queries:
+
+```bash
+# Create initial snapshot
+phoenix-insight snapshot
+
+# Force refresh (ignore cache)
+phoenix-insight snapshot --refresh
+
+# Snapshot from specific Phoenix instance
+phoenix-insight snapshot \
+  --base-url https://phoenix.example.com \
+  --api-key your-api-key
+```
+
+### On-Demand Data Fetching
+
+The agent can fetch additional data during analysis:
+
+```bash
+# In your query, the agent might discover it needs more data:
+"I need more spans to complete this analysis. Let me fetch them..."
+px-fetch-more spans --project my-project --limit 500
+
+# Or fetch a specific trace:
+"I'll get the full trace to understand the error..."
+px-fetch-more trace --trace-id abc123
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable               | Description                | Default                 |
+| ---------------------- | -------------------------- | ----------------------- |
+| `PHOENIX_BASE_URL`     | Phoenix server URL         | `http://localhost:6006` |
+| `PHOENIX_API_KEY`      | API key for authentication | (none)                  |
+| `PHOENIX_INSIGHT_MODE` | Default execution mode     | `local`                 |
+| `DEBUG`                | Show detailed error info   | `0`                     |
+
+### Command Line Options
+
+| Option                | Description                 | Default          |
+| --------------------- | --------------------------- | ---------------- |
+| `--sandbox`           | Run in sandbox mode (safe)  | false            |
+| `--local`             | Run in local mode (default) | true             |
+| `--base-url <url>`    | Phoenix server URL          | env or localhost |
+| `--api-key <key>`     | Phoenix API key             | env or none      |
+| `--refresh`           | Force fresh snapshot        | false            |
+| `--limit <n>`         | Max spans per project       | 1000             |
+| `--stream`            | Stream agent responses      | false            |
+| `--interactive`, `-i` | Interactive REPL mode       | false            |
+
+### Local Mode Storage
+
+In local mode, data is stored in:
+
+```
+~/.phoenix-insight/
+  /snapshots/
+    /{timestamp}/              # Each snapshot
+      /phoenix/                # Phoenix data
+  /cache/                      # API response cache
+  /config.json                 # User preferences
+```
+
+## Troubleshooting
+
+### Connection Issues
+
+```bash
+# Test connection to Phoenix
+phoenix-insight snapshot
+
+# If that fails, check your Phoenix instance:
+curl http://localhost:6006/v1/projects
+
+# Verify with explicit connection:
+phoenix-insight snapshot --base-url http://your-phoenix:6006
+```
+
+### Authentication Errors
+
+```bash
+# Set API key via environment
+export PHOENIX_API_KEY="your-key"
+phoenix-insight "your query"
+
+# Or pass directly
+phoenix-insight "your query" --api-key "your-key"
+```
+
+### Debug Mode
+
+For detailed error information:
+
+```bash
+# Enable debug output
+DEBUG=1 phoenix-insight "problematic query"
+
+# This shows:
+# - Full stack traces
+# - API request details
+# - Agent tool calls
+# - Raw responses
+```
+
+### Common Issues
+
+**"No snapshot found" in local mode**
+
+```bash
+# Create initial snapshot
+phoenix-insight snapshot
+
+# Or use --refresh to create on-demand
+phoenix-insight "query" --refresh
+```
+
+**Out of memory in sandbox mode**
+
+```bash
+# Reduce span limit
+phoenix-insight "query" --sandbox --limit 500
+
+# Or use local mode for large datasets
+phoenix-insight "query" --local
+```
+
+**Agent can't find expected data**
+
+```bash
+# Force refresh to get latest
+phoenix-insight "query" --refresh
+
+# Fetch more data on-demand (agent will do this automatically)
+px-fetch-more spans --project my-project --limit 2000
+```
+
+## Agent Capabilities
+
+The AI agent has access to:
+
+### Bash Commands (Sandbox Mode)
+
+- **File operations**: `cat`, `ls`, `find`, `head`, `tail`
+- **Search & filter**: `grep`, `awk`, `sed`
+- **JSON processing**: `jq` (full featured)
+- **Analysis**: `sort`, `uniq`, `wc`
+- **And more**: 50+ commands via just-bash
+
+### Bash Commands (Local Mode)
+
+- All commands available on your system
+- Custom tools: `ripgrep`, `fd`, `bat`, etc.
+- Full `jq`, `awk`, `sed` features
+- Any installed CLI tools
+
+### Custom Commands
+
+- `px-fetch-more spans`: Fetch additional spans
+- `px-fetch-more trace`: Fetch specific trace by ID
+
+### Understanding Context
+
+The agent always starts by reading `/_context.md` which provides:
+
+- Summary of available data
+- Recent activity highlights
+- Data freshness information
+- Available commands reminder
 
 ## Development
 
-This package is part of the Phoenix monorepo. To contribute:
+### Building from Source
 
 ```bash
-# Clone the repo
+# Clone the repository
 git clone https://github.com/Arize-ai/phoenix.git
 cd phoenix/js/packages/phoenix-insight
 
 # Install dependencies
 pnpm install
 
-# Run in development mode
-pnpm dev "your query here"
+# Run in development
+pnpm dev "your query"
 
 # Run tests
 pnpm test
 
-# Build
+# Build for production
 pnpm build
+
+# Type checking
+pnpm typecheck
 ```
+
+### Architecture
+
+Phoenix Insight uses:
+
+- **Commander.js** for CLI interface
+- **AI SDK** with Anthropic Claude for the agent
+- **just-bash** for sandbox execution
+- **Phoenix Client** for data fetching
+- **TypeScript** for type safety
+
+### Testing
+
+```bash
+# Run all tests
+pnpm test
+
+# Run with coverage
+pnpm test -- --coverage
+
+# Run specific test file
+pnpm test src/modes/sandbox.test.ts
+
+# Type checking
+pnpm typecheck
+```
+
+## Examples of Agent Analysis
+
+### Error Pattern Detection
+
+```
+User: "What are the most common errors in my traces?"
+
+Agent: I'll analyze the error patterns in your traces. Let me start by examining the context...
+
+*reads _context.md*
+*searches for error spans across projects*
+*aggregates by error type*
+*identifies patterns*
+
+I found 3 main error patterns in your traces:
+1. **Database timeouts** (42% of errors): Occurring in user-service, primarily during peak hours
+2. **API rate limits** (31% of errors): Third-party integration hitting limits
+3. **Null pointer exceptions** (27% of errors): In the recommendation engine
+
+The database timeouts show a clear pattern during 9-10am and 2-3pm daily.
+```
+
+### Performance Analysis
+
+```
+User: "Find the slowest API endpoints"
+
+Agent: I'll analyze your API endpoint performance. Let me examine the span data...
+
+*reads project spans*
+*calculates latency percentiles*
+*groups by endpoint*
+*identifies outliers*
+
+Here are your slowest API endpoints by p95 latency:
+1. `/api/v1/recommendations` - 3.2s p95 (8.1s p99)
+2. `/api/v1/search` - 2.8s p95 (5.2s p99)
+3. `/api/v1/user/history` - 1.9s p95 (3.1s p99)
+
+The recommendations endpoint has high variability, suggesting cache misses.
+```
+
+## Tips and Best Practices
+
+### Query Formulation
+
+- Be specific about what you want to analyze
+- Mention time ranges if relevant
+- Ask for patterns, not just raw data
+
+### Performance
+
+- Use `--limit` to control data volume
+- In sandbox mode, start with smaller datasets
+- Use local mode for production analysis
+
+### Security
+
+- Use sandbox mode when trying new queries
+- Never put API keys in queries
+- Review agent actions with `--stream`
 
 ## License
 
-Apache-2.0
+Apache-2.0 - See [LICENSE](../../../LICENSE) for details.
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](../../../CONTRIBUTING.md) for details.
+
+## Support
+
+- [GitHub Issues](https://github.com/Arize-ai/phoenix/issues)
+- [Phoenix Documentation](https://docs.arize.com/phoenix)
+- [Discord Community](https://discord.gg/arize-ai)
