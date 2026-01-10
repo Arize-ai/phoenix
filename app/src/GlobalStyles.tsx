@@ -1033,7 +1033,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-input-field-border-color: var(--ac-global-color-grey-400);
     --ac-global-input-field-border-color-hover: var(--ac-global-color-grey-300);
     --ac-global-input-field-border-color-active: var(--ac-global-color-primary);
-    --ac-global-input-field-background-color: var(--ac-global-color-grey-200);
+    --ac-global-input-field-background-color: var(--ac-global-color-grey-100);
+    --ac-global-input-field-background-color-hover: var(
+      --ac-global-color-grey-300
+    );
     --ac-global-input-field-background-color-active: var(
       --ac-global-color-grey-300
     );

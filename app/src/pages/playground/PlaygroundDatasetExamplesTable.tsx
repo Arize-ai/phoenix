@@ -42,6 +42,7 @@ import {
   Modal,
   ModalOverlay,
   ParagraphSkeleton,
+  ProgressCircle,
   Text,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
@@ -207,7 +208,12 @@ function EmptyExampleOutput({
   );
   if (isRunning) {
     content = <ParagraphSkeleton lines={4} />;
-    cellTopContent = <Text color="text-500">Queued</Text>;
+    cellTopContent = (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Icon svg={<Icons.LoaderOutline />} />
+        <Text color="text-500">Queued</Text>
+      </Flex>
+    );
   }
   if (missingVariables.length > 0) {
     cellTopContent = <Text color="danger">Missing variables</Text>;
@@ -370,9 +376,12 @@ function ExampleOutputContent({
             />
           </Flex>
         ) : (
-          <Text color="text-500" fontStyle="italic">
-            Generating...
-          </Text>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <ProgressCircle isIndeterminate size="S" aria-label="Generating" />
+            <Text color="text-500" fontStyle="italic">
+              Generating...
+            </Text>
+          </Flex>
         )}
       </CellTop>
       <OverflowCell
@@ -1247,7 +1256,7 @@ export function PlaygroundDatasetExamplesTable({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => calculateEstimatedRowHeight(numEnabledEvaluators),
-    overscan: 5,
+    overscan: 10,
   });
 
   const fetchMoreOnBottomReached = useCallback(
