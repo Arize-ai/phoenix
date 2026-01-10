@@ -51,8 +51,9 @@ export const EditBuiltInEvaluatorDialogContent = ({
           all: unset;
           display: flex;
           flex-direction: column;
+          flex: 1;
+          min-height: 0;
           gap: var(--ac-global-dimension-size-200);
-          padding: var(--ac-global-dimension-size-200);
           overflow: auto;
         `}
       >

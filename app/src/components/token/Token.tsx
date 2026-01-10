@@ -72,6 +72,9 @@ const tokenBaseCSS = css`
   &[data-theme="light"] {
     background: var(--ac-internal-token-color);
     border-color: var(--ac-internal-token-color);
+    color: lch(
+      from var(--ac-internal-token-color) calc((55 - l) * infinity) 0 0
+    );
   }
 
   &[data-theme="dark"] {

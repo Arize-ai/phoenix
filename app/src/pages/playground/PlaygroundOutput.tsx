@@ -12,7 +12,7 @@ import {
   Flex,
   Icon,
   Icons,
-  Loading,
+  ParagraphSkeleton,
   Text,
   Tooltip,
   TooltipTrigger,
@@ -527,7 +527,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           case selectedRepetition?.status === "pending":
             return (
               <View padding="size-200">
-                <Loading message="Running..." />
+                <ParagraphSkeleton lines={4} />
               </View>
             );
           case selectedRepetitionError != null:

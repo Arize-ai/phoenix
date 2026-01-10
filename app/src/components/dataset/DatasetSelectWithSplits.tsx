@@ -59,6 +59,7 @@ type DatasetSelectWithSplitsProps = {
 type SplitItem = {
   id: string;
   name: string;
+  color: string;
 };
 
 type LabelItem = {
@@ -105,6 +106,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               splits {
                 id
                 name
+                color
               }
               labels {
                 id
@@ -131,6 +133,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         splits: dataset.splits.map((split) => ({
           id: split.id,
           name: split.name,
+          color: split.color,
         })),
         labels: dataset.labels.map((label) => ({
           id: label.id,
@@ -191,20 +194,22 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               <Text>
                 <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
               </Text>
-              <Text color="text-300" minWidth={0}>
-                <Truncate maxWidth="100%">
-                  {selectedSplits.length > 0 ? (
-                    <>
-                      &nbsp;/&nbsp;
-                      {selectedSplits.length === 1
-                        ? selectedSplits[0].name
-                        : `${selectedSplits.length} splits`}
-                    </>
-                  ) : (
-                    <>&nbsp;/ All Examples</>
-                  )}
-                </Truncate>
-              </Text>
+              {selectedSplits.length === 1 ? (
+                <>
+                  <Text color="text-300">&nbsp;/&nbsp;</Text>
+                  <Token color={selectedSplits[0].color} size="S">
+                    {selectedSplits[0].name}
+                  </Token>
+                </>
+              ) : (
+                <Text color="text-300" minWidth={0}>
+                  <Truncate maxWidth="100%">
+                    {selectedSplits.length > 1
+                      ? `/ ${selectedSplits.length} splits`
+                      : "/ All Examples"}
+                  </Truncate>
+                </Text>
+              )}
             </>
           ) : (
             <Text color="text-300">
@@ -365,6 +370,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           {
                             id: "all-examples",
                             name: "All examples",
+                            color: null as string | null,
                             isAllExamples: true,
                           },
                           ...splits.map((split) => ({
@@ -451,20 +457,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           }
                         }}
                       >
-                        {({ id: itemId, name, isAllExamples }) => (
-                          <MenuItem
-                            id={itemId}
-                            textValue={name}
-                            css={
-                              isAllExamples
-                                ? css`
-                                    border-bottom: 1px solid
-                                      var(--ac-global-color-grey-200);
-                                  `
-                                : undefined
-                            }
-                          >
-                            <Text>{name}</Text>
+                        {({ id: itemId, name, color }) => (
+                          <MenuItem id={itemId} textValue={name}>
+                            {color ? (
+                              <Token color={color}>{name}</Token>
+                            ) : (
+                              <Text>{name}</Text>
+                            )}
                           </MenuItem>
                         )}
                       </Menu>
