@@ -20,6 +20,7 @@ import {
   useFilter,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
 
 type PromptsLabelMenuProps = {
@@ -110,6 +111,7 @@ const LabelMenuFilterContent = ({
             Filter prompts by labels
           </Heading>
           <SearchField aria-label="Search" variant="quiet" autoFocus>
+            <SearchIcon />
             <Input placeholder="Search labels" />
           </SearchField>
         </Flex>

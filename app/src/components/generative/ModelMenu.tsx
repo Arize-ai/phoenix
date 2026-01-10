@@ -23,6 +23,7 @@ import {
   Text,
   useFilter,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -278,6 +279,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
             value={searchValue}
             onChange={setSearchValue}
           >
+            <SearchIcon />
             <Input placeholder="Search models..." />
           </SearchField>
         </MenuHeader>
@@ -614,6 +616,7 @@ function ProviderModelsSubmenu({
             value={searchValue}
             onChange={setSearchValue}
           >
+            <SearchIcon />
             <Input placeholder="Search or enter model name" />
           </SearchField>
         </MenuHeader>

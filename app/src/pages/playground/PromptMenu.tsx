@@ -24,6 +24,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
@@ -286,6 +287,7 @@ export function PromptSelector({
                 variant="quiet"
                 autoFocus
               >
+                <SearchIcon />
                 <Input placeholder="Search prompts" />
               </SearchField>
             </MenuHeader>
@@ -412,6 +414,7 @@ export function PromptVersionSelector({
                     variant="quiet"
                     autoFocus
                   >
+                    <SearchIcon />
                     <Input placeholder="Search versions" />
                   </SearchField>
                 </MenuHeader>
@@ -480,6 +483,7 @@ export function PromptVersionSelector({
                     variant="quiet"
                     autoFocus
                   >
+                    <SearchIcon />
                     <Input placeholder="Search tags" />
                   </SearchField>
                 </MenuHeader>

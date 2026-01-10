@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { SearchIcon } from "@phoenix/components/field";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -443,6 +444,7 @@ function SelectionToolbar({
               setSelectionSearchText(searchText);
             }}
           >
+            <SearchIcon />
             <Input placeholder="Search by text or ID" />
           </SearchField>
           {selectionDisplay === SelectionDisplay.gallery && (

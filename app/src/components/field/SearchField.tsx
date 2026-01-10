@@ -23,11 +23,15 @@ export interface SearchFieldProps extends AriaSearchFieldProps, SizingProps {
    * - "quiet": No border, transparent background (inherits from parent)
    */
   variant?: BaseVariant | QuietVariant;
-  /**
-   * Whether to show the search icon. Defaults to true.
-   */
-  showIcon?: boolean;
 }
+
+/**
+ * A search icon styled for use inside SearchField.
+
+ */
+export const SearchIcon = () => {
+  return <Icon className="ac-search-icon" svg={<Icons.Search />} />;
+};
 
 const searchFieldCSS = css`
   --searchfield-icon-size: 1rem;
@@ -160,7 +164,6 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
     variant = "default",
     children,
     isReadOnly,
-    showIcon = true,
     ...otherProps
   } = props;
   return (
@@ -175,9 +178,6 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
     >
       {(renderProps) => (
         <>
-          {showIcon && (
-            <Icon className="ac-search-icon" svg={<Icons.Search />} />
-          )}
           {typeof children === "function" ? children(renderProps) : children}
           {!isReadOnly && (
             <Button
