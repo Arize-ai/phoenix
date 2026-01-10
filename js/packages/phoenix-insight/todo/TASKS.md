@@ -253,3 +253,13 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 - content: Tests got broken by some commit. Fix them all.
 - status: complete
 - dependencies: documentation
+
+---
+
+## Phase 10: Documentation Audit
+
+### cli-flags-documentation
+
+- content: Audit README.md to ensure ALL CLI flags from src/cli.ts are documented. Compare the commander definitions in cli.ts with the README CLI reference section. Add any missing flags with descriptions and examples.
+- status: pending
+- dependencies: documentation, cli-flags

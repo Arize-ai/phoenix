@@ -199,6 +199,31 @@ If you encounter an error:
 
 ---
 
+### SIGN: Keep Documentation Updated
+
+If your task adds or modifies **user-facing features**, update `README.md`:
+
+**User-facing features include:**
+- New CLI flags or options
+- New commands or subcommands
+- Changes to output format or behavior
+- New environment variables
+- Breaking changes to existing features
+
+**What to update:**
+- Add new flags to the CLI reference table
+- Update usage examples if behavior changes
+- Add new sections for new commands
+- Update the "Quick Start" if the basic workflow changes
+
+```
+❌ WRONG: Add --verbose flag but don't document it
+❌ WRONG: Change output format without updating examples
+✅ RIGHT: Add feature AND update README in the same commit
+```
+
+---
+
 ## Quick Reference
 
 | Action | Command |
