@@ -71,7 +71,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### phoenix-client-integration
 
 - content: Create snapshot/client.ts: wrapper around @arizeai/phoenix-client with error handling
-- status: pending
+- status: complete
 - dependencies: scaffold-structure
 
 ### snapshot-projects

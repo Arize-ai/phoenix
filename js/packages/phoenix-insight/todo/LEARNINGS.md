@@ -81,3 +81,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Vitest already ESM**: Vitest config and tests were already using ESM syntax, so minimal changes needed there
 - **Index.ts addition**: Added src/index.ts as the package entry point that re-exports from modes/index.js. This provides a clean package API
 - **CLI shebang preserved**: The `#!/usr/bin/env node` shebang is preserved in the built cli.js file, ensuring the CLI works correctly when installed globally
+
+## phoenix-client-integration
+
+- **openapi-fetch client**: The @arizeai/phoenix-client uses openapi-fetch under the hood, which has a different API than typical REST clients. It returns raw fetch clients with strongly typed paths
+- **Error handling middleware**: The phoenix-client already includes middleware that throws on non-OK responses with a specific error format: "URL: STATUS STATUS_TEXT"
+- **Headers structure**: API key should be passed as `api_key` header (not Authorization Bearer). The client accepts headers in the options object
+- **TypeScript strictness**: When parsing error messages, be careful about undefined values. TypeScript's strict mode will catch potential undefined accesses
+- **Error categorization**: Created 4 error codes: NETWORK_ERROR (connection issues), AUTH_ERROR (401/403), INVALID_RESPONSE (4xx), and UNKNOWN_ERROR (everything else)
+- **Test mocking**: Mock the entire @arizeai/phoenix-client module using vitest's vi.mock(). The createClient function is the main export to mock
+- **extractData helper**: Created a utility to safely extract data from API responses and throw appropriate errors for missing data. This centralizes response validation
+- **Error preservation**: The PhoenixClientError class preserves the original error as a property, which is helpful for debugging and logging
