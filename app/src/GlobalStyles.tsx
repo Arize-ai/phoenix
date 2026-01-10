@@ -1249,8 +1249,8 @@ const appGlobalStylesCSS = css`
 
     /* Modal */
     --ac-global-modal-width-S: 500px;
-    --ac-global-modal-width-M: 700px;
-    --ac-global-modal-width-L: 900px;
+    --ac-global-modal-width-M: 750px;
+    --ac-global-modal-width-L: 1000px;
     --ac-global-modal-width-FULLSCREEN: calc(
       100vw - var(--ac-global-dimension-static-size-1700)
     );
