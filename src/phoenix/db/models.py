@@ -2260,35 +2260,9 @@ class DatasetEvaluators(HasId):
             "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
             name="evaluator_id_xor_builtin_evaluator_id",
         ),
-        # Use UniqueConstraints for SQLite ON CONFLICT support
         UniqueConstraint(
             "dataset_id",
-            "evaluator_id",
             "display_name",
-        ),
-        UniqueConstraint(
-            "dataset_id",
-            "builtin_evaluator_id",
-            "display_name",
-        ),
-        # Partial unique indexes to enforce uniqueness on non-NULL values
-        Index(
-            "ix_dataset_evaluators_dataset_evaluator_notnull",
-            "dataset_id",
-            "evaluator_id",
-            "display_name",
-            unique=True,
-            postgresql_where=sa.text("evaluator_id IS NOT NULL"),
-            sqlite_where=sa.text("evaluator_id IS NOT NULL"),
-        ),
-        Index(
-            "ix_dataset_evaluators_dataset_builtin_notnull",
-            "dataset_id",
-            "builtin_evaluator_id",
-            "display_name",
-            unique=True,
-            postgresql_where=sa.text("builtin_evaluator_id IS NOT NULL"),
-            sqlite_where=sa.text("builtin_evaluator_id IS NOT NULL"),
         ),
     )
 
