@@ -6,13 +6,13 @@
 # Each iteration: agent picks next task, implements, tests, commits, exits.
 #
 # Usage:
-#   ./ralph.sh                                    # Uses opencode with claude-opus-4.5
-#   AGENT_CMD="your-agent-command" ./ralph.sh    # Override with custom agent
+#   ./ralph.sh                                              # Uses claude-opus-4.5
+#   MODEL="anthropic/claude-sonnet-4-20250514" ./ralph.sh   # Use different model
 #
-# Examples:
-#   ./ralph.sh                                    # Default: opencode run -m anthropic/claude-opus-4-20250514
-#   AGENT_CMD="opencode run -m anthropic/claude-sonnet-4-20250514" ./ralph.sh
-#   AGENT_CMD="claude-code" ./ralph.sh
+# Environment variables:
+#   MODEL          - Model to use (default: anthropic/claude-opus-4-20250514)
+#   MAX_ITERATIONS - Safety limit (default: 100)
+#   PAUSE_SECONDS  - Pause between iterations (default: 3)
 #
 # See: https://opencode.ai/docs/cli/
 #
@@ -23,6 +23,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMPT_FILE="$SCRIPT_DIR/PROMPT.md"
 TASKS_FILE="$SCRIPT_DIR/TASKS.md"
 LOG_FILE="$SCRIPT_DIR/ralph.log"
+
+# Model configuration
+MODEL="${MODEL:-anthropic/claude-opus-4-20250514}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -66,20 +69,16 @@ if [[ ! -f "$TASKS_FILE" ]]; then
     exit 1
 fi
 
-# Agent command - override with AGENT_CMD env var
-# OpenCode format: opencode run -m provider/model
-AGENT="${AGENT_CMD:-opencode run -m anthropic/claude-opus-4-20250514}"
-
-# Verify agent is available (check first word of command)
-AGENT_BIN=$(echo "$AGENT" | awk '{print $1}')
-if ! command -v "$AGENT_BIN" &> /dev/null; then
-    log_warning "Agent command '$AGENT_BIN' not found in PATH"
-    log_warning "Install opencode or set AGENT_CMD environment variable"
-    log_warning "See: https://opencode.ai/docs/cli/"
+# Verify opencode is available
+if ! command -v opencode &> /dev/null; then
+    log_error "opencode not found in PATH"
+    log_error "Install: curl -fsSL https://opencode.ai/install | bash"
+    log_error "See: https://opencode.ai/docs/cli/"
+    exit 1
 fi
 
 log "Starting Ralph loop"
-log "Agent: $AGENT"
+log "Model: $MODEL"
 log "Prompt: $PROMPT_FILE"
 log "Tasks: $TASKS_FILE"
 echo ""
@@ -121,9 +120,14 @@ while true; do
     # Feed prompt to agent
     log "Invoking agent..."
     
-    # Run agent with prompt and task files attached
-    # OpenCode uses -f to attach files, then a message to kick off
-    if $AGENT -f "$PROMPT_FILE" -f "$TASKS_FILE" "Follow the instructions in PROMPT.md to complete the next pending task from TASKS.md"; then
+    # Run opencode from the todo directory so it can access PROMPT.md and TASKS.md
+    cd "$SCRIPT_DIR"
+    
+    # OpenCode run format: opencode run "message" -f file1 -f file2
+    # Message must come BEFORE -f flags
+    if opencode run -m "$MODEL" \
+        "Read the attached PROMPT.md and TASKS.md files. Follow the instructions in PROMPT.md to complete the next pending task." \
+        -f PROMPT.md -f TASKS.md; then
         log_success "Agent completed iteration $iteration"
     else
         exit_code=$?
