@@ -201,3 +201,30 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - content: Write README.md with usage examples, configuration, and troubleshooting
 - status: complete
 - dependencies: cli-interactive
+
+## Phase 9: Bug Fixes
+
+### agent-tools
+
+- content: Fix agent tools. Remove usage of the `any` type. Read the AI SDk documentation for the correct types. The following error is currently being thrown:
+
+```
+pnpm dev "show me error patterns in the playground"   
+
+> @arizeai/phoenix-insight@0.0.1 dev /Users/tony/repos/phoenix/js/packages/phoenix-insight
+> tsx src/cli.ts 'show me error patterns in the playground'
+
+✔ ✅ Snapshot created successfully!
+⠹ 🤔 Analyzing...
+❌ Error executing query:
+
+AI generation failed: tools.0.custom.input_schema.type: Field required
+
+💡 Tips:
+   • Run with DEBUG=1 for more detailed error information
+   • Check your Phoenix connection with: phoenix-insight snapshot --base-url <url>
+   • Use --help to see all available options
+ ELIFECYCLE  Command failed with exit code 1
+```
+- status: pending
+- dependencies: agent-setup
