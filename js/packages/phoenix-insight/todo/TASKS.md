@@ -139,7 +139,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### px-fetch-more-trace
 
 - content: Implement px-fetch-more trace command: fetch specific trace by ID
-- status: pending
+- status: complete
 - dependencies: snapshot-spans
 
 ---

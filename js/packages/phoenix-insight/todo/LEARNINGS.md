@@ -207,3 +207,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Console output**: Added informative console.log messages showing how many spans were fetched and the total count. This provides feedback when the command is run
 - **Test organization**: Test different scenarios: existing data, no data, time filters, pagination, errors, and empty responses. Each test should be focused on one aspect
 - **Pagination logic**: The while loop fetches spans in chunks of 100 (or remaining limit) until either the limit is reached or no more data is available (no cursor or empty data)
+
+## px-fetch-more-trace
+
+- **No direct trace API**: Phoenix API doesn't have a direct endpoint to fetch spans by trace_id. The solution is to paginate through all spans in a project and filter by trace_id locally
+- **Trace spans can be spread across pages**: When finding trace spans, continue fetching additional pages even after finding the first matching span, as the trace might have spans spread across multiple pages
+- **Progress feedback**: For large datasets, show progress messages every 1000 spans searched to give user feedback during long searches
+- **Trace directory structure**: Store trace data in `/phoenix/traces/{trace_id}/` with separate files for spans.jsonl and metadata.json. This keeps trace data organized separately from project data
+- **Sort spans by time**: Sort trace spans by start_time before saving to ensure they're in chronological order, making it easier to analyze the trace flow
+- **Duration calculation**: Calculate trace duration using the earliest start_time and latest end_time from all spans. Be careful that spans might not be in chronological order in the array
+- **Root span identification**: Find the root span by looking for spans with no parent_id. Include this information in the metadata for quick reference
+- **Project validation**: Check if the requested project exists in the snapshot before attempting to fetch spans. This provides better error messages than a 404 from the API
+- **Phoenix client mocking in tests**: Instead of importing and mocking @arizeai/phoenix-client types (which causes TypeScript issues), use a simple mock with `any` type and focus on behavior testing
+- **Test duration expectations**: When testing trace metadata, be careful about duration calculations. The duration is based on the actual span times after sorting, not the order they appear in the mock data
