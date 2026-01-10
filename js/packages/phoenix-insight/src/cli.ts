@@ -2,6 +2,9 @@
 
 import { Command } from "commander";
 import * as readline from "node:readline";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
 import { createSandboxMode, createLocalMode } from "./modes/index.js";
 import { createInsightAgent, runOneShotQuery } from "./agent/index.js";
 import {
@@ -225,6 +228,67 @@ program
       await shutdownObservability();
     } catch (error) {
       handleError(error, "creating snapshot");
+    }
+  });
+
+program
+  .command("prune")
+  .description("Delete the local snapshot directory (~/.phoenix-insight/)")
+  .option("--dry-run", "Show what would be deleted without actually deleting")
+  .action(async (options) => {
+    const snapshotDir = path.join(os.homedir(), ".phoenix-insight");
+
+    try {
+      // Check if the directory exists
+      const stats = await fs.stat(snapshotDir).catch(() => null);
+
+      if (!stats) {
+        console.log("📁 No local snapshot directory found. Nothing to prune.");
+        return;
+      }
+
+      if (options.dryRun) {
+        console.log("🔍 Dry run mode - would delete:");
+        console.log(`   ${snapshotDir}`);
+
+        // Show size and count of snapshots
+        const snapshots = await fs
+          .readdir(path.join(snapshotDir, "snapshots"))
+          .catch(() => []);
+        console.log(`   📊 Contains ${snapshots.length} snapshot(s)`);
+
+        return;
+      }
+
+      // Ask for confirmation
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+
+      const answer = await new Promise<string>((resolve) => {
+        rl.question(
+          `⚠️  This will delete all local snapshots at:\n   ${snapshotDir}\n\n   Are you sure? (yes/no): `,
+          resolve
+        );
+      });
+
+      rl.close();
+
+      if (answer.toLowerCase() !== "yes" && answer.toLowerCase() !== "y") {
+        console.log("❌ Prune cancelled.");
+        return;
+      }
+
+      // Delete the directory
+      await fs.rm(snapshotDir, { recursive: true, force: true });
+      console.log("✅ Local snapshot directory deleted successfully!");
+    } catch (error) {
+      console.error("❌ Error pruning snapshots:");
+      console.error(
+        `   ${error instanceof Error ? error.message : String(error)}`
+      );
+      process.exit(1);
     }
   });
 

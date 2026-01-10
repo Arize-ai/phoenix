@@ -176,6 +176,12 @@ phoenix-insight snapshot \
 
 # Enable observability tracing for snapshot process
 phoenix-insight snapshot --trace
+
+# Clean up local snapshots
+phoenix-insight prune
+
+# Preview what would be deleted
+phoenix-insight prune --dry-run
 ```
 
 ### On-Demand Data Fetching
@@ -203,19 +209,28 @@ px-fetch-more trace --trace-id abc123
 | `PHOENIX_INSIGHT_MODE` | Default execution mode     | `sandbox`               |
 | `DEBUG`                | Show detailed error info   | `0`                     |
 
+### Commands
+
+Phoenix Insight provides several commands:
+
+- **Default (query mode)**: `phoenix-insight "your query"` - Analyze Phoenix data with natural language
+- **`snapshot`**: Create or update a data snapshot from Phoenix
+- **`prune`**: Delete local snapshot directory to free up space
+
 ### Command Line Options
 
-| Option                | Description                        | Default          |
-| --------------------- | ---------------------------------- | ---------------- |
-| `--sandbox`           | Run in sandbox mode (default)      | true             |
-| `--local`             | Run in local mode                  | false            |
-| `--base-url <url>`    | Phoenix server URL                 | env or localhost |
-| `--api-key <key>`     | Phoenix API key                    | env or none      |
-| `--refresh`           | Force fresh snapshot               | false            |
-| `--limit <n>`         | Max spans per project              | 1000             |
-| `--stream`            | Stream agent responses             | false            |
-| `--interactive`, `-i` | Interactive REPL mode              | false            |
-| `--trace`             | Enable tracing to Phoenix instance | false            |
+| Option                | Description                        | Default          | Applies to     |
+| --------------------- | ---------------------------------- | ---------------- | -------------- |
+| `--sandbox`           | Run in sandbox mode (default)      | true             | query          |
+| `--local`             | Run in local mode                  | false            | query          |
+| `--base-url <url>`    | Phoenix server URL                 | env or localhost | all            |
+| `--api-key <key>`     | Phoenix API key                    | env or none      | all            |
+| `--refresh`           | Force fresh snapshot               | false            | query/snapshot |
+| `--limit <n>`         | Max spans per project              | 1000             | query          |
+| `--stream`            | Stream agent responses             | false            | query          |
+| `--interactive`, `-i` | Interactive REPL mode              | false            | query          |
+| `--trace`             | Enable tracing to Phoenix instance | false            | query/snapshot |
+| `--dry-run`           | Preview without making changes     | false            | prune          |
 
 ### Local Mode Storage
 
@@ -228,6 +243,16 @@ In local mode, data is stored in:
       /phoenix/                # Phoenix data
   /cache/                      # API response cache
   /config.json                 # User preferences
+```
+
+To clean up local storage:
+
+```bash
+# Delete all local snapshots
+phoenix-insight prune
+
+# Preview what will be deleted
+phoenix-insight prune --dry-run
 ```
 
 ## Troubleshooting
@@ -291,6 +316,16 @@ phoenix-insight "query" --sandbox --limit 500
 
 # Or use local mode for large datasets
 phoenix-insight "query" --local
+```
+
+**Local storage getting too large**
+
+```bash
+# Check what will be deleted
+phoenix-insight prune --dry-run
+
+# Clean up all local snapshots
+phoenix-insight prune
 ```
 
 **Agent can't find expected data**

@@ -235,7 +235,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### Add a top level "prune" command
 
 - content: Add a top level "prune" command that deletes the local snapshot directory.
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ### Start interactive mode if no arguments are provided

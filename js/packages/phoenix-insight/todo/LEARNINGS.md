@@ -423,3 +423,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Backwards compatibility**: This is a breaking change in behavior, but safer default. Users who relied on local mode being default now need to add --local flag
 - **Incremental snapshot logic**: Sandbox mode always creates fresh snapshots (no persistence), while local mode with --refresh also creates fresh. Only local without refresh uses incremental
 
+
+## Add a top level "prune" command
+
+- **Commander.js subcommands**: Use `program.command("prune")` to add a new subcommand to the CLI. Each command can have its own description, options, and action handler
+- **File system imports**: When working with file operations in the CLI, remember to import fs, path, and os modules. These are essential for interacting with the filesystem
+- **Interactive confirmation**: Use readline.createInterface() to prompt users for confirmation before destructive operations. The question() method returns a promise when wrapped properly
+- **HOME environment variable**: In tests, setting the HOME environment variable before running the CLI process allows testing with different home directories without affecting the actual user's data
+- **Dry run pattern**: Implementing a --dry-run flag is a best practice for destructive commands. It allows users to preview what will be deleted without actually performing the operation
+- **Error handling**: Use try-catch blocks around filesystem operations and provide clear error messages. Exit with code 1 on errors to signal failure to scripts
+- **Test isolation**: When testing filesystem operations, create temporary directories in os.tmpdir() to avoid conflicts between tests and ensure clean state
+- **Documentation updates**: When adding new commands, update the README in multiple places: command list, options table, examples, and troubleshooting sections
+- **fs.rm options**: Use `{ recursive: true, force: true }` with fs.rm() to ensure directories are deleted completely and to avoid errors if the directory doesn't exist
+- **Catch expressions**: When using exec() in tests, use `.catch(e => e)` to capture both stdout and stderr from failed commands without throwing an exception
