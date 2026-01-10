@@ -230,3 +230,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test the prompt exports**: Writing tests for prompts may seem trivial, but it ensures the prompt is properly exported and contains the expected structure
 - **Use .js extension in imports**: When working with ESM-only packages, remember to use the .js extension in import statements, even for TypeScript files
 - **Create an index file**: Having an index.ts that re-exports prompts makes it easier for other modules to import them and provides a clean public API
+
+## agent-setup
+
+- **AI SDK v6 API changes**: The AI SDK v6 has significant API changes from earlier versions. ToolLoopAgent mentioned in the plan doesn't exist - use `generateText` and `streamText` functions instead
+- **Tool definition format**: Tools in AI SDK v6 need `inputSchema` (not `parameters`) and `execute` function. The `tool()` helper function from the SDK has limitations - creating tool objects directly provides more flexibility
+- **Bash tool integration**: The bash tool from execution modes works seamlessly with the AI SDK. Get it via `mode.getBashTool()` and add it to the tools object alongside custom commands
+- **Custom tool implementation**: For px-fetch-more commands, create tool objects with `description`, `inputSchema` (using zod schemas), and `execute` functions. Store client/mode references in closures
+- **Type safety challenges**: The AI SDK has complex TypeScript generics that can be difficult to satisfy. Using `any` type for tools and results is pragmatic - the runtime behavior is more important than perfect types
+- **Agent class design**: Created a `PhoenixInsightAgent` class that encapsulates the mode, client, and tools. This provides a clean API with `generate()` and `stream()` methods
+- **maxToolRoundtrips**: Use `maxToolRoundtrips` (not `maxSteps`) to control how many tool calls the agent can make. Cast the options object to `any` to bypass TypeScript errors
+- **Testing mocks**: Mock the execution mode and client for unit tests. Testing the actual AI interactions requires integration tests which are beyond the scope of unit testing
+- **Stream vs generate**: Support both streaming and non-streaming modes. The stream method returns a result object with async iterators, while generate returns a promise
+- **Resource cleanup**: Always call `mode.cleanup()` after agent use, especially in one-shot queries. Use try-finally to ensure cleanup happens even on errors

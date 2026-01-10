@@ -155,7 +155,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### agent-setup
 
 - content: Implement agent/index.ts: ToolLoopAgent with bash tool and custom commands
-- status: pending
+- status: complete
 - dependencies: sandbox-mode, local-mode, system-prompt, px-fetch-more-spans, px-fetch-more-trace
 
 ---
