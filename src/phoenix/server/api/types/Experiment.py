@@ -151,7 +151,7 @@ class Experiment(Node):
             )
         return val
 
-    @strawberry.field(description="The user that created the experiment.")
+    @strawberry.field(description="The user that created the experiment.")  # type: ignore
     async def user(
         self,
         info: Info[Context, None],
