@@ -220,3 +220,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Project validation**: Check if the requested project exists in the snapshot before attempting to fetch spans. This provides better error messages than a 404 from the API
 - **Phoenix client mocking in tests**: Instead of importing and mocking @arizeai/phoenix-client types (which causes TypeScript issues), use a simple mock with `any` type and focus on behavior testing
 - **Test duration expectations**: When testing trace metadata, be careful about duration calculations. The duration is based on the actual span times after sorting, not the order they appear in the mock data
+
+## system-prompt
+
+- **Keep prompts focused and concise**: The system prompt should be clear and direct, avoiding unnecessary verbosity while still providing all essential information about the filesystem structure and available commands
+- **Emphasize starting point**: The instruction to "START by reading /phoenix/\_context.md" is crucial - it gives the agent a clear entry point into the data structure
+- **List specific commands**: Rather than vague mentions of "bash commands", list the specific commands that are most useful for analyzing Phoenix data (cat, grep, jq, etc.)
+- **Include custom commands**: Don't forget to mention the px-fetch-more commands in the system prompt, as these are essential for on-demand data fetching
+- **Test the prompt exports**: Writing tests for prompts may seem trivial, but it ensures the prompt is properly exported and contains the expected structure
+- **Use .js extension in imports**: When working with ESM-only packages, remember to use the .js extension in import statements, even for TypeScript files
+- **Create an index file**: Having an index.ts that re-exports prompts makes it easier for other modules to import them and provides a clean public API

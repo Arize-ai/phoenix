@@ -149,7 +149,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### system-prompt
 
 - content: Create prompts/system.ts: INSIGHT_SYSTEM_PROMPT with \_context.md instructions
-- status: pending
+- status: complete
 - dependencies: scaffold-structure
 
 ### agent-setup
