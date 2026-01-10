@@ -47,6 +47,7 @@ import {
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
@@ -202,6 +203,10 @@ export function ExperimentsTable({
                   count
                   errorCount
                 }
+                user {
+                  username
+                  profilePictureUrl
+                }
               }
             }
           }
@@ -284,6 +289,23 @@ export function ExperimentsTable({
             >
               {getValue() as string}
             </Link>
+          </Flex>
+        );
+      },
+    },
+    {
+      header: "user",
+      accessorKey: "user",
+      cell: ({ row }) => {
+        const user = row.original.user;
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <UserPicture
+              name={user?.username}
+              profilePictureUrl={user?.profilePictureUrl}
+              size={20}
+            />
+            <Text>{user?.username ?? "system"}</Text>
           </Flex>
         );
       },
