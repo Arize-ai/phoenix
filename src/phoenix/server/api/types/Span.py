@@ -102,6 +102,7 @@ class SpanEvent:
     name: str
     message: str
     timestamp: datetime
+    attributes: JSON
 
     @staticmethod
     def from_dict(
@@ -111,6 +112,7 @@ class SpanEvent:
             name=event["name"],
             message=cast(str, event["attributes"].get(trace_schema.EXCEPTION_MESSAGE) or ""),
             timestamp=datetime.fromisoformat(event["timestamp"]),
+            attributes=cast(JSON, event["attributes"]),
         )
 
 

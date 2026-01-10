@@ -212,6 +212,7 @@ export function SpanDetails({
               name
               message
               timestamp
+              attributes
             }
             documentRetrievalMetrics {
               evaluationName
@@ -1959,45 +1960,65 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
     <List>
       {events.map((event, idx) => {
         const isException = event.name === "exception";
+        const hasAttributes =
+          event.attributes && Object.keys(event.attributes).length > 0;
 
         return (
           <ListItem key={idx}>
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <View flex="none">
-                <div
-                  data-event-type={isException ? "exception" : "info"}
-                  css={css`
-                    &[data-event-type="exception"] {
-                      --px-event-icon-color: var(--ac-global-color-danger);
-                    }
-                    &[data-event-type="info"] {
-                      --px-event-icon-color: var(--ac-global-color-info);
-                    }
-                    .ac-icon-wrap {
-                      color: var(--px-event-icon-color);
-                    }
-                  `}
-                >
-                  <Icon
-                    svg={
-                      isException ? (
-                        <Icons.AlertTriangleOutline />
-                      ) : (
-                        <Icons.InfoOutline />
-                      )
-                    }
-                  />
-                </div>
-              </View>
-              <Flex direction="column" gap="size-25" flex="1 1 auto">
-                <Text weight="heavy">{event.name}</Text>
-                <Text color="text-700">{event.message}</Text>
+            <Flex direction="column" gap="size-100">
+              <Flex direction="row" alignItems="center" gap="size-100">
+                <View flex="none">
+                  <div
+                    data-event-type={isException ? "exception" : "info"}
+                    css={css`
+                      &[data-event-type="exception"] {
+                        --px-event-icon-color: var(--ac-global-color-danger);
+                      }
+                      &[data-event-type="info"] {
+                        --px-event-icon-color: var(--ac-global-color-info);
+                      }
+                      .ac-icon-wrap {
+                        color: var(--px-event-icon-color);
+                      }
+                    `}
+                  >
+                    <Icon
+                      svg={
+                        isException ? (
+                          <Icons.AlertTriangleOutline />
+                        ) : (
+                          <Icons.InfoOutline />
+                        )
+                      }
+                    />
+                  </div>
+                </View>
+                <Flex direction="column" gap="size-25" flex="1 1 auto">
+                  <Text weight="heavy">{event.name}</Text>
+                  <Text color="text-700">{event.message}</Text>
+                </Flex>
+                <View>
+                  <Text color="text-700">
+                    {fullTimeFormatter(new Date(event.timestamp))}
+                  </Text>
+                </View>
               </Flex>
-              <View>
-                <Text color="text-700">
-                  {fullTimeFormatter(new Date(event.timestamp))}
-                </Text>
-              </View>
+              {hasAttributes && (
+                <DisclosureGroup>
+                  <Disclosure>
+                    <DisclosureTrigger>
+                      <Text weight="heavy">Attributes</Text>
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <View paddingTop="size-100">
+                        <JSONBlock>
+                          {JSON.stringify(event.attributes)}
+                        </JSONBlock>
+                      </View>
+                    </DisclosurePanel>
+                  </Disclosure>
+                </DisclosureGroup>
+              )}
             </Flex>
           </ListItem>
         );
