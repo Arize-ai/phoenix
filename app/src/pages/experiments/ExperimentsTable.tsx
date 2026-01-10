@@ -40,7 +40,10 @@ import {
   LoadMoreRow,
 } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -103,6 +106,7 @@ const TableBody = <T extends { id: string }>({
                   style={{
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                    ...getCommonPinningStyles(cell.column),
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -444,7 +448,7 @@ export function ExperimentsTable({
     },
     {
       id: "actions",
-      maxSize: 120,
+      minSize: 180,
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
@@ -486,6 +490,9 @@ export function ExperimentsTable({
     state: {
       rowSelection,
       columnSizing,
+      columnPinning: {
+        right: ["actions"],
+      },
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -566,6 +573,7 @@ export function ExperimentsTable({
                   key={header.id}
                   style={{
                     width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                    ...getCommonPinningStyles(header.column),
                   }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >
