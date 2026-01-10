@@ -376,6 +376,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test organization**: Created a separate test file (cli-progress.test.ts) for testing command formatting logic. This keeps tests focused and avoids cluttering the main progress tests
 - **Progress message updates**: Updated AgentProgress to show "Running command" for bash tools and added more descriptive tool result messages like "Command executed completed" instead of generic "Tool bash completed"
 - **Stream mode compatibility**: The improved visibility works in both streaming and non-streaming modes by using the onStepFinish callback. Tool progress is shown even when streaming responses
-- **Test expectations vs implementation**: When writing tests, be careful to match the actual implementation behavior. Several test failures occurred because the test's mock formatBashCommand function didn't exactly match the real implementation
-- **ESM import fixes**: All relative imports must use .js extension, not .ts. This caught me when the function was initially placed in the wrong location
-- **Regex patterns for commands**: Used regex patterns to extract meaningful information from commands like grep (pattern and target) and find (filename pattern and directory). This provides better context than just truncating
+- **Command parsing patterns**: Created specific patterns for common commands (cat, grep, find, ls, jq, head/tail) to show meaningful summaries instead of truncated strings
+- **Avoid showing raw newlines**: When displaying commands, only show the first line and truncate at 80 characters to avoid messing up the terminal display
+- **Special cases handling**: Handle edge cases like commands without arguments (e.g., plain "ls" command) and complex pipelines to ensure clean display
+
+## cli-flags-documentation
+
+- **Thorough CLI flag audit**: Performed a comprehensive audit comparing all CLI flags defined in cli.ts with the README documentation. Found that the --trace flag was missing from the documentation
+- **Documentation structure**: The --trace flag appears in both the main command and the snapshot subcommand. Added documentation for both usages with examples
+- **Observability documentation section**: Created a new "Observability" section in the README to explain the --trace flag's purpose and benefits. This provides more context than just listing it in the options table
+- **Example consistency**: Added --trace examples to the advanced options section and snapshot management section to maintain consistency with how other flags are documented
+- **Table formatting**: Updated the command line options table to include the --trace flag with proper formatting and alignment
+- **Documentation-only task**: According to PROMPT.md guidelines, documentation-only tasks don't require tests. The existing tests passed without modification
+- **Future-proofing**: By thoroughly documenting all CLI flags, future developers will have a complete reference and users won't miss valuable features

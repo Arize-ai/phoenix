@@ -261,5 +261,5 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 ### cli-flags-documentation
 
 - content: Audit README.md to ensure ALL CLI flags from src/cli.ts are documented. Compare the commander definitions in cli.ts with the README CLI reference section. Add any missing flags with descriptions and examples.
-- status: pending
+- status: complete
 - dependencies: documentation, cli-flags

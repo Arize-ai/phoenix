@@ -134,6 +134,9 @@ phoenix-insight "complex analysis task" --stream
 
 # Force sandbox mode for safety
 phoenix-insight "experimental query" --sandbox
+
+# Enable observability tracing (sends traces to Phoenix)
+phoenix-insight "analyze performance" --trace
 ```
 
 ### Interactive Mode
@@ -170,6 +173,9 @@ phoenix-insight snapshot --refresh
 phoenix-insight snapshot \
   --base-url https://phoenix.example.com \
   --api-key your-api-key
+
+# Enable observability tracing for snapshot process
+phoenix-insight snapshot --trace
 ```
 
 ### On-Demand Data Fetching
@@ -199,16 +205,17 @@ px-fetch-more trace --trace-id abc123
 
 ### Command Line Options
 
-| Option                | Description                 | Default          |
-| --------------------- | --------------------------- | ---------------- |
-| `--sandbox`           | Run in sandbox mode (safe)  | false            |
-| `--local`             | Run in local mode (default) | true             |
-| `--base-url <url>`    | Phoenix server URL          | env or localhost |
-| `--api-key <key>`     | Phoenix API key             | env or none      |
-| `--refresh`           | Force fresh snapshot        | false            |
-| `--limit <n>`         | Max spans per project       | 1000             |
-| `--stream`            | Stream agent responses      | false            |
-| `--interactive`, `-i` | Interactive REPL mode       | false            |
+| Option                | Description                        | Default          |
+| --------------------- | ---------------------------------- | ---------------- |
+| `--sandbox`           | Run in sandbox mode (safe)         | false            |
+| `--local`             | Run in local mode (default)        | true             |
+| `--base-url <url>`    | Phoenix server URL                 | env or localhost |
+| `--api-key <key>`     | Phoenix API key                    | env or none      |
+| `--refresh`           | Force fresh snapshot               | false            |
+| `--limit <n>`         | Max spans per project              | 1000             |
+| `--stream`            | Stream agent responses             | false            |
+| `--interactive`, `-i` | Interactive REPL mode              | false            |
+| `--trace`             | Enable tracing to Phoenix instance | false            |
 
 ### Local Mode Storage
 
@@ -295,6 +302,35 @@ phoenix-insight "query" --refresh
 # Fetch more data on-demand (agent will do this automatically)
 px-fetch-more spans --project my-project --limit 2000
 ```
+
+## Observability
+
+Phoenix Insight can trace its own execution back to Phoenix for monitoring and debugging:
+
+```bash
+# Enable tracing for queries
+phoenix-insight "analyze errors" --trace
+
+# Enable tracing in interactive mode
+phoenix-insight --interactive --trace
+
+# Enable tracing for snapshot creation
+phoenix-insight snapshot --trace
+```
+
+When `--trace` is enabled:
+
+- All agent operations are traced as spans
+- Tool calls and responses are captured
+- Performance metrics are recorded
+- Traces are sent to the same Phoenix instance being queried (or the one specified by --base-url)
+
+This is particularly useful for:
+
+- Debugging slow queries
+- Understanding agent decision-making
+- Monitoring Phoenix Insight usage
+- Optimizing performance
 
 ## Agent Capabilities
 
