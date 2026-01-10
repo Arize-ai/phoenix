@@ -158,6 +158,18 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - status: complete
 - dependencies: sandbox-mode, local-mode, system-prompt, px-fetch-more-spans, px-fetch-more-trace
 
+### agent-visibility
+
+- content: Add brief progress message to the cli output as the agent takes actions.
+- status: pending
+- dependencies: agent-setup
+
+### agent-observability
+
+- content: Add observability to the agent. Use the @arizeai/phoenix-otel package. Optionally enable tracing of the agent with --trace flag.
+- status: pending
+- dependencies: agent-setup, cli-flags
+
 ---
 
 ## Phase 7: CLI Interface
