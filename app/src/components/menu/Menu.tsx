@@ -294,7 +294,7 @@ export const MenuSectionTitle = ({
 /**
  * A menu header is a header for a menu.
  * This is the header for the menu, and should be used in conjunction with MenuTrigger and MenuContainer.
- * It includes a padding, border, and flexbox layout.
+ * It includes a border and flexbox layout. Children are responsible for their own padding.
  * It is typically placed above a sibling Menu component.
  * @see https://react-spectrum.adobe.com/react-aria/MenuHeader.html
  * @example
@@ -363,6 +363,9 @@ export const MenuHeaderTitle = ({
       alignItems="center"
       wrap="nowrap"
       minHeight={30}
+      css={css`
+        padding: var(--ac-global-dimension-static-size-100);
+      `}
     >
       {leadingContent}
       <Heading
@@ -371,6 +374,7 @@ export const MenuHeaderTitle = ({
         css={css`
           flex: 1 1 auto;
           width: 100%;
+          padding-left: var(--ac-global-dimension-static-size-50);
         `}
       >
         {children}
