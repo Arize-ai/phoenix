@@ -9,9 +9,9 @@ Each agent picks the next pending task, implements it, and marks it complete.
 2. Change that task's status to `in_progress`
 3. Implement the task
 4. Write and run tests
-5. Commit with message: `feat(phoenix-insight): <task-id> - <description>`
-6. Change the task's status to `complete`
-7. Append learnings to LEARNINGS.md
+5. Change the task's status to `complete`
+6. Append learnings to LEARNINGS.md
+7. Commit with message: `feat(phoenix-insight): <task-id> - <description>`
 8. EXIT
 
 ## Task Statuses
@@ -33,7 +33,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### scaffold-structure
 
 - content: Create src/ directory structure: cli.ts, modes/, snapshot/, commands/, agent/, prompts/
-- status: in_progress
+- status: complete
 - dependencies: scaffold-package
 
 ---
@@ -43,7 +43,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### execution-mode-interface
 
 - content: Define ExecutionMode interface: writeFile, exec, getBashTool, cleanup methods
-- status: pending
+- status: in_progress
 - dependencies: scaffold-structure
 
 ### sandbox-mode
