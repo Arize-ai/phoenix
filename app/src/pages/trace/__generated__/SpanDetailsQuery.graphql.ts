@@ -35,6 +35,7 @@ export type SpanDetailsQuery$data = {
     }>;
     readonly endTime: string | null;
     readonly events: ReadonlyArray<{
+      readonly attributes: any;
       readonly message: string;
       readonly name: string;
       readonly timestamp: string;
@@ -260,7 +261,8 @@ v19 = {
       "kind": "ScalarField",
       "name": "timestamp",
       "storageKey": null
-    }
+    },
+    (v18/*: any*/)
   ],
   "storageKey": null
 },

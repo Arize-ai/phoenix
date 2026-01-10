@@ -13,6 +13,7 @@ import strawberry
 from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
