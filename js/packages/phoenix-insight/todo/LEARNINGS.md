@@ -92,3 +92,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test mocking**: Mock the entire @arizeai/phoenix-client module using vitest's vi.mock(). The createClient function is the main export to mock
 - **extractData helper**: Created a utility to safely extract data from API responses and throw appropriate errors for missing data. This centralizes response validation
 - **Error preservation**: The PhoenixClientError class preserves the original error as a property, which is helpful for debugging and logging
+
+## snapshot-projects
+
+- **Phoenix client API pattern**: The client uses openapi-fetch pattern, so API calls are like `client.GET("/v1/projects")` not `client.projects.list()`. Always check the generated API paths
+- **Response data structure**: The projects endpoint returns data wrapped in `{ data: projects[], next_cursor: string | null }`, not just the projects array directly
+- **JSONL format**: When converting arrays to JSONL, use `items.map(JSON.stringify).join("\n")`. Empty arrays should produce empty string, not a line with just `[]`
+- **Directory creation in ExecutionMode**: Since ExecutionMode only has writeFile, create directories by writing placeholder files like `.gitkeep`. The execution modes handle creating parent directories automatically
+- **Project name handling**: Project names can contain spaces and special characters. The filesystem paths use these names directly - no need to sanitize unless the execution mode requires it
+- **Test organization**: Created comprehensive tests covering happy path, empty data, error cases, and edge cases with special characters. Mock both the client and execution mode for full control
+- **Error handling flow**: Use the withErrorHandling wrapper from client.ts to properly categorize errors. This ensures consistent error messages and types across all snapshot modules
+- **TypeScript module imports**: When importing types from other packages, use `import type` to avoid runtime dependencies. Regular imports are only needed for runtime values

@@ -77,7 +77,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-projects
 
 - content: Implement snapshot/projects.ts: fetch projects list, write to /projects/index.jsonl
-- status: pending
+- status: complete
 - dependencies: phoenix-client-integration
 
 ### snapshot-spans
