@@ -146,10 +146,50 @@ describe("AgentProgress", () => {
 
     progress.startThinking();
     progress.updateTool("bash", "listing files");
-    expect(mockSpinner.text).toBe("🔧 Using bash: listing files");
+    expect(mockSpinner.text).toBe("🔧 Exploring files: listing files");
 
     progress.updateTool("px_fetch_more_spans");
-    expect(mockSpinner.text).toBe("🔧 Using px_fetch_more_spans (step 2)");
+    expect(mockSpinner.text).toBe("🔧 Fetching additional spans (step 2)");
+
+    progress.updateTool("px_fetch_more_trace");
+    expect(mockSpinner.text).toBe("🔧 Fetching trace details (step 3)");
+  });
+
+  it("should update tool results", async () => {
+    const progress = new AgentProgress(true);
+    const ora = (await import("ora")).default as any;
+
+    const mockSpinner = {
+      start: vi.fn().mockReturnThis(),
+      stop: vi.fn().mockReturnThis(),
+      succeed: vi.fn().mockReturnThis(),
+      text: "",
+    };
+    ora.mockReturnValue(mockSpinner);
+
+    progress.startThinking();
+    progress.updateToolResult("bash", true);
+    expect(mockSpinner.text).toBe("✓ Tool bash completed");
+
+    progress.updateToolResult("px_fetch_more_spans", false);
+    expect(mockSpinner.text).toBe("✗ Tool px_fetch_more_spans failed");
+  });
+
+  it("should update with specific action", async () => {
+    const progress = new AgentProgress(true);
+    const ora = (await import("ora")).default as any;
+
+    const mockSpinner = {
+      start: vi.fn().mockReturnThis(),
+      stop: vi.fn().mockReturnThis(),
+      succeed: vi.fn().mockReturnThis(),
+      text: "",
+    };
+    ora.mockReturnValue(mockSpinner);
+
+    progress.startThinking();
+    progress.updateAction("Searching for error patterns");
+    expect(mockSpinner.text).toBe("🔍 Searching for error patterns...");
   });
 
   it("should succeed with message", async () => {

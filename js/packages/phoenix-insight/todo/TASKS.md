@@ -161,7 +161,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### agent-visibility
 
 - content: Add brief progress message to the cli output as the agent takes actions.
-- status: pending
+- status: complete
 - dependencies: agent-setup
 
 ### agent-observability

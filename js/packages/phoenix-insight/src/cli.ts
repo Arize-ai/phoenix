@@ -215,21 +215,38 @@ program
 
       if (options.stream) {
         // Stream mode
-        const result = await runOneShotQuery(agentConfig, query, {
+        const result = (await runOneShotQuery(agentConfig, query, {
           stream: true,
-          onStepStart: (step) => {
+          onStepFinish: (step) => {
+            // Show tool usage even in stream mode
             if (step.toolCalls?.length) {
-              const tools = step.toolCalls
-                .map((tc: any) => tc.toolName)
-                .join(", ");
-              agentProgress.updateTool(tools);
+              step.toolCalls.forEach((toolCall: any) => {
+                const toolName = toolCall.toolName;
+                if (toolName === "bash") {
+                  // Extract bash command for better visibility
+                  const command = toolCall.args?.command || "";
+                  const shortCmd = command.split("\n")[0].substring(0, 50);
+                  agentProgress.updateTool(
+                    toolName,
+                    shortCmd + (command.length > 50 ? "..." : "")
+                  );
+                } else {
+                  agentProgress.updateTool(toolName);
+                }
+              });
+            }
+
+            // Show tool results
+            if (step.toolResults?.length) {
+              step.toolResults.forEach((toolResult: any) => {
+                agentProgress.updateToolResult(
+                  toolResult.toolName,
+                  !toolResult.isError
+                );
+              });
             }
           },
-          onStepFinish: (step) => {
-            // In stream mode, we don't show intermediate outputs
-            // The agent's response will be streamed below
-          },
-        });
+        })) as any; // Type assertion needed due to union type
 
         // Stop progress before streaming
         agentProgress.stop();
@@ -245,19 +262,37 @@ program
         await result.response;
       } else {
         // Non-streaming mode
-        const result = await runOneShotQuery(agentConfig, query, {
-          onStepStart: (step) => {
+        const result = (await runOneShotQuery(agentConfig, query, {
+          onStepFinish: (step) => {
+            // Show tool usage
             if (step.toolCalls?.length) {
-              const tools = step.toolCalls
-                .map((tc: any) => tc.toolName)
-                .join(", ");
-              agentProgress.updateTool(tools);
+              step.toolCalls.forEach((toolCall: any) => {
+                const toolName = toolCall.toolName;
+                if (toolName === "bash") {
+                  // Extract bash command for better visibility
+                  const command = toolCall.args?.command || "";
+                  const shortCmd = command.split("\n")[0].substring(0, 50);
+                  agentProgress.updateTool(
+                    toolName,
+                    shortCmd + (command.length > 50 ? "..." : "")
+                  );
+                } else {
+                  agentProgress.updateTool(toolName);
+                }
+              });
+            }
+
+            // Show tool results
+            if (step.toolResults?.length) {
+              step.toolResults.forEach((toolResult: any) => {
+                agentProgress.updateToolResult(
+                  toolResult.toolName,
+                  !toolResult.isError
+                );
+              });
             }
           },
-          onStepFinish: (step) => {
-            // Let progress indicator handle the updates
-          },
-        });
+        })) as any; // Type assertion needed due to union type
 
         // Stop progress and display the final answer
         agentProgress.succeed();
@@ -318,7 +353,7 @@ async function runInteractiveMode(options: any): Promise<void> {
     };
 
     // Create reusable agent
-    agent = createInsightAgent(agentConfig);
+    agent = await createInsightAgent(agentConfig);
 
     // Setup readline interface
     const rl = readline.createInterface({
@@ -349,18 +384,35 @@ async function runInteractiveMode(options: any): Promise<void> {
 
         if (options.stream) {
           // Stream mode
-          const result = await agent.stream({
-            prompt: query,
-            onStepStart: (step: any) => {
-              if (step.toolCalls?.length) {
-                const tools = step.toolCalls
-                  .map((tc: any) => tc.toolName)
-                  .join(", ");
-                agentProgress.updateTool(tools);
-              }
-            },
+          const result = await agent.stream(query, {
             onStepFinish: (step: any) => {
-              // In stream mode, we don't show intermediate outputs
+              // Show tool usage even in stream mode
+              if (step.toolCalls?.length) {
+                step.toolCalls.forEach((toolCall: any) => {
+                  const toolName = toolCall.toolName;
+                  if (toolName === "bash") {
+                    // Extract bash command for better visibility
+                    const command = toolCall.args?.command || "";
+                    const shortCmd = command.split("\n")[0].substring(0, 50);
+                    agentProgress.updateTool(
+                      toolName,
+                      shortCmd + (command.length > 50 ? "..." : "")
+                    );
+                  } else {
+                    agentProgress.updateTool(toolName);
+                  }
+                });
+              }
+
+              // Show tool results
+              if (step.toolResults?.length) {
+                step.toolResults.forEach((toolResult: any) => {
+                  agentProgress.updateToolResult(
+                    toolResult.toolName,
+                    !toolResult.isError
+                  );
+                });
+              }
             },
           });
 
@@ -378,18 +430,35 @@ async function runInteractiveMode(options: any): Promise<void> {
           await result.response;
         } else {
           // Non-streaming mode
-          const result = await agent.generate({
-            prompt: query,
-            onStepStart: (step: any) => {
-              if (step.toolCalls?.length) {
-                const tools = step.toolCalls
-                  .map((tc: any) => tc.toolName)
-                  .join(", ");
-                agentProgress.updateTool(tools);
-              }
-            },
+          const result = await agent.generate(query, {
             onStepFinish: (step: any) => {
-              // Let progress indicator handle the updates
+              // Show tool usage
+              if (step.toolCalls?.length) {
+                step.toolCalls.forEach((toolCall: any) => {
+                  const toolName = toolCall.toolName;
+                  if (toolName === "bash") {
+                    // Extract bash command for better visibility
+                    const command = toolCall.args?.command || "";
+                    const shortCmd = command.split("\n")[0].substring(0, 50);
+                    agentProgress.updateTool(
+                      toolName,
+                      shortCmd + (command.length > 50 ? "..." : "")
+                    );
+                  } else {
+                    agentProgress.updateTool(toolName);
+                  }
+                });
+              }
+
+              // Show tool results
+              if (step.toolResults?.length) {
+                step.toolResults.forEach((toolResult: any) => {
+                  agentProgress.updateToolResult(
+                    toolResult.toolName,
+                    !toolResult.isError
+                  );
+                });
+              }
             },
           });
 

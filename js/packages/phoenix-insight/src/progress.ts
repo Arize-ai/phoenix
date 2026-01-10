@@ -104,6 +104,7 @@ export class AgentProgress {
   private spinner: Ora | null = null;
   private enabled: boolean;
   private stepCount = 0;
+  private currentTool: string | null = null;
 
   constructor(enabled: boolean = true) {
     this.enabled = enabled;
@@ -116,6 +117,7 @@ export class AgentProgress {
     if (!this.enabled) return;
 
     this.stepCount = 0;
+    this.currentTool = null;
     this.spinner = ora({
       text: "🤔 Analyzing...",
       spinner: "dots",
@@ -130,11 +132,44 @@ export class AgentProgress {
     if (!this.enabled || !this.spinner) return;
 
     this.stepCount++;
+    this.currentTool = toolName;
+
+    // Map tool names to more user-friendly descriptions
+    const friendlyNames: Record<string, string> = {
+      bash: "Exploring files",
+      px_fetch_more_spans: "Fetching additional spans",
+      px_fetch_more_trace: "Fetching trace details",
+    };
+
+    const displayName = friendlyNames[toolName] || toolName;
     const message = detail
-      ? `🔧 Using ${toolName}: ${detail}`
-      : `🔧 Using ${toolName} (step ${this.stepCount})`;
+      ? `🔧 ${displayName}: ${detail}`
+      : `🔧 ${displayName} (step ${this.stepCount})`;
 
     this.spinner.text = message;
+  }
+
+  /**
+   * Update with tool result
+   */
+  updateToolResult(toolName: string, success: boolean = true) {
+    if (!this.enabled || !this.spinner) return;
+
+    const icon = success ? "✓" : "✗";
+    const status = success ? "completed" : "failed";
+    const message = `${icon} Tool ${toolName} ${status}`;
+
+    // Brief flash of the result before moving on
+    this.spinner.text = message;
+  }
+
+  /**
+   * Show progress for a specific action
+   */
+  updateAction(action: string) {
+    if (!this.enabled || !this.spinner) return;
+
+    this.spinner.text = `🔍 ${action}...`;
   }
 
   /**

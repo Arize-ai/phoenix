@@ -344,3 +344,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Error message changes**: When implementation error messages change (e.g., "Failed to create snapshot" vs "Failed to create incremental snapshot"), update test expectations to match
 - **Test timeout issues**: CLI tests that spawn processes may timeout. Adjust test timeouts or simplify tests to avoid flaky behavior in CI environments
 - **Mock reset between tests**: Some test failures come from mocks not being properly reset between tests. Use beforeEach hooks consistently to reset mock state
+
+## agent-visibility
+
+- **onStepFinish callback**: The AI SDK's generateText and streamText functions support onStepFinish callback (not onStepStart) which provides access to tool calls and results after each step completes
+- **Tool result tracking**: The onStepFinish callback receives step objects with toolCalls and toolResults arrays. Use these to show progress about what tools were executed and whether they succeeded
+- **Progress indicator integration**: Enhanced the AgentProgress class with updateTool, updateToolResult, and updateAction methods to provide better visibility into agent actions
+- **Friendly tool names**: Map internal tool names (bash, px_fetch_more_spans) to user-friendly descriptions ("Exploring files", "Fetching additional spans") for better UX
+- **Bash command visibility**: For bash tool calls, extract and show the actual command being executed (truncated to 50 chars) to give users insight into what the agent is doing
+- **Type casting workarounds**: The union type result from runOneShotQuery needed type assertions (`as any`) to access streaming properties. This is a TypeScript limitation with union types
+- **Existing test updates**: When modifying existing functionality, check for tests that assert specific string patterns. CLI interactive tests were checking for exact method signatures that changed
+- **Stream mode progress**: Even in streaming mode, tool usage can be shown via onStepFinish. The progress indicator is stopped before streaming the response to avoid terminal conflicts

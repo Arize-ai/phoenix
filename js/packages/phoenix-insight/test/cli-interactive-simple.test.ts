@@ -55,7 +55,9 @@ describe("CLI Interactive Mode", () => {
     );
 
     // Check that it creates agent
-    expect(cliContent).toContain("agent = createInsightAgent(agentConfig)");
+    expect(cliContent).toContain(
+      "agent = await createInsightAgent(agentConfig)"
+    );
   });
 
   it("should support streaming in interactive mode", async () => {
@@ -66,7 +68,7 @@ describe("CLI Interactive Mode", () => {
 
     // Check streaming support
     expect(cliContent).toContain("if (options.stream)");
-    expect(cliContent).toContain("await agent.stream({");
+    expect(cliContent).toContain("await agent.stream(query, {");
     expect(cliContent).toContain(
       "for await (const chunk of result.textStream)"
     );
