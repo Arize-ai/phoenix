@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c76be64ab66c3046881d0cd33f5b0811>>
+ * @generated SignedSource<<8a4238943097d1f41da0a35d1391caa1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -387,6 +387,32 @@ return {
                               }
                             ],
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "username",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "profilePictureUrl",
+                                "storageKey": null
+                              },
+                              (v4/*: any*/)
+                            ],
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -461,16 +487,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b2d2222a5512686c8f5aa2600a565467",
+    "cacheID": "875aedb45181537dc7bc54a137d612bf",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "60efbafffc865e6c197c185ad3112606";
+(node as any).hash = "6cce0a41bae9977df42516a14da8cf7d";
 
 export default node;
