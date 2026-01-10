@@ -6,13 +6,13 @@
 # Each iteration: agent picks next task, implements, tests, commits, exits.
 #
 # Usage:
-#   AGENT_CMD="your-agent-command" ./ralph.sh
+#   ./ralph.sh                                    # Uses cursor-agent with claude-opus-4.5
+#   AGENT_CMD="your-agent-command" ./ralph.sh    # Override with custom agent
 #
-# Example with Claude Code:
+# Examples:
+#   ./ralph.sh                                    # Default: cursor-agent -m claude-opus-4-20250514
+#   AGENT_CMD="cursor-agent -m claude-sonnet-4-20250514" ./ralph.sh
 #   AGENT_CMD="claude-code" ./ralph.sh
-#
-# Example with Cursor:
-#   AGENT_CMD="cursor --agent" ./ralph.sh
 #
 
 set -e
@@ -65,13 +65,14 @@ if [[ ! -f "$TASKS_FILE" ]]; then
 fi
 
 # Agent command - override with AGENT_CMD env var
-AGENT="${AGENT_CMD:-claude-code}"
+AGENT="${AGENT_CMD:-cursor-agent -m claude-opus-4-20250514}"
 
-# Verify agent is available
-if ! command -v "$AGENT" &> /dev/null; then
-    log_warning "Agent command '$AGENT' not found in PATH"
-    log_warning "Set AGENT_CMD environment variable to your agent command"
-    log_warning "Example: AGENT_CMD='cursor --agent' ./ralph.sh"
+# Verify agent is available (check first word of command)
+AGENT_BIN=$(echo "$AGENT" | awk '{print $1}')
+if ! command -v "$AGENT_BIN" &> /dev/null; then
+    log_warning "Agent command '$AGENT_BIN' not found in PATH"
+    log_warning "Install cursor-agent or set AGENT_CMD environment variable"
+    log_warning "See: https://docs.cursor.com/cli"
 fi
 
 log "Starting Ralph loop"
