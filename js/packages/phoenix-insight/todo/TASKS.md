@@ -101,7 +101,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### snapshot-prompts
 
 - content: Implement snapshot/prompts.ts: fetch prompts and versions as markdown
-- status: pending
+- status: complete
 - dependencies: phoenix-client-integration
 
 ### snapshot-context

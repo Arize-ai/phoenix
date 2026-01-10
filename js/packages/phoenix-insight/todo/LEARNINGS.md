@@ -142,3 +142,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Console.warn for errors**: Used console.warn instead of throwing when individual dataset/experiment fetching fails. This shows up in test output but allows the operation to continue
 - **Pagination for both experiments and runs**: Both the experiments list and runs list support pagination. Handle cursor-based pagination with while loops, checking for null cursor to end iteration
 - **Test warning suppression**: The vitest test runner shows console.warn output which is expected behavior. The tests still pass - these warnings are part of the error handling strategy
+
+## snapshot-prompts
+
+- **Phoenix prompts API typing**: The actual API response types differ significantly from what's documented in the phoenix-client types. Rather than fighting TypeScript, used `any` type for API responses and focused on runtime behavior
+- **Prompt template formats**: Prompts can have either STRING or CHAT template formats. STRING templates can be plain strings or wrapped in objects with `{ type: "string", template: "..." }`. Chat templates have a messages array
+- **Markdown conversion strategy**: Converting prompt versions to markdown provides better readability than JSON. Used YAML frontmatter for metadata, then template content formatted appropriately for its type
+- **Filename sanitization**: Prompt names and version IDs can contain special characters (slashes, spaces, etc.). Used `.replace(/[^a-zA-Z0-9-_]/g, "_")` to create safe filesystem paths
+- **Latest version endpoint**: The `/v1/prompts/{id}/latest` endpoint provides convenience access to the most recent version. Handle 404 errors gracefully as some prompts may not have versions
+- **Chat message complexity**: Chat template messages can have string content or multi-part content (text + images, tool calls, etc.). Handle both cases when converting to markdown
+- **Multiple markdown sections**: For each version, include template content, invocation parameters, tools (if present), and response format (if present). This captures all configuration aspects
+- **Test data structure**: When mocking prompt versions, be careful with the template field structure. It varies based on template_format and the actual Phoenix implementation
+- **Console.warn for missing latest**: Used console.warn when latest version fetch fails, similar to the experiments pattern. This is expected behavior for some prompts
+- **JSONL consistency**: Maintained the same JSONL conversion pattern as other snapshot modules: empty arrays produce empty string, use newline separation without trailing newline
