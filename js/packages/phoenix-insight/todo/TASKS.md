@@ -133,7 +133,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### px-fetch-more-spans
 
 - content: Implement px-fetch-more spans command: fetch additional spans on-demand
-- status: pending
+- status: complete
 - dependencies: snapshot-spans
 
 ### px-fetch-more-trace

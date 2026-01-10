@@ -194,3 +194,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Test structure**: Separated tests into two files - one for the core incremental logic (mocked) and one for LocalMode integration. This allows testing different aspects without complex setup
 - **Error handling**: The incremental snapshot function logs errors with console.error and re-throws them. This provides visibility while still allowing the caller to handle errors appropriately
 - **Metadata structure**: The SnapshotMetadata interface includes cursors for different data types (spans, datasets, experiments, prompts). Currently only spans support time-based filtering, others just track last fetch time
+
+## px-fetch-more-spans
+
+- **Command reusability**: The fetchMoreSpans function can be used both by the agent as a custom command and potentially by the CLI directly. Kept it focused on just fetching and storing data
+- **Incremental span fetching**: The implementation reads existing spans and metadata, fetches new ones, and combines them. This allows building up larger datasets over multiple calls
+- **Cursor handling**: Store the last cursor in metadata to support efficient pagination. When fetching more spans, use the stored cursor if available
+- **Mock test pitfall**: When using `mockResolvedValueOnce`, be careful about pagination. If you return `next_cursor: "value"`, the function will make another API call. Either mock multiple responses or return `next_cursor: null`
+- **Phoenix client response structure**: The Phoenix client returns responses with `data`, `error`, and `response` properties. Make sure test mocks include all required properties
+- **Error handling pattern**: Reuse the withErrorHandling wrapper from client.ts to ensure consistent error categorization across all commands
+- **Empty data handling**: When no existing spans are found, start fresh. The implementation gracefully handles missing metadata and span files
+- **Console output**: Added informative console.log messages showing how many spans were fetched and the total count. This provides feedback when the command is run
+- **Test organization**: Test different scenarios: existing data, no data, time filters, pagination, errors, and empty responses. Each test should be focused on one aspect
+- **Pagination logic**: The while loop fetches spans in chunks of 100 (or remaining limit) until either the limit is reached or no more data is available (no cursor or empty data)
