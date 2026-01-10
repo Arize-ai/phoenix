@@ -25,6 +25,7 @@ import { fetchDatasets } from "./datasets.js";
 import { fetchExperiments } from "./experiments.js";
 import { fetchPrompts } from "./prompts.js";
 import { generateContext } from "./context.js";
+import { SnapshotProgress } from "../progress.js";
 
 export interface SnapshotOptions {
   /**
@@ -82,14 +83,9 @@ export async function createSnapshot(
     showProgress = false,
   } = options;
 
-  // Log progress if enabled
-  const log = (message: string) => {
-    if (showProgress) {
-      console.log(`[Phoenix Snapshot] ${message}`);
-    }
-  };
-
-  log("Starting snapshot...");
+  // Create progress indicator
+  const progress = new SnapshotProgress(showProgress);
+  progress.start("Creating Phoenix data snapshot");
 
   // Create Phoenix client
   const clientConfig: PhoenixClientConfig = {
@@ -100,10 +96,11 @@ export async function createSnapshot(
 
   try {
     // 1. Fetch projects first (required for spans)
-    log("Fetching projects...");
+    progress.update("Fetching projects");
     try {
       await fetchProjects(client, mode);
     } catch (error) {
+      progress.fail("Failed to fetch projects");
       throw new PhoenixClientError(
         `Failed to fetch projects: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof PhoenixClientError ? error.code : "UNKNOWN_ERROR",
@@ -112,7 +109,7 @@ export async function createSnapshot(
     }
 
     // 2. Fetch spans for each project
-    log("Fetching spans...");
+    progress.update("Fetching spans", `${spansPerProject} per project`);
     try {
       const spansOptions: SnapshotSpansOptions = {
         spansPerProject,
@@ -121,6 +118,7 @@ export async function createSnapshot(
       };
       await snapshotSpans(client, mode, spansOptions);
     } catch (error) {
+      progress.fail("Failed to fetch spans");
       throw new PhoenixClientError(
         `Failed to fetch spans: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof PhoenixClientError ? error.code : "UNKNOWN_ERROR",
@@ -129,7 +127,7 @@ export async function createSnapshot(
     }
 
     // 3. Fetch datasets in parallel with experiments and prompts
-    log("Fetching datasets, experiments, and prompts...");
+    progress.update("Fetching datasets, experiments, and prompts");
     const results = await Promise.allSettled([
       fetchDatasets(client, mode),
       fetchExperiments(client, mode),
@@ -156,6 +154,7 @@ export async function createSnapshot(
 
       // If all failed, throw error. If partial success, continue with warning
       if (errors.length === 3) {
+        progress.fail("Failed to fetch supplementary data");
         throw new PhoenixClientError(
           "Failed to fetch all supplementary data (datasets, experiments, prompts)",
           "UNKNOWN_ERROR",
@@ -165,7 +164,7 @@ export async function createSnapshot(
     }
 
     // 4. Generate context file
-    log("Generating context...");
+    progress.update("Generating context");
     await generateContext(mode, {
       phoenixUrl: baseURL,
       snapshotTime: new Date(),
@@ -173,7 +172,7 @@ export async function createSnapshot(
     });
 
     // 5. Write metadata file
-    log("Writing metadata...");
+    progress.update("Writing metadata");
     const metadata: SnapshotMetadata = {
       created_at: new Date().toISOString(),
       phoenix_url: baseURL,
@@ -193,8 +192,11 @@ export async function createSnapshot(
       JSON.stringify(metadata, null, 2)
     );
 
-    log("Snapshot complete!");
+    progress.succeed("✅ Snapshot created successfully!");
   } catch (error) {
+    // Stop progress if not already stopped
+    progress.stop();
+
     // Enhance error with context before rethrowing
     if (error instanceof PhoenixClientError) {
       throw error; // Already has good context
@@ -254,14 +256,9 @@ export async function createIncrementalSnapshot(
     showProgress = false,
   } = options;
 
-  const log = (message: string) => {
-    if (showProgress) {
-      console.log(`[Phoenix Incremental] ${message}`);
-    }
-  };
-
-  log("Starting incremental update...");
-  log(`Last snapshot: ${existingMetadata.created_at}`);
+  // Create progress indicator
+  const progress = new SnapshotProgress(showProgress);
+  progress.start("Updating Phoenix data snapshot");
 
   // Create Phoenix client
   const clientConfig: PhoenixClientConfig = {
@@ -271,13 +268,18 @@ export async function createIncrementalSnapshot(
   const client = createPhoenixClient(clientConfig);
 
   try {
+    // Show time since last snapshot
+    const lastSnapshotDate = new Date(existingMetadata.created_at);
+    const timeSince = formatTimeSince(lastSnapshotDate);
+    progress.update("Checking for updates", `last snapshot ${timeSince} ago`);
+
     // For incremental updates, we'll need to:
     // 1. Fetch projects (always fetch all as they're small)
-    log("Updating projects...");
+    progress.update("Updating projects");
     await fetchProjects(client, mode);
 
     // 2. Fetch new spans using cursors from metadata
-    log("Fetching new spans...");
+    progress.update("Fetching new spans");
     const spansOptions: SnapshotSpansOptions = {
       spansPerProject,
       // Use the last end time from previous snapshot as start time
@@ -298,7 +300,9 @@ export async function createIncrementalSnapshot(
       existingMetadata.cursors.experiments?.last_fetch;
     const promptsLastFetch = existingMetadata.cursors.prompts?.last_fetch;
 
-    log("Checking for updates to datasets, experiments, and prompts...");
+    progress.update(
+      "Checking for updates to datasets, experiments, and prompts"
+    );
 
     // For now, we'll refetch all as the API doesn't support filtering by updated_at
     // In a future enhancement, we could check individual items for updates
@@ -309,7 +313,7 @@ export async function createIncrementalSnapshot(
     ]);
 
     // 4. Regenerate context with updated data
-    log("Regenerating context...");
+    progress.update("Regenerating context");
     await generateContext(mode, {
       phoenixUrl: baseURL,
       snapshotTime: new Date(),
@@ -317,7 +321,7 @@ export async function createIncrementalSnapshot(
     });
 
     // 5. Update metadata
-    log("Updating metadata...");
+    progress.update("Updating metadata");
     const updatedSpansCursors = existingMetadata.cursors.spans || {};
     const metadata: SnapshotMetadata = {
       created_at: new Date().toISOString(),
@@ -338,8 +342,11 @@ export async function createIncrementalSnapshot(
       JSON.stringify(metadata, null, 2)
     );
 
-    log("Incremental update complete!");
+    progress.succeed("✅ Incremental update complete!");
   } catch (error) {
+    // Stop progress if not already stopped
+    progress.stop();
+
     // Enhance error with context before rethrowing
     if (error instanceof PhoenixClientError) {
       throw error; // Already has good context
@@ -351,4 +358,19 @@ export async function createIncrementalSnapshot(
       error
     );
   }
+}
+
+/**
+ * Format time since a date in human-readable format
+ */
+function formatTimeSince(date: Date): string {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
 }

@@ -12,6 +12,7 @@ import {
 } from "./snapshot/index.js";
 import type { ExecutionMode } from "./modes/types.js";
 import type { PhoenixInsightAgentConfig } from "./agent/index.js";
+import { AgentProgress } from "./progress.js";
 
 // Version will be read from package.json during build
 const VERSION = "0.0.1";
@@ -138,10 +139,7 @@ program
         showProgress: true,
       };
 
-      console.log("Creating Phoenix data snapshot...");
       await createSnapshot(mode, snapshotOptions);
-
-      console.log("\n✅ Snapshot created successfully!");
 
       // Cleanup
       await mode.cleanup();
@@ -198,11 +196,9 @@ program
 
       if (options.refresh || options.sandbox) {
         // For sandbox mode or when refresh is requested, always create a fresh snapshot
-        console.log("Creating Phoenix data snapshot...");
         await createSnapshot(mode, snapshotOptions);
       } else {
         // For local mode without refresh, try incremental update
-        console.log("Updating Phoenix data snapshot...");
         await createIncrementalSnapshot(mode, snapshotOptions);
       }
 
@@ -214,7 +210,8 @@ program
       };
 
       // Execute the query
-      console.log("\nExecuting query...\n");
+      const agentProgress = new AgentProgress(!options.stream);
+      agentProgress.startThinking();
 
       if (options.stream) {
         // Stream mode
@@ -222,23 +219,23 @@ program
           stream: true,
           onStepStart: (step) => {
             if (step.toolCalls?.length) {
-              console.log(
-                `\n🔧 Using tools: ${step.toolCalls.map((tc: any) => tc.toolName).join(", ")}`
-              );
+              const tools = step.toolCalls
+                .map((tc: any) => tc.toolName)
+                .join(", ");
+              agentProgress.updateTool(tools);
             }
           },
           onStepFinish: (step) => {
-            if (step.toolResults?.length) {
-              for (const result of step.toolResults) {
-                if (result.toolName === "bash" && result.result?.stdout) {
-                  console.log(`\n📄 Output:\n${result.result.stdout}`);
-                }
-              }
-            }
+            // In stream mode, we don't show intermediate outputs
+            // The agent's response will be streamed below
           },
         });
 
+        // Stop progress before streaming
+        agentProgress.stop();
+
         // Handle streaming response
+        console.log("\n✨ Answer:\n");
         for await (const chunk of result.textStream) {
           process.stdout.write(chunk);
         }
@@ -251,23 +248,19 @@ program
         const result = await runOneShotQuery(agentConfig, query, {
           onStepStart: (step) => {
             if (step.toolCalls?.length) {
-              console.log(
-                `\n🔧 Using tools: ${step.toolCalls.map((tc: any) => tc.toolName).join(", ")}`
-              );
+              const tools = step.toolCalls
+                .map((tc: any) => tc.toolName)
+                .join(", ");
+              agentProgress.updateTool(tools);
             }
           },
           onStepFinish: (step) => {
-            if (step.toolResults?.length) {
-              for (const result of step.toolResults) {
-                if (result.toolName === "bash" && result.result?.stdout) {
-                  console.log(`\n📄 Output:\n${result.result.stdout}`);
-                }
-              }
-            }
+            // Let progress indicator handle the updates
           },
         });
 
-        // Display the final answer
+        // Stop progress and display the final answer
+        agentProgress.succeed();
         console.log("\n✨ Answer:\n");
         console.log(result.text);
       }
@@ -308,10 +301,8 @@ async function runInteractiveMode(options: any): Promise<void> {
     };
 
     if (options.refresh || options.sandbox) {
-      console.log("Creating Phoenix data snapshot...");
       await createSnapshot(mode, snapshotOptions);
     } else {
-      console.log("Updating Phoenix data snapshot...");
       await createIncrementalSnapshot(mode, snapshotOptions);
     }
 
@@ -353,7 +344,8 @@ async function runInteractiveMode(options: any): Promise<void> {
       }
 
       try {
-        console.log("\n🤔 Analyzing...\n");
+        const agentProgress = new AgentProgress(!options.stream);
+        agentProgress.startThinking();
 
         if (options.stream) {
           // Stream mode
@@ -361,21 +353,19 @@ async function runInteractiveMode(options: any): Promise<void> {
             prompt: query,
             onStepStart: (step: any) => {
               if (step.toolCalls?.length) {
-                console.log(
-                  `🔧 Using tools: ${step.toolCalls.map((tc: any) => tc.toolName).join(", ")}`
-                );
+                const tools = step.toolCalls
+                  .map((tc: any) => tc.toolName)
+                  .join(", ");
+                agentProgress.updateTool(tools);
               }
             },
             onStepFinish: (step: any) => {
-              if (step.toolResults?.length) {
-                for (const result of step.toolResults) {
-                  if (result.toolName === "bash" && result.result?.stdout) {
-                    console.log(`📄 Output:\n${result.result.stdout}`);
-                  }
-                }
-              }
+              // In stream mode, we don't show intermediate outputs
             },
           });
+
+          // Stop progress before streaming
+          agentProgress.stop();
 
           // Handle streaming response
           console.log("\n✨ Answer:\n");
@@ -392,23 +382,19 @@ async function runInteractiveMode(options: any): Promise<void> {
             prompt: query,
             onStepStart: (step: any) => {
               if (step.toolCalls?.length) {
-                console.log(
-                  `🔧 Using tools: ${step.toolCalls.map((tc: any) => tc.toolName).join(", ")}`
-                );
+                const tools = step.toolCalls
+                  .map((tc: any) => tc.toolName)
+                  .join(", ");
+                agentProgress.updateTool(tools);
               }
             },
             onStepFinish: (step: any) => {
-              if (step.toolResults?.length) {
-                for (const result of step.toolResults) {
-                  if (result.toolName === "bash" && result.result?.stdout) {
-                    console.log(`📄 Output:\n${result.result.stdout}`);
-                  }
-                }
-              }
+              // Let progress indicator handle the updates
             },
           });
 
-          // Display the final answer
+          // Stop progress and display the final answer
+          agentProgress.succeed();
           console.log("\n✨ Answer:\n");
           console.log(result.text);
         }

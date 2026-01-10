@@ -31,10 +31,11 @@ describe("scaffold-structure", () => {
 
   it("should have the correct number of items in src directory", () => {
     const items = fs.readdirSync(srcPath);
-    // cli.ts + index.ts + 5 subdirectories = 7 items
-    expect(items.length).toBe(7);
+    // cli.ts + index.ts + progress.ts + 5 subdirectories = 8 items
+    expect(items.length).toBe(8);
     expect(items).toContain("cli.ts");
     expect(items).toContain("index.ts");
+    expect(items).toContain("progress.ts");
     subdirectories.forEach((dir) => {
       expect(items).toContain(dir);
     });

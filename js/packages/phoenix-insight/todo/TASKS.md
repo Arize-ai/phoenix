@@ -193,7 +193,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### progress-indicators
 
 - content: Add progress indicators for snapshot fetching and agent thinking
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ### documentation

@@ -292,3 +292,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Interactive mode error isolation**: In interactive mode, query errors are caught and displayed without exiting the session. This provides a better user experience - one failed query doesn't end the session
 - **AI SDK error patterns**: Added specific handling for common AI SDK errors (rate limits, timeouts, auth). These have different solutions than Phoenix errors, so they get tailored messages
 - **Testing challenges**: Testing error handling with mocked modules is complex. Focus on testing the error categorization logic rather than the full integration. Some tests verify error message patterns rather than exact execution paths
+
+## progress-indicators
+
+- **Ora package for spinners**: Used the ora package for CLI spinners and progress indicators. It provides a clean API with start, update, succeed, fail methods and supports progress bars
+- **Progress class design**: Created separate classes for SnapshotProgress and AgentProgress to handle different use cases. Each has specific methods tailored to its purpose
+- **Progress bar implementation**: Implemented a custom progress bar using Unicode box characters (█ and ░). Calculate percentage based on current step vs total steps
+- **Conditional progress**: Added an enabled flag to all progress classes. This allows disabling progress in non-interactive environments or when piping output
+- **Integration points**: Integrated progress indicators into snapshot creation/update and agent thinking. The key is to update progress at meaningful points without overwhelming the user
+- **Stream mode consideration**: In stream mode, disable the agent progress spinner since the streaming output would conflict. Only show progress for non-streaming queries
+- **Mock testing challenges**: Testing ora spinners requires careful mocking. The module uses default exports and creates objects with chained methods. Mock each method to return `this` for chaining
+- **Test file addition**: Added progress.ts to the src directory, which increased the expected file count in scaffold-structure tests. Remember to update related tests when adding new files
+- **Incremental snapshot progress**: Show the time since last snapshot in incremental updates. Use formatTimeSince helper to convert milliseconds to human-readable format (2h, 30m, etc.)
+- **Error handling**: Always stop/cleanup spinners on error to avoid leaving the terminal in a bad state. Use try-finally or explicit stop calls in error paths
