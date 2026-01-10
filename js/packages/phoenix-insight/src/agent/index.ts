@@ -43,7 +43,7 @@ export class PhoenixInsightAgent {
   private client: PhoenixClient;
   private maxSteps: number;
   private tools: Record<string, any> | null = null;
-  private model = anthropic("claude-3-5-sonnet-20241022");
+  private model = anthropic("claude-sonnet-4-5");
 
   constructor(config: PhoenixInsightAgentConfig) {
     this.mode = config.mode;
