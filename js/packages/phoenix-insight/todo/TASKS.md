@@ -165,7 +165,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-single-query
 
 - content: Implement CLI single-query mode: phoenix-insight 'query' with --sandbox/--local
-- status: pending
+- status: complete
 - dependencies: agent-setup, snapshot-orchestrator
 
 ### cli-flags

@@ -243,3 +243,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Testing mocks**: Mock the execution mode and client for unit tests. Testing the actual AI interactions requires integration tests which are beyond the scope of unit testing
 - **Stream vs generate**: Support both streaming and non-streaming modes. The stream method returns a result object with async iterators, while generate returns a promise
 - **Resource cleanup**: Always call `mode.cleanup()` after agent use, especially in one-shot queries. Use try-finally to ensure cleanup happens even on errors
+
+## cli-single-query
+
+- **Commander.js action handlers**: The action handler receives the query as the first argument and options as the second. When no query is provided, use program.help() to display usage information
+- **Mode selection logic**: Default to local mode unless --sandbox flag is explicitly set. This matches user expectations - sandbox is opt-in for safety, local is the default for power users
+- **Snapshot creation strategy**: Always create fresh snapshots in sandbox mode (memory is cheap). For local mode, use incremental updates unless --refresh flag is set
+- **Stream handling complexity**: For streaming mode, use `for await...of` to iterate over textStream chunks. Remember to await the full response after streaming completes to ensure all tool calls finish
+- **Error exit codes**: Use process.exit(1) on errors to signal failure to the shell. This is important for scripting and CI/CD integration
+- **Progress indicators**: Show clear messages for each phase: "Creating Phoenix data snapshot...", "Executing query...", etc. This helps users understand what's happening during longer operations
+- **Tool step callbacks**: Use onStepStart/onStepFinish callbacks to show tool usage. Display tool names when starting and command output when finishing - this provides transparency into the agent's actions
+- **Type compatibility**: The AI SDK and tool types have complex generics. Using `as any` for generateText/streamText options is necessary to bypass TypeScript strictness while maintaining runtime correctness
+- **Cleanup on error**: Wrap the main logic in try-catch and ensure mode.cleanup() is called. This prevents resource leaks even when errors occur during execution
+- **Test considerations**: CLI testing is challenging due to external dependencies. Focus unit tests on the logic components (modes, agent, snapshot) and use integration tests sparingly for the full CLI flow
