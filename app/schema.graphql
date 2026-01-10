@@ -219,13 +219,6 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
-input AssignEvaluatorToDatasetInput {
-  datasetId: ID!
-  evaluatorId: ID!
-  displayName: Identifier = null
-  inputMapping: EvaluatorInputMappingInput = null
-}
-
 enum AuthMethod {
   LOCAL
   OAUTH2
@@ -2379,10 +2372,8 @@ type Mutation {
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
-  assignEvaluatorToDataset(input: AssignEvaluatorToDatasetInput!): DatasetEvaluatorMutationPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
-  unassignEvaluatorFromDataset(input: UnassignEvaluatorFromDatasetInput!): DatasetEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -3930,11 +3921,6 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
-}
-
-input UnassignEvaluatorFromDatasetInput {
-  datasetId: ID!
-  datasetEvaluatorId: ID!
 }
 
 type UnparsableConfig {
