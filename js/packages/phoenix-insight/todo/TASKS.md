@@ -55,7 +55,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### local-mode
 
 - content: Implement LocalMode with ~/.phoenix-insight/ directory and child_process bash
-- status: pending
+- status: complete
 - dependencies: execution-mode-interface
 
 ### ESM-only

@@ -52,3 +52,19 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - wc -l counts newlines, so strings must end with \n to get expected line counts
   - awk in just-bash might have limitations, so using jq for JSON processing is more reliable (e.g., `jq -s 'map(.latency) | add'` instead of piping to awk)
 - **@vercel/sandbox optional dependency**: bash-tool has an optional dependency on @vercel/sandbox that causes TypeScript errors when not installed. These can be safely ignored as it's only needed for Vercel's sandbox, not just-bash
+
+## local-mode
+
+- **zod dependency**: The `ai` SDK's `tool` function requires zod for parameter validation. Had to add `zod@^4.3.5` as a direct dependency
+- **bash-tool limitations**: The bash-tool package is designed specifically for just-bash sandbox mode. For local mode, we can't use it directly. Instead, created a custom tool object that mimics the bash-tool interface
+- **Tool structure**: The AI SDK's tool needs specific properties: `description`, `parameters` (JSON schema format), and `execute` function. The execute function should return structured results with success/failure status
+- **child_process encoding**: When using `exec` from child_process, always specify `encoding: "utf-8"` in options to get string output instead of Buffer
+- **Error handling**: child_process exec errors have a `code` property (not `exitCode`). Need to handle both command failures (non-zero exit) and execution errors (command not found, etc.)
+- **Directory structure**: LocalMode creates timestamped directories under `~/.phoenix-insight/snapshots/{timestamp}/phoenix`. This allows multiple snapshots without conflicts
+- **Path handling**: Need to carefully handle path prefixes. Files can be written with `/phoenix/` prefix or without. LocalMode strips the prefix to maintain consistent structure
+- **Bash tool caching**: The getBashTool() method should cache the tool instance since the agent might call it multiple times. Used a Promise-based cache to handle async initialization
+- **Test considerations**:
+  - Use absolute paths when checking file existence in tests
+  - jq is available on most systems and more reliable than complex awk scripts
+  - Always check both stdout and exitCode in command execution tests
+- **No cleanup by default**: Following the plan, LocalMode doesn't delete snapshots on cleanup(). This preserves data for user reference. A separate cleanup command could be added later
