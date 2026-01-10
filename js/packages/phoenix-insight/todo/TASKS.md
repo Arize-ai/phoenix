@@ -171,7 +171,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-flags
 
 - content: Add CLI flags: --base-url, --api-key, --refresh, --limit, --stream
-- status: pending
+- status: complete
 - dependencies: cli-single-query
 
 ### cli-interactive

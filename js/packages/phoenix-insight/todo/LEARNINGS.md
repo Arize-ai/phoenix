@@ -256,3 +256,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Type compatibility**: The AI SDK and tool types have complex generics. Using `as any` for generateText/streamText options is necessary to bypass TypeScript strictness while maintaining runtime correctness
 - **Cleanup on error**: Wrap the main logic in try-catch and ensure mode.cleanup() is called. This prevents resource leaks even when errors occur during execution
 - **Test considerations**: CLI testing is challenging due to external dependencies. Focus unit tests on the logic components (modes, agent, snapshot) and use integration tests sparingly for the full CLI flow
+
+## cli-flags
+
+- **Flags already implemented**: The cli-flags task was simpler than expected - all flags were already implemented in the cli-single-query task. The CLI already supported --base-url, --api-key, --refresh, --limit, --stream, --sandbox, and --local
+- **Build configuration issue**: The phoenix-insight package had a build issue where TypeScript wasn't emitting files. Fixed by removing empty "files": [] array from tsconfig.json and creating tsconfig.esm.json to match the ESM build pattern
+- **Test strategies**: Created two test approaches - one using subprocess spawning to test the actual CLI executable, and another using unit tests with mocking. Both are valuable for different aspects
+- **Environment variable defaults**: The CLI correctly uses PHOENIX_BASE_URL and PHOENIX_API_KEY environment variables as defaults, with CLI flags taking precedence
+- **Mode selection logic**: Sandbox mode takes precedence when both --sandbox and --local are specified. This provides a safe default if users accidentally specify both
+- **Commander.js behavior**: Commander automatically handles --help flag and invalid option parsing. Our tests verify this behavior works correctly
+- **ESM build requirement**: Like other packages in the monorepo, phoenix-insight needs tsconfig.esm.json for proper ESM builds. The regular tsconfig.json with "composite": true doesn't emit files

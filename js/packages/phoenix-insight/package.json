@@ -20,7 +20,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
-    "build": "tsc",
+    "build": "tsc --build tsconfig.esm.json",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --typecheck"
