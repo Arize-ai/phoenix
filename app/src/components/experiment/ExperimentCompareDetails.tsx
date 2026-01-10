@@ -40,8 +40,8 @@ import {
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
-import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
   compactResizeHandleCSS,
@@ -1016,7 +1016,7 @@ export function ExperimentItem({
                   {experimentRepetition.experimentRun.error}
                 </View>
               ) : (
-                <FullSizeDynamicContent
+                <FullSizeExperimentOutputContent
                   value={experimentRepetition.experimentRun.output}
                 />
               )}
@@ -1047,7 +1047,7 @@ function ReferenceOutputItem() {
         <ExperimentItemMetadata />
         <ExperimentItemAnnotations />
         <View flex={1}>
-          <FullSizeDynamicContent value={referenceOutput} />
+          <FullSizeExperimentOutputContent value={referenceOutput} />
         </View>
       </Flex>
     </div>
@@ -1076,15 +1076,17 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 }
 
 /**
- * Wrapper to make DynamicContentCell fill available vertical and horizontal space
+ * Wrapper to make ExperimentOutputContent fill available vertical and horizontal space
  */
-function FullSizeDynamicContent({ value }: { value: unknown }) {
+function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
   return (
     <div
       css={css`
         height: 100%;
         width: 100%;
         overflow: auto;
+        padding: var(--ac-global-dimension-size-200);
+        box-sizing: border-box;
         & .cm-theme, // CodeMirror wrapper component
         & .cm-editor {
           height: 100%;
@@ -1092,7 +1094,7 @@ function FullSizeDynamicContent({ value }: { value: unknown }) {
         }
       `}
     >
-      <DynamicContent value={value} />
+      <ExperimentOutputContent value={value} />
     </div>
   );
 }

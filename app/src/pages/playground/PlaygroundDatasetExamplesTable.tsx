@@ -1240,7 +1240,9 @@ export function PlaygroundDatasetExamplesTable({
             <OverflowCell
               height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
             >
-              <DynamicContent value={row.original.input} />
+              <div css={outputContentCSS}>
+                <DynamicContent value={row.original.input} />
+              </div>
             </OverflowCell>
           </>
         );

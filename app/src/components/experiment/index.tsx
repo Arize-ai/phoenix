@@ -12,4 +12,5 @@ export * from "./ExperimentCodeModal";
 export * from "./RunExperimentCodeDialog";
 export * from "./ExperimentRunCellAnnotationsList";
 export * from "./ExperimentReferenceOutputCell";
+export * from "./ExperimentOutputContent";
 export * from "./experimentTableUtils";

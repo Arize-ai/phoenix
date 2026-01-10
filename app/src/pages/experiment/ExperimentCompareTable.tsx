@@ -45,6 +45,7 @@ import {
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentCostAndLatencySummary,
+  ExperimentOutputContent,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
@@ -781,6 +782,8 @@ export const MemoizedTableBody = React.memo(
 
 /**
  * Display the output of an experiment run.
+ * If the output is a chat message format with an assistant message,
+ * it extracts and renders just the content as markdown.
  */
 function ExperimentRunOutput(
   props: ExperimentRun & {
@@ -790,6 +793,7 @@ function ExperimentRunOutput(
   }
 ) {
   const { output, error, annotations, setDialog } = props;
+
   if (error) {
     return <RunError error={error} />;
   }
@@ -800,7 +804,7 @@ function ExperimentRunOutput(
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
       <View padding="size-200" flex="1 1 auto">
-        <DynamicContent value={output} />
+        <ExperimentOutputContent value={output} />
       </View>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
