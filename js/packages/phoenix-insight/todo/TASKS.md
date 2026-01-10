@@ -27,13 +27,13 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### scaffold-package
 
 - content: Create js/packages/phoenix-insight: package.json with deps, tsconfig, bin entry, README
-- status: in_progress
+- status: complete
 - dependencies: none
 
 ### scaffold-structure
 
 - content: Create src/ directory structure: cli.ts, modes/, snapshot/, commands/, agent/, prompts/
-- status: pending
+- status: in_progress
 - dependencies: scaffold-package
 
 ---
