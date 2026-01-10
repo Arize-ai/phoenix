@@ -19,6 +19,7 @@ const containerCSS = css`
 `;
 
 const contentCSS = css`
+  height: 100%;
   overflow: hidden;
 
   // When collapsed, prevent all nested elements from scrolling
@@ -120,12 +121,7 @@ export const OverflowCell = memo(function OverflowCell({
       style={{ height }}
       className="overflow-cell"
     >
-      <div
-        ref={contentRef}
-        css={contentCSS}
-        data-expanded={isExpanded}
-        style={{ height: "100%" }}
-      >
+      <div ref={contentRef} css={contentCSS} data-expanded={isExpanded}>
         {children}
       </div>
       {isOverflowing && !isExpanded && (
