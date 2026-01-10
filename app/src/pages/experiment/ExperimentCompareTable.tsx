@@ -404,7 +404,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
-              height={cellContentHeight}
+              height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
         },
@@ -413,7 +413,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [
     baseExperimentId,
     baseExperimentColor,
-    cellContentHeight,
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
