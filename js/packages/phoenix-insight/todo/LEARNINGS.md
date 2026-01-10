@@ -398,6 +398,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Phoenix client mock**: Mocking @arizeai/phoenix-client globally prevents accidental network calls. Any test that needs the client must explicitly mock its behavior, ensuring no real API calls
 - **Child process mocking**: Initially tried to mock child_process to prevent subprocess spawning, but this interfered with tests that legitimately test CLI behavior. Better to let individual tests control their mocking
 - **Test utilities**: Created a testUtils object with helper functions, though ended up not needing most of them. Sometimes simpler is better - don't over-engineer the test infrastructure
+
+## Add a top level "help" command
+
+- **Task already completed**: This task was already implemented as part of the "Start interactive mode if no arguments are provided" task. The help command was added using Commander.js command() method and is fully documented and tested
+- **Implementation details**: The help command simply calls program.outputHelp() to display the help information. It provides an alternative to the --help flag and follows common CLI conventions
+- **Testing coverage**: The help command has comprehensive tests in cli-help.test.ts, including verification of help output content and interactive mode help functionality
+- **Documentation**: The help command is documented in the README under the Commands section, showing it as one of the available top-level commands
 - **io-safety.test.ts**: Added a specific test file to verify our I/O safety measures are working. This gives confidence that the setup is functioning correctly
 - **Command parsing patterns**: Created specific patterns for common commands (cat, grep, find, ls, jq, head/tail) to show meaningful summaries instead of truncated strings
 - **Avoid showing raw newlines**: When displaying commands, only show the first line and truncate at 80 characters to avoid messing up the terminal display

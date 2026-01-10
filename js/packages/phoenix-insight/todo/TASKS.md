@@ -247,7 +247,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### Add a top level "help" command
 
 - content: Add a top level "help" command that shows the help message.
-- status: pending
+- status: complete
 - dependencies: cli-flags
 
 ## Phase 9: Bug Fixes
