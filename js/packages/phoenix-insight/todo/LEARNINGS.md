@@ -306,7 +306,6 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Incremental snapshot progress**: Show the time since last snapshot in incremental updates. Use formatTimeSince helper to convert milliseconds to human-readable format (2h, 30m, etc.)
 - **Error handling**: Always stop/cleanup spinners on error to avoid leaving the terminal in a bad state. Use try-finally or explicit stop calls in error paths
 
-
 ## documentation
 
 - **Comprehensive README structure**: Created a comprehensive README with 16+ sections covering installation, quick start, execution modes, usage examples, configuration, troubleshooting, and development. The README is over 10,000 words and provides extensive documentation
@@ -319,3 +318,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Link to external resources**: Included links to Vercel's agent architecture blog post, Phoenix documentation, and GitHub resources to provide additional context
 - **Examples of agent output**: Included realistic examples of how the agent analyzes errors and performance issues, showing the actual value users will get
 - **Tips and best practices section**: Added a section with query formulation tips, performance considerations, and security recommendations to help users get the most out of the tool
+
+## agent-tools
+
+- **AI SDK tool function**: The AI SDK's `tool` function is required to create tools that are compatible with generateText/streamText. Custom tools must use this function, not just plain objects with description/inputSchema/execute
+- **Import missing tool function**: When mocking the AI SDK in tests, must include the `tool` function in the mock. It should return an object with the same properties passed to it (description, inputSchema, execute)
+- **Type issues with maxToolRoundtrips**: The property name changed in AI SDK v6 - use `stopWhen` with `stepCountIs(n)` instead of `maxToolRoundtrips`. This controls the maximum number of tool calling rounds
+- **Remove onStepStart callback**: AI SDK v6 only supports `onStepFinish`, not `onStepStart`. Had to remove all references to onStepStart from the agent and tests
+- **Stream result type guards**: When testing stream results, use type guards like `if ('textStream' in result)` to handle the union type GenerateTextResult | StreamTextResult
+- **Local mode tool creation**: The local mode couldn't use bash-tool directly, so created a custom tool using the AI SDK's `tool` function with zod schema for the command parameter
+- **Tool inputSchema vs parameters**: The AI SDK expects `inputSchema` property (using zod schemas), not `parameters` property. Updated both sandbox and local modes to use the correct property name
+- **PhoenixClient mock structure**: The PhoenixClient uses GET method with path and query parameters, not a nested API like `client.spans.getSpans()`. Tests need to mock the GET method properly
+- **Trace fetching mock data**: The fetchMoreTrace function filters spans by trace_id from the context property. Test mocks must include proper context objects with trace_id and span_id
+- **TypeScript generics complexity**: The AI SDK has complex generic types for tools and results. Using `any` types in several places was necessary to avoid TypeScript compilation errors while maintaining runtime correctness

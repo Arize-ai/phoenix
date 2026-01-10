@@ -4,6 +4,8 @@ import { promisify } from "node:util";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
+import { tool } from "ai";
+import { z } from "zod";
 
 const execAsync = promisify(execCallback);
 
@@ -113,23 +115,16 @@ export class LocalMode implements ExecutionMode {
 
   private async createBashTool(): Promise<any> {
     // We can't use bash-tool directly for local mode since it's designed for just-bash
-    // Instead, we'll return an object that mimics the bash-tool structure
-    // This allows the agent to use it the same way
+    // Instead, we'll create a tool using the AI SDK's tool function
+    // This ensures compatibility with the AI SDK
 
-    // Return a mock bash tool that executes real bash commands
-    return {
+    // Return a bash tool that executes real bash commands
+    return tool({
       description: "Execute bash commands in the local filesystem",
-      parameters: {
-        type: "object",
-        properties: {
-          command: {
-            type: "string",
-            description: "The bash command to execute",
-          },
-        },
-        required: ["command"],
-      },
-      execute: async ({ command }: { command: string }) => {
+      inputSchema: z.object({
+        command: z.string().describe("The bash command to execute"),
+      }),
+      execute: async ({ command }) => {
         const result = await this.exec(command);
 
         // Return result in a format similar to bash-tool
@@ -151,7 +146,7 @@ export class LocalMode implements ExecutionMode {
           exitCode: result.exitCode,
         };
       },
-    };
+    });
   }
 
   async cleanup(): Promise<void> {

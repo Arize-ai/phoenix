@@ -2,7 +2,14 @@
  * Phoenix Insight AI agent setup using Vercel AI SDK
  */
 
-import { generateText, streamText } from "ai";
+import {
+  generateText,
+  streamText,
+  tool,
+  stepCountIs,
+  type GenerateTextResult,
+  type StreamTextResult,
+} from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import type { ExecutionMode } from "../modes/types.js";
@@ -35,7 +42,7 @@ export class PhoenixInsightAgent {
   private mode: ExecutionMode;
   private client: PhoenixClient;
   private maxSteps: number;
-  private tools: any = null;
+  private tools: Record<string, any> | null = null;
   private model = anthropic("claude-3-5-sonnet-20241022");
 
   constructor(config: PhoenixInsightAgentConfig) {
@@ -47,7 +54,7 @@ export class PhoenixInsightAgent {
   /**
    * Initialize the agent tools
    */
-  private async initializeTools(): Promise<any> {
+  private async initializeTools(): Promise<Record<string, any>> {
     if (this.tools) return this.tools;
 
     // Get the bash tool from the execution mode
@@ -57,9 +64,8 @@ export class PhoenixInsightAgent {
     const client = this.client;
     const mode = this.mode;
 
-    // Create custom px-fetch-more-spans tool
-    // The AI SDK expects tools to have specific properties
-    const pxFetchMoreSpans = {
+    // Create custom px-fetch-more-spans tool using AI SDK's tool function
+    const pxFetchMoreSpans = tool({
       description:
         "Fetch additional spans from Phoenix. Use when you need more span data than what's in the snapshot. You must provide both project name and optionally a limit.",
       inputSchema: z.object({
@@ -77,7 +83,7 @@ export class PhoenixInsightAgent {
           .optional()
           .describe("End time filter in ISO format"),
       }),
-      execute: async (params: any) => {
+      execute: async (params) => {
         try {
           const options: FetchMoreSpansOptions = {
             project: params.project,
@@ -99,17 +105,17 @@ export class PhoenixInsightAgent {
           };
         }
       },
-    };
+    });
 
-    // Create custom px-fetch-more-trace tool
-    const pxFetchMoreTrace = {
+    // Create custom px-fetch-more-trace tool using AI SDK's tool function
+    const pxFetchMoreTrace = tool({
       description:
         "Fetch a specific trace by ID from Phoenix. Use when you need to examine a particular trace in detail. You must provide both the trace ID and the project name.",
       inputSchema: z.object({
         traceId: z.string().describe("The trace ID to fetch"),
         project: z.string().describe("The project name to search in"),
       }),
-      execute: async (params: any) => {
+      execute: async (params) => {
         try {
           const options: FetchMoreTraceOptions = {
             traceId: params.traceId,
@@ -129,7 +135,7 @@ export class PhoenixInsightAgent {
           };
         }
       },
-    };
+    });
 
     this.tools = {
       bash: bashTool,
@@ -146,10 +152,9 @@ export class PhoenixInsightAgent {
   async generate(
     userQuery: string,
     options?: {
-      onStepStart?: (step: any) => void;
       onStepFinish?: (step: any) => void;
     }
-  ): Promise<any> {
+  ): Promise<GenerateTextResult<any, any>> {
     let tools;
     try {
       tools = await this.initializeTools();
@@ -165,10 +170,9 @@ export class PhoenixInsightAgent {
         system: INSIGHT_SYSTEM_PROMPT,
         prompt: userQuery,
         tools,
-        maxToolRoundtrips: this.maxSteps,
-        onStepStart: options?.onStepStart,
+        stopWhen: stepCountIs(this.maxSteps),
         onStepFinish: options?.onStepFinish,
-      } as any);
+      });
 
       return result;
     } catch (error) {
@@ -204,10 +208,9 @@ export class PhoenixInsightAgent {
   async stream(
     userQuery: string,
     options?: {
-      onStepStart?: (step: any) => void;
       onStepFinish?: (step: any) => void;
     }
-  ): Promise<any> {
+  ): Promise<StreamTextResult<any, any>> {
     let tools;
     try {
       tools = await this.initializeTools();
@@ -223,10 +226,9 @@ export class PhoenixInsightAgent {
         system: INSIGHT_SYSTEM_PROMPT,
         prompt: userQuery,
         tools,
-        maxToolRoundtrips: this.maxSteps,
-        onStepStart: options?.onStepStart,
+        stopWhen: stepCountIs(this.maxSteps),
         onStepFinish: options?.onStepFinish,
-      } as any);
+      });
 
       return result;
     } catch (error) {
@@ -280,11 +282,10 @@ export async function runQuery(
   agent: PhoenixInsightAgent,
   userQuery: string,
   options?: {
-    onStepStart?: (step: any) => void;
     onStepFinish?: (step: any) => void;
     stream?: boolean;
   }
-): Promise<any> {
+): Promise<GenerateTextResult<any, any> | StreamTextResult<any, any>> {
   const { stream = false, ...callbacks } = options || {};
 
   if (stream) {
@@ -301,11 +302,10 @@ export async function runOneShotQuery(
   config: PhoenixInsightAgentConfig,
   userQuery: string,
   options?: {
-    onStepStart?: (step: any) => void;
     onStepFinish?: (step: any) => void;
     stream?: boolean;
   }
-): Promise<any> {
+): Promise<GenerateTextResult<any, any> | StreamTextResult<any, any>> {
   const agent = await createInsightAgent(config);
 
   try {

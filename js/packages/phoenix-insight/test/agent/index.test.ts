@@ -119,7 +119,24 @@ describe("Phoenix Insight Agent", () => {
       const streamSpy = vi.spyOn(agent, "stream");
 
       // Mock the generate method
-      generateSpy.mockResolvedValue({ text: "test response" });
+      generateSpy.mockResolvedValue({
+        text: "test response",
+        content: [],
+        reasoning: [],
+        reasoningText: "",
+        files: [],
+        steps: [],
+        toolCalls: [],
+        toolResults: [],
+        warnings: [],
+        finishReason: "stop",
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+        },
+        metadata: {},
+      } as any);
 
       const result = await runQuery(agent, "test query", { stream: false });
 
@@ -138,7 +155,27 @@ describe("Phoenix Insight Agent", () => {
       const streamSpy = vi.spyOn(agent, "stream");
 
       // Mock the stream method
-      const mockStream = { textStream: "mock stream" };
+      const mockStream = {
+        textStream: "mock stream",
+        content: Promise.resolve([]),
+        text: Promise.resolve("test response"),
+        reasoning: Promise.resolve([]),
+        reasoningText: Promise.resolve(""),
+        files: Promise.resolve([]),
+        steps: Promise.resolve([]),
+        toolCalls: Promise.resolve([]),
+        toolResults: Promise.resolve([]),
+        warnings: Promise.resolve([]),
+        finishReason: Promise.resolve("stop"),
+        usage: Promise.resolve({
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+        }),
+        metadata: Promise.resolve({}),
+        toDataStreamResponse: () => ({}) as any,
+        pipeDataStreamToResponse: () => ({}) as any,
+      } as any;
       streamSpy.mockResolvedValue(mockStream);
 
       const result = await runQuery(agent, "test query", { stream: true });
@@ -157,19 +194,33 @@ describe("Phoenix Insight Agent", () => {
       const agent = await createInsightAgent(config);
       const generateSpy = vi.spyOn(agent, "generate");
 
-      const onStepStart = vi.fn();
       const onStepFinish = vi.fn();
 
-      generateSpy.mockResolvedValue({ text: "test response" });
+      generateSpy.mockResolvedValue({
+        text: "test response",
+        content: [],
+        reasoning: [],
+        reasoningText: "",
+        files: [],
+        steps: [],
+        toolCalls: [],
+        toolResults: [],
+        warnings: [],
+        finishReason: "stop",
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+        },
+        metadata: {},
+      } as any);
 
       await runQuery(agent, "test query", {
-        onStepStart,
         onStepFinish,
         stream: false,
       });
 
       expect(generateSpy).toHaveBeenCalledWith("test query", {
-        onStepStart,
         onStepFinish,
       });
     });

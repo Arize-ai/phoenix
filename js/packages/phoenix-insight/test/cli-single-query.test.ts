@@ -50,6 +50,15 @@ vi.mock("ai", () => ({
       steps: [],
     }),
   })),
+  stepCountIs: vi.fn((count) => ({ type: "stepCount", count })),
+  tool: vi.fn((config) => {
+    // Mock the tool function to return a properly structured tool
+    return {
+      description: config.description,
+      inputSchema: config.inputSchema,
+      execute: config.execute,
+    };
+  }),
 }));
 
 // Mock anthropic
@@ -145,19 +154,23 @@ describe("CLI Single-Query Mode", () => {
       );
 
       expect(result).toBeDefined();
-      expect(result.textStream).toBeDefined();
+      // Type guard to check if it's a stream result
+      if ("textStream" in result) {
+        expect(result.textStream).toBeDefined();
 
-      // Collect the stream
-      let streamedText = "";
-      for await (const chunk of result.textStream) {
-        streamedText += chunk;
+        // Collect the stream
+        let streamedText = "";
+        for await (const chunk of result.textStream) {
+          streamedText += chunk;
+        }
+
+        expect(streamedText).toBe("Test streaming response");
+      } else {
+        throw new Error("Expected stream result");
       }
-
-      expect(streamedText).toBe("Test streaming response");
     });
 
     it("should handle step callbacks", async () => {
-      const onStepStart = vi.fn();
       const onStepFinish = vi.fn();
       const mockClient = {} as PhoenixClient;
 
@@ -170,14 +183,12 @@ describe("CLI Single-Query Mode", () => {
         "Test query",
         {
           stream: false,
-          onStepStart,
           onStepFinish,
         }
       );
 
       // Since we mocked generateText to not use tools, callbacks might not be called
       // This is fine for unit testing - integration tests would verify actual tool use
-      expect(onStepStart).toBeDefined();
       expect(onStepFinish).toBeDefined();
     });
   });

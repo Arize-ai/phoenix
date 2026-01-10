@@ -282,3 +282,10 @@
 [2026-01-10 14:05:53] Tasks: 25/25 complete, 0 in progress, 0 pending
 [2026-01-10 14:05:53] ✓ All 25 tasks complete!
 [2026-01-10 14:05:53] ✓ Total iterations: 1
+[2026-01-10 14:12:03] Starting Ralph loop
+[2026-01-10 14:12:03] Model: anthropic/claude-opus-4-20250514
+[2026-01-10 14:12:03] Prompt: /Users/tony/repos/phoenix/js/packages/phoenix-insight/todo/PROMPT.md
+[2026-01-10 14:12:03] Tasks: /Users/tony/repos/phoenix/js/packages/phoenix-insight/todo/TASKS.md
+[2026-01-10 14:12:03] === Iteration 1 ===
+[2026-01-10 14:12:03] Tasks: 25/26 complete, 0 in progress, 1 pending
+[2026-01-10 14:12:03] Invoking agent...

@@ -116,7 +116,7 @@ describe("LocalMode", () => {
 
       expect(tool).toBeDefined();
       expect(tool.description).toContain("bash");
-      expect(tool.parameters).toBeDefined();
+      expect(tool.inputSchema).toBeDefined();
       expect(tool.execute).toBeInstanceOf(Function);
     });
 
