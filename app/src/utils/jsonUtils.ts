@@ -1,3 +1,5 @@
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
 /**
  * Checks if a string is a valid JSON string.
  * @param {Object} options - The options object.
@@ -254,4 +256,51 @@ export function safelyParseJSONObjectString(value: string): object | undefined {
     return undefined;
   }
   return parsed;
+}
+
+export type UnnestResult =
+  | { value: unknown; wasUnnested: false }
+  | { value: string; wasUnnested: true };
+
+/**
+ * Unnests a value if it's an object with a single string key whose value is a string.
+ * This is useful for displaying wrapped responses like `{"response": "..."}` as just the string content.
+ *
+ * @returns An object with the value and whether it was unnested.
+ *
+ * @example
+ * ```ts
+ * unnestSingleStringValue({ "response": "Hello world" })
+ * // { value: "Hello world", wasUnnested: true }
+ *
+ * unnestSingleStringValue({ "a": "1", "b": "2" })
+ * // { value: { "a": "1", "b": "2" }, wasUnnested: false }
+ *
+ * unnestSingleStringValue({ "data": { "nested": true } })
+ * // { value: { "data": { "nested": true } }, wasUnnested: false }
+ *
+ * unnestSingleStringValue("plain string")
+ * // { value: "plain string", wasUnnested: false }
+ * ```
+ */
+export function unnestSingleStringValue(value: unknown): UnnestResult {
+  if (!isStringKeyedObject(value)) {
+    return { value, wasUnnested: false };
+  }
+
+  const keys = Object.keys(value);
+
+  // Only unnest if there's exactly one key
+  if (keys.length !== 1) {
+    return { value, wasUnnested: false };
+  }
+
+  const singleValue = value[keys[0]];
+
+  // Only unnest if the value is a string
+  if (typeof singleValue !== "string") {
+    return { value, wasUnnested: false };
+  }
+
+  return { value: singleValue, wasUnnested: true };
 }

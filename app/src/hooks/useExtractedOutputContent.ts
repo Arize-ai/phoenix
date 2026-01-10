@@ -50,7 +50,7 @@ export function useExtractedOutputContent<T>(
 ): ExtractedOutputContent<T> {
   // Parse both formats upfront (hooks must be called unconditionally)
   const chatOutput = useMemo(() => parseChatMessageOutput(value), [value]);
-  const unnestedValue = useUnnestedValue(value);
+  const { value: unnestedValue, wasUnnested } = useUnnestedValue(value);
 
   // Try chat message format first
   if (chatOutput) {
@@ -64,8 +64,8 @@ export function useExtractedOutputContent<T>(
   }
 
   // Try single-key object format (e.g., { "response": "..." })
-  // useUnnestedValue returns the string if it was a single-key object with string value
-  if (typeof unnestedValue === "string" && unnestedValue !== value) {
+  // useUnnestedValue returns wasUnnested: true if it was a single-key object with string value
+  if (wasUnnested) {
     return {
       isExtracted: true,
       content: unnestedValue,

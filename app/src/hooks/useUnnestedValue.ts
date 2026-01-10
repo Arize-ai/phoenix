@@ -1,43 +1,28 @@
 import { useMemo } from "react";
 
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import {
+  UnnestResult,
+  unnestSingleStringValue,
+} from "@phoenix/utils/jsonUtils";
 
 /**
  * Unnests a JSON value if it's an object with a single string key whose value is a string.
  * This is useful for displaying wrapped responses like `{"response": "..."}` as just the string content.
  *
+ * @returns An object with the unnested value and whether unnesting occurred.
+ *
  * @example
- * // Returns "Hello world"
+ * // Returns { value: "Hello world", wasUnnested: true }
  * useUnnestedValue({ "response": "Hello world" })
  *
  * @example
- * // Returns the original object (multiple keys)
+ * // Returns { value: { "a": "1", "b": "2" }, wasUnnested: false }
  * useUnnestedValue({ "a": "1", "b": "2" })
  *
  * @example
- * // Returns the original object (nested value is not a string)
+ * // Returns { value: { "data": { "nested": true } }, wasUnnested: false }
  * useUnnestedValue({ "data": { "nested": true } })
  */
-export function useUnnestedValue(value: unknown): unknown {
-  return useMemo(() => {
-    if (!isStringKeyedObject(value)) {
-      return value;
-    }
-
-    const keys = Object.keys(value);
-
-    // Only unnest if there's exactly one key
-    if (keys.length !== 1) {
-      return value;
-    }
-
-    const singleValue = value[keys[0]];
-
-    // Only unnest if the value is a string
-    if (typeof singleValue !== "string") {
-      return value;
-    }
-
-    return singleValue;
-  }, [value]);
+export function useUnnestedValue(value: unknown): UnnestResult {
+  return useMemo(() => unnestSingleStringValue(value), [value]);
 }

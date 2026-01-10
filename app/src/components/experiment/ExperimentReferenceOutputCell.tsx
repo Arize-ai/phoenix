@@ -29,7 +29,7 @@ export function ExperimentReferenceOutputCell({
   value,
   height,
 }: ExperimentReferenceOutputCellProps) {
-  const unnestedValue = useUnnestedValue(value);
+  const { value: unnestedValue } = useUnnestedValue(value);
   return (
     <Flex direction="column" height="100%">
       <CellTop>
