@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { spawn } from "node:child_process";
 import * as path from "node:path";
 
-describe("CLI Help and Interactive Mode", () => {
+// TODO: we need to avoid invoking the CLI directly. It makes networking calls and we don't want to do that in tests.
+describe.skip("CLI Help and Interactive Mode", () => {
   let mockExit: any;
 
   beforeEach(() => {

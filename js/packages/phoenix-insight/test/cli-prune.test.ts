@@ -9,7 +9,8 @@ import * as os from "node:os";
 const execAsync = promisify(exec);
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-describe("phoenix-insight prune command", () => {
+// TODO: we need to avoid invoking the CLI directly. It makes networking calls and we don't want to do that in tests.
+describe.skip("phoenix-insight prune command", () => {
   const cliPath = path.resolve(__dirname, "../src/cli.ts");
   const testHomeDir = path.join(os.tmpdir(), `phoenix-test-home-${Date.now()}`);
   const testSnapshotDir = path.join(testHomeDir, ".phoenix-insight");

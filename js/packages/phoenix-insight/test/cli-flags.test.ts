@@ -27,7 +27,8 @@ function runCLI(
   });
 }
 
-describe("cli-flags", () => {
+// TODO: we need to avoid invoking the CLI directly. It makes networking calls and we don't want to do that in tests.
+describe.skip("cli-flags", () => {
   describe("flag parsing", () => {
     it("should start interactive mode when no query is provided", async () => {
       // Start CLI and kill it after checking output
