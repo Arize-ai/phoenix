@@ -62,6 +62,17 @@ def create_llm_span_with_events():
             },
         )
 
+        # Add warning event
+        span.add_event(
+            name="rate_limit.warning",
+            attributes={
+                "current_rate": 95,
+                "max_rate": 100,
+                "window_seconds": 60,
+                "retry_after": 5,
+            },
+        )
+
 
 def create_chain_span_with_events():
     """Create a chain span with nested LLM calls and events."""
@@ -102,13 +113,13 @@ def create_retriever_span_with_events():
     """Create a retriever span with search and ranking events."""
     with tracer.start_as_current_span(f"retriever_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "RETRIEVER")
-        span.set_attribute("input.value", fake.question())
+        span.set_attribute("input.value", fake.sentence() + "?")
 
         # Add search event with attributes
         span.add_event(
             name="search.query.executed",
             attributes={
-                "query": fake.question(),
+                "query": fake.sentence() + "?",
                 "index_name": "documents",
                 "search_type": "semantic",
                 "embedding_model": "text-embedding-ada-002",
@@ -125,6 +136,18 @@ def create_retriever_span_with_events():
                 "num_candidates": 10,
                 "num_results": 5,
                 "rerank_time_ms": randint(50, 200),
+            },
+        )
+
+        # Add error event for failed vector search
+        span.add_event(
+            name="vector_db.error",
+            attributes={
+                "error_type": "ConnectionTimeout",
+                "database": "pinecone",
+                "retry_count": 2,
+                "timeout_ms": 5000,
+                "fallback_used": True,
             },
         )
 
@@ -229,9 +252,9 @@ def main():
             create_retriever_span_with_events()
             create_tool_span_with_events()
 
-            # Randomly add a span with an exception
-            if randint(0, 1):
-                create_span_with_exception_event()
+            # Always add spans with exceptions for testing
+            create_span_with_exception_event()
+            create_span_with_exception_event()
 
             # Add trace completion event
             root_span.add_event(

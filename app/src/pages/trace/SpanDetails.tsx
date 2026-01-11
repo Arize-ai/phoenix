@@ -49,8 +49,6 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
-  List,
-  ListItem,
   Loading,
   Modal,
   ModalOverlay,
@@ -72,6 +70,7 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   useNotifySuccess,
   usePreferencesContext,
@@ -1957,73 +1956,58 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
     return <EmptyIndicator text="No events" />;
   }
   return (
-    <List>
+    <DisclosureGroup
+      css={css`
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+        .react-aria-Button[slot="trigger"] {
+          padding: var(--ac-global-dimension-static-size-200);
+        }
+      `}
+    >
       {events.map((event, idx) => {
         const isException = event.name === "exception";
         const hasAttributes =
           event.attributes && Object.keys(event.attributes).length > 0;
 
-        return (
-          <ListItem key={idx}>
-            <Flex direction="column" gap="size-100">
-              <Flex direction="row" alignItems="center" gap="size-100">
-                <View flex="none">
-                  <div
-                    data-event-type={isException ? "exception" : "info"}
-                    css={css`
-                      &[data-event-type="exception"] {
-                        --px-event-icon-color: var(--ac-global-color-danger);
-                      }
-                      &[data-event-type="info"] {
-                        --px-event-icon-color: var(--ac-global-color-info);
-                      }
-                      .ac-icon-wrap {
-                        color: var(--px-event-icon-color);
-                      }
-                    `}
-                  >
-                    <Icon
-                      svg={
-                        isException ? (
-                          <Icons.AlertTriangleOutline />
-                        ) : (
-                          <Icons.InfoOutline />
-                        )
-                      }
-                    />
-                  </div>
-                </View>
-                <Flex direction="column" gap="size-25" flex="1 1 auto">
-                  <Text weight="heavy">{event.name}</Text>
-                  <Text color="text-700">{event.message}</Text>
-                </Flex>
-                <View>
-                  <Text color="text-700">
-                    {fullTimeFormatter(new Date(event.timestamp))}
-                  </Text>
-                </View>
-              </Flex>
-              {hasAttributes && (
-                <DisclosureGroup>
-                  <Disclosure>
-                    <DisclosureTrigger>
-                      <Text weight="heavy">Attributes</Text>
-                    </DisclosureTrigger>
-                    <DisclosurePanel>
-                      <View paddingTop="size-100">
-                        <JSONBlock>
-                          {JSON.stringify(event.attributes)}
-                        </JSONBlock>
-                      </View>
-                    </DisclosurePanel>
-                  </Disclosure>
-                </DisclosureGroup>
-              )}
+        const eventHeader = (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <View flex="none">
+              <Text color="text-700">
+                {fullTimeFormatter(new Date(event.timestamp))}
+              </Text>
+            </View>
+            {isException && (
+              <View flex="none">
+                <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+              </View>
+            )}
+            <Flex direction="row" gap="size-100">
+              <Text weight="heavy">{event.name}</Text>
+              <Truncate maxWidth="200px" title={event.message}>
+                {event.message && <Text color="text-700">{event.message}</Text>}
+              </Truncate>
             </Flex>
-          </ListItem>
+          </Flex>
+        );
+
+        return (
+          <Disclosure key={idx} isDisabled={!hasAttributes}>
+            <DisclosureTrigger arrowPosition="start">
+              {eventHeader}
+            </DisclosureTrigger>
+            {hasAttributes && (
+              <DisclosurePanel>
+                <JSONBlock
+                  basicSetup={{ lineNumbers: false, foldGutter: false }}
+                >
+                  {JSON.stringify(event.attributes, null, 2)}
+                </JSONBlock>
+              </DisclosurePanel>
+            )}
+          </Disclosure>
         );
       })}
-    </List>
+    </DisclosureGroup>
   );
 }
 
