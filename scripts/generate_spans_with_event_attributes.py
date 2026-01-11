@@ -29,7 +29,7 @@ tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint
 tracer = tracer_provider.get_tracer(__name__)
 
 
-def create_llm_span_with_events():
+def create_llm_span_with_events() -> None:
     """Create an LLM span with various events that have attributes."""
     with tracer.start_as_current_span(f"llm_call_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "LLM")
@@ -74,7 +74,7 @@ def create_llm_span_with_events():
         )
 
 
-def create_chain_span_with_events():
+def create_chain_span_with_events() -> None:
     """Create a chain span with nested LLM calls and events."""
     with tracer.start_as_current_span(f"chain_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "CHAIN")
@@ -109,7 +109,7 @@ def create_chain_span_with_events():
         span.set_attribute("output.value", fake.sentence())
 
 
-def create_retriever_span_with_events():
+def create_retriever_span_with_events() -> None:
     """Create a retriever span with search and ranking events."""
     with tracer.start_as_current_span(f"retriever_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "RETRIEVER")
@@ -152,12 +152,14 @@ def create_retriever_span_with_events():
         )
 
         # Set output with retrieved documents
-        documents = [{"text": fake.text(), "score": fake.pyfloat(min_value=0.5, max_value=1.0)}
-                    for _ in range(5)]
+        documents = [
+            {"text": fake.text(), "score": fake.pyfloat(min_value=0.5, max_value=1.0)}
+            for _ in range(5)
+        ]
         span.set_attribute("retrieval.documents", str(documents))
 
 
-def create_span_with_exception_event():
+def create_span_with_exception_event() -> None:
     """Create a span with an exception event that has attributes."""
     with tracer.start_as_current_span(f"failed_operation_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "CHAIN")
@@ -166,12 +168,14 @@ def create_span_with_exception_event():
         error_types = ["TimeoutError", "ValueError", "ConnectionError", "RateLimitError"]
         error_type = choice(error_types)
 
+        line_num = randint(10, 100)
+        stacktrace = f'  File "/app/main.py", line {line_num}, in process\n    {fake.sentence()}'
         span.add_event(
             name="exception",
             attributes={
                 "exception.type": error_type,
                 "exception.message": f"Operation failed: {fake.sentence()}",
-                "exception.stacktrace": f"  File \"/app/main.py\", line {randint(10, 100)}, in process\n    {fake.sentence()}",
+                "exception.stacktrace": stacktrace,
                 "exception.escaped": False,
                 "retry_attempt": randint(1, 3),
                 "max_retries": 3,
@@ -183,7 +187,7 @@ def create_span_with_exception_event():
         span.set_status(trace.Status(trace.StatusCode.ERROR, f"{error_type}: Operation failed"))
 
 
-def create_tool_span_with_events():
+def create_tool_span_with_events() -> None:
     """Create a tool span with execution events."""
     with tracer.start_as_current_span(f"tool_{token_hex(4)}") as span:
         span.set_attribute("openinference.span.kind", "TOOL")
@@ -220,7 +224,7 @@ def create_tool_span_with_events():
         )
 
 
-def main():
+def main() -> None:
     """Generate various types of spans with events that have attributes."""
     print("Generating spans with event attributes...")
     print(f"Target endpoint: {endpoint}")
