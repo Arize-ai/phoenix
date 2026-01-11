@@ -20,57 +20,51 @@ describe("CLI Interactive Mode - Premature Exit Fix", () => {
     expect(cliContent).toContain("The interactive mode will continue");
   });
 
-  it("should track user exit status properly", async () => {
+  it("should track user exit status for Ctrl+C handling", async () => {
     const cliPath = join(__dirname, "..", "src", "cli.ts");
     const cliContent = await import("node:fs").then((fs) =>
       fs.promises.readFile(cliPath, "utf-8")
     );
 
-    // Check that we have the userExited flag
+    // Check that we have the userExited flag for Ctrl+C double-press to exit
     expect(cliContent).toContain("let userExited = false");
     expect(cliContent).toContain("userExited = true");
-    expect(cliContent).toContain("if (!userExited)");
+    // Check that we use it to determine exit behavior on second Ctrl+C
+    expect(cliContent).toContain("if (userExited)");
   });
 
-  it("should handle readline loop errors gracefully", async () => {
+  it("should use event-based approach instead of async iterator", async () => {
     const cliPath = join(__dirname, "..", "src", "cli.ts");
     const cliContent = await import("node:fs").then((fs) =>
       fs.promises.readFile(cliPath, "utf-8")
     );
 
-    // Check that the for await loop is wrapped in try-catch
-    expect(cliContent).toContain("try {");
-    expect(cliContent).toContain("for await (const line of rl) {");
+    // Check that we use event-based approach (not async iterator which causes premature exit)
+    expect(cliContent).toContain('rl.on("line", async (line)');
+    expect(cliContent).toContain('rl.on("close"');
+
+    // Check that we properly pause/resume readline during query processing
+    expect(cliContent).toContain("rl.pause()");
+    expect(cliContent).toContain("rl.resume()");
+
+    // Check for the comment explaining the fix
     expect(cliContent).toContain(
-      'console.error("\\n⚠️  Interactive mode error:"'
-    );
-    expect(cliContent).toContain(
-      "The interactive session has ended unexpectedly"
+      "Use event-based approach instead of async iterator"
     );
   });
 
-  it("should prompt after each query", async () => {
+  it("should prompt after each query via event handler", async () => {
     const cliPath = join(__dirname, "..", "src", "cli.ts");
     const cliContent = await import("node:fs").then((fs) =>
       fs.promises.readFile(cliPath, "utf-8")
     );
 
-    // Check that rl.prompt() is called after query processing
-    const lines = cliContent.split("\n");
+    // Check that rl.prompt() is called after query processing in the event handler
+    // The pattern is: rl.resume() followed by rl.prompt()
+    expect(cliContent).toMatch(/rl\.resume\(\);\s*\n\s*rl\.prompt\(\)/);
 
-    // Find the separator line and verify prompt follows
-    let foundPattern = false;
-    for (let i = 0; i < lines.length - 1; i++) {
-      if (
-        lines[i].includes('"─".repeat(50)') &&
-        lines[i + 1].includes("rl.prompt()")
-      ) {
-        foundPattern = true;
-        break;
-      }
-    }
-
-    expect(foundPattern).toBe(true);
+    // Check that we show the initial prompt
+    expect(cliContent).toContain("// Show initial prompt");
   });
 
   it("should handle errors without exiting the loop", async () => {
@@ -83,10 +77,20 @@ describe("CLI Interactive Mode - Premature Exit Fix", () => {
     expect(cliContent).toContain('console.error("\\n❌ Query Error:"');
     expect(cliContent).toContain("You can try again with a different query");
 
-    // Verify that after error handling, we still prompt
-    const errorSection = cliContent.match(
-      /} catch \(error\) \{[\s\S]*?console\.error.*?You can try again[\s\S]*?\}/
+    // Verify that after error handling in processQuery, it returns false (continue loop)
+    expect(cliContent).toMatch(
+      /} catch \(error\) \{[\s\S]*?You can try again[\s\S]*?return false;/
     );
-    expect(errorSection).toBeTruthy();
+  });
+
+  it("should close readline only on explicit exit command", async () => {
+    const cliPath = join(__dirname, "..", "src", "cli.ts");
+    const cliContent = await import("node:fs").then((fs) =>
+      fs.promises.readFile(cliPath, "utf-8")
+    );
+
+    // Check that rl.close() is only called when shouldExit is true
+    expect(cliContent).toContain("if (shouldExit)");
+    expect(cliContent).toMatch(/if \(shouldExit\) \{\s*\n\s*rl\.close\(\)/);
   });
 });

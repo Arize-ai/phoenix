@@ -550,182 +550,195 @@ async function runInteractiveMode(options: any): Promise<void> {
       terminal: true, // Ensure terminal mode for better compatibility
     });
 
+    let userExited = false;
+
     // Handle SIGINT (Ctrl+C) gracefully
     rl.on("SIGINT", () => {
+      if (userExited) {
+        process.exit(0);
+      }
       console.log(
         '\n\nUse "exit" to quit or press Ctrl+C again to force exit.'
       );
+      userExited = true;
       rl.prompt();
     });
 
-    rl.prompt();
+    // Helper function to process a single query
+    const processQuery = async (query: string): Promise<boolean> => {
+      if (query === "exit" || query === "quit") {
+        return true; // Signal to exit
+      }
 
-    // Flag to track if the user explicitly exited
-    let userExited = false;
+      if (query === "help") {
+        console.log("\n📖 Interactive Mode Commands:");
+        console.log("   help              - Show this help message");
+        console.log("   exit, quit        - Exit interactive mode");
+        console.log(
+          "   px-fetch-more     - Fetch additional data (e.g., px-fetch-more spans --project <name> --limit <n>)"
+        );
+        console.log("\n💡 Usage Tips:");
+        console.log(
+          "   • Ask natural language questions about your Phoenix data"
+        );
+        console.log(
+          "   • The agent has access to bash commands to analyze the data"
+        );
+        console.log(
+          "   • Use px-fetch-more commands to get additional data on-demand"
+        );
+        console.log("\n🔧 Options (set when starting phoenix-insight):");
+        console.log(
+          "   --local           - Use local mode with persistent storage"
+        );
+        console.log(
+          "   --stream          - Stream agent responses in real-time"
+        );
+        console.log("   --refresh         - Force fresh snapshot data");
+        console.log("   --limit <n>       - Set max spans per project");
+        console.log("   --trace           - Enable observability tracing");
+        return false;
+      }
 
-    // Wrap the async iterator in a try-catch to prevent premature exit
-    try {
-      for await (const line of rl) {
-        const query = line.trim();
+      if (query === "") {
+        return false;
+      }
 
-        if (query === "exit" || query === "quit") {
-          console.log("\n👋 Goodbye!");
-          userExited = true;
-          rl.close();
-          break;
-        }
+      try {
+        const agentProgress = new AgentProgress(!options.stream);
+        agentProgress.startThinking();
 
-        if (query === "help") {
-          console.log("\n📖 Interactive Mode Commands:");
-          console.log("   help              - Show this help message");
-          console.log("   exit, quit        - Exit interactive mode");
-          console.log(
-            "   px-fetch-more     - Fetch additional data (e.g., px-fetch-more spans --project <name> --limit <n>)"
-          );
-          console.log("\n💡 Usage Tips:");
-          console.log(
-            "   • Ask natural language questions about your Phoenix data"
-          );
-          console.log(
-            "   • The agent has access to bash commands to analyze the data"
-          );
-          console.log(
-            "   • Use px-fetch-more commands to get additional data on-demand"
-          );
-          console.log("\n🔧 Options (set when starting phoenix-insight):");
-          console.log(
-            "   --local           - Use local mode with persistent storage"
-          );
-          console.log(
-            "   --stream          - Stream agent responses in real-time"
-          );
-          console.log("   --refresh         - Force fresh snapshot data");
-          console.log("   --limit <n>       - Set max spans per project");
-          console.log("   --trace           - Enable observability tracing");
-          rl.prompt();
-          continue;
-        }
-
-        if (query === "") {
-          rl.prompt();
-          continue;
-        }
-
-        try {
-          const agentProgress = new AgentProgress(!options.stream);
-          agentProgress.startThinking();
-
-          if (options.stream) {
-            // Stream mode
-            const result = await agent.stream(query, {
-              onStepFinish: (step: any) => {
-                // Show tool usage even in stream mode
-                if (step.toolCalls?.length) {
-                  step.toolCalls.forEach((toolCall: any) => {
-                    const toolName = toolCall.toolName;
-                    if (toolName === "bash") {
-                      // Extract bash command for better visibility
-                      const command = toolCall.args?.command || "";
-                      const shortCmd = command.split("\n")[0].substring(0, 50);
-                      agentProgress.updateTool(
-                        toolName,
-                        shortCmd + (command.length > 50 ? "..." : "")
-                      );
-                    } else {
-                      agentProgress.updateTool(toolName);
-                    }
-                  });
-                }
-
-                // Show tool results
-                if (step.toolResults?.length) {
-                  step.toolResults.forEach((toolResult: any) => {
-                    agentProgress.updateToolResult(
-                      toolResult.toolName,
-                      !toolResult.isError
+        if (options.stream) {
+          // Stream mode
+          const result = await agent.stream(query, {
+            onStepFinish: (step: any) => {
+              // Show tool usage even in stream mode
+              if (step.toolCalls?.length) {
+                step.toolCalls.forEach((toolCall: any) => {
+                  const toolName = toolCall.toolName;
+                  if (toolName === "bash") {
+                    // Extract bash command for better visibility
+                    const command = toolCall.args?.command || "";
+                    const shortCmd = command.split("\n")[0].substring(0, 50);
+                    agentProgress.updateTool(
+                      toolName,
+                      shortCmd + (command.length > 50 ? "..." : "")
                     );
-                  });
-                }
-              },
-            });
+                  } else {
+                    agentProgress.updateTool(toolName);
+                  }
+                });
+              }
 
-            // Stop progress before streaming
-            agentProgress.stop();
+              // Show tool results
+              if (step.toolResults?.length) {
+                step.toolResults.forEach((toolResult: any) => {
+                  agentProgress.updateToolResult(
+                    toolResult.toolName,
+                    !toolResult.isError
+                  );
+                });
+              }
+            },
+          });
 
-            // Handle streaming response
-            console.log("\n✨ Answer:\n");
-            for await (const chunk of result.textStream) {
-              process.stdout.write(chunk);
-            }
-            console.log(); // Final newline
+          // Stop progress before streaming
+          agentProgress.stop();
 
-            // Wait for full response to complete
-            await result.response;
-          } else {
-            // Non-streaming mode
-            const result = await agent.generate(query, {
-              onStepFinish: (step: any) => {
-                // Show tool usage
-                if (step.toolCalls?.length) {
-                  step.toolCalls.forEach((toolCall: any) => {
-                    const toolName = toolCall.toolName;
-                    if (toolName === "bash") {
-                      // Extract bash command for better visibility
-                      const command = toolCall.args?.command || "";
-                      const shortCmd = command.split("\n")[0].substring(0, 50);
-                      agentProgress.updateTool(
-                        toolName,
-                        shortCmd + (command.length > 50 ? "..." : "")
-                      );
-                    } else {
-                      agentProgress.updateTool(toolName);
-                    }
-                  });
-                }
+          // Handle streaming response
+          console.log("\n✨ Answer:\n");
+          for await (const chunk of result.textStream) {
+            process.stdout.write(chunk);
+          }
+          console.log(); // Final newline
 
-                // Show tool results
-                if (step.toolResults?.length) {
-                  step.toolResults.forEach((toolResult: any) => {
-                    agentProgress.updateToolResult(
-                      toolResult.toolName,
-                      !toolResult.isError
+          // Wait for full response to complete
+          await result.response;
+        } else {
+          // Non-streaming mode
+          const result = await agent.generate(query, {
+            onStepFinish: (step: any) => {
+              // Show tool usage
+              if (step.toolCalls?.length) {
+                step.toolCalls.forEach((toolCall: any) => {
+                  const toolName = toolCall.toolName;
+                  if (toolName === "bash") {
+                    // Extract bash command for better visibility
+                    const command = toolCall.args?.command || "";
+                    const shortCmd = command.split("\n")[0].substring(0, 50);
+                    agentProgress.updateTool(
+                      toolName,
+                      shortCmd + (command.length > 50 ? "..." : "")
                     );
-                  });
-                }
-              },
-            });
+                  } else {
+                    agentProgress.updateTool(toolName);
+                  }
+                });
+              }
 
-            // Stop progress and display the final answer
-            agentProgress.succeed();
-            console.log("\n✨ Answer:\n");
-            console.log(result.text);
-          }
-        } catch (error) {
-          console.error("\n❌ Query Error:");
-          if (error instanceof PhoenixClientError) {
-            console.error(`   ${error.message}`);
-          } else if (error instanceof Error) {
-            console.error(`   ${error.message}`);
-          } else {
-            console.error(`   ${String(error)}`);
-          }
-          console.error("   You can try again with a different query");
+              // Show tool results
+              if (step.toolResults?.length) {
+                step.toolResults.forEach((toolResult: any) => {
+                  agentProgress.updateToolResult(
+                    toolResult.toolName,
+                    !toolResult.isError
+                  );
+                });
+              }
+            },
+          });
+
+          // Stop progress and display the final answer
+          agentProgress.succeed();
+          console.log("\n✨ Answer:\n");
+          console.log(result.text);
         }
 
         console.log("\n" + "─".repeat(50) + "\n");
-        rl.prompt();
+      } catch (error) {
+        console.error("\n❌ Query Error:");
+        if (error instanceof PhoenixClientError) {
+          console.error(`   ${error.message}`);
+        } else if (error instanceof Error) {
+          console.error(`   ${error.message}`);
+        } else {
+          console.error(`   ${String(error)}`);
+        }
+        console.error("   You can try again with a different query\n");
       }
-    } catch (error) {
-      // If the readline loop throws an error, log it but don't exit
-      console.error("\n⚠️  Interactive mode error:", error);
-      console.error("The interactive session has ended unexpectedly.");
-    }
 
-    // If the loop ended without user explicitly exiting (e.g., EOF/Ctrl+D),
-    // show a goodbye message
-    if (!userExited) {
-      console.log("\n👋 Goodbye!");
-    }
+      return false;
+    };
+
+    // Use event-based approach instead of async iterator to prevent
+    // premature exit when ora/spinners interact with stdin
+    await new Promise<void>((resolve) => {
+      rl.on("line", async (line) => {
+        const query = line.trim();
+
+        // Pause readline while processing to prevent queuing
+        rl.pause();
+
+        const shouldExit = await processQuery(query);
+
+        if (shouldExit) {
+          rl.close();
+        } else {
+          // Resume and show prompt for next input
+          rl.resume();
+          rl.prompt();
+        }
+      });
+
+      rl.on("close", () => {
+        resolve();
+      });
+
+      // Show initial prompt
+      rl.prompt();
+    });
+
+    console.log("\n👋 Goodbye!");
 
     // Cleanup
     await mode.cleanup();
