@@ -18,7 +18,7 @@
     "package.json"
   ],
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "rimraf dist tsconfig.esm.tsbuildinfo tsconfig.tsbuildinfo",
     "prebuild": "pnpm run clean",
     "build": "tsc --build tsconfig.esm.json",
     "dev": "tsx src/cli.ts",

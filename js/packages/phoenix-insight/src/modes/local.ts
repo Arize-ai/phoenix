@@ -1,4 +1,4 @@
-import { ExecutionMode } from "./types.js";
+import type { ExecutionMode } from "./types.js";
 import { exec as execCallback } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs/promises";

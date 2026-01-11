@@ -1,17 +1,22 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
 export class PhoenixClientError extends Error {
+  public code:
+    | "NETWORK_ERROR"
+    | "AUTH_ERROR"
+    | "INVALID_RESPONSE"
+    | "UNKNOWN_ERROR";
+  public originalError?: unknown;
+
   constructor(
     message: string,
-    public readonly code:
-      | "NETWORK_ERROR"
-      | "AUTH_ERROR"
-      | "INVALID_RESPONSE"
-      | "UNKNOWN_ERROR",
-    public readonly originalError?: unknown
+    code: "NETWORK_ERROR" | "AUTH_ERROR" | "INVALID_RESPONSE" | "UNKNOWN_ERROR",
+    originalError?: unknown
   ) {
     super(message);
     this.name = "PhoenixClientError";
+    this.code = code;
+    this.originalError = originalError;
   }
 }
 

@@ -280,36 +280,7 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 
 ### interactive mode pre-mature exit
 
-- content: Interactive mode should not exit prematurely. It should wait for the user to exit. It currently exits after the first query response. A % sign is rendered in the place of the user prompt and it closes the program. This was marked as complete but it is still broken. For extra context, I executed `pnpm dev` when testing.
-- status: complete
-- dependencies: cli-interactive
-
-### cannot execute compiled dist build
-
-- content: The compiled dist build cannot be executed. The following error is thrown:
-
-```
-node ../dist/cli.js
-node:internal/modules/esm/resolve:275
-    throw new ERR_MODULE_NOT_FOUND(
-          ^
-
-Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/tony/repos/phoenix/js/packages/phoenix-insight/dist/prompts/system.js' imported from /Users/tony/repos/phoenix/js/packages/phoenix-insight/dist/agent/index.js
-    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
-    at moduleResolve (node:internal/modules/esm/resolve:932:10)
-    at defaultResolve (node:internal/modules/esm/resolve:1056:11)
-    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:654:12)
-    at #cachedDefaultResolve (node:internal/modules/esm/loader:603:25)
-    at ModuleLoader.resolve (node:internal/modules/esm/loader:586:38)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:242:38)
-    at ModuleJob._link (node:internal/modules/esm/module_job:135:49) {
-  code: 'ERR_MODULE_NOT_FOUND',
-  url: 'file:///Users/tony/repos/phoenix/js/packages/phoenix-insight/dist/prompts/system.js'
-}
-
-Node.js v22.13.1
-```
-
+- content: Interactive mode should not exit prematurely. It should wait for the user to exit. It currently exits after the first query response. A % sign is rendered in the place of the user prompt and it closes the program. This was marked as complete but it is still broken. This may have something to do with readline processing capturing both user input and agent output.
 - status: pending
 - dependencies: cli-interactive
 

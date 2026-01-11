@@ -1,7 +1,6 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.base.esm.json",
   "compilerOptions": {
-    "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
     "noUncheckedIndexedAccess": true,
@@ -10,9 +9,11 @@
     "target": "ES2022",
     "moduleResolution": "Node",
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "noEmit": false,
-    "composite": false
+    "noEmit": true,
+    "composite": false,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["test/**/*.ts"],

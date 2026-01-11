@@ -1,4 +1,4 @@
-import { ExecutionMode } from "./types.js";
+import type { ExecutionMode } from "./types.js";
 import { tool } from "ai";
 import { z } from "zod";
 
