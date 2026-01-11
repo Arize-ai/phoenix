@@ -70,13 +70,12 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   useNotifySuccess,
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
+import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -107,6 +106,7 @@ import {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
+import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -211,7 +211,6 @@ export function SpanDetails({
               name
               message
               timestamp
-              attributes
             }
             documentRetrievalMetrics {
               evaluationName
@@ -381,7 +380,9 @@ export function SpanDetails({
 
             <LazyTabPanel id="events">
               <View overflow="auto">
-                <SpanEventsList events={span.events} />
+                <Suspense fallback={<Loading />}>
+                  <SpanEventsList spanId={span.id} />
+                </Suspense>
               </View>
             </LazyTabPanel>
           </Tabs>
@@ -1858,7 +1859,7 @@ function CopyToClipboard({
 /**
  * A block of JSON content that is not editable.
  */
-function JSONBlock({
+export function JSONBlock({
   children,
   basicSetup = {},
 }: {
@@ -1934,81 +1935,6 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       assertUnreachable(mimeType);
   }
   return content;
-}
-
-function EmptyIndicator({ text }: { text: string }) {
-  return (
-    <Flex
-      direction="column"
-      alignItems="center"
-      flex="1 1 auto"
-      height="size-2400"
-      justifyContent="center"
-      gap="size-100"
-    >
-      <Text size="L">{text}</Text>
-    </Flex>
-  );
-}
-function SpanEventsList({ events }: { events: Span["events"] }) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (events.length === 0) {
-    return <EmptyIndicator text="No events" />;
-  }
-  return (
-    <DisclosureGroup
-      css={css`
-        border-bottom: 1px solid var(--ac-global-border-color-default);
-        .react-aria-Button[slot="trigger"] {
-          padding: var(--ac-global-dimension-static-size-200);
-        }
-      `}
-    >
-      {events.map((event, idx) => {
-        const isException = event.name === "exception";
-        const hasAttributes =
-          event.attributes && Object.keys(event.attributes).length > 0;
-
-        const eventHeader = (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <View flex="none">
-              <Text color="text-700">
-                {fullTimeFormatter(new Date(event.timestamp))}
-              </Text>
-            </View>
-            {isException && (
-              <View flex="none">
-                <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
-              </View>
-            )}
-            <Flex direction="row" gap="size-100">
-              <Text weight="heavy">{event.name}</Text>
-              <Truncate maxWidth="200px" title={event.message}>
-                {event.message && <Text color="text-700">{event.message}</Text>}
-              </Truncate>
-            </Flex>
-          </Flex>
-        );
-
-        return (
-          <Disclosure key={idx} isDisabled={!hasAttributes}>
-            <DisclosureTrigger arrowPosition="start">
-              {eventHeader}
-            </DisclosureTrigger>
-            {hasAttributes && (
-              <DisclosurePanel>
-                <JSONBlock
-                  basicSetup={{ lineNumbers: false, foldGutter: false }}
-                >
-                  {JSON.stringify(event.attributes, null, 2)}
-                </JSONBlock>
-              </DisclosurePanel>
-            )}
-          </Disclosure>
-        );
-      })}
-    </DisclosureGroup>
-  );
 }
 
 const attributesContextualHelp = (
