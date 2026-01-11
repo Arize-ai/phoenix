@@ -454,3 +454,12 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Documentation updates**: When adding new commands, update the README in multiple places: command list, options table, examples, and troubleshooting sections
 - **fs.rm options**: Use `{ recursive: true, force: true }` with fs.rm() to ensure directories are deleted completely and to avoid errors if the directory doesn't exist
 - **Catch expressions**: When using exec() in tests, use `.catch(e => e)` to capture both stdout and stderr from failed commands without throwing an exception
+
+## agent-tools
+
+- **Sandbox mode tool error**: The bash-tool package was not creating tools compatible with the AI SDK v6. The error "tools.0.custom.input_schema.type: Field required" indicated missing schema format.
+- **Solution pattern**: Replaced bash-tool integration with direct AI SDK tool() function usage, matching the local mode implementation
+- **Tool structure requirements**: AI SDK tools must have: description, inputSchema (using zod schemas), and execute function
+- **Tool caching**: Implemented tool promise caching to avoid recreating tools on every call, improving performance
+- **Test updates**: When changing tool structure, remember to update tests to check for the new properties (description, inputSchema, execute) instead of old ones (bash, tools, sandbox)
+- **Consistency across modes**: Both sandbox and local modes now use the same pattern for creating bash tools, ensuring consistent behavior

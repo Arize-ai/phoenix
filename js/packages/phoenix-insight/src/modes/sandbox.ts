@@ -1,4 +1,6 @@
 import { ExecutionMode } from "./types.js";
+import { tool } from "ai";
+import { z } from "zod";
 
 /**
  * Sandbox execution mode using just-bash for isolated execution
@@ -8,8 +10,8 @@ import { ExecutionMode } from "./types.js";
  */
 export class SandboxMode implements ExecutionMode {
   private bash: any; // Will be typed as Bash from just-bash
-  private createBashToolFn: any; // Will be the createBashTool function from bash-tool
   private initialized = false;
+  private bashToolPromise: Promise<any> | null = null;
 
   constructor() {
     // We'll initialize in the init method since we need async imports
@@ -21,9 +23,7 @@ export class SandboxMode implements ExecutionMode {
     try {
       // Dynamic imports for ESM modules
       const { Bash } = await import("just-bash");
-      const { createBashTool } = await import("bash-tool");
 
-      this.createBashToolFn = createBashTool;
       // Initialize just-bash with /phoenix as the working directory
       this.bash = new Bash({ cwd: "/phoenix" });
 
@@ -95,12 +95,46 @@ export class SandboxMode implements ExecutionMode {
   }
 
   async getBashTool(): Promise<any> {
+    // Only create the tool once and cache it
+    if (!this.bashToolPromise) {
+      this.bashToolPromise = this.createBashTool();
+    }
+    return this.bashToolPromise;
+  }
+
+  private async createBashTool(): Promise<any> {
     await this.init();
 
-    // Use the bash-tool package to create a tool for the AI SDK
-    // Pass the just-bash instance as the sandbox option
-    // createBashTool returns a Promise that resolves to the tool
-    return await this.createBashToolFn({ sandbox: this.bash });
+    // Create a bash tool compatible with the AI SDK
+    // Similar to local mode, we'll create it directly using the tool function
+    return tool({
+      description: "Execute bash commands in the sandbox filesystem",
+      inputSchema: z.object({
+        command: z.string().describe("The bash command to execute"),
+      }),
+      execute: async ({ command }) => {
+        const result = await this.exec(command);
+
+        // Return result in a format similar to bash-tool
+        if (result.exitCode !== 0) {
+          // Include error details in the response
+          return {
+            success: false,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            exitCode: result.exitCode,
+            error: `Command failed with exit code ${result.exitCode}`,
+          };
+        }
+
+        return {
+          success: true,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        };
+      },
+    });
   }
 
   async cleanup(): Promise<void> {

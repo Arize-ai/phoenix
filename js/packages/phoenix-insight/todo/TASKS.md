@@ -254,7 +254,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 
 ### agent-tools
 
-- content: Fix agent tools. Remove usage of the `any` type. Read the AI SDk documentation for the correct types. The following error is currently being thrown:
+- content: Fix agent tools in sandbox mode. Local mode works fine. This was fixed previously for local mode but apparently not for sandbox mode. The following error is currently being thrown:
 
 ```
 pnpm dev "show me error patterns in the playground"

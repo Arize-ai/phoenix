@@ -94,13 +94,44 @@ describe("SandboxMode", () => {
     it("should return a bash tool after initialization", async () => {
       const tool = await sandbox.getBashTool();
       expect(tool).toBeDefined();
-      expect(tool).toHaveProperty("bash");
-      expect(tool).toHaveProperty("tools");
-      expect(tool).toHaveProperty("sandbox");
-      // The tool should have bash in the tools object
-      expect(tool.tools).toHaveProperty("bash");
-      expect(tool.tools).toHaveProperty("readFile");
-      expect(tool.tools).toHaveProperty("writeFile");
+      // The tool should now be an AI SDK tool with description, inputSchema, and execute
+      expect(tool).toHaveProperty("description");
+      expect(tool).toHaveProperty("inputSchema");
+      expect(tool).toHaveProperty("execute");
+      expect(tool.description).toContain("bash");
+      expect(typeof tool.execute).toBe("function");
+    });
+
+    it("should return the same tool instance on multiple calls", async () => {
+      const tool1 = await sandbox.getBashTool();
+      const tool2 = await sandbox.getBashTool();
+      expect(tool1).toBe(tool2);
+    });
+
+    it("should execute commands through the tool", async () => {
+      const tool = await sandbox.getBashTool();
+
+      // Write a test file first
+      await sandbox.writeFile("/phoenix/test.txt", "tool test");
+
+      // Execute a command through the tool
+      const result = await tool.execute({ command: "cat /phoenix/test.txt" });
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toBe("tool test");
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should handle command failures through the tool", async () => {
+      const tool = await sandbox.getBashTool();
+
+      // Execute a failing command
+      const result = await tool.execute({ command: "cat /nonexistent/file" });
+
+      expect(result.success).toBe(false);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("No such file");
+      expect(result.error).toContain("exit code");
     });
   });
 
