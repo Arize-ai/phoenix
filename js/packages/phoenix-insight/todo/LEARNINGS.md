@@ -408,6 +408,9 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **User exit tracking**: Added a `userExited` flag to differentiate between intentional exits (user typed exit/quit) and other loop terminations (EOF, errors). This allows showing appropriate goodbye messages
 - **Test strategy**: Testing interactive readline behavior is challenging. Instead of spawning processes, focused on verifying the code structure has the right patterns (event handlers, flags, error handling)
 - **% prompt issue**: The "% sign" mentioned in the task description is likely the default zsh prompt on macOS, which appears when a program exits without a final newline. The fixes should prevent premature exit and show proper goodbye messages
+- **Additional fix needed**: The previous fix attempt wasn't complete. Wrapped the entire `for await` loop in a try-catch block to handle any errors that might occur during iteration itself, not just within the loop body. This prevents the readline async iterator from terminating unexpectedly
+- **Error handling in async iterators**: Errors thrown during async iteration can cause the loop to exit silently. The added try-catch logs these errors but keeps the session alive, preventing premature exits that were confusing users
+- **Broken Promise-based attempt**: Found that someone had attempted to convert the readline loop to a Promise-based approach but left it incomplete, causing syntax errors. Reverted to the working `for await` approach and added proper error handling instead
 
 ## Add a top level "help" command
 

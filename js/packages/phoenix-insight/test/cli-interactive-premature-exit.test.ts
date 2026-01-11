@@ -32,6 +32,23 @@ describe("CLI Interactive Mode - Premature Exit Fix", () => {
     expect(cliContent).toContain("if (!userExited)");
   });
 
+  it("should handle readline loop errors gracefully", async () => {
+    const cliPath = join(__dirname, "..", "src", "cli.ts");
+    const cliContent = await import("node:fs").then((fs) =>
+      fs.promises.readFile(cliPath, "utf-8")
+    );
+
+    // Check that the for await loop is wrapped in try-catch
+    expect(cliContent).toContain("try {");
+    expect(cliContent).toContain("for await (const line of rl) {");
+    expect(cliContent).toContain(
+      'console.error("\\n⚠️  Interactive mode error:"'
+    );
+    expect(cliContent).toContain(
+      "The interactive session has ended unexpectedly"
+    );
+  });
+
   it("should prompt after each query", async () => {
     const cliPath = join(__dirname, "..", "src", "cli.ts");
     const cliContent = await import("node:fs").then((fs) =>
