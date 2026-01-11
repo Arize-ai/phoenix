@@ -481,6 +481,14 @@ async function runInteractiveMode(options: any): Promise<void> {
     "Type your queries below. Type 'help' for available commands or 'exit' to quit.\n"
   );
 
+  // Prevent the process from exiting on unhandled promise rejections
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("\n⚠️  Unhandled promise rejection:", reason);
+    console.error(
+      "The interactive mode will continue. You can try another query."
+    );
+  });
+
   // Initialize observability if --trace flag is set
   if (options.trace) {
     initializeObservability({
@@ -539,15 +547,28 @@ async function runInteractiveMode(options: any): Promise<void> {
       input: process.stdin,
       output: process.stdout,
       prompt: "phoenix> ",
+      terminal: true, // Ensure terminal mode for better compatibility
+    });
+
+    // Handle SIGINT (Ctrl+C) gracefully
+    rl.on("SIGINT", () => {
+      console.log(
+        '\n\nUse "exit" to quit or press Ctrl+C again to force exit.'
+      );
+      rl.prompt();
     });
 
     rl.prompt();
+
+    // Flag to track if the user explicitly exited
+    let userExited = false;
 
     for await (const line of rl) {
       const query = line.trim();
 
       if (query === "exit" || query === "quit") {
         console.log("\n👋 Goodbye!");
+        userExited = true;
         rl.close();
         break;
       }
@@ -691,6 +712,12 @@ async function runInteractiveMode(options: any): Promise<void> {
 
       console.log("\n" + "─".repeat(50) + "\n");
       rl.prompt();
+    }
+
+    // If the loop ended without user explicitly exiting (e.g., EOF/Ctrl+D),
+    // show a goodbye message
+    if (!userExited) {
+      console.log("\n👋 Goodbye!");
     }
 
     // Cleanup

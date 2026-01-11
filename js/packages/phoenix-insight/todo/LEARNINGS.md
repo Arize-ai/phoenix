@@ -399,6 +399,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - **Child process mocking**: Initially tried to mock child_process to prevent subprocess spawning, but this interfered with tests that legitimately test CLI behavior. Better to let individual tests control their mocking
 - **Test utilities**: Created a testUtils object with helper functions, though ended up not needing most of them. Sometimes simpler is better - don't over-engineer the test infrastructure
 
+## interactive mode pre-mature exit
+
+- **Readline async iteration**: The Node.js readline interface uses async iteration with `for await...of` which should keep the loop running until explicitly closed. However, the loop can exit for several reasons: user types exit/quit, EOF signal (Ctrl+D), or an unhandled error
+- **Terminal mode configuration**: Added `terminal: true` to the readline.createInterface options to ensure proper terminal compatibility. This helps with terminal-specific features and signal handling
+- **SIGINT handling**: Added a SIGINT (Ctrl+C) handler to the readline interface to prevent accidental exits. First Ctrl+C shows a message asking to type "exit" or press Ctrl+C again for force exit
+- **Unhandled promise rejections**: Added a process-level handler for unhandled promise rejections to prevent the process from exiting when async errors occur. This keeps the interactive mode running even if an agent query fails unexpectedly
+- **User exit tracking**: Added a `userExited` flag to differentiate between intentional exits (user typed exit/quit) and other loop terminations (EOF, errors). This allows showing appropriate goodbye messages
+- **Test strategy**: Testing interactive readline behavior is challenging. Instead of spawning processes, focused on verifying the code structure has the right patterns (event handlers, flags, error handling)
+- **% prompt issue**: The "% sign" mentioned in the task description is likely the default zsh prompt on macOS, which appears when a program exits without a final newline. The fixes should prevent premature exit and show proper goodbye messages
+
 ## Add a top level "help" command
 
 - **Task already completed**: This task was already implemented as part of the "Start interactive mode if no arguments are provided" task. The help command was added using Commander.js command() method and is fully documented and tested

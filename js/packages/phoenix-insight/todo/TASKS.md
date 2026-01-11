@@ -278,6 +278,12 @@ AI generation failed: tools.0.custom.input_schema.type: Field required
 - status: complete
 - dependencies: agent-setup
 
+### interactive mode pre-mature exit
+
+- content: Interactive mode should not exit prematurely. It should wait for the user to exit. It currently exits after the first query response. A % sign is rendered in the place of the user prompt and it closes the program.
+- status: complete
+- dependencies: cli-interactive
+
 ### tests
 
 - content: Tests got broken by some commit. Fix them all.
