@@ -316,10 +316,15 @@ program
   .option("--api-key <key>", "Phoenix API key", process.env.PHOENIX_API_KEY)
   .option("--refresh", "Force refresh of snapshot data")
   .option("--limit <number>", "Limit number of spans to fetch", parseInt)
-  .option("--stream", "Stream agent responses")
+  .option(
+    "--stream [true|false]",
+    "Stream agent responses (default: true)",
+    (v) => (["f", "false"].includes(v.toLowerCase()) ? false : true)
+  )
   .option("-i, --interactive", "Run in interactive mode (REPL)")
   .option("--trace", "Enable tracing of the agent to Phoenix")
   .action(async (query, options) => {
+    const stream = options.stream === undefined ? true : options.stream;
     // If interactive mode is requested, ignore query argument
     if (options.interactive) {
       await runInteractiveMode(options);
@@ -379,10 +384,10 @@ program
       };
 
       // Execute the query
-      const agentProgress = new AgentProgress(!options.stream);
+      const agentProgress = new AgentProgress(!stream);
       agentProgress.startThinking();
 
-      if (options.stream) {
+      if (stream) {
         // Stream mode
         const result = (await runOneShotQuery(agentConfig, query, {
           stream: true,
@@ -399,6 +404,7 @@ program
                 } else {
                   agentProgress.updateTool(toolName);
                 }
+                console.log();
               });
             }
 
@@ -410,6 +416,7 @@ program
                   !toolResult.isError
                 );
               });
+              console.log();
             }
           },
         })) as any; // Type assertion needed due to union type
@@ -507,6 +514,7 @@ async function runInteractiveMode(options: any): Promise<void> {
   try {
     // Determine the execution mode
     mode = options.local ? await createLocalMode() : createSandboxMode();
+    const stream = options.stream === undefined ? true : options.stream;
 
     // Create Phoenix client
     const client = createPhoenixClient({
@@ -605,10 +613,10 @@ async function runInteractiveMode(options: any): Promise<void> {
       }
 
       try {
-        const agentProgress = new AgentProgress(!options.stream);
+        const agentProgress = new AgentProgress(!stream);
         agentProgress.startThinking();
 
-        if (options.stream) {
+        if (stream) {
           // Stream mode
           const result = await agent.stream(query, {
             onStepFinish: (step: any) => {
