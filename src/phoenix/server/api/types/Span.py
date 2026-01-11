@@ -13,6 +13,7 @@ import strawberry
 from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
@@ -102,6 +103,7 @@ class SpanEvent:
     name: str
     message: str
     timestamp: datetime
+    attributes: JSON
 
     @staticmethod
     def from_dict(
@@ -111,6 +113,7 @@ class SpanEvent:
             name=event["name"],
             message=cast(str, event["attributes"].get(trace_schema.EXCEPTION_MESSAGE) or ""),
             timestamp=datetime.fromisoformat(event["timestamp"]),
+            attributes=cast(JSON, event["attributes"]),
         )
 
 

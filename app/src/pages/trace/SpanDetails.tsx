@@ -49,8 +49,6 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
-  List,
-  ListItem,
   Loading,
   Modal,
   ModalOverlay,
@@ -77,7 +75,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
+import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -108,6 +106,7 @@ import {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
+import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -381,7 +380,9 @@ export function SpanDetails({
 
             <LazyTabPanel id="events">
               <View overflow="auto">
-                <SpanEventsList events={span.events} />
+                <Suspense fallback={<Loading />}>
+                  <SpanEventsList spanId={span.id} />
+                </Suspense>
               </View>
             </LazyTabPanel>
           </Tabs>
@@ -1858,7 +1859,7 @@ function CopyToClipboard({
 /**
  * A block of JSON content that is not editable.
  */
-function JSONBlock({
+export function JSONBlock({
   children,
   basicSetup = {},
 }: {
@@ -1934,76 +1935,6 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       assertUnreachable(mimeType);
   }
   return content;
-}
-
-function EmptyIndicator({ text }: { text: string }) {
-  return (
-    <Flex
-      direction="column"
-      alignItems="center"
-      flex="1 1 auto"
-      height="size-2400"
-      justifyContent="center"
-      gap="size-100"
-    >
-      <Text size="L">{text}</Text>
-    </Flex>
-  );
-}
-function SpanEventsList({ events }: { events: Span["events"] }) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (events.length === 0) {
-    return <EmptyIndicator text="No events" />;
-  }
-  return (
-    <List>
-      {events.map((event, idx) => {
-        const isException = event.name === "exception";
-
-        return (
-          <ListItem key={idx}>
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <View flex="none">
-                <div
-                  data-event-type={isException ? "exception" : "info"}
-                  css={css`
-                    &[data-event-type="exception"] {
-                      --px-event-icon-color: var(--ac-global-color-danger);
-                    }
-                    &[data-event-type="info"] {
-                      --px-event-icon-color: var(--ac-global-color-info);
-                    }
-                    .ac-icon-wrap {
-                      color: var(--px-event-icon-color);
-                    }
-                  `}
-                >
-                  <Icon
-                    svg={
-                      isException ? (
-                        <Icons.AlertTriangleOutline />
-                      ) : (
-                        <Icons.InfoOutline />
-                      )
-                    }
-                  />
-                </div>
-              </View>
-              <Flex direction="column" gap="size-25" flex="1 1 auto">
-                <Text weight="heavy">{event.name}</Text>
-                <Text color="text-700">{event.message}</Text>
-              </Flex>
-              <View>
-                <Text color="text-700">
-                  {fullTimeFormatter(new Date(event.timestamp))}
-                </Text>
-              </View>
-            </Flex>
-          </ListItem>
-        );
-      })}
-    </List>
-  );
 }
 
 const attributesContextualHelp = (

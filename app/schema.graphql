@@ -2868,6 +2868,7 @@ type SpanEvent {
   name: String!
   message: String!
   timestamp: DateTime!
+  attributes: JSON!
 }
 
 type SpanIOValue {
