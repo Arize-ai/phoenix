@@ -231,6 +231,9 @@ export class PhoenixInsightAgent {
         tools,
         stopWhen: stepCountIs(this.maxSteps),
         onStepFinish: options?.onStepFinish,
+        experimental_telemetry: {
+          isEnabled: true,
+        },
       });
 
       return result;
