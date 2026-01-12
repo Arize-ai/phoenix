@@ -108,7 +108,7 @@ def get_experiment_example_output(span: Span) -> dict[str, Any]:
         ]
         return {
             **messages_or_output,
-            **({"available_tools": tool_definitions_data} if tool_definitions_data else {}),
+            "available_tools": tool_definitions_data,
         }
     if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         return _get_retriever_span_output(
