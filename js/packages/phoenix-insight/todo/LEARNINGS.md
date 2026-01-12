@@ -162,3 +162,19 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - Multiple independent snapshots creating separate directories
   - Concurrent snapshot handling
 - Result: 7 comprehensive unit tests with zero real disk I/O, runs in ~6ms
+
+## refactor-agent-tools-test
+
+- Refactored `test/agent/tools.test.ts` to remove unused temp directory creation and add proper mocks
+- Key finding: The `tempDir` variable was created in `beforeEach` but **never actually used** in any test
+  - Tests used mock `ExecutionMode` objects or `SandboxMode`/`LocalMode` instances that didn't reference `tempDir`
+  - The real filesystem operations in `LocalMode` (`fs.mkdir`, `fs.writeFile`, `execAsync`) are only triggered when commands are actually executed, not during tool initialization
+- Changes made:
+  1. Removed unused `tempDir` creation and cleanup code (lines 53-68)
+  2. Removed imports for `os` and `path` modules that were only used for `tempDir`
+  3. Added mocks for `node:fs/promises`, `node:os.homedir()`, and `node:util.promisify()` following the established pattern from `local-mode.test.ts`
+  4. Changed imports to come after mock definitions (required for mocks to take effect)
+- Pattern: When creating `LocalMode` instances in tests, even if you don't execute commands through them, it's safer to mock the underlying filesystem/exec operations. This prevents accidental real I/O if tests are modified later.
+- Defensive mocking: Added `mockExecSuccess()` helper and set up default mock behaviors in `beforeEach` so that if any test accidentally triggers `LocalMode` filesystem operations, they'll use mocked implementations instead of real ones
+- The refactored file moves imports after mock definitions - this is critical because vitest hoists `vi.mock()` calls, but the imports must still be ordered after mock definitions in the source for clarity
+- Result: Test file is cleaner (no unused code) and safer (no possibility of real disk I/O)

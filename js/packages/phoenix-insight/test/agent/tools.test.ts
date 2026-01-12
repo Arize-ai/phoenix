@@ -1,12 +1,45 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { PhoenixInsightAgent } from "../../src/agent/index.js";
-import { SandboxMode } from "../../src/modes/sandbox.js";
-import { LocalMode } from "../../src/modes/local.js";
-import type { ExecutionMode } from "../../src/modes/types.js";
-import type { PhoenixClient } from "@arizeai/phoenix-client";
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
+
+// Mock fs module to prevent real disk I/O
+vi.mock("node:fs/promises");
+
+// Mock os.homedir to return a predictable path for LocalMode
+vi.mock("node:os", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:os");
+  return {
+    ...actual,
+    homedir: vi.fn().mockReturnValue("/mock/home"),
+  };
+});
+
+// Store the mock exec async function that we'll control in tests
+let mockExecAsyncFn: (
+  command: string,
+  options: any
+) => Promise<{ stdout: string; stderr: string }>;
+
+// Mock util.promisify to return our controlled function for exec
+vi.mock("node:util", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:util");
+  return {
+    ...actual,
+    promisify: (fn: any) => {
+      // Check if this is the exec function
+      if (fn.name === "exec" || fn.toString().includes("child_process")) {
+        return async (command: string, options: any) => {
+          return mockExecAsyncFn(command, options);
+        };
+      }
+      // For other functions, use the real promisify
+      return actual.promisify(fn);
+    },
+  };
+});
+
+// Get mocked fs functions
+const mockMkdir = vi.mocked(fs.mkdir);
+const mockWriteFile = vi.mocked(fs.writeFile);
 
 // Mock the AI SDK modules
 vi.mock("ai", () => ({
@@ -29,15 +62,38 @@ vi.mock("@ai-sdk/anthropic", () => ({
   })),
 }));
 
+// Import modules after mocks are set up
+import { PhoenixInsightAgent } from "../../src/agent/index.js";
+import { SandboxMode } from "../../src/modes/sandbox.js";
+import { LocalMode } from "../../src/modes/local.js";
+import type { ExecutionMode } from "../../src/modes/types.js";
+
+/**
+ * Helper to mock execAsync for success
+ */
+function mockExecSuccess(stdout: string, stderr = ""): void {
+  mockExecAsyncFn = async () => {
+    return { stdout, stderr };
+  };
+}
+
 describe("Agent Tools", () => {
   let mockClient: any;
-  let tempDir: string;
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Set up default mock behaviors
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+
+    // Default exec mock - success
+    mockExecSuccess("", "");
+
     // Create mock Phoenix client with proper structure
     mockClient = {
-      GET: vi.fn().mockImplementation((path: string) => {
-        if (path.includes("/projects/") && path.includes("/spans")) {
+      GET: vi.fn().mockImplementation((apiPath: string) => {
+        if (apiPath.includes("/projects/") && apiPath.includes("/spans")) {
           return Promise.resolve({
             data: {
               data: [{ id: "span-1", name: "test-span" }],
@@ -48,24 +104,10 @@ describe("Agent Tools", () => {
         return Promise.resolve({ data: null, error: undefined });
       }),
     };
-
-    // Create temporary directory for tests
-    tempDir = path.join(
-      os.tmpdir(),
-      `phoenix-insight-test-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}`
-    );
-    await fs.mkdir(tempDir, { recursive: true });
   });
 
-  afterEach(async () => {
-    // Clean up temporary directory
-    try {
-      await fs.rm(tempDir, { recursive: true, force: true });
-    } catch (error) {
-      // Ignore errors during cleanup
-    }
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe("Tool Creation", () => {

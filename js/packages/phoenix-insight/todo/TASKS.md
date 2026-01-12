@@ -89,7 +89,7 @@ These tests write to real filesystem locations (temp dirs, `~/.phoenix-insight/`
 ### refactor-agent-tools-test
 
 - content: Refactor `test/agent/tools.test.ts` to remove the temp directory creation in `os.tmpdir()` (lines 53-59). Use mocked filesystem for any tests that need directory structure.
-- status: pending
+- status: complete
 - dependencies: refactor-snapshot-incremental-local-test
 
 ---
