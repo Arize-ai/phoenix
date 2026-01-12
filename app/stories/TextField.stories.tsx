@@ -14,9 +14,14 @@ import { FieldDangerIcon, FieldSuccessIcon } from "@phoenix/components/field";
 const meta: Meta = {
   title: "TextField",
   component: TextField,
-
   parameters: {
     controls: { expanded: true },
+  },
+  argTypes: {
+    size: {
+      control: { type: "radio" },
+      options: ["S", "M"],
+    },
   },
 };
 

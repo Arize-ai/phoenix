@@ -21,12 +21,12 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   Token,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
@@ -221,7 +221,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
       <MenuContainer placement={props.placement} shouldFlip={props.shouldFlip}>
         <Autocomplete filter={contains}>
           <MenuHeader>
-            <SearchField aria-label="Search" autoFocus>
+            <SearchField aria-label="Search" variant="quiet" autoFocus>
               <SearchIcon />
               <Input placeholder="Search datasets" />
             </SearchField>
@@ -360,7 +360,11 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                   >
                     <Autocomplete filter={contains}>
                       <MenuHeader>
-                        <SearchField aria-label="Search" autoFocus>
+                        <SearchField
+                          aria-label="Search"
+                          variant="quiet"
+                          autoFocus
+                        >
                           <SearchIcon />
                           <Input placeholder="Search splits" />
                         </SearchField>

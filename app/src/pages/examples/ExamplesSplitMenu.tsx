@@ -31,6 +31,7 @@ import {
 } from "@phoenix/components";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
+import { SearchIcon } from "@phoenix/components/field";
 import { ExamplesSplitMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitMenuQuery.graphql";
 import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { Mutable } from "@phoenix/typeUtils";
@@ -250,7 +251,8 @@ const SplitMenu = ({
               : "Apply splits to selected examples"
             : "Filter examples by splits"}
         </MenuHeaderTitle>
-        <SearchField aria-label="Search" autoFocus>
+        <SearchField aria-label="Search" variant="quiet" autoFocus>
+          <SearchIcon />
           <Input placeholder="Search splits" />
         </SearchField>
       </MenuHeader>

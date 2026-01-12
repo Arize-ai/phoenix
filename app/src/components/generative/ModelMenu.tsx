@@ -19,11 +19,11 @@ import {
   MenuSectionTitle,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   useFilter,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -275,6 +275,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
         <MenuHeader>
           <SearchField
             aria-label="Search models"
+            variant="quiet"
             value={searchValue}
             onChange={setSearchValue}
           >
@@ -610,6 +611,7 @@ function ProviderModelsSubmenu({
         <MenuHeader>
           <SearchField
             aria-label="Search models"
+            variant="quiet"
             autoFocus
             value={searchValue}
             onChange={setSearchValue}
