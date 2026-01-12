@@ -213,6 +213,7 @@ export function LLMDatasetEvaluatorDetails({
                       leadingVisual={
                         <Icon svg={<Icons.MessageSquareOutline />} />
                       }
+                      onPress={() => navigate(promptUrl)}
                     >
                       View prompt
                     </Button>
