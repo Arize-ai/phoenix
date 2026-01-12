@@ -479,9 +479,20 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Menu>
         </Autocomplete>
         <MenuFooter>
-          <LinkButton to="/datasets" size="S" variant="quiet">
-            Go to Datasets
-          </LinkButton>
+          {selectedDataset ? (
+            <LinkButton
+              to={`/datasets/${selectedDataset.id}`}
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+            >
+              View <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
+            </LinkButton>
+          ) : (
+            <LinkButton to="/datasets" size="S" variant="quiet">
+              Go to Datasets
+            </LinkButton>
+          )}
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
