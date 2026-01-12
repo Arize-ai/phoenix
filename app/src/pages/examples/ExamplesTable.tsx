@@ -293,7 +293,17 @@ export function ExamplesTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                onClick={() => {
+                onClick={(e) => {
+                  // Don't navigate if clicking on interactive elements
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.tagName === "INPUT" ||
+                    target.tagName === "A" ||
+                    target.tagName === "BUTTON" ||
+                    target.closest("input, a, button")
+                  ) {
+                    return;
+                  }
                   navigate(`${row.original.id}`);
                 }}
               >

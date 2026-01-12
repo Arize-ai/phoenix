@@ -132,10 +132,13 @@ function isTabName(name: unknown): name is TabName {
 }
 
 function getTabIndexFromPathname(pathname: string): number {
-  // We only need the last part of the path
-  const path = pathname.split("/").at(-1);
-  if (isTabName(path)) {
-    return TABS_LIST.indexOf(path);
+  // Find the tab name in the path segments
+  // This handles nested routes like /datasets/:id/examples/:exampleId
+  const segments = pathname.split("/");
+  for (const segment of segments) {
+    if (isTabName(segment)) {
+      return TABS_LIST.indexOf(segment);
+    }
   }
   return 0;
 }
