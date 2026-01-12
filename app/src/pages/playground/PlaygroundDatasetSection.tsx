@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
-import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
 import { type AnnotationConfig } from "@phoenix/components/annotation";
@@ -90,7 +89,8 @@ export function PlaygroundDatasetSection({
           kind: evaluator.evaluator.kind,
           isBuiltIn: evaluator.evaluator.isBuiltin,
           isAssignedToDataset: true,
-          annotationName: evaluator?.evaluator?.outputConfig?.name,
+          annotationName:
+            evaluator.evaluator.outputConfig?.name ?? evaluator.displayName,
         };
       }) ?? [],
     [data.dataset.datasetEvaluators]
@@ -119,23 +119,22 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
     return datasetEvaluators
-      .filter(
-        (evaluator) =>
-          selectedDatasetEvaluatorIds.includes(evaluator.id) &&
-          evaluator.evaluator.outputConfig != null
-      )
-      .map((evaluator) => {
-        // the filter above should ensure that the output config is not null, but we add the invariant to be safe
-        invariant(
-          evaluator.evaluator.outputConfig != null,
-          "Evaluator output config is required"
-        );
+      .filter((evaluator) => selectedDatasetEvaluatorIds.includes(evaluator.id))
+      .map((evaluator): AnnotationConfig => {
+        // LLM evaluators have outputConfig with categorical values
+        if (evaluator.evaluator.outputConfig != null) {
+          return {
+            name: evaluator.evaluator.outputConfig.name,
+            optimizationDirection:
+              evaluator.evaluator.outputConfig.optimizationDirection,
+            values: evaluator.evaluator.outputConfig.values,
+            annotationType: "CATEGORICAL",
+          };
+        }
+        // TODO(mikeldking): this is not correct but needs to be fixed on the back-end
         return {
-          name: evaluator.evaluator.outputConfig.name,
-          optimizationDirection:
-            evaluator.evaluator.outputConfig.optimizationDirection,
-          values: evaluator.evaluator.outputConfig.values,
-          annotationType: "CATEGORICAL",
+          name: evaluator.displayName,
+          annotationType: "FREEFORM",
         };
       });
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
