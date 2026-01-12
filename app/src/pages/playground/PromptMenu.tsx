@@ -124,7 +124,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
         tags: version.tags,
       })),
     }));
-  }, [data.prompts.edges]);
+  }, [data]);
 
   // Find the currently selected prompt
   const selectedPrompt = useMemo(() => {
