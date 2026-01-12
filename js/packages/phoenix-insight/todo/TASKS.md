@@ -55,7 +55,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-use-config
 
 - content: Refactor `src/cli.ts` to use the config singleton instead of directly reading `process.env` and CLI options. Replace all occurrences of `options.baseUrl`, `options.apiKey`, `options.limit`, `options.stream`, `options.local`, `options.refresh`, `options.trace` with `getConfig().<field>`. Remove default value specifications from Commander options (config provides defaults).
-- status: pending
+- status: complete
 - dependencies: cli-config-flag
 
 ### cli-snapshot-use-config

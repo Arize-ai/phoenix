@@ -20,7 +20,7 @@ import {
   initializeObservability,
   shutdownObservability,
 } from "./observability/index.js";
-import { initializeConfig, type CliArgs } from "./config/index.js";
+import { initializeConfig, getConfig, type CliArgs } from "./config/index.js";
 
 // Version will be read from package.json during build
 const VERSION = "0.0.1";
@@ -201,10 +201,18 @@ Examples:
 `
   )
   .hook("preAction", async (thisCommand) => {
-    // Get the --config option from the root command
+    // Get all options from the root command
     const opts = thisCommand.opts();
+    // Build CLI args from commander options
     const cliArgs: CliArgs = {
       config: opts.config,
+      baseUrl: opts.baseUrl,
+      apiKey: opts.apiKey,
+      limit: opts.limit,
+      stream: opts.stream,
+      local: opts.local,
+      refresh: opts.refresh,
+      trace: opts.trace,
     };
     // Initialize config singleton before any command runs
     await initializeConfig(cliArgs);
@@ -213,21 +221,19 @@ Examples:
 program
   .command("snapshot")
   .description("Create a snapshot of Phoenix data")
-  .option(
-    "--base-url <url>",
-    "Phoenix base URL",
-    process.env.PHOENIX_BASE_URL || "http://localhost:6006"
-  )
-  .option("--api-key <key>", "Phoenix API key", process.env.PHOENIX_API_KEY)
+  .option("--base-url <url>", "Phoenix base URL")
+  .option("--api-key <key>", "Phoenix API key")
   .option("--refresh", "Force refresh of snapshot data")
   .option("--trace", "Enable tracing of the snapshot process to Phoenix")
-  .action(async (options) => {
-    // Initialize observability if --trace flag is set
-    if (options.trace) {
+  .action(async () => {
+    const config = getConfig();
+
+    // Initialize observability if trace is enabled in config
+    if (config.trace) {
       initializeObservability({
         enabled: true,
-        baseUrl: options.baseUrl,
-        apiKey: options.apiKey,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
         projectName: "phoenix-insight-snapshot",
         debug: !!process.env.DEBUG,
       });
@@ -237,11 +243,11 @@ program
       // Determine the execution mode
       const mode: ExecutionMode = await createLocalMode();
 
-      // Create snapshot with the provided options
+      // Create snapshot with config values
       const snapshotOptions = {
-        baseURL: options.baseUrl,
-        apiKey: options.apiKey,
-        spansPerProject: 1000,
+        baseURL: config.baseUrl,
+        apiKey: config.apiKey,
+        spansPerProject: config.limit,
         showProgress: true,
       };
 
@@ -332,41 +338,35 @@ program
     "Run in sandbox mode with in-memory filesystem (default)"
   )
   .option("--local", "Run in local mode with real filesystem")
-  .option(
-    "--base-url <url>",
-    "Phoenix base URL",
-    process.env.PHOENIX_BASE_URL || "http://localhost:6006"
-  )
-  .option("--api-key <key>", "Phoenix API key", process.env.PHOENIX_API_KEY)
+  .option("--base-url <url>", "Phoenix base URL")
+  .option("--api-key <key>", "Phoenix API key")
   .option("--refresh", "Force refresh of snapshot data")
   .option("--limit <number>", "Limit number of spans to fetch", parseInt)
-  .option(
-    "--stream [true|false]",
-    "Stream agent responses (default: true)",
-    (v) => (["f", "false"].includes(v.toLowerCase()) ? false : true)
+  .option("--stream [true|false]", "Stream agent responses", (v) =>
+    ["f", "false"].includes(v.toLowerCase()) ? false : true
   )
   .option("-i, --interactive", "Run in interactive mode (REPL)")
   .option("--trace", "Enable tracing of the agent to Phoenix")
   .action(async (query, options) => {
-    const stream = options.stream === undefined ? true : options.stream;
+    const config = getConfig();
     // If interactive mode is requested, ignore query argument
     if (options.interactive) {
-      await runInteractiveMode(options);
+      await runInteractiveMode();
       return;
     }
 
     // If no query is provided and no specific flag, start interactive mode
     if (!query && !options.help) {
-      await runInteractiveMode(options);
+      await runInteractiveMode();
       return;
     }
 
-    // Initialize observability if --trace flag is set
-    if (options.trace) {
+    // Initialize observability if trace is enabled in config
+    if (config.trace) {
       initializeObservability({
         enabled: true,
-        baseUrl: options.baseUrl,
-        apiKey: options.apiKey,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
         projectName: "phoenix-insight",
         debug: !!process.env.DEBUG,
       });
@@ -374,25 +374,24 @@ program
 
     try {
       // Determine the execution mode
-      const mode: ExecutionMode = options.local
-        ? await createLocalMode()
-        : createSandboxMode();
+      const mode: ExecutionMode =
+        config.mode === "local" ? await createLocalMode() : createSandboxMode();
 
       // Create Phoenix client
       const client = createPhoenixClient({
-        baseURL: options.baseUrl,
-        apiKey: options.apiKey,
+        baseURL: config.baseUrl,
+        apiKey: config.apiKey,
       });
 
       // Create or update snapshot
       const snapshotOptions = {
-        baseURL: options.baseUrl,
-        apiKey: options.apiKey,
-        spansPerProject: options.limit || 1000,
+        baseURL: config.baseUrl,
+        apiKey: config.apiKey,
+        spansPerProject: config.limit,
         showProgress: true,
       };
 
-      if (options.refresh || !options.local) {
+      if (config.refresh || config.mode !== "local") {
         // For sandbox mode (default) or when refresh is requested, always create a fresh snapshot
         await createSnapshot(mode, snapshotOptions);
       } else {
@@ -408,10 +407,10 @@ program
       };
 
       // Execute the query
-      const agentProgress = new AgentProgress(!stream);
+      const agentProgress = new AgentProgress(!config.stream);
       agentProgress.startThinking();
 
-      if (stream) {
+      if (config.stream) {
         // Stream mode
         const result = (await runOneShotQuery(agentConfig, query, {
           stream: true,
@@ -506,7 +505,9 @@ program
     }
   });
 
-async function runInteractiveMode(options: any): Promise<void> {
+async function runInteractiveMode(): Promise<void> {
+  const config = getConfig();
+
   console.log("🚀 Phoenix Insight Interactive Mode");
   console.log(
     "Type your queries below. Type 'help' for available commands or 'exit' to quit.\n"
@@ -520,12 +521,12 @@ async function runInteractiveMode(options: any): Promise<void> {
     );
   });
 
-  // Initialize observability if --trace flag is set
-  if (options.trace) {
+  // Initialize observability if trace is enabled in config
+  if (config.trace) {
     initializeObservability({
       enabled: true,
-      baseUrl: options.baseUrl,
-      apiKey: options.apiKey,
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
       projectName: "phoenix-insight",
       debug: !!process.env.DEBUG,
     });
@@ -537,24 +538,24 @@ async function runInteractiveMode(options: any): Promise<void> {
 
   try {
     // Determine the execution mode
-    mode = options.local ? await createLocalMode() : createSandboxMode();
-    const stream = options.stream === undefined ? true : options.stream;
+    mode =
+      config.mode === "local" ? await createLocalMode() : createSandboxMode();
 
     // Create Phoenix client
     const client = createPhoenixClient({
-      baseURL: options.baseUrl,
-      apiKey: options.apiKey,
+      baseURL: config.baseUrl,
+      apiKey: config.apiKey,
     });
 
     // Create or update snapshot
     const snapshotOptions = {
-      baseURL: options.baseUrl,
-      apiKey: options.apiKey,
-      spansPerProject: options.limit || 1000,
+      baseURL: config.baseUrl,
+      apiKey: config.apiKey,
+      spansPerProject: config.limit,
       showProgress: true,
     };
 
-    if (options.refresh || !options.local) {
+    if (config.refresh || config.mode !== "local") {
       await createSnapshot(mode, snapshotOptions);
     } else {
       await createIncrementalSnapshot(mode, snapshotOptions);
@@ -637,10 +638,10 @@ async function runInteractiveMode(options: any): Promise<void> {
       }
 
       try {
-        const agentProgress = new AgentProgress(!stream);
+        const agentProgress = new AgentProgress(!config.stream);
         agentProgress.startThinking();
 
-        if (stream) {
+        if (config.stream) {
           // Stream mode
           const result = await agent.stream(query, {
             onStepFinish: (step: any) => {

@@ -63,3 +63,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - For integration tests that need file system, use `fs.mkdtemp()` to create unique temp directories and clean up in `afterEach`
 - Test both "happy path" (valid config file) and error cases (non-existent file, invalid JSON) to ensure graceful handling
 - The config singleton's `initializeConfig()` is async because it may need to create the default config file on first run
+
+## cli-use-config
+
+- The preAction hook now gathers ALL CLI options and passes them to `initializeConfig()`, not just `--config`
+- Changed `runInteractiveMode(options)` to `runInteractiveMode()` (no params) - it now uses `getConfig()` internally instead of receiving options
+- When refactoring from `options.local` (boolean flag) to `config.mode`, use `config.mode === "local"` instead of `config.local` since the config schema uses an enum
+- Removed default values from Commander options (like `process.env.PHOENIX_BASE_URL || "http://localhost:6006"`) - the config singleton now provides all defaults
+- For the `--stream` option, keep the custom parser function `(v) => (["f", "false"].includes(v.toLowerCase()) ? false : true)` to handle user input, but remove the default value
+- The snapshot command's action handler no longer uses `options` parameter - it calls `getConfig()` directly since all values come from config
+- Test patterns for cli-use-config: integration tests using `tsx` to run the actual CLI with config files are more reliable than unit tests with mocked modules
+- Environment variable tests can pass env vars inline with the command: `PHOENIX_BASE_URL="..." tsx ${cliPath} ...`
