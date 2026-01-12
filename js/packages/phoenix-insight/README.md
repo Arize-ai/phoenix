@@ -210,14 +210,59 @@ px-fetch-more trace --trace-id abc123
 
 ## Configuration
 
+Phoenix Insight uses a layered configuration system with the following priority (highest to lowest):
+
+1. **CLI arguments** - Options passed directly to the command
+2. **Environment variables** - `PHOENIX_*` environment variables
+3. **Config file** - JSON file at `~/.phoenix-insight/config.json`
+
+### Config File
+
+On first run, Phoenix Insight automatically creates a default config file at `~/.phoenix-insight/config.json` with all default values. You can edit this file to customize your settings.
+
+**Config file location:**
+
+- Default: `~/.phoenix-insight/config.json`
+- Override with env var: `PHOENIX_INSIGHT_CONFIG=/path/to/config.json`
+- Override with CLI flag: `--config /path/to/config.json`
+
+**Example config.json with all options:**
+
+```json
+{
+  "baseUrl": "http://localhost:6006",
+  "apiKey": "your-api-key",
+  "limit": 1000,
+  "stream": true,
+  "mode": "sandbox",
+  "refresh": false,
+  "trace": false
+}
+```
+
+| Config Key | Type                     | Default                 | Description                                   |
+| ---------- | ------------------------ | ----------------------- | --------------------------------------------- |
+| `baseUrl`  | string                   | `http://localhost:6006` | Phoenix server URL                            |
+| `apiKey`   | string                   | (none)                  | API key for authentication                    |
+| `limit`    | number                   | `1000`                  | Maximum spans to fetch per project            |
+| `stream`   | boolean                  | `true`                  | Enable streaming responses from the agent     |
+| `mode`     | `"sandbox"` \| `"local"` | `"sandbox"`             | Execution mode                                |
+| `refresh`  | boolean                  | `false`                 | Force refresh of snapshot data                |
+| `trace`    | boolean                  | `false`                 | Enable tracing of agent operations to Phoenix |
+
 ### Environment Variables
 
-| Variable               | Description                | Default                 |
-| ---------------------- | -------------------------- | ----------------------- |
-| `PHOENIX_BASE_URL`     | Phoenix server URL         | `http://localhost:6006` |
-| `PHOENIX_API_KEY`      | API key for authentication | (none)                  |
-| `PHOENIX_INSIGHT_MODE` | Default execution mode     | `sandbox`               |
-| `DEBUG`                | Show detailed error info   | `0`                     |
+| Variable                  | Config Key | Default                 | Description                |
+| ------------------------- | ---------- | ----------------------- | -------------------------- |
+| `PHOENIX_BASE_URL`        | `baseUrl`  | `http://localhost:6006` | Phoenix server URL         |
+| `PHOENIX_API_KEY`         | `apiKey`   | (none)                  | API key for authentication |
+| `PHOENIX_INSIGHT_LIMIT`   | `limit`    | `1000`                  | Max spans per project      |
+| `PHOENIX_INSIGHT_STREAM`  | `stream`   | `true`                  | Enable streaming           |
+| `PHOENIX_INSIGHT_MODE`    | `mode`     | `sandbox`               | Execution mode             |
+| `PHOENIX_INSIGHT_REFRESH` | `refresh`  | `false`                 | Force refresh snapshot     |
+| `PHOENIX_INSIGHT_TRACE`   | `trace`    | `false`                 | Enable tracing             |
+| `PHOENIX_INSIGHT_CONFIG`  | -          | -                       | Custom config file path    |
+| `DEBUG`                   | -          | `0`                     | Show detailed error info   |
 
 ### Commands
 
@@ -233,13 +278,14 @@ Phoenix Insight provides several commands:
 
 | Option                | Description                        | Default          | Applies to     |
 | --------------------- | ---------------------------------- | ---------------- | -------------- |
+| `--config <path>`     | Custom config file path            | (auto-detected)  | all            |
 | `--sandbox`           | Run in sandbox mode (default)      | true             | query          |
 | `--local`             | Run in local mode                  | false            | query          |
 | `--base-url <url>`    | Phoenix server URL                 | env or localhost | all            |
 | `--api-key <key>`     | Phoenix API key                    | env or none      | all            |
 | `--refresh`           | Force fresh snapshot               | false            | query/snapshot |
 | `--limit <n>`         | Max spans per project              | 1000             | query          |
-| `--stream`            | Stream agent responses             | false            | query          |
+| `--stream`            | Stream agent responses             | true             | query          |
 | `--interactive`, `-i` | Interactive REPL mode              | false            | query          |
 | `--trace`             | Enable tracing to Phoenix instance | false            | query/snapshot |
 | `--dry-run`           | Preview without making changes     | false            | prune          |
@@ -250,11 +296,11 @@ In local mode, data is stored in:
 
 ```
 ~/.phoenix-insight/
+  config.json                  # Configuration (auto-created on first run)
   /snapshots/
     /{timestamp}/              # Each snapshot
       /phoenix/                # Phoenix data
   /cache/                      # API response cache
-  /config.json                 # User preferences
 ```
 
 To clean up local storage:

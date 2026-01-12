@@ -86,3 +86,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - Global options are still available on the main help
   - Config file, CLI args, and env vars all work correctly with the snapshot command
 - This change simplifies the CLI by having a single source of truth for config values (the config singleton)
+
+## readme-config-docs
+
+- Documentation-only tasks don't require new tests, but should still run `pnpm test` to verify nothing is broken
+- The README Configuration section was restructured to clearly explain the priority order (CLI > env vars > config file) at the very top before diving into details
+- Added a comprehensive config file section that covers: auto-creation on first run, all three ways to specify config path (default, env var, CLI flag), and a complete example with all options
+- Updated the Environment Variables table to include the config key mapping, making it easier to understand the relationship between env vars and config file options
+- Added `PHOENIX_INSIGHT_LIMIT`, `PHOENIX_INSIGHT_STREAM`, `PHOENIX_INSIGHT_REFRESH`, and `PHOENIX_INSIGHT_TRACE` env vars to the table (these were documented in the code but missing from README)
+- Added `--config` to the Command Line Options table - important to document this new global flag
+- Fixed the `--stream` default from `false` to `true` in the CLI options table (matches the actual schema default)
+- Updated the Local Mode Storage section to show `config.json` at the correct level (directly under `~/.phoenix-insight/`, not in a subdirectory)

@@ -71,5 +71,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### readme-config-docs
 
 - content: Update `README.md` to document the new config system: (1) Add section explaining config file location and format; (2) Document `PHOENIX_INSIGHT_CONFIG` env var; (3) Document `--config` CLI flag; (4) Add example `config.json` with all options; (5) Explain precedence order (config file < env vars < CLI args); (6) Document the auto-creation behavior on first launch (default config file is created automatically with all default values if not present).
-- status: pending
+- status: complete
 - dependencies: cli-snapshot-use-config
