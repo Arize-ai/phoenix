@@ -65,7 +65,7 @@ These tests use `execAsync` to spawn real CLI processes, which is dangerous (lea
 ### refactor-cli-snapshot-use-config-test
 
 - content: Refactor `test/cli-snapshot-use-config.test.ts` to use mocked filesystem and test snapshot config integration through exported functions instead of spawning real CLI processes.
-- status: pending
+- status: complete
 - dependencies: refactor-cli-config-flag-test
 
 ---

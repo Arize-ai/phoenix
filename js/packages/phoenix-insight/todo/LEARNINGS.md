@@ -81,3 +81,19 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - Config priority chain (config < env < CLI)
 - Pattern: Tests that verify help text output or Commander's flag parsing are not valuable unit tests. The framework handles this automatically, and if it breaks, the issue is obvious at runtime. Focus tests on business logic, not framework behavior.
 - Result: Deleted 149 lines of process-spawning tests with no loss of meaningful test coverage
+
+## refactor-cli-snapshot-use-config-test
+
+- Deleted `test/cli-snapshot-use-config.test.ts` entirely (133 lines) rather than refactoring because all meaningful tests were already covered by `cli-use-config.test.ts`
+- Original file: 10 tests that spawned real CLI processes with `execAsync` and created real temp directories
+- What was being tested:
+  - Help text content for snapshot command - trivial (Commander generates it)
+  - Global options appearing in main help - trivial (Commander generates it)
+  - Config file loading with snapshot - **already covered** by `cli-use-config.test.ts` (tests `initializeConfig()` directly)
+  - CLI args before subcommand acceptance - trivial (testing Commander's flag parsing)
+  - Env var acceptance - **already covered** by `cli-use-config.test.ts`
+  - Config priority chain (CLI > env > config file) - **already covered** by `cli-use-config.test.ts`
+- Key insight: When a test file tests integration between a subcommand and config loading, check if the config loading logic is already unit tested. If so, the integration tests are just verifying that Commander passes arguments correctly, which is framework behavior.
+- Pattern: Tests that verify subcommands use config correctly are redundant when config loading is already comprehensively tested via `initializeConfig()`. The CLI just passes options through to `initializeConfig()`, so testing the CLI process doesn't add coverage.
+- The `cli-use-config.test.ts` file already has 29 comprehensive unit tests covering: config file loading, env var overrides, CLI arg overrides, priority chain, default values, custom config paths, and invalid config handling.
+- Result: Deleted 133 lines of process-spawning tests with zero loss of meaningful test coverage
