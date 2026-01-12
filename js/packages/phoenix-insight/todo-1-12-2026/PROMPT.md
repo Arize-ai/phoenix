@@ -12,7 +12,7 @@ Implement ONE task from TASKS.md, test it with vitest, commit it, log your learn
 2. **Mark in_progress** - Update the task's status to `in_progress` in TASKS.md
 3. **Read the plan** - Review the full specification at `../../../.cursor/plans/phoenix_insight_cli_60e373b7.plan.md`
 4. **Implement** - Write the code/docs following the plan's architecture and patterns
-5. **Write tests (if applicable)** - For code changes, create vitest tests in `test/` directory (\*.test.ts). Skip for documentation-only tasks.
+5. **Write tests (if applicable)** - For code changes, create vitest tests in `test/` directory (*.test.ts). Skip for documentation-only tasks.
 6. **Run tests** - Execute `pnpm test` from the package directory (ensures existing tests still pass)
 7. **Fix failures** - If tests fail, debug and fix. DO NOT PROCEED WITH FAILING TESTS.
 8. **Mark complete** - Update the task's status to `complete` in TASKS.md
@@ -68,13 +68,11 @@ Do NOT skip ahead. Do NOT work on tasks out of order.
 Most tasks require tests. Some do not.
 
 **Tasks that REQUIRE tests:**
-
 - Any task that adds or modifies code in `src/`
 - Interface definitions, implementations, utilities
 - CLI commands and options
 
 **Tasks that do NOT require tests:**
-
 - Documentation-only tasks (README, comments, docs/)
 - Configuration file changes (tsconfig, package.json metadata)
 - Pure refactoring with no behavior change (existing tests cover it)
@@ -88,7 +86,6 @@ Most tasks require tests. Some do not.
 ```
 
 When tests ARE required, cover:
-
 - Happy path functionality
 - Edge cases where reasonable
 - Error conditions
@@ -121,7 +118,6 @@ feat(phoenix-insight): <task-id> - <short description>
 ```
 
 Examples:
-
 - `feat(phoenix-insight): scaffold-package - initialize package with deps and config`
 - `feat(phoenix-insight): sandbox-mode - implement just-bash execution mode`
 
@@ -208,7 +204,6 @@ If you encounter an error:
 If your task adds or modifies **user-facing features**, update `README.md`:
 
 **User-facing features include:**
-
 - New CLI flags or options
 - New commands or subcommands
 - Changes to output format or behavior
@@ -216,7 +211,6 @@ If your task adds or modifies **user-facing features**, update `README.md`:
 - Breaking changes to existing features
 
 **What to update:**
-
 - Add new flags to the CLI reference table
 - Update usage examples if behavior changes
 - Add new sections for new commands
@@ -232,16 +226,14 @@ If your task adds or modifies **user-facing features**, update `README.md`:
 
 ## Quick Reference
 
-| Action       | Command                                             |
-| ------------ | --------------------------------------------------- |
-| Install deps | `pnpm install`                                      |
-| Run tests    | `pnpm test` (runs `vitest run --typecheck`)         |
-| Build        | `pnpm build` (runs `tsc --build tsconfig.esm.json`) |
-| Type check   | `pnpm typecheck` (runs `tsc --noEmit`)              |
-| Dev run      | `pnpm dev` (runs `tsx src/cli.ts`)                  |
-| Clean        | `pnpm clean` (removes dist and tsbuildinfo)         |
-| Stage all    | `git add -A`                                        |
-| Commit       | `git commit -m "feat(phoenix-insight): ..."`        |
+| Action | Command |
+|--------|---------|
+| Install deps | `pnpm install` |
+| Run tests | `pnpm test` |
+| Build | `pnpm build` |
+| Type check | `pnpm typecheck` |
+| Stage all | `git add -A` |
+| Commit | `git commit -m "feat(phoenix-insight): ..."` |
 
 ---
 

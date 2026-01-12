@@ -25,6 +25,7 @@ describe("scaffold-structure", () => {
     "agent",
     "prompts",
     "observability",
+    "config",
   ];
 
   subdirectories.forEach((dir) => {
@@ -37,9 +38,11 @@ describe("scaffold-structure", () => {
   });
 
   it("should have the correct number of items in src directory", () => {
-    const items = fs.readdirSync(srcPath);
-    // cli.ts + index.ts + progress.ts + 6 subdirectories = 9 items
-    expect(items.length).toBe(9);
+    const items = fs
+      .readdirSync(srcPath)
+      .filter((item) => !item.startsWith("."));
+    // cli.ts + index.ts + progress.ts + 7 subdirectories = 10 items
+    expect(items.length).toBe(10);
     expect(items).toContain("cli.ts");
     expect(items).toContain("index.ts");
     expect(items).toContain("progress.ts");
