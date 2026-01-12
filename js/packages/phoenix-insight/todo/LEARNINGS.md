@@ -16,3 +16,11 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Pattern that worked well
 - Anything the next agent should know
 -->
+
+## delete-scaffold-structure-test
+
+- Deleted `test/scaffold-structure.test.ts` which only tested file/directory existence using `fs.existsSync`
+- Tests that verify filesystem structure are redundant when build/typecheck already validates the structure
+- The test was checking for 10 items in src/ (cli.ts, index.ts, progress.ts + 7 subdirectories) - this is brittle as it breaks when files are added/removed
+- Build and type checking already provide better guarantees about file existence than runtime fs.existsSync tests
+- Pattern: Tests should verify behavior, not structure. Let the compiler validate structure.

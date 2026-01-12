@@ -29,7 +29,7 @@ These tests provide no value - they either check file existence, match documenta
 ### delete-scaffold-structure-test
 
 - content: Delete `test/scaffold-structure.test.ts` - it only checks source file existence using `fs.existsSync`, which is not meaningful unit testing (build/typecheck already validates structure)
-- status: pending
+- status: complete
 - dependencies: none
 
 ### delete-skipped-cli-tests
