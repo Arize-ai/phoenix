@@ -173,14 +173,14 @@ const EditEvaluatorDialog = ({
                 }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               }
-              outputConfig {
-                name
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
+            }
+          }
+          outputConfig {
+            name
+            optimizationDirection
+            values {
+              label
+              score
             }
           }
         }

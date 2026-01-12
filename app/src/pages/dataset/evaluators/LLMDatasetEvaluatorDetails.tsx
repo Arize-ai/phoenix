@@ -52,14 +52,14 @@ export function LLMDatasetEvaluatorDetails({
             promptVersionTag {
               name
             }
-            outputConfig {
-              name
-              optimizationDirection
-              values {
-                label
-                score
-              }
-            }
+          }
+        }
+        outputConfig {
+          name
+          optimizationDirection
+          values {
+            label
+            score
           }
         }
       }

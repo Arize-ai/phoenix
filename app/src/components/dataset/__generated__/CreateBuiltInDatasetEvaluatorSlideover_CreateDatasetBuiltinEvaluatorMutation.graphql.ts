@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40242b5c5cd65ca10757f732d245f4d1>>
+ * @generated SignedSource<<0f5ddc8c1724dec226f4d5a025dbd6ac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -225,28 +225,21 @@ return {
                     "selections": [
                       (v3/*: any*/),
                       (v6/*: any*/),
-                      (v7/*: any*/),
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "CategoricalAnnotationConfig",
-                            "kind": "LinkedField",
-                            "name": "outputConfig",
-                            "plural": false,
-                            "selections": [
-                              (v8/*: any*/),
-                              (v9/*: any*/),
-                              (v10/*: any*/)
-                            ],
-                            "storageKey": null
-                          }
-                        ],
-                        "type": "LLMEvaluator",
-                        "abstractKey": null
-                      }
+                      (v7/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CategoricalAnnotationConfig",
+                    "kind": "LinkedField",
+                    "name": "outputConfig",
+                    "plural": false,
+                    "selections": [
+                      (v8/*: any*/),
+                      (v9/*: any*/),
+                      (v10/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -359,24 +352,13 @@ return {
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
+                  (v8/*: any*/),
+                  (v12/*: any*/),
+                  (v13/*: any*/),
+                  (v11/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "CategoricalAnnotationConfig",
-                        "kind": "LinkedField",
-                        "name": "outputConfig",
-                        "plural": false,
-                        "selections": [
-                          (v8/*: any*/),
-                          (v9/*: any*/),
-                          (v10/*: any*/),
-                          (v3/*: any*/)
-                        ],
-                        "storageKey": null
-                      },
                       (v14/*: any*/),
                       {
                         "alias": null,
@@ -394,11 +376,22 @@ return {
                     ],
                     "type": "LLMEvaluator",
                     "abstractKey": null
-                  },
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "CategoricalAnnotationConfig",
+                "kind": "LinkedField",
+                "name": "outputConfig",
+                "plural": false,
+                "selections": [
                   (v8/*: any*/),
-                  (v12/*: any*/),
-                  (v13/*: any*/),
-                  (v11/*: any*/)
+                  (v9/*: any*/),
+                  (v10/*: any*/),
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -433,12 +426,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e4c17d3ea96c3d2e302c3d132aa732fe",
+    "cacheID": "71612af97d57816c904740098da6d6fc",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n    ... on LLMEvaluator {\n      outputConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n"
   }
 };
 })();

@@ -69,15 +69,13 @@ export function PlaygroundDatasetSection({
                   id
                   kind
                   isBuiltin
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
-                      optimizationDirection
-                      values {
-                        label
-                        score
-                      }
-                    }
+                }
+                outputConfig {
+                  name
+                  optimizationDirection
+                  values {
+                    label
+                    score
                   }
                 }
               }
@@ -89,8 +87,7 @@ export function PlaygroundDatasetSection({
           kind: evaluator.evaluator.kind,
           isBuiltIn: evaluator.evaluator.isBuiltin,
           isAssignedToDataset: true,
-          annotationName:
-            evaluator.evaluator.outputConfig?.name ?? evaluator.displayName,
+          annotationName: evaluator.displayName,
         };
       }) ?? [],
     [data.dataset.datasetEvaluators]
@@ -122,12 +119,11 @@ export function PlaygroundDatasetSection({
       .filter((evaluator) => selectedDatasetEvaluatorIds.includes(evaluator.id))
       .map((evaluator): AnnotationConfig => {
         // LLM evaluators have outputConfig with categorical values
-        if (evaluator.evaluator.outputConfig != null) {
+        if (evaluator.outputConfig != null) {
           return {
-            name: evaluator.evaluator.outputConfig.name,
-            optimizationDirection:
-              evaluator.evaluator.outputConfig.optimizationDirection,
-            values: evaluator.evaluator.outputConfig.values,
+            name: evaluator.outputConfig.name,
+            optimizationDirection: evaluator.outputConfig.optimizationDirection,
+            values: evaluator.outputConfig.values,
             annotationType: "CATEGORICAL",
           };
         }
