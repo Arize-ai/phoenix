@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { useFragment } from "react-relay";
-import { useRevalidator } from "react-router";
+import { useNavigate, useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import { PromptNameWithBadge } from "@phoenix/components/prompt";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
-import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 export function LLMDatasetEvaluatorDetails({
@@ -26,6 +34,7 @@ export function LLMDatasetEvaluatorDetails({
   onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
   const [promptRefreshKey, setPromptRefreshKey] = useState(0);
+  const navigate = useNavigate();
   // this is so evaluator name updates are reflected in the breadcrumbs
   const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
@@ -44,6 +53,7 @@ export function LLMDatasetEvaluatorDetails({
               name
             }
             promptVersion {
+              id
               tools {
                 definition
               }
@@ -79,6 +89,22 @@ export function LLMDatasetEvaluatorDetails({
   const includeExplanation = inferIncludeExplanationFromPrompt(
     evaluator.promptVersion?.tools
   );
+
+  const promptData =
+    evaluator.prompt?.id &&
+    evaluator.prompt?.name &&
+    evaluator.promptVersion?.id
+      ? {
+          id: evaluator.prompt.id,
+          name: evaluator.prompt.name,
+          versionId: evaluator.promptVersion.id,
+          tagName: evaluator.promptVersionTag?.name,
+        }
+      : null;
+
+  const promptUrl = promptData?.tagName
+    ? `/redirects/prompts/${promptData.id}/tags/${encodeURIComponent(promptData.tagName)}`
+    : `/prompts/${promptData?.id}`;
 
   return (
     <EvaluatorPlaygroundProvider
@@ -157,16 +183,42 @@ export function LLMDatasetEvaluatorDetails({
               </Flex>
             )}
             <Flex direction="column" gap="size-100">
-              <Flex justifyContent="space-between">
-                <Heading level={2}>Prompt</Heading>
-                {evaluator.prompt?.id && evaluator.prompt?.name && (
-                  <PromptLink
-                    promptId={evaluator.prompt.id}
-                    promptName={evaluator.prompt.name}
-                    promptVersionTag={evaluator.promptVersionTag?.name}
-                  />
-                )}
-              </Flex>
+              <Heading level={2}>Prompt</Heading>
+              {promptData && (
+                <div
+                  css={css`
+                    cursor: pointer;
+                    &:hover button {
+                      background-color: var(
+                        --ac-global-input-field-background-color-hover
+                      );
+                    }
+                  `}
+                  onClick={() => navigate(promptUrl)}
+                  role="button"
+                >
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <PromptNameWithBadge
+                      name={promptData.name}
+                      {...(promptData.tagName
+                        ? { tag: promptData.tagName }
+                        : { versionId: promptData.versionId })}
+                    />
+                    <Button
+                      size="S"
+                      leadingVisual={
+                        <Icon svg={<Icons.MessageSquareOutline />} />
+                      }
+                    >
+                      View prompt
+                    </Button>
+                  </Flex>
+                </div>
+              )}
               <EvaluatorPromptPreview />
             </Flex>
             <LLMEvaluatorInputMapping inputMapping={inputMapping} />

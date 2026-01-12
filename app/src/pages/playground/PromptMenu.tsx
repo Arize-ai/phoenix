@@ -25,10 +25,10 @@ import {
   View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
+import { PromptBadge } from "@phoenix/components/prompt";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
-import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 /** Minimum number of items before showing search field */
 const SEARCH_THRESHOLD = 10;
@@ -368,16 +368,13 @@ export function PromptVersionSelector({
       return <Text color="text-700">Version</Text>;
     }
     if (selectedTagName) {
-      return (
-        <TagVersionLabel size="S" maxWidth="10ch">
-          {selectedTagName}
-        </TagVersionLabel>
-      );
+      return <PromptBadge size="S" maxWidth="10ch" tag={selectedTagName} />;
     }
     if (selectedVersionInfo) {
       return (
-        <PromptVersionLabel
-          id={selectedVersionInfo.id}
+        <PromptBadge
+          size="S"
+          versionId={selectedVersionInfo.id}
           isLatest={selectedVersionInfo.isLatest}
         />
       );
@@ -508,7 +505,7 @@ export function PromptVersionSelector({
               >
                 {({ name }) => (
                   <MenuItem id={name} textValue={name}>
-                    <TagVersionLabel maxWidth="30ch">{name}</TagVersionLabel>
+                    <PromptBadge maxWidth="30ch" tag={name} />
                   </MenuItem>
                 )}
               </Menu>
@@ -518,27 +515,6 @@ export function PromptVersionSelector({
       </MenuContainer>
     </MenuTrigger>
   );
-}
-
-/**
- * Renders a label for a prompt version. If the version is the latest, it shows "latest" as a tag.
- * Otherwise, it shows the ID truncated to 6 characters.
- */
-export function PromptVersionLabel({
-  id,
-  isLatest,
-}: {
-  id: string;
-  isLatest: boolean;
-}) {
-  if (isLatest) {
-    return (
-      <Token size="S" color="var(--ac-global-color-blue-1000)">
-        latest
-      </Token>
-    );
-  }
-  return <IdTruncate id={id} />;
 }
 
 /**
