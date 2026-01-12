@@ -47,7 +47,7 @@ These tests use `execAsync` to spawn real CLI processes, which is dangerous (lea
 ### refactor-cli-test
 
 - content: Refactor `test/cli.test.ts` to test CLI logic via exported functions (command parsing, option handling) instead of spawning real processes with `execAsync`. If the CLI entry point doesn't expose testable units, delete the tests that require process execution.
-- status: pending
+- status: complete
 - dependencies: delete-scaffold-structure-test, delete-skipped-cli-tests
 
 ### refactor-cli-use-config-test

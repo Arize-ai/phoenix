@@ -34,3 +34,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - `cli-help.test.ts`: Used `spawn()` with stdin/stdout interaction for interactive mode testing
 - Pattern: Skipped tests are technical debt - they either need to be fixed or deleted. Skipped tests that spawn real processes are especially dangerous because someone might unskip them thinking they're harmless.
 - Note: There's already a `cli-flags-unit.test.ts` that tests flag parsing logic through exported functions without spawning processes - this is the correct pattern.
+
+## refactor-cli-test
+
+- Deleted `test/cli.test.ts` entirely rather than refactoring because:
+  - The CLI entry point (`src/cli.ts`) doesn't expose testable functions - it's just a Commander setup that calls `program.parse()`
+  - All 7 tests spawned real processes using `exec`/`execAsync`, which is the anti-pattern we're eliminating
+  - The tests were slow (3.9 seconds for 7 tests vs milliseconds for unit tests)
+- What the deleted tests covered was either trivial or already covered elsewhere:
+  - Version display: Trivial (hard-coded constant `VERSION = "0.0.1"`)
+  - Help text: Trivial (Commander generates it automatically)
+  - Flag acceptance (`--sandbox`, `--limit`, `--base-url`): Already covered in `cli-flags-unit.test.ts`
+  - Mode selection logic: Already covered in `default-mode.test.ts`
+  - Interactive mode banner: Testing console.log output from a spawned process isn't meaningful behavior testing
+- Pattern: CLI entry points that just wire together Commander are hard to unit test. The better approach is to test the underlying functions (mode creation, config loading, etc.) in isolation, which `cli-flags-unit.test.ts` and `default-mode.test.ts` already do.
+- Remaining process-spawning CLI tests to refactor: `cli-use-config.test.ts`, `cli-config-flag.test.ts`, `cli-snapshot-use-config.test.ts` - these are more justifiable because they test config loading integration, but they should still be refactored to use mocked fs instead of real temp directories.
