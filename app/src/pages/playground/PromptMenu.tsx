@@ -144,15 +144,18 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
     const prompt = prompts.find((p) => p.id === newPromptId);
     if (!prompt) return;
 
-    // Find the latest version
-    const latestVersion = prompt.versions.find((v) => v.isLatest);
-    if (latestVersion) {
-      onChange({
-        promptId: newPromptId,
-        promptVersionId: latestVersion.id,
-        promptTagName: null,
-      });
-    }
+    // Use isLatest bool if available, else fall back to latest in list.
+    const latestMarked = prompt.versions.find((v) => v.isLatest);
+    const latestVersion = latestMarked ?? prompt.versions[0];
+
+    // Bail if prompt has zero versions (shouldn't be possible)
+    if (!latestVersion) return;
+
+    onChange({
+      promptId: newPromptId,
+      promptVersionId: latestVersion.id,
+      promptTagName: null,
+    });
   };
 
   const handleSelectVersion = (versionId: string) => {
