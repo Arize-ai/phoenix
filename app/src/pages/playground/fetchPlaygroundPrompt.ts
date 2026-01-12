@@ -295,6 +295,7 @@ export const invocationParametersToObject = (
           curr.valueInt ??
           curr.valueFloat ??
           curr.valueBool ??
+          curr.valueBoolean ??
           curr.valueJson ??
           curr.valueStringList ??
           null;

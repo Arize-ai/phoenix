@@ -144,4 +144,43 @@ describe("invocationParametersToObject", () => {
       reasoning_effort: "minimal", // Should be preserved even without definition
     });
   });
+
+  it("should preserve valueBoolean parameters without matching definitions", () => {
+    const params = [
+      {
+        invocationName: "stream",
+        canonicalName: "STREAM",
+        valueBoolean: true,
+      },
+      {
+        invocationName: "legacy_flag",
+        canonicalName: "LEGACY_FLAG",
+        valueBool: false,
+      },
+      {
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        valueFloat: 0.5,
+      },
+    ] satisfies InvocationParameterInput;
+
+    const supportedParams = [
+      {
+        __typename: "FloatInvocationParameter",
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        invocationInputField: "value_float",
+      },
+      // Note: stream and legacy_flag are intentionally not in supported params
+      // to test that both valueBool and valueBoolean are preserved
+    ] satisfies SupportedParamsType;
+
+    const result = invocationParametersToObject(params, supportedParams);
+
+    expect(result).toEqual({
+      temperature: 0.5,
+      stream: true, // valueBoolean should be preserved
+      legacy_flag: false, // valueBool should be preserved
+    });
+  });
 });
