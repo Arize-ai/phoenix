@@ -5,7 +5,7 @@ import {
 
 type InvocationParameterInput = Parameters<
   typeof invocationParametersToObject
->[0];
+>[0][number];
 type SupportedParamsType = Parameters<typeof objectToInvocationParameters>[1];
 
 describe("objectToInvocationParameters", () => {
