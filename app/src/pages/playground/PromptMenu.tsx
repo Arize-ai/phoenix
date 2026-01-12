@@ -263,17 +263,19 @@ export function PromptSelector({
         className="left-child"
         isDisabled={!hasPrompts}
         data-has-selection={selectedPrompt ? true : undefined}
-        css={css`
-          ${promptSelectorWidthCSS}
-          justify-content: space-between;
-          flex: 1 1 auto;
-          min-width: var(--button-min-width);
-          max-width: var(--button-max-width-placeholder);
-          overflow: hidden;
-          &[data-has-selection] {
-            max-width: none;
-          }
-        `}
+        css={css(
+          promptSelectorWidthCSS,
+          css`
+            justify-content: space-between;
+            flex: 1 1 auto;
+            min-width: var(--button-min-width);
+            max-width: var(--button-max-width-placeholder);
+            overflow: hidden;
+            &[data-has-selection] {
+              max-width: none;
+            }
+          `
+        )}
       >
         <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
           {selectedPrompt?.name ??
