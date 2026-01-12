@@ -23,7 +23,7 @@ import { provider } from "./instrumentation.js";
 
 import { embed, generateText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { trace, SpanStatusCode, context } from "@opentelemetry/api";
+import { trace, SpanStatusCode, context } from "@arizeai/phoenix-otel";
 import { z } from "zod";
 import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 import { setSession } from "@arizeai/openinference-core";
