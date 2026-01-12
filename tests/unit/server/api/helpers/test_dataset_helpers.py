@@ -515,7 +515,10 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                     )
                 ),
             ),
-            {"messages": [{"content": "No tools here.", "role": "assistant"}]},
+            {
+                "messages": [{"content": "No tools here.", "role": "assistant"}],
+                "available_tools": [],
+            },
             id="llm-span-without-tools",
         ),
         pytest.param(
