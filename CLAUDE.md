@@ -11,7 +11,7 @@ Phoenix is an open-source AI observability platform built on OpenTelemetry with 
   - `arize-phoenix-evals` - LLM evaluation tooling (packages/phoenix-evals/)
 - **Supported Python**: 3.10, 3.11, 3.12, 3.13 (develop on 3.10 for compatibility)
 - **Node Version**: 22 (see .nvmrc)
-- **Package Manager**: pnpm only (enforced by preinstall script)
+- **Package Manager**: pnpm only (enforced in app/ by preinstall script, used by convention in js/)
 - **TypeScript Packages**: `js/` directory contains phoenix-otel, phoenix-client, phoenix-evals, phoenix-mcp, phoenix-cli, phoenix-config
 
 ## Development Setup
@@ -64,7 +64,7 @@ pnpm run build:relay                     # Build GraphQL schema
 pnpm install                             # Install dependencies
 pnpm run -r build                        # Build all packages
 pnpm run -r test                         # Test all packages
-pnpm run -r lint                         # Lint all packages
+pnpm run lint                            # Lint all packages
 pnpm changeset                           # Create version changeset (required for PRs)
 ```
 
