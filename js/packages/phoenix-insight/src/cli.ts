@@ -221,10 +221,6 @@ Examples:
 program
   .command("snapshot")
   .description("Create a snapshot of Phoenix data")
-  .option("--base-url <url>", "Phoenix base URL")
-  .option("--api-key <key>", "Phoenix API key")
-  .option("--refresh", "Force refresh of snapshot data")
-  .option("--trace", "Enable tracing of the snapshot process to Phoenix")
   .action(async () => {
     const config = getConfig();
 

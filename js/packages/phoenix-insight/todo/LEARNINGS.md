@@ -74,3 +74,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The snapshot command's action handler no longer uses `options` parameter - it calls `getConfig()` directly since all values come from config
 - Test patterns for cli-use-config: integration tests using `tsx` to run the actual CLI with config files are more reliable than unit tests with mocked modules
 - Environment variable tests can pass env vars inline with the command: `PHOENIX_BASE_URL="..." tsx ${cliPath} ...`
+
+## cli-snapshot-use-config
+
+- The snapshot command was defining its own options (`--base-url`, `--api-key`, `--refresh`, `--trace`) which duplicated the global options on the root program
+- Removed these redundant options from the snapshot subcommand - it now relies entirely on `getConfig()` for all configuration values
+- The global `preAction` hook captures CLI args and passes them to `initializeConfig()`, so subcommands don't need their own option definitions
+- Updated `test/cli.test.ts` to reflect the new snapshot help output (no longer shows the removed options)
+- Created `test/cli-snapshot-use-config.test.ts` with tests verifying:
+  - Snapshot help no longer shows `--base-url`, `--api-key`, `--refresh`, `--trace`
+  - Global options are still available on the main help
+  - Config file, CLI args, and env vars all work correctly with the snapshot command
+- This change simplifies the CLI by having a single source of truth for config values (the config singleton)

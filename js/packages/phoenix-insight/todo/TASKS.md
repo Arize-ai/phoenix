@@ -61,7 +61,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-snapshot-use-config
 
 - content: Update the `snapshot` command in `src/cli.ts` to use `getConfig()` for `baseUrl`, `apiKey`, and `trace` instead of reading from options directly.
-- status: pending
+- status: complete
 - dependencies: cli-use-config
 
 ---

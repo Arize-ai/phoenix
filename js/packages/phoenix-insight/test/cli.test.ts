@@ -55,9 +55,11 @@ describe("phoenix-insight CLI", () => {
   it("should show help for snapshot command", async () => {
     const { stdout } = await execAsync(`tsx ${cliPath} snapshot --help`);
     expect(stdout).toContain("Create a snapshot of Phoenix data");
-    expect(stdout).toContain("--base-url");
-    expect(stdout).toContain("--api-key");
-    expect(stdout).toContain("--refresh");
+    // Snapshot command uses global config - no longer has its own options
+    // Global options like --base-url, --api-key, --refresh are set on the root command
+    // and accessed via getConfig() in the snapshot action handler
+    expect(stdout).toContain("Options:");
+    expect(stdout).toContain("-h, --help");
   });
 
   it("should show help with --help flag", async () => {
