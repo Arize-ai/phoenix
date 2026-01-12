@@ -77,7 +77,7 @@ These tests write to real filesystem locations (temp dirs, `~/.phoenix-insight/`
 ### refactor-local-mode-test
 
 - content: Refactor `test/local-mode.test.ts` to use `vi.mock("node:fs/promises")` instead of writing to real directories in `~/.phoenix-insight/snapshots/`. Mock all fs operations to prevent any real disk I/O.
-- status: pending
+- status: complete
 - dependencies: refactor-cli-snapshot-use-config-test
 
 ### refactor-snapshot-incremental-local-test

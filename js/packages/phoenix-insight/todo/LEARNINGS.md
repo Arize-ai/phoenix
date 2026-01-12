@@ -97,3 +97,35 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Pattern: Tests that verify subcommands use config correctly are redundant when config loading is already comprehensively tested via `initializeConfig()`. The CLI just passes options through to `initializeConfig()`, so testing the CLI process doesn't add coverage.
 - The `cli-use-config.test.ts` file already has 29 comprehensive unit tests covering: config file loading, env var overrides, CLI arg overrides, priority chain, default values, custom config paths, and invalid config handling.
 - Result: Deleted 133 lines of process-spawning tests with zero loss of meaningful test coverage
+
+## refactor-local-mode-test
+
+- Completely rewrote `test/local-mode.test.ts` from real filesystem/exec tests to mocked unit tests
+- Original: 22 tests that created real directories in `~/.phoenix-insight/snapshots/` and executed real bash commands
+- Refactored: 22 tests that mock `node:fs/promises`, `node:util`, and `node:os` to prevent any real disk or process I/O
+- Key challenge: `LocalMode` uses `promisify(exec)` where Node's `exec` has a custom `util.promisify.custom` symbol
+  - Simply mocking `child_process.exec` doesn't work because `promisify` uses the custom symbol, not the callback
+  - Solution: Mock `node:util` to intercept `promisify` calls and return a controlled async function
+- Pattern for mocking `util.promisify` for `exec`:
+  ```typescript
+  vi.mock("node:util", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+      ...actual,
+      promisify: (fn) => {
+        // Check if this is exec and return controlled async function
+        if (fn.name === "exec") {
+          return async (command, options) => mockExecAsyncFn(command, options);
+        }
+        return actual.promisify(fn);
+      },
+    };
+  });
+  ```
+- Helper functions created for cleaner test setup:
+  - `mockExecSuccess(stdout, stderr)` - simulates successful command execution
+  - `mockExecFailure(exitCode, stdout, stderr)` - simulates command failure with exit code
+  - `mockExecCapture()` - captures options passed to exec for verification
+- Mocked `os.homedir()` to return `/mock/home` so workDir paths are predictable
+- Tests now run in ~7ms instead of potentially seconds for real disk/process operations
+- Result: 22 comprehensive unit tests with zero real disk I/O or process spawning

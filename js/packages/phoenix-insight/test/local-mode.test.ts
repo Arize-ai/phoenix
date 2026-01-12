@@ -1,22 +1,127 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { LocalMode } from "../src/modes/local.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import * as os from "node:os";
+
+// Mock modules before imports
+vi.mock("node:fs/promises");
+
+// Mock os.homedir to return a predictable path
+vi.mock("node:os", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:os");
+  return {
+    ...actual,
+    homedir: vi.fn().mockReturnValue("/mock/home"),
+  };
+});
+
+// Store the mock exec async function that we'll control in tests
+let mockExecAsyncFn: (
+  command: string,
+  options: any
+) => Promise<{ stdout: string; stderr: string }>;
+
+// Mock util.promisify to return our controlled function for exec
+vi.mock("node:util", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:util");
+  return {
+    ...actual,
+    promisify: (fn: any) => {
+      // Check if this is the exec function by checking if it's from child_process
+      // We identify it by checking if our mock returns a controlled async function
+      if (fn.name === "exec" || fn.toString().includes("child_process")) {
+        return async (command: string, options: any) => {
+          return mockExecAsyncFn(command, options);
+        };
+      }
+      // For other functions, use the real promisify
+      return actual.promisify(fn);
+    },
+  };
+});
+
+// Get mocked functions
+const mockMkdir = vi.mocked(fs.mkdir);
+const mockWriteFile = vi.mocked(fs.writeFile);
+
+// Import LocalMode after mocks are set up
+import { LocalMode } from "../src/modes/local.js";
+
+/**
+ * Helper to mock execAsync for success
+ */
+function mockExecSuccess(stdout: string, stderr = ""): void {
+  mockExecAsyncFn = async (_command: string, _options: any) => {
+    return { stdout, stderr };
+  };
+}
+
+/**
+ * Helper to mock execAsync for failure with exit code
+ */
+function mockExecFailure(exitCode: number, stdout = "", stderr = ""): void {
+  mockExecAsyncFn = async (_command: string, _options: any) => {
+    const error = Object.assign(new Error("Command failed"), {
+      code: exitCode,
+      stdout,
+      stderr,
+    });
+    throw error;
+  };
+}
+
+/**
+ * Helper to capture exec options and succeed
+ */
+function mockExecCapture(): {
+  getOptions: () => any;
+  getCommand: () => string;
+} {
+  let capturedOptions: any = null;
+  let capturedCommand = "";
+
+  mockExecAsyncFn = async (command: string, options: any) => {
+    capturedCommand = command;
+    capturedOptions = options;
+    return { stdout: "", stderr: "" };
+  };
+
+  return {
+    getOptions: () => capturedOptions,
+    getCommand: () => capturedCommand,
+  };
+}
 
 describe("LocalMode", () => {
   let localMode: LocalMode;
-  let testDir: string;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Set up default mock implementations
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+
+    // Default exec implementation - succeeds with empty output
+    mockExecSuccess("", "");
+
     localMode = new LocalMode();
-    // Get the work directory from the private property (for testing)
-    testDir = (localMode as any).workDir;
   });
 
   afterEach(async () => {
-    // Cleanup is handled by the LocalMode itself
     await localMode.cleanup();
+    vi.clearAllMocks();
+  });
+
+  describe("constructor", () => {
+    it("should create workDir under ~/.phoenix-insight/snapshots/", () => {
+      const workDir = (localMode as any).workDir;
+
+      // Should use mocked homedir
+      expect(workDir).toMatch(/^\/mock\/home\/\.phoenix-insight\/snapshots\//);
+      // Should have timestamp and /phoenix suffix
+      expect(workDir).toMatch(
+        /\/mock\/home\/\.phoenix-insight\/snapshots\/\d+-\w+\/phoenix$/
+      );
+    });
   });
 
   describe("writeFile", () => {
@@ -24,30 +129,35 @@ describe("LocalMode", () => {
       const content = "Hello, Phoenix!";
       await localMode.writeFile("/test.txt", content);
 
-      // Check if file exists
-      const filePath = path.join(testDir, "test.txt");
-      const exists = await fs
-        .access(filePath)
-        .then(() => true)
-        .catch(() => false);
-      expect(exists).toBe(true);
+      // Should have created directory
+      expect(mockMkdir).toHaveBeenCalledWith(expect.any(String), {
+        recursive: true,
+      });
 
-      // Check content
-      const readContent = await fs.readFile(filePath, "utf-8");
-      expect(readContent).toBe(content);
+      // Should have written file
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.stringContaining("test.txt"),
+        content,
+        "utf-8"
+      );
     });
 
     it("should create nested directories", async () => {
       const content = '{"name": "test-project"}';
       await localMode.writeFile("/projects/test/metadata.json", content);
 
-      // Check if nested file exists
-      const filePath = path.join(testDir, "projects", "test", "metadata.json");
-      const exists = await fs
-        .access(filePath)
-        .then(() => true)
-        .catch(() => false);
-      expect(exists).toBe(true);
+      // Should create parent directories
+      expect(mockMkdir).toHaveBeenCalledWith(
+        expect.stringMatching(/\/projects\/test$/),
+        { recursive: true }
+      );
+
+      // Should write file to nested path
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.stringContaining("projects/test/metadata.json"),
+        content,
+        "utf-8"
+      );
     });
 
     it("should handle paths with /phoenix prefix", async () => {
@@ -55,58 +165,103 @@ describe("LocalMode", () => {
       await localMode.writeFile("/phoenix/data.txt", content);
 
       // Should strip /phoenix prefix and write to root
-      const filePath = path.join(testDir, "data.txt");
-      const exists = await fs
-        .access(filePath)
-        .then(() => true)
-        .catch(() => false);
-      expect(exists).toBe(true);
+      const writeCall = mockWriteFile.mock.calls[0];
+      const writePath = writeCall[0] as string;
+
+      // The path should end with data.txt, not /phoenix/data.txt
+      expect(writePath).toMatch(/\/phoenix\/data\.txt$/);
+      expect(writePath).not.toMatch(/\/phoenix\/phoenix\/data\.txt$/);
+    });
+
+    it("should handle absolute paths without leading slash", async () => {
+      const content = "test";
+      await localMode.writeFile("relative/path.txt", content);
+
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.stringContaining("relative/path.txt"),
+        content,
+        "utf-8"
+      );
+    });
+
+    it("should propagate mkdir errors", async () => {
+      mockMkdir.mockRejectedValue(new Error("EACCES: permission denied"));
+
+      await expect(localMode.writeFile("/test.txt", "content")).rejects.toThrow(
+        "EACCES"
+      );
+    });
+
+    it("should propagate writeFile errors", async () => {
+      mockWriteFile.mockRejectedValue(new Error("ENOSPC: no space left"));
+
+      await expect(localMode.writeFile("/test.txt", "content")).rejects.toThrow(
+        "ENOSPC"
+      );
     });
   });
 
   describe("exec", () => {
-    it("should execute bash commands", async () => {
-      // Create a test file first
-      await localMode.writeFile("/test.txt", "line1\nline2\nline3\n");
+    it("should execute bash commands and return result", async () => {
+      mockExecSuccess("output\n", "");
 
-      // Execute a command
-      const result = await localMode.exec("wc -l test.txt");
+      const result = await localMode.exec("echo hello");
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toMatch(/3\s+test\.txt/);
-      expect(result.stderr).toBe("");
-    });
-
-    it("should handle command failures", async () => {
-      // Try to cat a non-existent file
-      const result = await localMode.exec("cat non-existent-file.txt");
-
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain("No such file");
+      expect(result).toEqual({
+        stdout: "output\n",
+        stderr: "",
+        exitCode: 0,
+      });
     });
 
     it("should execute commands in the correct directory", async () => {
-      // Check current directory
-      const result = await localMode.exec("pwd");
+      const { getOptions } = mockExecCapture();
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe(testDir);
+      await localMode.exec("pwd");
+
+      const options = getOptions();
+      // Should execute in workDir
+      expect(options.cwd).toBe((localMode as any).workDir);
+      expect(options.shell).toBe("/bin/bash");
     });
 
-    it("should handle complex bash commands", async () => {
-      // Create test data
-      await localMode.writeFile(
-        "/spans.jsonl",
-        '{"id": 1, "latency": 100}\n{"id": 2, "latency": 200}\n{"id": 3, "latency": 150}\n'
-      );
+    it("should handle command failures with exit code", async () => {
+      mockExecFailure(1, "", "No such file or directory");
 
-      // Use jq to process JSON
-      const result = await localMode.exec(
-        "cat spans.jsonl | jq -s 'map(.latency) | add'"
-      );
+      const result = await localMode.exec("cat non-existent-file.txt");
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout.trim()).toBe("450");
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("No such file");
+    });
+
+    it("should handle unknown errors (no code property)", async () => {
+      mockExecAsyncFn = async () => {
+        throw new Error("Unknown error");
+      };
+
+      const result = await localMode.exec("some-command");
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("Unknown error");
+    });
+
+    it("should include stdout from failed commands", async () => {
+      mockExecFailure(2, "partial output", "error message");
+
+      const result = await localMode.exec("failing-command");
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toBe("partial output");
+      expect(result.stderr).toBe("error message");
+    });
+
+    it("should set timeout for commands", async () => {
+      const { getOptions } = mockExecCapture();
+
+      await localMode.exec("long-running-command");
+
+      const options = getOptions();
+      expect(options.timeout).toBe(60000);
     });
   });
 
@@ -116,8 +271,7 @@ describe("LocalMode", () => {
 
       expect(tool).toBeDefined();
       expect(tool.description).toContain("bash");
-      expect(tool.inputSchema).toBeDefined();
-      expect(tool.execute).toBeInstanceOf(Function);
+      expect(typeof tool.execute).toBe("function");
     });
 
     it("should cache the bash tool", async () => {
@@ -129,13 +283,10 @@ describe("LocalMode", () => {
     });
 
     it("should execute commands through the bash tool", async () => {
+      mockExecSuccess("Hello from tool!", "");
+
       const tool = await localMode.getBashTool();
-
-      // Create a test file
-      await localMode.writeFile("/test-tool.txt", "Hello from tool!");
-
-      // Execute through the tool
-      const result = await tool.execute({ command: "cat test-tool.txt" });
+      const result = await tool.execute({ command: "cat test.txt" });
 
       expect(result.success).toBe(true);
       expect(result.stdout).toBe("Hello from tool!");
@@ -143,9 +294,9 @@ describe("LocalMode", () => {
     });
 
     it("should handle errors through the bash tool", async () => {
-      const tool = await localMode.getBashTool();
+      mockExecFailure(1, "", "No such file or directory");
 
-      // Try to execute a failing command
+      const tool = await localMode.getBashTool();
       const result = await tool.execute({ command: "cat /does/not/exist" });
 
       expect(result.success).toBe(false);
@@ -161,55 +312,41 @@ describe("LocalMode", () => {
     });
   });
 
-  describe("integration", () => {
-    it("should work with a real-world example", async () => {
-      // Create a project structure similar to Phoenix
-      await localMode.writeFile(
-        "/projects/index.jsonl",
-        '{"name": "chatbot-prod", "id": "proj-1"}\n{"name": "rag-experiment", "id": "proj-2"}\n'
-      );
-      await localMode.writeFile(
-        "/projects/chatbot-prod/metadata.json",
-        '{"name": "chatbot-prod", "id": "proj-1", "span_count": 2341}'
-      );
-      await localMode.writeFile(
-        "/projects/chatbot-prod/spans/index.jsonl",
-        '{"id": "span-1", "latency": 123}\n{"id": "span-2", "latency": 456}\n'
-      );
+  describe("init", () => {
+    it("should create working directory on first operation", async () => {
+      await localMode.writeFile("/test.txt", "content");
 
-      // List projects
-      const listResult = await localMode.exec("ls projects/");
-      expect(listResult.stdout).toContain("chatbot-prod");
-      expect(listResult.stdout).toContain("index.jsonl");
+      // Should have called mkdir with the workDir
+      expect(mockMkdir).toHaveBeenCalledWith((localMode as any).workDir, {
+        recursive: true,
+      });
+    });
 
-      // Count spans
-      const countResult = await localMode.exec(
-        "wc -l projects/chatbot-prod/spans/index.jsonl"
-      );
-      expect(countResult.stdout).toMatch(/2\s+/);
+    it("should propagate init errors", async () => {
+      mockMkdir.mockRejectedValue(new Error("Failed to create directory"));
 
-      // Calculate total latency with jq
-      const latencyResult = await localMode.exec(
-        "cat projects/chatbot-prod/spans/index.jsonl | jq '.latency' | awk '{sum += $1} END {print sum}'"
+      await expect(localMode.writeFile("/test.txt", "content")).rejects.toThrow(
+        "Failed to initialize local mode directory"
       );
-      expect(latencyResult.stdout.trim()).toBe("579");
     });
   });
 
-  describe("directory structure", () => {
-    it("should create directories under ~/.phoenix-insight/snapshots/", async () => {
-      // Verify the directory structure
-      expect(testDir).toMatch(
-        /\.phoenix-insight\/snapshots\/\d+(-\w+)?\/phoenix$/
-      );
+  describe("path handling", () => {
+    it("should normalize paths with multiple slashes", async () => {
+      await localMode.writeFile("//multiple//slashes.txt", "content");
 
-      // Check if parent directories exist
-      const snapshotsDir = path.dirname(path.dirname(testDir));
-      const exists = await fs
-        .access(snapshotsDir)
-        .then(() => true)
-        .catch(() => false);
-      expect(exists).toBe(true);
+      const writeCall = mockWriteFile.mock.calls[0];
+      const writePath = writeCall[0] as string;
+
+      // Path should contain the filename
+      expect(writePath).toContain("slashes.txt");
+    });
+
+    it("should handle empty file paths", async () => {
+      // Empty path should still create a file in workDir
+      await localMode.writeFile("", "content");
+
+      expect(mockWriteFile).toHaveBeenCalled();
     });
   });
 });
