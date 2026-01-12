@@ -13,6 +13,27 @@ Phoenix is an open-source AI observability platform built on OpenTelemetry with 
 - **Node Version**: 22 (see .nvmrc)
 - **Package Manager**: pnpm only (enforced by preinstall script)
 
+### TypeScript Packages (js/)
+
+The `js/` directory contains a pnpm monorepo with TypeScript packages:
+
+- **phoenix-otel**: OpenTelemetry wrapper with Phoenix-aware defaults
+- **phoenix-client**: REST & prompt SDK for datasets, experiments, and more
+- **phoenix-evals**: LLM-powered evaluators for scoring outputs
+- **phoenix-mcp**: MCP (Model Context Protocol) server implementation
+- **phoenix-cli**: Command-line tools
+- **phoenix-config**: Configuration utilities
+
+**Common commands** (run from `js/`):
+```bash
+pnpm install              # Install all dependencies
+pnpm run -r build         # Build all packages
+pnpm run -r test          # Run tests for all packages
+pnpm run -r lint          # Lint all packages
+pnpm run prettier:check   # Check formatting
+pnpm changeset            # Create changeset for versioning (required for PRs)
+```
+
 ## Development Setup
 
 IMPORTANT: Always run `tox run -e add_symlinks` after environment setup. Sub-packages (client, evals, otel) require symlinks for local development.
@@ -93,11 +114,13 @@ hatch build  # Creates dist/*.tar.gz and dist/*.whl
 
 ```
 phoenix/
-├── app/                    # React/TypeScript frontend
+├── app/                    # React/TypeScript frontend (main Phoenix UI)
 │   ├── src/               # Frontend source code
 │   ├── schema.graphql     # GraphQL schema (generated)
 │   └── package.json       # Frontend dependencies
-├── packages/              # Sub-packages (client, evals, otel)
+├── js/                    # TypeScript packages monorepo (phoenix-otel, phoenix-client, phoenix-evals, etc.)
+│   └── packages/          # Individual TypeScript packages
+├── packages/              # Python sub-packages (client, evals, otel)
 ├── src/phoenix/           # Main Python source code
 │   ├── server/           # FastAPI server & GraphQL API
 │   ├── db/               # Database models & migrations
