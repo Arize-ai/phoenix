@@ -59,7 +59,7 @@ These tests use `execAsync` to spawn real CLI processes, which is dangerous (lea
 ### refactor-cli-config-flag-test
 
 - content: Refactor `test/cli-config-flag.test.ts` to use mocked filesystem and test flag parsing logic directly instead of spawning real CLI processes. Delete if config flag logic is already covered by other tests.
-- status: pending
+- status: complete
 - dependencies: refactor-cli-use-config-test
 
 ### refactor-cli-snapshot-use-config-test

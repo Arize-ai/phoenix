@@ -65,3 +65,19 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Important: Always call `resetConfig()` in beforeEach/afterEach to reset the singleton state between tests
 - The test file went from 239 lines + real I/O to 324 lines of pure unit tests - more comprehensive with zero disk/process usage
 - Test speed: Original tests spawned tsx processes (slow). New tests run in ~10ms for all 29 tests
+
+## refactor-cli-config-flag-test
+
+- Deleted `test/cli-config-flag.test.ts` entirely rather than refactoring because the meaningful config flag logic was already covered by `cli-use-config.test.ts`
+- Original file: 149 lines with 10 tests that spawned real CLI processes with `execAsync` and created real temp directories
+- What was being tested:
+  - Help text content (`--config option in help`, `example with --config`, `config priority documentation`) - trivial, just testing Commander-generated output
+  - Flag acceptance (`--config flag without error`, before/after other options, with subcommands) - trivial, testing Commander's flag parsing behavior
+  - Error handling (non-existent config file, invalid JSON) - **already covered** by `cli-use-config.test.ts`
+- Key insight: When evaluating whether to refactor or delete, check what the existing unit tests already cover. `cli-use-config.test.ts` tests:
+  - Custom config file path via `initializeConfig({ config: "/custom/path" })`
+  - File not found behavior via `mockConfigFile(null)`
+  - Invalid JSON behavior via mock rejection with SyntaxError
+  - Config priority chain (config < env < CLI)
+- Pattern: Tests that verify help text output or Commander's flag parsing are not valuable unit tests. The framework handles this automatically, and if it breaks, the issue is obvious at runtime. Focus tests on business logic, not framework behavior.
+- Result: Deleted 149 lines of process-spawning tests with no loss of meaningful test coverage
