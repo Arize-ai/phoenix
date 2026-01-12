@@ -82,7 +82,7 @@ describe("invocationParametersToObject", () => {
         canonicalName: "MAX_COMPLETION_TOKENS",
         valueInt: 100,
       },
-    ] satisfies InvocationParameterInput;
+    ] satisfies InvocationParameterInput[];
 
     const supportedParams = [
       {
@@ -124,7 +124,7 @@ describe("invocationParametersToObject", () => {
         canonicalName: "TEMPERATURE",
         valueFloat: 0.7,
       },
-    ] satisfies InvocationParameterInput;
+    ] satisfies InvocationParameterInput[];
 
     const supportedParams = [
       {
