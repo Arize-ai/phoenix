@@ -480,7 +480,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             <LinkButton
               to={`/datasets/${selectedDataset.id}`}
               size="S"
-              variant="external"
+              variant="quiet"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
             >
               View <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
