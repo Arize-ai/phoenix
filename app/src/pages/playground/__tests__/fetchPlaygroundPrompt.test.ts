@@ -146,15 +146,13 @@ describe("invocationParametersToObject", () => {
   });
 
   it("should preserve valueBoolean parameters without matching definitions", () => {
-    const params = [
+    const params: InvocationParameterInput[] = [
       {
         invocationName: "stream",
-        canonicalName: "STREAM",
         valueBoolean: true,
       },
       {
         invocationName: "legacy_flag",
-        canonicalName: "LEGACY_FLAG",
         valueBool: false,
       },
       {
@@ -162,7 +160,7 @@ describe("invocationParametersToObject", () => {
         canonicalName: "TEMPERATURE",
         valueFloat: 0.5,
       },
-    ] satisfies InvocationParameterInput;
+    ];
 
     const supportedParams = [
       {
