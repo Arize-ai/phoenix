@@ -49,3 +49,19 @@ Use this knowledge to avoid repeating mistakes and build on what works.
   - Interactive mode banner: Testing console.log output from a spawned process isn't meaningful behavior testing
 - Pattern: CLI entry points that just wire together Commander are hard to unit test. The better approach is to test the underlying functions (mode creation, config loading, etc.) in isolation, which `cli-flags-unit.test.ts` and `default-mode.test.ts` already do.
 - Remaining process-spawning CLI tests to refactor: `cli-use-config.test.ts`, `cli-config-flag.test.ts`, `cli-snapshot-use-config.test.ts` - these are more justifiable because they test config loading integration, but they should still be refactored to use mocked fs instead of real temp directories.
+
+## refactor-cli-use-config-test
+
+- Completely rewrote `test/cli-use-config.test.ts` from process-spawning tests to unit tests using mocked filesystem
+- Original: 16 tests that spawned real CLI processes with `execAsync` and created real temp directories with `fs.mkdtemp`
+- Refactored: 29 tests that mock `node:fs/promises` and test `initializeConfig()` directly
+- Key insight: The config module exports `initializeConfig()`, `resetConfig()`, and types that allow complete testing of config loading logic without any real I/O
+- Pattern for mocking fs: Use `vi.mock("node:fs/promises")` at top level, then `vi.mocked(fs.readFile)` etc. to access mock functions
+- The `mockConfigFile()` helper function simulates different config file states (valid JSON, file not found, etc.)
+- Added new test categories not in the original:
+  - CLI args override environment variables (priority testing)
+  - Full priority chain test (config < env < CLI)
+  - Invalid config handling (bad JSON, invalid values)
+- Important: Always call `resetConfig()` in beforeEach/afterEach to reset the singleton state between tests
+- The test file went from 239 lines + real I/O to 324 lines of pure unit tests - more comprehensive with zero disk/process usage
+- Test speed: Original tests spawned tsx processes (slow). New tests run in ~10ms for all 29 tests

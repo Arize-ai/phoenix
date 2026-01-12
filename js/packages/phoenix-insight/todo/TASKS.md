@@ -53,7 +53,7 @@ These tests use `execAsync` to spawn real CLI processes, which is dangerous (lea
 ### refactor-cli-use-config-test
 
 - content: Refactor `test/cli-use-config.test.ts` to use mocked filesystem instead of creating real temp directories and files. Test config loading logic through exported functions with `vi.mock("node:fs/promises")` instead of spawning real CLI processes.
-- status: pending
+- status: complete
 - dependencies: refactor-cli-test
 
 ### refactor-cli-config-flag-test
