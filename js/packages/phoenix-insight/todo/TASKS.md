@@ -35,7 +35,7 @@ These tests provide no value - they either check file existence, match documenta
 ### delete-skipped-cli-tests
 
 - content: Delete the three skipped test files that spawn real processes: `test/cli-prune.test.ts`, `test/cli-flags.test.ts`, `test/cli-help.test.ts` - they are not running and would be dangerous if unskipped
-- status: pending
+- status: complete
 - dependencies: none
 
 ---
