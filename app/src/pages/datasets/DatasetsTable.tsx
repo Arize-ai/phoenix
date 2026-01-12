@@ -19,7 +19,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, Link, Token } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton, Token } from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -95,6 +95,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 createdAt
                 exampleCount
                 experimentCount
+                evaluatorCount
                 labels {
                   id
                   name
@@ -209,6 +210,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
       },
       {
+        header: "evaluator count",
+        accessorKey: "evaluatorCount",
+        enableSorting: false,
+        meta: {
+          textAlign: "right" as const,
+        },
+      },
+      {
         header: "metadata",
         accessorKey: "metadata",
         enableSorting: false,
@@ -223,70 +232,77 @@ export function DatasetsTable(props: DatasetsTableProps) {
         size: 10,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
-            <DatasetActionMenu
-              datasetId={row.original.id}
-              datasetName={row.original.name}
-              datasetDescription={row.original.description}
-              datasetMetadata={row.original.metadata}
-              onDatasetEdit={() => {
-                notifySuccess({
-                  title: "Dataset updated",
-                  message: `${row.original.name} has been successfully updated.`,
-                });
-                refetch(
-                  {
-                    filter:
-                      filter || labelFilter?.length
-                        ? {
-                            col: "name",
-                            value: filter || "",
-                            ...(labelFilter?.length
-                              ? { filterLabels: labelFilter }
-                              : {}),
-                          }
-                        : null,
-                  },
-                  { fetchPolicy: "store-and-network" }
-                );
-              }}
-              onDatasetEditError={(error) => {
-                const formattedError =
-                  getErrorMessagesFromRelayMutationError(error);
-                notifyError({
-                  title: "Dataset update failed",
-                  message: formattedError?.[0] ?? error.message,
-                });
-              }}
-              onDatasetDelete={() => {
-                notifySuccess({
-                  title: "Dataset deleted",
-                  message: `${row.original.name} has been successfully deleted.`,
-                });
-                refetch(
-                  {
-                    filter:
-                      filter || labelFilter?.length
-                        ? {
-                            col: "name",
-                            value: filter || "",
-                            ...(labelFilter?.length
-                              ? { filterLabels: labelFilter }
-                              : {}),
-                          }
-                        : null,
-                  },
-                  { fetchPolicy: "store-and-network" }
-                );
-              }}
-              onDatasetDeleteError={(error) => {
-                const formattedError =
-                  getErrorMessagesFromRelayMutationError(error);
-                notifyError({
-                  title: "Dataset deletion failed",
-                  message: formattedError?.[0] ?? error.message,
-                });
-              }}
-            />
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <LinkButton
+                size="S"
+                to={`/playground?datasetId=${row.original.id}`}
+                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              />
+              <DatasetActionMenu
+                datasetId={row.original.id}
+                datasetName={row.original.name}
+                datasetDescription={row.original.description}
+                datasetMetadata={row.original.metadata}
+                onDatasetEdit={() => {
+                  notifySuccess({
+                    title: "Dataset updated",
+                    message: `${row.original.name} has been successfully updated.`,
+                  });
+                  refetch(
+                    {
+                      filter:
+                        filter || labelFilter?.length
+                          ? {
+                              col: "name",
+                              value: filter || "",
+                              ...(labelFilter?.length
+                                ? { filterLabels: labelFilter }
+                                : {}),
+                            }
+                          : null,
+                    },
+                    { fetchPolicy: "store-and-network" }
+                  );
+                }}
+                onDatasetEditError={(error) => {
+                  const formattedError =
+                    getErrorMessagesFromRelayMutationError(error);
+                  notifyError({
+                    title: "Dataset update failed",
+                    message: formattedError?.[0] ?? error.message,
+                  });
+                }}
+                onDatasetDelete={() => {
+                  notifySuccess({
+                    title: "Dataset deleted",
+                    message: `${row.original.name} has been successfully deleted.`,
+                  });
+                  refetch(
+                    {
+                      filter:
+                        filter || labelFilter?.length
+                          ? {
+                              col: "name",
+                              value: filter || "",
+                              ...(labelFilter?.length
+                                ? { filterLabels: labelFilter }
+                                : {}),
+                            }
+                          : null,
+                    },
+                    { fetchPolicy: "store-and-network" }
+                  );
+                }}
+                onDatasetDeleteError={(error) => {
+                  const formattedError =
+                    getErrorMessagesFromRelayMutationError(error);
+                  notifyError({
+                    title: "Dataset deletion failed",
+                    message: formattedError?.[0] ?? error.message,
+                  });
+                }}
+              />
+            </Flex>
           );
         },
       });
