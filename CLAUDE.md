@@ -40,9 +40,11 @@ IMPORTANT: Use `tox` for all testing, linting, and type-checking. Run `tox run -
 ```bash
 tox run -e ruff                          # Format and lint
 tox run -e type_check                    # Type check
-tox run -e unit_tests                    # Run tests
+tox run -e unit_tests                    # Run all unit tests
+tox run -e unit_tests -- -k test_name    # Run specific test by name
 tox run -e unit_tests -- --run-postgres  # Run tests with PostgreSQL
-tox run -e integration_tests             # Integration tests
+tox run -e integration_tests             # Run all integration tests
+tox run -e integration_tests -- -k test_name  # Run specific integration test
 tox run -e phoenix_client                # Test sub-package
 tox list                                 # List all environments
 ```
