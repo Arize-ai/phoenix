@@ -9,34 +9,14 @@ Phoenix is an open-source AI observability platform built on OpenTelemetry with 
   - `arize-phoenix-client` - Lightweight Python client (packages/phoenix-client/)
   - `arize-phoenix-otel` - OpenTelemetry wrapper (packages/phoenix-otel/)
   - `arize-phoenix-evals` - LLM evaluation tooling (packages/phoenix-evals/)
-- **Supported Python**: 3.10, 3.11, 3.12, 3.13
+- **Supported Python**: 3.10, 3.11, 3.12, 3.13 (develop on 3.10 for compatibility)
 - **Node Version**: 22 (see .nvmrc)
 - **Package Manager**: pnpm only (enforced by preinstall script)
-
-### TypeScript Packages (js/)
-
-The `js/` directory contains a pnpm monorepo with TypeScript packages:
-
-- **phoenix-otel**: OpenTelemetry wrapper with Phoenix-aware defaults
-- **phoenix-client**: REST & prompt SDK for datasets, experiments, and more
-- **phoenix-evals**: LLM-powered evaluators for scoring outputs
-- **phoenix-mcp**: MCP (Model Context Protocol) server implementation
-- **phoenix-cli**: Command-line tools
-- **phoenix-config**: Configuration utilities
-
-**Common commands** (run from `js/`):
-```bash
-pnpm install              # Install all dependencies
-pnpm run -r build         # Build all packages
-pnpm run -r test          # Run tests for all packages
-pnpm run -r lint          # Lint all packages
-pnpm run prettier:check   # Check formatting
-pnpm changeset            # Create changeset for versioning (required for PRs)
-```
+- **TypeScript Packages**: `js/` directory contains phoenix-otel, phoenix-client, phoenix-evals, phoenix-mcp, phoenix-cli, phoenix-config
 
 ## Development Setup
 
-IMPORTANT: Always run `tox run -e add_symlinks` after environment setup. Sub-packages (client, evals, otel) require symlinks for local development.
+IMPORTANT: Always run `tox run -e add_symlinks` after setup. Python sub-packages (client, evals, otel) require symlinks for local development.
 
 ```bash
 # Python setup
@@ -53,61 +33,55 @@ pnpm run build
 
 ## Common Development Commands
 
-### Python Commands
+### Python
 
-IMPORTANT: Use `tox` for all testing, linting, and type-checking.
+IMPORTANT: Use `tox` for all testing, linting, and type-checking. Run `tox run -e ruff` (not ruff directly).
 
 ```bash
-# Linting and formatting (uses ruff)
-tox run -e ruff
-
-# Type checking
-tox run -e type_check
-
-# Running tests
-tox run -e unit_tests                    # SQLite only
-tox run -e unit_tests -- --run-postgres  # Include PostgreSQL tests
-tox run -e integration_tests
-
-# Sub-package tests
-tox run -e phoenix_client
-tox run -e phoenix_evals
-tox run -e phoenix_otel
-
-# List all tox environments
-tox list
+tox run -e ruff                          # Format and lint
+tox run -e type_check                    # Type check
+tox run -e unit_tests                    # Run tests
+tox run -e unit_tests -- --run-postgres  # Run tests with PostgreSQL
+tox run -e integration_tests             # Integration tests
+tox run -e phoenix_client                # Test sub-package
+tox list                                 # List all environments
 ```
 
-### Frontend Commands
-
-Run from `app/` directory:
+### Frontend (app/)
 
 ```bash
-# Build and test
-pnpm run build
-pnpm test
-pnpm run lint:fix
-pnpm run typecheck
-
-# Development
-pnpm dev  # Runs both server and UI with hot reload
-
-# Build Relay GraphQL schema
-pnpm run build:relay
+pnpm dev                                 # Dev server with hot reload
+pnpm run build                           # Build production
+pnpm test                                # Run tests
+pnpm run lint:fix                        # Fix linting issues
+pnpm run typecheck                       # Type check
+pnpm run build:relay                     # Build GraphQL schema
 ```
 
-### Other Commands
+### TypeScript Packages (js/)
 
 ```bash
-# Jupyter notebooks - clean output/metadata before committing
-tox run -e clean_jupyter_notebooks
+pnpm install                             # Install dependencies
+pnpm run -r build                        # Build all packages
+pnpm run -r test                         # Test all packages
+pnpm run -r lint                         # Lint all packages
+pnpm changeset                           # Create version changeset (required for PRs)
+```
 
-# Database migrations
-tox -e alembic -- upgrade head   # Run migrations
-tox -e alembic -- history        # View history
+### Other
 
-# Build Python package
-hatch build  # Creates dist/*.tar.gz and dist/*.whl
+```bash
+tox run -e clean_jupyter_notebooks       # Clean notebook metadata
+tox -e alembic -- upgrade head           # Run migrations
+hatch build                              # Build Python package
+```
+
+### Running Phoenix
+
+```bash
+cd app && pnpm dev                       # Full dev environment (server + UI)
+tox run -e phoenix_main                  # Server only
+PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev  # Fresh in-memory database
 ```
 
 ## Project Structure
@@ -133,13 +107,6 @@ phoenix/
 └── pyproject.toml       # Python package configuration
 ```
 
-## Key Files
-
-- **GraphQL Schema**: `app/schema.graphql` (generated from Python)
-- **OpenAPI Schema**: `schemas/openapi.json` (generated for clients)
-- **Version**: `src/phoenix/version.py`
-- **Migrations**: `src/phoenix/db/migrations/`
-
 ## Code Style & Conventions
 
 ### Python Style
@@ -151,31 +118,20 @@ phoenix/
 
 ### TypeScript Style
 - **Node version**: 22+
-- **Package manager**: pnpm only (enforced by preinstall script)
 - **GraphQL**: Uses Relay for data fetching
 - **Linting**: ESLint with TypeScript
 
 ### REST API Conventions
-- Use nouns for resources (pluralized), avoid verbs in paths
-- Example: `/datasets/:dataset_id` (not `/getDataset/:id`)
-- HTTP Methods: GET (retrieve), POST (create), PUT (replace), PATCH (partial update), DELETE (delete)
-- Status Codes: 2xx (success), 4xx (client error), 5xx (server error)
-- Query parameters: Use snake_case with `_` separator
-- Response format: JSON with `data` key, use snake_case for payload
-- Pagination: Cursor-based
+- Resources are nouns (pluralized): `/datasets/:dataset_id` not `/getDataset/:id`
+- Use snake_case for query params and JSON payloads
+- Responses have `data` key, cursor-based pagination
 
 ## Important Notes
 
-1. **Symbolic Links**: Always run `tox run -e add_symlinks` after setup. Sub-packages (client, evals, otel) require symlinks for local development.
+1. **Database Tests**: Default is SQLite only. Use `--run-postgres` flag for PostgreSQL tests.
 
-2. **Package Manager**: Only pnpm is allowed for frontend (enforced by preinstall script).
+2. **Notebook Metadata**: Run `tox run -e clean_jupyter_notebooks` after editing notebooks.
 
-3. **Python Version**: Use Python 3.10 for development (minimum supported version).
+3. **GraphQL Schema**: After modifying schema in Python, rebuild with `tox run -e build_graphql_schema`.
 
-4. **Ruff Usage**: Always run `tox run -e ruff` for formatting and linting (don't run ruff directly).
-
-5. **Database Tests**: By default, tests only run against SQLite. Use `--run-postgres` flag for PostgreSQL tests.
-
-6. **Notebook Metadata**: Run `tox run -e clean_jupyter_notebooks` after editing notebooks to strip output/metadata.
-
-7. **GraphQL Schema**: After modifying GraphQL schema in Python, rebuild with `tox run -e build_graphql_schema`.
+4. **Changesets**: TypeScript package changes require a changeset via `pnpm changeset`.
