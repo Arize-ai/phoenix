@@ -49,7 +49,7 @@ from .utils import (
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
 KindType = Literal["human", "llm", "heuristic", "code"]
-DirectionType = Literal["maximize", "minimize", "none"]
+DirectionType = Literal["maximize", "minimize", "neutral"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
 
