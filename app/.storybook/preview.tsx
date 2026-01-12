@@ -2,7 +2,11 @@ import React from "react";
 import { MemoryRouter } from "react-router";
 import type { Preview } from "@storybook/react";
 
-import { ProviderTheme, ThemeProvider } from "../src/contexts";
+import {
+  PreferencesProvider,
+  ProviderTheme,
+  ThemeProvider,
+} from "../src/contexts";
 import { GlobalStyles } from "../src/GlobalStyles";
 
 /**
@@ -72,17 +76,19 @@ const preview: Preview = {
 
       const contents = themes.map((theme) => (
         <ThemeProvider key={theme} themeMode={theme}>
-          <MemoryRouter initialEntries={["/"]}>
-            <GlobalStyles />
-            <StoryBackground
-              padding={
-                // Add padding to the story entries if we have multiple themes so that we can see a background color
-                numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
-              }
-            >
-              <Story />
-            </StoryBackground>
-          </MemoryRouter>
+          <PreferencesProvider>
+            <MemoryRouter initialEntries={["/"]}>
+              <GlobalStyles />
+              <StoryBackground
+                padding={
+                  // Add padding to the story entries if we have multiple themes so that we can see a background color
+                  numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
+                }
+              >
+                <Story />
+              </StoryBackground>
+            </MemoryRouter>
+          </PreferencesProvider>
         </ThemeProvider>
       ));
 
