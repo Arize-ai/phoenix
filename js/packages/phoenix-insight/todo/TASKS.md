@@ -33,7 +33,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### config-loader
 
 - content: Create `src/config/loader.ts` with functions to: (1) `getConfigPath()` - return config file path from `PHOENIX_INSIGHT_CONFIG` env var, or `--config` CLI arg, or default `~/.phoenix-insight/config.json`; (2) `loadConfigFile(path)` - read and parse JSON file, return parsed object or null if not found; (3) `validateConfig(raw)` - validate with Zod schema, log warnings on parse failure, return validated config or defaults; (4) `createDefaultConfig(path)` - if no config file exists at the default path, create the directory if needed and write a config.json with ALL default values from the schema, then log an informational message to stderr (e.g., "Created default config at ~/.phoenix-insight/config.json"). This should only trigger for the default path, not for custom paths specified via env var or CLI flag.
-- status: pending
+- status: complete
 - dependencies: config-schema
 
 ### config-singleton
