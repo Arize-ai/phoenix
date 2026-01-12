@@ -415,14 +415,38 @@ class ChatCompletionMutationMixin:
                             )
 
                     # Run LLM evaluators
-                    input_mappings_by_evaluator_node_id = {
-                        evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                    evaluator_inputs_by_node_id = {
+                        evaluator.id: evaluator for evaluator in input.evaluators
                     }
                     for llm_evaluator in llm_evaluators:
-                        input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                        evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
+                        if evaluator_input.output_config is None:
+                            error_result: EvaluationResult = {
+                                "name": str(evaluator_input.display_name),
+                                "annotator_kind": "LLM",
+                                "label": None,
+                                "score": None,
+                                "explanation": None,
+                                "metadata": {},
+                                "error": "output_config is required for LLM evaluators",
+                                "trace_id": None,
+                                "start_time": datetime.now(timezone.utc),
+                                "end_time": datetime.now(timezone.utc),
+                            }
+                            evaluations[evaluation_key].append(
+                                _to_evaluation_result_union(
+                                    error_result, str(evaluator_input.display_name)
+                                )
+                            )
+                            continue
+                        output_config = _to_pydantic_categorical_annotation_config(
+                            evaluator_input.output_config
+                        )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=input_mapping,
+                            input_mapping=evaluator_input.input_mapping,
+                            display_name=str(evaluator_input.display_name),
+                            output_config=output_config,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
@@ -432,7 +456,9 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations[evaluation_key].append(
-                            _to_evaluation_result_union(eval_result, llm_evaluator.name)
+                            _to_evaluation_result_union(
+                                eval_result, str(evaluator_input.display_name)
+                            )
                         )
 
         for (revision, repetition_number), experiment_run, result in zip(
@@ -535,14 +561,38 @@ class ChatCompletionMutationMixin:
                             )
 
                     # Run LLM evaluators
-                    input_mappings_by_evaluator_node_id = {
-                        evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                    evaluator_inputs_by_node_id = {
+                        evaluator.id: evaluator for evaluator in input.evaluators
                     }
                     for llm_evaluator in llm_evaluators:
-                        input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                        evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
+                        if evaluator_input.output_config is None:
+                            error_result: EvaluationResult = {
+                                "name": str(evaluator_input.display_name),
+                                "annotator_kind": "LLM",
+                                "label": None,
+                                "score": None,
+                                "explanation": None,
+                                "metadata": {},
+                                "error": "output_config is required for LLM evaluators",
+                                "trace_id": None,
+                                "start_time": datetime.now(timezone.utc),
+                                "end_time": datetime.now(timezone.utc),
+                            }
+                            evaluations_by_repetition[repetition_number].append(
+                                _to_evaluation_result_union(
+                                    error_result, str(evaluator_input.display_name)
+                                )
+                            )
+                            continue
+                        output_config = _to_pydantic_categorical_annotation_config(
+                            evaluator_input.output_config
+                        )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=input_mapping,
+                            input_mapping=evaluator_input.input_mapping,
+                            display_name=str(evaluator_input.display_name),
+                            output_config=output_config,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_span_annotation(
@@ -552,7 +602,9 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations_by_repetition[repetition_number].append(
-                            _to_evaluation_result_union(eval_result, llm_evaluator.name)
+                            _to_evaluation_result_union(
+                                eval_result, str(evaluator_input.display_name)
+                            )
                         )
 
         repetitions: list[ChatCompletionRepetition] = []
@@ -629,8 +681,6 @@ class ChatCompletionMutationMixin:
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
-                    annotation_name=inline_llm_evaluator.output_config.name,
-                    output_config=output_config,
                     llm_client=llm_client,
                     description=inline_llm_evaluator.description,
                 )
@@ -649,6 +699,8 @@ class ChatCompletionMutationMixin:
                 eval_result = await evaluator.evaluate(
                     context=context,
                     input_mapping=input_mapping,
+                    display_name=inline_llm_evaluator.output_config.name,
+                    output_config=output_config,
                 )
                 context_result = _to_evaluation_result_union(
                     eval_result, inline_llm_evaluator.output_config.name

@@ -69,32 +69,12 @@ class TestEvaluatorFields:
             untagged = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
-                annotation_name="goodness",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="goodness description",
-                    values=[
-                        CategoricalAnnotationValue(label="good", score=1.0),
-                        CategoricalAnnotationValue(label="bad", score=0.0),
-                    ],
-                ),
                 metadata_={"key": "value", "count": 42},
             )
             tagged = models.LLMEvaluator(
                 name=Identifier(token_hex(4)),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=tag.id,
-                annotation_name="correctness",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    description="correctness description",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
                 metadata_=None,
             )
             session.add_all([untagged, tagged])

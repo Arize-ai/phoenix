@@ -870,6 +870,8 @@ type DatasetEvaluator implements Node {
   updatedAt: DateTime!
   dataset: Dataset!
   evaluator: Evaluator!
+  description: String
+  outputConfig: CategoricalAnnotationConfig
   inputMapping: EvaluatorInputMapping!
 }
 
@@ -2306,7 +2308,6 @@ type LLMEvaluator implements Evaluator & Node {
   updatedAt: DateTime!
   inputSchema: JSON
   isBuiltin: Boolean!
-  outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
@@ -2604,7 +2605,9 @@ type PerformanceTimeSeries implements TimeSeries {
 
 input PlaygroundEvaluatorInput {
   id: ID!
+  displayName: Identifier!
   inputMapping: EvaluatorInputMappingInput! = {}
+  outputConfig: CategoricalAnnotationConfigInput = null
 }
 
 type PlaygroundModel implements ModelInterface {

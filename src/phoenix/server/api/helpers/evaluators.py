@@ -101,14 +101,16 @@ class _EvaluatorPromptToolFunctionParametersExplanationProperty(BaseModel):
 
 def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
-    evaluator: models.LLMEvaluator,
+    output_config: CategoricalAnnotationConfig,
+    annotation_name: str,
+    description: Optional[str] = None,
 ) -> None:
     validate_evaluator_prompt_and_config(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=evaluator.annotation_name,
-        evaluator_output_config=evaluator.output_config,
-        evaluator_description=evaluator.description,
+        evaluator_annotation_name=annotation_name,
+        evaluator_output_config=output_config,
+        evaluator_description=description,
     )
 
 

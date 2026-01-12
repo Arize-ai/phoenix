@@ -20,6 +20,7 @@ class OptimizationDirection(Enum):
 
 
 class _BaseAnnotationConfig(DBBaseModel):
+    name: Optional[str] = None
     description: Optional[str] = None
 
 

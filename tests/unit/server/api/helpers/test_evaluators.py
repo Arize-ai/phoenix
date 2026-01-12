@@ -46,51 +46,62 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInp
 class TestValidateConsistentLLMEvaluatorAndPromptVersion:
     def test_both_descriptions_null_does_not_raise(
         self,
-        llm_evaluator: models.LLMEvaluator,  # has description = None
-        prompt_version: models.PromptVersion,  # has tools.tools[0].function.description = UNDEFINED
+        output_config: CategoricalAnnotationConfig,
+        prompt_version: models.PromptVersion,
     ) -> None:
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        validate_consistent_llm_evaluator_and_prompt_version(
+            prompt_version, output_config, annotation_name="correctness", description=None
+        )
 
     def test_both_descriptions_strings_do_not_raise(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         description = "evaluates the correctness of the output"
-        llm_evaluator.description = description
         assert prompt_version.tools is not None
         prompt_version.tools.tools[0].function.description = description
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        validate_consistent_llm_evaluator_and_prompt_version(
+            prompt_version, output_config, annotation_name="correctness", description=description
+        )
 
     def test_string_evaluator_description_and_null_function_description_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
-        llm_evaluator.description = "a string description"
         with pytest.raises(
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version,
+                output_config,
+                annotation_name="correctness",
+                description="a string description",
+            )
 
     def test_null_evaluator_description_and_string_function_description_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
-        llm_evaluator.description = "my different description"
         prompt_version.tools.tools[0].function.description = "a string description"
         with pytest.raises(
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version,
+                output_config,
+                annotation_name="correctness",
+                description="my different description",
+            )
 
     def test_non_null_response_format_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         prompt_version.response_format = PromptResponseFormatJSONSchema(
@@ -104,11 +115,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_null_tools_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         prompt_version.tools = None
@@ -116,11 +129,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_empty_tools_list_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -131,11 +146,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_multiple_tools_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -163,11 +180,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_null_tool_choice_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -176,11 +195,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_zero_or_more_tool_choice_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -189,22 +210,26 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_specific_function_tool_choice_with_matching_name_does_not_raise(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
         prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
             type="specific_function", function_name="correctness_evaluator"
         )
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_specific_function_tool_choice_with_mismatched_name_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -215,11 +240,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_function_parameters_type_not_object_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -228,11 +255,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'type': Input should be 'object'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_empty_function_parameters_properties_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -241,11 +270,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_missing_label_property_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -264,11 +295,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_property_type_not_string_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -287,11 +320,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label.type': Input should be 'string'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_enum_less_than_two_items_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -310,11 +345,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label.enum': List should have at least 2 items after validation, not 1.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_missing_enum_field_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -332,11 +369,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label.enum': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_missing_description_field_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -354,11 +393,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="^'correctness_evaluator' function has errors. At 'properties.label.description': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_duplicate_function_parameters_required_values_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -370,11 +411,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_defined_but_not_required_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -395,11 +438,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="label",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_and_explanation_defined_but_only_label_required_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -424,11 +469,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="explanation",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_unexpected_required_property_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -447,11 +494,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="Found unexpected required properties: confidence",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_label_description_mismatch_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -470,11 +519,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_choices_mismatch_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -485,11 +536,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_with_explanation_property_does_not_raise(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -508,11 +561,13 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             },
             "required": ["label", "explanation"],
         }
-        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
     def test_explanation_property_explicitly_set_to_none_raises(
         self,
-        llm_evaluator: models.LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -532,7 +587,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            validate_consistent_llm_evaluator_and_prompt_version(
+                prompt_version, output_config, annotation_name="correctness"
+            )
 
 
 class TestApplyInputMapping:
@@ -1443,22 +1500,16 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
 
 
 @pytest.fixture
-def llm_evaluator() -> models.LLMEvaluator:
-    return models.LLMEvaluator(
-        name=Identifier("correctness_evaluator"),
-        description=None,
-        kind="LLM",
-        prompt_id=1,
-        annotation_name="correctness",
-        output_config=CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            description="correctness evaluation",
-            values=[
-                CategoricalAnnotationValue(label="correct", score=1.0),
-                CategoricalAnnotationValue(label="incorrect", score=0.0),
-            ],
-        ),
+def output_config() -> CategoricalAnnotationConfig:
+    return CategoricalAnnotationConfig(
+        type="CATEGORICAL",
+        name="correctness",
+        optimization_direction=OptimizationDirection.MAXIMIZE,
+        description="correctness evaluation",
+        values=[
+            CategoricalAnnotationValue(label="correct", score=1.0),
+            CategoricalAnnotationValue(label="incorrect", score=0.0),
+        ],
     )
 
 

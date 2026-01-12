@@ -77,8 +77,6 @@ class LLMEvaluator:
         name: str,
         description: Optional[str],
         metadata: dict[str, Any],
-        annotation_name: str,
-        output_config: CategoricalAnnotationConfig,
         template: PromptChatTemplate,
         template_format: PromptTemplateFormat,
         tools: PromptTools,
@@ -87,18 +85,9 @@ class LLMEvaluator:
         llm_client: "PlaygroundStreamingClient[Any]",
         id: Optional[int] = None,
     ):
-        validate_evaluator_prompt_and_config(
-            prompt_tools=tools,
-            prompt_response_format=None,
-            evaluator_annotation_name=annotation_name,
-            evaluator_output_config=output_config,
-            evaluator_description=description,
-        )
         self._name = name
         self._description = description
         self._metadata = metadata
-        self._annotation_name = annotation_name
-        self._output_config = output_config
         self._template = template
         self._template_format = template_format
         self._tools = tools
@@ -118,14 +107,6 @@ class LLMEvaluator:
     @property
     def metadata(self) -> dict[str, Any]:
         return self._metadata
-
-    @property
-    def annotation_name(self) -> str:
-        return self._annotation_name
-
-    @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return self._output_config
 
     @property
     def template(self) -> PromptChatTemplate:
@@ -159,8 +140,6 @@ class LLMEvaluator:
             name=llm_evaluator_orm.name.root,
             description=llm_evaluator_orm.description,
             metadata=llm_evaluator_orm.metadata_,
-            annotation_name=llm_evaluator_orm.annotation_name,
-            output_config=llm_evaluator_orm.output_config,
             template=template,
             template_format=prompt_version_orm.template_format,
             tools=tools,
@@ -206,6 +185,8 @@ class LLMEvaluator:
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: CategoricalAnnotationConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -273,14 +254,14 @@ class LLMEvaluator:
 
             scores_by_label = {
                 config_value.label: config_value.score
-                for config_value in self._output_config.values
+                for config_value in output_config.values
             }
             score = scores_by_label.get(label)
             explanation = args.get("explanation")
 
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self._annotation_name,
+                name=display_name,
                 annotator_kind="LLM",
                 label=label,
                 score=score,
@@ -295,7 +276,7 @@ class LLMEvaluator:
             logger.exception(f"LLM evaluator '{self._name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self._annotation_name,
+                name=display_name,
                 annotator_kind="LLM",
                 label=None,
                 score=None,
@@ -555,14 +536,13 @@ def evaluation_result_to_span_annotation(
 def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
-    annotation_name: str,
-    output_config: CategoricalAnnotationConfig,
     llm_client: "PlaygroundStreamingClient[Any]",
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
     Creates an LLMEvaluator instance from inline definition without database persistence.
     Used for evaluator preview functionality.
+    Note: display_name and output_config are passed at evaluate() time.
     """
     template = prompt_version_orm.template
     assert isinstance(template, PromptChatTemplate)
@@ -574,8 +554,6 @@ def create_llm_evaluator_from_inline(
         name="preview",
         description=description,
         metadata={},
-        annotation_name=annotation_name,
-        output_config=output_config,
         template=template,
         template_format=prompt_version_orm.template_format,
         tools=tools,

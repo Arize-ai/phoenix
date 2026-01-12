@@ -249,29 +249,6 @@ class LLMEvaluator(Evaluator, Node):
         return EvaluatorKind(val)
 
     @strawberry.field
-    async def output_config(
-        self,
-        info: Info[Context, None],
-    ) -> CategoricalAnnotationConfig:
-        config: CategoricalAnnotationConfigModel
-        annotation_name: str
-        if self.db_record:
-            assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
-            config = self.db_record.output_config
-            annotation_name = self.db_record.annotation_name
-        else:
-            results = await info.context.data_loaders.llm_evaluator_fields.load_many(
-                [
-                    (self.id, models.LLMEvaluator.output_config),
-                    (self.id, models.LLMEvaluator.annotation_name),
-                ]
-            )
-            config, annotation_name = results
-        return _to_gql_categorical_annotation_config(
-            config=config, annotation_name=annotation_name, evaluator_id=self.id
-        )
-
-    @strawberry.field
     async def created_at(
         self,
         info: Info[Context, None],
@@ -545,6 +522,29 @@ class DatasetEvaluator(Node):
                     raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
         else:
             raise ValueError("DatasetEvaluator has no evaluator_id or builtin_evaluator_id")
+
+    @strawberry.field
+    async def description(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        record = await self._get_record(info)
+        return record.description
+
+    @strawberry.field
+    async def output_config(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[CategoricalAnnotationConfig]:
+        record = await self._get_record(info)
+        if record.output_config is None:
+            return None
+        annotation_name = record.output_config.name or record.display_name.root
+        return _to_gql_categorical_annotation_config(
+            config=record.output_config,
+            evaluator_id=record.evaluator_id or record.builtin_evaluator_id or 0,
+            annotation_name=annotation_name,
+        )
 
     @strawberry.field
     async def input_mapping(

@@ -1,8 +1,15 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
+
+from phoenix.server.api.types.Identifier import Identifier
+
+if TYPE_CHECKING:
+    from phoenix.server.api.mutations.annotation_config_mutations import (
+        CategoricalAnnotationConfigInput,
+    )
 
 
 @strawberry.input
@@ -22,6 +29,13 @@ class EvaluatorInputMappingInput:
 @strawberry.input
 class PlaygroundEvaluatorInput:
     id: GlobalID
+    display_name: Identifier
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
     )
+    output_config: Optional[
+        strawberry.LazyType[
+            "CategoricalAnnotationConfigInput",
+            "phoenix.server.api.mutations.annotation_config_mutations",
+        ]
+    ] = None

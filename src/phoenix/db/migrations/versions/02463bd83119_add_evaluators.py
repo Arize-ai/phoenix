@@ -147,8 +147,6 @@ def upgrade() -> None:
             sa.ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
             index=True,
         ),
-        sa.Column("annotation_name", sa.String, nullable=False),
-        sa.Column("output_config", JSON_, nullable=False),
         sa.Column(
             "updated_at",
             sa.TIMESTAMP(timezone=True),
@@ -204,6 +202,8 @@ def upgrade() -> None:
         ),
         sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
         sa.Column("display_name", sa.String, nullable=False),
+        sa.Column("description", sa.String, nullable=True),
+        sa.Column("output_config", JSON_, nullable=True),
         sa.Column("input_mapping", JSON_, nullable=False),
         sa.Column(
             "created_at",

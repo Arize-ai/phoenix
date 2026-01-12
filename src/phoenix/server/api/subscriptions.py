@@ -65,6 +65,9 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
+from phoenix.server.api.mutations.annotation_config_mutations import (
+    _to_pydantic_categorical_annotation_config,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -203,18 +206,31 @@ async def _stream_single_chat_completion(
                         repetition_number=repetition_number,
                     )
 
-            input_mappings_by_evaluator_node_id = {
-                evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+            evaluator_inputs_by_node_id = {
+                evaluator.id: evaluator for evaluator in input.evaluators
             }
             for llm_evaluator in llm_evaluators:
-                input_mapping = input_mappings_by_evaluator_node_id[llm_evaluator.node_id]
+                evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
+                if evaluator_input.output_config is None:
+                    yield EvaluationErrorChunk(
+                        evaluator_name=str(evaluator_input.display_name),
+                        message="output_config is required for LLM evaluators",
+                        dataset_example_id=None,
+                        repetition_number=repetition_number,
+                    )
+                    continue
+                output_config = _to_pydantic_categorical_annotation_config(
+                    evaluator_input.output_config
+                )
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
-                    input_mapping=input_mapping,
+                    input_mapping=evaluator_input.input_mapping,
+                    display_name=str(evaluator_input.display_name),
+                    output_config=output_config,
                 )
                 if result["error"] is not None:
                     yield EvaluationErrorChunk(
-                        evaluator_name=llm_evaluator.name,
+                        evaluator_name=str(evaluator_input.display_name),
                         message=result["error"],
                         dataset_example_id=None,
                         repetition_number=repetition_number,
@@ -666,20 +682,31 @@ class Subscription:
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                        input_mappings_by_evaluator_node_id = {
-                            evaluator.id: evaluator.input_mapping for evaluator in input.evaluators
+                        evaluator_inputs_by_node_id = {
+                            evaluator.id: evaluator for evaluator in input.evaluators
                         }
                         for llm_evaluator in llm_evaluators:
-                            input_mapping = input_mappings_by_evaluator_node_id[
-                                llm_evaluator.node_id
-                            ]
+                            evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
+                            if evaluator_input.output_config is None:
+                                yield EvaluationErrorChunk(
+                                    evaluator_name=str(evaluator_input.display_name),
+                                    message="output_config is required for LLM evaluators",
+                                    dataset_example_id=example_id,
+                                    repetition_number=repetition_number,
+                                )
+                                continue
+                            output_config = _to_pydantic_categorical_annotation_config(
+                                evaluator_input.output_config
+                            )
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
-                                input_mapping=input_mapping,
+                                input_mapping=evaluator_input.input_mapping,
+                                display_name=str(evaluator_input.display_name),
+                                output_config=output_config,
                             )
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(
-                                    evaluator_name=llm_evaluator.name,
+                                    evaluator_name=str(evaluator_input.display_name),
                                     message=result["error"],
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
