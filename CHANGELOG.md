@@ -1,5 +1,31 @@
 # Changelog
 
+## [12.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.28.1...arize-phoenix-v12.29.0) (2026-01-12)
+
+
+### Features
+
+* Add connection timeout error handling ([#10903](https://github.com/Arize-ai/phoenix/issues/10903)) ([7821898](https://github.com/Arize-ai/phoenix/commit/7821898ecfce96743fd12bf7904a4703940a43f7))
+* correctness evaluator ([#10829](https://github.com/Arize-ai/phoenix/issues/10829)) ([da13ad5](https://github.com/Arize-ai/phoenix/commit/da13ad54784bfbdcd133a0c18e5f99e80a2b6482))
+* Display span event attributes in Phoenix UI ([#10916](https://github.com/Arize-ai/phoenix/issues/10916)) ([299ad56](https://github.com/Arize-ai/phoenix/commit/299ad56095470c322a34978882697617f4ba7af1))
+* upgrade react router ([#10889](https://github.com/Arize-ai/phoenix/issues/10889)) ([45c511e](https://github.com/Arize-ai/phoenix/commit/45c511e0340958c9e7a9c196dcc5a2a652d86e64))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#10784](https://github.com/Arize-ai/phoenix/issues/10784)) ([8ba35d2](https://github.com/Arize-ai/phoenix/commit/8ba35d25c0a039dfadf3df2a15a3d53b382a0aef))
+* **deps:** update arize-phoenix-client to 1.27.2 ([#10863](https://github.com/Arize-ai/phoenix/issues/10863)) ([73b6e7b](https://github.com/Arize-ai/phoenix/commit/73b6e7b8eca6341bfc1968906f5e89abdd338189))
+* **deps:** update arize-phoenix-evals to 2.8.0 ([#10875](https://github.com/Arize-ai/phoenix/issues/10875)) ([9004179](https://github.com/Arize-ai/phoenix/commit/9004179d86af9b0693938290f2c6ab334a3741f7))
+* ensure correct MIME type for JavaScript files on Windows ([#10890](https://github.com/Arize-ai/phoenix/issues/10890)) ([3adeedc](https://github.com/Arize-ai/phoenix/commit/3adeedc92d6a0ffa62bb752656c9338eac76169a))
+* make the delete experiment a modal ([#10838](https://github.com/Arize-ai/phoenix/issues/10838)) ([9df8e47](https://github.com/Arize-ai/phoenix/commit/9df8e478f1193eda00130d5d4eb683f8b52ed020))
+* Update link for span annotation documentation ([#10913](https://github.com/Arize-ai/phoenix/issues/10913)) ([2e64970](https://github.com/Arize-ai/phoenix/commit/2e64970514f06b670340a99f7cbdb247b4111ce2))
+
+
+### Documentation
+
+* document tenancy ([#10856](https://github.com/Arize-ai/phoenix/issues/10856)) ([17f6ba9](https://github.com/Arize-ai/phoenix/commit/17f6ba9605d647a78bbf2c875edd08a785c69d43))
+* new python quickstarts  ([#10821](https://github.com/Arize-ai/phoenix/issues/10821)) ([f907b15](https://github.com/Arize-ai/phoenix/commit/f907b15f1dcc68bc872edb10a36081559c58577c))
+
 ## [12.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.28.0...arize-phoenix-v12.28.1) (2026-01-07)
 
 
