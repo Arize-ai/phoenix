@@ -9,7 +9,6 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
@@ -224,8 +223,8 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             type="specific_function", function_name="correctness_evaluator"
         )
         validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            prompt_version, output_config, annotation_name="correctness"
+        )
 
     def test_specific_function_tool_choice_with_mismatched_name_raises(
         self,
@@ -562,8 +561,8 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             "required": ["label", "explanation"],
         }
         validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            prompt_version, output_config, annotation_name="correctness"
+        )
 
     def test_explanation_property_explicitly_set_to_none_raises(
         self,

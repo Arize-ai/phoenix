@@ -18,7 +18,6 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_config
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -253,8 +252,7 @@ class LLMEvaluator:
                 raise ValueError("LLM response missing required 'label' field")
 
             scores_by_label = {
-                config_value.label: config_value.score
-                for config_value in output_config.values
+                config_value.label: config_value.score for config_value in output_config.values
             }
             score = scores_by_label.get(label)
             explanation = args.get("explanation")
