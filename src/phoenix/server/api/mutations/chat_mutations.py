@@ -388,7 +388,7 @@ class ChatCompletionMutationMixin:
                     context_dict: dict[str, Any] = {
                         "input": revision.input,
                         "reference": revision.output,
-                        "output": experiment_run.output,
+                        "output": experiment_run.output.get("task_output", experiment_run.output),
                     }
 
                     # Run builtin evaluators
