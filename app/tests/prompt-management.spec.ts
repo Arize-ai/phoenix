@@ -19,7 +19,7 @@ test.describe("Prompt Management", () => {
     await page
       .getByText("You are a chatbot")
       .fill("You are a helpful assistant");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save Prompt" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
@@ -38,7 +38,7 @@ test.describe("Prompt Management", () => {
   test("can edit a prompt", async ({ page }) => {
     await page.goto("/playground");
     await page.waitForURL("**/playground");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save Prompt" }).click();
     await page.getByPlaceholder("Select or enter new prompt").click();
     const promptName = `chatbot-${randomUUID()}`;
     await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
