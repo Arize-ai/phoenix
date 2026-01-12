@@ -944,6 +944,96 @@ class TestDatasetLLMEvaluatorMutations:
         assert result.errors
         assert "not found" in result.errors[0].message.lower()
 
+    async def test_create_llm_evaluators_with_same_name_on_different_datasets(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test that creating evaluators with the same name on different datasets succeeds."""
+        async with db() as session:
+            second_dataset = models.Dataset(name=f"second-dataset-{token_hex(4)}", metadata_={})
+            session.add(second_dataset)
+            await session.flush()
+            second_dataset_id = second_dataset.id
+
+        dataset1_gid = str(GlobalID("Dataset", str(empty_dataset.id)))
+        dataset2_gid = str(GlobalID("Dataset", str(second_dataset_id)))
+
+        evaluator_input = dict(
+            description="test description",
+            promptVersion=dict(
+                templateFormat="MUSTACHE",
+                template=dict(
+                    messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
+                ),
+                invocationParameters=dict(
+                    temperature=0.0,
+                    tool_choice=dict(type="function", function=dict(name="my-evaluator")),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="my-evaluator",
+                                description="test description",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        label=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                            description="correctness",
+                                        )
+                                    ),
+                                    required=["label"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfig=dict(
+                name="correctness",
+                description="correctness eval",
+                optimizationDirection="MAXIMIZE",
+                values=[
+                    dict(label="correct", score=1),
+                    dict(label="incorrect", score=0),
+                ],
+            ),
+        )
+
+        result1 = await self._create(
+            gql_client,
+            datasetId=dataset1_gid,
+            name="my-evaluator",
+            **evaluator_input,
+        )
+        assert result1.data and not result1.errors
+
+        result2 = await self._create(
+            gql_client,
+            datasetId=dataset2_gid,
+            name="my-evaluator",
+            **evaluator_input,
+        )
+        assert result2.data and not result2.errors
+
+        assert (
+            result1.data["createDatasetLlmEvaluator"]["evaluator"]["displayName"] == "my-evaluator"
+        )
+        assert (
+            result2.data["createDatasetLlmEvaluator"]["evaluator"]["displayName"] == "my-evaluator"
+        )
+
+        name1 = result1.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
+        name2 = result2.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
+        assert name1 != name2
+
 
 class TestUpdateDatasetLLMEvaluatorMutation:
     _UPDATE_MUTATION = """
