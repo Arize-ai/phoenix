@@ -20,6 +20,7 @@ import {
   initializeObservability,
   shutdownObservability,
 } from "./observability/index.js";
+import { initializeConfig, type CliArgs } from "./config/index.js";
 
 // Version will be read from package.json during build
 const VERSION = "0.0.1";
@@ -173,18 +174,41 @@ program
   .description("A CLI for Phoenix data analysis with AI agents")
   .version(VERSION)
   .usage("[options] [query]")
+  .option(
+    "--config <path>",
+    "Path to config file (default: ~/.phoenix-insight/config.json, or set PHOENIX_INSIGHT_CONFIG env var)"
+  )
   .addHelpText(
     "after",
     `
+Configuration:
+  Config values are loaded with the following priority (highest to lowest):
+    1. CLI arguments (e.g., --base-url)
+    2. Environment variables (e.g., PHOENIX_BASE_URL)
+    3. Config file (~/.phoenix-insight/config.json)
+
+  Use --config to specify a custom config file path.
+  Set PHOENIX_INSIGHT_CONFIG env var to override the default config location.
+
 Examples:
   $ phoenix-insight                                               # Start interactive mode
   $ phoenix-insight "What are the slowest traces?"                # Single query (sandbox mode)
   $ phoenix-insight --interactive                                  # Explicitly start interactive mode
   $ phoenix-insight --local "Show me error patterns"              # Local mode with persistence
   $ phoenix-insight --local --stream "Analyze recent experiments"  # Local mode with streaming
+  $ phoenix-insight --config ./my-config.json "Analyze traces"    # Use custom config file
   $ phoenix-insight help                                          # Show this help message
 `
-  );
+  )
+  .hook("preAction", async (thisCommand) => {
+    // Get the --config option from the root command
+    const opts = thisCommand.opts();
+    const cliArgs: CliArgs = {
+      config: opts.config,
+    };
+    // Initialize config singleton before any command runs
+    await initializeConfig(cliArgs);
+  });
 
 program
   .command("snapshot")

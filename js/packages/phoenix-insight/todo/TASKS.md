@@ -49,7 +49,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### cli-config-flag
 
 - content: Add `--config <path>` global option to the CLI in `src/cli.ts`. This flag should be parsed early (before other options) and passed to `initializeConfig()`. Update help text to document the new flag.
-- status: pending
+- status: complete
 - dependencies: config-singleton
 
 ### cli-use-config

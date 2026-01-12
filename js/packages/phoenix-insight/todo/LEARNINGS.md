@@ -52,3 +52,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Re-exported `Config` type from `index.ts` for convenience - users can import both `getConfig` and `Config` from the same module
 - Test pattern: mock `fs.access` to throw ENOENT to simulate "file doesn't exist" scenario for `createDefaultConfig`
 - The env var mappings are centralized in `ENV_VAR_MAPPINGS` constant for easy maintenance and documentation
+
+## cli-config-flag
+
+- Commander.js provides `.hook('preAction', ...)` to run async code before any command action - perfect for initializing config singleton early
+- Global options must be added to the main program (not subcommands) with `.option()` before any `.command()` definitions
+- The `--config` flag becomes available as `thisCommand.opts().config` in the preAction hook, where `thisCommand` is the root Command instance
+- In the hook, only pass `{ config: opts.config }` to `initializeConfig()` - CLI args for other options will be handled in a later task (cli-use-config)
+- Help text best practices: Add a "Configuration:" section explaining priority order (CLI > env vars > config file) with examples
+- For integration tests that need file system, use `fs.mkdtemp()` to create unique temp directories and clean up in `afterEach`
+- Test both "happy path" (valid config file) and error cases (non-existent file, invalid JSON) to ensure graceful handling
+- The config singleton's `initializeConfig()` is async because it may need to create the default config file on first run
