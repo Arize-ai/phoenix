@@ -11,7 +11,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 4. Write and run tests
 5. Change the task's status to `complete`
 6. Append learnings to LEARNINGS.md
-7. Commit with message: `feat(phoenix-insight): <task-id> - <description>`
+7. Commit with message: `refactor(phoenix-insight): <task-id> - <description>`
 8. EXIT
 
 ## Task Statuses
@@ -22,54 +22,82 @@ Each agent picks the next pending task, implements it, and marks it complete.
 
 ---
 
-## Phase 1: Config Schema & Core
+## Phase 1: Delete Ineffective and Skipped Tests
 
-### config-schema
+These tests provide no value - they either check file existence, match documentation text, or are already skipped.
 
-- content: Create `src/config/schema.ts` with Zod schema for all config values: `baseUrl` (string, default "http://localhost:6006"), `apiKey` (string, optional), `limit` (number, default 1000), `stream` (boolean, default true), `mode` ("sandbox" | "local", default "sandbox"), `refresh` (boolean, default false), `trace` (boolean, default false). Export the schema and inferred TypeScript type `Config`.
-- status: complete
+### delete-scaffold-structure-test
+
+- content: Delete `test/scaffold-structure.test.ts` - it only checks source file existence using `fs.existsSync`, which is not meaningful unit testing (build/typecheck already validates structure)
+- status: pending
 - dependencies: none
 
-### config-loader
+### delete-skipped-cli-tests
 
-- content: Create `src/config/loader.ts` with functions to: (1) `getConfigPath()` - return config file path from `PHOENIX_INSIGHT_CONFIG` env var, or `--config` CLI arg, or default `~/.phoenix-insight/config.json`; (2) `loadConfigFile(path)` - read and parse JSON file, return parsed object or null if not found; (3) `validateConfig(raw)` - validate with Zod schema, log warnings on parse failure, return validated config or defaults; (4) `createDefaultConfig(path)` - if no config file exists at the default path, create the directory if needed and write a config.json with ALL default values from the schema, then log an informational message to stderr (e.g., "Created default config at ~/.phoenix-insight/config.json"). This should only trigger for the default path, not for custom paths specified via env var or CLI flag.
-- status: complete
-- dependencies: config-schema
-
-### config-singleton
-
-- content: Create `src/config/index.ts` with singleton pattern: (1) `initializeConfig(cliArgs)` - merge config file < env vars < CLI args (with priority to env vars as specified), validate with Zod, store in module-level variable; (2) `getConfig()` - return the initialized config or throw if not initialized. Export `Config` type from schema.
-- status: complete
-- dependencies: config-loader
+- content: Delete the three skipped test files that spawn real processes: `test/cli-prune.test.ts`, `test/cli-flags.test.ts`, `test/cli-help.test.ts` - they are not running and would be dangerous if unskipped
+- status: pending
+- dependencies: none
 
 ---
 
-## Phase 2: CLI Integration
+## Phase 2: Refactor CLI Tests (Process Execution)
 
-### cli-config-flag
+These tests use `execAsync` to spawn real CLI processes, which is dangerous (leaky network, real I/O). Refactor to test exported functions directly, or delete if logic is not easily testable.
 
-- content: Add `--config <path>` global option to the CLI in `src/cli.ts`. This flag should be parsed early (before other options) and passed to `initializeConfig()`. Update help text to document the new flag.
-- status: complete
-- dependencies: config-singleton
+### refactor-cli-test
 
-### cli-use-config
+- content: Refactor `test/cli.test.ts` to test CLI logic via exported functions (command parsing, option handling) instead of spawning real processes with `execAsync`. If the CLI entry point doesn't expose testable units, delete the tests that require process execution.
+- status: pending
+- dependencies: delete-scaffold-structure-test, delete-skipped-cli-tests
 
-- content: Refactor `src/cli.ts` to use the config singleton instead of directly reading `process.env` and CLI options. Replace all occurrences of `options.baseUrl`, `options.apiKey`, `options.limit`, `options.stream`, `options.local`, `options.refresh`, `options.trace` with `getConfig().<field>`. Remove default value specifications from Commander options (config provides defaults).
-- status: complete
-- dependencies: cli-config-flag
+### refactor-cli-use-config-test
 
-### cli-snapshot-use-config
+- content: Refactor `test/cli-use-config.test.ts` to use mocked filesystem instead of creating real temp directories and files. Test config loading logic through exported functions with `vi.mock("node:fs/promises")` instead of spawning real CLI processes.
+- status: pending
+- dependencies: refactor-cli-test
 
-- content: Update the `snapshot` command in `src/cli.ts` to use `getConfig()` for `baseUrl`, `apiKey`, and `trace` instead of reading from options directly.
-- status: complete
-- dependencies: cli-use-config
+### refactor-cli-config-flag-test
+
+- content: Refactor `test/cli-config-flag.test.ts` to use mocked filesystem and test flag parsing logic directly instead of spawning real CLI processes. Delete if config flag logic is already covered by other tests.
+- status: pending
+- dependencies: refactor-cli-use-config-test
+
+### refactor-cli-snapshot-use-config-test
+
+- content: Refactor `test/cli-snapshot-use-config.test.ts` to use mocked filesystem and test snapshot config integration through exported functions instead of spawning real CLI processes.
+- status: pending
+- dependencies: refactor-cli-config-flag-test
 
 ---
 
-## Phase 3: Documentation & Cleanup
+## Phase 3: Refactor Filesystem Tests
 
-### readme-config-docs
+These tests write to real filesystem locations (temp dirs, `~/.phoenix-insight/`). Refactor to use mocked `fs` module.
 
-- content: Update `README.md` to document the new config system: (1) Add section explaining config file location and format; (2) Document `PHOENIX_INSIGHT_CONFIG` env var; (3) Document `--config` CLI flag; (4) Add example `config.json` with all options; (5) Explain precedence order (config file < env vars < CLI args); (6) Document the auto-creation behavior on first launch (default config file is created automatically with all default values if not present).
-- status: complete
-- dependencies: cli-snapshot-use-config
+### refactor-local-mode-test
+
+- content: Refactor `test/local-mode.test.ts` to use `vi.mock("node:fs/promises")` instead of writing to real directories in `~/.phoenix-insight/snapshots/`. Mock all fs operations to prevent any real disk I/O.
+- status: pending
+- dependencies: refactor-cli-snapshot-use-config-test
+
+### refactor-snapshot-incremental-local-test
+
+- content: Refactor `test/snapshot-incremental-local.test.ts` to use mocked filesystem instead of creating real directories in `os.tmpdir()`. The LocalMode integration should be tested with mocked fs operations.
+- status: pending
+- dependencies: refactor-local-mode-test
+
+### refactor-agent-tools-test
+
+- content: Refactor `test/agent/tools.test.ts` to remove the temp directory creation in `os.tmpdir()` (lines 53-59). Use mocked filesystem for any tests that need directory structure.
+- status: pending
+- dependencies: refactor-snapshot-incremental-local-test
+
+---
+
+## Phase 4: Final Verification
+
+### verify-all-tests-pass
+
+- content: Run `pnpm test` and verify all tests pass. Run `pnpm typecheck` to ensure no type errors. Document any tests that were deleted vs refactored in LEARNINGS.md summary.
+- status: pending
+- dependencies: refactor-agent-tools-test
