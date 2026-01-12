@@ -99,5 +99,5 @@ These tests write to real filesystem locations (temp dirs, `~/.phoenix-insight/`
 ### verify-all-tests-pass
 
 - content: Run `pnpm test` and verify all tests pass. Run `pnpm typecheck` to ensure no type errors. Document any tests that were deleted vs refactored in LEARNINGS.md summary.
-- status: pending
+- status: complete
 - dependencies: refactor-agent-tools-test
