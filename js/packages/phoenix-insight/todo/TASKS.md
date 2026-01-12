@@ -39,7 +39,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### config-singleton
 
 - content: Create `src/config/index.ts` with singleton pattern: (1) `initializeConfig(cliArgs)` - merge config file < env vars < CLI args (with priority to env vars as specified), validate with Zod, store in module-level variable; (2) `getConfig()` - return the initialized config or throw if not initialized. Export `Config` type from schema.
-- status: pending
+- status: complete
 - dependencies: config-loader
 
 ---

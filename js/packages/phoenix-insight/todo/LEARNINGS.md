@@ -40,3 +40,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Using `fs.access()` to check if a file exists is cleaner than catching ENOENT from `fs.readFile` when you specifically need to check existence
 - Tests use `vi.mock("node:fs/promises")` to mock the fs module entirely - this prevents actual file system operations during tests
 - The test file is located at `test/config/loader.test.ts` to match the source file location pattern (`src/config/loader.ts`)
+
+## config-singleton
+
+- The singleton pattern uses a module-level variable (`configInstance`) with `initializeConfig()` to set it and `getConfig()` to retrieve it
+- Added `resetConfig()` for testing - essential for test isolation since the singleton persists across tests
+- The CLI uses `--local` flag but the config uses `mode: "sandbox" | "local"` - the `cliArgsToConfig()` function handles this conversion
+- Environment variable parsing requires type-specific handling: strings pass through, numbers need `parseInt`, booleans need string comparison (`"true"`, `"1"`), and enums need validation
+- Used `configSchema.safeParse()` for final validation to avoid throwing on invalid merged configs - instead logs warnings and falls back to defaults
+- The `CliArgs` interface maps directly to Commander.js options, making integration straightforward in the next task
+- Re-exported `Config` type from `index.ts` for convenience - users can import both `getConfig` and `Config` from the same module
+- Test pattern: mock `fs.access` to throw ENOENT to simulate "file doesn't exist" scenario for `createDefaultConfig`
+- The env var mappings are centralized in `ENV_VAR_MAPPINGS` constant for easy maintenance and documentation
