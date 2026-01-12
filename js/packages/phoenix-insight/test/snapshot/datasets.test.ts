@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fetchDatasets } from "../../src/snapshot/datasets.js";
 import type { ExecutionMode } from "../../src/modes/types.js";
-import { PhoenixClientError } from "../../src/snapshot/client.js";
 
 // Mock the Phoenix client module
 vi.mock("@arizeai/phoenix-client", () => ({

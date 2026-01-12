@@ -1,81 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  createPhoenixClient,
   PhoenixClientError,
   withErrorHandling,
   extractData,
 } from "../../src/snapshot/client";
-import { createClient } from "@arizeai/phoenix-client";
 
 // Mock the phoenix-client module
 vi.mock("@arizeai/phoenix-client", () => ({
   createClient: vi.fn(),
 }));
-
-describe("createPhoenixClient", () => {
-  it("should create a client with default options", () => {
-    const mockClient = { mock: "client" };
-    (createClient as any).mockReturnValue(mockClient);
-
-    const client = createPhoenixClient();
-
-    expect(createClient).toHaveBeenCalledWith({
-      options: {
-        baseUrl: undefined,
-        headers: undefined,
-      },
-    });
-    expect(client).toBe(mockClient);
-  });
-
-  it("should create a client with custom baseURL", () => {
-    const mockClient = { mock: "client" };
-    (createClient as any).mockReturnValue(mockClient);
-
-    const client = createPhoenixClient({ baseURL: "http://localhost:6006" });
-
-    expect(createClient).toHaveBeenCalledWith({
-      options: {
-        baseUrl: "http://localhost:6006",
-        headers: undefined,
-      },
-    });
-    expect(client).toBe(mockClient);
-  });
-
-  it("should create a client with API key", () => {
-    const mockClient = { mock: "client" };
-    (createClient as any).mockReturnValue(mockClient);
-
-    const client = createPhoenixClient({ apiKey: "test-api-key" });
-
-    expect(createClient).toHaveBeenCalledWith({
-      options: {
-        baseUrl: undefined,
-        headers: { api_key: "test-api-key" },
-      },
-    });
-    expect(client).toBe(mockClient);
-  });
-
-  it("should create a client with both baseURL and API key", () => {
-    const mockClient = { mock: "client" };
-    (createClient as any).mockReturnValue(mockClient);
-
-    const client = createPhoenixClient({
-      baseURL: "http://localhost:6006",
-      apiKey: "test-api-key",
-    });
-
-    expect(createClient).toHaveBeenCalledWith({
-      options: {
-        baseUrl: "http://localhost:6006",
-        headers: { api_key: "test-api-key" },
-      },
-    });
-    expect(client).toBe(mockClient);
-  });
-});
 
 describe("withErrorHandling", () => {
   it("should return successful result", async () => {

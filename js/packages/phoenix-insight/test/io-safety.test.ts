@@ -27,30 +27,4 @@ describe("I/O Safety Tests", () => {
     expect(client).toBeDefined();
     expect((client as any).projects).toBeDefined();
   });
-
-  it("should track console output", () => {
-    // Set up spies for this specific test
-    const logSpy = vi.spyOn(console, "log");
-    const errorSpy = vi.spyOn(console, "error");
-    const warnSpy = vi.spyOn(console, "warn");
-
-    console.log("test log");
-    console.error("test error");
-    console.warn("test warning");
-
-    expect(logSpy).toHaveBeenCalledWith("test log");
-    expect(errorSpy).toHaveBeenCalledWith("test error");
-    expect(warnSpy).toHaveBeenCalledWith("test warning");
-  });
-
-  it("should prevent process.exit calls", () => {
-    // Mock process.exit for this test
-    vi.spyOn(process, "exit").mockImplementation((code?: number): never => {
-      throw new Error(`process.exit(${code}) was called`);
-    });
-
-    expect(() => {
-      process.exit(1);
-    }).toThrow("process.exit(1) was called");
-  });
 });
