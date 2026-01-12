@@ -212,7 +212,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
               overflow: hidden;
               text-overflow: ellipsis;
               display: block;
-              max-width: 300px;
             `}
             title={row.original.description ?? undefined}
           >
@@ -359,7 +358,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     }
     return cols;
   }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
-  // eslint-disable-next-line react-hooks/incompatible-library
+
   const table = useReactTable({
     columns,
     data: tableData,
