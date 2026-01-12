@@ -43,6 +43,37 @@ from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
 
+async def _generate_unique_evaluator_name(
+    session: AsyncSession,
+    base_name: str,
+    max_attempts: int = 5,
+) -> IdentifierModel:
+    """
+    Generate a unique evaluator name by appending a suffix if needed.
+    Returns the original name if unique, otherwise appends a random suffix.
+    Retries up to max_attempts times if random collisions occur.
+    """
+    name = IdentifierModel.model_validate(base_name)
+    exists = await session.scalar(
+        select(models.Evaluator.id).where(models.Evaluator.name == name).limit(1)
+    )
+    if exists is None:
+        return name
+
+    for _ in range(max_attempts):
+        candidate = f"{base_name}-{token_hex(4)}"
+        candidate_name = IdentifierModel.model_validate(candidate)
+        exists = await session.scalar(
+            select(models.Evaluator.id).where(models.Evaluator.name == candidate_name).limit(1)
+        )
+        if exists is None:
+            return candidate_name
+
+    raise RuntimeError(
+        f"Failed to generate unique evaluator name after {max_attempts} attempts"
+    )
+
+
 async def _ensure_evaluator_prompt_label(
     session: AsyncSession,
     prompt_id: int,
@@ -192,32 +223,34 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
         try:
-            evaluator_name = IdentifierModel.model_validate(input.name)
+            display_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
-        code_evaluator = models.CodeEvaluator(
-            name=evaluator_name,
-            description=input.description or None,
-            kind="CODE",
-            user_id=user_id,
-            dataset_evaluators=[
-                models.DatasetEvaluators(
-                    dataset_id=dataset_id,
-                    display_name=evaluator_name,
-                    input_mapping={},
-                )
-            ]
-            # only add dataset relationship if dataset_id is provided
-            if dataset_id is not None
-            else [],
-        )
         try:
             async with info.context.db() as session:
+                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                code_evaluator = models.CodeEvaluator(
+                    name=evaluator_name,
+                    description=input.description or None,
+                    kind="CODE",
+                    user_id=user_id,
+                    dataset_evaluators=[
+                        models.DatasetEvaluators(
+                            dataset_id=dataset_id,
+                            display_name=display_name,
+                            input_mapping={},
+                        )
+                    ]
+                    if dataset_id is not None
+                    else [],
+                )
                 session.add(code_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
-            raise BadRequest(f"Evaluator with name {input.name} already exists")
+            raise BadRequest(
+                f"An evaluator with display name '{input.name}' already exists for this dataset"
+            )
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
             query=Query(),
@@ -241,23 +274,21 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         config = _to_pydantic_categorical_annotation_config(input.output_config)
         try:
-            evaluator_name = IdentifierModel.model_validate(input.name)
+            display_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
-        dataset_evaluator_record = models.DatasetEvaluators(
-            dataset_id=dataset_id,
-            display_name=evaluator_name,
-            # ensure input_mapping is persisted as a dict
-            # otherwise, if you immediately query this evaluator in the return payload,
-            # the input_mapping will not be inspectable as a dictionary
-            # crashing the return payload
-            input_mapping=input.input_mapping.to_dict()
-            if input.input_mapping is not None
-            else {"literal_mapping": {}, "path_mapping": {}},
-        )
 
         try:
             async with info.context.db() as session:
+                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                dataset_evaluator_record = models.DatasetEvaluators(
+                    dataset_id=dataset_id,
+                    display_name=display_name,
+                    input_mapping=input.input_mapping.to_dict()
+                    if input.input_mapping is not None
+                    else {"literal_mapping": {}, "path_mapping": {}},
+                )
+
                 # Handle prompt version ID if provided
                 target_prompt_version_id: Optional[int] = None
                 prompt: models.Prompt | None = None
@@ -346,7 +377,9 @@ class EvaluatorMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
-            raise BadRequest(f"Evaluator with name {input.name} already exists")
+            raise BadRequest(
+                f"An evaluator with display name '{input.name}' already exists for this dataset"
+            )
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(
                 id=dataset_evaluator_record.id, db_record=dataset_evaluator_record
