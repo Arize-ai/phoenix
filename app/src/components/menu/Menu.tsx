@@ -86,7 +86,7 @@ const menuItemCss = css`
   color: var(--ac-global-text-color-900);
   position: relative;
   display: flex;
-  gap: var(--ac-global-dimension-static-size-50);
+
   align-items: center;
   justify-content: space-between;
 
@@ -155,7 +155,7 @@ export const MenuItem = <T extends object>({
         return (
           <>
             {isSelected && <Icon svg={<Icons.Checkmark />} />}
-            {selectionMode === "multiple" && !isSelected && (
+            {selectionMode !== "none" && !isSelected && (
               <Icon
                 svg={<Icons.CheckmarkOutline />}
                 css={css`
@@ -239,10 +239,14 @@ export const MenuContainer = ({
   children,
   placement = "bottom end",
   minHeight = 300,
+  maxHeight = 650,
+  maxWidth = 450,
   ...popoverProps
 }: PropsWithChildren &
   Omit<PopoverProps, "maxHeight" | "maxWidth"> & {
     minHeight?: React.CSSProperties["minHeight"];
+    maxHeight?: React.CSSProperties["maxHeight"];
+    maxWidth?: React.CSSProperties["maxWidth"];
   }) => {
   return (
     <Popover
@@ -252,13 +256,12 @@ export const MenuContainer = ({
       {...popoverProps}
     >
       <div
-        style={{ minHeight }}
+        style={{ minHeight, maxHeight, maxWidth }}
         css={css`
           display: flex;
           flex-direction: column;
           height: 100%;
           min-width: 300px;
-          max-height: inherit;
         `}
       >
         {children}
@@ -291,7 +294,7 @@ export const MenuSectionTitle = ({
 /**
  * A menu header is a header for a menu.
  * This is the header for the menu, and should be used in conjunction with MenuTrigger and MenuContainer.
- * It includes a padding, border, and flexbox layout.
+ * It includes a border and flexbox layout. Children are responsible for their own padding.
  * It is typically placed above a sibling Menu component.
  * @see https://react-spectrum.adobe.com/react-aria/MenuHeader.html
  * @example
@@ -313,12 +316,16 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-static-size-100);
         border-bottom: 1px solid var(--ac-global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        gap: var(--ac-global-dimension-static-size-100);
+
+        /* Add vertical padding to quiet SearchFields in header */
+        .ac-searchfield[data-variant="quiet"] .react-aria-Input {
+          padding-top: var(--ac-global-dimension-size-300);
+          padding-bottom: var(--ac-global-dimension-size-300);
+        }
       `}
     >
       {children}
@@ -356,6 +363,9 @@ export const MenuHeaderTitle = ({
       alignItems="center"
       wrap="nowrap"
       minHeight={30}
+      css={css`
+        padding: var(--ac-global-dimension-static-size-100);
+      `}
     >
       {leadingContent}
       <Heading
@@ -364,6 +374,7 @@ export const MenuHeaderTitle = ({
         css={css`
           flex: 1 1 auto;
           width: 100%;
+          padding-left: var(--ac-global-dimension-static-size-50);
         `}
       >
         {children}
