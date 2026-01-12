@@ -83,7 +83,7 @@ These tests write to real filesystem locations (temp dirs, `~/.phoenix-insight/`
 ### refactor-snapshot-incremental-local-test
 
 - content: Refactor `test/snapshot-incremental-local.test.ts` to use mocked filesystem instead of creating real directories in `os.tmpdir()`. The LocalMode integration should be tested with mocked fs operations.
-- status: pending
+- status: complete
 - dependencies: refactor-local-mode-test
 
 ### refactor-agent-tools-test

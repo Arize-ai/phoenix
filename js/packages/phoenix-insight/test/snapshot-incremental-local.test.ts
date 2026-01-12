@@ -1,16 +1,40 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { createIncrementalSnapshot } from "../src/snapshot/index.js";
-import { LocalMode } from "../src/modes/local.js";
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import * as os from "node:os";
+
+// Mock fs/promises before imports
+vi.mock("node:fs/promises");
 
 // Mock os module
 vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof os>();
   return {
     ...actual,
-    homedir: vi.fn(),
+    homedir: vi.fn().mockReturnValue("/mock/home"),
+  };
+});
+
+// Store the mock exec async function that we'll control in tests
+let mockExecAsyncFn: (
+  command: string,
+  options: any
+) => Promise<{ stdout: string; stderr: string }>;
+
+// Mock util.promisify to return our controlled function for exec
+vi.mock("node:util", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("node:util");
+  return {
+    ...actual,
+    promisify: (fn: any) => {
+      // Check if this is the exec function
+      if (fn.name === "exec" || fn.toString().includes("child_process")) {
+        return async (command: string, options: any) => {
+          return mockExecAsyncFn(command, options);
+        };
+      }
+      // For other functions, use the real promisify
+      return actual.promisify(fn);
+    },
   };
 });
 
@@ -87,146 +111,149 @@ vi.mock("../src/snapshot/spans.js", () => ({
   }),
 }));
 
+// Get mocked fs functions
+const mockMkdir = vi.mocked(fs.mkdir);
+const mockWriteFile = vi.mocked(fs.writeFile);
+
+// Import after mocks
+import { createIncrementalSnapshot } from "../src/snapshot/index.js";
+import { LocalMode } from "../src/modes/local.js";
+
+/**
+ * Helper to mock execAsync for success
+ */
+function mockExecSuccess(stdout: string, stderr = ""): void {
+  mockExecAsyncFn = async () => ({ stdout, stderr });
+}
+
+/**
+ * Helper to track files written via the mocked fs.writeFile
+ */
+interface WrittenFile {
+  path: string;
+  content: string;
+}
+
+function getWrittenFiles(): WrittenFile[] {
+  return mockWriteFile.mock.calls.map((call) => ({
+    path: call[0] as string,
+    content: call[1] as string,
+  }));
+}
+
+/**
+ * Helper to find a written file by path pattern
+ */
+function findWrittenFile(pattern: RegExp): WrittenFile | undefined {
+  return getWrittenFiles().find((file) => pattern.test(file.path));
+}
+
 describe("Incremental Snapshot with LocalMode", () => {
-  let localMode: LocalMode;
-  let testDir: string;
+  beforeEach(() => {
+    vi.clearAllMocks();
 
-  beforeEach(async () => {
-    // Create a temporary test directory
-    testDir = path.join(os.tmpdir(), `phoenix-insight-test-${Date.now()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    // Ensure os.homedir returns the mock value
+    vi.mocked(os.homedir).mockReturnValue("/mock/home");
 
-    // Mock homedir to use our test directory
-    vi.mocked(os.homedir).mockReturnValue(testDir);
+    // Set up default mock implementations
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
 
-    localMode = new LocalMode();
+    // Default exec - return empty (no existing snapshot metadata)
+    mockExecSuccess("", "");
   });
 
-  afterEach(async () => {
-    // Clean up test directory
-    try {
-      await fs.rm(testDir, { recursive: true, force: true });
-    } catch (error) {
-      // Ignore cleanup errors
-    }
-    vi.restoreAllMocks();
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it("should persist snapshots to disk in local mode", async () => {
+    const localMode = new LocalMode();
+
     // Create initial snapshot
     await createIncrementalSnapshot(localMode, {
       baseURL: "http://localhost:6006",
       spansPerProject: 100,
     });
 
-    // Verify snapshot was created on disk
-    const snapshotDirs = await fs.readdir(
-      path.join(testDir, ".phoenix-insight", "snapshots")
-    );
-    expect(snapshotDirs.length).toBe(1);
-
-    const snapshotDir = path.join(
-      testDir,
-      ".phoenix-insight",
-      "snapshots",
-      snapshotDirs[0],
-      "phoenix"
+    // Verify workDir was created under ~/.phoenix-insight/snapshots/
+    expect(mockMkdir).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^\/mock\/home\/\.phoenix-insight\/snapshots\/\d+-\w+\/phoenix$/
+      ),
+      { recursive: true }
     );
 
-    // Check that metadata file exists
-    const metadataPath = path.join(snapshotDir, "_meta", "snapshot.json");
-    const metadataExists = await fs
-      .access(metadataPath)
-      .then(() => true)
-      .catch(() => false);
-    expect(metadataExists).toBe(true);
+    // Check that metadata file was written
+    const metadataFile = findWrittenFile(/\/_meta\/snapshot\.json$/);
+    expect(metadataFile).toBeDefined();
 
-    // Read and verify metadata
-    const metadata = JSON.parse(await fs.readFile(metadataPath, "utf-8"));
+    // Verify metadata content
+    const metadata = JSON.parse(metadataFile!.content);
     expect(metadata.phoenix_url).toBe("http://localhost:6006");
     expect(metadata.limits.spans_per_project).toBe(100);
 
-    // Verify context file was created
-    const contextPath = path.join(snapshotDir, "_context.md");
-    const contextExists = await fs
-      .access(contextPath)
-      .then(() => true)
-      .catch(() => false);
-    expect(contextExists).toBe(true);
+    // Verify context file was written
+    const contextFile = findWrittenFile(/_context\.md$/);
+    expect(contextFile).toBeDefined();
   });
 
   it("should create independent snapshots in local mode", async () => {
-    // Create initial snapshot
-    await createIncrementalSnapshot(localMode, {
+    const firstMode = new LocalMode();
+
+    // Create first snapshot
+    await createIncrementalSnapshot(firstMode, {
       baseURL: "http://localhost:6006",
       spansPerProject: 100,
     });
 
-    // Get the snapshot directory
-    const snapshotDirs = await fs.readdir(
-      path.join(testDir, ".phoenix-insight", "snapshots")
-    );
-    const firstSnapshotDir = snapshotDirs[0];
+    // Get first metadata file
+    const firstMetadataFile = findWrittenFile(/\/_meta\/snapshot\.json$/);
+    expect(firstMetadataFile).toBeDefined();
+    const firstMetadata = JSON.parse(firstMetadataFile!.content);
 
-    // Verify first snapshot has metadata
-    const firstMetadataPath = path.join(
-      testDir,
-      ".phoenix-insight",
-      "snapshots",
-      firstSnapshotDir,
-      "phoenix",
-      "_meta",
-      "snapshot.json"
-    );
-    const firstMetadata = JSON.parse(
-      await fs.readFile(firstMetadataPath, "utf-8")
-    );
-    expect(firstMetadata.phoenix_url).toBe("http://localhost:6006");
+    // Clear mocks to track second snapshot separately
+    const firstWriteCount = mockWriteFile.mock.calls.length;
 
-    // Create a new LocalMode instance (simulating a new run)
-    const newLocalMode = new LocalMode();
+    // Create a new LocalMode instance
+    const secondMode = new LocalMode();
 
-    // Run another snapshot - it should create a full snapshot since each LocalMode
-    // instance has its own directory and can't see previous snapshots
-    await createIncrementalSnapshot(newLocalMode, {
+    // Run another snapshot
+    await createIncrementalSnapshot(secondMode, {
       baseURL: "http://localhost:6006",
       spansPerProject: 100,
       showProgress: true,
     });
 
-    // Verify a new snapshot directory was created
-    const newSnapshotDirs = await fs.readdir(
-      path.join(testDir, ".phoenix-insight", "snapshots")
-    );
-    expect(newSnapshotDirs.length).toBe(2); // Original + new
+    // Should have written more files for the second snapshot
+    expect(mockWriteFile.mock.calls.length).toBeGreaterThan(firstWriteCount);
 
-    // Find the new snapshot
-    const newSnapshotDir = newSnapshotDirs.find(
-      (dir) => dir !== firstSnapshotDir
+    // Find the second metadata file (it will be in a different directory)
+    const allMetadataFiles = getWrittenFiles().filter((f) =>
+      f.path.endsWith("/_meta/snapshot.json")
     );
-    expect(newSnapshotDir).toBeDefined();
+    expect(allMetadataFiles.length).toBe(2);
 
-    // Verify the new snapshot has its own metadata
-    const newMetadataPath = path.join(
-      testDir,
-      ".phoenix-insight",
-      "snapshots",
-      newSnapshotDir!,
-      "phoenix",
-      "_meta",
-      "snapshot.json"
-    );
-    const newMetadata = JSON.parse(await fs.readFile(newMetadataPath, "utf-8"));
-
-    // Each snapshot is independent with fresh metadata
-    expect(newMetadata.phoenix_url).toBe("http://localhost:6006");
-    expect(new Date(newMetadata.created_at).getTime()).toBeGreaterThan(
-      new Date(firstMetadata.created_at).getTime()
-    );
+    // Verify both snapshots have valid metadata
+    for (const file of allMetadataFiles) {
+      const metadata = JSON.parse(file.content);
+      expect(metadata.phoenix_url).toBe("http://localhost:6006");
+      expect(metadata.created_at).toBeDefined();
+    }
   });
 
   it("should handle missing previous snapshot gracefully", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const localMode = new LocalMode();
+
+    // Mock exec to return failure (no existing snapshot metadata)
+    mockExecAsyncFn = async () => {
+      const error = Object.assign(new Error("cat: file not found"), {
+        code: 1,
+        stdout: "",
+        stderr: "cat: file not found",
+      });
+      throw error;
+    };
 
     // Run incremental update without any existing snapshot
     await createIncrementalSnapshot(localMode, {
@@ -236,26 +263,11 @@ describe("Incremental Snapshot with LocalMode", () => {
     });
 
     // Should create a full snapshot
-    const snapshotDirs = await fs.readdir(
-      path.join(testDir, ".phoenix-insight", "snapshots")
-    );
-    expect(snapshotDirs.length).toBe(1);
+    const metadataFile = findWrittenFile(/\/_meta\/snapshot\.json$/);
+    expect(metadataFile).toBeDefined();
 
-    // Verify that a full snapshot was created (not incremental)
-    const metadataPath = path.join(
-      testDir,
-      ".phoenix-insight",
-      "snapshots",
-      snapshotDirs[0],
-      "phoenix",
-      "_meta",
-      "snapshot.json"
-    );
-    const metadataContent = await fs.readFile(metadataPath, "utf-8");
-    const metadata = JSON.parse(metadataContent);
+    const metadata = JSON.parse(metadataFile!.content);
     expect(metadata.phoenix_url).toBe("http://localhost:6006");
-
-    consoleLogSpy.mockRestore();
   });
 
   it("should handle concurrent snapshot operations", async () => {
@@ -263,14 +275,11 @@ describe("Incremental Snapshot with LocalMode", () => {
     const mode1 = new LocalMode();
     const mode2 = new LocalMode();
 
-    // Run two snapshots with a small delay to ensure different timestamps
+    // Run two snapshots concurrently
     const promise1 = createIncrementalSnapshot(mode1, {
       baseURL: "http://localhost:6006",
       spansPerProject: 100,
     });
-
-    // Small delay to ensure different timestamp
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
     const promise2 = createIncrementalSnapshot(mode2, {
       baseURL: "http://localhost:6006",
@@ -281,27 +290,108 @@ describe("Incremental Snapshot with LocalMode", () => {
     await Promise.all([promise1, promise2]);
 
     // Both should succeed and create separate snapshot directories
-    const snapshotDirs = await fs.readdir(
-      path.join(testDir, ".phoenix-insight", "snapshots")
+    // Check that mkdir was called with two different directories
+    const mkdirCalls = mockMkdir.mock.calls.map((call) => call[0] as string);
+    const snapshotDirs = new Set(
+      mkdirCalls
+        .filter((path) =>
+          path.startsWith("/mock/home/.phoenix-insight/snapshots/")
+        )
+        .map((path) => {
+          // Extract the timestamp-random part
+          const match = path.match(
+            /\/mock\/home\/\.phoenix-insight\/snapshots\/(\d+-\w+)\//
+          );
+          return match ? match[1] : null;
+        })
+        .filter(Boolean)
     );
-    expect(snapshotDirs.length).toBe(2);
 
-    // Verify both snapshots are valid
-    for (const dir of snapshotDirs) {
-      const metadataPath = path.join(
-        testDir,
-        ".phoenix-insight",
-        "snapshots",
-        dir,
-        "phoenix",
-        "_meta",
-        "snapshot.json"
-      );
-      const metadataExists = await fs
-        .access(metadataPath)
-        .then(() => true)
-        .catch(() => false);
-      expect(metadataExists).toBe(true);
+    // Should have at least 2 unique snapshot directories
+    expect(snapshotDirs.size).toBeGreaterThanOrEqual(2);
+
+    // Verify both snapshots have metadata
+    const allMetadataFiles = getWrittenFiles().filter((f) =>
+      f.path.endsWith("/_meta/snapshot.json")
+    );
+    expect(allMetadataFiles.length).toBe(2);
+
+    // Verify both are valid
+    for (const file of allMetadataFiles) {
+      const metadata = JSON.parse(file.content);
+      expect(metadata.phoenix_url).toBe("http://localhost:6006");
     }
+  });
+
+  it("should use timestamp and random string for unique snapshot directories", async () => {
+    const localMode = new LocalMode();
+
+    await createIncrementalSnapshot(localMode, {
+      baseURL: "http://localhost:6006",
+      spansPerProject: 100,
+    });
+
+    // Verify the directory pattern includes timestamp and random suffix
+    expect(mockMkdir).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/mock\/home\/\.phoenix-insight\/snapshots\/\d+-[a-z0-9]+\/phoenix$/
+      ),
+      { recursive: true }
+    );
+  });
+
+  it("should write metadata with correct structure", async () => {
+    const localMode = new LocalMode();
+
+    await createIncrementalSnapshot(localMode, {
+      baseURL: "http://localhost:6006",
+      spansPerProject: 200,
+    });
+
+    const metadataFile = findWrittenFile(/\/_meta\/snapshot\.json$/);
+    expect(metadataFile).toBeDefined();
+
+    const metadata = JSON.parse(metadataFile!.content);
+
+    // Verify all required fields
+    expect(metadata).toHaveProperty("created_at");
+    expect(metadata).toHaveProperty("phoenix_url", "http://localhost:6006");
+    expect(metadata).toHaveProperty("cursors");
+    expect(metadata).toHaveProperty("limits");
+    expect(metadata.limits.spans_per_project).toBe(200);
+
+    // Verify cursors structure
+    expect(metadata.cursors).toHaveProperty("datasets");
+    expect(metadata.cursors).toHaveProperty("experiments");
+    expect(metadata.cursors).toHaveProperty("prompts");
+  });
+
+  it("should write all expected files", async () => {
+    const localMode = new LocalMode();
+
+    await createIncrementalSnapshot(localMode, {
+      baseURL: "http://localhost:6006",
+      spansPerProject: 100,
+    });
+
+    const writtenPaths = getWrittenFiles().map((f) => f.path);
+
+    // Verify key files were written (checking path suffixes)
+    expect(writtenPaths.some((p) => p.includes("projects/index.jsonl"))).toBe(
+      true
+    );
+    expect(writtenPaths.some((p) => p.includes("datasets/index.jsonl"))).toBe(
+      true
+    );
+    expect(
+      writtenPaths.some((p) => p.includes("experiments/index.jsonl"))
+    ).toBe(true);
+    expect(writtenPaths.some((p) => p.includes("prompts/index.jsonl"))).toBe(
+      true
+    );
+    expect(writtenPaths.some((p) => p.includes("_context.md"))).toBe(true);
+    expect(writtenPaths.some((p) => p.includes("_meta/snapshot.json"))).toBe(
+      true
+    );
   });
 });

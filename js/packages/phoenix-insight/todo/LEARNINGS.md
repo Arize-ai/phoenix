@@ -129,3 +129,36 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Mocked `os.homedir()` to return `/mock/home` so workDir paths are predictable
 - Tests now run in ~7ms instead of potentially seconds for real disk/process operations
 - Result: 22 comprehensive unit tests with zero real disk I/O or process spawning
+
+## refactor-snapshot-incremental-local-test
+
+- Completely rewrote `test/snapshot-incremental-local.test.ts` from real filesystem tests to mocked unit tests
+- Original: 4 tests that created real directories in `os.tmpdir()` and used `fs.readdir`, `fs.access`, `fs.readFile`, `fs.rm`
+- Refactored: 7 tests that mock `node:fs/promises`, `node:util`, and `node:os` to verify behavior via mock function calls
+- Key change in verification approach:
+  - Original: Read real files from disk to verify content (e.g., `await fs.readdir(...)`, `await fs.readFile(...)`)
+  - Refactored: Track `fs.writeFile` mock calls and verify paths/content directly from mock call history
+- Helper functions added for cleaner test assertions:
+  - `getWrittenFiles()` - returns array of {path, content} from mock writeFile calls
+  - `findWrittenFile(pattern)` - finds a written file by regex pattern on path
+- Critical gotcha with `vi.restoreAllMocks()` vs `vi.clearAllMocks()`:
+  - `vi.restoreAllMocks()` restores original implementations, breaking mocks for subsequent tests
+  - `vi.clearAllMocks()` only clears call history but keeps mock implementations
+  - Solution: Use `vi.clearAllMocks()` in afterEach, and re-apply critical mocks in beforeEach:
+    ```typescript
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.mocked(os.homedir).mockReturnValue("/mock/home"); // Re-apply!
+      mockMkdir.mockResolvedValue(undefined);
+      mockWriteFile.mockResolvedValue(undefined);
+    });
+    ```
+- Pattern for mocking `util.promisify` with `exec` - reused from `local-mode.test.ts`:
+  - This test file creates `LocalMode` instances which use `promisify(exec)` internally
+  - Must mock `node:util.promisify` to return controlled async function for exec
+- Tests verify integration between `createIncrementalSnapshot()` and `LocalMode`:
+  - Snapshot directory creation in ~/.phoenix-insight/snapshots/
+  - Metadata file structure and content
+  - Multiple independent snapshots creating separate directories
+  - Concurrent snapshot handling
+- Result: 7 comprehensive unit tests with zero real disk I/O, runs in ~6ms
