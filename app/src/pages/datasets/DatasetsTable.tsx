@@ -19,9 +19,21 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link, LinkButton, Token } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  LinkButton,
+  Token,
+  Tooltip,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { CompactJSONCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -31,6 +43,7 @@ import {
   useViewerCanModify,
 } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import {
@@ -40,6 +53,10 @@ import {
 import { DatasetActionMenu } from "./DatasetActionMenu";
 import { DatasetsEmpty } from "./DatasetsEmpty";
 const PAGE_SIZE = 100;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
 
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
@@ -62,6 +79,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
   "use no memo";
   const { filter, labelFilter } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnSizing, setColumnSizing] = useState({});
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -187,6 +205,20 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "description",
         accessorKey: "description",
         enableSorting: false,
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <span
+            css={css`
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              display: block;
+              max-width: 300px;
+            `}
+            title={row.original.description ?? undefined}
+          >
+            {row.original.description}
+          </span>
+        ),
       },
       {
         header: "created at",
@@ -194,28 +226,43 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: TimestampCell,
       },
       {
-        header: "example count",
+        header: "examples",
         accessorKey: "exampleCount",
         enableSorting: false,
         meta: {
           textAlign: "right" as const,
         },
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <Link to={`${row.original.id}/examples`}>
+            {row.original.exampleCount}
+          </Link>
+        ),
       },
       {
-        header: "experiment count",
+        header: "experiments",
         accessorKey: "experimentCount",
         enableSorting: false,
         meta: {
           textAlign: "right" as const,
         },
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <Link to={`${row.original.id}/experiments`}>
+            {row.original.experimentCount}
+          </Link>
+        ),
       },
       {
-        header: "evaluator count",
+        header: "evaluators",
         accessorKey: "evaluatorCount",
         enableSorting: false,
         meta: {
           textAlign: "right" as const,
         },
+        cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
+          <Link to={`${row.original.id}/evaluators`}>
+            {row.original.evaluatorCount}
+          </Link>
+        ),
       },
       {
         header: "metadata",
@@ -233,11 +280,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
-              <LinkButton
-                size="S"
-                to={`/playground?datasetId=${row.original.id}`}
-                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              />
+              <TooltipTrigger delay={0}>
+                <LinkButton
+                  size="S"
+                  to={`/playground?datasetId=${row.original.id}`}
+                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                />
+                <Tooltip>Open in Playground</Tooltip>
+              </TooltipTrigger>
               <DatasetActionMenu
                 datasetId={row.original.id}
                 datasetName={row.original.name}
@@ -315,10 +365,17 @@ export function DatasetsTable(props: DatasetsTableProps) {
     data: tableData,
     state: {
       sorting,
+      columnSizing,
+      columnPinning: {
+        right: ["actions"],
+      },
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
     manualSorting: true,
   });
 
@@ -347,6 +404,30 @@ export function DatasetsTable(props: DatasetsTableProps) {
   }, [sorting, refetch, filter, labelFilter]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+
   return (
     <div
       css={css`
@@ -356,39 +437,64 @@ export function DatasetsTable(props: DatasetsTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                    ...getCommonPinningStyles(header.column),
+                  }}
+                >
                   {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort() ? "sort" : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                        style: {
-                          textAlign: header.column.columnDef.meta?.textAlign,
-                        },
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
+                    <>
+                      <div
+                        {...{
+                          className: header.column.getCanSort() ? "sort" : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            textAlign: header.column.columnDef.meta?.textAlign,
+                          },
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
                   )}
                 </th>
               ))}
@@ -414,10 +520,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
+                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
                     return (
                       <td
                         key={cell.id}
                         align={cell.column.columnDef.meta?.textAlign}
+                        style={{
+                          width: `calc(var(${colSizeVar}) * 1px)`,
+                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                          ...getCommonPinningStyles(cell.column),
+                        }}
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
