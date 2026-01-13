@@ -15,7 +15,6 @@ import {
   Heading,
   Icon,
   Icons,
-  Link,
   ListBox,
   ListBoxItem,
   Text,
@@ -38,8 +37,9 @@ const annotationListBoxCSS = css`
 export function AnnotationConfigList(props: {
   projectId: string;
   spanId: string;
+  refetchKey?: number;
 }) {
-  const { projectId, spanId } = props;
+  const { projectId, spanId, refetchKey = 0 } = props;
   const [filter, setFilter] = useState<string>("");
   const { viewer } = useViewer();
   const viewerId = viewer?.id;
@@ -77,7 +77,8 @@ export function AnnotationConfigList(props: {
         }
       }
     `,
-    { projectId }
+    { projectId },
+    { fetchKey: refetchKey, fetchPolicy: "store-and-network" }
   );
 
   const projectAnnotationData =
@@ -286,22 +287,18 @@ export function AnnotationConfigList(props: {
                   alignItems="center"
                   justifyContent="center"
                 >
-                  {filter ? (
-                    <Text
-                      color="text-700"
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        textAlign: "center",
-                        padding: 0,
-                      }}
-                    >
-                      No annotation configs found for &quot;{filter}&quot;
-                    </Text>
-                  ) : (
-                    <Link to="/settings/annotations">
-                      Configure Annotation Configs
-                    </Link>
-                  )}
+                  <Text
+                    color="text-700"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      textAlign: "center",
+                      padding: 0,
+                    }}
+                  >
+                    {filter
+                      ? `No annotation configs found for "${filter}".`
+                      : "No annotation configs found."}
+                  </Text>
                 </Flex>
               </View>
             )}
