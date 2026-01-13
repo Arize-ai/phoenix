@@ -69,9 +69,7 @@ async def _generate_unique_evaluator_name(
         if exists is None:
             return candidate_name
 
-    raise RuntimeError(
-        f"Failed to generate unique evaluator name after {max_attempts} attempts"
-    )
+    raise RuntimeError(f"Failed to generate unique evaluator name after {max_attempts} attempts")
 
 
 async def _ensure_evaluator_prompt_label(

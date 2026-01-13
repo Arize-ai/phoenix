@@ -908,6 +908,179 @@ class TestChatCompletionMutationMixin:
             annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
+    async def test_experiment_run_output_includes_available_tools(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that experiment run output includes available_tools field when tools are used."""
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        get_weather_tool = {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "City name"},
+                    },
+                    "required": ["location"],
+                },
+            },
+        }
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              experimentId
+              examples {
+                experimentRunId
+              }
+            }
+          }
+
+          query GetExperimentRun($runId: ID!) {
+            run: node(id: $runId) {
+              ... on ExperimentRun {
+                id
+                output
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What's the weather in {city}?",
+                    }
+                ],
+                "tools": [get_weather_tool],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+            }
+        }
+
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            run_id = examples[0]["experimentRunId"]
+
+        # Query for the experiment run to check its output
+        result = await gql_client.execute(query, {"runId": run_id}, "GetExperimentRun")
+        assert not result.errors
+        assert (data := result.data)
+        assert (run := data["run"])
+        assert (output := run["output"])
+
+        # Verify available_tools is present in the output
+        assert "available_tools" in output
+        assert isinstance(output["available_tools"], list)
+        assert len(output["available_tools"]) == 1
+        assert output["available_tools"][0]["type"] == "function"
+        assert output["available_tools"][0]["function"]["name"] == "get_weather"
+
+    async def test_experiment_run_output_always_includes_available_tools_field(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that experiment run output always includes available_tools field, even when no tools are used."""
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              experimentId
+              examples {
+                experimentRunId
+              }
+            }
+          }
+
+          query GetExperimentRun($runId: ID!) {
+            run: node(id: $runId) {
+              ... on ExperimentRun {
+                id
+                output
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                # No tools provided
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+            }
+        }
+
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            run_id = examples[0]["experimentRunId"]
+
+        # Query for the experiment run to check its output
+        result = await gql_client.execute(query, {"runId": run_id}, "GetExperimentRun")
+        assert not result.errors
+        assert (data := result.data)
+        assert (run := data["run"])
+        assert (output := run["output"])
+
+        # Verify available_tools is present in the output, even when empty
+        assert "available_tools" in output
+        assert isinstance(output["available_tools"], list)
+        assert len(output["available_tools"]) == 0  # Empty list when no tools used
+
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
