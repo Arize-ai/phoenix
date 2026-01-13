@@ -201,20 +201,6 @@ export function ExperimentCompareDetails({
     return experimentsById;
   }, [experiments]);
 
-  // Repetition count based on what's visible in the data
-  const seenRepetitionsByExperimentId = useMemo(() => {
-    const counts: Record<string, number> = {};
-    experimentIds.forEach((experimentId) => {
-      const maxRep =
-        experimentRuns
-          ?.filter((run) => run.run.experimentId === experimentId)
-          .reduce((max, run) => Math.max(max, run.run.repetitionNumber), 0) ??
-        0;
-      counts[experimentId] = Math.max(maxRep, 1);
-    });
-    return counts;
-  }, [experimentRuns, experimentIds]);
-
   const experimentRepetitionsByExperimentId = useMemo(() => {
     const experimentRepetitionsByExperimentId: Record<
       string,
@@ -222,8 +208,11 @@ export function ExperimentCompareDetails({
     > = {};
     experimentIds.forEach((experimentId) => {
       experimentRepetitionsByExperimentId[experimentId] = [];
-      const seenRepetitions = seenRepetitionsByExperimentId[experimentId];
-      range(seenRepetitions).forEach((repetitionIndex) => {
+      const experiment = experimentsById[experimentId];
+      if (!experiment) {
+        return;
+      }
+      range(experiment.repetitions).forEach((repetitionIndex) => {
         const repetitionNumber = repetitionIndex + 1;
         const experimentRun = experimentRuns?.find(
           (run) =>
@@ -245,7 +234,7 @@ export function ExperimentCompareDetails({
       });
     });
     return experimentRepetitionsByExperimentId;
-  }, [experimentRuns, experimentIds, seenRepetitionsByExperimentId]);
+  }, [experimentRuns, experimentIds, experimentsById]);
 
   return (
     <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
@@ -304,9 +293,9 @@ export function ExperimentCompareDetails({
             }
             annotationSummaries={annotationSummaries}
             referenceOutput={referenceOutput}
-            includeRepetitions={Object.values(
-              seenRepetitionsByExperimentId
-            ).some((count) => count > 1)}
+            includeRepetitions={Object.values(experimentsById).some(
+              (experiment) => experiment.repetitions > 1
+            )}
             openTraceDialog={openTraceDialog}
             defaultSelectedRepetitionNumber={defaultSelectedRepetitionNumber}
           >

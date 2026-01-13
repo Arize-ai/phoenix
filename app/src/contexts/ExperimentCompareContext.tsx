@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { orderBy } from "lodash";
+import { orderBy, range } from "lodash";
 
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 
@@ -109,7 +109,7 @@ export function ExperimentCompareDetailsProvider({
       initializeSelectionState(
         experimentIds,
         baseExperimentId,
-        experimentRepetitionsByExperimentId,
+        experimentsById,
         defaultSelectedRepetitionNumber
       )
     );
@@ -268,19 +268,20 @@ export type {
 function initializeSelectionState(
   experimentIds: string[],
   baseExperimentId: string,
-  experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>,
+  experimentsById: Record<string, Experiment>,
   defaultSelectedRepetitionNumber?: number
 ): ExperimentRepetitionSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
-    const repetitions = experimentRepetitionsByExperimentId[experimentId] ?? [];
-    return repetitions.map((rep) => {
+    const experiment = experimentsById[experimentId];
+    return range(experiment.repetitions).map((repetitionIndex) => {
+      const repetitionNumber = repetitionIndex + 1;
       return {
         experimentId,
-        repetitionNumber: rep.repetitionNumber,
+        repetitionNumber,
         selected:
           experimentId === baseExperimentId &&
           defaultSelectedRepetitionNumber !== undefined
-            ? rep.repetitionNumber === defaultSelectedRepetitionNumber
+            ? repetitionNumber === defaultSelectedRepetitionNumber
             : true,
       };
     });

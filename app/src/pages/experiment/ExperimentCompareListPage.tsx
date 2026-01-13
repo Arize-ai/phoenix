@@ -434,12 +434,6 @@ export function ExperimentCompareListPage({
     );
   }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
-  // A repetition count derived from the actual data
-  const seenRepetitions = useMemo(() => {
-    if (tableData.length === 0) return 1;
-    return Math.max(...tableData.map((row) => row.repetitionNumber));
-  }, [tableData]);
-
   type TableRow = (typeof tableData)[number];
   const columnHelper = useMemo(() => createColumnHelper<TableRow>(), []);
 
@@ -1109,7 +1103,7 @@ export function ExperimentCompareListPage({
     state: {
       sorting,
       columnVisibility: {
-        repetitionNumber: seenRepetitions > 1,
+        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
       },
     },
     manualSorting: true,
@@ -1273,7 +1267,7 @@ export function ExperimentCompareListPage({
             rows[selectedExampleIndex] && (
               <ExperimentCompareDetailsDialog
                 repetitionNumber={
-                  seenRepetitions > 1
+                  baseExperiment?.repetitions > 1
                     ? rows[selectedExampleIndex].original.repetitionNumber
                     : undefined
                 }
