@@ -102,14 +102,15 @@ export function jsonStringToFlatObject(
 }
 
 /**
- * Given a message content attribute value, returns a normalized json string.
+ * Formats content of any type into a string suitable for rendering.
  *
- * This string can then be passed into a JSON Editor or rendered as text.
+ * Handles double-stringified JSON, pretty-prints objects and arrays,
+ * and preserves valid top-level JSON values.
  *
- * @param content - the content to normalize
- * @returns a normalized json string
+ * @param content - the content to format
+ * @returns a formatted string representation of the content
  */
-export function normalizeMessageContent(content?: unknown): string {
+export function formatContentAsString(content?: unknown): string {
   if (typeof content === "string") {
     const isDoubleStringified =
       content.startsWith('"{') ||

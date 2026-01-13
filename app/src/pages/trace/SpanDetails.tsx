@@ -94,7 +94,7 @@ import {
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import {
-  normalizeMessageContent,
+  formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -1417,7 +1417,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
-  const normalizedContent = normalizeMessageContent(messageContent);
+  const normalizedContent = formatContentAsString(messageContent);
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
   const toolCalls = message[MessageAttributePostfixes.tool_calls]

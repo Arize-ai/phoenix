@@ -20,7 +20,7 @@ import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ToolCallPart, ToolResultPart } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import {
-  normalizeMessageContent,
+  formatContentAsString,
   safelyStringifyJSON,
 } from "@phoenix/utils/jsonUtils";
 
@@ -42,7 +42,7 @@ export function ChatTemplateMessageToolResultPart({
 }: ChatTemplateMessageToolResultPartProps) {
   const value = useMemo(() => {
     const convertedToolResult = toolResult.toolResult.result;
-    return normalizeMessageContent(convertedToolResult);
+    return formatContentAsString(convertedToolResult);
   }, [toolResult]);
   return (
     <ChatTemplateMessagePartContainer

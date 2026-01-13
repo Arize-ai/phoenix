@@ -45,7 +45,7 @@ import {
   Mutable,
 } from "@phoenix/typeUtils";
 import {
-  normalizeMessageContent,
+  formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
@@ -725,7 +725,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       // If the message is a tool message, we need to normalize the content
       content:
         message.role === "tool"
-          ? normalizeMessageContent(message.content)
+          ? formatContentAsString(message.content)
           : message.content,
     };
   });
