@@ -6,7 +6,6 @@ import {
   useRef,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -259,7 +258,6 @@ export function ExamplesTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -294,7 +292,7 @@ export function ExamplesTable({
               <tr
                 key={row.id}
                 onClick={() => {
-                  navigate(`${row.original.id}`);
+                  row.toggleSelected();
                 }}
               >
                 {row.getVisibleCells().map((cell) => {
