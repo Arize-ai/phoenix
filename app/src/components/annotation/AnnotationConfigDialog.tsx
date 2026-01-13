@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
@@ -21,7 +22,6 @@ import {
   View,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-
 import {
   AnnotationConfig,
   AnnotationConfigCategorical,
@@ -29,7 +29,7 @@ import {
   AnnotationConfigFreeform,
   AnnotationConfigOptimizationDirection,
   AnnotationConfigType,
-} from "./types";
+} from "@phoenix/pages/settings/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -76,6 +76,9 @@ export const AnnotationConfigDialog = ({
     control,
     name: "values",
   });
+  const [autoFocusedCategoryIndex, setAutoFocusedCategoryIndex] = useState<
+    number | null
+  >(null);
   const onSubmit = (data: AnnotationConfig, close: () => void) => {
     const onCompleted = () => {
       notifySuccess({
@@ -366,7 +369,7 @@ export const AnnotationConfigDialog = ({
                               {...field}
                               aria-label={`Value ${index + 1}`}
                               isInvalid={!!error}
-                              autoFocus={index > 0}
+                              autoFocus={autoFocusedCategoryIndex === index}
                             >
                               <Input
                                 placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
@@ -415,6 +418,8 @@ export const AnnotationConfigDialog = ({
                         type="button"
                         onPress={() => {
                           append({ label: "", score: null });
+                          const newIndex = fields.length;
+                          setAutoFocusedCategoryIndex(newIndex);
                         }}
                         leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
                       >
