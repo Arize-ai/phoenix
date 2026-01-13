@@ -88,3 +88,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The checkbox cell's `onCellClick` callback passes `row.toggleSelected` to `handleRowSelection`, enabling the shared handler to toggle selection for normal clicks
 - The header checkbox (for "select all") doesn't need `onCellClick` since it always toggles all rows - no shift-click range behavior needed there
 - This completes Phase 3 of the bug fixes - selection now only happens via the checkbox cell, preventing accidental selection when selecting text on the row
+
+## fix-checkbox-direct-click
+
+- The issue was that react-aria-components' Checkbox contains a hidden `<input type="checkbox">` that captures click events before they reach the wrapper div's onClick handler
+- Solution: Add `pointer-events: none` CSS to the Checkbox component when `onCellClick` is provided, ensuring all clicks pass through to the wrapper div
+- The fix is conditionally applied only when `onCellClick` is provided, preserving default behavior for checkboxes without custom click handling
+- Used inline CSS via emotion's `css` prop to conditionally apply the style based on the presence of `onCellClick`
+- This approach is cleaner than modifying the Checkbox component's internal structure or adding a new prop to handle click events
+- The header checkbox (select all) doesn't have `onCellClick` so it still works normally with its default onChange behavior
+- This completes Phase 4 (Final Bug Fixes) - all checkbox selection behavior now works correctly including shift-click range selection

@@ -79,3 +79,13 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - content: Update the checkbox column definition in ExamplesTable.tsx to pass the shared row selection handler and row index to IndeterminateCheckboxCell. Modify IndeterminateCheckboxCell to accept an optional `onCellClick` callback prop that receives the click event. When provided, call this handler instead of the default `onChange` toggle behavior. The ExamplesTable checkbox column should pass a handler that calls the shared row selection handler with the event and row index.
 - status: complete
 - dependencies: expand-checkbox-cell-click-target
+
+---
+
+## Phase 4: Final Bug Fixes
+
+### fix-checkbox-direct-click
+
+- content: Fix the issue where clicking directly on the checkbox input doesn't trigger the onCellClick handler. The problem is that the AriaCheckbox component contains an `<input type="checkbox">` that captures click events before they reach the wrapper div. Solution: Add `onClick` handler to the Checkbox component itself that calls `onCellClick` when provided, and set `pointer-events: none` on the internal checkbox input to ensure clicks always go through the wrapper div. Alternatively, attach the onCellClick to the Checkbox component via a new prop and call it in addition to onChange.
+- status: complete
+- dependencies: wire-checkbox-cell-to-row-handler

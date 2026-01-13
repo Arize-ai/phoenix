@@ -43,7 +43,22 @@ export function IndeterminateCheckboxCell({
         padding: var(--ac-global-dimension-size-100);
       `}
     >
-      <Checkbox inputRef={ref} isHovered={isHovered} {...checkboxProps} />
+      <Checkbox
+        inputRef={ref}
+        isHovered={isHovered}
+        {...checkboxProps}
+        css={
+          onCellClick
+            ? css`
+                /* When onCellClick is provided, disable pointer events on the
+                 * checkbox so clicks pass through to the wrapper div's onClick.
+                 * This ensures the custom click handler is always triggered,
+                 * even when clicking directly on the checkbox input element. */
+                pointer-events: none;
+              `
+            : undefined
+        }
+      />
     </div>
   );
 }
