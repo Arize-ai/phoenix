@@ -49,5 +49,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### implement-shift-click-range-select
 
 - content: Implement shift-click range selection in ExamplesTable.tsx. When shift+click is detected on a row, select all rows between the last clicked row and the current row (inclusive). Use the tracked last-selected-row index. If no previous row was selected, treat it as a normal click.
-- status: pending
+- status: complete
 - dependencies: track-last-selected-row

@@ -39,3 +39,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The row click handler now receives the event as `(e)` instead of `()` to check for the shift key
 - No unit test needed for this change since it's internal state management with no observable behavior change yet - the actual behavior (shift-click range selection) will be tested in the next task
 - The next task (implement-shift-click-range-select) will use `lastSelectedRowIndexRef.current` to determine the range of rows to select
+
+## implement-shift-click-range-select
+
+- Extracted the range selection logic into a reusable utility function `addRangeToSelection` in `src/components/table/selectionUtils.ts`
+- The utility function works with any array of items that have an `id` property, making it reusable for other tables
+- Shift-click behavior: when shift+click is detected and there's a previous anchor point, select all rows from the anchor to the clicked row (inclusive)
+- The function handles both directions (lower to higher index and higher to lower index) by using `Math.min/max`
+- The function preserves existing selections - it adds to the selection rather than replacing it
+- Used the non-null assertion `lastSelectedRowIndexRef.current!` since we already checked for null in the condition
+- Normal clicks (without shift) update the anchor point and toggle the row; shift-clicks don't update the anchor point to enable multiple sequential range selections from the same anchor

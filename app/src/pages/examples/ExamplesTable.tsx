@@ -19,6 +19,7 @@ import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
+import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
@@ -297,10 +298,21 @@ export function ExamplesTable({
               <tr
                 key={row.id}
                 onClick={(e) => {
-                  if (!e.shiftKey) {
+                  if (e.shiftKey && lastSelectedRowIndexRef.current !== null) {
+                    // Shift-click: select range from last clicked row to current row
+                    setRowSelection((prev) =>
+                      addRangeToSelection(
+                        rows,
+                        lastSelectedRowIndexRef.current!,
+                        rowIndex,
+                        prev
+                      )
+                    );
+                  } else {
+                    // Normal click: toggle selection and update last selected index
                     lastSelectedRowIndexRef.current = rowIndex;
+                    row.toggleSelected();
                   }
-                  row.toggleSelected();
                 }}
               >
                 {row.getVisibleCells().map((cell) => {
