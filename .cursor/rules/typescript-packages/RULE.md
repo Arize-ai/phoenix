@@ -26,7 +26,7 @@ Located in `js/packages/`:
 
 ## Code Style
 
-- **Node version**: 22+
+- **Node version**: See `.nvmrc`
 - **Package manager**: pnpm
 - Use ES modules (import/export), not CommonJS
 - Destructure imports when possible: `import { foo } from 'bar'`

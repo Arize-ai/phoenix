@@ -16,7 +16,7 @@
 
 ## Code Style
 
-- **Node version**: 22+ (see .nvmrc)
+- **Node version**: See `.nvmrc`
 - **Package manager**: pnpm only (enforced by preinstall script)
 - **GraphQL**: Uses Relay for data fetching
 - **Styling**: Use Emotion CSS-in-JS (see `app/.cursor/rules/styling.mdc`)

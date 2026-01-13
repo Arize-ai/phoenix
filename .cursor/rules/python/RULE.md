@@ -29,7 +29,7 @@
 ## Code Style
 
 - **Line length**: 100 characters
-- **Target version**: Python 3.10 (for compatibility across 3.10-3.13)
+- **Python version**: See `pyproject.toml` for supported versions
 - **Type checking**: Strict mode with mypy
 - **Linting**: Use `tox run -e ruff` (never run ruff directly)
 - **Import style**: Multi-line imports allowed
