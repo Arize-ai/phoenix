@@ -1463,7 +1463,7 @@ class TestChatCompletionOverDatasetSubscription:
         )
         assert run.pop("error") is None
         assert isinstance(run_output := run.pop("output"), dict)
-        assert set(run_output.keys()) == {"messages"}
+        assert set(run_output.keys()) == {"messages", "available_tools"}
         assert (trace_id := run.pop("traceId")) is not None
         trace = run.pop("trace")
         assert trace.pop("id")
@@ -1488,7 +1488,7 @@ class TestChatCompletionOverDatasetSubscription:
         )
         assert run.pop("error") is None
         assert isinstance(run_output := run.pop("output"), dict)
-        assert set(run_output.keys()) == {"messages"}
+        assert set(run_output.keys()) == {"messages", "available_tools"}
         assert (trace_id := run.pop("traceId")) is not None
         trace = run.pop("trace")
         assert trace.pop("id")

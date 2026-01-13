@@ -42,7 +42,7 @@ from phoenix.server.api.evaluators import (
     get_llm_evaluators,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
+from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
@@ -354,7 +354,7 @@ class ChatCompletionMutationMixin:
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=db_span.trace.trace_id,
                     output=models.ExperimentRunOutput(
-                        task_output=get_dataset_example_output(db_span),
+                        task_output=get_experiment_example_output(db_span),
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
@@ -388,7 +388,7 @@ class ChatCompletionMutationMixin:
                     context_dict: dict[str, Any] = {
                         "input": revision.input,
                         "reference": revision.output,
-                        "output": experiment_run.output,
+                        "output": experiment_run.output.get("task_output", experiment_run.output),
                     }
 
                     # Run builtin evaluators

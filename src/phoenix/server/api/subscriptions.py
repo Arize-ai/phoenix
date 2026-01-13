@@ -628,7 +628,7 @@ class Subscription:
                         context_dict: dict[str, Any] = {
                             "input": revision.input,
                             "reference": revision.output,
-                            "output": run.output,
+                            "output": run.output.get("task_output", run.output),
                         }
                         for evaluator in input.evaluators:
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
