@@ -45,6 +45,13 @@ export const ContainsEvaluatorForm = () => {
     (state) => state.evaluatorMappingSource
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Determine initial mode based on existing values
+  const textDefaultMode =
+    getValues("literalMapping.text") != null ? "literal" : "path";
+  const wordsDefaultMode =
+    getValues("pathMapping.words") != null ? "path" : "literal";
+
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -52,7 +59,7 @@ export const ContainsEvaluatorForm = () => {
           fieldName="text"
           label="Text"
           description="The text to search for the words in."
-          defaultMode="path"
+          defaultMode={textDefaultMode}
           control={control}
           setValue={setValue}
           pathOptions={allExampleKeys}
@@ -65,7 +72,7 @@ export const ContainsEvaluatorForm = () => {
           fieldName="words"
           label="Words"
           description="A comma separated list of words to search for in the text."
-          defaultMode="literal"
+          defaultMode={wordsDefaultMode}
           control={control}
           setValue={setValue}
           pathOptions={allExampleKeys}
