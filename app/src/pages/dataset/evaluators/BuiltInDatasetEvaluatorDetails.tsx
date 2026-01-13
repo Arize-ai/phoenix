@@ -128,6 +128,7 @@ function ContainsEvaluatorDetails({
       text?: string | null;
       words?: string | null;
       case_sensitive?: boolean | string | null;
+      require_all?: boolean | string | null;
     } | null;
     pathMapping?: {
       text?: string | null;
@@ -140,6 +141,7 @@ function ContainsEvaluatorDetails({
   const wordsPath = inputMapping?.pathMapping?.words;
   const wordsLiteral = inputMapping?.literalMapping?.words;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
+  const requireAll = inputMapping?.literalMapping?.require_all;
 
   return (
     <View padding="size-200" overflow="auto">
@@ -169,6 +171,11 @@ function ContainsEvaluatorDetails({
                 {caseSensitive === true || caseSensitive === "true"
                   ? "Yes"
                   : "No"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Require all words:</Text>{" "}
+                {requireAll === true || requireAll === "true" ? "Yes" : "No"}{" "}
+                (not implemented!)
               </Text>
             </Flex>
           </div>
