@@ -23,7 +23,7 @@ export function IndeterminateCheckboxCell(checkboxProps: CheckboxProps) {
       onMouseLeave={() => setIsHovered(false)}
       css={css`
         cursor: pointer;
-        padding: var(--ac-global-dimension-size-25);
+        padding: var(--ac-global-dimension-size-100);
       `}
     >
       <Checkbox inputRef={ref} isHovered={isHovered} {...checkboxProps} />

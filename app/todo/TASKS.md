@@ -71,7 +71,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### expand-checkbox-cell-click-target
 
 - content: Expand the clickable area in IndeterminateCheckboxCell to fill the entire cell by increasing padding. The component already has padding, but it should be increased so that the checkbox cell covers the full `<td>` area. Update the CSS padding in the wrapper div to use larger values (e.g., `var(--ac-global-dimension-size-100)` or similar).
-- status: pending
+- status: complete
 - dependencies: create-row-selection-handler
 
 ### wire-checkbox-cell-to-row-handler

@@ -67,3 +67,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The handler is now ready to be passed to IndeterminateCheckboxCell in subsequent tasks (`expand-checkbox-cell-click-target` and `wire-checkbox-cell-to-row-handler`)
 - Dependencies for the useCallback are `[setRowSelection, tableData]` - no need to include `lastSelectedRowIndexRef` since refs are stable across renders
 - No new tests needed since this is just extracting logic into a reusable function - the actual behavior will be tested once it's wired up to the checkbox cell
+
+## expand-checkbox-cell-click-target
+
+- The IndeterminateCheckboxCell component is located at `src/components/table/IndeterminateCheckboxCell.tsx`
+- The component already had padding (`var(--ac-global-dimension-size-25)` = 2px) but it was too small for easy clicking
+- Changed padding from `size-25` (2px) to `size-100` (8px) to create a larger clickable area around the checkbox
+- The design system's size variables are defined in `src/GlobalStyles.tsx` (size-25=2px, size-50=4px, size-100=8px, size-150=12px, etc.)
+- The component already has `e.stopPropagation()` on its onClick handler to prevent conflicts with table row click events
+- This is a simple CSS change with no behavioral logic change - no new tests needed
+- The next task (`wire-checkbox-cell-to-row-handler`) will modify this component to accept an optional `onCellClick` callback for the shared row selection handler
