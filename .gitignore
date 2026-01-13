@@ -10,6 +10,7 @@ sdist
 **/.pytest_cache
 **/.ipynb_checkpoints/
 **/.DS_Store
+**/.playwright-mcp/
 
 # Server static files
 /src/phoenix/server/static/*
