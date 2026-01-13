@@ -40,7 +40,7 @@ export function IndeterminateCheckboxCell({
       onMouseLeave={() => setIsHovered(false)}
       css={css`
         cursor: pointer;
-        padding: var(--ac-global-dimension-size-100);
+        padding: var(--ac-global-dimension-size-25);
       `}
     >
       <Checkbox
