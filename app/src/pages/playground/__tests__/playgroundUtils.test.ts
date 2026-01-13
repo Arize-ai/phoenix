@@ -9,7 +9,6 @@ import {
   PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
