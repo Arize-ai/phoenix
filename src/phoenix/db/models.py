@@ -196,6 +196,11 @@ JSON_ = (
     )
 )
 
+_Integer = Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
 
 class JsonDict(TypeDecorator[dict[str, Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
@@ -2240,7 +2245,7 @@ class DatasetEvaluators(HasId):
         nullable=True,
     )
     builtin_evaluator_id: Mapped[Optional[int]] = mapped_column(
-        sa.Integer,
+        _Integer,
         nullable=True,
         index=True,
     )
