@@ -323,6 +323,61 @@ class TestEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
+    def test_evaluator_adds_trace_id_to_scores_when_tracing_enabled(self):
+        """Test that trace_id is added to Score metadata when tracing is enabled."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from pydantic import create_model
+
+        # Setup in-memory tracing
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        try:
+            # Create evaluator
+            InputModel = create_model("InputModel", input=(str, ...))
+            evaluator = self.MockEvaluator(
+                name="test_evaluator",
+                kind="code",
+                input_schema=InputModel,
+            )
+
+            # Evaluate
+            result = evaluator.evaluate({"input": "test"})
+
+            # Assertions
+            assert len(result) == 1
+            assert result[0].name == "test_evaluator"
+
+            # Verify trace_id was added to metadata
+            assert "trace_id" in result[0].metadata, "trace_id should be present in Score metadata"
+            trace_id = result[0].metadata["trace_id"]
+            assert isinstance(trace_id, str), "trace_id should be a string"
+            assert len(trace_id) == 32, "trace_id should be a 32-character hex string"
+
+            # Verify span attributes were set correctly
+            spans = exporter.get_finished_spans()
+            assert len(spans) == 1, "Should have exactly one span"
+            span = spans[0]
+
+            # Check span name follows convention
+            assert span.name == "test_evaluator.evaluate"
+
+            # Check span attributes
+            assert span.attributes.get("openinference.span.kind") == "EVALUATOR"
+            assert span.attributes.get("evaluator.kind") == "code"
+            assert span.attributes.get("evaluator.class") == "MockEvaluator"
+
+        finally:
+            # Cleanup: reset tracer provider
+            from opentelemetry.trace import NoOpTracerProvider
+
+            trace.set_tracer_provider(NoOpTracerProvider())
+
 
 class TestLLMEvaluator:
     """Test the LLMEvaluator class."""
