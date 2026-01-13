@@ -247,8 +247,7 @@ const EditEvaluatorDialog = ({
       },
       outputConfig: {
         name:
-          datasetEvaluator.outputConfig?.name ??
-          DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.name,
+          datasetEvaluator.displayName ?? datasetEvaluator.evaluator.name ?? "",
         optimizationDirection:
           datasetEvaluator.outputConfig?.optimizationDirection ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.optimizationDirection,
