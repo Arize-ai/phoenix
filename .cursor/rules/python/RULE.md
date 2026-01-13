@@ -3,6 +3,7 @@
 ## Commands
 
 ### Testing and Linting
+
 - `tox run -e ruff` - Format and lint code
 - `tox run -e unit_tests` - Run all unit tests
 - `tox run -e unit_tests -- -k test_name` - Run specific test
@@ -11,14 +12,17 @@
 - `tox list` - List all available tox environments
 
 ### Development Setup
+
 - `tox run -e add_symlinks` - Add symlinks for sub-packages (required after setup)
 - `tox run -e remove_symlinks` - Remove symlinks before type checking
 
 ### Database
+
 - `tox -e alembic -- upgrade head` - Run migrations
 - Use `--run-postgres` flag for PostgreSQL tests (defaults to SQLite)
 
 ### Other
+
 - `tox run -e clean_jupyter_notebooks` - Clean notebook metadata (required after editing)
 - `hatch build` - Build Python package
 

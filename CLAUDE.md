@@ -5,11 +5,13 @@ Phoenix is an open-source AI observability platform built on OpenTelemetry with 
 ## Quick Start
 
 **For detailed commands, code style, and workflows, see:**
+
 - `.cursor/rules/python/RULE.md` - Python development
 - `.cursor/rules/frontend/RULE.md` - Frontend (app/) development
 - `.cursor/rules/typescript-packages/RULE.md` - TypeScript packages (js/)
 
 **For specialized knowledge and workflows, see:**
+
 - `.cursor/skills/client-migration/` - Migrating to new client APIs
 - `.cursor/skills/evals-migration/` - Migrating to new evals APIs
 - `.cursor/skills/testing-workflow/` - Running tests efficiently
@@ -70,6 +72,7 @@ cd js && pnpm install && pnpm run -r build
 ## Common Commands
 
 See individual rule files for complete command references:
+
 - Python: `.cursor/rules/python/RULE.md`
 - Frontend: `.cursor/rules/frontend/RULE.md`
 - TypeScript: `.cursor/rules/typescript-packages/RULE.md`
@@ -77,18 +80,21 @@ See individual rule files for complete command references:
 ## Key Conventions
 
 ### Python
+
 - Always use `tox` for testing/linting (never run tools directly)
 - Run `tox run -e add_symlinks` after setup
 - Line length: 100 characters
 - Target: Python 3.10
 
 ### Frontend
+
 - Use pnpm only
 - Node 22+
 - Emotion for styling
 - Relay for GraphQL
 
 ### TypeScript Packages
+
 - Use pnpm
 - Create changesets for PR
 - ES modules only

@@ -10,6 +10,7 @@
 ## Canonical Examples
 
 See existing implementations in `src/`:
+
 - Resource clients follow consistent patterns
 - Type definitions in separate files
 - Clear separation of concerns

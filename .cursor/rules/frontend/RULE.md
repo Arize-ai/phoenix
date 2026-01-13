@@ -3,11 +3,13 @@
 ## Commands
 
 ### Development
+
 - `pnpm dev` - Start dev server with hot reload
 - `pnpm run build` - Build production bundle
 - `pnpm test` - Run tests
 
 ### Quality Checks
+
 - `pnpm run lint:fix` - Fix linting issues
 - `pnpm run typecheck` - Type check TypeScript
 - `pnpm run build:relay` - Build GraphQL schema

@@ -1,9 +1,11 @@
 # Client Migration Skill
 
 ## Description
+
 Migrate legacy `phoenix.Client()` usage to new `phoenix.client` interfaces.
 
 ## When to Use
+
 - Migrating code that uses `import phoenix as px` with `px.Client()`
 - Converting `query_spans`, `get_spans_dataframe`, `upload_dataset`, etc.
 - Updating evaluation logging patterns
@@ -11,6 +13,7 @@ Migrate legacy `phoenix.Client()` usage to new `phoenix.client` interfaces.
 ## Quick Reference
 
 **Core Migrations:**
+
 1. `import phoenix as px` → `from phoenix.client import Client` (or `AsyncClient`)
 2. `px.Client()` → `Client()` (variable: `px_client`)
 3. `client.query_spans(...)` → `client.spans.get_spans_dataframe(...)`
@@ -18,11 +21,13 @@ Migrate legacy `phoenix.Client()` usage to new `phoenix.client` interfaces.
 5. `px.Client().log_evaluations(SpanEvaluations(...))` → `px_client.spans.log_span_annotations_dataframe(...)`
 
 **Parameter Changes:**
+
 - `project_name=` → `project_identifier=`
 - `dataset_name=` → `name=`
 - `eval_name=` → `annotation_name=`
 
 **Import Changes:**
+
 - `from phoenix.experiments import` → `from phoenix.client.experiments import`
 - `from phoenix.trace.dsl import SpanQuery` → `from phoenix.client.types.spans import SpanQuery`
 

@@ -1,11 +1,13 @@
 # Testing Workflow Skill
 
 ## Description
+
 Run tests efficiently for Python and TypeScript codebases.
 
 ## Commands
 
 ### Python Testing
+
 ```bash
 # Run specific test file
 tox run -e unit_tests -- tests/path/to/test_file.py
@@ -21,6 +23,7 @@ tox run -e integration_tests -- -k test_name
 ```
 
 ### TypeScript Testing
+
 ```bash
 # Frontend tests
 cd app && pnpm test

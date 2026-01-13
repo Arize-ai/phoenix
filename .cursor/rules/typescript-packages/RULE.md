@@ -3,17 +3,20 @@
 ## Commands
 
 ### Development
+
 - `pnpm install` - Install dependencies
 - `pnpm run -r build` - Build all packages recursively
 - `pnpm run -r test` - Test all packages recursively
 - `pnpm run lint` - Lint all packages
 
 ### Release
+
 - `pnpm changeset` - Create version changeset (required for PRs with package changes)
 
 ## Packages
 
 Located in `js/packages/`:
+
 - `phoenix-otel` - OpenTelemetry instrumentation
 - `phoenix-client` - TypeScript client for Phoenix API
 - `phoenix-evals` - Evaluation framework
