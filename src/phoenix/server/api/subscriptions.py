@@ -222,8 +222,7 @@ async def _stream_single_chat_completion(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
                     display_name=str(evaluator_input.display_name),
-                    description_override=evaluator_input.description,
-                    output_config_override=output_config_override,
+                    output_config=output_config_override,
                 )
                 if result["error"] is not None:
                     yield EvaluationErrorChunk(
@@ -695,8 +694,7 @@ class Subscription:
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
                                 display_name=str(evaluator_input.display_name),
-                                description_override=evaluator_input.description,
-                                output_config_override=output_config_override,
+                                output_config=output_config_override,
                             )
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(

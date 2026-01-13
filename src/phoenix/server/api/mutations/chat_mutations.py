@@ -432,8 +432,7 @@ class ChatCompletionMutationMixin:
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            description_override=evaluator_input.description,
-                            output_config_override=output_config_override,
+                            output_config=output_config_override,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
@@ -564,8 +563,7 @@ class ChatCompletionMutationMixin:
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            description_override=evaluator_input.description,
-                            output_config_override=output_config_override,
+                            output_config=output_config_override,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_span_annotation(
@@ -654,8 +652,6 @@ class ChatCompletionMutationMixin:
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
-                    annotation_name=inline_llm_evaluator.output_config.name,
-                    output_config=output_config,
                     llm_client=llm_client,
                     description=inline_llm_evaluator.description,
                 )
@@ -675,6 +671,7 @@ class ChatCompletionMutationMixin:
                     context=context,
                     input_mapping=input_mapping,
                     display_name=inline_llm_evaluator.output_config.name,
+                    output_config=output_config,
                 )
                 context_result = _to_evaluation_result_union(
                     eval_result, inline_llm_evaluator.output_config.name

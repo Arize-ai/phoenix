@@ -15,7 +15,10 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigOverride,
+)
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.playground_clients import (
@@ -1061,3 +1064,43 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 start_time=start_time,
                 end_time=end_time,
             )
+
+
+def merge_output_config(
+    base: CategoricalAnnotationConfig,
+    override: Optional[CategoricalAnnotationConfigOverride],
+    display_name: str,
+    description_override: Optional[str],
+) -> CategoricalAnnotationConfig:
+    """
+    Merge a base output config with optional overrides.
+
+    Args:
+        base: The base CategoricalAnnotationConfig from the LLM evaluator
+        override: Optional overrides from the dataset evaluator
+        display_name: The display name to use as the config name
+        description_override: Optional description override
+
+    Returns:
+        A new CategoricalAnnotationConfig with overrides applied
+    """
+    values = base.values
+    optimization_direction = base.optimization_direction
+    description = base.description
+
+    if override is not None:
+        if override.values is not None:
+            values = override.values
+        if override.optimization_direction is not None:
+            optimization_direction = override.optimization_direction
+
+    if description_override is not None:
+        description = description_override
+
+    return CategoricalAnnotationConfig(
+        type=base.type,
+        name=display_name,
+        description=description,
+        optimization_direction=optimization_direction,
+        values=values,
+    )

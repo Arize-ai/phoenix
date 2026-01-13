@@ -1,3 +1,4 @@
+import asyncio
 import zlib
 from datetime import datetime
 from enum import Enum
@@ -257,12 +258,20 @@ class LLMEvaluator(Evaluator, Node):
         if self.db_record:
             assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
             config = self.db_record.output_config
+            evaluator_name = self.db_record.name
         else:
-            config = await info.context.data_loaders.llm_evaluator_fields.load(
-                (self.id, models.LLMEvaluator.output_config),
+            config, evaluator_name = await asyncio.gather(
+                info.context.data_loaders.llm_evaluator_fields.load(
+                    (self.id, models.LLMEvaluator.output_config),
+                ),
+                info.context.data_loaders.llm_evaluator_fields.load(
+                    (self.id, models.LLMEvaluator.name),
+                ),
             )
         return _to_gql_categorical_annotation_config(
-            config=config, annotation_name=config.name, evaluator_id=self.id
+            config=config,
+            annotation_name=evaluator_name.root if evaluator_name else "",
+            evaluator_id=self.id,
         )
 
     @strawberry.field
