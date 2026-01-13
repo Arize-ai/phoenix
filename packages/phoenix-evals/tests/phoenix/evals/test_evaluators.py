@@ -329,6 +329,7 @@ class TestEvaluator:
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace import NoOpTracerProvider
         from pydantic import create_model
 
         # Setup in-memory tracing
@@ -373,9 +374,7 @@ class TestEvaluator:
             assert span.attributes.get("evaluator.class") == "MockEvaluator"
 
         finally:
-            # Cleanup: reset tracer provider
-            from opentelemetry.trace import NoOpTracerProvider
-
+            # Cleanup: disable tracing to avoid affecting other tests
             trace.set_tracer_provider(NoOpTracerProvider())
 
 
