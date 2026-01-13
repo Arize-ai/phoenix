@@ -969,10 +969,9 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             id=1,
             name=Identifier("evaluator-1"),
             description="First evaluator",
-            prompt_id=prompt.id,
-            annotation_name="goodness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="goodness",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="goodness description",
                 values=[
@@ -980,15 +979,15 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
                     CategoricalAnnotationValue(label="bad", score=0.0),
                 ],
             ),
+            prompt_id=prompt.id,
         )
         evaluator_2 = models.LLMEvaluator(
             id=2,
             name=Identifier("evaluator-2"),
             description="Second evaluator",
-            prompt_id=prompt.id,
-            annotation_name="correctness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="correctness",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="correctness description",
                 values=[
@@ -996,6 +995,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
                     CategoricalAnnotationValue(label="incorrect", score=0.0),
                 ],
             ),
+            prompt_id=prompt.id,
         )
         session.add_all([evaluator_1, evaluator_2])
         await session.flush()
@@ -1006,12 +1006,14 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             evaluator_id=evaluator_1.id,
             display_name=Identifier(root="evaluator-1"),
             input_mapping={},
+            output_config_override=None,
         )
         dataset_evaluator_2 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
             display_name=Identifier(root="evaluator-2"),
             input_mapping={},
+            output_config_override=None,
         )
         session.add_all([dataset_evaluator_1, dataset_evaluator_2])
 

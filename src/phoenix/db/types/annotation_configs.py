@@ -20,6 +20,7 @@ class OptimizationDirection(Enum):
 
 
 class _BaseAnnotationConfig(DBBaseModel):
+    name: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -64,6 +65,19 @@ class CategoricalAnnotationConfig(_BaseAnnotationConfig):
         AfterValidator(_categorical_values_are_non_empty_list),
         AfterValidator(_categorical_values_have_unique_labels),
     ]
+
+
+class CategoricalAnnotationConfigOverride(DBBaseModel):
+    """Partial override for CategoricalAnnotationConfig. All fields optional."""
+
+    optimization_direction: Optional[OptimizationDirection] = None
+    values: Optional[
+        Annotated[
+            list[CategoricalAnnotationValue],
+            AfterValidator(_categorical_values_are_non_empty_list),
+            AfterValidator(_categorical_values_have_unique_labels),
+        ]
+    ] = None
 
 
 class ContinuousAnnotationConfig(_BaseAnnotationConfig):

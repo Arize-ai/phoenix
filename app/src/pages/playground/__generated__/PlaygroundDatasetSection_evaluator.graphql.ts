@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<681e9837878760490dfc5d9c3e99614c>>
+ * @generated SignedSource<<9b349ea5a95bac301c89a1e52d8b4a46>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,20 +18,20 @@ export type PlaygroundDatasetSection_evaluator$data = {
     readonly id: string;
     readonly isBuiltin: boolean;
     readonly kind: EvaluatorKind;
-    readonly outputConfig?: {
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
-        readonly label: string;
-        readonly score: number | null;
-      }>;
-    };
   };
   readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
+  readonly outputConfig: {
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
+      readonly label: string;
+      readonly score: number | null;
+    }>;
+  } | null;
   readonly " $fragmentType": "PlaygroundDatasetSection_evaluator";
 };
 export type PlaygroundDatasetSection_evaluator$key = {
@@ -44,6 +44,6 @@ const node: ReaderInlineDataFragment = {
   "name": "PlaygroundDatasetSection_evaluator"
 };
 
-(node as any).hash = "e69f7ef98d52e4dec350d215c3b84521";
+(node as any).hash = "4316c505357d726cdb9643d5b6a75de8";
 
 export default node;

@@ -173,14 +173,14 @@ const EditEvaluatorDialog = ({
                 }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               }
-              outputConfig {
-                name
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
+            }
+          }
+          outputConfig {
+            name
+            optimizationDirection
+            values {
+              label
+              score
             }
           }
         }
@@ -247,13 +247,12 @@ const EditEvaluatorDialog = ({
       },
       outputConfig: {
         name:
-          datasetEvaluator.evaluator.outputConfig?.name ??
-          DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.name,
+          datasetEvaluator.displayName ?? datasetEvaluator.evaluator.name ?? "",
         optimizationDirection:
-          datasetEvaluator.evaluator.outputConfig?.optimizationDirection ??
+          datasetEvaluator.outputConfig?.optimizationDirection ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.optimizationDirection,
         values:
-          datasetEvaluator.evaluator.outputConfig?.values.map((value) => ({
+          datasetEvaluator.outputConfig?.values.map((value) => ({
             label: value.label,
             score: value.score ?? undefined,
           })) ?? DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.values,

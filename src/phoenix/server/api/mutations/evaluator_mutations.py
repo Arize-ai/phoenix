@@ -23,10 +23,12 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
+from phoenix.server.api.input_types.AnnotationConfigInput import (
+    CategoricalAnnotationConfigInput,
+)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
-    CategoricalAnnotationConfigInput,
     _to_pydantic_categorical_annotation_config,
 )
 from phoenix.server.api.queries import Query
@@ -282,6 +284,8 @@ class EvaluatorMutationMixin:
                 dataset_evaluator_record = models.DatasetEvaluators(
                     dataset_id=dataset_id,
                     display_name=display_name,
+                    description=input.description if input.description is not UNSET else None,
+                    output_config_override=None,
                     input_mapping=input.input_mapping.to_dict()
                     if input.input_mapping is not None
                     else {"literal_mapping": {}, "path_mapping": {}},
@@ -324,16 +328,15 @@ class EvaluatorMutationMixin:
                     )
                     prompt = models.Prompt(
                         name=prompt_name,
-                        description=input.description or None,
+                        description=input.description if input.description is not UNSET else None,
                         prompt_versions=[prompt_version],
                     )
                     target_prompt_version_id = None  # Will use prompt_version.id after flush
 
                 llm_evaluator = models.LLMEvaluator(
                     name=evaluator_name,
-                    description=input.description or None,
+                    description=input.description if input.description is not UNSET else None,
                     kind="LLM",
-                    annotation_name=input.output_config.name,
                     output_config=config,
                     user_id=user_id,
                     prompt=prompt,
@@ -489,6 +492,10 @@ class EvaluatorMutationMixin:
                 active_prompt_version = prompt_version
 
             dataset_evaluator.display_name = evaluator_name
+            dataset_evaluator.description = (
+                input.description if isinstance(input.description, str) else None
+            )
+            dataset_evaluator.output_config_override = None
             dataset_evaluator.input_mapping = (
                 input.input_mapping.to_dict()
                 if input.input_mapping is not None
@@ -502,7 +509,6 @@ class EvaluatorMutationMixin:
                 input.description if isinstance(input.description, str) else None
             )
             llm_evaluator.output_config = output_config
-            llm_evaluator.annotation_name = input.output_config.name
             llm_evaluator.updated_at = datetime.now(timezone.utc)
 
             if new_prompt is not None:
