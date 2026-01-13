@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
-import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
 import { type AnnotationConfig } from "@phoenix/components/annotation";
@@ -123,20 +122,22 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
     return datasetEvaluators
-      .filter(
-        (evaluator) =>
-          selectedDatasetEvaluatorIds.includes(evaluator.id) &&
-          evaluator.outputConfig != null
+      .filter((datasetEvaluator) =>
+        selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
       )
-      .map((evaluator) => {
-        invariant(
-          evaluator.outputConfig != null,
-          "Evaluator output config is required"
-        );
+      .map((datasetEvaluator) => {
+        if (!datasetEvaluator.outputConfig) {
+          // TODO: all evaluators should have an output config eventually
+          return {
+            name: datasetEvaluator.displayName,
+            annotationType: "FREEFORM",
+          } satisfies AnnotationConfig;
+        }
         return {
-          name: evaluator.outputConfig.name,
-          optimizationDirection: evaluator.outputConfig.optimizationDirection,
-          values: evaluator.outputConfig.values,
+          name: datasetEvaluator.outputConfig.name,
+          optimizationDirection:
+            datasetEvaluator.outputConfig.optimizationDirection,
+          values: datasetEvaluator.outputConfig.values,
           annotationType: "CATEGORICAL",
         };
       });
