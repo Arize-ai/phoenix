@@ -49,3 +49,12 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The function preserves existing selections - it adds to the selection rather than replacing it
 - Used the non-null assertion `lastSelectedRowIndexRef.current!` since we already checked for null in the condition
 - Normal clicks (without shift) update the anchor point and toggle the row; shift-clicks don't update the anchor point to enable multiple sequential range selections from the same anchor
+
+## remove-row-click-handler
+
+- This task is the first step in Phase 3: Bug Fixes - fixing the issue where selecting text on the row also toggles selection
+- Removing the onClick handler from `<tr>` is a breaking change for selection - clicking anywhere on the row no longer selects it
+- The selection logic (including shift-click range selection from `implement-shift-click-range-select`) is temporarily removed but will be re-added in the next task (`create-row-selection-handler`) via the checkbox cell
+- The `rowIndex` parameter in `rows.map()` is no longer needed since the click handler is removed, so the callback now just receives `row`
+- The `lastSelectedRowIndexRef` and `addRangeToSelection` imports are still present in the file and will be needed by subsequent tasks
+- No unit tests needed for this task since it's a behavioral change (removing functionality) that will be immediately restored in the next task via a different mechanism

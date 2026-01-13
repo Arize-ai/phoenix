@@ -294,27 +294,8 @@ export function ExamplesTable({
           <TableEmpty />
         ) : (
           <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr
-                key={row.id}
-                onClick={(e) => {
-                  if (e.shiftKey && lastSelectedRowIndexRef.current !== null) {
-                    // Shift-click: select range from last clicked row to current row
-                    setRowSelection((prev) =>
-                      addRangeToSelection(
-                        rows,
-                        lastSelectedRowIndexRef.current!,
-                        rowIndex,
-                        prev
-                      )
-                    );
-                  } else {
-                    // Normal click: toggle selection and update last selected index
-                    lastSelectedRowIndexRef.current = rowIndex;
-                    row.toggleSelected();
-                  }
-                }}
-              >
+            {rows.map((row) => (
+              <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
