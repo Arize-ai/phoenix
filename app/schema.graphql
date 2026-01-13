@@ -408,6 +408,11 @@ input ChatCompletionOverDatasetInput {
   Dot-notation path to messages in dataset example input to append to prompt
   """
   appendedMessagesPath: String = null
+
+  """
+  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
+  """
+  templateVariablesPath: String = "input"
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {

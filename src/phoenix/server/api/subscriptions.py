@@ -46,6 +46,7 @@ from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.message_helpers import (
     ChatCompletionMessage,
     extract_and_convert_example_messages,
+    extract_value_from_path,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -479,6 +480,7 @@ class Subscription:
                                 models.DatasetExampleRevision.dataset_example_id,
                                 models.DatasetExampleRevision.input,
                                 models.DatasetExampleRevision.output,
+                                models.DatasetExampleRevision.metadata_,
                             )
                         )
                     )
@@ -724,11 +726,24 @@ async def _stream_chat_completion_over_dataset_example(
     ]
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+        # Build the full context with input, reference (expected output), and metadata
+        full_context: dict[str, Any] = {
+            "input": revision.input,
+            "reference": revision.output,
+            "metadata": revision.metadata_,
+        }
+        # Resolve template variables based on the configured path
+        if input.template_variables_path:
+            template_variables = extract_value_from_path(
+                full_context, input.template_variables_path
+            )
+        else:
+            template_variables = full_context
         messages = list(
             _formatted_messages(
                 messages=messages,
                 template_format=input.template_format,
-                template_variables=revision.input,
+                template_variables=template_variables,
             )
         )
         # Append messages from dataset example if path is specified
@@ -766,7 +781,7 @@ async def _stream_chat_completion_over_dataset_example(
         input=input,
         messages=messages,
         invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(revision.input)},
+        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)},
     ) as span:
         try:
             async for chunk in llm_client.chat_completion_create(

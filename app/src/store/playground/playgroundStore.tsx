@@ -266,6 +266,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     templateFormat: TemplateFormats.Mustache,
     appendedMessagesPath: null,
+    templateVariablesPath: "input",
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
@@ -884,6 +885,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setAppendedMessagesPath: (appendedMessagesPath: string | null) => {
       set({ appendedMessagesPath }, false, { type: "setAppendedMessagesPath" });
+    },
+    setTemplateVariablesPath: (templateVariablesPath: string | null) => {
+      set({ templateVariablesPath }, false, {
+        type: "setTemplateVariablesPath",
+      });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,

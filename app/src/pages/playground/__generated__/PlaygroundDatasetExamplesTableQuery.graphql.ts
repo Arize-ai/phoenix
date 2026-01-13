@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c56fde6f760490773c06ac51b42f6cb>>
+ * @generated SignedSource<<9115a37a4f31d61036ec42e712816996>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -238,6 +238,13 @@ return {
                                 "kind": "ScalarField",
                                 "name": "output",
                                 "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "metadata",
+                                "storageKey": null
                               }
                             ],
                             "storageKey": null
@@ -320,12 +327,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "31b3ff181dc2bbf244747b669a3b4a69",
+    "cacheID": "6da14fc00e8cf67f675beace57952a1f",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
