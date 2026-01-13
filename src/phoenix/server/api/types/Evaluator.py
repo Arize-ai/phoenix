@@ -254,21 +254,15 @@ class LLMEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> CategoricalAnnotationConfig:
         config: CategoricalAnnotationConfigModel
-        annotation_name: str
         if self.db_record:
             assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
             config = self.db_record.output_config
-            annotation_name = self.db_record.annotation_name
         else:
-            results = await info.context.data_loaders.llm_evaluator_fields.load_many(
-                [
-                    (self.id, models.LLMEvaluator.output_config),
-                    (self.id, models.LLMEvaluator.annotation_name),
-                ]
+            config = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.output_config),
             )
-            config, annotation_name = results
         return _to_gql_categorical_annotation_config(
-            config=config, annotation_name=annotation_name, evaluator_id=self.id
+            config=config, annotation_name=config.name, evaluator_id=self.id
         )
 
     @strawberry.field

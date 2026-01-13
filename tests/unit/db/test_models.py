@@ -831,9 +831,9 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-1-{token_hex(4)}"),
                 description="First evaluator",
                 kind="LLM",
-                annotation_name="goodness",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
+                    name="goodness",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="goodness description",
                     values=[
@@ -848,9 +848,9 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-2-{token_hex(4)}"),
                 description="Second evaluator",
                 kind="LLM",
-                annotation_name="correctness",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
+                    name="correctness",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="correctness description",
                     values=[
@@ -1004,9 +1004,9 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-3-{token_hex(4)}"),
                 description="Third evaluator",
                 kind="LLM",
-                annotation_name="hallucination",
                 output_config=CategoricalAnnotationConfig(
                     type="CATEGORICAL",
+                    name="hallucination",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
                     description="thirdness description",
                     values=[

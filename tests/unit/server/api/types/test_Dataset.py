@@ -970,9 +970,9 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             id=1,
             name=Identifier("evaluator-1"),
             description="First evaluator",
-            annotation_name="goodness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="goodness",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="goodness description",
                 values=[
@@ -986,9 +986,9 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             id=2,
             name=Identifier("evaluator-2"),
             description="Second evaluator",
-            annotation_name="correctness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="correctness",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="correctness description",
                 values=[

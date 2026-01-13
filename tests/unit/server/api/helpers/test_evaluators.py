@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 
@@ -19,7 +19,7 @@ from phoenix.server.api.evaluators import (
 )
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
-    validate_consistent_llm_evaluator_and_prompt_version,
+    validate_evaluator_prompt_and_config,
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
@@ -40,6 +40,22 @@ from phoenix.server.api.helpers.prompts.models import (
     TextContentPart,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+
+
+def validate_consistent_llm_evaluator_and_prompt_version(
+    prompt_version: models.PromptVersion,
+    output_config: CategoricalAnnotationConfig,
+    annotation_name: str,
+    description: Optional[str] = None,
+) -> None:
+    """Test helper that wraps validate_evaluator_prompt_and_config."""
+    validate_evaluator_prompt_and_config(
+        prompt_tools=prompt_version.tools,
+        prompt_response_format=prompt_version.response_format,
+        evaluator_annotation_name=annotation_name,
+        evaluator_output_config=output_config,
+        evaluator_description=description,
+    )
 
 
 class TestValidateConsistentLLMEvaluatorAndPromptVersion:

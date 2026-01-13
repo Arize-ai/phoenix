@@ -337,7 +337,6 @@ class EvaluatorMutationMixin:
                     name=evaluator_name,
                     description=input.description if input.description is not UNSET else None,
                     kind="LLM",
-                    annotation_name=input.output_config.name,
                     output_config=config,
                     user_id=user_id,
                     prompt=prompt,
@@ -509,7 +508,6 @@ class EvaluatorMutationMixin:
             llm_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
-            llm_evaluator.annotation_name = input.output_config.name
             llm_evaluator.output_config = output_config
             llm_evaluator.updated_at = datetime.now(timezone.utc)
 

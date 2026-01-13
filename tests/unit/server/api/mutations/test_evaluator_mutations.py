@@ -182,7 +182,7 @@ class TestDatasetLLMEvaluatorMutations:
             assert db_dataset_evaluator.description == "test description"
             assert db_dataset_evaluator.output_config_override is None
             assert llm_evaluator.output_config is not None
-            assert llm_evaluator.annotation_name == "correctness"
+            assert llm_evaluator.output_config.name == "correctness"
             assert len(llm_evaluator.output_config.values) == 2
 
         result = await self._create(
@@ -1173,7 +1173,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             )
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.output_config_override is None
-            assert db_evaluator.annotation_name == "result"
+            assert db_evaluator.output_config.name == "result"
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
         self,
@@ -2245,9 +2245,9 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             name=llm_evaluator_name,
             description="test llm evaluator",
             kind="LLM",
-            annotation_name="test",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="test",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="test description",
                 values=[
@@ -2446,9 +2446,9 @@ async def llm_evaluator(
         name=evaluator_name,
         description=evaluator_description,
         kind="LLM",
-        annotation_name=annotation_name,
         output_config=CategoricalAnnotationConfig(
             type="CATEGORICAL",
+            name=annotation_name,
             optimization_direction=OptimizationDirection.MAXIMIZE,
             description="correctness description",
             values=[

@@ -887,9 +887,9 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
             name=evaluator_name,
             description="evaluates the correctness of the output",
             kind="LLM",
-            annotation_name="correctness",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="correctness",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="correctness evaluation",
                 values=[

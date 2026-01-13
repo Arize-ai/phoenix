@@ -2188,7 +2188,6 @@ class LLMEvaluator(Evaluator):
         ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
         index=True,
     )
-    annotation_name: Mapped[str] = mapped_column(String, nullable=False)
     output_config: Mapped[CategoricalAnnotationConfig] = mapped_column(
         _AnnotationConfig, nullable=False
     )
