@@ -26,6 +26,12 @@ export function PlaygroundExperimentSettingsButton({
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
+  const templateVariablesPath = usePlaygroundContext(
+    (state) => state.templateVariablesPath
+  );
+  const setTemplateVariablesPath = usePlaygroundContext(
+    (state) => state.setTemplateVariablesPath
+  );
 
   return (
     <DialogTrigger>
@@ -40,6 +46,20 @@ export function PlaygroundExperimentSettingsButton({
         <Dialog>
           <View padding="size-200">
             <Flex direction="column" gap="size-200">
+              <TextField
+                value={templateVariablesPath ?? ""}
+                size="S"
+                onChange={(value) => {
+                  setTemplateVariablesPath(value || null);
+                }}
+              >
+                <Label>Template variables path</Label>
+                <Input placeholder="input" />
+                <Text slot="description">
+                  Path prefix for template variables (e.g., &quot;input&quot;
+                  means {"{{query}}"} resolves to input.query)
+                </Text>
+              </TextField>
               <TextField
                 value={appendedMessagesPath ?? ""}
                 size="S"
