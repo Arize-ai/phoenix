@@ -196,6 +196,7 @@ async def _stream_single_chat_completion(
                     annotation = ExperimentRunAnnotation.from_dict(
                         {
                             "name": result["name"],
+                            "annotator_kind": result["annotator_kind"],
                             "label": result["label"],
                             "score": result["score"],
                             "explanation": result["explanation"],
@@ -244,6 +245,7 @@ async def _stream_single_chat_completion(
                 annotation = ExperimentRunAnnotation.from_dict(
                     {
                         "name": result["name"],
+                        "annotator_kind": result["annotator_kind"],
                         "label": result["label"],
                         "score": result["score"],
                         "explanation": result["explanation"],
