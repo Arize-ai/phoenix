@@ -263,6 +263,14 @@ export interface PlaygroundProps {
    * @default null
    */
   appendedMessagesPath: string | null;
+  /**
+   * Dot-notation path prefix for template variables when running over a dataset.
+   * Default 'input' means {{query}} resolves to input.query of the dataset example.
+   * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
+   * @example "input" or "reference" or null
+   * @default "input"
+   */
+  templateVariablesPath: string | null;
 }
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
@@ -441,6 +449,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the appended messages path for dataset experiments
    */
   setAppendedMessagesPath: (path: string | null) => void;
+  /**
+   * Set the template variables path for dataset experiments
+   */
+  setTemplateVariablesPath: (path: string | null) => void;
   /**
    * Set the dirty state of an instance
    */
