@@ -100,3 +100,31 @@ export function jsonStringToFlatObject(
   }
   return {} satisfies Record<string, string | boolean | number>;
 }
+
+/**
+ * Formats message content for display in the UI.
+ * Handles strings, objects, arrays, null, and undefined values.
+ * Objects and arrays are serialized to formatted JSON strings.
+ *
+ * @param content - The content to format. Can be any type.
+ * @returns A string representation suitable for display.
+ */
+export function formatMessageContent(content: unknown): string {
+  // Handle null and undefined
+  if (content == null) {
+    return "";
+  }
+
+  // If it's already a string, return as-is
+  if (typeof content === "string") {
+    return content;
+  }
+
+  // For objects and arrays, serialize to JSON
+  try {
+    return JSON.stringify(content, null, 2);
+  } catch {
+    // Fallback for circular references or other serialization errors
+    return String(content);
+  }
+}

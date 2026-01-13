@@ -93,7 +93,10 @@ import {
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  formatMessageContent,
+  safelyParseJSON,
+} from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
@@ -1444,7 +1447,11 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
             <CopyToClipboardButton
-              text={messageContent || JSON.stringify(message)}
+              text={
+                messageContent
+                  ? formatMessageContent(messageContent)
+                  : JSON.stringify(message)
+              }
             />
           </Flex>
         }
@@ -1497,7 +1504,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   {messageContent ? (
                     <View width="100%">
                       <ConnectedMarkdownBlock>
-                        {messageContent}
+                        {formatMessageContent(messageContent)}
                       </ConnectedMarkdownBlock>
                     </View>
                   ) : null}
@@ -1507,7 +1514,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             messageContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
-                  {messageContent}
+                  {formatMessageContent(messageContent)}
                 </ConnectedMarkdownBlock>
               </View>
             ) : null}
