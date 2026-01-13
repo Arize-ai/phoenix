@@ -68,12 +68,10 @@ const useEvaluatorLLMChoiceForm = () => {
           return;
         }
         const {
-          setOutputConfigName,
           setOutputConfigOptimizationDirection,
           setOutputConfigValues,
           setIncludeExplanation,
         } = store.getState();
-        setOutputConfigName(outputConfig.name);
         setOutputConfigOptimizationDirection(
           outputConfig.optimizationDirection
         );
@@ -92,6 +90,9 @@ export const EvaluatorLLMChoice = () => {
     control,
     name: "outputConfig.values",
   });
+  const outputConfigName = useEvaluatorStore(
+    (state) => state.outputConfig?.name
+  );
   return (
     <div
       css={css`
@@ -104,20 +105,10 @@ export const EvaluatorLLMChoice = () => {
     >
       <Flex direction="column" gap="size-200">
         <Flex alignItems="center" justifyContent="space-between" gap="size-200">
-          <Controller
-            control={control}
-            name="outputConfig.name"
-            rules={{
-              required: "Name is required",
-            }}
-            render={({ field, fieldState: { error } }) => (
-              <TextField {...field} isInvalid={!!error}>
-                <Label>Name</Label>
-                <Input placeholder="e.g. correctness" />
-                <FieldError>{error?.message}</FieldError>
-              </TextField>
-            )}
-          />
+          <TextField isDisabled value={outputConfigName}>
+            <Label>Name</Label>
+            <Input placeholder="e.g. correctness" />
+          </TextField>
           <Controller
             control={control}
             name="outputConfig.optimizationDirection"

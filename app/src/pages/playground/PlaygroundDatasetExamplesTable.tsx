@@ -659,9 +659,12 @@ export function PlaygroundDatasetExamplesTable({
   splitIds?: string[];
   evaluatorOutputConfigs: AnnotationConfig[];
   /**
-   * Record of evaluator id to input mappings
+   * Record of evaluator id to display name and input mappings
    */
-  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
+  evaluatorMappings: Record<
+    string,
+    { displayName: string; inputMapping: EvaluatorInputMappingInput }
+  >;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);

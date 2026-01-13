@@ -7,10 +7,11 @@ from vcr.request import Request
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import LLMEvaluator
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -541,6 +542,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -641,6 +643,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -752,6 +755,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -877,6 +881,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -908,102 +913,103 @@ class TestChatCompletionMutationMixin:
             annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
-    async def test_experiment_run_output_includes_available_tools(
+    async def test_builtin_evaluator_uses_display_name_for_annotation(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
-        single_example_dataset: models.Dataset,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that experiment run output includes available_tools field when tools are used."""
-        async with db() as session:
-            version_id = await session.scalar(
-                select(models.DatasetVersion.id).where(
-                    models.DatasetVersion.dataset_id == single_example_dataset.id
-                )
-            )
-        dataset_gid = str(
-            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        """Test that builtin evaluators use the display_name for annotation names."""
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        evaluator_gid = str(
+            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
         )
-        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
-
-        get_weather_tool = {
-            "type": "function",
-            "function": {
-                "name": "get_weather",
-                "description": "Get the current weather",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {"type": "string", "description": "City name"},
-                    },
-                    "required": ["location"],
-                },
-            },
-        }
-
+        custom_display_name = "my-custom-exact-match"
         query = """
-          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
-            chatCompletionOverDataset(input: $input) {
-              experimentId
-              examples {
-                experimentRunId
-              }
-            }
-          }
-
-          query GetExperimentRun($runId: ID!) {
-            run: node(id: $runId) {
-              ... on ExperimentRun {
-                id
-                output
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  ... on EvaluationSuccess {
+                    annotation {
+                      name
+                      score
+                      annotatorKind
+                    }
+                  }
+                  ... on EvaluationError {
+                    evaluatorName
+                    message
+                  }
+                }
+                span {
+                  id
+                }
               }
             }
           }
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
-                "datasetId": dataset_gid,
-                "datasetVersionId": version_gid,
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
                 "messages": [
                     {
                         "role": "USER",
-                        "content": "What's the weather in {city}?",
+                        "content": "Say hello",
                     }
                 ],
-                "tools": [get_weather_tool],
-                "templateFormat": "F_STRING",
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
                 "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "displayName": custom_display_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "hello",
+                                "actual": "hello",
+                            },
+                        },
+                    }
+                ],
             }
         }
-
         with custom_vcr.use_cassette():
-            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            result = await gql_client.execute(query, variables, "ChatCompletion")
             assert not result.errors
             assert (data := result.data)
-            assert (field := data["chatCompletionOverDataset"])
-            assert (examples := field["examples"])
-            assert len(examples) == 1
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
 
-            run_id = examples[0]["experimentRunId"]
+            repetition = repetitions[0]
+            assert not repetition["errorMessage"]
 
-        # Query for the experiment run to check its output
-        result = await gql_client.execute(query, {"runId": run_id}, "GetExperimentRun")
-        assert not result.errors
-        assert (data := result.data)
-        assert (run := data["run"])
-        assert (output := run["output"])
+            # Verify evaluations use display_name, not builtin evaluator name
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 1
+            eval_result = evaluations[0]["annotation"]
+            assert eval_result["name"] == custom_display_name
+            assert eval_result["annotatorKind"] == "CODE"
+            assert eval_result["score"] == 1.0
 
-        # Verify available_tools is present in the output
-        assert "available_tools" in output
-        assert isinstance(output["available_tools"], list)
-        assert len(output["available_tools"]) == 1
-        assert output["available_tools"][0]["type"] == "function"
-        assert output["available_tools"][0]["function"]["name"] == "get_weather"
+        # Verify span annotation was persisted with display_name
+        async with db() as session:
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
+            assert len(annotations) == 1
 
-    async def test_experiment_run_output_always_includes_available_tools_field(
+            annotation = annotations[0]
+            assert annotation.name == custom_display_name
+            assert annotation.annotator_kind == "CODE"
+
+    async def test_builtin_evaluator_over_dataset_uses_display_name_for_annotation(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
@@ -1011,7 +1017,13 @@ class TestChatCompletionMutationMixin:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that experiment run output always includes available_tools field, even when no tools are used."""
+        """Test that builtin evaluators use the display_name for annotations in dataset runs."""
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        evaluator_gid = str(
+            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
+        )
+        custom_display_name = "my-dataset-exact-match"
+
         async with db() as session:
             version_id = await session.scalar(
                 select(models.DatasetVersion.id).where(
@@ -1026,18 +1038,32 @@ class TestChatCompletionMutationMixin:
         query = """
           mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
             chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
               experimentId
               examples {
+                datasetExampleId
                 experimentRunId
-              }
-            }
-          }
-
-          query GetExperimentRun($runId: ID!) {
-            run: node(id: $runId) {
-              ... on ExperimentRun {
-                id
-                output
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    ... on EvaluationSuccess {
+                      annotation {
+                        name
+                        score
+                        annotatorKind
+                      }
+                    }
+                    ... on EvaluationError {
+                      evaluatorName
+                      message
+                    }
+                  }
+                  span {
+                    id
+                  }
+                }
               }
             }
           }
@@ -1053,12 +1079,26 @@ class TestChatCompletionMutationMixin:
                         "content": "What country is {city} in? Answer in one word, no punctuation.",
                     }
                 ],
-                # No tools provided
                 "templateFormat": "F_STRING",
                 "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "displayName": custom_display_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "test",
+                                "actual": "test",
+                            },
+                        },
+                    }
+                ],
             }
         }
 
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
             assert not result.errors
@@ -1067,19 +1107,27 @@ class TestChatCompletionMutationMixin:
             assert (examples := field["examples"])
             assert len(examples) == 1
 
-            run_id = examples[0]["experimentRunId"]
+            example = examples[0]
+            repetition = example["repetition"]
+            assert not repetition["errorMessage"]
 
-        # Query for the experiment run to check its output
-        result = await gql_client.execute(query, {"runId": run_id}, "GetExperimentRun")
-        assert not result.errors
-        assert (data := result.data)
-        assert (run := data["run"])
-        assert (output := run["output"])
+            # Verify evaluations use display_name, not builtin evaluator name
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 1
+            eval_result = evaluations[0]["annotation"]
+            assert eval_result["name"] == custom_display_name
+            assert eval_result["annotatorKind"] == "CODE"
+            assert eval_result["score"] == 1.0
 
-        # Verify available_tools is present in the output, even when empty
-        assert "available_tools" in output
-        assert isinstance(output["available_tools"], list)
-        assert len(output["available_tools"]) == 0  # Empty list when no tools used
+        # Verify experiment run annotation was persisted with display_name
+        async with db() as session:
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
+            assert len(annotations) == 1
+
+            annotation = annotations[0]
+            assert annotation.name == custom_display_name
+            assert annotation.annotator_kind == "CODE"
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
