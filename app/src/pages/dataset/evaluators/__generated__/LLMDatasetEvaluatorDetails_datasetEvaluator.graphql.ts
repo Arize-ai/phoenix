@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4205803efaa1ddc296d479bbff67f58>>
+ * @generated SignedSource<<1d7029f891cd12c224fb92f0bb85ea64>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,14 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
     readonly kind: EvaluatorKind;
-    readonly outputConfig?: {
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
-        readonly label: string;
-        readonly score: number | null;
-      }>;
-    };
     readonly prompt?: {
       readonly id: string;
       readonly name: string;
@@ -42,6 +34,14 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
+  readonly outputConfig: {
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
+      readonly label: string;
+      readonly score: number | null;
+    }>;
+  } | null;
   readonly " $fragmentType": "LLMDatasetEvaluatorDetails_datasetEvaluator";
 };
 export type LLMDatasetEvaluatorDetails_datasetEvaluator$key = {
@@ -376,54 +376,54 @@ return {
                 (v1/*: any*/)
               ],
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "CategoricalAnnotationConfig",
-              "kind": "LinkedField",
-              "name": "outputConfig",
-              "plural": false,
-              "selections": [
-                (v1/*: any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "optimizationDirection",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "CategoricalAnnotationValue",
-                  "kind": "LinkedField",
-                  "name": "values",
-                  "plural": true,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "label",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "score",
-                      "storageKey": null
-                    }
-                  ],
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
             }
           ],
           "type": "LLMEvaluator",
           "abstractKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationConfig",
+      "kind": "LinkedField",
+      "name": "outputConfig",
+      "plural": false,
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "optimizationDirection",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CategoricalAnnotationValue",
+          "kind": "LinkedField",
+          "name": "values",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "label",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "score",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -434,6 +434,6 @@ return {
 };
 })();
 
-(node as any).hash = "8bea4392cdeb941afca48547b50649ae";
+(node as any).hash = "5169645eca85c1f98a0412e6f4120809";
 
 export default node;

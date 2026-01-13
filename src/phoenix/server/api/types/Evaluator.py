@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import sqlalchemy as sa
 import strawberry
@@ -254,21 +254,17 @@ class LLMEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> CategoricalAnnotationConfig:
         config: CategoricalAnnotationConfigModel
-        annotation_name: str
         if self.db_record:
             assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
             config = self.db_record.output_config
-            annotation_name = self.db_record.annotation_name
         else:
-            results = await info.context.data_loaders.llm_evaluator_fields.load_many(
-                [
-                    (self.id, models.LLMEvaluator.output_config),
-                    (self.id, models.LLMEvaluator.annotation_name),
-                ]
+            config = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.output_config),
             )
-            config, annotation_name = results
         return _to_gql_categorical_annotation_config(
-            config=config, annotation_name=annotation_name, evaluator_id=self.id
+            config=config,
+            annotation_name=config.name or "",
+            evaluator_id=self.id,
         )
 
     @strawberry.field
@@ -545,6 +541,64 @@ class DatasetEvaluator(Node):
                     raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
         else:
             raise ValueError("DatasetEvaluator has no evaluator_id or builtin_evaluator_id")
+
+    @strawberry.field
+    async def description(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        """
+        Returns the effective description for this dataset evaluator.
+        If an override is set on the dataset evaluator, returns that.
+        Otherwise, returns the base evaluator's description.
+        """
+        record = await self._get_record(info)
+        if record.description is not None:
+            return record.description
+        if record.builtin_evaluator_id is not None:
+            builtin = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
+            return builtin.description if builtin else None
+        if record.evaluator_id is not None:
+            base_description = await info.context.data_loaders.llm_evaluator_fields.load(
+                (record.evaluator_id, models.LLMEvaluator.description)
+            )
+            return cast(Optional[str], base_description)
+        return None
+
+    @strawberry.field
+    async def output_config(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[CategoricalAnnotationConfig]:
+        """
+        Returns the effective output_config for this dataset evaluator.
+        If an override is set, it's merged with the base config from the LLM evaluator.
+        Otherwise, returns the base config from the LLM evaluator.
+        For builtin evaluators, returns None as they don't have output configs.
+        """
+        from phoenix.server.api.evaluators import merge_output_config
+
+        record = await self._get_record(info)
+        if record.builtin_evaluator_id is not None:
+            return None
+        if record.evaluator_id is None:
+            return None
+        base_config = await info.context.data_loaders.llm_evaluator_fields.load(
+            (record.evaluator_id, models.LLMEvaluator.output_config)
+        )
+        if base_config is None:
+            return None
+        effective_config = merge_output_config(
+            base=base_config,
+            override=record.output_config_override,
+            display_name=record.display_name.root,
+            description_override=record.description,
+        )
+        return _to_gql_categorical_annotation_config(
+            config=effective_config,
+            evaluator_id=record.evaluator_id,
+            annotation_name=record.display_name.root,
+        )
 
     @strawberry.field
     async def input_mapping(

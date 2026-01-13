@@ -15,10 +15,12 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigOverride,
+)
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_config
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -77,28 +79,18 @@ class LLMEvaluator:
         name: str,
         description: Optional[str],
         metadata: dict[str, Any],
-        annotation_name: str,
-        output_config: CategoricalAnnotationConfig,
         template: PromptChatTemplate,
         template_format: PromptTemplateFormat,
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: "PlaygroundStreamingClient[Any]",
+        output_config: CategoricalAnnotationConfig,
         id: Optional[int] = None,
     ):
-        validate_evaluator_prompt_and_config(
-            prompt_tools=tools,
-            prompt_response_format=None,
-            evaluator_annotation_name=annotation_name,
-            evaluator_output_config=output_config,
-            evaluator_description=description,
-        )
         self._name = name
         self._description = description
         self._metadata = metadata
-        self._annotation_name = annotation_name
-        self._output_config = output_config
         self._template = template
         self._template_format = template_format
         self._tools = tools
@@ -106,6 +98,7 @@ class LLMEvaluator:
         self._model_provider = model_provider
         self._id = id
         self._llm_client = llm_client
+        self._output_config = output_config
 
     @property
     def name(self) -> str:
@@ -118,14 +111,6 @@ class LLMEvaluator:
     @property
     def metadata(self) -> dict[str, Any]:
         return self._metadata
-
-    @property
-    def annotation_name(self) -> str:
-        return self._annotation_name
-
-    @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return self._output_config
 
     @property
     def template(self) -> PromptChatTemplate:
@@ -143,6 +128,10 @@ class LLMEvaluator:
     def model_provider(self) -> ModelProvider:
         return self._model_provider
 
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
+        return self._output_config
+
     @staticmethod
     def from_orm(
         llm_evaluator_orm: models.LLMEvaluator,
@@ -159,14 +148,13 @@ class LLMEvaluator:
             name=llm_evaluator_orm.name.root,
             description=llm_evaluator_orm.description,
             metadata=llm_evaluator_orm.metadata_,
-            annotation_name=llm_evaluator_orm.annotation_name,
-            output_config=llm_evaluator_orm.output_config,
             template=template,
             template_format=prompt_version_orm.template_format,
             tools=tools,
             invocation_parameters=prompt_version_orm.invocation_parameters,
             model_provider=prompt_version_orm.model_provider,
             llm_client=llm_client,
+            output_config=llm_evaluator_orm.output_config,
         )
 
     @property
@@ -206,6 +194,8 @@ class LLMEvaluator:
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: CategoricalAnnotationConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -272,15 +262,14 @@ class LLMEvaluator:
                 raise ValueError("LLM response missing required 'label' field")
 
             scores_by_label = {
-                config_value.label: config_value.score
-                for config_value in self._output_config.values
+                config_value.label: config_value.score for config_value in output_config.values
             }
             score = scores_by_label.get(label)
             explanation = args.get("explanation")
 
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self._annotation_name,
+                name=display_name,
                 annotator_kind="LLM",
                 label=label,
                 score=score,
@@ -295,7 +284,7 @@ class LLMEvaluator:
             logger.exception(f"LLM evaluator '{self._name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self._annotation_name,
+                name=display_name,
                 annotator_kind="LLM",
                 label=None,
                 score=None,
@@ -555,9 +544,8 @@ def evaluation_result_to_span_annotation(
 def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
-    annotation_name: str,
-    output_config: CategoricalAnnotationConfig,
     llm_client: "PlaygroundStreamingClient[Any]",
+    output_config: CategoricalAnnotationConfig,
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
@@ -574,14 +562,13 @@ def create_llm_evaluator_from_inline(
         name="preview",
         description=description,
         metadata={},
-        annotation_name=annotation_name,
-        output_config=output_config,
         template=template,
         template_format=prompt_version_orm.template_format,
         tools=tools,
         invocation_parameters=prompt_version_orm.invocation_parameters,
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
+        output_config=output_config,
     )
 
 
@@ -1085,3 +1072,43 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 start_time=start_time,
                 end_time=end_time,
             )
+
+
+def merge_output_config(
+    base: CategoricalAnnotationConfig,
+    override: Optional[CategoricalAnnotationConfigOverride],
+    display_name: str,
+    description_override: Optional[str],
+) -> CategoricalAnnotationConfig:
+    """
+    Merge a base output config with optional overrides.
+
+    Args:
+        base: The base CategoricalAnnotationConfig from the LLM evaluator
+        override: Optional overrides from the dataset evaluator
+        display_name: The display name to use as the config name
+        description_override: Optional description override
+
+    Returns:
+        A new CategoricalAnnotationConfig with overrides applied
+    """
+    values = base.values
+    optimization_direction = base.optimization_direction
+    description = base.description
+
+    if override is not None:
+        if override.values is not None:
+            values = override.values
+        if override.optimization_direction is not None:
+            optimization_direction = override.optimization_direction
+
+    if description_override is not None:
+        description = description_override
+
+    return CategoricalAnnotationConfig(
+        type=base.type,
+        name=display_name,
+        description=description,
+        optimization_direction=optimization_direction,
+        values=values,
+    )

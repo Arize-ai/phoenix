@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71bf5d22199e0b71804b566854011af6>>
+ * @generated SignedSource<<ec6dd542324d60dd0f948890f8ab0af9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLE
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
@@ -72,12 +73,23 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type PlaygroundEvaluatorInput = {
+  description?: string | null;
+  displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
+  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
+};
+export type CategoricalAnnotationConfigOverrideInput = {
+  optimizationDirection?: OptimizationDirection | null;
+  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+};
+export type CategoricalAnnotationConfigValueInput = {
+  label: string;
+  score?: number | null;
 };
 export type PlaygroundDatasetExamplesTableMutation$variables = {
   input: ChatCompletionOverDatasetInput;

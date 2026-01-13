@@ -5,11 +5,11 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
-from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
-from phoenix.server.api.mutations.annotation_config_mutations import (
+from phoenix.server.api.input_types.AnnotationConfigInput import (
     CategoricalAnnotationConfigInput,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 
 
 @strawberry.input

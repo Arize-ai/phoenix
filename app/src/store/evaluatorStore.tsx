@@ -205,17 +205,24 @@ export const createEvaluatorStore = (
         const actions = {
           setEvaluatorName(name) {
             set(
-              { evaluator: { ...get().evaluator, name } },
+              {
+                evaluator: { ...get().evaluator, name },
+                // synchronize the output config name with the evaluator name
+              },
               undefined,
               "setEvaluatorName"
             );
+            get().setOutputConfigName(name);
           },
           setEvaluatorDisplayName(displayName) {
             set(
-              { evaluator: { ...get().evaluator, displayName } },
+              {
+                evaluator: { ...get().evaluator, displayName },
+              },
               undefined,
               "setEvaluatorDisplayName"
             );
+            get().setOutputConfigName(displayName);
           },
           setEvaluatorDescription(description) {
             set(

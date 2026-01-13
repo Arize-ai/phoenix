@@ -336,6 +336,11 @@ input CategoricalAnnotationConfigInput {
   values: [CategoricalAnnotationConfigValueInput!]!
 }
 
+input CategoricalAnnotationConfigOverrideInput {
+  optimizationDirection: OptimizationDirection = null
+  values: [CategoricalAnnotationConfigValueInput!] = null
+}
+
 input CategoricalAnnotationConfigValueInput {
   label: String!
   score: Float = null
@@ -870,6 +875,8 @@ type DatasetEvaluator implements Node {
   updatedAt: DateTime!
   dataset: Dataset!
   evaluator: Evaluator!
+  description: String
+  outputConfig: CategoricalAnnotationConfig
   inputMapping: EvaluatorInputMapping!
 }
 
@@ -2604,7 +2611,10 @@ type PerformanceTimeSeries implements TimeSeries {
 
 input PlaygroundEvaluatorInput {
   id: ID!
+  displayName: Identifier!
+  description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
+  outputConfig: CategoricalAnnotationConfigOverrideInput = null
 }
 
 type PlaygroundModel implements ModelInterface {

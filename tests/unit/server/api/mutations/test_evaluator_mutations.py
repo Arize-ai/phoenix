@@ -41,6 +41,12 @@ class TestDatasetLLMEvaluatorMutations:
           evaluator {
             id
             displayName
+            description
+            outputConfig {
+              name
+              description
+              values { label score }
+            }
             evaluator {
               ... on LLMEvaluator {
                 id
@@ -151,6 +157,10 @@ class TestDatasetLLMEvaluatorMutations:
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         llm_evaluator_data = dataset_evaluator["evaluator"]
         assert dataset_evaluator["displayName"] == "test-evaluator"
+        assert dataset_evaluator["description"] == "test description"
+        assert dataset_evaluator["outputConfig"]["name"] == "test-evaluator"
+        assert dataset_evaluator["outputConfig"]["description"] == "test description"
+        assert len(dataset_evaluator["outputConfig"]["values"]) == 2
         assert llm_evaluator_data["kind"] == "LLM"
         await self._verify_prompt_version_messages(
             gql_client, llm_evaluator_data["promptVersion"]["id"], "Eval {{input}}"
@@ -169,6 +179,11 @@ class TestDatasetLLMEvaluatorMutations:
                 "literal_mapping": {},
                 "path_mapping": {},
             }
+            assert db_dataset_evaluator.description == "test description"
+            assert db_dataset_evaluator.output_config_override is None
+            assert llm_evaluator.output_config is not None
+            assert llm_evaluator.output_config.name == "correctness"
+            assert len(llm_evaluator.output_config.values) == 2
 
         result = await self._create(
             gql_client,
@@ -1151,7 +1166,14 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
             assert db_evaluator is not None
             assert db_evaluator.description == "updated description"
-            assert db_evaluator.annotation_name == "result"
+            db_dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id
+                )
+            )
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.output_config_override is None
+            assert db_evaluator.output_config.name == "result"
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
         self,
@@ -2223,9 +2245,9 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             name=llm_evaluator_name,
             description="test llm evaluator",
             kind="LLM",
-            annotation_name="test",
             output_config=CategoricalAnnotationConfig(
                 type="CATEGORICAL",
+                name="test",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
                 description="test description",
                 values=[
@@ -2238,6 +2260,8 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 models.DatasetEvaluators(
                     dataset_id=empty_dataset.id,
                     display_name=llm_evaluator_name,
+                    description="test description",
+                    output_config_override=None,
                     input_mapping={},
                 )
             ],
@@ -2422,9 +2446,9 @@ async def llm_evaluator(
         name=evaluator_name,
         description=evaluator_description,
         kind="LLM",
-        annotation_name=annotation_name,
         output_config=CategoricalAnnotationConfig(
             type="CATEGORICAL",
+            name=annotation_name,
             optimization_direction=OptimizationDirection.MAXIMIZE,
             description="correctness description",
             values=[
@@ -2437,6 +2461,8 @@ async def llm_evaluator(
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
+                description="correctness description",
+                output_config_override=None,
                 input_mapping={},
             )
         ],
