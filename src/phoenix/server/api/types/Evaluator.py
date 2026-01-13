@@ -554,8 +554,23 @@ class DatasetEvaluator(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
+        """
+        Returns the effective description for this dataset evaluator.
+        If an override is set on the dataset evaluator, returns that.
+        Otherwise, returns the base evaluator's description.
+        """
         record = await self._get_record(info)
-        return record.description
+        if record.description is not None:
+            return record.description
+        if record.builtin_evaluator_id is not None:
+            builtin = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
+            return builtin.description if builtin else None
+        if record.evaluator_id is not None:
+            base_description = await info.context.data_loaders.llm_evaluator_fields.load(
+                (record.evaluator_id, models.LLMEvaluator.description)
+            )
+            return base_description
+        return None
 
     @strawberry.field
     async def output_config(

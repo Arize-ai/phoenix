@@ -5,6 +5,11 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -14,7 +19,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.types.Evaluator import LLMEvaluator
+from phoenix.server.api.types.Evaluator import DatasetEvaluator, LLMEvaluator
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -126,3 +131,163 @@ class TestEvaluatorFields:
             GlobalID("PromptVersionTag", str(_test_data["tag"]))
         )
         assert node["promptVersion"]["id"] == str(GlobalID("PromptVersion", str(_test_data["v1"])))
+
+
+class TestDatasetEvaluatorDescriptionFallback:
+    """Tests for DatasetEvaluator.description fallback behavior."""
+
+    @pytest.fixture
+    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+        """Create test data: dataset, LLM evaluator with description, and dataset evaluators."""
+        async with db() as session:
+            dataset = models.Dataset(
+                name=f"test-dataset-{token_hex(4)}",
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+
+            prompt = models.Prompt(name=Identifier(token_hex(4)))
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = _create_prompt_version(prompt.id, "Test: {input}", "gpt-4")
+            session.add(prompt_version)
+            await session.flush()
+
+            llm_evaluator = models.LLMEvaluator(
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                description="Base evaluator description",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="result",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+
+            dataset_evaluator_with_desc = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=llm_evaluator.id,
+                display_name=Identifier("eval_with_desc"),
+                description="Dataset evaluator override description",
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+            )
+            session.add(dataset_evaluator_with_desc)
+            await session.flush()
+
+            dataset_evaluator_no_desc = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=llm_evaluator.id,
+                display_name=Identifier("eval_no_desc"),
+                description=None,
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+            )
+            session.add(dataset_evaluator_no_desc)
+            await session.flush()
+
+            llm_evaluator_no_desc = models.LLMEvaluator(
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                description=None,
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="result2",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
+            )
+            session.add(llm_evaluator_no_desc)
+            await session.flush()
+
+            dataset_evaluator_both_null = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=llm_evaluator_no_desc.id,
+                display_name=Identifier("eval_both_null"),
+                description=None,
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+            )
+            session.add(dataset_evaluator_both_null)
+            await session.flush()
+
+        ids = {
+            "dataset": dataset.id,
+            "llm_evaluator": llm_evaluator.id,
+            "dataset_evaluator_with_desc": dataset_evaluator_with_desc.id,
+            "dataset_evaluator_no_desc": dataset_evaluator_no_desc.id,
+            "llm_evaluator_no_desc": llm_evaluator_no_desc.id,
+            "dataset_evaluator_both_null": dataset_evaluator_both_null.id,
+        }
+        yield ids
+
+    async def test_dataset_evaluator_returns_own_description_when_set(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """When dataset evaluator has its own description, it should return that."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { description }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(
+                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_with_desc"])
+                    )
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["description"] == "Dataset evaluator override description"
+
+    async def test_dataset_evaluator_falls_back_to_base_evaluator_description(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """When dataset evaluator description is null, it should return base evaluator's description."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { description }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(
+                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_no_desc"])
+                    )
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["description"] == "Base evaluator description"
+
+    async def test_dataset_evaluator_returns_null_when_both_null(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """When both dataset evaluator and base evaluator descriptions are null, it returns null."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { description }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(
+                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_both_null"])
+                    )
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["description"] is None
