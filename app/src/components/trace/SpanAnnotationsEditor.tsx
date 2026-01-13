@@ -98,7 +98,11 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
           </Flex>
         </View>
         <Suspense>
-          <SpanAnnotationsList spanId={spanNodeId} projectId={projectId} />
+          <SpanAnnotationsList
+            spanId={spanNodeId}
+            projectId={projectId}
+            annotationConfigsRefetchKey={refetchKey}
+          />
         </Suspense>
       </Flex>
     </View>
@@ -319,8 +323,14 @@ function SpanAnnotationsList(props: {
   spanId: string;
   projectId: string;
   extraAnnotationCards?: React.ReactNode;
+  annotationConfigsRefetchKey?: number;
 }) {
-  const { spanId, projectId, extraAnnotationCards } = props;
+  const {
+    spanId,
+    projectId,
+    extraAnnotationCards,
+    annotationConfigsRefetchKey,
+  } = props;
   const { viewer } = useViewer();
   const notifyError = useNotifyError();
   // If not authenticated, pass a null user to the query to get the system annotation
@@ -381,7 +391,8 @@ function SpanAnnotationsList(props: {
       projectId,
       spanId,
       filterUserIds: userFilter,
-    }
+    },
+    { fetchKey: annotationConfigsRefetchKey, fetchPolicy: "store-and-network" }
   );
   const span = useFragment<SpanAnnotationsEditor_spanAnnotations$key>(
     graphql`
