@@ -13,14 +13,11 @@ describe("formatValue", () => {
   });
 
   it("parses stringified arrays", () => {
-    expect(formatValue('[1, 2, 3]')).toEqual([1, 2, 3]);
+    expect(formatValue("[1, 2, 3]")).toEqual([1, 2, 3]);
   });
 
   it("parses arrays of objects", () => {
-    expect(formatValue('[{"a": 1}, {"b": 2}]')).toEqual([
-      { a: 1 },
-      { b: 2 },
-    ]);
+    expect(formatValue('[{"a": 1}, {"b": 2}]')).toEqual([{ a: 1 }, { b: 2 }]);
   });
 
   it("parses nested JSON in objects", () => {
@@ -30,10 +27,7 @@ describe("formatValue", () => {
   });
 
   it("parses nested JSON in arrays", () => {
-    expect(formatValue(['{"a": 1}', '{"b": 2}'])).toEqual([
-      { a: 1 },
-      { b: 2 },
-    ]);
+    expect(formatValue(['{"a": 1}', '{"b": 2}'])).toEqual([{ a: 1 }, { b: 2 }]);
   });
 
   it("parses deeply nested structures", () => {
@@ -91,7 +85,7 @@ describe("hasStringifiedJSON", () => {
     });
 
     it("stringified arrays", () => {
-      expect(hasStringifiedJSON('[1, 2, 3]')).toBe(true);
+      expect(hasStringifiedJSON("[1, 2, 3]")).toBe(true);
     });
 
     it("stringified arrays of objects", () => {
