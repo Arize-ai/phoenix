@@ -125,32 +125,44 @@ function ContainsEvaluatorDetails({
 }: {
   inputMapping: {
     literalMapping?: {
+      text?: string | null;
       words?: string | null;
       case_sensitive?: boolean | string | null;
     } | null;
     pathMapping?: {
       text?: string | null;
+      words?: string | null;
     } | null;
   } | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text;
-  const words = inputMapping?.literalMapping?.words;
+  const textLiteral = inputMapping?.literalMapping?.text;
+  const wordsPath = inputMapping?.pathMapping?.words;
+  const wordsLiteral = inputMapping?.literalMapping?.words;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
 
   return (
     <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-200">
-        <ContainsEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
           <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
-                <Text weight="heavy">Text:</Text> {textPath || "Not mapped"}
+                <Text weight="heavy">Text:</Text>{" "}
+                {textPath
+                  ? textPath
+                  : textLiteral != null
+                    ? `"${textLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
                 <Text weight="heavy">Words:</Text>{" "}
-                {words ? String(words) : "Not set"}
+                {wordsPath
+                  ? wordsPath
+                  : wordsLiteral
+                    ? String(wordsLiteral)
+                    : "Not set"}
               </Text>
               <Text size="S">
                 <Text weight="heavy">Case sensitive:</Text>{" "}
@@ -161,6 +173,7 @@ function ContainsEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <ContainsEvaluatorCodeBlock />
       </Flex>
     </View>
   );
@@ -171,6 +184,8 @@ function ExactMatchEvaluatorDetails({
 }: {
   inputMapping: {
     literalMapping?: {
+      expected?: string | null;
+      actual?: string | null;
       case_sensitive?: boolean | string | null;
     } | null;
     pathMapping?: {
@@ -180,23 +195,33 @@ function ExactMatchEvaluatorDetails({
   } | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
+  const expectedLiteral = inputMapping?.literalMapping?.expected;
   const actualPath = inputMapping?.pathMapping?.actual;
+  const actualLiteral = inputMapping?.literalMapping?.actual;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
 
   return (
     <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-200">
-        <ExactMatchEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
           <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
                 <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath || "Not mapped"}
+                {expectedPath
+                  ? expectedPath
+                  : expectedLiteral != null
+                    ? `"${expectedLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
-                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
+                <Text weight="heavy">Actual:</Text>{" "}
+                {actualPath
+                  ? actualPath
+                  : actualLiteral != null
+                    ? `"${actualLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
                 <Text weight="heavy">Case sensitive:</Text>{" "}
@@ -207,6 +232,7 @@ function ExactMatchEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <ExactMatchEvaluatorCodeBlock />
       </Flex>
     </View>
   );
@@ -217,6 +243,7 @@ function RegexEvaluatorDetails({
 }: {
   inputMapping: {
     literalMapping?: {
+      text?: string | null;
       pattern?: string | null;
       full_match?: boolean | string | null;
     } | null;
@@ -226,19 +253,24 @@ function RegexEvaluatorDetails({
   } | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text;
+  const textLiteral = inputMapping?.literalMapping?.text;
   const pattern = inputMapping?.literalMapping?.pattern;
   const fullMatch = inputMapping?.literalMapping?.full_match;
 
   return (
     <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-200">
-        <RegexEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
           <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
-                <Text weight="heavy">Text:</Text> {textPath || "Not mapped"}
+                <Text weight="heavy">Text:</Text>{" "}
+                {textPath
+                  ? textPath
+                  : textLiteral != null
+                    ? `"${textLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
                 <Text weight="heavy">Pattern:</Text>{" "}
@@ -251,6 +283,7 @@ function RegexEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <RegexEvaluatorCodeBlock />
       </Flex>
     </View>
   );
@@ -261,6 +294,8 @@ function LevenshteinDistanceEvaluatorDetails({
 }: {
   inputMapping: {
     literalMapping?: {
+      expected?: string | null;
+      actual?: string | null;
       case_sensitive?: boolean | string | null;
     } | null;
     pathMapping?: {
@@ -270,23 +305,33 @@ function LevenshteinDistanceEvaluatorDetails({
   } | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
+  const expectedLiteral = inputMapping?.literalMapping?.expected;
   const actualPath = inputMapping?.pathMapping?.actual;
+  const actualLiteral = inputMapping?.literalMapping?.actual;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
 
   return (
     <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-200">
-        <LevenshteinDistanceEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
           <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
                 <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath || "Not mapped"}
+                {expectedPath
+                  ? expectedPath
+                  : expectedLiteral != null
+                    ? `"${expectedLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
-                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
+                <Text weight="heavy">Actual:</Text>{" "}
+                {actualPath
+                  ? actualPath
+                  : actualLiteral != null
+                    ? `"${actualLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
                 <Text weight="heavy">Case sensitive:</Text>{" "}
@@ -297,6 +342,7 @@ function LevenshteinDistanceEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <LevenshteinDistanceEvaluatorCodeBlock />
       </Flex>
     </View>
   );
@@ -306,6 +352,10 @@ function JSONDistanceEvaluatorDetails({
   inputMapping,
 }: {
   inputMapping: {
+    literalMapping?: {
+      expected?: string | null;
+      actual?: string | null;
+    } | null;
     pathMapping?: {
       expected?: string | null;
       actual?: string | null;
@@ -313,26 +363,37 @@ function JSONDistanceEvaluatorDetails({
   } | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
+  const expectedLiteral = inputMapping?.literalMapping?.expected;
   const actualPath = inputMapping?.pathMapping?.actual;
+  const actualLiteral = inputMapping?.literalMapping?.actual;
 
   return (
     <View padding="size-200" overflow="auto">
       <Flex direction="column" gap="size-200">
-        <JSONDistanceEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
           <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
                 <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath || "Not mapped"}
+                {expectedPath
+                  ? expectedPath
+                  : expectedLiteral != null
+                    ? `"${expectedLiteral}"`
+                    : "Not mapped"}
               </Text>
               <Text size="S">
-                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
+                <Text weight="heavy">Actual:</Text>{" "}
+                {actualPath
+                  ? actualPath
+                  : actualLiteral != null
+                    ? `"${actualLiteral}"`
+                    : "Not mapped"}
               </Text>
             </Flex>
           </div>
         </Flex>
+        <JSONDistanceEvaluatorCodeBlock />
       </Flex>
     </View>
   );
