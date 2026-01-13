@@ -15,11 +15,12 @@ import {
 } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { PromptNameWithBadge } from "@phoenix/components/prompt";
+import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
+import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 export function LLMDatasetEvaluatorDetails({
@@ -58,6 +59,8 @@ export function LLMDatasetEvaluatorDetails({
                 definition
               }
               ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+              ...PromptChatMessagesCard__main
+              ...PromptModelConfigurationCard__main
             }
             promptVersionTag {
               name
@@ -182,47 +185,55 @@ export function LLMDatasetEvaluatorDetails({
                 </div>
               </Flex>
             )}
-            <Flex direction="column" gap="size-100">
-              <Heading level={2}>Prompt</Heading>
-              {promptData && (
-                <div
-                  css={css`
-                    cursor: pointer;
-                    &:hover button {
-                      background-color: var(
-                        --ac-global-input-field-background-color-hover
-                      );
-                    }
-                  `}
-                  onClick={() => navigate(promptUrl)}
-                  role="button"
-                >
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <PromptNameWithBadge
-                      name={promptData.name}
-                      {...(promptData.tagName
-                        ? { tag: promptData.tagName }
-                        : { versionId: promptData.versionId })}
-                    />
-                    <Button
-                      size="S"
-                      leadingVisual={
-                        <Icon svg={<Icons.MessageSquareOutline />} />
+            {promptData && (
+              <Flex direction="column" gap="size-200">
+                <Flex direction="column" gap="size-100">
+                  <Heading level={2}>Prompt</Heading>
+                  <div
+                    css={css`
+                      cursor: pointer;
+                      &:hover button {
+                        background-color: var(
+                          --ac-global-input-field-background-color-hover
+                        );
                       }
-                      onPress={() => navigate(promptUrl)}
+                    `}
+                    onClick={() => navigate(promptUrl)}
+                    role="button"
+                  >
+                    <Flex
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
                     >
-                      View prompt
-                    </Button>
-                  </Flex>
-                </div>
-              )}
-              <EvaluatorPromptPreview />
-            </Flex>
-            <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+                      <PromptNameWithBadge
+                        name={promptData.name}
+                        {...(promptData.tagName
+                          ? { tag: promptData.tagName }
+                          : { versionId: promptData.versionId })}
+                      />
+                      <Button
+                        size="S"
+                        leadingVisual={
+                          <Icon svg={<Icons.MessageSquareOutline />} />
+                        }
+                        onPress={() => navigate(promptUrl)}
+                      >
+                        View prompt
+                      </Button>
+                    </Flex>
+                  </div>
+                </Flex>
+                <PromptChatMessagesCard
+                  title="Prompt Template"
+                  promptVersion={evaluator.promptVersion!}
+                />
+                <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+                <PromptModelConfigurationCard
+                  promptVersion={evaluator.promptVersion!}
+                />
+              </Flex>
+            )}
           </Flex>
         </View>
       </EvaluatorStoreProvider>
