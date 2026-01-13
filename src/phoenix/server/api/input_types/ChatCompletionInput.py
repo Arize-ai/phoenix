@@ -49,3 +49,9 @@ class ChatCompletionOverDatasetInput:
         default=None,
         description="Dot-notation path to messages in dataset example input to append to prompt",
     )
+    template_variables_path: Optional[str] = strawberry.field(
+        default="input",
+        description="Dot-notation path prefix for template variables. Default 'input' means "
+        "{{query}} resolves to input.query. Empty string means full paths like "
+        "{{input.query}} or {{reference.answer}} are required.",
+    )
