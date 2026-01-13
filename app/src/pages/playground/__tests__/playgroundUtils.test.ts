@@ -9,6 +9,7 @@ import {
   PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store";
+import { normalizeMessageContent } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
@@ -38,7 +39,6 @@ import {
   getToolsFromAttributes,
   getVariablesMapFromInstances,
   mergeInvocationParametersWithDefaults,
-  normalizeMessageContent,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";

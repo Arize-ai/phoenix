@@ -2,8 +2,8 @@ import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
-import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { normalizeMessageContent } from "@phoenix/utils/jsonUtils";
 import {
   asTextPart,
   asToolCallPart,

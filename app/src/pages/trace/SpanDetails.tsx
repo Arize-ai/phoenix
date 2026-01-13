@@ -93,10 +93,12 @@ import {
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  normalizeMessageContent,
+  safelyParseJSON,
+} from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { normalizeMessageContent } from "../playground/playgroundUtils";
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
 
