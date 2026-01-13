@@ -40,6 +40,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
     get_llm_evaluators,
+    merge_output_config,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
@@ -428,11 +429,17 @@ class ChatCompletionMutationMixin:
                             if evaluator_input.output_config is not None
                             else None
                         )
+                        merged_output_config = merge_output_config(
+                            base=llm_evaluator.output_config,
+                            override=output_config_override,
+                            display_name=str(evaluator_input.display_name),
+                            description_override=None,
+                        )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            output_config=output_config_override,
+                            output_config=merged_output_config,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
@@ -559,11 +566,17 @@ class ChatCompletionMutationMixin:
                             if evaluator_input.output_config is not None
                             else None
                         )
+                        merged_output_config = merge_output_config(
+                            base=llm_evaluator.output_config,
+                            override=output_config_override,
+                            display_name=str(evaluator_input.display_name),
+                            description_override=None,
+                        )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            output_config=output_config_override,
+                            output_config=merged_output_config,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_span_annotation(
@@ -653,6 +666,7 @@ class ChatCompletionMutationMixin:
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
+                    output_config=output_config,
                     description=inline_llm_evaluator.description,
                 )
 

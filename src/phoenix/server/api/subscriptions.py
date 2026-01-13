@@ -41,6 +41,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_builtin_evaluator_by_id,
     get_llm_evaluators,
+    merge_output_config,
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.message_helpers import (
@@ -218,11 +219,17 @@ async def _stream_single_chat_completion(
                     if evaluator_input.output_config is not None
                     else None
                 )
+                merged_output_config = merge_output_config(
+                    base=llm_evaluator.output_config,
+                    override=output_config_override,
+                    display_name=str(evaluator_input.display_name),
+                    description_override=None,
+                )
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
                     display_name=str(evaluator_input.display_name),
-                    output_config=output_config_override,
+                    output_config=merged_output_config,
                 )
                 if result["error"] is not None:
                     yield EvaluationErrorChunk(
@@ -690,11 +697,17 @@ class Subscription:
                                 if evaluator_input.output_config is not None
                                 else None
                             )
+                            merged_output_config = merge_output_config(
+                                base=llm_evaluator.output_config,
+                                override=output_config_override,
+                                display_name=str(evaluator_input.display_name),
+                                description_override=None,
+                            )
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
                                 display_name=str(evaluator_input.display_name),
-                                output_config=output_config_override,
+                                output_config=merged_output_config,
                             )
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(

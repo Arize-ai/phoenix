@@ -85,6 +85,7 @@ class LLMEvaluator:
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: "PlaygroundStreamingClient[Any]",
+        output_config: CategoricalAnnotationConfig,
         id: Optional[int] = None,
     ):
         self._name = name
@@ -97,6 +98,7 @@ class LLMEvaluator:
         self._model_provider = model_provider
         self._id = id
         self._llm_client = llm_client
+        self._output_config = output_config
 
     @property
     def name(self) -> str:
@@ -126,6 +128,10 @@ class LLMEvaluator:
     def model_provider(self) -> ModelProvider:
         return self._model_provider
 
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
+        return self._output_config
+
     @staticmethod
     def from_orm(
         llm_evaluator_orm: models.LLMEvaluator,
@@ -148,6 +154,7 @@ class LLMEvaluator:
             invocation_parameters=prompt_version_orm.invocation_parameters,
             model_provider=prompt_version_orm.model_provider,
             llm_client=llm_client,
+            output_config=llm_evaluator_orm.output_config,
         )
 
     @property
@@ -538,12 +545,12 @@ def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
     llm_client: "PlaygroundStreamingClient[Any]",
+    output_config: CategoricalAnnotationConfig,
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
     Creates an LLMEvaluator instance from inline definition without database persistence.
     Used for evaluator preview functionality.
-    Note: display_name and output_config are passed at evaluate() time.
     """
     template = prompt_version_orm.template
     assert isinstance(template, PromptChatTemplate)
@@ -561,6 +568,7 @@ def create_llm_evaluator_from_inline(
         invocation_parameters=prompt_version_orm.invocation_parameters,
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
+        output_config=output_config,
     )
 
 
