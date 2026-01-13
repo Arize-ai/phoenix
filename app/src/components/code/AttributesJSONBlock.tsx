@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { JSONBlock } from "./JSONBlock";
 import { PreBlock } from "./PreBlock";
@@ -14,88 +15,63 @@ const buttonContainerCSS = css`
   z-index: 1;
 `;
 
-function tryParseJSON(value: unknown): {
-  parsed: unknown;
-  isStringifiedJSON: boolean;
-} {
-  if (typeof value !== "string") {
-    return { parsed: value, isStringifiedJSON: false };
+/** 
+ * Parses a string as JSON if it's a valid object or array. 
+*/
+function parseStringifiedJSON(value: string): unknown | null {
+  if (!isJSONString({ str: value, excludePrimitives: true })) {
+    return null;
   }
-
-  try {
-    const parsed = JSON.parse(value);
-    if (typeof parsed === "object" && parsed !== null) {
-      return { parsed, isStringifiedJSON: true };
-    }
-  } catch {
-    // Not valid JSON
-  }
-
-  return { parsed: value, isStringifiedJSON: false };
+  const { json } = safelyParseJSON(value);
+  return json;
 }
 
-function formatValue(value: unknown, shouldFormat: boolean): unknown {
-  if (!shouldFormat) {
-    return value;
-  }
-
-  const { parsed, isStringifiedJSON } = tryParseJSON(value);
-  if (isStringifiedJSON) {
-    return formatValue(parsed, shouldFormat);
+/** 
+ * Recursively expands stringified JSON throughout nested objects and arrays. 
+*/
+export function formatValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    const parsed = parseStringifiedJSON(value);
+    return parsed !== null ? formatValue(parsed) : value;
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => formatValue(item, shouldFormat));
+    return value.map(formatValue);
   }
 
   if (typeof value === "object" && value !== null) {
-    const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value)) {
-      result[key] = formatValue(val, shouldFormat);
-    }
-    return result;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [key, formatValue(val)])
+    );
   }
 
   return value;
 }
 
-function formatAttributes(
-  obj: Record<string, unknown>,
-  shouldFormat: boolean
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = formatValue(value, shouldFormat);
-  }
-
-  return result;
-}
-
-function hasStringifiedJSON(value: unknown): boolean {
+/** 
+ * Checks if a value contains stringified JSON that can be expanded. 
+*/
+export function hasStringifiedJSON(value: unknown): boolean {
   if (typeof value === "string") {
-    const { isStringifiedJSON } = tryParseJSON(value);
-    return isStringifiedJSON;
+    return isJSONString({ str: value, excludePrimitives: true });
   }
 
   if (Array.isArray(value)) {
-    return value.some((item) => hasStringifiedJSON(item));
+    return value.some(hasStringifiedJSON);
   }
 
   if (typeof value === "object" && value !== null) {
-    return Object.values(value).some((val) => hasStringifiedJSON(val));
+    return Object.values(value).some(hasStringifiedJSON);
   }
 
   return false;
 }
 
-export type AttributesJSONBlockProps = {
-  attributes: string;
-};
-
-export function AttributesJSONBlock(props: AttributesJSONBlockProps) {
-  const { attributes } = props;
-  const [isFormatted, setIsFormatted] = useState(false);
+/** 
+ * Displays JSON attributes with a button to expand/collapse stringified JSON values. 
+*/
+export function AttributesJSONBlock({ attributes }: { attributes: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const parsedAttributes = useMemo(() => {
     try {
@@ -105,52 +81,50 @@ export function AttributesJSONBlock(props: AttributesJSONBlockProps) {
     }
   }, [attributes]);
 
-  const hasStringified = useMemo(() => {
-    if (!parsedAttributes) return false;
-    return hasStringifiedJSON(parsedAttributes);
-  }, [parsedAttributes]);
+  const canExpand = useMemo(
+    () => parsedAttributes && hasStringifiedJSON(parsedAttributes),
+    [parsedAttributes]
+  );
 
   const displayValue = useMemo(() => {
     if (!parsedAttributes) {
       return attributes;
     }
 
-    const formatted = formatAttributes(parsedAttributes, isFormatted);
-    return JSON.stringify(formatted, null, 2);
-  }, [parsedAttributes, attributes, isFormatted]);
+    const valueToDisplay = isExpanded ? formatValue(parsedAttributes) : parsedAttributes;
+    return JSON.stringify(valueToDisplay, null, 2);
+  }, [parsedAttributes, isExpanded, attributes]);
 
-  const toggleFormat = useCallback(() => {
-    setIsFormatted((prev: boolean) => !prev);
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((prev) => !prev);
   }, []);
+
+  const buttonLabel = isExpanded ? "Collapse Strings" : "Expand Strings";
+  const buttonIcon = isExpanded ? <Icons.CollapseOutline /> : <Icons.ExpandOutline />;
 
   return (
     <View position="relative">
       <div css={buttonContainerCSS}>
         <Flex direction="row" gap="size-100">
-          {hasStringified && (
+          {canExpand && (
             <Button
               size="S"
-              variant={isFormatted ? "primary" : "default"}
-              leadingVisual={
-                <Icon
-                  svg={
-                    isFormatted ? (
-                      <Icons.CollapseOutline />
-                    ) : (
-                      <Icons.ExpandOutline />
-                    )
-                  }
-                />
-              }
-              onPress={toggleFormat}
+              variant={isExpanded ? "primary" : "default"}
+              aria-label={buttonLabel}
+              leadingVisual={<Icon svg={buttonIcon} />}
+              onPress={toggleExpand}
             >
-              {isFormatted ? "Collapse Strings" : "Expand Strings"}
+              {buttonLabel}
             </Button>
           )}
           <CopyToClipboardButton text={displayValue} />
         </Flex>
       </div>
-      {parsedAttributes ? <JSONBlock value={displayValue} /> : <PreBlock>{attributes}</PreBlock>}
+      {parsedAttributes ? (
+        <JSONBlock value={displayValue} />
+      ) : (
+        <PreBlock>{attributes}</PreBlock>
+      )}
     </View>
   );
 }
