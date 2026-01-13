@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
+import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
 import { type AnnotationConfig } from "@phoenix/components/annotation";
@@ -116,21 +117,21 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
     return datasetEvaluators
-      .filter((evaluator) => selectedDatasetEvaluatorIds.includes(evaluator.id))
-      .map((evaluator): AnnotationConfig => {
-        // LLM evaluators have outputConfig with categorical values
-        if (evaluator.outputConfig != null) {
-          return {
-            name: evaluator.outputConfig.name,
-            optimizationDirection: evaluator.outputConfig.optimizationDirection,
-            values: evaluator.outputConfig.values,
-            annotationType: "CATEGORICAL",
-          };
-        }
-        // TODO(mikeldking): this is not correct but needs to be fixed on the back-end
+      .filter(
+        (evaluator) =>
+          selectedDatasetEvaluatorIds.includes(evaluator.id) &&
+          evaluator.outputConfig != null
+      )
+      .map((evaluator) => {
+        invariant(
+          evaluator.outputConfig != null,
+          "Evaluator output config is required"
+        );
         return {
-          name: evaluator.displayName,
-          annotationType: "FREEFORM",
+          name: evaluator.outputConfig.name,
+          optimizationDirection: evaluator.outputConfig.optimizationDirection,
+          values: evaluator.outputConfig.values,
+          annotationType: "CATEGORICAL",
         };
       });
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);

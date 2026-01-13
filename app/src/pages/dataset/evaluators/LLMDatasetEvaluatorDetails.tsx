@@ -106,7 +106,7 @@ export function LLMDatasetEvaluatorDetails({
       >
         <View padding="size-200" overflow="auto">
           <Flex direction="column" gap="size-300">
-            {evaluator.outputConfig && (
+            {datasetEvaluator.outputConfig && (
               <Flex direction="column" gap="size-100">
                 <Heading level={2}>Evaluator Annotation</Heading>
                 <div
@@ -121,21 +121,21 @@ export function LLMDatasetEvaluatorDetails({
                   <Flex direction="column" gap="size-100">
                     <Text size="S">
                       <Text weight="heavy">Name:</Text>{" "}
-                      {evaluator.outputConfig.name}
+                      {datasetEvaluator.outputConfig.name}
                     </Text>
-                    {evaluator.outputConfig.optimizationDirection && (
+                    {datasetEvaluator.outputConfig.optimizationDirection && (
                       <Text size="S">
                         <Text weight="heavy">Optimization Direction:</Text>{" "}
-                        {evaluator.outputConfig.optimizationDirection}
+                        {datasetEvaluator.outputConfig.optimizationDirection}
                       </Text>
                     )}
-                    {evaluator.outputConfig.values &&
-                      evaluator.outputConfig.values.length > 0 && (
+                    {datasetEvaluator.outputConfig.values &&
+                      datasetEvaluator.outputConfig.values.length > 0 && (
                         <Text>
                           <Text size="S" weight="heavy">
                             Values:{" "}
                           </Text>
-                          {evaluator.outputConfig.values.map((v, idx, arr) => (
+                          {datasetEvaluator.outputConfig.values.map((v, idx, arr) => (
                             <Text key={idx} size="S">
                               {v.label}
                               {v.score != null ? ` (${v.score})` : ""}
