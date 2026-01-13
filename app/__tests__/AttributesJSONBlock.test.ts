@@ -62,35 +62,21 @@ describe("formatValue", () => {
     });
   });
 
-  it("returns plain text unchanged", () => {
-    expect(formatValue("not json")).toEqual("not json");
+  it("preserves non-JSON strings", () => {
+    expect(formatValue("not json")).toBe("not json");
+    expect(formatValue("123")).toBe("123");
+    expect(formatValue("true")).toBe("true");
   });
 
-  it("returns numeric strings unchanged", () => {
-    expect(formatValue("123")).toEqual("123");
+  it("preserves primitive values", () => {
+    expect(formatValue(123)).toBe(123);
+    expect(formatValue(true)).toBe(true);
+    expect(formatValue(null)).toBe(null);
   });
 
-  it("returns boolean strings unchanged", () => {
-    expect(formatValue("true")).toEqual("true");
-  });
-
-  it("returns numbers unchanged", () => {
-    expect(formatValue(123)).toEqual(123);
-  });
-
-  it("returns booleans unchanged", () => {
-    expect(formatValue(true)).toEqual(true);
-  });
-
-  it("returns null unchanged", () => {
-    expect(formatValue(null)).toEqual(null);
-  });
-
-  it("returns parsed objects unchanged", () => {
-    expect(formatValue([{ a: 1 }, { b: 2 }])).toEqual([
-      { a: 1 },
-      { b: 2 },
-    ]);
+  it("preserves already parsed objects", () => {
+    const input = [{ a: 1 }, { b: 2 }];
+    expect(formatValue(input)).toEqual(input);
   });
 });
 
@@ -130,51 +116,30 @@ describe("hasStringifiedJSON", () => {
   });
 
   describe("returns false for", () => {
-    it("plain text", () => {
+    it("non-JSON strings", () => {
       expect(hasStringifiedJSON("plain string")).toBe(false);
-    });
-
-    it("numeric strings", () => {
       expect(hasStringifiedJSON("123")).toBe(false);
-    });
-
-    it("boolean strings", () => {
       expect(hasStringifiedJSON("true")).toBe(false);
     });
 
-    it("numbers", () => {
+    it("primitive values", () => {
       expect(hasStringifiedJSON(123)).toBe(false);
-    });
-
-    it("booleans", () => {
       expect(hasStringifiedJSON(true)).toBe(false);
-    });
-
-    it("null", () => {
       expect(hasStringifiedJSON(null)).toBe(false);
     });
 
-    it("plain objects", () => {
+    it("objects without stringified JSON", () => {
       expect(hasStringifiedJSON({ a: 1 })).toBe(false);
-    });
-
-    it("nested objects", () => {
       expect(hasStringifiedJSON({ a: { b: 1 } })).toBe(false);
     });
 
-    it("plain arrays", () => {
+    it("arrays without stringified JSON", () => {
       expect(hasStringifiedJSON([1, 2, 3])).toBe(false);
-    });
-
-    it("arrays of objects", () => {
       expect(hasStringifiedJSON([{ a: 1 }])).toBe(false);
     });
 
-    it("invalid JSON", () => {
+    it("invalid or malformed JSON strings", () => {
       expect(hasStringifiedJSON("{invalid}")).toBe(false);
-    });
-
-    it("malformed JSON", () => {
       expect(hasStringifiedJSON("[1, 2,")).toBe(false);
     });
   });

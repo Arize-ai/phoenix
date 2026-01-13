@@ -15,9 +15,9 @@ const buttonContainerCSS = css`
   z-index: 1;
 `;
 
-/** 
- * Parses a string as JSON if it's a valid object or array. 
-*/
+/**
+ * Parses a string as JSON if it's a valid object or array.
+ */
 function parseStringifiedJSON(value: string): unknown | null {
   if (!isJSONString({ str: value, excludePrimitives: true })) {
     return null;
@@ -26,9 +26,9 @@ function parseStringifiedJSON(value: string): unknown | null {
   return json;
 }
 
-/** 
- * Recursively expands stringified JSON throughout nested objects and arrays. 
-*/
+/**
+ * Recursively expands stringified JSON throughout nested objects and arrays.
+ */
 export function formatValue(value: unknown): unknown {
   if (typeof value === "string") {
     const parsed = parseStringifiedJSON(value);
@@ -48,9 +48,9 @@ export function formatValue(value: unknown): unknown {
   return value;
 }
 
-/** 
- * Checks if a value contains stringified JSON that can be expanded. 
-*/
+/**
+ * Checks if a value contains stringified JSON that can be expanded.
+ */
 export function hasStringifiedJSON(value: unknown): boolean {
   if (typeof value === "string") {
     return isJSONString({ str: value, excludePrimitives: true });
@@ -67,9 +67,9 @@ export function hasStringifiedJSON(value: unknown): boolean {
   return false;
 }
 
-/** 
- * Displays JSON attributes with a button to expand/collapse stringified JSON values. 
-*/
+/**
+ * Displays JSON attributes with a button to expand/collapse stringified JSON values.
+ */
 export function AttributesJSONBlock({ attributes }: { attributes: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -90,17 +90,15 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
     if (!parsedAttributes) {
       return attributes;
     }
-
-    const valueToDisplay = isExpanded ? formatValue(parsedAttributes) : parsedAttributes;
+    const valueToDisplay = isExpanded
+      ? formatValue(parsedAttributes)
+      : parsedAttributes;
     return JSON.stringify(valueToDisplay, null, 2);
   }, [parsedAttributes, isExpanded, attributes]);
 
   const toggleExpand = useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
-
-  const buttonLabel = isExpanded ? "Collapse Strings" : "Expand Strings";
-  const buttonIcon = isExpanded ? <Icons.CollapseOutline /> : <Icons.ExpandOutline />;
 
   return (
     <View position="relative">
@@ -110,11 +108,21 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
             <Button
               size="S"
               variant={isExpanded ? "primary" : "default"}
-              aria-label={buttonLabel}
-              leadingVisual={<Icon svg={buttonIcon} />}
+              aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
+              leadingVisual={
+                <Icon
+                  svg={
+                    isExpanded ? (
+                      <Icons.CollapseOutline />
+                    ) : (
+                      <Icons.ExpandOutline />
+                    )
+                  }
+                />
+              }
               onPress={toggleExpand}
             >
-              {buttonLabel}
+              {isExpanded ? "Collapse Strings" : "Expand Strings"}
             </Button>
           )}
           <CopyToClipboardButton text={displayValue} />
