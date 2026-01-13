@@ -21,6 +21,9 @@ Phoenix's TypeScript SDK is modular by design, allowing you to install only what
   <Card title="@arizeai/phoenix-mcp" icon="plug" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
     Model Context Protocol server
   </Card>
+  <Card title="@arizeai/phoenix-cli" icon="terminal" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Command-line interface for traces
+  </Card>
 </CardGroup>
 
 ## Installation
@@ -36,6 +39,9 @@ npm install @arizeai/phoenix-client   # REST API client
 npm install @arizeai/phoenix-otel     # Tracing
 npm install @arizeai/phoenix-evals    # Evaluations
 npm install @arizeai/openinference-core  # Instrumentation core
+
+# Install CLI globally
+npm install -g @arizeai/phoenix-cli   # Command-line interface
 ```
 
 ## Environment Variables
@@ -45,10 +51,11 @@ All packages respect common Phoenix environment variables for seamless configura
 | Variable | Description | Used By |
 |----------|-------------|---------|
 | `PHOENIX_COLLECTOR_ENDPOINT` | Trace collector URL | OTEL |
-| `PHOENIX_HOST` | Phoenix server URL | Client |
-| `PHOENIX_API_KEY` | API key for authentication | Client, OTEL, MCP |
-| `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers (JSON) | Client |
+| `PHOENIX_HOST` | Phoenix server URL | Client, CLI |
+| `PHOENIX_API_KEY` | API key for authentication | Client, OTEL, MCP, CLI |
+| `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers (JSON) | Client, CLI |
 | `PHOENIX_BASE_URL` | Phoenix base URL | MCP |
+| `PHOENIX_PROJECT` | Project name or UUID | CLI |
 
 ---
 
@@ -195,5 +202,27 @@ Model Context Protocol (MCP) server for Phoenix. Provides access to prompts, dat
   </Card>
   <Card title="GitHub" icon="arrow-up-right-from-square" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
     Source code and documentation
+  </Card>
+</CardGroup>
+
+---
+
+## @arizeai/phoenix-cli
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli)
+
+Command-line interface for retrieving trace data from Phoenix projects. Fetch, debug, and analyze traces directly from your terminal or integrate with AI coding assistants.
+
+- **Immediate debugging** — Fetch recent traces with a single command
+- **Bulk export** — Export traces to JSON files for analysis or datasets
+- **Pipeline friendly** — Pipe output to `jq` or other Unix utilities
+- **AI assistant integration** — Feed traces to coding agents for automated analysis
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Examples and getting started
+  </Card>
+  <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Package on npm
   </Card>
 </CardGroup>

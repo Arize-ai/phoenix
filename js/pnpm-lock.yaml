@@ -124,6 +124,15 @@ importers:
 
   packages/phoenix-cli:
     dependencies:
+      '@arizeai/openinference-semantic-conventions':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@arizeai/phoenix-client':
+        specifier: workspace:*
+        version: link:../phoenix-client
+      '@arizeai/phoenix-config':
+        specifier: workspace:*
+        version: link:../phoenix-config
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -137,6 +146,9 @@ importers:
       tsc-alias:
         specifier: ^1.8.11
         version: 1.8.11
+      tsx:
+        specifier: ^4.19.3
+        version: 4.21.0
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
