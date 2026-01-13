@@ -253,7 +253,6 @@ def _gen_messages(
             )
 
 
-
 def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
     prefix = SpanAttributes.EMBEDDING_EMBEDDINGS
     for i in range(n):
