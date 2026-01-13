@@ -48,6 +48,13 @@ export const ExactMatchEvaluatorForm = () => {
     (state) => state.evaluatorMappingSource
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Determine initial mode based on existing values
+  const expectedDefaultMode =
+    getValues("literalMapping.expected") != null ? "literal" : "path";
+  const actualDefaultMode =
+    getValues("literalMapping.actual") != null ? "literal" : "path";
+
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -55,7 +62,7 @@ export const ExactMatchEvaluatorForm = () => {
           fieldName="expected"
           label="Expected"
           description="The expected text to compare against."
-          defaultMode="path"
+          defaultMode={expectedDefaultMode}
           control={control}
           setValue={setValue}
           pathOptions={allExampleKeys}
@@ -68,7 +75,7 @@ export const ExactMatchEvaluatorForm = () => {
           fieldName="actual"
           label="Actual"
           description="The actual text to compare."
-          defaultMode="path"
+          defaultMode={actualDefaultMode}
           control={control}
           setValue={setValue}
           pathOptions={allExampleKeys}
