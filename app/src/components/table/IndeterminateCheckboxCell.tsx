@@ -30,6 +30,8 @@ export function IndeterminateCheckboxCell({
       onClick={(e) => {
         // prevent conflicts with the table row click event
         e.stopPropagation();
+        // prevent browser's default shift-click text selection behavior
+        e.preventDefault();
         if (onCellClick) {
           onCellClick(e);
         } else {
@@ -41,6 +43,7 @@ export function IndeterminateCheckboxCell({
       css={css`
         cursor: pointer;
         padding: var(--ac-global-dimension-size-25);
+        user-select: none;
       `}
     >
       <Checkbox
