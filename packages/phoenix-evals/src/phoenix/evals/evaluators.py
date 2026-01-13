@@ -131,41 +131,6 @@ def _remap_and_validate_input(
     return remapped_eval_input
 
 
-# --- Helper Functions ---
-def _remap_and_validate_input(
-    eval_input: EvalInput,
-    required_fields: Set[str],
-    input_mapping: InputMappingType,
-    input_schema: Optional[type[BaseModel]],
-) -> EvalInput:
-    """Remap and validate evaluation input.
-
-    Args:
-        eval_input: The raw evaluation input dictionary.
-        required_fields: Set of required field names.
-        input_mapping: Mapping from evaluator field names to input keys.
-        input_schema: Optional Pydantic model for validation.
-
-    Returns:
-        The remapped and validated evaluation input.
-
-    Raises:
-        ValueError: If input validation fails.
-    """
-    remapped_eval_input = remap_eval_input(
-        eval_input=eval_input,
-        required_fields=required_fields,
-        input_mapping=input_mapping,
-    )
-    if input_schema is not None:
-        try:
-            model_instance = input_schema.model_validate(remapped_eval_input)
-            remapped_eval_input = model_instance.model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Input validation failed: {e}")
-    return remapped_eval_input
-
-
 # --- Score model ---
 @dataclass(frozen=True, init=False)
 class Score:
@@ -395,12 +360,10 @@ class Evaluator(ABC):
     @trace(
         span_name=_get_evaluator_span_name_sync,
         span_kind=OpenInferenceSpanKindValues.EVALUATOR,
-        span_metadata={
-            "evaluator.kind": _get_evaluator_kind,
-            "evaluator.class": _get_evaluator_class,
-        },
         process_input={
             SpanAttributes.INPUT_VALUE: _get_remapped_input,
+            "evaluator.kind": _get_evaluator_kind,
+            "evaluator.class": _get_evaluator_class,
         },
         process_output={
             SpanAttributes.OUTPUT_VALUE: _get_scores_output,
@@ -416,12 +379,10 @@ class Evaluator(ABC):
     @trace(
         span_name=_get_evaluator_span_name_async,
         span_kind=OpenInferenceSpanKindValues.EVALUATOR,
-        span_metadata={
-            "evaluator.kind": _get_evaluator_kind,
-            "evaluator.class": _get_evaluator_class,
-        },
         process_input={
             SpanAttributes.INPUT_VALUE: _get_remapped_input,
+            "evaluator.kind": _get_evaluator_kind,
+            "evaluator.class": _get_evaluator_class,
         },
         process_output={
             SpanAttributes.OUTPUT_VALUE: _get_scores_output,
