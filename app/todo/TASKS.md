@@ -33,7 +33,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### example-id-link-stop-propagation
 
 - content: Update the example ID Link cell in ExamplesTable.tsx to stop event propagation when clicked, so clicking the link opens the example dialog without also toggling the row selection. Add `onClick={(e) => e.stopPropagation()}` to the Link component in the example ID column definition.
-- status: pending
+- status: complete
 - dependencies: row-click-toggle-selection
 
 ---
