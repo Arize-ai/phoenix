@@ -6,6 +6,10 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
+import { ExactMatchEvaluatorCodeBlock } from "@phoenix/components/evaluators/ExactMatchEvaluatorCodeBlock";
+import { JSONDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/JSONDistanceEvaluatorCodeBlock";
+import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/LevenshteinDistanceEvaluatorCodeBlock";
+import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 export function BuiltInDatasetEvaluatorDetails({
@@ -49,18 +53,54 @@ export function BuiltInDatasetEvaluatorDetails({
   }
 
   if (evaluator.isBuiltin && evaluator.name) {
+    const editSlideover = (
+      <EditBuiltInDatasetEvaluatorSlideover
+        datasetEvaluatorId={datasetEvaluator.id}
+        datasetId={datasetId}
+        isOpen={isEditSlideoverOpen}
+        onOpenChange={onEditSlideoverOpenChange}
+        onUpdate={() => revalidate()}
+      />
+    );
+
     switch (evaluator.name.toLowerCase()) {
       case "contains": {
         return (
           <>
             <ContainsEvaluatorDetails inputMapping={inputMapping} />
-            <EditBuiltInDatasetEvaluatorSlideover
-              datasetEvaluatorId={datasetEvaluator.id}
-              datasetId={datasetId}
-              isOpen={isEditSlideoverOpen}
-              onOpenChange={onEditSlideoverOpenChange}
-              onUpdate={() => revalidate()}
-            />
+            {editSlideover}
+          </>
+        );
+      }
+      case "exactmatch": {
+        return (
+          <>
+            <ExactMatchEvaluatorDetails inputMapping={inputMapping} />
+            {editSlideover}
+          </>
+        );
+      }
+      case "regex": {
+        return (
+          <>
+            <RegexEvaluatorDetails inputMapping={inputMapping} />
+            {editSlideover}
+          </>
+        );
+      }
+      case "levenshteindistance": {
+        return (
+          <>
+            <LevenshteinDistanceEvaluatorDetails inputMapping={inputMapping} />
+            {editSlideover}
+          </>
+        );
+      }
+      case "jsondistance": {
+        return (
+          <>
+            <JSONDistanceEvaluatorDetails inputMapping={inputMapping} />
+            {editSlideover}
           </>
         );
       }
@@ -71,6 +111,14 @@ export function BuiltInDatasetEvaluatorDetails({
     "Unknown built-in evaluator or code evaluator not implemented"
   );
 }
+
+const inputMappingBoxCSS = css`
+  background-color: var(--ac-global-background-color-dark);
+  border-radius: var(--ac-global-rounding-medium);
+  padding: var(--ac-global-dimension-static-size-200);
+  margin-top: var(--ac-global-dimension-static-size-50);
+  border: 1px solid var(--ac-global-border-color-default);
+`;
 
 function ContainsEvaluatorDetails({
   inputMapping,
@@ -95,15 +143,7 @@ function ContainsEvaluatorDetails({
         <ContainsEvaluatorCodeBlock />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Input Mapping</Heading>
-          <div
-            css={css`
-              background-color: var(--ac-global-background-color-dark);
-              border-radius: var(--ac-global-rounding-medium);
-              padding: var(--ac-global-dimension-static-size-200);
-              margin-top: var(--ac-global-dimension-static-size-50);
-              border: 1px solid var(--ac-global-border-color-default);
-            `}
-          >
+          <div css={inputMappingBoxCSS}>
             <Flex direction="column" gap="size-100">
               <Text size="S">
                 <Text weight="heavy">Text:</Text> {textPath || "Not mapped"}
@@ -117,6 +157,178 @@ function ContainsEvaluatorDetails({
                 {caseSensitive === true || caseSensitive === "true"
                   ? "Yes"
                   : "No"}
+              </Text>
+            </Flex>
+          </div>
+        </Flex>
+      </Flex>
+    </View>
+  );
+}
+
+function ExactMatchEvaluatorDetails({
+  inputMapping,
+}: {
+  inputMapping: {
+    literalMapping?: {
+      case_sensitive?: boolean | string | null;
+    } | null;
+    pathMapping?: {
+      expected?: string | null;
+      actual?: string | null;
+    } | null;
+  } | null;
+}) {
+  const expectedPath = inputMapping?.pathMapping?.expected;
+  const actualPath = inputMapping?.pathMapping?.actual;
+  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
+
+  return (
+    <View padding="size-200" overflow="auto">
+      <Flex direction="column" gap="size-200">
+        <ExactMatchEvaluatorCodeBlock />
+        <Flex direction="column" gap="size-100">
+          <Heading level={2}>Input Mapping</Heading>
+          <div css={inputMappingBoxCSS}>
+            <Flex direction="column" gap="size-100">
+              <Text size="S">
+                <Text weight="heavy">Expected:</Text>{" "}
+                {expectedPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Case sensitive:</Text>{" "}
+                {caseSensitive === false || caseSensitive === "false"
+                  ? "No"
+                  : "Yes"}
+              </Text>
+            </Flex>
+          </div>
+        </Flex>
+      </Flex>
+    </View>
+  );
+}
+
+function RegexEvaluatorDetails({
+  inputMapping,
+}: {
+  inputMapping: {
+    literalMapping?: {
+      pattern?: string | null;
+      full_match?: boolean | string | null;
+    } | null;
+    pathMapping?: {
+      text?: string | null;
+    } | null;
+  } | null;
+}) {
+  const textPath = inputMapping?.pathMapping?.text;
+  const pattern = inputMapping?.literalMapping?.pattern;
+  const fullMatch = inputMapping?.literalMapping?.full_match;
+
+  return (
+    <View padding="size-200" overflow="auto">
+      <Flex direction="column" gap="size-200">
+        <RegexEvaluatorCodeBlock />
+        <Flex direction="column" gap="size-100">
+          <Heading level={2}>Input Mapping</Heading>
+          <div css={inputMappingBoxCSS}>
+            <Flex direction="column" gap="size-100">
+              <Text size="S">
+                <Text weight="heavy">Text:</Text> {textPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Pattern:</Text>{" "}
+                {pattern ? String(pattern) : "Not set"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Full match:</Text>{" "}
+                {fullMatch === true || fullMatch === "true" ? "Yes" : "No"}
+              </Text>
+            </Flex>
+          </div>
+        </Flex>
+      </Flex>
+    </View>
+  );
+}
+
+function LevenshteinDistanceEvaluatorDetails({
+  inputMapping,
+}: {
+  inputMapping: {
+    literalMapping?: {
+      case_sensitive?: boolean | string | null;
+    } | null;
+    pathMapping?: {
+      expected?: string | null;
+      actual?: string | null;
+    } | null;
+  } | null;
+}) {
+  const expectedPath = inputMapping?.pathMapping?.expected;
+  const actualPath = inputMapping?.pathMapping?.actual;
+  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
+
+  return (
+    <View padding="size-200" overflow="auto">
+      <Flex direction="column" gap="size-200">
+        <LevenshteinDistanceEvaluatorCodeBlock />
+        <Flex direction="column" gap="size-100">
+          <Heading level={2}>Input Mapping</Heading>
+          <div css={inputMappingBoxCSS}>
+            <Flex direction="column" gap="size-100">
+              <Text size="S">
+                <Text weight="heavy">Expected:</Text>{" "}
+                {expectedPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Case sensitive:</Text>{" "}
+                {caseSensitive === false || caseSensitive === "false"
+                  ? "No"
+                  : "Yes"}
+              </Text>
+            </Flex>
+          </div>
+        </Flex>
+      </Flex>
+    </View>
+  );
+}
+
+function JSONDistanceEvaluatorDetails({
+  inputMapping,
+}: {
+  inputMapping: {
+    pathMapping?: {
+      expected?: string | null;
+      actual?: string | null;
+    } | null;
+  } | null;
+}) {
+  const expectedPath = inputMapping?.pathMapping?.expected;
+  const actualPath = inputMapping?.pathMapping?.actual;
+
+  return (
+    <View padding="size-200" overflow="auto">
+      <Flex direction="column" gap="size-200">
+        <JSONDistanceEvaluatorCodeBlock />
+        <Flex direction="column" gap="size-100">
+          <Heading level={2}>Input Mapping</Heading>
+          <div css={inputMappingBoxCSS}>
+            <Flex direction="column" gap="size-100">
+              <Text size="S">
+                <Text weight="heavy">Expected:</Text>{" "}
+                {expectedPath || "Not mapped"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Actual:</Text> {actualPath || "Not mapped"}
               </Text>
             </Flex>
           </div>
