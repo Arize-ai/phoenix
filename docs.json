@@ -52,10 +52,21 @@
                     "group": "Get Started with Phoenix",
                     "pages": [
                       "docs/phoenix/get-started",
-                      "docs/phoenix/get-started/get-started-tracing",
-                      "docs/phoenix/get-started/get-started-evaluations",
-                      "docs/phoenix/get-started/get-started-prompt-playground",
-                      "docs/phoenix/get-started/get-started-datasets-and-experiments"
+                      {
+                        "group": "Python",
+                        "pages": [
+                          "docs/phoenix/get-started/get-started-tracing",
+                          "docs/phoenix/get-started/get-started-evaluations",
+                          "docs/phoenix/get-started/get-started-prompt-playground",
+                          "docs/phoenix/get-started/get-started-datasets-and-experiments"
+                        ]
+                      },
+                      {
+                        "group": "TypeScript",
+                        "pages": [
+                          "docs/phoenix/get-started/ts-get-started-tracing"
+                        ]
+                      }
                     ]
                   },
                   "docs/phoenix/end-to-end-features-notebook",
