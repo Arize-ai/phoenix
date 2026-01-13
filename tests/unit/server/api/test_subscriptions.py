@@ -1888,6 +1888,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -1981,6 +1982,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",

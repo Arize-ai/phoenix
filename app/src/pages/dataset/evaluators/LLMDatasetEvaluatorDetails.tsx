@@ -135,13 +135,15 @@ export function LLMDatasetEvaluatorDetails({
                           <Text size="S" weight="heavy">
                             Values:{" "}
                           </Text>
-                          {datasetEvaluator.outputConfig.values.map((v, idx, arr) => (
-                            <Text key={idx} size="S">
-                              {v.label}
-                              {v.score != null ? ` (${v.score})` : ""}
-                              {idx < arr.length - 1 ? ", " : ""}
-                            </Text>
-                          ))}
+                          {datasetEvaluator.outputConfig.values.map(
+                            (v, idx, arr) => (
+                              <Text key={idx} size="S">
+                                {v.label}
+                                {v.score != null ? ` (${v.score})` : ""}
+                                {idx < arr.length - 1 ? ", " : ""}
+                              </Text>
+                            )
+                          )}
                         </Text>
                       )}
                     <Text size="S">
