@@ -69,15 +69,13 @@ export function PlaygroundDatasetSection({
                   id
                   kind
                   isBuiltin
-                  ... on LLMEvaluator {
-                    outputConfig {
-                      name
-                      optimizationDirection
-                      values {
-                        label
-                        score
-                      }
-                    }
+                }
+                outputConfig {
+                  name
+                  optimizationDirection
+                  values {
+                    label
+                    score
                   }
                 }
               }
@@ -89,8 +87,7 @@ export function PlaygroundDatasetSection({
           kind: evaluator.evaluator.kind,
           isBuiltIn: evaluator.evaluator.isBuiltin,
           isAssignedToDataset: true,
-          annotationName:
-            evaluator.evaluator.outputConfig?.name ?? evaluator.displayName,
+          annotationName: evaluator.displayName,
         };
       }) ?? [],
     [data.dataset.datasetEvaluators]
@@ -110,31 +107,38 @@ export function PlaygroundDatasetSection({
       )
       .reduce(
         (acc, datasetEvaluator) => {
-          acc[datasetEvaluator.evaluator.id] =
-            datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>;
+          acc[datasetEvaluator.evaluator.id] = {
+            displayName: datasetEvaluator.displayName,
+            inputMapping:
+              datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
+          };
           return acc;
         },
-        {} as Record<string, EvaluatorInputMappingInput>
+        {} as Record<
+          string,
+          { displayName: string; inputMapping: EvaluatorInputMappingInput }
+        >
       );
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
     return datasetEvaluators
-      .filter((evaluator) => selectedDatasetEvaluatorIds.includes(evaluator.id))
-      .map((evaluator): AnnotationConfig => {
-        // LLM evaluators have outputConfig with categorical values
-        if (evaluator.evaluator.outputConfig != null) {
+      .filter((datasetEvaluator) =>
+        selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
+      )
+      .map((datasetEvaluator) => {
+        if (!datasetEvaluator.outputConfig) {
+          // TODO: all evaluators should have an output config eventually
           return {
-            name: evaluator.evaluator.outputConfig.name,
-            optimizationDirection:
-              evaluator.evaluator.outputConfig.optimizationDirection,
-            values: evaluator.evaluator.outputConfig.values,
-            annotationType: "CATEGORICAL",
-          };
+            name: datasetEvaluator.displayName,
+            annotationType: "FREEFORM",
+          } satisfies AnnotationConfig;
         }
-        // TODO(mikeldking): this is not correct but needs to be fixed on the back-end
         return {
-          name: evaluator.displayName,
-          annotationType: "FREEFORM",
+          name: datasetEvaluator.outputConfig.name,
+          optimizationDirection:
+            datasetEvaluator.outputConfig.optimizationDirection,
+          values: datasetEvaluator.outputConfig.values,
+          annotationType: "CATEGORICAL",
         };
       });
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);

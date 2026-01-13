@@ -129,20 +129,24 @@ const CreateEvaluatorDialog = ({
       `
     );
   const initialState = useMemo(() => {
+    const defaultOutputConfig =
+      _initialState?.outputConfig ??
+      DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
+    const defaultEvaluatorName =
+      _initialState?.name ?? DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.name;
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
         ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-        name:
-          _initialState?.name ??
-          DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.name,
+        name: defaultEvaluatorName,
         description:
           _initialState?.description ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.description,
       },
-      outputConfig:
-        _initialState?.outputConfig ??
-        DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig,
+      outputConfig: {
+        ...defaultOutputConfig,
+        name: defaultEvaluatorName,
+      },
       dataset: {
         readonly: true,
         id: datasetId,
