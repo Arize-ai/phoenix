@@ -16,7 +16,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
+import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import {
   settingsAnnotationsPageLoaderGql,
