@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Sequence,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -77,7 +76,6 @@ def trace(
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
-    span_metadata: Optional[Mapping[str, Union[Any, Callable[[], Any]]]] = None,
 ) -> Callable[[Callable[FnParams, ReturnValue]], Callable[FnParams, ReturnValue]]: ...
 
 
@@ -89,7 +87,6 @@ def trace(
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
-    span_metadata: Optional[Mapping[str, Union[Any, Callable[[], Any]]]] = None,
 ) -> Callable[
     [Callable[FnParams, Awaitable[ReturnValue]]], Callable[FnParams, Awaitable[ReturnValue]]
 ]: ...
@@ -102,7 +99,6 @@ def trace(
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
     process_output: Optional[Mapping[str, Callable[[ReturnValue], Any]]] = None,
-    span_metadata: Optional[Mapping[str, Union[Any, Callable[[], Any]]]] = None,
 ) -> Callable[[Callable[FnParams, Any]], Callable[FnParams, Any]]:
     """Trace the decorated function.
 
@@ -124,9 +120,6 @@ def trace(
         process_output (Optional[Mapping[str, Callable[[ReturnValue], Any]]]): A mapping of
             attribute names to callables that will be called with the return value to process the
             output.
-        span_metadata (Optional[Mapping[str, Union[Any, Callable[[], Any]]]]): A mapping of
-            attribute names to values or callables that return values. These will be set as span
-            attributes. If a value is callable, it will be invoked to get the actual value.
 
     Returns:
         Callable[[Callable[FnParams, Any]], Callable[FnParams, Any]]: A decorator function that
@@ -178,16 +171,6 @@ def trace(
                             )
                         except Exception:
                             pass
-
-                    # Set span metadata attributes
-                    if span_metadata is not None:
-                        for attr_key, attr_value in span_metadata.items():
-                            try:
-                                # If value is callable, invoke it to get the actual value
-                                value = attr_value() if callable(attr_value) else attr_value
-                                span.set_attribute(attr_key, _otel_attribute_value(value))
-                            except Exception:
-                                continue
 
                     if process_input is not None and bound is not None:
                         for attr_key, input_mapper_fn in process_input.items():
@@ -283,16 +266,6 @@ def trace(
                             )
                         except Exception:
                             pass
-
-                    # Set span metadata attributes
-                    if span_metadata is not None:
-                        for attr_key, attr_value in span_metadata.items():
-                            try:
-                                # If value is callable, invoke it to get the actual value
-                                value = attr_value() if callable(attr_value) else attr_value
-                                span.set_attribute(attr_key, _otel_attribute_value(value))
-                            except Exception:
-                                continue
 
                     if process_input is not None and bound is not None:
                         for attr_key, input_mapper_fn in process_input.items():

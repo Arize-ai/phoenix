@@ -75,16 +75,14 @@ def _get_evaluator_span_name_async(bound: Any) -> str:
     return f"{evaluator.name}.async_evaluate" if evaluator else "evaluator.async_evaluate"
 
 
-def _get_evaluator_kind(bound: Any) -> str:
-    """Extract evaluator kind from evaluator instance."""
+def _get_evaluator_metadata(bound: Any) -> str:
+    """Extract evaluator metadata as JSON for the metadata span attribute."""
     evaluator = bound.arguments.get("self")
-    return evaluator.kind if evaluator else "unknown"
-
-
-def _get_evaluator_class(bound: Any) -> str:
-    """Extract evaluator class name from evaluator instance."""
-    evaluator = bound.arguments.get("self")
-    return evaluator.__class__.__name__ if evaluator else "Evaluator"
+    metadata = {}
+    if evaluator:
+        metadata["evaluator.kind"] = evaluator.kind
+        metadata["evaluator.class"] = evaluator.__class__.__name__
+    return json.dumps(metadata)
 
 
 def _get_remapped_input(bound: Any) -> str:
@@ -362,8 +360,7 @@ class Evaluator(ABC):
         span_kind=OpenInferenceSpanKindValues.EVALUATOR,
         process_input={
             SpanAttributes.INPUT_VALUE: _get_remapped_input,
-            "evaluator.kind": _get_evaluator_kind,
-            "evaluator.class": _get_evaluator_class,
+            SpanAttributes.METADATA: _get_evaluator_metadata,
         },
         process_output={
             SpanAttributes.OUTPUT_VALUE: _get_scores_output,
@@ -381,8 +378,7 @@ class Evaluator(ABC):
         span_kind=OpenInferenceSpanKindValues.EVALUATOR,
         process_input={
             SpanAttributes.INPUT_VALUE: _get_remapped_input,
-            "evaluator.kind": _get_evaluator_kind,
-            "evaluator.class": _get_evaluator_class,
+            SpanAttributes.METADATA: _get_evaluator_metadata,
         },
         process_output={
             SpanAttributes.OUTPUT_VALUE: _get_scores_output,

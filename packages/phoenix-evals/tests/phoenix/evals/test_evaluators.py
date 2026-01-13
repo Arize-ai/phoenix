@@ -820,7 +820,10 @@ class TestCreateEvaluatorDecorator:
 
         assert len(result) == 1
         score = result[0]
-        assert score.metadata == {"custom_key": "custom_value"}
+        # Check custom metadata is preserved
+        assert score.metadata["custom_key"] == "custom_value"
+        # trace_id may be added by tracing if a valid span context exists
+        # but we don't require it to be present
 
     def test_create_evaluator_with_custom_kind_and_direction(self):
         """Test create_evaluator with custom kind and direction."""
