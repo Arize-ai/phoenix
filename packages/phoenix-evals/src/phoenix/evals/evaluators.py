@@ -186,14 +186,14 @@ def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def _inject_trace_id_into_scores(scores: List[Score], trace_id: str) -> List[Score]:
+def _scores_with_trace_id(scores: List[Score], trace_id: str) -> List[Score]:
     """Create new Score instances with trace_id added to metadata.
 
     Since Score is frozen/immutable, we create new instances with updated metadata.
 
     Args:
-        scores: List of Score objects to update.
-        trace_id: The trace ID to inject into the metadata.
+        scores: List of Score objects.
+        trace_id: The trace ID to add to the metadata.
 
     Returns:
         List[Score]: New Score instances with trace_id in metadata.
@@ -324,13 +324,10 @@ class Evaluator(ABC):
             f"{self.name}.evaluate",
             eval_input=remapped_eval_input,
             evaluator_kind=self.kind,
+            evaluator_class=self.__class__.__name__,
         ) as finish:
             scores = self._evaluate(remapped_eval_input)
-            if finish:
-                trace_id = finish(scores)
-                if trace_id is not None:
-                    scores = _inject_trace_id_into_scores(scores, trace_id)
-            return scores
+            return cast(List[Score], finish(scores)) if finish else scores
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
@@ -359,13 +356,10 @@ class Evaluator(ABC):
             f"{self.name}.evaluate",
             eval_input=remapped_eval_input,
             evaluator_kind=self.kind,
+            evaluator_class=self.__class__.__name__,
         ) as finish:
             scores = await self._async_evaluate(remapped_eval_input)
-            if finish:
-                trace_id = finish(scores)
-                if trace_id is not None:
-                    scores = _inject_trace_id_into_scores(scores, trace_id)
-            return scores
+            return cast(List[Score], finish(scores)) if finish else scores
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""

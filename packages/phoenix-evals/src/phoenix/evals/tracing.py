@@ -336,35 +336,36 @@ def trace_evaluation(
     tracer: Optional[Tracer] = None,
     eval_input: Optional[Dict[str, Any]] = None,
     evaluator_kind: Optional[str] = None,
-) -> Iterator[Optional[Callable[[Optional[List[Any]]], Optional[str]]]]:
-    """Context manager for tracing evaluations with automatic trace_id capture.
+    evaluator_class: Optional[str] = None,
+) -> Iterator[Optional[Callable[[List[Any]], List[Any]]]]:
+    """Context manager for tracing evaluations with automatic trace_id propagation.
 
     This context manager creates a span for the evaluation with proper EVALUATOR
-    span kind and captures input/output values for observability.
+    span kind, captures input/output values for observability, and automatically
+    adds the trace_id to Score objects' metadata.
 
     Args:
         span_name (str): The name of the span to create.
         tracer (Optional[Tracer]): The tracer to use. If None, uses the global tracer.
         eval_input (Optional[Dict[str, Any]]): The evaluation input data to record.
         evaluator_kind (Optional[str]): The kind of evaluator (llm, code, human, heuristic).
+        evaluator_class (Optional[str]): The class name of the evaluator for aggregation.
 
     Yields:
-        Optional[Callable[[Optional[List[Any]]], Optional[str]]]: A function that accepts
-            the evaluation output (list of scores) and returns the current trace_id.
-            Returns None if tracing is disabled.
+        Optional[Callable[[List[Any]], List[Any]]]: A function that accepts the
+            evaluation output (list of scores), records it to the span, adds
+            trace_id to the scores' metadata, and returns the updated scores.
+            Returns None if tracing is disabled (caller should pass through original scores).
 
     Example:
         with trace_evaluation(
             "my_evaluation",
             eval_input=data,
-            evaluator_kind="llm"
+            evaluator_kind="llm",
+            evaluator_class="ClassificationEvaluator"
         ) as finish:
-            result = do_evaluation()
-            if finish:
-                trace_id = finish(result)
-                if trace_id:
-                    result = inject_trace_id(result, trace_id)
-            return result
+            scores = do_evaluation()
+            return finish(scores) if finish else scores
     """
     _tracer = get_tracer(tracer)
 
@@ -379,7 +380,8 @@ def trace_evaluation(
                 SpanAttributes.OPENINFERENCE_SPAN_KIND,
                 OpenInferenceSpanKindValues.EVALUATOR.value,
             )
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to set span kind attribute: {e}")
             pass
 
         # Set input value
@@ -387,28 +389,45 @@ def trace_evaluation(
             try:
                 span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(eval_input))
                 span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, "application/json")
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to set input value attributes: {e}")
                 pass
 
         # Set evaluator kind as metadata
         if evaluator_kind is not None:
             try:
                 span.set_attribute("evaluator.kind", evaluator_kind)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to set evaluator kind attribute: {e}")
                 pass
 
-        def finish_with_output(scores: Optional[List[Any]] = None) -> Optional[str]:
-            """Finish the span with output scores and return trace_id."""
-            if scores is not None:
-                try:
-                    # Convert scores to serializable format if they have to_dict method
-                    serializable_scores = [
-                        s.to_dict() if hasattr(s, "to_dict") else s for s in scores
-                    ]
-                    span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(serializable_scores))
-                    span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
-                except Exception:
-                    pass
-            return get_current_trace_id()
+        # Set evaluator class for aggregation
+        if evaluator_class is not None:
+            try:
+                span.set_attribute("evaluator.class", evaluator_class)
+            except Exception as e:
+                logger.debug(f"Failed to set evaluator class attribute: {e}")
+                pass
 
-        yield finish_with_output
+        def finish_and_inject(scores: List[Any]) -> List[Any]:
+            """Record output scores to span and add trace_id to their metadata."""
+            try:
+                # Convert scores to serializable format if they have to_dict method
+                serializable_scores = [s.to_dict() if hasattr(s, "to_dict") else s for s in scores]
+                span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(serializable_scores))
+                span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            except Exception as e:
+                logger.debug(f"Failed to set output value attributes: {e}")
+                pass
+
+            # Add trace_id to scores
+            trace_id = get_current_trace_id()
+            if trace_id is not None:
+                # Import here to avoid circular dependency
+                from phoenix.evals.evaluators import _scores_with_trace_id
+
+                return _scores_with_trace_id(scores, trace_id)
+
+            return scores
+
+        yield finish_and_inject
