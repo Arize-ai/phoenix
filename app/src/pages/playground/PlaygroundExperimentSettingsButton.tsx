@@ -1,5 +1,7 @@
 import {
   Button,
+  ComboBox,
+  ComboBoxItem,
   Dialog,
   DialogTrigger,
   Flex,
@@ -14,6 +16,29 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+
+const TEMPLATE_VARIABLES_PATH_OPTIONS = [
+  {
+    id: "",
+    label: "Example root",
+    description: "Variables like {{input}}, {{reference}}, {{metadata}}",
+  },
+  {
+    id: "input",
+    label: "input",
+    description: "Variables resolve from input (e.g., {{query}} → input.query)",
+  },
+  {
+    id: "reference",
+    label: "reference",
+    description: "Variables resolve from reference/output",
+  },
+  {
+    id: "metadata",
+    label: "metadata",
+    description: "Variables resolve from metadata",
+  },
+];
 
 export function PlaygroundExperimentSettingsButton({
   isDisabled,
@@ -46,19 +71,35 @@ export function PlaygroundExperimentSettingsButton({
         <Dialog>
           <View padding="size-200">
             <Flex direction="column" gap="size-200">
-              <TextField
-                value={templateVariablesPath ?? ""}
-                size="S"
-                onChange={(value) => {
+              <ComboBox
+                label="Template variables path"
+                description="Path prefix for template variables"
+                size="M"
+                placeholder="the root of the example"
+                selectedKey={templateVariablesPath ?? ""}
+                inputValue={templateVariablesPath ?? ""}
+                defaultItems={TEMPLATE_VARIABLES_PATH_OPTIONS}
+                allowsCustomValue
+                onSelectionChange={(key) => {
+                  if (typeof key === "string") {
+                    setTemplateVariablesPath(key || null);
+                  }
+                }}
+                onInputChange={(value) => {
                   setTemplateVariablesPath(value || null);
                 }}
               >
-                <Label>Template variables path</Label>
-                <Input placeholder="the root of the example" />
-                <Text slot="description">
-                  Path prefix for template variables
-                </Text>
-              </TextField>
+                {(item) => (
+                  <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
+                    <Flex direction="column">
+                      <Text weight="heavy">{item.label || "Example root"}</Text>
+                      <Text size="XS" color="text-700">
+                        {item.description}
+                      </Text>
+                    </Flex>
+                  </ComboBoxItem>
+                )}
+              </ComboBox>
               <TextField
                 value={appendedMessagesPath ?? ""}
                 size="S"
