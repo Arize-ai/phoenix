@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4c710a3f05527cc756db6b082ddfe11>>
+ * @generated SignedSource<<5f662bc031ef452dd5b25365446d7d71>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type PlaygroundDatasetExamplesTableFragment$data = {
         readonly id: string;
         readonly revision: {
           readonly input: any;
+          readonly metadata: any;
           readonly output: any;
         };
       };
@@ -154,6 +155,13 @@ return {
                       "kind": "ScalarField",
                       "name": "output",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "metadata",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -224,6 +232,6 @@ return {
 };
 })();
 
-(node as any).hash = "e6bde949dffba260d3af123877882200";
+(node as any).hash = "3bf2d20abbb5a73422290b8eb1d22a6e";
 
 export default node;
