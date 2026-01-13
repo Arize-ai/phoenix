@@ -50,6 +50,7 @@ export function ExamplesTable({
   } = useExamplesFilterContext();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const lastSelectedRowIndexRef = useRef<number | null>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -292,10 +293,13 @@ export function ExamplesTable({
           <TableEmpty />
         ) : (
           <tbody>
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <tr
                 key={row.id}
-                onClick={() => {
+                onClick={(e) => {
+                  if (!e.shiftKey) {
+                    lastSelectedRowIndexRef.current = rowIndex;
+                  }
                   row.toggleSelected();
                 }}
               >

@@ -30,3 +30,12 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Adding `onClick={(e) => e.stopPropagation()}` to the Link prevents the click event from bubbling up to the parent `<tr>` element which has the row selection toggle handler
 - The custom Link component from `@phoenix/components/Link` accepts an onClick prop that types correctly with React.MouseEvent
 - The next task (track-last-selected-row) will need to add a `useRef` to track the last clicked row index for shift-click range selection
+
+## track-last-selected-row
+
+- Added `lastSelectedRowIndexRef` using `useRef<number | null>(null)` to track the index of the last clicked row
+- The `rows.map()` callback provides a `rowIndex` parameter which is the index in the visible rows array - perfect for range selection
+- The ref is updated only when `!e.shiftKey` - this ensures shift-clicks don't overwrite the anchor point for range selection
+- The row click handler now receives the event as `(e)` instead of `()` to check for the shift key
+- No unit test needed for this change since it's internal state management with no observable behavior change yet - the actual behavior (shift-click range selection) will be tested in the next task
+- The next task (implement-shift-click-range-select) will use `lastSelectedRowIndexRef.current` to determine the range of rows to select

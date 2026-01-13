@@ -43,7 +43,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### track-last-selected-row
 
 - content: Add state to ExamplesTable.tsx to track the index of the last clicked row for shift-click range selection. Use a `useRef` to store the last selected row index. Update this ref whenever a row is clicked (single click without shift).
-- status: pending
+- status: complete
 - dependencies: example-id-link-stop-propagation
 
 ### implement-shift-click-range-select
