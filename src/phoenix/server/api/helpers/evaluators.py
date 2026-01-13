@@ -106,7 +106,7 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     validate_evaluator_prompt_and_config(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=llm_evaluator.output_config.name,
+        evaluator_annotation_name=llm_evaluator.output_config.name or "",
         evaluator_output_config=llm_evaluator.output_config,
         evaluator_description=llm_evaluator.description,
     )

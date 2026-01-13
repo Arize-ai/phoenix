@@ -1315,9 +1315,12 @@ export const getChatCompletionOverDatasetInput = ({
   datasetId: string;
   splitIds?: string[];
   /**
-   * Record of evaluator id to input mappings
+   * Record of evaluator id to display name and input mappings
    */
-  evaluatorMappings: Record<string, EvaluatorInputMappingInput>;
+  evaluatorMappings: Record<
+    string,
+    { displayName: string; inputMapping: EvaluatorInputMappingInput }
+  >;
 }): ChatCompletionOverDatasetInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
@@ -1339,8 +1342,9 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
     splitIds: splitIds ?? null,
     evaluators: Object.entries(evaluatorMappings).map(
-      ([evaluatorId, inputMapping]) => ({
+      ([evaluatorId, { displayName, inputMapping }]) => ({
         id: evaluatorId,
+        displayName,
         inputMapping,
       })
     ),

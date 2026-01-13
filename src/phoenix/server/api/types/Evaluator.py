@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import sqlalchemy as sa
 import strawberry
@@ -562,7 +562,7 @@ class DatasetEvaluator(Node):
             base_description = await info.context.data_loaders.llm_evaluator_fields.load(
                 (record.evaluator_id, models.LLMEvaluator.description)
             )
-            return base_description
+            return cast(Optional[str], base_description)
         return None
 
     @strawberry.field
