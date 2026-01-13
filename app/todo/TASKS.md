@@ -65,7 +65,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### create-row-selection-handler
 
 - content: Create a shared row selection handler function in ExamplesTable.tsx that handles both normal clicks and shift-clicks. This function should: (1) always update `lastSelectedRowIndexRef` to the current row index, (2) if shift+click with a previous anchor, call `addRangeToSelection` for range selection, (3) otherwise toggle the single row's selection. Extract this logic from the current row onClick handler.
-- status: pending
+- status: complete
 - dependencies: remove-row-click-handler
 
 ### expand-checkbox-cell-click-target

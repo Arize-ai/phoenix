@@ -58,3 +58,12 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The `rowIndex` parameter in `rows.map()` is no longer needed since the click handler is removed, so the callback now just receives `row`
 - The `lastSelectedRowIndexRef` and `addRangeToSelection` imports are still present in the file and will be needed by subsequent tasks
 - No unit tests needed for this task since it's a behavioral change (removing functionality) that will be immediately restored in the next task via a different mechanism
+
+## create-row-selection-handler
+
+- Created `handleRowSelection` as a `useCallback` that takes `(event: React.MouseEvent, rowIndex: number, row)` as parameters
+- The handler encapsulates all selection logic: shift-click range selection and normal toggle, plus always updating the anchor point
+- Used `(typeof rows)[number]` to type the `row` parameter correctly to access `row.toggleSelected()`
+- The handler is now ready to be passed to IndeterminateCheckboxCell in subsequent tasks (`expand-checkbox-cell-click-target` and `wire-checkbox-cell-to-row-handler`)
+- Dependencies for the useCallback are `[setRowSelection, tableData]` - no need to include `lastSelectedRowIndexRef` since refs are stable across renders
+- No new tests needed since this is just extracting logic into a reusable function - the actual behavior will be tested once it's wired up to the checkbox cell

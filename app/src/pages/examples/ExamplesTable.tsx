@@ -248,6 +248,33 @@ export function ExamplesTable({
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
+  /**
+   * Shared row selection handler that handles both normal clicks and shift-clicks.
+   * - Always updates lastSelectedRowIndexRef to the current row index
+   * - If shift+click with a previous anchor, calls addRangeToSelection for range selection
+   * - Otherwise toggles the single row's selection
+   */
+  const handleRowSelection = useCallback(
+    (event: React.MouseEvent, rowIndex: number, row: (typeof rows)[number]) => {
+      if (event.shiftKey && lastSelectedRowIndexRef.current !== null) {
+        // Shift-click: select range from anchor to current row
+        setRowSelection((prev) =>
+          addRangeToSelection(
+            tableData,
+            lastSelectedRowIndexRef.current!,
+            rowIndex,
+            prev
+          )
+        );
+      } else {
+        // Normal click: toggle single row
+        row.toggleSelected();
+      }
+      // Always update the anchor point
+      lastSelectedRowIndexRef.current = rowIndex;
+    },
+    [setRowSelection, tableData]
+  );
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
