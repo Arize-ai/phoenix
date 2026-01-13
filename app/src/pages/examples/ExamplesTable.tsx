@@ -170,6 +170,12 @@ export function ExamplesTable({
   );
   type TableRow = (typeof tableData)[number];
 
+  // Reset the shift-click anchor when table data changes
+  // to prevent stale index references after refetch
+  useEffect(() => {
+    lastSelectedRowIndexRef.current = null;
+  }, [tableData]);
+
   /**
    * Shared row selection handler that handles both normal clicks and shift-clicks.
    * - Always updates lastSelectedRowIndexRef to the current row index
