@@ -401,6 +401,7 @@ class ChatCompletionMutationMixin:
                             if builtin_evaluator is None:
                                 continue
                             builtin = builtin_evaluator()
+                            # TODO: update the name to use display_name
                             eval_result: EvaluationResult = builtin.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
