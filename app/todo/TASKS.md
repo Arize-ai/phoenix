@@ -77,5 +77,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### wire-checkbox-cell-to-row-handler
 
 - content: Update the checkbox column definition in ExamplesTable.tsx to pass the shared row selection handler and row index to IndeterminateCheckboxCell. Modify IndeterminateCheckboxCell to accept an optional `onCellClick` callback prop that receives the click event. When provided, call this handler instead of the default `onChange` toggle behavior. The ExamplesTable checkbox column should pass a handler that calls the shared row selection handler with the event and row index.
-- status: pending
+- status: complete
 - dependencies: expand-checkbox-cell-click-target

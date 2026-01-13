@@ -77,3 +77,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The component already has `e.stopPropagation()` on its onClick handler to prevent conflicts with table row click events
 - This is a simple CSS change with no behavioral logic change - no new tests needed
 - The next task (`wire-checkbox-cell-to-row-handler`) will modify this component to accept an optional `onCellClick` callback for the shared row selection handler
+
+## wire-checkbox-cell-to-row-handler
+
+- Added `onCellClick?: (event: React.MouseEvent) => void` prop to IndeterminateCheckboxCell using a new `IndeterminateCheckboxCellProps` type that extends `CheckboxProps`
+- Used object destructuring with rest props: `{ onCellClick, ...checkboxProps }` to cleanly separate the new prop from the standard checkbox props
+- The `onCellClick` is called instead of `onChange` when provided, giving the parent full control over click behavior
+- In ExamplesTable.tsx, the `handleRowSelection` function was moved before `columns` to avoid "used before declaration" error since `columns` depends on it
+- Changed `handleRowSelection` signature to take `toggleSelected: (value?: boolean) => void` instead of the full `row` object - this is cleaner and more explicit about what the handler needs
+- The checkbox cell's `onCellClick` callback passes `row.toggleSelected` to `handleRowSelection`, enabling the shared handler to toggle selection for normal clicks
+- The header checkbox (for "select all") doesn't need `onCellClick` since it always toggles all rows - no shift-click range behavior needed there
+- This completes Phase 3 of the bug fixes - selection now only happens via the checkbox cell, preventing accidental selection when selecting text on the row
