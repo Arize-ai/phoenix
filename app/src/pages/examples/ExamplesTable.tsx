@@ -246,11 +246,7 @@ export function ExamplesTable({
         accessorKey: "id",
         cell: ({ getValue, row }) => {
           const exampleId = row.original.id;
-          return (
-            <Link to={`${exampleId}`} onClick={(e) => e.stopPropagation()}>
-              {getValue() as string}
-            </Link>
-          );
+          return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
         },
       },
       {
