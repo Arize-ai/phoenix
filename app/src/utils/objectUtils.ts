@@ -1,3 +1,5 @@
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
 /**
  * Removes null, undefined, empty strings, empty objects, and empty arrays from an object.
  * Returns undefined if the resulting object would be empty.
@@ -29,4 +31,35 @@ export function compressObject<T extends Record<string, unknown>>(
   if (entries.length === 0) return undefined;
 
   return Object.fromEntries(entries) as Partial<T>;
+}
+
+/**
+ * Get a value from an object using a dot-notation path.
+ *
+ * TODO: Replace this with a JSON path-based utility (e.g., using jsonpath-plus
+ * or similar library) to support full JSON path syntax like:
+ * - $.input.query
+ * - $.metadata.tags[0]
+ * - $..nested.field
+ *
+ * @param obj - The object to retrieve the value from
+ * @param path - Dot-notation path (e.g., "input", "input.query")
+ * @returns The value at the path, or undefined if not found
+ */
+export function getValueAtPath(obj: unknown, path: string): unknown {
+  if (!path || !isStringKeyedObject(obj)) {
+    return obj;
+  }
+
+  const segments = path.split(".");
+  let current: unknown = obj;
+
+  for (const segment of segments) {
+    if (!isStringKeyedObject(current)) {
+      return undefined;
+    }
+    current = current[segment];
+  }
+
+  return current;
 }

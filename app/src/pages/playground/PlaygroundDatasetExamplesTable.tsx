@@ -86,6 +86,7 @@ import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
+import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
@@ -126,6 +127,40 @@ const outputContentCSS = css`
   flex: none;
   padding: var(--ac-global-dimension-size-200);
 `;
+
+/**
+ * Get possible variable names based on the template variables path.
+ *
+ * @param datasetExample - The full dataset example with input, output, and metadata
+ * @param templateVariablesPath - The path prefix for template variables
+ * @returns Array of possible variable names
+ */
+function getPossibleVariablesForPath({
+  datasetExample,
+  templateVariablesPath,
+}: {
+  datasetExample: { input: unknown; output: unknown; metadata: unknown };
+  templateVariablesPath: string | null;
+}): string[] {
+  // TODO: dynamically parse all valid root-level paths from the dataset example
+  // instead of hardcoding these known keys
+  const templateVariablesContext = {
+    input: datasetExample.input,
+    reference: datasetExample.output,
+    metadata: datasetExample.metadata,
+  };
+
+  // Look up the object at the path and return its keys
+  // When path is empty, getValueAtPath returns the whole context object
+  const targetObject = getValueAtPath(
+    templateVariablesContext,
+    templateVariablesPath ?? ""
+  );
+  if (isStringKeyedObject(targetObject)) {
+    return Object.keys(targetObject);
+  }
+  return [];
+}
 
 type ChatCompletionOverDatasetMutationPayload =
   PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"];
@@ -181,27 +216,57 @@ const createExampleResponsesForInstance = (
 function EmptyExampleOutput({
   isRunning,
   instanceVariables,
-  datasetExampleInput,
+  datasetExample,
+  templateVariablesPath,
   evaluatorOutputConfigs,
   isExpanded,
   onExpandedChange,
 }: {
   isRunning: boolean;
   instanceVariables: string[];
-  datasetExampleInput: unknown;
+  datasetExample: { input: unknown; output: unknown; metadata: unknown };
+  templateVariablesPath: string | null;
   evaluatorOutputConfigs: AnnotationConfig[];
   isExpanded: boolean;
   onExpandedChange: (isExpanded: boolean) => void;
 }) {
-  const parsedDatasetExampleInput = useMemo(() => {
-    return isStringKeyedObject(datasetExampleInput) ? datasetExampleInput : {};
-  }, [datasetExampleInput]);
+  // Build the template variables context matching the backend mapping
+  // (output is renamed to reference)
+  const templateVariablesContext = useMemo(
+    () => ({
+      input: datasetExample.input,
+      reference: datasetExample.output,
+      metadata: datasetExample.metadata,
+    }),
+    [datasetExample]
+  );
+
+  // Get the target object based on the template variables path
+  const targetObject = useMemo((): Record<string, unknown> => {
+    if (!templateVariablesPath) {
+      return templateVariablesContext as Record<string, unknown>;
+    }
+    const value = getValueAtPath(
+      templateVariablesContext,
+      templateVariablesPath
+    );
+    return isStringKeyedObject(value) ? value : {};
+  }, [templateVariablesContext, templateVariablesPath]);
+
+  // Get possible variables based on the path
+  const possibleVariables = useMemo(() => {
+    return getPossibleVariablesForPath({
+      datasetExample,
+      templateVariablesPath,
+    });
+  }, [datasetExample, templateVariablesPath]);
 
   const missingVariables = useMemo(() => {
     return instanceVariables.filter((variable) => {
-      return parsedDatasetExampleInput[variable] == null;
+      return targetObject[variable] == null;
     });
-  }, [parsedDatasetExampleInput, instanceVariables]);
+  }, [targetObject, instanceVariables]);
+
   let cellTopContent: ReactNode | null = <Text color="text-500">Ready</Text>;
   let content: ReactNode | null = (
     <Text color="text-500">Press run to generate</Text>
@@ -222,8 +287,8 @@ function EmptyExampleOutput({
         {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
           ", "
         )}.${
-          Object.keys(parsedDatasetExampleInput).length > 0
-            ? ` Possible inputs are: ${Object.keys(parsedDatasetExampleInput).join(", ")}`
+          possibleVariables.length > 0
+            ? ` Possible inputs are: ${possibleVariables.join(", ")}`
             : " No inputs found in dataset example."
         }`}
       </PlaygroundErrorWrap>
@@ -425,7 +490,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceId,
   exampleId,
   instanceVariables,
-  datasetExampleInput,
+  datasetExample,
+  templateVariablesPath,
   onViewExperimentRunDetailsPress,
   onViewTracePress,
   evaluatorOutputConfigs,
@@ -434,7 +500,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   exampleId: string;
   isRunning: boolean;
   instanceVariables: string[];
-  datasetExampleInput: unknown;
+  datasetExample: { input: unknown; output: unknown; metadata: unknown };
+  templateVariablesPath: string | null;
   onViewExperimentRunDetailsPress: () => void;
   onViewTracePress: (
     traceId: string,
@@ -479,7 +546,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     <EmptyExampleOutput
       isRunning={isRunning}
       instanceVariables={instanceVariables}
-      datasetExampleInput={datasetExampleInput}
+      datasetExample={datasetExample}
+      templateVariablesPath={templateVariablesPath}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
       isExpanded={isExpanded}
       onExpandedChange={onExpandedChange}
@@ -614,6 +682,9 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.allInstanceMessages
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const templateVariablesPath = usePlaygroundContext(
+    (state) => state.templateVariablesPath
+  );
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
@@ -1118,6 +1189,7 @@ export function PlaygroundDatasetExamplesTable({
               revision {
                 input
                 output
+                metadata
               }
             }
           }
@@ -1137,6 +1209,7 @@ export function PlaygroundDatasetExamplesTable({
           id: example.id,
           input: revision.input,
           output: revision.output,
+          metadata: revision.metadata,
         };
       }),
     [data]
@@ -1204,7 +1277,12 @@ export function PlaygroundDatasetExamplesTable({
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
               instanceVariables={instanceVariables}
-              datasetExampleInput={row.original.input}
+              datasetExample={{
+                input: row.original.input,
+                output: row.original.output,
+                metadata: row.original.metadata,
+              }}
+              templateVariablesPath={templateVariablesPath}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
@@ -1222,6 +1300,7 @@ export function PlaygroundDatasetExamplesTable({
     hasSomeRunIds,
     instances,
     templateFormat,
+    templateVariablesPath,
     allInstanceMessages,
     setSelectedExampleIndex,
     evaluatorOutputConfigs,
