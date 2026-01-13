@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<743e684f67682df7948978d4b91266aa>>
+ * @generated SignedSource<<5d9f3410b4b6309b11bc9169ff7f6cb6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -184,6 +184,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "evaluatorCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "DatasetLabel",
                     "kind": "LinkedField",
                     "name": "labels",
@@ -264,16 +271,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3e819f41f7a6ed480c70522da77062a9",
+    "cacheID": "9df01fa59001c105742e8dd32aea0fdc",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $filter: DatasetFilter = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_3JsJJ3\n}\n\nfragment DatasetsTable_datasets_3JsJJ3 on Query {\n  datasets(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "82e24aac9e40f779947bb6b87468f506";
+(node as any).hash = "fc083cc2fa596e206fe47bd613f159aa";
 
 export default node;
