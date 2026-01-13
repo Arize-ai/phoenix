@@ -1,7 +1,7 @@
 import {
   formatValue,
   hasStringifiedJSON,
-} from "../AttributesJSONBlock";
+} from "@phoenix/components/code/AttributesJSONBlock";
 
 describe("formatValue", () => {
   it("parses stringified objects", () => {
