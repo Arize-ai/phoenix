@@ -7,6 +7,7 @@ import {
   useRef,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -21,7 +22,7 @@ import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
@@ -50,6 +51,7 @@ export function ExamplesTable({
     selectedSplitIds,
     setExamplesCache,
   } = useExamplesFilterContext();
+  const navigate = useNavigate();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastSelectedRowIndexRef = useRef<number | null>(null);
@@ -227,17 +229,37 @@ export function ExamplesTable({
             .getRowModel()
             .rows.findIndex((r) => r.id === row.id);
           return (
-            <IndeterminateCheckboxCell
-              {...{
-                isSelected: row.getIsSelected(),
-                isDisabled: !row.getCanSelect(),
-                isIndeterminate: row.getIsSomeSelected(),
-                onChange: row.toggleSelected,
-                onCellClick: (event: React.MouseEvent) => {
-                  handleRowSelection(event, rowIndex, row.toggleSelected);
-                },
-              }}
-            />
+            <div
+              // expand the clickable area to most of the entire cell
+              css={css`
+                height: 100%;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                & > div {
+                  flex: 1;
+                  height: 100%;
+                  width: 100%;
+                  padding: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                }
+              `}
+            >
+              <IndeterminateCheckboxCell
+                {...{
+                  isSelected: row.getIsSelected(),
+                  isDisabled: !row.getCanSelect(),
+                  isIndeterminate: row.getIsSomeSelected(),
+                  onChange: row.toggleSelected,
+                  onCellClick: (event: React.MouseEvent) => {
+                    handleRowSelection(event, rowIndex, row.toggleSelected);
+                  },
+                }}
+              />
+            </div>
           );
         },
       },
@@ -317,7 +339,7 @@ export function ExamplesTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -339,7 +361,7 @@ export function ExamplesTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
