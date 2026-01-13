@@ -120,6 +120,7 @@ describe("hasStringifiedJSON", () => {
       expect(hasStringifiedJSON("plain string")).toBe(false);
       expect(hasStringifiedJSON("123")).toBe(false);
       expect(hasStringifiedJSON("true")).toBe(false);
+      expect(hasStringifiedJSON("null")).toBe(false);
     });
 
     it("primitive values", () => {

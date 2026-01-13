@@ -19,7 +19,7 @@ const buttonContainerCSS = css`
  * Parses a string as JSON if it's a valid object or array.
  */
 function parseStringifiedJSON(value: string): unknown | null {
-  if (!isJSONString({ str: value, excludePrimitives: true })) {
+  if (!isJSONString({ str: value, excludePrimitives: true, excludeNull: true })) {
     return null;
   }
   const { json } = safelyParseJSON(value);
@@ -53,7 +53,7 @@ export function formatValue(value: unknown): unknown {
  */
 export function hasStringifiedJSON(value: unknown): boolean {
   if (typeof value === "string") {
-    return isJSONString({ str: value, excludePrimitives: true });
+    return isJSONString({ str: value, excludePrimitives: true, excludeNull: true });
   }
 
   if (Array.isArray(value)) {
