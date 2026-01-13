@@ -158,8 +158,8 @@ class TestDatasetLLMEvaluatorMutations:
         llm_evaluator_data = dataset_evaluator["evaluator"]
         assert dataset_evaluator["displayName"] == "test-evaluator"
         assert dataset_evaluator["description"] == "test description"
-        assert dataset_evaluator["outputConfig"]["name"] == "correctness"
-        assert dataset_evaluator["outputConfig"]["description"] == "description"
+        assert dataset_evaluator["outputConfig"]["name"] == "test-evaluator"
+        assert dataset_evaluator["outputConfig"]["description"] == "test description"
         assert len(dataset_evaluator["outputConfig"]["values"]) == 2
         assert llm_evaluator_data["kind"] == "LLM"
         await self._verify_prompt_version_messages(

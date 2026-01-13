@@ -183,9 +183,11 @@ async def _stream_single_chat_completion(
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
                     )
+                    display_name = str(evaluator.display_name)
+                    result["name"] = display_name
                     if result["error"] is not None:
                         yield EvaluationErrorChunk(
-                            evaluator_name=builtin.name,
+                            evaluator_name=display_name,
                             message=result["error"],
                             dataset_example_id=None,
                             repetition_number=repetition_number,
@@ -663,9 +665,11 @@ class Subscription:
                                     context=context_dict,
                                     input_mapping=evaluator.input_mapping,
                                 )
+                                display_name = str(evaluator.display_name)
+                                result["name"] = display_name
                                 if result["error"] is not None:
                                     yield EvaluationErrorChunk(
-                                        evaluator_name=builtin.name,
+                                        evaluator_name=display_name,
                                         message=result["error"],
                                         dataset_example_id=example_id,
                                         repetition_number=repetition_number,

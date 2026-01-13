@@ -14,6 +14,7 @@ from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
 from phoenix.db import models
+from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -25,7 +26,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import LLMEvaluator
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.experiments.utils import is_experiment_project_name
@@ -897,6 +898,7 @@ class TestChatCompletionSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -972,6 +974,7 @@ class TestChatCompletionSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
+                        "displayName": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -1011,6 +1014,72 @@ class TestChatCompletionSubscription:
 
         # Verify NO evaluation chunks were emitted
         assert len(evaluation_chunks) == 0
+
+    async def test_builtin_evaluator_uses_display_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test that builtin evaluators use display_name for annotation names."""
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        evaluator_gid = str(
+            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
+        )
+        custom_display_name = "my-custom-exact-match"
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "Say hello",
+                    }
+                ],
+                "model": {"builtin": {"name": "gpt-4o-mini", "providerKey": "OPENAI"}},
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "displayName": custom_display_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "hello",
+                                "actual": "hello",
+                            },
+                        },
+                    }
+                ],
+            },
+        }
+
+        evaluation_chunks: list[dict[str, Any]] = []
+        result_chunk: dict[str, Any] = {}
+
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                async for payload in subscription.stream():
+                    typename = payload["chatCompletion"]["__typename"]
+                    if typename == EvaluationChunk.__name__:
+                        evaluation_chunks.append(payload["chatCompletion"])
+                    elif typename == ChatCompletionSubscriptionResult.__name__:
+                        result_chunk = payload["chatCompletion"]
+
+        # Verify we got a result chunk with a span
+        assert result_chunk["span"]["id"]
+
+        # Verify we got exactly 1 evaluation chunk with the custom display name
+        assert len(evaluation_chunks) == 1
+        eval_chunk = evaluation_chunks[0]
+        eval_annotation = eval_chunk["experimentRunEvaluation"]
+        assert eval_annotation["name"] == custom_display_name
+        assert eval_annotation["annotatorKind"] == "CODE"
 
 
 class TestChatCompletionOverDatasetSubscription:
@@ -2022,6 +2091,85 @@ class TestChatCompletionOverDatasetSubscription:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
             assert len(annotations) == 0
+
+    async def test_builtin_evaluator_uses_display_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that builtin evaluators use display_name for annotation names in dataset runs."""
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        evaluator_gid = str(
+            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
+        )
+        custom_display_name = "my-dataset-exact-match"
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": evaluator_gid,
+                        "displayName": custom_display_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "test",
+                                "actual": "test",
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        evaluation_chunks: list[Any] = []
+
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                async for payload in subscription.stream():
+                    typename = payload["chatCompletionOverDataset"]["__typename"]
+                    if typename == EvaluationChunk.__name__:
+                        evaluation_chunks.append(payload["chatCompletionOverDataset"])
+
+        # Verify we got exactly 1 evaluation chunk with custom display name
+        assert len(evaluation_chunks) == 1
+        eval_chunk = evaluation_chunks[0]
+        eval_annotation = eval_chunk["experimentRunEvaluation"]
+        assert eval_annotation["name"] == custom_display_name
+        assert eval_annotation["annotatorKind"] == "CODE"
+
+        # Verify experiment run annotation was persisted with display_name
+        async with db() as session:
+            result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = result.scalars().all()
+            assert len(annotations) == 1
+
+            annotation = annotations[0]
+            assert annotation.name == custom_display_name
+            assert annotation.annotator_kind == "CODE"
 
 
 def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:

@@ -406,6 +406,8 @@ class ChatCompletionMutationMixin:
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
                             )
+                            display_name = str(evaluator.display_name)
+                            eval_result["name"] = display_name
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_model(
                                     eval_result,
@@ -414,7 +416,7 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations[evaluation_key].append(
-                                _to_evaluation_result_union(eval_result, builtin.name)
+                                _to_evaluation_result_union(eval_result, display_name)
                             )
 
                     # Run LLM evaluators
@@ -543,6 +545,8 @@ class ChatCompletionMutationMixin:
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
                             )
+                            display_name = str(evaluator.display_name)
+                            eval_result["name"] = display_name
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_span_annotation(
                                     eval_result,
@@ -551,7 +555,7 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations_by_repetition[repetition_number].append(
-                                _to_evaluation_result_union(eval_result, builtin.name)
+                                _to_evaluation_result_union(eval_result, display_name)
                             )
 
                     # Run LLM evaluators
