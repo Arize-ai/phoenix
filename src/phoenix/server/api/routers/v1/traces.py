@@ -1,5 +1,7 @@
 import gzip
+import json
 import zlib
+from collections.abc import AsyncIterator
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
@@ -13,7 +15,7 @@ from sqlalchemy import delete, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import Response, StreamingResponse
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -25,10 +27,19 @@ from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.trace.attributes import flatten
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
 from .models import V1RoutesBaseModel
+from .spans import (
+    OtlpEvent,
+    OtlpKeyValue,
+    OtlpSpan,
+    OtlpStatus,
+    StatusCode,
+    _to_any_value,
+)
 from .utils import (
     RequestBody,
     ResponseBody,
@@ -269,3 +280,158 @@ async def delete_trace(
 
     # Return 204 No Content (successful deletion with no response body)
     return None
+
+
+@router.get(
+    "/traces/{trace_identifier}/jsonl",
+    operation_id="exportTraceJsonl",
+    summary="Export trace as JSONL",
+    description=(
+        "Export all spans in a trace as JSONL (JSON Lines) format. "
+        "Each line contains one span in OpenTelemetry JSON format. "
+        "The identifier can be either:\n"
+        "1. A Relay node ID (base64-encoded)\n"
+        "2. An OpenTelemetry trace_id (hex string)\n\n"
+        "Spans are ordered chronologically by start_time."
+    ),
+    responses=add_errors_to_responses([404, 422]),
+    response_class=StreamingResponse,
+)
+async def export_trace_jsonl(
+    request: Request,
+    trace_identifier: str = Path(
+        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+    ),
+) -> StreamingResponse:
+    """
+    Export a trace and all its spans in JSONL format.
+
+    This endpoint will:
+    1. Find the trace by identifier (relay GlobalID or OpenTelemetry trace_id)
+    2. Query all spans belonging to the trace
+    3. Convert each span to OTLP JSON format
+    4. Stream as JSONL (one JSON object per line)
+    5. Return as downloadable file
+    """
+
+    async def _generate_jsonl() -> AsyncIterator[str]:
+        """Generator that yields JSONL lines for all spans in a trace."""
+        async with request.app.state.db() as session:
+            # Try to parse as GlobalID first, then fall back to trace_id
+            try:
+                trace_rowid = from_global_id_with_expected_type(
+                    GlobalID.from_id(trace_identifier),
+                    "Trace",
+                )
+                # Query by database rowid
+                stmt = (
+                    select(models.Span, models.Trace.trace_id)
+                    .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+                    .where(models.Trace.id == trace_rowid)
+                    .order_by(models.Span.start_time.asc())
+                )
+                error_detail = f"Trace with relay ID '{trace_identifier}' not found"
+            except Exception:
+                # Query by OpenTelemetry trace_id
+                stmt = (
+                    select(models.Span, models.Trace.trace_id)
+                    .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+                    .where(models.Trace.trace_id == trace_identifier)
+                    .order_by(models.Span.start_time.asc())
+                )
+                error_detail = f"Trace with trace_id '{trace_identifier}' not found"
+
+            rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
+
+            if not rows:
+                raise HTTPException(
+                    status_code=404,
+                    detail=error_detail,
+                )
+
+            # Convert each span to OTLP format and yield as JSONL
+            for span_orm, trace_id in rows:
+                otlp_span = _convert_span_to_otlp(span_orm, trace_id)
+                # Convert to dict and serialize to JSON
+                span_dict = otlp_span.model_dump(exclude_none=True)
+                yield json.dumps(span_dict, separators=(",", ":")) + "\n"
+
+    # Determine the filename
+    filename = f"trace_{trace_identifier}.jsonl"
+
+    return StreamingResponse(
+        _generate_jsonl(),
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+def _convert_span_to_otlp(span_orm: models.Span, trace_id: str) -> OtlpSpan:
+    """
+    Convert a database Span ORM object to OTLP JSON format.
+
+    This function reuses the conversion logic from the span search endpoint.
+    """
+    try:
+        status_code_enum = StatusCode(span_orm.status_code or "UNSET")
+    except ValueError:
+        status_code_enum = StatusCode.UNSET
+
+    # Convert attributes to KeyValue list
+    attributes_kv: list[OtlpKeyValue] = []
+    if span_orm.attributes:
+        for k, v in flatten(span_orm.attributes or {}, recurse_on_sequence=True):
+            attributes_kv.append(OtlpKeyValue(key=k, value=_to_any_value(v)))
+
+    # Convert events to OTLP Event list
+    events: Optional[list[OtlpEvent]] = None
+    if span_orm.events:
+        events = []
+        for event in span_orm.events:
+            event_attributes: list[OtlpKeyValue] = []
+            if event.get("attributes"):
+                for k, v in flatten(event["attributes"], recurse_on_sequence=True):
+                    event_attributes.append(OtlpKeyValue(key=k, value=_to_any_value(v)))
+
+            # Convert event timestamp to nanoseconds
+            event_time = event.get("timestamp")
+            time_unix_nano = None
+            if event_time:
+                if isinstance(event_time, type(span_orm.start_time)):
+                    time_unix_nano = int(event_time.timestamp() * 1_000_000_000)
+                elif isinstance(event_time, str):
+                    try:
+                        from datetime import datetime
+
+                        dt = datetime.fromisoformat(event_time)
+                        time_unix_nano = int(dt.timestamp() * 1_000_000_000)
+                    except ValueError:
+                        pass
+                elif isinstance(event_time, (int, float)):
+                    time_unix_nano = int(event_time)
+
+            events.append(
+                OtlpEvent(
+                    name=event.get("name"),
+                    attributes=event_attributes,
+                    time_unix_nano=time_unix_nano,
+                    dropped_attributes_count=event.get("dropped_attributes_count"),
+                )
+            )
+
+    start_ns = int(span_orm.start_time.timestamp() * 1_000_000_000) if span_orm.start_time else None
+    end_ns = int(span_orm.end_time.timestamp() * 1_000_000_000) if span_orm.end_time else None
+
+    return OtlpSpan(
+        trace_id=trace_id,
+        span_id=span_orm.span_id,
+        parent_span_id=span_orm.parent_id,
+        name=span_orm.name,
+        start_time_unix_nano=start_ns,
+        end_time_unix_nano=end_ns,
+        attributes=attributes_kv,
+        events=events,
+        status=OtlpStatus(code=status_code_enum.to_int(), message=span_orm.status_message or None),
+    )

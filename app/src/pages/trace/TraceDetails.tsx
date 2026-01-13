@@ -7,7 +7,10 @@ import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Flex,
+  Icon,
+  Icons,
   LinkButton,
   Loading,
   RichTooltip,
@@ -22,6 +25,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 
@@ -123,6 +127,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         latencyMs={traceLatencyMs}
         costSummary={costSummary}
         sessionId={data.project.trace?.projectSessionId}
+        traceId={traceId}
       />
       <PanelGroup
         direction="horizontal"
@@ -169,11 +174,13 @@ function TraceHeader({
   latencyMs,
   costSummary,
   sessionId,
+  traceId,
 }: {
   rootSpan: RootSpan | null;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
+  traceId: string;
 }) {
   const { projectId } = useParams();
   const { statusCode } = rootSpan ?? {
@@ -258,12 +265,29 @@ function TraceHeader({
         {rootSpan ? (
           <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
         ) : null}
-        {sessionId && (
-          <span
-            css={css`
-              margin-left: auto;
-            `}
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          css={css`
+            margin-left: auto;
+          `}
+        >
+          <Button
+            size="S"
+            variant="default"
+            aria-label="Export trace as JSONL"
+            onPress={() => {
+              window.open(
+                prependBasename(`/v1/traces/${traceId}/jsonl`),
+                "_blank"
+              );
+            }}
           >
+            <Icon svg={<Icons.DownloadOutline />} />
+            <Text>Export</Text>
+          </Button>
+          {sessionId && (
             <LinkButton
               size="S"
               variant="primary"
@@ -271,8 +295,8 @@ function TraceHeader({
             >
               View Session
             </LinkButton>
-          </span>
-        )}
+          )}
+        </Flex>
       </Flex>
     </View>
   );
