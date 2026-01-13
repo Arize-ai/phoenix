@@ -831,6 +831,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-1-{token_hex(4)}"),
                 description="First evaluator",
                 kind="LLM",
+                annotation_name="goodness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="goodness description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -838,6 +848,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-2-{token_hex(4)}"),
                 description="Second evaluator",
                 kind="LLM",
+                annotation_name="correctness",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -851,32 +871,14 @@ class TestEvaluatorPolymorphism:
                         evaluator_id=eval_1.id,
                         display_name=eval_1.name,
                         input_mapping={},
-                        output_config=CategoricalAnnotationConfig(
-                            name="goodness",
-                            type="CATEGORICAL",
-                            optimization_direction=OptimizationDirection.MAXIMIZE,
-                            description="goodness description",
-                            values=[
-                                CategoricalAnnotationValue(label="good", score=1.0),
-                                CategoricalAnnotationValue(label="bad", score=0.0),
-                            ],
-                        ),
+                        output_config_override=None,
                     ),
                     models.DatasetEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
                         display_name=eval_2.name,
                         input_mapping={},
-                        output_config=CategoricalAnnotationConfig(
-                            name="correctness",
-                            type="CATEGORICAL",
-                            optimization_direction=OptimizationDirection.MAXIMIZE,
-                            description="correctness description",
-                            values=[
-                                CategoricalAnnotationValue(label="correct", score=1.0),
-                                CategoricalAnnotationValue(label="incorrect", score=0.0),
-                            ],
-                        ),
+                        output_config_override=None,
                     ),
                 ]
             )
@@ -1002,6 +1004,16 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-3-{token_hex(4)}"),
                 description="Third evaluator",
                 kind="LLM",
+                annotation_name="hallucination",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="thirdness description",
+                    values=[
+                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                        CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
+                    ],
+                ),
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -1016,16 +1028,7 @@ class TestEvaluatorPolymorphism:
                 evaluator_id=new_eval_id,
                 display_name=new_eval_name,
                 input_mapping={},
-                output_config=CategoricalAnnotationConfig(
-                    name="hallucination",
-                    type="CATEGORICAL",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="thirdness description",
-                    values=[
-                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
-                        CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
-                    ],
-                ),
+                output_config_override=None,
             )
             session.add(dataset_evaluator)
 

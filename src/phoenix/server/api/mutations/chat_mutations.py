@@ -77,6 +77,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.mutations.annotation_config_mutations import (
     _to_pydantic_categorical_annotation_config,
+    _to_pydantic_categorical_annotation_config_override,
 )
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
@@ -420,33 +421,19 @@ class ChatCompletionMutationMixin:
                     }
                     for llm_evaluator in llm_evaluators:
                         evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
-                        if evaluator_input.output_config is None:
-                            error_result: EvaluationResult = {
-                                "name": str(evaluator_input.display_name),
-                                "annotator_kind": "LLM",
-                                "label": None,
-                                "score": None,
-                                "explanation": None,
-                                "metadata": {},
-                                "error": "output_config is required for LLM evaluators",
-                                "trace_id": None,
-                                "start_time": datetime.now(timezone.utc),
-                                "end_time": datetime.now(timezone.utc),
-                            }
-                            evaluations[evaluation_key].append(
-                                _to_evaluation_result_union(
-                                    error_result, str(evaluator_input.display_name)
-                                )
+                        output_config_override = (
+                            _to_pydantic_categorical_annotation_config_override(
+                                evaluator_input.output_config
                             )
-                            continue
-                        output_config = _to_pydantic_categorical_annotation_config(
-                            evaluator_input.output_config
+                            if evaluator_input.output_config is not None
+                            else None
                         )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            output_config=output_config,
+                            description_override=evaluator_input.description,
+                            output_config_override=output_config_override,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
@@ -566,33 +553,19 @@ class ChatCompletionMutationMixin:
                     }
                     for llm_evaluator in llm_evaluators:
                         evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
-                        if evaluator_input.output_config is None:
-                            error_result: EvaluationResult = {
-                                "name": str(evaluator_input.display_name),
-                                "annotator_kind": "LLM",
-                                "label": None,
-                                "score": None,
-                                "explanation": None,
-                                "metadata": {},
-                                "error": "output_config is required for LLM evaluators",
-                                "trace_id": None,
-                                "start_time": datetime.now(timezone.utc),
-                                "end_time": datetime.now(timezone.utc),
-                            }
-                            evaluations_by_repetition[repetition_number].append(
-                                _to_evaluation_result_union(
-                                    error_result, str(evaluator_input.display_name)
-                                )
+                        output_config_override = (
+                            _to_pydantic_categorical_annotation_config_override(
+                                evaluator_input.output_config
                             )
-                            continue
-                        output_config = _to_pydantic_categorical_annotation_config(
-                            evaluator_input.output_config
+                            if evaluator_input.output_config is not None
+                            else None
                         )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
-                            output_config=output_config,
+                            description_override=evaluator_input.description,
+                            output_config_override=output_config_override,
                         )
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_span_annotation(
@@ -681,6 +654,8 @@ class ChatCompletionMutationMixin:
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
+                    annotation_name=inline_llm_evaluator.output_config.name,
+                    output_config=output_config,
                     llm_client=llm_client,
                     description=inline_llm_evaluator.description,
                 )
@@ -700,7 +675,6 @@ class ChatCompletionMutationMixin:
                     context=context,
                     input_mapping=input_mapping,
                     display_name=inline_llm_evaluator.output_config.name,
-                    output_config=output_config,
                 )
                 context_result = _to_evaluation_result_union(
                     eval_result, inline_llm_evaluator.output_config.name

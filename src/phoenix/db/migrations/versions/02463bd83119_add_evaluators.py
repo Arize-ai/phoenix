@@ -147,6 +147,8 @@ def upgrade() -> None:
             sa.ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
             index=True,
         ),
+        sa.Column("annotation_name", sa.String, nullable=False),
+        sa.Column("output_config", JSON_, nullable=False),
         sa.Column(
             "updated_at",
             sa.TIMESTAMP(timezone=True),

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import strawberry
 from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -12,10 +10,12 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
     CategoricalAnnotationValue,
-    OptimizationDirection,
 )
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfigOverride as CategoricalAnnotationConfigOverrideModel,
 )
 from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
@@ -26,6 +26,13 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.input_types.AnnotationConfigInput import (
+    AnnotationConfigInput,
+    CategoricalAnnotationConfigInput,
+    CategoricalAnnotationConfigOverrideInput,
+    ContinuousAnnotationConfigInput,
+    FreeformAnnotationConfigInput,
+)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationConfig import (
     AnnotationConfig,
@@ -42,55 +49,6 @@ ANNOTATION_TYPE_NAMES = (
     ContinuousAnnotationConfig.__name__,
     FreeformAnnotationConfig.__name__,
 )
-
-
-@strawberry.input
-class CategoricalAnnotationConfigValueInput:
-    label: str
-    score: Optional[float] = None
-
-
-@strawberry.input
-class CategoricalAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    values: list[CategoricalAnnotationConfigValueInput]
-
-
-@strawberry.input
-class ContinuousAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-
-
-@strawberry.input
-class FreeformAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-
-
-@strawberry.input(one_of=True)
-class AnnotationConfigInput:
-    categorical: Optional[CategoricalAnnotationConfigInput] = strawberry.UNSET
-    continuous: Optional[ContinuousAnnotationConfigInput] = strawberry.UNSET
-    freeform: Optional[FreeformAnnotationConfigInput] = strawberry.UNSET
-
-    def __post_init__(self) -> None:
-        if (
-            sum(
-                [
-                    self.categorical is not strawberry.UNSET,
-                    self.continuous is not strawberry.UNSET,
-                    self.freeform is not strawberry.UNSET,
-                ]
-            )
-            != 1
-        ):
-            raise BadRequest("Exactly one of categorical, continuous, or freeform must be set")
 
 
 @strawberry.input
@@ -164,6 +122,23 @@ def _to_pydantic_categorical_annotation_config(
                 CategoricalAnnotationValue(label=value.label, score=value.score)
                 for value in input.values
             ],
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
+
+
+def _to_pydantic_categorical_annotation_config_override(
+    input: "CategoricalAnnotationConfigOverrideInput",
+) -> CategoricalAnnotationConfigOverrideModel:
+    try:
+        return CategoricalAnnotationConfigOverrideModel(
+            optimization_direction=input.optimization_direction,
+            values=[
+                CategoricalAnnotationValue(label=value.label, score=value.score)
+                for value in input.values
+            ]
+            if input.values is not None
+            else None,
         )
     except ValueError as error:
         raise BadRequest(str(error))

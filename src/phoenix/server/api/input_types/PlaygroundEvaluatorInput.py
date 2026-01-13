@@ -4,8 +4,8 @@ import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.server.api.mutations.annotation_config_mutations import (
-    CategoricalAnnotationConfigInput,
+from phoenix.server.api.input_types.AnnotationConfigInput import (
+    CategoricalAnnotationConfigOverrideInput,
 )
 from phoenix.server.api.types.Identifier import Identifier
 
@@ -28,7 +28,8 @@ class EvaluatorInputMappingInput:
 class PlaygroundEvaluatorInput:
     id: GlobalID
     display_name: Identifier
+    description: Optional[str] = None
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
     )
-    output_config: Optional[CategoricalAnnotationConfigInput] = None
+    output_config: Optional[CategoricalAnnotationConfigOverrideInput] = None

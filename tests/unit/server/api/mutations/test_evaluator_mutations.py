@@ -180,9 +180,10 @@ class TestDatasetLLMEvaluatorMutations:
                 "path_mapping": {},
             }
             assert db_dataset_evaluator.description == "test description"
-            assert db_dataset_evaluator.output_config is not None
-            assert db_dataset_evaluator.output_config.name == "correctness"
-            assert len(db_dataset_evaluator.output_config.values) == 2
+            assert db_dataset_evaluator.output_config_override is None
+            assert llm_evaluator.output_config is not None
+            assert llm_evaluator.annotation_name == "correctness"
+            assert len(llm_evaluator.output_config.values) == 2
 
         result = await self._create(
             gql_client,
@@ -1171,8 +1172,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.output_config is not None
-            assert db_dataset_evaluator.output_config.name == "result"
+            assert db_dataset_evaluator.output_config_override is None
+            assert db_evaluator.annotation_name == "result"
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
         self,
@@ -2244,21 +2245,23 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             name=llm_evaluator_name,
             description="test llm evaluator",
             kind="LLM",
+            annotation_name="test",
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="test description",
+                values=[
+                    CategoricalAnnotationValue(label="good", score=1.0),
+                    CategoricalAnnotationValue(label="bad", score=0.0),
+                ],
+            ),
             prompt=prompt,
             dataset_evaluators=[
                 models.DatasetEvaluators(
                     dataset_id=empty_dataset.id,
                     display_name=llm_evaluator_name,
                     description="test description",
-                    output_config=CategoricalAnnotationConfig(
-                        type="CATEGORICAL",
-                        optimization_direction=OptimizationDirection.MAXIMIZE,
-                        description="test description",
-                        values=[
-                            CategoricalAnnotationValue(label="good", score=1.0),
-                            CategoricalAnnotationValue(label="bad", score=0.0),
-                        ],
-                    ),
+                    output_config_override=None,
                     input_mapping={},
                 )
             ],
@@ -2443,21 +2446,23 @@ async def llm_evaluator(
         name=evaluator_name,
         description=evaluator_description,
         kind="LLM",
+        annotation_name=annotation_name,
+        output_config=CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            description="correctness description",
+            values=[
+                CategoricalAnnotationValue(label="correct", score=1.0),
+                CategoricalAnnotationValue(label="incorrect", score=0.0),
+            ],
+        ),
         prompt=prompt,
         dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 display_name=evaluator_name,
                 description="correctness description",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_config_override=None,
                 input_mapping={},
             )
         ],

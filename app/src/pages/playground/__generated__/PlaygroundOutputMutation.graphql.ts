@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39e9aba9232e010a1a4587772f538d95>>
+ * @generated SignedSource<<f8ed1c5cb0598bbeaba19903d4294ff8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -68,20 +68,19 @@ export type PromptTemplateOptions = {
   variables: any;
 };
 export type PlaygroundEvaluatorInput = {
+  description?: string | null;
   displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
-  outputConfig?: CategoricalAnnotationConfigInput | null;
+  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type CategoricalAnnotationConfigInput = {
-  description?: string | null;
-  name: string;
-  optimizationDirection: OptimizationDirection;
-  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
+export type CategoricalAnnotationConfigOverrideInput = {
+  optimizationDirection?: OptimizationDirection | null;
+  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;

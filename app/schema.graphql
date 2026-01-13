@@ -336,6 +336,11 @@ input CategoricalAnnotationConfigInput {
   values: [CategoricalAnnotationConfigValueInput!]!
 }
 
+input CategoricalAnnotationConfigOverrideInput {
+  optimizationDirection: OptimizationDirection = null
+  values: [CategoricalAnnotationConfigValueInput!] = null
+}
+
 input CategoricalAnnotationConfigValueInput {
   label: String!
   score: Float = null
@@ -2308,6 +2313,7 @@ type LLMEvaluator implements Evaluator & Node {
   updatedAt: DateTime!
   inputSchema: JSON
   isBuiltin: Boolean!
+  outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
@@ -2606,8 +2612,9 @@ type PerformanceTimeSeries implements TimeSeries {
 input PlaygroundEvaluatorInput {
   id: ID!
   displayName: Identifier!
+  description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
-  outputConfig: CategoricalAnnotationConfigInput = null
+  outputConfig: CategoricalAnnotationConfigOverrideInput = null
 }
 
 type PlaygroundModel implements ModelInterface {

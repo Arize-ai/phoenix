@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<173081c0d53f26ee0a5eeabeaab69905>>
+ * @generated SignedSource<<7a852c5c7105913dba0441e928ff5813>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -73,20 +73,19 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type PlaygroundEvaluatorInput = {
+  description?: string | null;
   displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
-  outputConfig?: CategoricalAnnotationConfigInput | null;
+  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type CategoricalAnnotationConfigInput = {
-  description?: string | null;
-  name: string;
-  optimizationDirection: OptimizationDirection;
-  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
+export type CategoricalAnnotationConfigOverrideInput = {
+  optimizationDirection?: OptimizationDirection | null;
+  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
