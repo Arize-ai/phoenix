@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b05424e1f2da29e2fc3ee911d3e1d6d2>>
+ * @generated SignedSource<<6508b97190a51a882b39f85fb453700a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
@@ -67,12 +68,23 @@ export type PromptTemplateOptions = {
   variables: any;
 };
 export type PlaygroundEvaluatorInput = {
+  description?: string | null;
+  displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
+  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
+};
+export type CategoricalAnnotationConfigOverrideInput = {
+  optimizationDirection?: OptimizationDirection | null;
+  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+};
+export type CategoricalAnnotationConfigValueInput = {
+  label: string;
+  score?: number | null;
 };
 export type PlaygroundOutputSubscription$variables = {
   input: ChatCompletionInput;
