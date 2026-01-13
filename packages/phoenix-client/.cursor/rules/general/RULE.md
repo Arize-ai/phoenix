@@ -10,6 +10,7 @@
 ## Canonical Examples
 
 See existing resource modules in `src/phoenix/client/resources/`:
+
 - `datasets/` - Dataset operations
 - `spans/` - Span queries and annotations
 - `experiments/` - Experiment management
