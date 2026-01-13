@@ -851,7 +851,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       set({ appendedMessagesPath }, false, { type: "setAppendedMessagesPath" });
     },
     setTemplateVariablesPath: (templateVariablesPath: string | null) => {
-      set({ templateVariablesPath }, false, { type: "setTemplateVariablesPath" });
+      set({ templateVariablesPath }, false, {
+        type: "setTemplateVariablesPath",
+      });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,
