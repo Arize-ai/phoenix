@@ -96,6 +96,7 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { normalizeMessageContent } from "../playground/playgroundUtils";
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
 
@@ -1414,6 +1415,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
+  const normalizedContent = normalizeMessageContent(messageContent);
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
   const toolCalls = message[MessageAttributePostfixes.tool_calls]
@@ -1497,7 +1499,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   {messageContent ? (
                     <View width="100%">
                       <ConnectedMarkdownBlock>
-                        {messageContent}
+                        {normalizedContent}
                       </ConnectedMarkdownBlock>
                     </View>
                   ) : null}
@@ -1507,7 +1509,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             messageContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
-                  {messageContent}
+                  {normalizedContent}
                 </ConnectedMarkdownBlock>
               </View>
             ) : null}

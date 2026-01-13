@@ -206,7 +206,7 @@ def _gen_messages(
     prefix: str,
 ) -> Iterator[Tuple[str, types.AttributeValue]]:
     for i in range(n):
-        role = choice(["user", "system", "assistant"])
+        role = choice(["user", "system", "assistant", "tool"])
         yield f"{prefix}.{i}.{MessageAttributes.MESSAGE_ROLE}", role
         if role == "assistant" and random() < 0.25:
             for j in range(randint(1, 10)):
@@ -220,10 +220,38 @@ def _gen_messages(
                     json.dumps(fake.pydict(randint(0, 10), allowed_types=(float, int, str))),
                 )
             continue
-        yield (
-            f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
-            fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
-        )
+        # Generate tool role messages with dict/list content to test rendering
+        if role == "tool":
+            # Randomly choose between different tool return types to test rendering
+            tool_return_type = choice(["dict", "list", "string"])
+            if tool_return_type == "dict":
+                # Generate a dictionary tool return (the bug case)
+                tool_result = {
+                    "accessible_by_AI": [fake.file_name() for _ in range(randint(1, 5))],
+                    "not_accessible_by_AI": [fake.file_name() for _ in range(randint(1, 5))],
+                }
+                yield (
+                    f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
+                    tool_result,
+                )
+            elif tool_return_type == "list":
+                # Generate list tool return
+                yield (
+                    f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
+                    [fake.word() for _ in range(randint(1, 10))],
+                )
+            else:
+                # Regular string content
+                yield (
+                    f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
+                    fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
+                )
+        else:
+            yield (
+                f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
+                fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
+            )
+
 
 
 def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
