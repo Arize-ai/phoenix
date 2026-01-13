@@ -537,7 +537,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 20
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x --reruns 5 -n auto
+        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e integration_tests -- -ra -x --reruns 5
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }})
