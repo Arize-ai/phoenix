@@ -41,7 +41,7 @@ export function PlaygroundExperimentSettingsButton({
         leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
         isDisabled={isDisabled}
       />
-      <Popover style={{ width: "350px" }}>
+      <Popover style={{ width: "400px" }}>
         <PopoverArrow />
         <Dialog>
           <View padding="size-200">
@@ -54,10 +54,9 @@ export function PlaygroundExperimentSettingsButton({
                 }}
               >
                 <Label>Template variables path</Label>
-                <Input placeholder="input" />
+                <Input placeholder="the root of the example" />
                 <Text slot="description">
-                  Path prefix for template variables (e.g., &quot;input&quot;
-                  means {"{{query}}"} resolves to input.query)
+                  Path prefix for template variables
                 </Text>
               </TextField>
               <TextField

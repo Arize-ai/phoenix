@@ -480,6 +480,7 @@ class Subscription:
                                 models.DatasetExampleRevision.dataset_example_id,
                                 models.DatasetExampleRevision.input,
                                 models.DatasetExampleRevision.output,
+                                models.DatasetExampleRevision.metadata_,
                             )
                         )
                     )
@@ -725,14 +726,17 @@ async def _stream_chat_completion_over_dataset_example(
     ]
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        # Build the full context with input and reference (expected output)
+        # Build the full context with input, reference (expected output), and metadata
         full_context: dict[str, Any] = {
             "input": revision.input,
             "reference": revision.output,
+            "metadata": revision.metadata_,
         }
         # Resolve template variables based on the configured path
         if input.template_variables_path:
-            template_variables = extract_value_from_path(full_context, input.template_variables_path)
+            template_variables = extract_value_from_path(
+                full_context, input.template_variables_path
+            )
         else:
             template_variables = full_context
         messages = list(
