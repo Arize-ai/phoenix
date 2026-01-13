@@ -1,4 +1,5 @@
 import {
+  type MouseEvent,
   startTransition,
   useCallback,
   useEffect,
@@ -20,7 +21,7 @@ import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
@@ -184,7 +185,7 @@ export function ExamplesTable({
    */
   const handleRowSelection = useCallback(
     (
-      event: React.MouseEvent,
+      event: MouseEvent,
       rowIndex: number,
       toggleSelected: (value?: boolean) => void
     ) => {
@@ -320,7 +321,7 @@ export function ExamplesTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
