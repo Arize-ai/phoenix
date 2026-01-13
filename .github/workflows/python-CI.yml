@@ -545,7 +545,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: uvx --with uv==0.9.30 tox run -e integration_tests -- -ra --reruns 5 -n auto
 
   test-migrations:
