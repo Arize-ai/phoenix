@@ -213,3 +213,21 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Pattern learned: Tasks that request only tests may already be complete if the previous implementation task followed best practices of writing tests during implementation
 - When encountering a "tests-only" task, check git history and existing test files before writing duplicate tests
 - The test coverage is comprehensive: simple paths, nested paths, duplicate variable deduplication, and integration with the variables cache
+
+## frontend-json-input-component
+
+- Created `JSONInputEditor` component in `app/src/pages/playground/JSONInputEditor.tsx` as a wrapper around the existing `JSONEditor` component
+- The component provides a labeled JSON editor for playground input when using JSON_PATH template format
+- Key design decisions:
+  - Used existing `JSONEditor` component from `@phoenix/components/code/JSONEditor` which already has CodeMirror with JSON language support (`@codemirror/lang-json`)
+  - Enabled `optionalLint: true` to allow empty JSON values without validation errors
+  - Enabled line numbers, active line highlighting, and fold gutter for better UX (unlike the simple `VariableEditor`)
+  - Component accepts `value` (string) and `onChange` props to integrate with playground state
+- Added unit tests in `app/src/pages/playground/__tests__/JSONInputEditor.test.ts`
+  - Had to mock all component dependencies (JSONEditor, Label, CodeWrap, fieldBaseCSS) due to CodeMirror module resolution issues in test environment
+  - Tests verify the component accepts expected props and doesn't throw errors
+  - Pattern: Mock external dependencies with complex imports (like CodeMirror) to avoid test environment issues
+- All 143 playground tests pass (including 2 new JSONInputEditor tests)
+- TypeScript typecheck and ESLint both pass with no errors
+- Pattern learned: For simple wrapper components with no behavioral logic, minimal tests that verify prop acceptance are sufficient
+- Next agent: This component is ready to be integrated into `PlaygroundInput` component (task: frontend-playground-input-integration)

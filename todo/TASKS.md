@@ -147,7 +147,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-json-input-component
 
 - content: Create a JSON editor input component for playground variables when using JSON_PATH format. This replaces the per-variable text fields with a single JSON editor. Reference the pattern used in EvaluatorInputMapping for JSON input handling. Consider using CodeMirror with JSON language support.
-- status: pending
+- status: complete
 - dependencies: frontend-playground-radio-group
 
 ### frontend-playground-input-integration
