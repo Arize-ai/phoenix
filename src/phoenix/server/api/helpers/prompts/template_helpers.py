@@ -8,6 +8,7 @@ from phoenix.server.api.helpers.prompts.models import PromptMessageRole, PromptT
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
+    JSONPathTemplateFormatter,
     MustacheTemplateFormatter,
     NoOpFormatter,
     TemplateFormatter,
@@ -19,7 +20,7 @@ def get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFor
     Returns the appropriate template formatter for the given format.
 
     Args:
-        template_format: The format type (MUSTACHE, F_STRING, or NONE)
+        template_format: The format type (MUSTACHE, F_STRING, NONE, or JSON_PATH)
 
     Returns:
         A TemplateFormatter instance for the specified format
@@ -30,6 +31,8 @@ def get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFor
         return FStringTemplateFormatter()
     if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
+    if template_format is PromptTemplateFormat.JSON_PATH:
+        return JSONPathTemplateFormatter()
     assert_never(template_format)
 
 

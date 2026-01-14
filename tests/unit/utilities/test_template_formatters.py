@@ -4,6 +4,7 @@ import pytest
 
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
+    JSONPathTemplateFormatter,
     MustacheTemplateFormatter,
     TemplateFormatter,
     TemplateFormatterError,
@@ -153,6 +154,76 @@ from phoenix.utilities.template_formatters import (
             "world, hello",
             id="f-string-replaced-value-is-variable-name",
         ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.name}",
+            {"name": "world"},
+            "world",
+            id="jsonpath-simple-path",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.user.name}",
+            {"user": {"name": "Alice"}},
+            "Alice",
+            id="jsonpath-nested-path",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.items[0]}",
+            {"items": ["first", "second"]},
+            "first",
+            id="jsonpath-array-index",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.users[0].name}",
+            {"users": [{"name": "Alice"}, {"name": "Bob"}]},
+            "Alice",
+            id="jsonpath-nested-array-path",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.name}, {$.age}",
+            {"name": "Alice", "age": 30},
+            "Alice, 30",
+            id="jsonpath-multiple-paths",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            r"\{$.name}",
+            {"name": "Alice"},
+            r"\{$.name}",
+            id="jsonpath-escaped-bracket",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.missing}",
+            {"name": "Alice"},
+            "{$.missing}",
+            id="jsonpath-unmatched-path-left-as-is",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.value}",
+            {"value": 42},
+            "42",
+            id="jsonpath-integer-value",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.value}",
+            {"value": [1, 2, 3]},
+            "[1, 2, 3]",
+            id="jsonpath-list-value",
+        ),
+        pytest.param(
+            JSONPathTemplateFormatter,
+            "{$.user.name}",
+            {"user": {"name": "Café"}},
+            "Café",
+            id="jsonpath-unicode-value",
+        ),
     ),
 )
 def test_template_formatters_produce_expected_prompt(
@@ -187,3 +258,28 @@ def test_template_formatters_raise_expected_error_on_missing_variables(
     formatter = formatter_cls()
     with pytest.raises(TemplateFormatterError, match=r"Missing template variable\(s\): hello"):
         formatter.format(template)
+
+
+def test_jsonpath_template_formatter_parse_extracts_variables() -> None:
+    formatter = JSONPathTemplateFormatter()
+
+    # Simple path
+    assert formatter.parse("{$.name}") == {"$.name"}
+
+    # Nested path
+    assert formatter.parse("{$.user.name}") == {"$.user.name"}
+
+    # Array index
+    assert formatter.parse("{$.items[0]}") == {"$.items[0]"}
+
+    # Multiple paths
+    assert formatter.parse("{$.name} and {$.age}") == {"$.name", "$.age"}
+
+    # Escaped brackets should not be extracted
+    assert formatter.parse(r"\{$.name}") == set()
+
+    # Mixed content
+    assert formatter.parse("Hello {$.user.name}, you are {$.user.age} years old") == {
+        "$.user.name",
+        "$.user.age",
+    }

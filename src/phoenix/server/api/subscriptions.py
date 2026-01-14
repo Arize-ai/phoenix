@@ -92,6 +92,7 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
+    JSONPathTemplateFormatter,
     MustacheTemplateFormatter,
     NoOpFormatter,
     TemplateFormatter,
@@ -990,6 +991,8 @@ def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormat
         return FStringTemplateFormatter()
     if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
+    if template_format is PromptTemplateFormat.JSON_PATH:
+        return JSONPathTemplateFormatter()
     assert_never(template_format)
 
 

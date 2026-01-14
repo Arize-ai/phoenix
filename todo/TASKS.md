@@ -33,7 +33,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-template-formatter
 
 - content: Create JSONPathTemplateFormatter class in `src/phoenix/utilities/template_formatters.py`. Follow the pattern of MustacheTemplateFormatter and FStringTemplateFormatter. Use single brackets `{$.path.to.value}` syntax. Use existing `jsonpath-ng` library. The `parse()` method should extract JSON path expressions, and `format()` should substitute values (leaving unmatched paths as-is). Update `get_template_formatter()` factory to return this formatter for JSON_PATH format.
-- status: pending
+- status: complete
 - dependencies: backend-enum-json-path
 
 ### backend-formatter-tests
