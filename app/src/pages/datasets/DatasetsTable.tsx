@@ -26,9 +26,8 @@ import {
   Link,
   LinkButton,
   Token,
-  Tooltip,
-  TooltipTrigger,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { CompactJSONCell } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -275,18 +274,20 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "",
         id: "actions",
         enableSorting: false,
-        size: 10,
+        size: 150,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
-              <TooltipTrigger delay={0}>
+              <StopPropagation>
                 <LinkButton
                   size="S"
                   to={`/playground?datasetId=${row.original.id}`}
                   leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-                />
-                <Tooltip>Open in Playground</Tooltip>
-              </TooltipTrigger>
+                  aria-label="Open dataset in Playground"
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
               <DatasetActionMenu
                 datasetId={row.original.id}
                 datasetName={row.original.name}
