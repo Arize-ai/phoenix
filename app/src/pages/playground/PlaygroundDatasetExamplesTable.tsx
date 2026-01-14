@@ -109,6 +109,7 @@ import {
   type ExperimentRunEvaluation,
   InstanceResponses,
   makeExpandedCellKey,
+  type Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
@@ -212,6 +213,61 @@ const createExampleResponsesForInstance = (
     {}
   );
 };
+
+/**
+ * Displays the status indicator in the cell header based on run state.
+ * - Completed: Shows latency, token count, and cost stats
+ * - Generating: Shows progress circle with "Generating..." text
+ * - Cancelled: Shows stop icon with "Cancelled" text
+ */
+function CellRunStatus({
+  span,
+  isRunning,
+}: {
+  span: Span | null | undefined;
+  isRunning: boolean;
+}) {
+  if (span) {
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center" height="100%">
+        <LatencyText latencyMs={span.latencyMs || 0} size="S" />
+        <SpanTokenCount
+          tokenCountTotal={span.tokenCountTotal || 0}
+          nodeId={span.id}
+        />
+        <SpanTokenCosts
+          totalCost={span.costSummary?.total?.cost || 0}
+          spanNodeId={span.id}
+        />
+      </Flex>
+    );
+  }
+
+  if (isRunning) {
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <ProgressCircle isIndeterminate size="S" aria-label="Generating" />
+        <Text color="text-500" fontStyle="italic">
+          Generating...
+        </Text>
+      </Flex>
+    );
+  }
+
+  return (
+    <Flex
+      direction="row"
+      gap="size-100"
+      alignItems="center"
+      css={css`
+        color: var(--ac-global-text-color-500);
+      `}
+    >
+      <Icon svg={<Icons.MinusCircleOutline />} />
+      <Text color="inherit">Cancelled</Text>
+    </Flex>
+  );
+}
 
 function EmptyExampleOutput({
   isRunning,
@@ -423,31 +479,7 @@ function ExampleOutputContent({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={spanControls}>
-        {span ? (
-          <Flex
-            direction="row"
-            gap="size-100"
-            alignItems="center"
-            height="100%"
-          >
-            <LatencyText latencyMs={span.latencyMs || 0} size="S" />
-            <SpanTokenCount
-              tokenCountTotal={span.tokenCountTotal || 0}
-              nodeId={span.id}
-            />
-            <SpanTokenCosts
-              totalCost={span.costSummary?.total?.cost || 0}
-              spanNodeId={span.id}
-            />
-          </Flex>
-        ) : (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <ProgressCircle isIndeterminate size="S" aria-label="Generating" />
-            <Text color="text-500" fontStyle="italic">
-              Generating...
-            </Text>
-          </Flex>
-        )}
+        <CellRunStatus span={span} isRunning={isRunning} />
       </CellTop>
       <OverflowCell
         height={CELL_PRIMARY_CONTENT_HEIGHT}
