@@ -151,12 +151,8 @@ const searchFieldCSS = css`
       border-color: transparent;
     }
 
-    /* Focus: active color */
     .react-aria-Input[data-focused] {
-      border-top: none;
-      border-left: none;
-      border-right: none;
-      border-bottom: 1px solid var(--ac-global-input-field-border-color-active);
+      border-color: transparent;
       outline: none;
     }
   }

@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -6,7 +6,6 @@ import {
   Button,
   ButtonProps,
   Icon,
-  IconButton,
   Icons,
   Input,
   Loading,
@@ -20,8 +19,6 @@ import {
   Token,
   useFilter,
 } from "@phoenix/components";
-import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
-import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 import { SearchIcon } from "@phoenix/components/field";
 import { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
 import { Mutable } from "@phoenix/typeUtils";
@@ -34,25 +31,14 @@ type ExamplesSplitsMenuProps = {
 
 /**
  * The ExamplesSplitsMenu is a menu that allows the user to filter examples by splits.
- * It can be in one of two modes: filter or create.
- * In filter mode, the user can select splits from a list.
- * In create mode, the user can create a new split.
  */
 export const ExamplesSplitsMenu = ({
   onSelectionChange,
   selectedSplitIds,
   size,
 }: ExamplesSplitsMenuProps) => {
-  const [mode, setMode] = useState<"filter" | "create">("filter");
-
   return (
-    <MenuTrigger
-      onOpenChange={(open) => {
-        if (!open) {
-          setMode("filter");
-        }
-      }}
-    >
+    <MenuTrigger>
       <Button
         leadingVisual={<Icon svg={<Icons.PieChartOutline />} />}
         size={size}
@@ -62,14 +48,10 @@ export const ExamplesSplitsMenu = ({
       </Button>
       <MenuContainer>
         <Suspense fallback={<Loading />}>
-          {mode === "filter" && (
-            <SplitFilterMenu
-              selectedSplitIds={selectedSplitIds}
-              onSelectionChange={onSelectionChange}
-              setMode={setMode}
-            />
-          )}
-          {mode === "create" && <SplitCreateMenu setMode={setMode} />}
+          <SplitFilterMenu
+            selectedSplitIds={selectedSplitIds}
+            onSelectionChange={onSelectionChange}
+          />
         </Suspense>
       </MenuContainer>
     </MenuTrigger>
@@ -82,11 +64,9 @@ export const ExamplesSplitsMenu = ({
 const SplitFilterMenu = ({
   selectedSplitIds,
   onSelectionChange,
-  setMode,
 }: {
   selectedSplitIds: string[];
   onSelectionChange: (splitIds: string[]) => void;
-  setMode: (mode: "filter" | "create") => void;
 }) => {
   const { contains } = useFilter({ sensitivity: "base" });
   const data = useLazyLoadQuery<ExamplesSplitsMenuQuery>(
@@ -114,20 +94,6 @@ const SplitFilterMenu = ({
   return (
     <Autocomplete filter={contains}>
       <MenuHeader>
-        <MenuHeaderTitle
-          trailingContent={
-            <IconButton
-              size="S"
-              onPress={() => {
-                setMode("create");
-              }}
-            >
-              <Icon svg={<Icons.PlusOutline />} />
-            </IconButton>
-          }
-        >
-          Filter examples by splits
-        </MenuHeaderTitle>
         <SearchField aria-label="Search" variant="quiet" autoFocus size="L">
           <SearchIcon />
           <Input placeholder="Search splits" />
@@ -174,38 +140,5 @@ const SplitMenuFilterContent = ({
         </MenuItem>
       )}
     </Menu>
-  );
-};
-
-const SplitCreateMenu = ({
-  setMode,
-}: {
-  setMode: (mode: "filter" | "create") => void;
-}) => {
-  const onCompleted = useCallback(() => {
-    setMode("filter");
-  }, [setMode]);
-  const { onSubmit, isCreatingDatasetSplit } = useDatasetSplitMutations({
-    exampleIds: [],
-    onCompleted,
-  });
-  return (
-    <>
-      <MenuHeader>
-        <MenuHeaderTitle
-          leadingContent={
-            <IconButton onPress={() => setMode("filter")} size="S">
-              <Icon svg={<Icons.ChevronLeft />} />
-            </IconButton>
-          }
-        >
-          Create Split
-        </MenuHeaderTitle>
-      </MenuHeader>
-      <NewDatasetSplitForm
-        onSubmit={onSubmit}
-        isSubmitting={isCreatingDatasetSplit}
-      />
-    </>
   );
 };
