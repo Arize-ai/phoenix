@@ -261,6 +261,7 @@ export function ExamplesTable({
       {
         header: "example id",
         accessorKey: "id",
+        size: 180,
         cell: ({ getValue, row }) => {
           const exampleId = row.original.id;
           return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
@@ -269,22 +270,26 @@ export function ExamplesTable({
       {
         header: "input",
         accessorKey: "input",
+        size: 300,
         cell: CompactJSONCell,
       },
       {
         header: "output",
         accessorKey: "output",
+        size: 300,
         cell: CompactJSONCell,
       },
       {
         header: "metadata",
         accessorKey: "metadata",
+        size: 250,
         cell: CompactJSONCell,
       },
     ];
     cols.splice(2, 0, {
       header: "splits",
       accessorKey: "splits",
+      size: 150,
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
     return cols;
