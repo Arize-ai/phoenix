@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router";
+
 import {
   Button,
   ComboBox,
@@ -16,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -45,6 +49,9 @@ export function PlaygroundExperimentSettingsButton({
 }: {
   isDisabled?: boolean;
 }) {
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
+
   const appendedMessagesPath = usePlaygroundContext(
     (state) => state.appendedMessagesPath
   );
@@ -57,6 +64,29 @@ export function PlaygroundExperimentSettingsButton({
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
   );
+
+  const playgroundAppendedMessagesPathByDataset = usePreferencesContext(
+    (state) => state.playgroundAppendedMessagesPathByDataset
+  );
+  const setPlaygroundAppendedMessagesPathForDataset = usePreferencesContext(
+    (state) => state.setPlaygroundAppendedMessagesPathForDataset
+  );
+
+  // Load saved path from preferences when dataset changes
+  useEffect(() => {
+    if (datasetId) {
+      const savedPath =
+        playgroundAppendedMessagesPathByDataset[datasetId] ?? null;
+      setAppendedMessagesPath(savedPath);
+    } else {
+      // Clear the path when no dataset is selected
+      setAppendedMessagesPath(null);
+    }
+  }, [
+    datasetId,
+    playgroundAppendedMessagesPathByDataset,
+    setAppendedMessagesPath,
+  ]);
 
   return (
     <DialogTrigger>
@@ -104,7 +134,15 @@ export function PlaygroundExperimentSettingsButton({
                 value={appendedMessagesPath ?? ""}
                 size="S"
                 onChange={(value) => {
-                  setAppendedMessagesPath(value || null);
+                  const path = value || null;
+                  setAppendedMessagesPath(path);
+                  // Save to preferences if a dataset is selected
+                  if (datasetId) {
+                    setPlaygroundAppendedMessagesPathForDataset({
+                      datasetId,
+                      path,
+                    });
+                  }
                 }}
               >
                 <Label>Appended dataset messages path</Label>
