@@ -12,7 +12,6 @@ import {
   Menu,
   MenuContainer,
   MenuHeader,
-  MenuHeaderTitle,
   MenuItem,
   MenuTrigger,
   SearchField,
