@@ -1,4 +1,5 @@
 import {
+  type MouseEvent,
   startTransition,
   useCallback,
   useEffect,
@@ -20,6 +21,7 @@ import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
+import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
@@ -49,8 +51,10 @@ export function ExamplesTable({
     selectedSplitIds,
     setExamplesCache,
   } = useExamplesFilterContext();
+  const navigate = useNavigate();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const lastSelectedRowIndexRef = useRef<number | null>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -168,6 +172,45 @@ export function ExamplesTable({
     [data]
   );
   type TableRow = (typeof tableData)[number];
+
+  // Reset the shift-click anchor when table data changes
+  // to prevent stale index references after refetch
+  useEffect(() => {
+    lastSelectedRowIndexRef.current = null;
+  }, [tableData]);
+
+  /**
+   * Shared row selection handler that handles both normal clicks and shift-clicks.
+   * - Always updates lastSelectedRowIndexRef to the current row index
+   * - If shift+click with a previous anchor, calls addRangeToSelection for range selection
+   * - Otherwise toggles the single row's selection
+   */
+  const handleRowSelection = useCallback(
+    (
+      event: MouseEvent,
+      rowIndex: number,
+      toggleSelected: (value?: boolean) => void
+    ) => {
+      if (event.shiftKey && lastSelectedRowIndexRef.current !== null) {
+        // Shift-click: select range from anchor to current row
+        setRowSelection((prev) =>
+          addRangeToSelection(
+            tableData,
+            lastSelectedRowIndexRef.current!,
+            rowIndex,
+            prev
+          )
+        );
+      } else {
+        // Normal click: toggle single row
+        toggleSelected();
+      }
+      // Always update the anchor point
+      lastSelectedRowIndexRef.current = rowIndex;
+    },
+    [setRowSelection, tableData]
+  );
+
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
@@ -181,16 +224,24 @@ export function ExamplesTable({
             }}
           />
         ),
-        cell: ({ row }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: row.getIsSelected(),
-              isDisabled: !row.getCanSelect(),
-              isIndeterminate: row.getIsSomeSelected(),
-              onChange: row.toggleSelected,
-            }}
-          />
-        ),
+        cell: ({ row, table }) => {
+          const rowIndex = table
+            .getRowModel()
+            .rows.findIndex((r) => r.id === row.id);
+          return (
+            <IndeterminateCheckboxCell
+              {...{
+                isSelected: row.getIsSelected(),
+                isDisabled: !row.getCanSelect(),
+                isIndeterminate: row.getIsSomeSelected(),
+                onChange: row.toggleSelected,
+                onCellClick: (event: React.MouseEvent) => {
+                  handleRowSelection(event, rowIndex, row.toggleSelected);
+                },
+              }}
+            />
+          );
+        },
       },
       {
         header: "example id",
@@ -222,7 +273,7 @@ export function ExamplesTable({
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
     return cols;
-  }, []);
+  }, [handleRowSelection]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
@@ -259,7 +310,6 @@ export function ExamplesTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -291,15 +341,26 @@ export function ExamplesTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(`${row.original.id}`);
-                }}
-              >
+              <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
                 {row.getVisibleCells().map((cell) => {
                   return (
-                    <td key={cell.id}>
+                    <td
+                      key={cell.id}
+                      onClick={(e) => {
+                        // prevent the row click event from firing on the select cell
+                        if (cell.column.columnDef.id === "select") {
+                          e.stopPropagation();
+                          handleRowSelection(e, row.index, row.toggleSelected);
+                        }
+                      }}
+                      style={{
+                        // prevent text selection on the select cell
+                        userSelect:
+                          cell.column.columnDef.id === "select"
+                            ? "none"
+                            : undefined,
+                      }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
