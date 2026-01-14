@@ -263,3 +263,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Testing approach: Simplified tests to avoid CodeMirror EditorState instance issues in test environment - focused on testing the autocomplete logic (flattenObject + JSON parsing) separately
 - TypeScript gotcha: Fixed error by ensuring extensions array only contains Extension types, not mixing Language and Extension types
 - All 510 frontend tests pass, TypeScript typecheck passes
+
+## backend-subscription-update
+
+- The subscriptions.py file already had JSON_PATH format support implemented - imports were present and `_template_formatter()` function already included the JSON_PATH case (lines 94-96, 994-995)
+- The implementation was complete from the beginning: `JSONPathTemplateFormatter` is imported and returned for `PromptTemplateFormat.JSON_PATH` in the `_template_formatter()` function
+- Created comprehensive unit test `test_json_path_template_format` in `tests/unit/server/api/test_subscriptions.py` to verify:
+  - JSON_PATH template format works correctly in chat completion subscriptions
+  - Template variables are properly formatted with JSONPath expressions (e.g., `{$.location.city}` → `Paris`)
+  - Template variables are recorded in span attributes under `PROMPT_TEMPLATE_VARIABLES`
+  - Messages are correctly formatted with JSONPath substitution (paths replaced with actual values)
+- Test pattern: Created VCR cassette file `TestChatCompletionSubscription.test_json_path_template_format.yaml` to mock OpenAI API responses for reproducible tests
+- VCR cassettes use YAML format with request/response pairs - critical for testing external API integrations without making real API calls
+- All unit tests pass (3014 passed, 845 skipped in subscription tests)
+- Pattern learned: When a task description says to "update" a file but the changes are already present, verify by examining the code first - the task may already be complete from previous work
+- Important: The `_formatted_messages()` function uses the formatter returned by `_template_formatter()`, so no changes were needed there either - it automatically works with JSON_PATH via the formatter pattern

@@ -1081,6 +1081,85 @@ class TestChatCompletionSubscription:
         assert eval_annotation["name"] == custom_display_name
         assert eval_annotation["annotatorKind"] == "CODE"
 
+    async def test_json_path_template_format(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test that JSON_PATH template format works correctly in chat completion."""
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "The city is {$.location.city} and country is {$.location.country}",
+                    }
+                ],
+                "model": {"builtin": {"name": "gpt-4o-mini", "providerKey": "OPENAI"}},
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.1},
+                ],
+                "template": {
+                    "format": "JSON_PATH",
+                    "variables": {
+                        "location": {
+                            "city": "Paris",
+                            "country": "France",
+                        }
+                    },
+                },
+                "repetitions": 1,
+            },
+        }
+
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with custom_vcr.use_cassette():
+                payloads = [payload async for payload in subscription.stream()]
+
+        # Verify we got text chunks and a result chunk
+        assert payloads
+        assert (last_payload := payloads.pop())["chatCompletion"][
+            "__typename"
+        ] == ChatCompletionSubscriptionResult.__name__
+        assert all(
+            payload["chatCompletion"]["__typename"] == TextChunk.__name__ for payload in payloads
+        )
+
+        # Verify the span was created successfully
+        subscription_span = last_payload["chatCompletion"]["span"]
+        span_id = subscription_span["id"]
+
+        # Query for the span to verify template variables were recorded
+        response = await gql_client.execute(
+            query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
+        )
+        assert (data := response.data) is not None
+        span = data["span"]
+        attributes = dict(flatten(json.loads(span["attributes"])))
+
+        # Verify template variables were recorded in span attributes
+        template_vars = json.loads(attributes[PROMPT_TEMPLATE_VARIABLES])
+        assert template_vars == {
+            "location": {
+                "city": "Paris",
+                "country": "France",
+            }
+        }
+
+        # Verify the message was properly formatted with JSON path substitution
+        llm_input_messages = attributes[LLM_INPUT_MESSAGES]
+        assert len(llm_input_messages) == 1
+        message_content = llm_input_messages[0]["message"]["content"]
+        assert "Paris" in message_content
+        assert "France" in message_content
+        assert "{$.location.city}" not in message_content
+        assert "{$.location.country}" not in message_content
+
 
 class TestChatCompletionOverDatasetSubscription:
     QUERY = """

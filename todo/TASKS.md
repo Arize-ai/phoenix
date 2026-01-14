@@ -169,7 +169,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-subscription-update
 
 - content: Update `src/phoenix/server/api/subscriptions.py` to handle JSON_PATH format in `_format_messages()` and `_template_formatter()`. Ensure chat completion subscriptions properly format messages with JSON_PATH templates.
-- status: pending
+- status: complete
 - dependencies: backend-template-formatter, graphql-input-types
 
 ### backend-mutations-update
