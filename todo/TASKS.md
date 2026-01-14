@@ -131,7 +131,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-playground-utils
 
 - content: Update `app/src/pages/playground/playgroundUtils.ts` to handle JSON_PATH format in `extractVariablesFromInstance()` and `extractVariablesFromInstances()`. Ensure variable extraction works with the new format.
-- status: pending
+- status: complete
 - dependencies: frontend-language-utils-update
 
 ### frontend-playground-utils-tests

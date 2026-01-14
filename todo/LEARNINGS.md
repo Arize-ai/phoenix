@@ -186,3 +186,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Pattern learned: UI components that use enum values with proper type guards automatically support new enum values without handler changes
 - The component imports TemplateFormats from constants.ts, ensuring consistency with the enum definition
 - Simple UI change that follows existing patterns - minimal risk, straightforward implementation
+
+## frontend-playground-utils
+
+- The `extractVariablesFromInstance()` and `extractVariablesFromInstances()` functions in `app/src/pages/playground/playgroundUtils.ts` already support JSON_PATH format without code changes
+- These functions use `getTemplateFormatUtils(templateFormat)` which returns the appropriate extractVariables function based on the format
+- Since `getTemplateFormatUtils()` was updated in the frontend-language-utils-update task to handle JSON_PATH, the playground utils automatically inherited that support
+- Added comprehensive tests to `app/src/pages/playground/__tests__/playgroundUtils.test.ts` to verify JSON_PATH variable extraction works correctly:
+  - Tests for extracting from chat messages with JSONPath format (paths like `$.user.name`, `$.user.age`)
+  - Tests for extracting from text completion prompts with JSONPath format
+  - Tests for handling multiple instances with JSONPath format
+  - Tests for `getVariablesMapFromInstances()` to verify variable mapping works correctly with JSONPath variables
+- All 93 playground utils tests pass, including the 6 new JSON_PATH tests
+- TypeScript typecheck and linting both pass
+- Pattern learned: When lower-level utilities are properly abstracted (like `getTemplateFormatUtils()`), higher-level functions automatically gain new functionality without modification
+- Important: JSONPath variables include the full path including `$.` prefix (e.g., `$.user.name`), unlike simple variable names in other formats

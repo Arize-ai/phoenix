@@ -1195,6 +1195,67 @@ describe("extractVariablesFromInstances", () => {
       extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name", "age"]);
   });
+
+  it("should extract variables from chat messages with JSONPath format", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {$.user.name}", role: "user" },
+            { id: 1, content: "Your age is {$.user.age}", role: "ai" },
+          ],
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    expect(
+      extractVariablesFromInstances({ instances, templateFormat })
+    ).toEqual(["$.user.name", "$.user.age"]);
+  });
+
+  it("should extract variables from text completion prompts with JSONPath format", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Hello {$.name}",
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    expect(
+      extractVariablesFromInstances({ instances, templateFormat })
+    ).toEqual(["$.name"]);
+  });
+
+  it("should handle multiple instances and variable extraction with JSONPath", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {$.user.name}", role: "user" },
+            { id: 1, content: "How are you, {$.user.name}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Your age is {$.user.age}",
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    expect(
+      extractVariablesFromInstances({ instances, templateFormat })
+    ).toEqual(["$.user.name", "$.user.age"]);
+  });
 });
 
 describe("getVariablesMapFromInstances", () => {
@@ -1333,6 +1394,90 @@ describe("getVariablesMapFromInstances", () => {
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
+    });
+  });
+
+  it("should extract variables and map them correctly for chat messages with JSONPath", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {$.user.name}", role: "user" },
+            { id: 1, content: "How are you, {$.user.name}?", role: "ai" },
+          ],
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    const input: PlaygroundInput = {
+      variablesValueCache: { "$.user.name": "John" },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateFormat, input })
+    ).toEqual({
+      variablesMap: { "$.user.name": "John" },
+      variableKeys: ["$.user.name"],
+    });
+  });
+
+  it("should extract variables and map them correctly for text completion prompts with JSONPath", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Hello {$.name}",
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    const input: PlaygroundInput = {
+      variablesValueCache: { "$.name": "John" },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateFormat, input })
+    ).toEqual({
+      variablesMap: { "$.name": "John" },
+      variableKeys: ["$.name"],
+    });
+  });
+
+  it("should handle multiple instances and variable extraction with JSONPath", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {$.user.name}", role: "user" },
+            { id: 1, content: "How are you, {$.user.name}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "{$.user.name} is {$.user.age}", role: "user" },
+          ],
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    const input: PlaygroundInput = {
+      variablesValueCache: { "$.user.name": "John", "$.user.age": "30" },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateFormat, input })
+    ).toEqual({
+      variablesMap: { "$.user.name": "John", "$.user.age": "30" },
+      variableKeys: ["$.user.name", "$.user.age"],
     });
   });
 });
