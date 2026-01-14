@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -22,7 +23,10 @@ import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
@@ -30,6 +34,7 @@ import {
   useExamplesFilterContext,
 } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { Mutable } from "@phoenix/typeUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -37,6 +42,10 @@ import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
 
 export function ExamplesTable({
   dataset,
@@ -56,6 +65,7 @@ export function ExamplesTable({
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastSelectedRowIndexRef = useRef<number | null>(null);
+  const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -216,6 +226,10 @@ export function ExamplesTable({
     const cols: ColumnDef<TableRow>[] = [
       {
         id: "select",
+        enableResizing: false,
+        size: 30,
+        minSize: 30,
+        maxSize: 30,
         header: ({ table }) => (
           <IndeterminateCheckboxCell
             {...{
@@ -276,18 +290,47 @@ export function ExamplesTable({
     return cols;
   }, [handleRowSelection]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
     state: {
       rowSelection,
+      columnSizing,
+      columnPinning: {
+        left: ["select"],
+      },
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     // ensure row IDs are the example IDs and not the index
     getRowId: (row) => row.id,
   });
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   const selectedRows = table.getSelectedRowModel().rows;
@@ -320,18 +363,45 @@ export function ExamplesTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{
+                    ...getCommonPinningStyles(header.column),
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
@@ -344,6 +414,7 @@ export function ExamplesTable({
             {rows.map((row) => (
               <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
                 {row.getVisibleCells().map((cell) => {
+                  const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
                   return (
                     <td
                       key={cell.id}
@@ -355,6 +426,9 @@ export function ExamplesTable({
                         }
                       }}
                       style={{
+                        ...getCommonPinningStyles(cell.column),
+                        width: `calc(var(${colSizeVar}) * 1px)`,
+                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                         // prevent text selection on the select cell
                         userSelect:
                           cell.column.columnDef.id === "select"
