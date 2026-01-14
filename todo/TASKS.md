@@ -188,14 +188,9 @@ Each agent picks the next pending task, implements it, and marks it complete.
 - status: complete
 - dependencies: backend-mutations-update
 
-### e2e-test-playground
-
-- content: Add E2E test for JSON_PATH template format in the playground. Use Playwright to test: selecting JSON_PATH format, entering a template with JSON path expressions, providing JSON input data, and running the prompt. Verify the template is correctly formatted.
-- status: pending
-- dependencies: frontend-path-autocomplete, integration-test-backend
 
 ### visual-test-playground
 
 - content: Perform visual testing of the JSON_PATH feature using agent-browser CLI. Verify: template format selector shows JSON_PATH option, JSON editor appears for input, syntax highlighting works for JSON path expressions, autocomplete suggestions appear, and prompt execution works correctly.
 - status: pending
-- dependencies: e2e-test-playground
+- dependencies: integration-test-backend
