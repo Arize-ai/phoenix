@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8cc1f95c9b2589e7628b1c99bf5a7cd7>>
+ * @generated SignedSource<<26a3c02db8c9cf2eb925c98509d7eb7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,10 @@ export type SetDatasetExampleSplitsInput = {
   datasetSplitIds: ReadonlyArray<string>;
   exampleId: string;
 };
-export type ExamplesSplitMenuSetDatasetExampleSplitsMutation$variables = {
+export type AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation$variables = {
   input: SetDatasetExampleSplitsInput;
 };
-export type ExamplesSplitMenuSetDatasetExampleSplitsMutation$data = {
+export type AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation$data = {
   readonly setDatasetExampleSplits: {
     readonly example: {
       readonly datasetSplits: ReadonlyArray<{
@@ -28,9 +28,9 @@ export type ExamplesSplitMenuSetDatasetExampleSplitsMutation$data = {
     };
   };
 };
-export type ExamplesSplitMenuSetDatasetExampleSplitsMutation = {
-  response: ExamplesSplitMenuSetDatasetExampleSplitsMutation$data;
-  variables: ExamplesSplitMenuSetDatasetExampleSplitsMutation$variables;
+export type AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation = {
+  response: AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation$data;
+  variables: AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -110,7 +110,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
+    "name": "AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation",
     "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -119,20 +119,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
+    "name": "AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "1e889bb8ef7a5895e99805253ee885bd",
+    "cacheID": "5a70eb04d75cb977a01f115bb8cfd85a",
     "id": null,
     "metadata": {},
-    "name": "ExamplesSplitMenuSetDatasetExampleSplitsMutation",
+    "name": "AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation",
     "operationKind": "mutation",
-    "text": "mutation ExamplesSplitMenuSetDatasetExampleSplitsMutation(\n  $input: SetDatasetExampleSplitsInput!\n) {\n  setDatasetExampleSplits(input: $input) {\n    example {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation(\n  $input: SetDatasetExampleSplitsInput!\n) {\n  setDatasetExampleSplits(input: $input) {\n    example {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dcb82815c764b4e4f0636a7cfd8c7761";
+(node as any).hash = "8b8ee0b811780f0d1a497d915f6a3537";
 
 export default node;

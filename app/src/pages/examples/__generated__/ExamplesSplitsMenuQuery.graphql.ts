@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb704ee27330035ff5df62885f0be196>>
+ * @generated SignedSource<<b437ff1c89d68734df890edddb98eaf1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExamplesSplitMenuQuery$variables = Record<PropertyKey, never>;
-export type ExamplesSplitMenuQuery$data = {
+export type ExamplesSplitsMenuQuery$variables = Record<PropertyKey, never>;
+export type ExamplesSplitsMenuQuery$data = {
   readonly datasetSplits: {
     readonly edges: ReadonlyArray<{
       readonly split: {
@@ -21,9 +21,9 @@ export type ExamplesSplitMenuQuery$data = {
     }>;
   };
 };
-export type ExamplesSplitMenuQuery = {
-  response: ExamplesSplitMenuQuery$data;
-  variables: ExamplesSplitMenuQuery$variables;
+export type ExamplesSplitsMenuQuery = {
+  response: ExamplesSplitsMenuQuery$data;
+  variables: ExamplesSplitsMenuQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -88,7 +88,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExamplesSplitMenuQuery",
+    "name": "ExamplesSplitsMenuQuery",
     "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -97,20 +97,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ExamplesSplitMenuQuery",
+    "name": "ExamplesSplitsMenuQuery",
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "528039e9625c395b9721acbe60ff7a24",
+    "cacheID": "8d206c890376d9bb5a5309febf21454c",
     "id": null,
     "metadata": {},
-    "name": "ExamplesSplitMenuQuery",
+    "name": "ExamplesSplitsMenuQuery",
     "operationKind": "query",
-    "text": "query ExamplesSplitMenuQuery {\n  datasetSplits {\n    edges {\n      split: node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "query ExamplesSplitsMenuQuery {\n  datasetSplits {\n    edges {\n      split: node {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8154a68a8e77401911b3171986fc1a56";
+(node as any).hash = "8622e1a40ea69edc970d9e2ab9a5e291";
 
 export default node;

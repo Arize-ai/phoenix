@@ -19,10 +19,11 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { ExamplesSplitMenu } from "@phoenix/pages/examples/ExamplesSplitMenu";
+import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
 import { Mutable } from "@phoenix/typeUtils";
 
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
@@ -94,6 +95,7 @@ export function ExampleDetailsDialog({
     };
   }, [data]);
   const { input, output, metadata } = revision;
+  const datasetSplits = data.example.datasetSplits ?? [];
   const examplesCache = useMemo(() => {
     const example = data.example;
     if (example && example.id) {
@@ -115,6 +117,7 @@ export function ExampleDetailsDialog({
         <DialogHeader>
           <DialogTitle>Example: {exampleId}</DialogTitle>
           <DialogTitleExtra>
+            <DatasetSplits labels={datasetSplits} />
             {sourceSpanInfo ? (
               <LinkButton
                 size="S"
@@ -123,10 +126,7 @@ export function ExampleDetailsDialog({
                 View Source Span
               </LinkButton>
             ) : null}
-            <ExamplesSplitMenu
-              onSelectionChange={() => {}}
-              onExampleSelectionChange={() => {}}
-              selectedSplitIds={[]}
+            <AssignExamplesToSplitMenu
               selectedExampleIds={[exampleId]}
               examplesCache={examplesCache}
               size="S"

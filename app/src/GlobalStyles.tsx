@@ -77,8 +77,10 @@ const staticCSS = css`
     // component sizing
     --ac-global-input-height-s: 30px;
     --ac-global-input-height-m: 38px;
+    --ac-global-input-height-l: 46px;
     --ac-global-button-height-s: var(--ac-global-input-height-s);
     --ac-global-button-height-m: var(--ac-global-input-height-m);
+    --ac-global-button-height-l: var(--ac-global-input-height-l);
   }
 `;
 

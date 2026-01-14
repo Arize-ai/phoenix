@@ -13,7 +13,7 @@ export const tableCSS = css`
   thead {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     tr {
       th {
         padding: var(--ac-global-dimension-size-100)
@@ -150,10 +150,10 @@ export function getCommonPinningStyles<Row>(
     isPinned === "right" && column.getIsFirstColumn("right");
 
   return {
-    boxShadow: isLastLeftPinnedColumn
-      ? "-8px 0 8px -8px var(--ac-global-color-grey-200) inset"
+    filter: isLastLeftPinnedColumn
+      ? "drop-shadow(4px 0 4px rgba(0, 0, 0, 0.1))"
       : isFirstRightPinnedColumn
-        ? "8px 0 8px -8px var(--ac-global-color-grey-200) inset"
+        ? "drop-shadow(-4px 0 4px rgba(0, 0, 0, 0.1))"
         : undefined,
     left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
     right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,

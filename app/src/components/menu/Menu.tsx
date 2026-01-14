@@ -316,15 +316,25 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        border-bottom: 1px solid var(--ac-global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
 
         /* Add vertical padding to quiet SearchFields in header */
-        .ac-searchfield[data-variant="quiet"] .react-aria-Input {
-          padding-top: var(--ac-global-dimension-size-300);
-          padding-bottom: var(--ac-global-dimension-size-300);
+        .ac-searchfield[data-variant="quiet"] .react-aria-Input,
+        .ac-searchfield[data-variant="quiet"]
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
+          border-bottom-color: var(--ac-global-menu-border-color);
+        }
+        * + .ac-searchfield[data-variant="quiet"] .react-aria-Input,
+        *
+          + .ac-searchfield[data-variant="quiet"]
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
+          border-top-color: var(--ac-global-menu-border-color);
         }
       `}
     >
