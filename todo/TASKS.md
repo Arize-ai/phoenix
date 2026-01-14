@@ -45,7 +45,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-db-constraint
 
 - content: Create database migration to update the template_format CHECK constraint to allow 'JSON_PATH' value. Update `src/phoenix/db/models.py` PromptVersion model's template_format column constraint to include JSON_PATH.
-- status: pending
+- status: complete
 - dependencies: backend-enum-json-path
 
 ---

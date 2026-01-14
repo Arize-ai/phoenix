@@ -46,3 +46,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The test suite uses pytest parametrization to share the same test function across all template formatters (Mustache, F-String, and JSONPath)
 - All tests pass when run with `tox -e unit_tests -- -n auto -k "jsonpath"`
 - Pattern learned: When implementing a new formatter, add tests alongside the implementation rather than in a separate task - this ensures the implementation is correct from the start
+## backend-db-constraint
+
+- Created database migration `861cde0a7eb5_add_json_path_to_template_format.py` to add JSON_PATH to the template_format CHECK constraint
+- Migration follows the pattern of dropping the old constraint and creating a new one with the updated values using `batch_alter_table` context
+- The migration file structure mirrors existing migrations: includes JSONB/JSON type definitions, revision identifiers, upgrade() and downgrade() functions
+- Updated the PromptVersion model constraint in `src/phoenix/db/models.py:1902-1909` to include JSON_PATH in the list of allowed values
+- Key pattern: Database migrations use `op.batch_alter_table()` context manager for both SQLite and PostgreSQL compatibility
+- Important: The down_revision must point to the most recent migration (found by checking the latest file in migrations/versions/)
+- Migration test was created in `tests/integration/db_migrations/test_data_migration_861cde0a7eb5_add_json_path_to_template_format.py` following the pattern of existing migration tests
+- Note: Migration tests are integration tests (not unit tests) and require additional dependencies (bs4) not available in the unit_tests tox environment
+- The constraint name 'template_format' matches the column name, following the existing naming convention in the codebase
+- Testing approach: Created a test that verifies JSON_PATH is rejected before migration, accepted after migration, and can be downgraded

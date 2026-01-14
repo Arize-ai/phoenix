@@ -1902,7 +1902,8 @@ class PromptVersion(HasId):
     template_format: Mapped[PromptTemplateFormat] = mapped_column(
         _TemplateFormat,
         CheckConstraint(
-            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE', 'JSON_PATH')",
+            name="template_format",
         ),
         nullable=False,
     )
