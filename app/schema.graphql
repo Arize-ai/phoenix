@@ -3031,6 +3031,7 @@ enum PromptTemplateFormat {
   MUSTACHE
   F_STRING
   NONE
+  JSON_PATH
 }
 
 input PromptTemplateOptions {

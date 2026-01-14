@@ -58,3 +58,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Note: Migration tests are integration tests (not unit tests) and require additional dependencies (bs4) not available in the unit_tests tox environment
 - The constraint name 'template_format' matches the column name, following the existing naming convention in the codebase
 - Testing approach: Created a test that verifies JSON_PATH is rejected before migration, accepted after migration, and can be downgraded
+
+## graphql-schema-update
+
+- Added JSON_PATH to the PromptTemplateFormat enum in `app/schema.graphql:3034`
+- The enum is simple and follows the existing pattern: MUSTACHE, F_STRING, NONE, JSON_PATH
+- Running `tox -e build_graphql_schema` automatically regenerates the schema after changes - this is critical to ensure the GraphQL server stays in sync with schema.graphql
+- The build_graphql_schema command uses strawberry-graphql's export-schema to generate the final schema from Python code
+- No behavioral tests needed for this task since it's purely a schema/type definition change
+- The schema file is quite large (~4000+ lines), but the enum definition is straightforward
+- Important: This task must be completed before frontend tasks that depend on the GraphQL type definitions

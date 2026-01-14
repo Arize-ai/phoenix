@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa09c7b59e4ecfb7629522caa104ebbe>>
+ * @generated SignedSource<<919baa3a197dc2b8fed4fd724637cfd7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type UpdateDatasetLLMEvaluatorInput = {
   datasetEvaluatorId: string;
   datasetId: string;

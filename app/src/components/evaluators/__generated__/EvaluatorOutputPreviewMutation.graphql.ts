@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7322f9ec89fd5164aec3e32f00cece24>>
+ * @generated SignedSource<<2f8899d4255192faca56a60567754896>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewItemInput = {
   context: any;
   evaluator: EvaluatorPreviewInput;

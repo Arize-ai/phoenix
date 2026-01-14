@@ -55,7 +55,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### graphql-schema-update
 
 - content: Add JSON_PATH to PromptTemplateFormat enum in `app/schema.graphql`. The enum currently has MUSTACHE, F_STRING, NONE - add JSON_PATH. Run `tox -e build_graphql_schema` to regenerate if needed.
-- status: pending
+- status: complete
 - dependencies: backend-enum-json-path
 
 ### graphql-input-types

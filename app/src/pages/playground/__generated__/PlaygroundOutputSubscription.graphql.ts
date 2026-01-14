@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4958dfb29fc117d5f1b5f1bd045f337c>>
+ * @generated SignedSource<<2d6f4e82edfbb236dd358e4fb629c45b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLE
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;

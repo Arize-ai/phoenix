@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28460e9ad11bb5ceca726d57a3cb06eb>>
+ * @generated SignedSource<<2ddf45034fcab83db690cb82c1d95582>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type EditLLMDatasetEvaluatorSlideover_evaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;

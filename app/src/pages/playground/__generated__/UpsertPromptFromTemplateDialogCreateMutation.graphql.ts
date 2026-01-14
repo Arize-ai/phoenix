@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2311c9fda293012fd96b11a27f319f93>>
+ * @generated SignedSource<<e7b75c4982202df1a35946ce0dd5bd99>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type CreateChatPromptInput = {
   description?: string | null;
   metadata?: any | null;

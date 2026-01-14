@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04989ec3e6dd99bd6655a91a87f1ce21>>
+ * @generated SignedSource<<e2271c3d023975f6d489e1a2476a5c0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "JSON_PATH" | "MUSTACHE" | "NONE";
 export type PromptChatTemplateInput = {
   messages: ReadonlyArray<PromptMessageInput>;
 };
