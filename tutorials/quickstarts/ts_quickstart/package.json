@@ -7,7 +7,9 @@
     "dev": "mastra dev",
     "build": "mastra build",
     "start": "mastra start",
-    "evals": "tsx src/mastra/evals/evals.ts"
+    "evals": "tsx src/mastra/evals/evals.ts",
+    "add_traces": "tsx src/mastra/evals/add_traces.ts",
+    "experiments": "tsx src/mastra/experiments/experiment.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +24,7 @@
     "@arizeai/phoenix-client": "^5.3.0",
     "@arizeai/phoenix-evals": "^0.3.1",
     "@mastra/arize": "^0.1.1",
+    "@mastra/client-js": "^0.17.2",
     "@mastra/core": "^0.24.9",
     "@mastra/evals": "^0.14.4",
     "@mastra/libsql": "^0.16.4",

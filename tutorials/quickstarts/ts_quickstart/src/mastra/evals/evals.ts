@@ -6,15 +6,15 @@ import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 import assert from "assert";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-4");
 
 const financial_completeness_template = `
 You are evaluating whether a financial research report correctly completes ALL parts of the user's task.
 
-User input: {input}
+User input: {{input}}
 
 Generated report:
-{output}
+{{output}}
 
 To be marked as "correct", the report should:
 1. Cover ALL companies/tickers mentioned in the input (if multiple are listed, all must be addressed)
@@ -30,6 +30,24 @@ Examples:
 - Input: "tickers: AAPL, MSFT, focus: earnings and outlook" → Report must cover BOTH AAPL AND MSFT, AND address BOTH earnings AND outlook
 - Input: "tickers: TSLA, focus: valuation metrics" → Report must cover TSLA AND address valuation metrics
 - Input: "tickers: NVDA, AMD, focus: comparative analysis" → Report must cover BOTH NVDA AND AMD AND provide comparison
+
+Respond with ONLY one word: "complete" or "incomplete"
+Then provide a brief explanation of which parts were completed or missed.
+`;
+
+const simple_financial_completeness_template = `
+You are evaluating whether a financial research report correctly completes all parts of the user's task.
+
+User input: {{input}}
+
+Generated report:
+{{output}}
+
+To be marked as "correct", the report should:
+Cover companies/tickers mentioned in the input
+
+The report is "incorrect" if:
+- It misses any company/ticker mentioned in the input
 
 Respond with ONLY one word: "complete" or "incomplete"
 Then provide a brief explanation of which parts were completed or missed.
@@ -72,9 +90,11 @@ function extractInputOutputFromSpan(span: any): {
 }
 
 async function main() {
-  const projectName = process.env.PHOENIX_PROJECT_NAME || "ts-mastra";
+  const projectName =
+    process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
   const allSpans = await getSpans({
     project: { projectName },
+    limit: 300,
   });
   const orchestratorSpans: typeof allSpans.spans = [];
 
@@ -85,11 +105,21 @@ async function main() {
   }
   console.log(orchestratorSpans.length);
 
-  const evaluator = await createClassificationEvaluator({
+  // const evaluator = await createClassificationEvaluator({
+  //   name: "completeness",
+  //   model,
+  //   choices: { complete: 1, incomplete: 0 },
+  //   promptTemplate: financial_completeness_template,
+  // });
+
+  const evaluator = createClassificationEvaluator<{
+    input: string;
+    output: string;
+  }>({
     name: "completeness",
-    model,
+    model: openai("gpt-4o-mini"),
+    promptTemplate: simple_financial_completeness_template,
     choices: { complete: 1, incomplete: 0 },
-    promptTemplate: financial_completeness_template,
   });
 
   const parentSpans: Array<{ input: string; output: string; spanId: string }> =
@@ -105,7 +135,6 @@ async function main() {
       spanId: spanId?.toString() || "",
     });
   }
-  console.log(parentSpans);
 
   const spanAnnotations = await Promise.all(
     parentSpans.map(async (parentSpan) => {
@@ -113,6 +142,7 @@ async function main() {
         input: parentSpan.input,
         output: parentSpan.output,
       });
+      console.log(evaluationResult.explanation);
 
       return {
         spanId: parentSpan.spanId,
@@ -129,8 +159,6 @@ async function main() {
       };
     }),
   );
-
-  console.log(spanAnnotations);
 
   await logSpanAnnotations({
     spanAnnotations,
