@@ -34,8 +34,6 @@ export const SearchIcon = () => {
 };
 
 const searchFieldCSS = css`
-  --searchfield-icon-size: 1rem;
-
   display: grid;
   grid-template-areas:
     "label label label"
@@ -43,6 +41,17 @@ const searchFieldCSS = css`
     "help help help";
   grid-template-columns: auto 1fr auto;
   align-items: center;
+
+  /* Size-specific icon sizes to match TextField sizing */
+  &[data-size="S"] {
+    --searchfield-icon-size: var(--ac-global-font-size-s);
+  }
+  &[data-size="M"] {
+    --searchfield-icon-size: var(--ac-global-font-size-m);
+  }
+  &[data-size="L"] {
+    --searchfield-icon-size: var(--ac-global-font-size-l);
+  }
 
   .react-aria-Label {
     grid-area: label;
@@ -54,6 +63,7 @@ const searchFieldCSS = css`
     left: var(--textfield-horizontal-padding);
     top: 50%;
     transform: translateY(-50%);
+    font-size: var(--searchfield-icon-size);
   }
 
   .react-aria-Input {
@@ -92,6 +102,7 @@ const searchFieldCSS = css`
     align-items: center;
     justify-content: center;
     outline: none;
+    font-size: var(--searchfield-icon-size);
 
     &[data-focus-visible] {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
@@ -131,20 +142,13 @@ const searchFieldCSS = css`
   &[data-variant="quiet"] {
     .react-aria-Input {
       background-color: transparent;
-      border-top: none;
-      border-left: none;
-      border-right: none;
-      border-bottom: 1px solid var(--ac-global-input-field-border-color);
+      border-color: transparent;
       border-radius: 0;
       outline: none;
     }
 
-    /* Hover: use text color for more visibility */
     .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
-      border-top: none;
-      border-left: none;
-      border-right: none;
-      border-bottom: 1px solid var(--ac-global-text-color-700);
+      border-color: transparent;
     }
 
     /* Focus: active color */
