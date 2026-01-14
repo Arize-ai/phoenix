@@ -229,37 +229,17 @@ export function ExamplesTable({
             .getRowModel()
             .rows.findIndex((r) => r.id === row.id);
           return (
-            <div
-              // expand the clickable area to most of the entire cell
-              css={css`
-                height: 100%;
-                width: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                & > div {
-                  flex: 1;
-                  height: 100%;
-                  width: 100%;
-                  padding: 0;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                }
-              `}
-            >
-              <IndeterminateCheckboxCell
-                {...{
-                  isSelected: row.getIsSelected(),
-                  isDisabled: !row.getCanSelect(),
-                  isIndeterminate: row.getIsSomeSelected(),
-                  onChange: row.toggleSelected,
-                  onCellClick: (event: React.MouseEvent) => {
-                    handleRowSelection(event, rowIndex, row.toggleSelected);
-                  },
-                }}
-              />
-            </div>
+            <IndeterminateCheckboxCell
+              {...{
+                isSelected: row.getIsSelected(),
+                isDisabled: !row.getCanSelect(),
+                isIndeterminate: row.getIsSomeSelected(),
+                onChange: row.toggleSelected,
+                onCellClick: (event: React.MouseEvent) => {
+                  handleRowSelection(event, rowIndex, row.toggleSelected);
+                },
+              }}
+            />
           );
         },
       },
@@ -364,7 +344,23 @@ export function ExamplesTable({
               <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
                 {row.getVisibleCells().map((cell) => {
                   return (
-                    <td key={cell.id}>
+                    <td
+                      key={cell.id}
+                      onClick={(e) => {
+                        // prevent the row click event from firing on the select cell
+                        if (cell.column.columnDef.id === "select") {
+                          e.stopPropagation();
+                          handleRowSelection(e, row.index, row.toggleSelected);
+                        }
+                      }}
+                      style={{
+                        // prevent text selection on the select cell
+                        userSelect:
+                          cell.column.columnDef.id === "select"
+                            ? "none"
+                            : undefined,
+                      }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
