@@ -3,6 +3,7 @@
  *
  * - FString: `variables look like {variable}`
  * - Mustache: `variables look like {{variable}}`
+ * - JSONPath: `variables look like {$.path.to.value}`
  *
  * @example
  * ```tsx
@@ -13,4 +14,5 @@ export const TemplateFormats = {
   NONE: "NONE", // No templating
   FString: "F_STRING", // {variable}
   Mustache: "MUSTACHE", // {{variable}}
+  JSONPath: "JSON_PATH", // {$.path.to.value}
 } as const;

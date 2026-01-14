@@ -47,6 +47,12 @@ export const getTemplateFormatUtils = (
         format: formatMustacheLike,
         extractVariables: extractVariablesFromMustacheLike,
       };
+    case TemplateFormats.JSONPath:
+      // TODO: Add JSON_PATH format and extractVariables functions when implemented
+      return {
+        format: ({ text }) => text,
+        extractVariables: () => [],
+      };
     case TemplateFormats.NONE:
       return {
         format: ({ text }) => text,

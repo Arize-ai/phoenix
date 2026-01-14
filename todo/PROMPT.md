@@ -107,6 +107,7 @@ Only commit AFTER tests pass.
 | **Python lint/format** | `tox -e ruff` |
 | **Frontend lint** | `cd app && pnpm lint:fix` |
 | **GraphQL schema** | `tox -e build_graphql_schema` |
+| **GraphQL Frontend Type Gen** | `cd app && pnpm build:relay` |
 | **Visual testing** | `agent-browser` (CLI tool) |
 | Stage all | `git add -A` |
 | Commit | `git commit -m "feat: ..."` |

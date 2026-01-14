@@ -71,7 +71,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-template-format-enum
 
 - content: Add JSON_PATH to TemplateFormats enum in `app/src/components/templateEditor/constants.ts`. Add appropriate regex pattern comment like the existing formats. JSON_PATH uses single brackets with JSONPath syntax: `{$.path.to.value}`.
-- status: pending
+- status: complete
 - dependencies: graphql-schema-update
 
 ### frontend-types-update

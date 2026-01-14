@@ -80,3 +80,17 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All unit tests pass, including the new tests and all existing tests (3857 tests total)
 - Pattern learned: When enum types are properly defined and imported, input types using those enums automatically support new values without code changes
 - The test file follows the existing pattern of other input_types tests (TimeRange, DimensionFilter, etc.)
+
+## frontend-template-format-enum
+
+- Added JSON_PATH to TemplateFormats enum in `app/src/components/templateEditor/constants.ts:17`
+- Updated JSDoc comment to include JSONPath syntax pattern: `{$.path.to.value}`
+- Critical discovery: Adding a new enum value causes TypeScript errors in files with exhaustive switch statements using `assertUnreachable()`
+- Three files needed stub cases to maintain type safety:
+  - `TemplateEditor.tsx:61-72` - added empty case with TODO comment (syntax highlighting extension will be added in frontend-jsonpath-language task)
+  - `templateEditorUtils.ts:39-57` - added case returning identity format and empty variable extraction (actual implementation in frontend-language-utils-update task)
+  - `PlaygroundInput.tsx:17-30` - added case showing example syntax `{$.path.to.value}`
+- Important: Must run `tox -e build_graphql_schema` to regenerate GraphQL schema, then `pnpm run build:relay` in app/ to regenerate frontend types
+- The TypeScript type system automatically picks up new enum values via `(typeof TemplateFormats)[keyof typeof TemplateFormats]` pattern in types.ts
+- All 477 frontend tests pass after changes
+- Pattern: When adding enum values used in exhaustive switches, add stub cases immediately to avoid breaking the build, even if full implementation comes later

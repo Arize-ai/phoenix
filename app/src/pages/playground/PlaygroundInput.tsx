@@ -23,6 +23,10 @@ export function PlaygroundInput() {
         templateSyntax = "{{input name}}";
         break;
       }
+      case TemplateFormats.JSONPath: {
+        templateSyntax = "{$.path.to.value}";
+        break;
+      }
       case TemplateFormats.NONE: {
         return null;
       }

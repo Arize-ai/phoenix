@@ -65,6 +65,9 @@ export const TemplateEditor = ({
       case TemplateFormats.Mustache:
         ext.push(MustacheLikeTemplating());
         break;
+      case TemplateFormats.JSONPath:
+        // TODO: Add JSONPathTemplating() when implemented
+        break;
       case TemplateFormats.NONE:
         break;
       default:
