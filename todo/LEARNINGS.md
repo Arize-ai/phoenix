@@ -151,3 +151,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All 22 templateEditor tests pass (11 new tests in templateEditorUtils.test.ts)
 - TypeScript typecheck passes with no errors
 - Pattern learned: When testing utility functions that return different behavior based on input (like a factory function), test all possible inputs to ensure exhaustive coverage
+
+## frontend-parser-tests
+
+- Tests for JSON_PATH parsing were already implemented in the previous task (frontend-jsonpath-language) in `app/src/components/templateEditor/language/__tests__/languageUtils.test.ts`
+- The existing tests comprehensively cover all requirements from the task:
+  - Variable extraction for simple paths (`$.name`), nested paths (`$.nested.path`), array access (`$.array[0]`), deep nested paths (`$.deep[0].nested`)
+  - Escape handling with `\{` (lines 211, 221)
+  - Format substitution with matched and unmatched paths (lines 228-279)
+- Tests follow the established pattern in languageUtils.test.ts: using describe blocks with arrays of test cases and forEach to iterate over them
+- All 495 frontend tests pass, including the 12 tests related to JSON_PATH (6 for extraction, 6 for formatting)
+- Pattern learned: When a task description requests tests that already exist from previous implementation work, verify test coverage rather than adding duplicate tests
+- The test file structure groups all template language tests together (mustache-like, f-string, JSON_PATH) making it easy to compare patterns across different formats

@@ -105,7 +105,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-parser-tests
 
 - content: Add tests for JSON_PATH parsing in `app/src/components/templateEditor/language/__tests__/`. Test variable extraction for various JSONPath expressions ($.simple, $.nested.path, $.array[0], $.deep[0].nested), escape handling, and format substitution.
-- status: pending
+- status: complete
 - dependencies: frontend-language-utils-update
 
 ---
