@@ -85,7 +85,6 @@ export const AssignExamplesToSplitMenu = ({
         <Suspense fallback={<Loading />}>
           {mode === "apply" && (
             <SplitApplyMenu
-              selectedExampleIds={selectedExampleIds}
               selectedPartialExamples={selectedPartialExamples}
               setMode={setMode}
               onRequestKeepMenuOpen={requestKeepMenuOpen}
@@ -107,12 +106,10 @@ export const AssignExamplesToSplitMenu = ({
  * The SplitApplyMenu displays a list of splits that the user can toggle to apply to selected examples.
  */
 const SplitApplyMenu = ({
-  selectedExampleIds,
   selectedPartialExamples,
   setMode,
   onRequestKeepMenuOpen,
 }: {
-  selectedExampleIds: string[];
   selectedPartialExamples: {
     id: string;
     datasetSplits: { id: string; name: string }[];
