@@ -43,9 +43,17 @@ class TestDatasetLLMEvaluatorMutations:
             displayName
             description
             outputConfig {
-              name
-              description
-              values { label score }
+              ... on CategoricalAnnotationConfig {
+                name
+                description
+                values { label score }
+              }
+              ... on ContinuousAnnotationConfig {
+                name
+                description
+                lowerBound
+                upperBound
+              }
             }
             evaluator {
               ... on LLMEvaluator {
