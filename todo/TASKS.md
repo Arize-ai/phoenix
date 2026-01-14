@@ -39,7 +39,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-formatter-tests
 
 - content: Add unit tests for JSONPathTemplateFormatter in `tests/unit/utilities/test_template_formatters.py`. Test variable extraction, substitution with valid paths, handling of unmatched paths (should remain unsubstituted), and edge cases like nested arrays, escaped brackets, and unicode.
-- status: pending
+- status: complete
 - dependencies: backend-template-formatter
 
 ### backend-db-constraint

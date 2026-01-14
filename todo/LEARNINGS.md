@@ -34,3 +34,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Added comprehensive tests including: simple paths, nested paths, array indexing, escaped brackets, unmatched paths, and unicode handling
 - Fixed type errors in three locations: added `# type: ignore[import-untyped]` for jsonpath_ng, and updated two `assert_never()` calls in `template_helpers.py` and `subscriptions.py`
 - Important: Must update ALL factory functions that instantiate template formatters, not just the main one in `template_formatters.py`
+
+## backend-formatter-tests
+
+- Tests for JSONPathTemplateFormatter were already implemented in the backend-template-formatter task
+- All required test cases were present in `tests/unit/utilities/test_template_formatters.py`:
+  - Variable extraction via `test_jsonpath_template_formatter_parse_extracts_variables()` - tests simple paths, nested paths, array indexes, escaped brackets, and mixed content
+  - Substitution with valid paths via parametrized test cases: jsonpath-simple-path, jsonpath-nested-path, jsonpath-array-index, jsonpath-nested-array-path, jsonpath-multiple-paths
+  - Unmatched paths remain as-is via `jsonpath-unmatched-path-left-as-is` test case
+  - Edge cases: nested arrays (jsonpath-nested-array-path), escaped brackets (jsonpath-escaped-bracket), unicode values (jsonpath-unicode-value)
+- The test suite uses pytest parametrization to share the same test function across all template formatters (Mustache, F-String, and JSONPath)
+- All tests pass when run with `tox -e unit_tests -- -n auto -k "jsonpath"`
+- Pattern learned: When implementing a new formatter, add tests alongside the implementation rather than in a separate task - this ensures the implementation is correct from the start
