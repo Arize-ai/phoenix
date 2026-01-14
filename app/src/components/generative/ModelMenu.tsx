@@ -276,6 +276,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
           <SearchField
             aria-label="Search models"
             variant="quiet"
+            size="L"
             value={searchValue}
             onChange={setSearchValue}
           >
