@@ -27,7 +27,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-enum-json-path
 
 - content: Add JSON_PATH to PromptTemplateFormat enum in Python backend. Update `src/phoenix/server/api/helpers/prompts/models.py` to add JSON_PATH to the PromptTemplateFormat enum. Also update any related type definitions.
-- status: pending
+- status: complete
 - dependencies: none
 
 ### backend-template-formatter

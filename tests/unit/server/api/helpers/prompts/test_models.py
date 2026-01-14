@@ -30,6 +30,12 @@ from phoenix.server.api.helpers.prompts.models import (
 from phoenix.server.types import DbSessionFactory
 
 
+def test_prompt_template_format_enum_includes_json_path() -> None:
+    """Test that JSON_PATH is included in the PromptTemplateFormat enum."""
+    assert hasattr(PromptTemplateFormat, "JSON_PATH")
+    assert PromptTemplateFormat.JSON_PATH.value == "JSON_PATH"
+
+
 async def test_chat_template_materializes_to_expected_format(
     db: DbSessionFactory,
     dialect: str,

@@ -30,6 +30,7 @@ class PromptTemplateFormat(str, Enum):
     MUSTACHE = "MUSTACHE"
     F_STRING = "F_STRING"
     NONE = "NONE"
+    JSON_PATH = "JSON_PATH"
 
 
 class TextContentPart(DBBaseModel):
