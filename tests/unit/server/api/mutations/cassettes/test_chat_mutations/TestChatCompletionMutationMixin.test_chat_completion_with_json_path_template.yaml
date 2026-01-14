@@ -1,0 +1,29 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"What is the capital of France? Answer in one word.","role":"user"}],"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-JSONPathTest001","object":"chat.completion.chunk","created":1766085401,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":""}
+
+
+        data: {"id":"chatcmpl-JSONPathTest001","object":"chat.completion.chunk","created":1766085401,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Paris"},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"j1VnsXgzyZ7WA"}
+
+
+        data: {"id":"chatcmpl-JSONPathTest001","object":"chat.completion.chunk","created":1766085401,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null,"obfuscation":"66gVrmC3imbF"}
+
+
+        data: {"id":"chatcmpl-JSONPathTest001","object":"chat.completion.chunk","created":1766085401,"model":"gpt-4-0613","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":19,"completion_tokens":1,"total_tokens":20,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"vF"}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

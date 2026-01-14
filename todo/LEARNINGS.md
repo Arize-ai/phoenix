@@ -278,3 +278,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All unit tests pass (3014 passed, 845 skipped in subscription tests)
 - Pattern learned: When a task description says to "update" a file but the changes are already present, verify by examining the code first - the task may already be complete from previous work
 - Important: The `_formatted_messages()` function uses the formatter returned by `_template_formatter()`, so no changes were needed there either - it automatically works with JSON_PATH via the formatter pattern
+## backend-mutations-update
+
+- The chat_mutations.py file already supported JSON_PATH format through its use of `get_template_formatter()` from `phoenix.server.api.helpers.prompts.template_helpers`
+- The `get_template_formatter()` factory function (defined in template_helpers.py:18-36) already had JSON_PATH support implemented in the backend-template-formatter task (lines 34-35)
+- Key insight: The mutations file uses `_formatted_messages()` helper (lines 897-920) which calls `get_template_formatter()` to get the appropriate formatter based on template_format
+- Since the formatter factory already handled JSON_PATH, no code changes were needed - the functionality was already working
+- Created two comprehensive unit tests to verify JSON_PATH format works correctly:
+  1. `test_chat_completion_with_json_path_template` - tests basic chat completion with JSON_PATH template using `{$.country}` variable
+  2. `test_chat_completion_over_dataset_with_json_path_template` - tests chat completion over dataset with JSON_PATH format
+- Both tests verify that JSONPath expressions (e.g., `{$.country}`) are correctly replaced with actual values (e.g., "France")
+- VCR cassette pattern: Created mock HTTP responses in `tests/unit/server/api/mutations/cassettes/test_chat_mutations/` to avoid making real OpenAI API calls during tests
+- The cassette shows the formatted message "What is the capital of France? Answer in one word." which confirms `{$.country}` was replaced with "France" from the template variables
+- All 20 chat_mutations tests pass (including 2 new JSON_PATH tests), along with full test suite (3863 tests total)
+- Pattern learned: When a task asks to "update" a file but the file already uses a factory/utility function that was updated in a previous task, verify the functionality is already working before making changes
+- Important: The architecture of using `get_template_formatter()` factory means that adding support for new template formats only requires updating the factory function - all consumers automatically inherit the new format

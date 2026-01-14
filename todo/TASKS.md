@@ -175,7 +175,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### backend-mutations-update
 
 - content: Update `src/phoenix/server/api/mutations/chat_mutations.py` to handle JSON_PATH format when processing prompt templates. Ensure mutations that format templates work with the new format.
-- status: pending
+- status: complete
 - dependencies: backend-subscription-update
 
 ---

@@ -148,6 +148,71 @@ class TestChatCompletionMutationMixin:
                 assert repetition["content"]
                 assert repetition["span"]["cumulativeTokenCountTotal"]
 
+    async def test_chat_completion_with_json_path_template(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test chat completion mutation with JSON_PATH template format."""
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                span {
+                  cumulativeTokenCountTotal
+                  input {
+                    value
+                  }
+                  output {
+                    value
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                    }
+                },
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What is the capital of {$.country}? Answer in one word.",
+                    }
+                ],
+                "template": {
+                    "format": "JSON_PATH",
+                    "variables": {"country": "France"},
+                },
+                "repetitions": 1,
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletion"])
+            assert (repetitions := field["repetitions"])
+            assert len(repetitions) == 1
+
+            repetition = repetitions[0]
+            assert repetition["repetitionNumber"] == 1
+            assert not repetition["errorMessage"]
+            assert repetition["content"]
+            assert "Paris" in repetition["content"]
+            assert repetition["span"]["input"]["value"]
+            assert repetition["span"]["output"]["value"]
+            assert repetition["span"]["cumulativeTokenCountTotal"]
+
     async def test_chat_completion_over_dataset(
         self,
         gql_client: AsyncGraphQLClient,
@@ -256,6 +321,82 @@ class TestChatCompletionMutationMixin:
         assert (data := result.data)
         assert (field := data["experiment"])
         assert field["projectName"] == common_project_name
+
+    async def test_chat_completion_over_dataset_with_json_path_template(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """Test chat completion over dataset with JSON_PATH template format."""
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        dataset_version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  span {
+                    cumulativeTokenCountTotal
+                    input {
+                      value
+                    }
+                    output {
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
+                    }
+                },
+                "datasetId": dataset_id,
+                "datasetVersionId": dataset_version_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {$.city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "JSON_PATH",
+                "repetitions": 1,
+            }
+        }
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert field["datasetId"] == dataset_id
+            assert field["datasetVersionId"] == dataset_version_id
+            assert (examples := field["examples"])
+            for example in examples:
+                assert (repetition := example["repetition"])
+                if repetition["errorMessage"]:
+                    continue
+                assert repetition["content"]
+                assert repetition["span"]["input"]["value"]
+                assert repetition["span"]["output"]["value"]
+                assert repetition["span"]["cumulativeTokenCountTotal"]
 
     async def test_chat_completion_over_dataset_with_single_split(
         self,
