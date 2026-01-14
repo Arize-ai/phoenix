@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f5ddc8c1724dec226f4d5a025dbd6ac>>
+ * @generated SignedSource<<6aec414f928fe665fc93222b93b50d59>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,35 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateDatasetBuiltinEvaluatorInput = {
   datasetId: string;
+  description?: string | null;
   displayName: string;
   evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  outputConfigOverride?: AnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
+};
+export type AnnotationConfigOverrideInput = {
+  categorical?: CategoricalAnnotationConfigOverrideInput | null;
+  continuous?: ContinuousAnnotationConfigOverrideInput | null;
+};
+export type CategoricalAnnotationConfigOverrideInput = {
+  optimizationDirection?: OptimizationDirection | null;
+  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+};
+export type CategoricalAnnotationConfigValueInput = {
+  label: string;
+  score?: number | null;
+};
+export type ContinuousAnnotationConfigOverrideInput = {
+  lowerBound?: number | null;
+  optimizationDirection?: OptimizationDirection | null;
+  upperBound?: number | null;
 };
 export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;
@@ -116,59 +136,67 @@ v8 = {
   "storageKey": null
 },
 v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "optimizationDirection",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "CategoricalAnnotationValue",
-  "kind": "LinkedField",
-  "name": "values",
-  "plural": true,
+  "kind": "InlineFragment",
   "selections": [
+    (v8/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "label",
+      "name": "optimizationDirection",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "score",
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
-  "storageKey": null
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v13 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v14 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
@@ -179,6 +207,13 @@ v14 = {
     (v3/*: any*/),
     (v8/*: any*/)
   ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
   "storageKey": null
 };
 return {
@@ -232,14 +267,12 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "CategoricalAnnotationConfig",
+                    "concreteType": null,
                     "kind": "LinkedField",
                     "name": "outputConfig",
                     "plural": false,
                     "selections": [
-                      (v8/*: any*/),
-                      (v9/*: any*/),
-                      (v10/*: any*/)
+                      (v9/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -253,7 +286,7 @@ return {
                 "selections": [
                   (v3/*: any*/),
                   (v4/*: any*/),
-                  (v11/*: any*/),
+                  (v10/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -265,14 +298,14 @@ return {
                       (v3/*: any*/),
                       (v8/*: any*/),
                       (v6/*: any*/),
-                      (v12/*: any*/),
-                      (v13/*: any*/),
                       (v11/*: any*/),
+                      (v12/*: any*/),
+                      (v10/*: any*/),
                       (v7/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v14/*: any*/),
+                          (v13/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -342,24 +375,18 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
+                  (v14/*: any*/),
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
-                  (v12/*: any*/),
-                  (v13/*: any*/),
                   (v11/*: any*/),
+                  (v12/*: any*/),
+                  (v10/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v14/*: any*/),
+                      (v13/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -383,19 +410,25 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "CategoricalAnnotationConfig",
+                "concreteType": null,
                 "kind": "LinkedField",
                 "name": "outputConfig",
                 "plural": false,
                 "selections": [
-                  (v8/*: any*/),
+                  (v14/*: any*/),
                   (v9/*: any*/),
-                  (v10/*: any*/),
-                  (v3/*: any*/)
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v3/*: any*/)
+                    ],
+                    "type": "Node",
+                    "abstractKey": "__isNode"
+                  }
                 ],
                 "storageKey": null
               },
-              (v11/*: any*/)
+              (v10/*: any*/)
             ],
             "storageKey": null
           },
@@ -426,12 +459,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "71612af97d57816c904740098da6d6fc",
+    "cacheID": "99c8a91ba0338ba64455fd7c4b982875",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    name\n    optimizationDirection\n    values {\n      label\n      score\n    }\n    id\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

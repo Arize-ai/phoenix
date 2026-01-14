@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d2b6e5da925c4ee1073d4afd660fde9a>>
+ * @generated SignedSource<<d7cc6ace88379173d28e5ac09c3a7eb6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,9 +35,9 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfig: {
-    readonly name: string;
-    readonly optimizationDirection: OptimizationDirection;
-    readonly values: ReadonlyArray<{
+    readonly name?: string;
+    readonly optimizationDirection?: OptimizationDirection;
+    readonly values?: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
@@ -398,43 +398,50 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "CategoricalAnnotationConfig",
+      "concreteType": null,
       "kind": "LinkedField",
       "name": "outputConfig",
       "plural": false,
       "selections": [
-        (v1/*: any*/),
         {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "optimizationDirection",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "CategoricalAnnotationValue",
-          "kind": "LinkedField",
-          "name": "values",
-          "plural": true,
+          "kind": "InlineFragment",
           "selections": [
+            (v1/*: any*/),
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "label",
+              "name": "optimizationDirection",
               "storageKey": null
             },
             {
               "alias": null,
               "args": null,
-              "kind": "ScalarField",
-              "name": "score",
+              "concreteType": "CategoricalAnnotationValue",
+              "kind": "LinkedField",
+              "name": "values",
+              "plural": true,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "label",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "score",
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             }
           ],
-          "storageKey": null
+          "type": "CategoricalAnnotationConfig",
+          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -445,6 +452,6 @@ return {
 };
 })();
 
-(node as any).hash = "5169645eca85c1f98a0412e6f4120809";
+(node as any).hash = "e81d3528b639b2670903885b5faee65c";
 
 export default node;

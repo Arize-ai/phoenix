@@ -57,9 +57,9 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigOverrideType,
     AnnotationConfigType,
     CategoricalAnnotationConfig,
-    CategoricalAnnotationConfigOverride,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -2262,7 +2262,7 @@ class DatasetEvaluators(HasId):
     )
     display_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_config_override: Mapped[Optional[CategoricalAnnotationConfigOverride]] = mapped_column(
+    output_config_override: Mapped[Optional[AnnotationConfigOverrideType]] = mapped_column(
         "output_config", _AnnotationConfig, nullable=True
     )
     input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)

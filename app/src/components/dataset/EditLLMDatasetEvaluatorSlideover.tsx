@@ -176,11 +176,13 @@ const EditEvaluatorDialog = ({
             }
           }
           outputConfig {
-            name
-            optimizationDirection
-            values {
-              label
-              score
+            ... on CategoricalAnnotationConfig {
+              name
+              optimizationDirection
+              values {
+                label
+                score
+              }
             }
           }
         }

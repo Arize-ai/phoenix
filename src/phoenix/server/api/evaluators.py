@@ -5,7 +5,7 @@ import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -18,6 +18,10 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationConfigOverride,
+    CategoricalAnnotationValue,
+    ContinuousAnnotationConfig,
+    ContinuousAnnotationConfigOverride,
+    OptimizationDirection,
 )
 from phoenix.db.types.model_provider import (
     ModelProvider,
@@ -305,11 +309,22 @@ class LLMEvaluator:
             )
 
 
+BuiltInEvaluatorOutputConfig: TypeAlias = Union[
+    CategoricalAnnotationConfig, ContinuousAnnotationConfig
+]
+
+
 class BuiltInEvaluator(ABC):
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
     input_schema: dict[str, Any] = {}
+
+    @classmethod
+    @abstractmethod
+    def output_config(cls) -> BuiltInEvaluatorOutputConfig:
+        """Returns the output config for this evaluator. This is the source of truth."""
+        raise NotImplementedError
 
     @abstractmethod
     def evaluate(
@@ -654,6 +669,18 @@ class ContainsEvaluator(BuiltInEvaluator):
         "required": ["words", "text"],
     }
 
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name=cls.name,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
+
     def evaluate(
         self,
         *,
@@ -753,6 +780,18 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name=cls.name,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
+
     def evaluate(
         self,
         *,
@@ -840,6 +879,18 @@ class RegexEvaluator(BuiltInEvaluator):
         },
         "required": ["pattern", "text"],
     }
+
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name=cls.name,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
 
     def evaluate(
         self,
@@ -955,6 +1006,16 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> ContinuousAnnotationConfig:
+        return ContinuousAnnotationConfig(
+            type="CONTINUOUS",
+            name=cls.name,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            lower_bound=0.0,
+            upper_bound=1.0,
+        )
+
     def evaluate(
         self,
         *,
@@ -1061,6 +1122,16 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> ContinuousAnnotationConfig:
+        return ContinuousAnnotationConfig(
+            type="CONTINUOUS",
+            name=cls.name,
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            lower_bound=0.0,
+            upper_bound=1.0,
+        )
+
     def evaluate(
         self,
         *,
@@ -1163,4 +1234,48 @@ def merge_output_config(
         description=description,
         optimization_direction=optimization_direction,
         values=values,
+    )
+
+
+def merge_continuous_output_config(
+    base: ContinuousAnnotationConfig,
+    override: Optional[ContinuousAnnotationConfigOverride],
+    display_name: str,
+    description_override: Optional[str],
+) -> ContinuousAnnotationConfig:
+    """
+    Merge a base continuous output config with optional overrides.
+
+    Args:
+        base: The base ContinuousAnnotationConfig from the builtin evaluator
+        override: Optional overrides from the dataset evaluator
+        display_name: The display name to use as the config name
+        description_override: Optional description override
+
+    Returns:
+        A new ContinuousAnnotationConfig with overrides applied
+    """
+    optimization_direction = base.optimization_direction
+    lower_bound = base.lower_bound
+    upper_bound = base.upper_bound
+    description = base.description
+
+    if override is not None:
+        if override.optimization_direction is not None:
+            optimization_direction = override.optimization_direction
+        if override.lower_bound is not None:
+            lower_bound = override.lower_bound
+        if override.upper_bound is not None:
+            upper_bound = override.upper_bound
+
+    if description_override is not None:
+        description = description_override
+
+    return ContinuousAnnotationConfig(
+        type=base.type,
+        name=display_name,
+        description=description,
+        optimization_direction=optimization_direction,
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
     )

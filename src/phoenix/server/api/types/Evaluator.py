@@ -1,17 +1,21 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import sqlalchemy as sa
 import strawberry
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
@@ -19,6 +23,7 @@ from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    ContinuousAnnotationConfig,
 )
 
 from .Identifier import Identifier
@@ -457,6 +462,17 @@ class BuiltInEvaluator(Evaluator, Node):
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         return None
 
+    @strawberry.field
+    async def output_config(
+        self,
+        info: Info[Context, None],
+    ) -> "BuiltInEvaluatorOutputConfig":
+        evaluator_class = get_builtin_evaluator_by_id(self.id)
+        if evaluator_class is None:
+            raise NotFound(f"Built-in evaluator not found: {self.id}")
+        base_config = evaluator_class.output_config()
+        return _to_gql_builtin_output_config(base_config, evaluator_class.name, self.id)
+
 
 def _generate_categorical_annotation_config_id(evaluator_id: int) -> int:
     """Generate a stable negative ID using CRC32 checksum."""
@@ -483,6 +499,39 @@ def _to_gql_categorical_annotation_config(
         description=config.description,
         values=values,
     )
+
+
+def _to_gql_continuous_annotation_config(
+    config: ContinuousAnnotationConfigModel,
+    annotation_name: str,
+    evaluator_id: int,
+) -> ContinuousAnnotationConfig:
+    return ContinuousAnnotationConfig(
+        id_attr=_generate_categorical_annotation_config_id(evaluator_id),
+        name=annotation_name,
+        annotation_type=config.type,
+        optimization_direction=config.optimization_direction,
+        description=config.description,
+        lower_bound=config.lower_bound,
+        upper_bound=config.upper_bound,
+    )
+
+
+BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
+    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig],
+    strawberry.union("BuiltInEvaluatorOutputConfig"),
+]
+
+
+def _to_gql_builtin_output_config(
+    config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
+    annotation_name: str,
+    evaluator_id: int,
+) -> BuiltInEvaluatorOutputConfig:
+    if isinstance(config, CategoricalAnnotationConfigModel):
+        return _to_gql_categorical_annotation_config(config, annotation_name, evaluator_id)
+    else:
+        return _to_gql_continuous_annotation_config(config, annotation_name, evaluator_id)
 
 
 @strawberry.type
@@ -569,18 +618,50 @@ class DatasetEvaluator(Node):
     async def output_config(
         self,
         info: Info[Context, None],
-    ) -> Optional[CategoricalAnnotationConfig]:
+    ) -> Optional[BuiltInEvaluatorOutputConfig]:
         """
         Returns the effective output_config for this dataset evaluator.
-        If an override is set, it's merged with the base config from the LLM evaluator.
-        Otherwise, returns the base config from the LLM evaluator.
-        For builtin evaluators, returns None as they don't have output configs.
+        If an override is set, it's merged with the base config from the evaluator.
+        Otherwise, returns the base config from the evaluator.
+        Works for both builtin evaluators and LLM evaluators.
         """
-        from phoenix.server.api.evaluators import merge_output_config
+        from phoenix.server.api.evaluators import (
+            merge_continuous_output_config,
+            merge_output_config,
+        )
 
         record = await self._get_record(info)
+
         if record.builtin_evaluator_id is not None:
-            return None
+            evaluator_class = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
+            if evaluator_class is None:
+                return None
+            base_config = evaluator_class.output_config()
+            if isinstance(base_config, CategoricalAnnotationConfigModel):
+                effective_config = merge_output_config(
+                    base=base_config,
+                    override=record.output_config_override,  # pyright: ignore[reportArgumentType]
+                    display_name=record.display_name.root,
+                    description_override=record.description,
+                )
+                return _to_gql_categorical_annotation_config(
+                    config=effective_config,
+                    evaluator_id=record.builtin_evaluator_id,
+                    annotation_name=record.display_name.root,
+                )
+            else:
+                effective_config = merge_continuous_output_config(
+                    base=base_config,
+                    override=record.output_config_override,  # pyright: ignore[reportArgumentType]
+                    display_name=record.display_name.root,
+                    description_override=record.description,
+                )
+                return _to_gql_continuous_annotation_config(
+                    config=effective_config,
+                    evaluator_id=record.builtin_evaluator_id,
+                    annotation_name=record.display_name.root,
+                )
+
         if record.evaluator_id is None:
             return None
         base_config = await info.context.data_loaders.llm_evaluator_fields.load(
@@ -590,7 +671,7 @@ class DatasetEvaluator(Node):
             return None
         effective_config = merge_output_config(
             base=base_config,
-            override=record.output_config_override,
+            override=record.output_config_override,  # pyright: ignore[reportArgumentType]
             display_name=record.display_name.root,
             description_override=record.description,
         )

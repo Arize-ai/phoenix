@@ -291,3 +291,326 @@ class TestDatasetEvaluatorDescriptionFallback:
         )
         assert not resp.errors and resp.data
         assert resp.data["node"]["description"] is None
+
+
+class TestBuiltInEvaluatorOutputConfig:
+    """Tests for BuiltInEvaluator.output_config field resolution."""
+
+    async def test_categorical_builtin_returns_categorical_output_config(
+        self, gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that Contains evaluator returns a CategoricalAnnotationConfig."""
+        from phoenix.server.api.evaluators import ContainsEvaluator, _generate_builtin_evaluator_id
+        from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+
+        evaluator_id = _generate_builtin_evaluator_id(ContainsEvaluator.name)
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on BuiltInEvaluator {
+                        name
+                        outputConfig {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(BuiltInEvaluator.__name__, str(evaluator_id)))},
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["name"] == "Contains"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
+        assert output_config["name"] == "Contains"
+        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        assert len(output_config["values"]) == 2
+        labels = {v["label"] for v in output_config["values"]}
+        assert labels == {"true", "false"}
+
+    async def test_continuous_builtin_returns_continuous_output_config(
+        self, gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that LevenshteinDistance evaluator returns a ContinuousAnnotationConfig."""
+        from phoenix.server.api.evaluators import (
+            LevenshteinDistanceEvaluator,
+            _generate_builtin_evaluator_id,
+        )
+        from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+
+        evaluator_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on BuiltInEvaluator {
+                        name
+                        outputConfig {
+                            __typename
+                            ... on ContinuousAnnotationConfig {
+                                name
+                                optimizationDirection
+                                lowerBound
+                                upperBound
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(BuiltInEvaluator.__name__, str(evaluator_id)))},
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["name"] == "LevenshteinDistance"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "ContinuousAnnotationConfig"
+        assert output_config["name"] == "LevenshteinDistance"
+        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        assert output_config["lowerBound"] == 0.0
+        assert output_config["upperBound"] == 1.0
+
+
+class TestDatasetEvaluatorBuiltinOutputConfig:
+    """Tests for DatasetEvaluator.output_config with builtin evaluators."""
+
+    @pytest.fixture
+    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+        """Create test data: dataset with builtin evaluator assignments."""
+        from phoenix.db.types.annotation_configs import (
+            CategoricalAnnotationConfigOverride,
+            ContinuousAnnotationConfigOverride,
+        )
+        from phoenix.server.api.evaluators import (
+            ContainsEvaluator,
+            LevenshteinDistanceEvaluator,
+            _generate_builtin_evaluator_id,
+        )
+
+        async with db() as session:
+            dataset = models.Dataset(
+                name=f"test-dataset-{token_hex(4)}",
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+
+            contains_evaluator_id = _generate_builtin_evaluator_id(ContainsEvaluator.name)
+            levenshtein_evaluator_id = _generate_builtin_evaluator_id(
+                LevenshteinDistanceEvaluator.name
+            )
+
+            dataset_eval_categorical_no_override = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_evaluator_id,
+                display_name=Identifier("contains_no_override"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+            )
+            session.add(dataset_eval_categorical_no_override)
+            await session.flush()
+
+            dataset_eval_categorical_with_override = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_evaluator_id,
+                display_name=Identifier("contains_with_override"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                output_config_override=CategoricalAnnotationConfigOverride(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="yes", score=1.0),
+                        CategoricalAnnotationValue(label="no", score=0.0),
+                    ],
+                ),
+                description="Overridden description",
+            )
+            session.add(dataset_eval_categorical_with_override)
+            await session.flush()
+
+            dataset_eval_continuous_no_override = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=levenshtein_evaluator_id,
+                display_name=Identifier("levenshtein_no_override"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+            )
+            session.add(dataset_eval_continuous_no_override)
+            await session.flush()
+
+            dataset_eval_continuous_with_override = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=levenshtein_evaluator_id,
+                display_name=Identifier("levenshtein_with_override"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                output_config_override=ContinuousAnnotationConfigOverride(
+                    type="CONTINUOUS",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    lower_bound=0.1,
+                    upper_bound=0.9,
+                ),
+            )
+            session.add(dataset_eval_continuous_with_override)
+            await session.flush()
+
+        ids = {
+            "dataset": dataset.id,
+            "categorical_no_override": dataset_eval_categorical_no_override.id,
+            "categorical_with_override": dataset_eval_categorical_with_override.id,
+            "continuous_no_override": dataset_eval_continuous_no_override.id,
+            "continuous_with_override": dataset_eval_continuous_with_override.id,
+        }
+        yield ids
+
+    async def test_categorical_builtin_without_override(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that categorical builtin without override returns base config."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        displayName
+                        outputConfig {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(DatasetEvaluator.__name__, str(_test_data["categorical_no_override"]))
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["displayName"] == "contains_no_override"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
+        assert output_config["name"] == "contains_no_override"
+        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        labels = {v["label"] for v in output_config["values"]}
+        assert labels == {"true", "false"}
+
+    async def test_categorical_builtin_with_override(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that categorical builtin with override returns merged config."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        displayName
+                        description
+                        outputConfig {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                description
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(
+                        DatasetEvaluator.__name__, str(_test_data["categorical_with_override"])
+                    )
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["displayName"] == "contains_with_override"
+        assert node["description"] == "Overridden description"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
+        assert output_config["name"] == "contains_with_override"
+        assert output_config["description"] == "Overridden description"
+        assert output_config["optimizationDirection"] == "MINIMIZE"
+        labels = {v["label"] for v in output_config["values"]}
+        assert labels == {"yes", "no"}
+
+    async def test_continuous_builtin_without_override(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that continuous builtin without override returns base config."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        displayName
+                        outputConfig {
+                            __typename
+                            ... on ContinuousAnnotationConfig {
+                                name
+                                optimizationDirection
+                                lowerBound
+                                upperBound
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(DatasetEvaluator.__name__, str(_test_data["continuous_no_override"]))
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["displayName"] == "levenshtein_no_override"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "ContinuousAnnotationConfig"
+        assert output_config["name"] == "levenshtein_no_override"
+        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        assert output_config["lowerBound"] == 0.0
+        assert output_config["upperBound"] == 1.0
+
+    async def test_continuous_builtin_with_override(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that continuous builtin with override returns merged config."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        displayName
+                        outputConfig {
+                            __typename
+                            ... on ContinuousAnnotationConfig {
+                                name
+                                optimizationDirection
+                                lowerBound
+                                upperBound
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(DatasetEvaluator.__name__, str(_test_data["continuous_with_override"]))
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["displayName"] == "levenshtein_with_override"
+        output_config = node["outputConfig"]
+        assert output_config["__typename"] == "ContinuousAnnotationConfig"
+        assert output_config["name"] == "levenshtein_with_override"
+        assert output_config["optimizationDirection"] == "MINIMIZE"
+        assert output_config["lowerBound"] == 0.1
+        assert output_config["upperBound"] == 0.9
