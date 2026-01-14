@@ -153,7 +153,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-playground-input-integration
 
 - content: Update PlaygroundInput component to conditionally render the JSON editor (instead of individual variable fields) when JSON_PATH format is selected. The JSON editor should provide the data object that JSON paths query against.
-- status: pending
+- status: complete
 - dependencies: frontend-json-input-component
 
 ### frontend-path-autocomplete

@@ -231,3 +231,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - TypeScript typecheck and ESLint both pass with no errors
 - Pattern learned: For simple wrapper components with no behavioral logic, minimal tests that verify prop acceptance are sufficient
 - Next agent: This component is ready to be integrated into `PlaygroundInput` component (task: frontend-playground-input-integration)
+
+## frontend-playground-input-integration
+
+- Updated `PlaygroundInput.tsx` to conditionally render `JSONInputEditor` when `templateFormat === TemplateFormats.JSONPath`
+- Key design decisions:
+  - Store the entire JSON object under a special key `__json_data__` in `variablesValueCache` instead of individual path variables
+  - Early return for JSONPath format (lines 21-29) before the empty variable check to keep logic clean
+  - Removed the JSONPath case from the switch statement since it's handled by early return (prevents TypeScript exhaustiveness errors)
+- The JSON editor provides the default value `"{}"` if no data exists in the cache
+- The `setVariableValue` callback stores changes to the JSON editor under the `__json_data__` key
+- Important: The implementation strategy differs from how other template formats work (which extract individual variables) - JSONPath uses a single JSON object that paths query against
+- All 503 frontend tests pass without modification (no existing tests broke)
+- TypeScript typecheck and ESLint both pass
+- Pattern learned: When adding conditional rendering based on enum values, check if the enum case needs to be removed from exhaustive switch statements to avoid TypeScript errors after early returns
+- Testing challenge: Creating comprehensive unit tests for React components with complex context dependencies is difficult with vi.mock() - opted to rely on integration testing and manual verification instead

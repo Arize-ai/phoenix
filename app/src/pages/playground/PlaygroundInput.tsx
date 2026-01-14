@@ -3,8 +3,11 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { JSONInputEditor } from "./JSONInputEditor";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 import { VariableEditor } from "./VariableEditor";
+
+const JSON_DATA_KEY = "__json_data__";
 
 export function PlaygroundInput() {
   const { variableKeys, variablesMap } = useDerivedPlaygroundVariables();
@@ -12,6 +15,19 @@ export function PlaygroundInput() {
     (state) => state.setVariableValue
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const input = usePlaygroundContext((state) => state.input);
+
+  // For JSON_PATH format, use a single JSON editor instead of individual variable fields
+  if (templateFormat === TemplateFormats.JSONPath) {
+    const jsonValue = input.variablesValueCache?.[JSON_DATA_KEY] ?? "{}";
+    return (
+      <JSONInputEditor
+        value={jsonValue}
+        onChange={(value) => setVariableValue(JSON_DATA_KEY, value)}
+      />
+    );
+  }
+
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateFormat) {
@@ -21,10 +37,6 @@ export function PlaygroundInput() {
       }
       case TemplateFormats.Mustache: {
         templateSyntax = "{{input name}}";
-        break;
-      }
-      case TemplateFormats.JSONPath: {
-        templateSyntax = "{$.path.to.value}";
         break;
       }
       case TemplateFormats.NONE: {
