@@ -137,3 +137,17 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Created `index.ts` export file following the pattern of other language directories
 - All 484 frontend tests pass after implementation
 - TypeScript typecheck passes with no errors
+
+## frontend-language-utils-update
+
+- Updated `app/src/components/templateEditor/templateEditorUtils.ts` to import and use JSON_PATH format functions
+- Added import for `extractVariablesFromJSONPath` and `formatJSONPath` from `./language/jsonPath`
+- Replaced the TODO placeholder case for `TemplateFormats.JSONPath` with actual function references
+- Pattern: The `getTemplateFormatUtils()` function returns an object with `format` and `extractVariables` functions that have consistent signatures across all template formats
+- Created comprehensive unit tests in `app/src/components/templateEditor/__tests__/templateEditorUtils.test.ts` covering:
+  - JSON_PATH variable extraction (simple, nested, array indexing, escaped braces)
+  - JSON_PATH formatting (variable substitution, unmatched paths, escape handling)
+  - All four template formats (JSON_PATH, F_STRING, MUSTACHE, NONE) for completeness
+- All 22 templateEditor tests pass (11 new tests in templateEditorUtils.test.ts)
+- TypeScript typecheck passes with no errors
+- Pattern learned: When testing utility functions that return different behavior based on input (like a factory function), test all possible inputs to ensure exhaustive coverage

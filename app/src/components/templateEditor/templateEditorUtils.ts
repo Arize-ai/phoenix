@@ -2,6 +2,10 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { extractVariablesFromFString, formatFString } from "./language/fString";
 import {
+  extractVariablesFromJSONPath,
+  formatJSONPath,
+} from "./language/jsonPath";
+import {
   extractVariablesFromMustacheLike,
   formatMustacheLike,
 } from "./language/mustacheLike";
@@ -48,10 +52,9 @@ export const getTemplateFormatUtils = (
         extractVariables: extractVariablesFromMustacheLike,
       };
     case TemplateFormats.JSONPath:
-      // TODO: Add JSON_PATH format and extractVariables functions when implemented
       return {
-        format: ({ text }) => text,
-        extractVariables: () => [],
+        format: formatJSONPath,
+        extractVariables: extractVariablesFromJSONPath,
       };
     case TemplateFormats.NONE:
       return {

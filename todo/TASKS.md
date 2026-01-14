@@ -99,7 +99,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-language-utils-update
 
 - content: Update `app/src/components/templateEditor/templateEditorUtils.ts` to handle JSON_PATH format. Add JSON_PATH case to `getTemplateFormatUtils()` function to return the appropriate format and extractVariables functions.
-- status: pending
+- status: complete
 - dependencies: frontend-jsonpath-language
 
 ### frontend-parser-tests
