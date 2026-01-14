@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 
 import {
@@ -65,28 +64,9 @@ export function PlaygroundExperimentSettingsButton({
     (state) => state.setTemplateVariablesPath
   );
 
-  const playgroundAppendedMessagesPathByDataset = usePreferencesContext(
-    (state) => state.playgroundAppendedMessagesPathByDataset
-  );
   const setPlaygroundAppendedMessagesPathForDataset = usePreferencesContext(
     (state) => state.setPlaygroundAppendedMessagesPathForDataset
   );
-
-  // Load saved path from preferences when dataset changes
-  useEffect(() => {
-    if (datasetId) {
-      const savedPath =
-        playgroundAppendedMessagesPathByDataset[datasetId] ?? null;
-      setAppendedMessagesPath(savedPath);
-    } else {
-      // Clear the path when no dataset is selected
-      setAppendedMessagesPath(null);
-    }
-  }, [
-    datasetId,
-    playgroundAppendedMessagesPathByDataset,
-    setAppendedMessagesPath,
-  ]);
 
   return (
     <DialogTrigger>
