@@ -96,8 +96,9 @@ Only commit AFTER tests pass.
 
 | Action | Command |
 |--------|---------|
-| **Python unit tests** | `pytest tests/unit/` or `tox -e unit_tests` |
-| **Python specific test** | `pytest tests/unit/path/to/test.py -v` |
+| **Python unit tests** | `tox -e unit_tests -- -n auto` |
+| **Python specific test** | `tox -e unit_tests -- -n auto -k "test_name"` |
+| **Python type check** | `tox -e type_check` |
 | **Frontend tests** | `cd app && pnpm test` |
 | **Frontend specific test** | `cd app && pnpm test path/to/test.ts` |
 | **E2E tests** | `cd app && pnpm test:e2e` |
