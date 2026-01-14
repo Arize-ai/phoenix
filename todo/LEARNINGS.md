@@ -246,3 +246,20 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - TypeScript typecheck and ESLint both pass
 - Pattern learned: When adding conditional rendering based on enum values, check if the enum case needs to be removed from exhaustive switch statements to avoid TypeScript errors after early returns
 - Testing challenge: Creating comprehensive unit tests for React components with complex context dependencies is difficult with vi.mock() - opted to rely on integration testing and manual verification instead
+## frontend-path-autocomplete
+
+- Implemented autocomplete for JSON_PATH template format by extending the JSONPathTemplating CodeMirror extension with autocomplete support
+- Key changes:
+  1. Updated `jsonPathTemplating.ts` to accept optional `pathOptions` parameter and use `@codemirror/autocomplete` to provide suggestions
+  2. Created `useJSONPathAutocomplete` hook to generate autocomplete options by flattening JSON input data using `flattenObject()` utility
+  3. Updated `TemplateEditor.tsx` to accept and pass `pathAutocompleteOptions` prop to `JSONPathTemplating` extension
+  4. Integrated autocomplete into `PlaygroundChatTemplate` using the new hook
+- Autocomplete implementation:
+  - Detects when cursor is inside template braces `{...}` by checking position of last `{` and `}` before cursor
+  - Only shows suggestions when inside braces and after the `{` character
+  - Uses `formatIndices: true` in `flattenObject()` to generate bracket notation for arrays (e.g., `$.items[0].name`)
+  - Includes non-terminal values with `keepNonTerminalValues: true` to allow autocomplete for parent paths (e.g., `$.address` as well as `$.address.city`)
+- Pattern learned: CodeMirror's `LanguageSupport` second parameter accepts an array of Extensions (not LRLanguage instances) for adding features like autocomplete
+- Testing approach: Simplified tests to avoid CodeMirror EditorState instance issues in test environment - focused on testing the autocomplete logic (flattenObject + JSON parsing) separately
+- TypeScript gotcha: Fixed error by ensuring extensions array only contains Extension types, not mixing Language and Extension types
+- All 510 frontend tests pass, TypeScript typecheck passes

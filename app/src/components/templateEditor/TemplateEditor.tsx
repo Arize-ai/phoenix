@@ -13,7 +13,10 @@ import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fString";
-import { JSONPathTemplating } from "./language/jsonPath";
+import {
+  JSONPathTemplating,
+  PathAutocompleteOption,
+} from "./language/jsonPath";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
 import { TemplateFormats } from "./constants";
 import { TemplateFormat } from "./types";
@@ -21,6 +24,10 @@ import { TemplateFormat } from "./types";
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
   templateFormat: TemplateFormat;
   defaultValue: string;
+  /**
+   * Autocomplete options for JSON_PATH template format
+   */
+  pathAutocompleteOptions?: PathAutocompleteOption[];
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -52,6 +59,7 @@ export const TemplateEditor = ({
   templateFormat,
   defaultValue,
   readOnly,
+  pathAutocompleteOptions,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
@@ -67,7 +75,11 @@ export const TemplateEditor = ({
         ext.push(MustacheLikeTemplating());
         break;
       case TemplateFormats.JSONPath:
-        ext.push(JSONPathTemplating());
+        ext.push(
+          JSONPathTemplating({
+            pathOptions: pathAutocompleteOptions,
+          })
+        );
         break;
       case TemplateFormats.NONE:
         break;
@@ -75,7 +87,7 @@ export const TemplateEditor = ({
         assertUnreachable(templateFormat);
     }
     return ext;
-  }, [templateFormat]);
+  }, [templateFormat, pathAutocompleteOptions]);
 
   useEffect(() => {
     if (readOnly) {

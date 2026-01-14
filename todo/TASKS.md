@@ -159,7 +159,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-path-autocomplete
 
 - content: Add path autocomplete suggestions for JSON_PATH variables in the template editor. Use `flattenObject()` utility (from `app/src/utils/jsonUtils.ts`) to generate path suggestions from the input JSON data. Reference EvaluatorInputMapping's `useFlattenedEvaluatorInputKeys` pattern.
-- status: pending
+- status: complete
 - dependencies: frontend-playground-input-integration
 
 ---

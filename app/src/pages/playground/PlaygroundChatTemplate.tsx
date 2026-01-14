@@ -66,6 +66,7 @@ import {
   createToolCallForProvider,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
+import { useJSONPathAutocomplete } from "./useJSONPathAutocomplete";
 
 const MESSAGE_Z_INDEX = 1;
 /**
@@ -196,6 +197,8 @@ function MessageEditor({
     },
     [updateMessage]
   );
+  const pathAutocompleteOptions = useJSONPathAutocomplete();
+
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -257,6 +260,7 @@ function MessageEditor({
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
+        pathAutocompleteOptions={pathAutocompleteOptions}
       />
     </TemplateEditorWrap>
   );

@@ -1,5 +1,10 @@
 import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
+import {
+  autocompletion,
+  CompletionContext,
+  CompletionResult,
+} from "@codemirror/autocomplete";
 
 import { extractVariables, format } from "../languageUtils";
 
@@ -77,8 +82,70 @@ export const extractVariablesFromJSONPath = (text: string) => {
 };
 
 /**
- * Creates a CodeMirror extension for the JSON_PATH templating system
+ * Options for path autocomplete
  */
-export function JSONPathTemplating() {
-  return new LanguageSupport(JSONPathTemplatingLanguage);
+export type PathAutocompleteOption = {
+  id: string;
+  label: string;
+};
+
+/**
+ * Creates an autocomplete function for JSON path suggestions
+ */
+function createJSONPathAutocomplete(
+  pathOptions: PathAutocompleteOption[]
+): (context: CompletionContext) => CompletionResult | null {
+  return (context: CompletionContext): CompletionResult | null => {
+    // Check if we're inside a template variable (between { and })
+    const textBefore = context.state.doc.sliceString(0, context.pos);
+    const lastOpenBrace = textBefore.lastIndexOf("{");
+    const lastCloseBrace = textBefore.lastIndexOf("}");
+
+    // Only autocomplete if we're inside braces and after the opening brace
+    if (lastOpenBrace === -1 || lastCloseBrace > lastOpenBrace) {
+      return null;
+    }
+
+    // Extract the text after the opening brace
+    const textAfterBrace = textBefore.slice(lastOpenBrace + 1);
+
+    // Match the current word being typed (starting with $ and including dots and brackets)
+    const word =
+      context.matchBefore(/\$[\w.\[\]]*/) || context.matchBefore(/\w*/);
+    if (!word) return null;
+
+    // Don't autocomplete if cursor is not at the end of the word and not explicit
+    if (word.from == word.to && !context.explicit) return null;
+
+    return {
+      from: word.from,
+      options: pathOptions.map((option) => ({
+        label: option.label,
+        type: "variable",
+        apply: option.id,
+      })),
+    };
+  };
+}
+
+/**
+ * Creates a CodeMirror extension for the JSON_PATH templating system
+ * @param options - Optional configuration
+ * @param options.pathOptions - Autocomplete suggestions for JSON paths
+ */
+export function JSONPathTemplating(options?: {
+  pathOptions?: PathAutocompleteOption[];
+}) {
+  const extensions = [];
+
+  // Add autocomplete if path options are provided
+  if (options?.pathOptions && options.pathOptions.length > 0) {
+    extensions.push(
+      autocompletion({
+        override: [createJSONPathAutocomplete(options.pathOptions)],
+      })
+    );
+  }
+
+  return new LanguageSupport(JSONPathTemplatingLanguage, extensions);
 }
