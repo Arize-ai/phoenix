@@ -61,7 +61,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### graphql-input-types
 
 - content: Ensure GraphQL input types in `src/phoenix/server/api/input_types/PromptVersionInput.py` properly handle JSON_PATH format. Verify the template_format field accepts the new enum value.
-- status: pending
+- status: complete
 - dependencies: graphql-schema-update
 
 ---

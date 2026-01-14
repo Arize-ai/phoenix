@@ -68,3 +68,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - No behavioral tests needed for this task since it's purely a schema/type definition change
 - The schema file is quite large (~4000+ lines), but the enum definition is straightforward
 - Important: This task must be completed before frontend tasks that depend on the GraphQL type definitions
+
+## graphql-input-types
+
+- No changes were required to `src/phoenix/server/api/input_types/PromptVersionInput.py` - it already properly handles JSON_PATH
+- The file imports `PromptTemplateFormat` from `phoenix.server.api.helpers.prompts.models` (line 15) and uses it as a type annotation for `template_format` field (line 83)
+- Since the enum was already updated in the backend-enum-json-path task, the input type automatically accepts JSON_PATH values
+- Created comprehensive unit tests in `tests/unit/server/api/input_types/test_PromptVersionInput.py` to verify:
+  - ChatPromptVersionInput accepts all template formats including JSON_PATH (parametrized test)
+  - The to_orm_prompt_version() method correctly converts input with JSON_PATH format to ORM models
+- All unit tests pass, including the new tests and all existing tests (3857 tests total)
+- Pattern learned: When enum types are properly defined and imported, input types using those enums automatically support new values without code changes
+- The test file follows the existing pattern of other input_types tests (TimeRange, DimensionFilter, etc.)
