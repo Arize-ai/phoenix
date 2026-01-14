@@ -2,10 +2,16 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "@phoenix/pages/playground/constants";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 
 import {
   _resetInstanceId,
   createNormalizedPlaygroundInstance,
+  createOpenAIResponseFormat,
   createPlaygroundStore,
   getInitialInstances,
 } from "../playgroundStore";
@@ -684,5 +690,149 @@ describe("cancelPlaygroundInstances", () => {
         )
       ),
     });
+  });
+});
+
+describe("updateModelSupportedInvocationParameters", () => {
+  it("should preserve response format when updating supported invocation parameters", () => {
+    // This test captures the bug where response format disappears when
+    // the model changes (e.g., GPT-4o to GPT-4.1) because it's not marked as dirty.
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    const instanceId = store.getState().instances[0].id;
+
+    // Add a response format via upsertInvocationParameterInput
+    // Note: This mimics how the UI adds response format - WITHOUT dirty: true
+    const responseFormatValue = createOpenAIResponseFormat();
+    store.getState().upsertInvocationParameterInput({
+      instanceId,
+      invocationParameterInput: {
+        invocationName: RESPONSE_FORMAT_PARAM_NAME,
+        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+        valueJson: responseFormatValue,
+      },
+    });
+
+    // Verify response format was added
+    let responseFormat = store
+      .getState()
+      .instances[0].model.invocationParameters.find(
+        (p) =>
+          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+      );
+    expect(responseFormat).toBeDefined();
+    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+
+    // Create some mock supported invocation parameters that include response format
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        __typename: "FloatInvocationParameter",
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        required: false,
+        floatDefaultValue: 1.0,
+        invocationInputField: "value_float",
+      },
+      {
+        __typename: "JSONInvocationParameter",
+        invocationName: RESPONSE_FORMAT_PARAM_NAME,
+        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+        required: false,
+        invocationInputField: "value_json",
+      },
+    ];
+
+    // Simulate what happens when ModelSupportedParamsFetcher triggers after a model change
+    store.getState().updateModelSupportedInvocationParameters({
+      instanceId,
+      supportedInvocationParameters,
+      modelConfigByProvider: {},
+    });
+
+    // Assert response format is still present after the update
+    responseFormat = store
+      .getState()
+      .instances[0].model.invocationParameters.find(
+        (p) =>
+          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+      );
+    expect(responseFormat).toBeDefined();
+    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+  });
+
+  it("should preserve response format when copied via addInstance (Compare feature)", () => {
+    // This test captures the bug where response format disappears when
+    // clicking "Compare" because the new instance triggers updateModelSupportedInvocationParameters.
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+    };
+    const store = createPlaygroundStore(initialProps);
+    const firstInstanceId = store.getState().instances[0].id;
+
+    // Add a response format to the first instance
+    const responseFormatValue = createOpenAIResponseFormat();
+    store.getState().upsertInvocationParameterInput({
+      instanceId: firstInstanceId,
+      invocationParameterInput: {
+        invocationName: RESPONSE_FORMAT_PARAM_NAME,
+        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+        valueJson: responseFormatValue,
+      },
+    });
+
+    // Add a second instance (simulates clicking "Compare")
+    store.getState().addInstance();
+    const secondInstanceId = store.getState().instances[1].id;
+
+    // Verify the response format was copied to the second instance
+    let responseFormat = store
+      .getState()
+      .instances[1].model.invocationParameters.find(
+        (p) =>
+          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+      );
+    expect(responseFormat).toBeDefined();
+    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+
+    // Simulate what happens when ModelSupportedParamsFetcher triggers for the new instance
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        __typename: "FloatInvocationParameter",
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        required: false,
+        floatDefaultValue: 1.0,
+        invocationInputField: "value_float",
+      },
+      {
+        __typename: "JSONInvocationParameter",
+        invocationName: RESPONSE_FORMAT_PARAM_NAME,
+        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+        required: false,
+        invocationInputField: "value_json",
+      },
+    ];
+
+    store.getState().updateModelSupportedInvocationParameters({
+      instanceId: secondInstanceId,
+      supportedInvocationParameters,
+      modelConfigByProvider: {},
+    });
+
+    // Assert response format is still present after the update
+    responseFormat = store
+      .getState()
+      .instances[1].model.invocationParameters.find(
+        (p) =>
+          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+      );
+    expect(responseFormat).toBeDefined();
+    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
   });
 });
