@@ -406,14 +406,24 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 );
 
               // Add back the response format if it exists and is supported by the model
+              // but only if it's not already present in mergedInvocationParameters
+              // (it would be present if the parameter had dirty: true)
               const modelSupportsResponseFormat =
                 supportedInvocationParameters.some(
                   (p) =>
                     p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
                     p.invocationName === RESPONSE_FORMAT_PARAM_NAME
                 );
+              const responseFormatAlreadyInMerged =
+                mergedInvocationParameters.some(
+                  (p) =>
+                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+                );
               const finalInvocationParameters =
-                responseFormatInvocationParameter && modelSupportsResponseFormat
+                responseFormatInvocationParameter &&
+                modelSupportsResponseFormat &&
+                !responseFormatAlreadyInMerged
                   ? [
                       ...mergedInvocationParameters,
                       responseFormatInvocationParameter,
