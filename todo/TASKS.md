@@ -192,5 +192,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### visual-test-playground
 
 - content: Perform visual testing of the JSON_PATH feature using agent-browser CLI. Verify: template format selector shows JSON_PATH option, JSON editor appears for input, syntax highlighting works for JSON path expressions, autocomplete suggestions appear, and prompt execution works correctly.
-- status: pending
+- status: complete
 - dependencies: integration-test-backend

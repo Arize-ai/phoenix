@@ -311,3 +311,23 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Note: Attempted to add a client integration test in `tests/integration/client/test_prompts.py` but encountered GraphQL type generation issues with `invocationParameters` field type (JSON scalar generates as `str` but runtime expects `dict`)
 - The existing backend tests are more comprehensive and better suited for integration testing than client tests would be
 - Important: After updating GraphQL schema (in graphql-schema-update task), must run both `tox -e build_graphql_schema` AND `tox -e graphql_codegen_for_python_tests` to regenerate schema and Python test types respectively
+
+## visual-test-playground
+
+- Visual testing with agent-browser CLI successfully verified all UI components are properly implemented and render correctly
+- All UI verification points passed: JSON_PATH option in selector, JSON editor interface, syntax highlighting in template editor
+- **CRITICAL BUG DISCOVERED**: JSON path variables are not substituted during prompt execution - template sent to LLM contains raw variables like `{$.user.name}` instead of substituted values like `Alice`
+- Root cause identified in `app/src/pages/playground/playgroundUtils.ts` function `getVariablesMapFromInstances()`:
+  - Frontend stores JSON data under special key `"__json_data__"` in `variablesValueCache`
+  - This key is passed directly to backend as `{"__json_data__": "{...}"}` instead of being parsed
+  - Backend expects actual JSON object like `{"user": {"name": "Alice"}}` to match JSON paths
+  - Backend integration tests pass, confirming backend logic is correct - bug is in frontend→backend data flow
+- agent-browser commands used: `open`, `click`, `wait`, `snapshot`, `screenshot`, `type`, `eval`, `get text`, `scroll`, `close`
+- agent-browser `snapshot -i` (interactive mode) is extremely useful for finding clickable elements with refs (e.g., `@e30`)
+- Screenshots provide valuable evidence of both working UI and failing functionality for future debugging
+- Trace view in Phoenix UI is invaluable for debugging - shows exactly what data was sent to the LLM
+- Pattern learned: Visual testing can discover integration bugs that unit tests miss - UI components can render correctly while data flow is broken
+- Pattern learned: Compare working backend tests with failing UI to isolate where in the data flow the bug occurs
+- Important: Visual testing task should focus on verification and bug discovery, NOT bug fixing - document findings thoroughly for next task
+- Test artifacts created: 6 screenshots, detailed test report, bug analysis with proposed fix, test summary
+- Future agents should implement the fix in `getVariablesMapFromInstances()` to parse JSON from `__json_data__` key for JSON_PATH format before sending to backend
