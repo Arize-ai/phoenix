@@ -49,6 +49,7 @@ export function ExamplesTable({
     selectedExampleIds,
     setSelectedExampleIds,
     selectedSplitIds,
+    examplesCache,
     setExamplesCache,
   } = useExamplesFilterContext();
   const navigate = useNavigate();
@@ -376,6 +377,7 @@ export function ExamplesTable({
       {selectedRows.length ? (
         <ExampleSelectionToolbar
           selectedExamples={selectedExamples}
+          examplesCache={examplesCache}
           onClearSelection={clearSelection}
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });
