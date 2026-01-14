@@ -93,7 +93,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-jsonpath-language
 
 - content: Create the JSON_PATH language support module in `app/src/components/templateEditor/language/jsonPath/jsonPathTemplating.ts`. Export `formatJSONPath()`, `extractVariablesFromJSONPath()`, and `JSONPathTemplating()` CodeMirror extension. Follow the pattern of fStringTemplating.ts and mustacheLikeTemplating.ts.
-- status: pending
+- status: complete
 - dependencies: frontend-jsonpath-grammar
 
 ### frontend-language-utils-update

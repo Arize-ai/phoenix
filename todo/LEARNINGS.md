@@ -122,3 +122,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Typecheck passed after grammar creation, confirming no TypeScript errors
 - Pattern learned: Lezer grammars use @tokens for top-level tokens and @local tokens for context-specific tokens (like Variable inside Template scope)
 - The @precedence directive ensures lEscape takes priority over LBrace to correctly handle escaped brackets
+
+## frontend-jsonpath-language
+
+- Created `app/src/components/templateEditor/language/jsonPath/jsonPathTemplating.ts` following the exact pattern of fStringTemplating.ts and mustacheLikeTemplating.ts
+- Exported three key functions: `formatJSONPath()`, `extractVariablesFromJSONPath()`, and `JSONPathTemplating()` (CodeMirror extension)
+- The implementation reuses `extractVariables()` and `format()` utilities from `languageUtils.ts`, passing the JSONPathTemplatingLanguage.parser
+- Important escape handling: Only `\{` is supported as escape (converts to `{` in postFormat), unlike fString which also handles `{{` and `}}`
+- Added comprehensive tests to `app/src/components/templateEditor/language/__tests__/languageUtils.test.ts` covering:
+  - Variable extraction: simple paths (`$.name`), nested paths (`$.nested.path`), array indexing (`$.array[0]`), deep nesting (`$.deep[0].nested`), escaped braces
+  - Formatting: substitution, unmatched variables left as-is, escape handling, whitespace trimming
+- Test gotcha: JSON objects in templates require careful escaping - any unescaped `{` starts a new template, so literal JSON braces must use `\{` escape
+- Pattern learned: The languageUtils format() and extractVariables() functions work on any Lezer grammar that produces Variable nodes, making it easy to add new template formats
+- Created `index.ts` export file following the pattern of other language directories
+- All 484 frontend tests pass after implementation
+- TypeScript typecheck passes with no errors

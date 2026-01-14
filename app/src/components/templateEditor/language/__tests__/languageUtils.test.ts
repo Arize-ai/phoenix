@@ -1,4 +1,9 @@
 import { formatFString, FStringTemplatingLanguage } from "../fString";
+import {
+  extractVariablesFromJSONPath,
+  formatJSONPath,
+  JSONPathTemplatingLanguage,
+} from "../jsonPath";
 import { extractVariables } from "../languageUtils";
 import {
   formatMustacheLike,
@@ -186,6 +191,90 @@ can you help with this json?
     ] as const;
     tests.forEach(({ input, variables, expected }) => {
       expect(formatFString({ text: input, variables })).toEqual(expected);
+    });
+  });
+
+  it("should extract variable names from a JSON_PATH template", () => {
+    const tests = [
+      { input: "{$.name}", expected: ["$.name"] },
+      { input: "{$.name} {$.age}", expected: ["$.name", "$.age"] },
+      {
+        input:
+          "Hi I'm {$.name} and I'm {$.age} years old and I live in {$.city}",
+        expected: ["$.name", "$.age", "$.city"],
+      },
+      {
+        input: `Hi {$.name}, you are {$.age} years old`,
+        expected: ["$.name", "$.age"],
+      },
+      {
+        input: `Name: {$.name} Age: \\{$.age}`,
+        expected: ["$.name"],
+      },
+      {
+        input: `Value: {  $.name  }`,
+        expected: ["$.name"],
+      },
+      { input: "{$.nested.path}", expected: ["$.nested.path"] },
+      { input: "{$.array[0]}", expected: ["$.array[0]"] },
+      { input: "{$.deep[0].nested}", expected: ["$.deep[0].nested"] },
+      { input: "\\{$.notavar}", expected: [] },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(extractVariablesFromJSONPath(input)).toEqual(expected);
+    });
+  });
+
+  it("should format a JSON_PATH template", () => {
+    const tests = [
+      {
+        input: "{$.name}",
+        variables: { "$.name": "John" },
+        expected: "John",
+      },
+      {
+        input: "{$.name} {$.age}",
+        variables: { "$.name": "John", "$.age": 30 },
+        expected: "John 30",
+      },
+      {
+        input: "{$.name} {$.city}",
+        variables: { "$.name": "John" },
+        expected: "John {$.city}",
+      },
+      {
+        input: `Hi {$.name}, you are {$.age} years old`,
+        variables: { "$.name": "John", "$.age": 30 },
+        expected: `Hi John, you are 30 years old`,
+      },
+      {
+        input: `Name: \\{$.name} Age: {$.age}`,
+        variables: { "$.name": "John", "$.age": 30 },
+        expected: `Name: {$.name} Age: 30`,
+      },
+      {
+        input: `Value: {  $.name  }`,
+        variables: { "$.name": "John" },
+        expected: `Value: John`,
+      },
+      {
+        input: "{$.nested.path}",
+        variables: { "$.nested.path": "value" },
+        expected: "value",
+      },
+      {
+        input: "{$.array[0]}",
+        variables: { "$.array[0]": "first" },
+        expected: "first",
+      },
+      {
+        input: "{$.deep[0].nested}",
+        variables: { "$.deep[0].nested": "deep value" },
+        expected: "deep value",
+      },
+    ] as const;
+    tests.forEach(({ input, variables, expected }) => {
+      expect(formatJSONPath({ text: input, variables })).toEqual(expected);
     });
   });
 });
