@@ -1042,7 +1042,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
 
     // Styles for menus
-    --ac-global-menu-border-color: var(--ac-global-color-grey-300);
+    --ac-global-menu-border-color: var(--ac-global-color-grey-100);
     --ac-global-menu-background-color: var(--ac-global-color-grey-50);
     --ac-global-menu-item-background-color-hover: var(--ac-hover-background);
     --ac-global-menu-split-item-content-gap: var(
