@@ -113,17 +113,11 @@ export function AttributesJSONBlock({ attributes }: { attributes: string }) {
           {canExpand && (
             <Button
               size="S"
-              variant={isExpanded ? "primary" : "default"}
+              variant="default"
               aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
               leadingVisual={
                 <Icon
-                  svg={
-                    isExpanded ? (
-                      <Icons.CollapseOutline />
-                    ) : (
-                      <Icons.ExpandOutline />
-                    )
-                  }
+                  svg={isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />}
                 />
               }
               onPress={toggleExpand}
