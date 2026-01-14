@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -8,16 +9,19 @@ import {
   Button,
   Card,
   CardProps,
+  Checkbox,
   Dialog,
   FieldError,
   Flex,
   Icon,
   Icons,
+  Keyboard,
   Label,
   Text,
   TextArea,
   TextField,
   View,
+  VisuallyHidden,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import {
@@ -27,6 +31,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -53,6 +58,8 @@ const defaultCardProps: Partial<CardProps> = {
 export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const { datasetId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createMore, setCreateMore] = useState(false);
+  const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
     graphql`
       mutation AddDatasetExampleDialogMutation(
@@ -68,12 +75,13 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
     control,
     setError,
     handleSubmit,
+    reset,
     formState: { isValid },
   } = useForm<DatasetExamplePatch>({
     defaultValues: {
-      input: "{}",
-      output: "{}",
-      metadata: "{}",
+      input: "{\n  \n}",
+      output: "{\n  \n}",
+      metadata: "{\n  \n}",
     },
   });
 
@@ -111,8 +119,20 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
           },
         },
         onCompleted: () => {
-          close();
           onCompleted();
+
+          if (createMore) {
+            // Clear all form fields and keep dialog open
+            reset({
+              input: "{\n  \n}",
+              output: "{\n  \n}",
+              metadata: "{\n  \n}",
+              description: "",
+            });
+          } else {
+            // Close dialog (existing behavior)
+            close();
+          }
         },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);
@@ -120,13 +140,76 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
         },
       });
     },
-    [commit, datasetId, setError, onCompleted]
+    [commit, datasetId, setError, onCompleted, createMore, reset]
   );
 
   return (
     <Dialog>
       {({ close }) => (
-        <DialogContent>
+        <AddExampleDialogContent
+          close={close}
+          control={control}
+          submitError={submitError}
+          isValid={isValid}
+          isCommitting={isCommitting}
+          createMore={createMore}
+          setCreateMore={setCreateMore}
+          modifierKey={modifierKey}
+          onSubmit={onSubmit}
+          handleSubmit={handleSubmit}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+type AddExampleDialogContentProps = {
+  close: () => void;
+  control: any;
+  submitError: string | null;
+  isValid: boolean;
+  isCommitting: boolean;
+  createMore: boolean;
+  setCreateMore: (value: boolean) => void;
+  modifierKey: string;
+  onSubmit: (data: DatasetExamplePatch, close: () => void) => void;
+  handleSubmit: any;
+};
+
+function AddExampleDialogContent(props: AddExampleDialogContentProps) {
+  const {
+    close,
+    control,
+    submitError,
+    isValid,
+    isCommitting,
+    createMore,
+    setCreateMore,
+    modifierKey,
+    onSubmit,
+    handleSubmit,
+  } = props;
+
+  // Add hotkey handler with access to close function
+  useHotkeys(
+    "mod+enter",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isValid && !isCommitting) {
+        handleSubmit((data: DatasetExamplePatch) => onSubmit(data, close))();
+      }
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    },
+    [isValid, isCommitting, handleSubmit, onSubmit, close]
+  );
+
+  return (
+    <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Example</DialogTitle>
             <DialogTitleExtra>
@@ -253,7 +336,10 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
             </Flex>
           </div>
           <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
-            <Flex direction="row" justifyContent="end" gap="size-100">
+            <Flex direction="row" justifyContent="space-between" gap="size-100">
+              <Checkbox isSelected={createMore} onChange={setCreateMore}>
+                Create more
+              </Checkbox>
               <Button
                 variant="primary"
                 size="M"
@@ -261,14 +347,26 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
                 leadingVisual={
                   isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
                 }
-                onPress={() => handleSubmit((data) => onSubmit(data, close))()}
+                trailingVisual={
+                  <Keyboard>
+                    <VisuallyHidden>{modifierKey}</VisuallyHidden>
+                    <span aria-hidden="true">
+                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
+                    </span>
+                    <VisuallyHidden>enter</VisuallyHidden>
+                    <span aria-hidden="true">⏎</span>
+                  </Keyboard>
+                }
+                onPress={() =>
+                  handleSubmit((data: DatasetExamplePatch) =>
+                    onSubmit(data, close)
+                  )()
+                }
               >
                 {isCommitting ? "Adding Example..." : "Add Example"}
               </Button>
             </Flex>
           </View>
         </DialogContent>
-      )}
-    </Dialog>
-  );
+      );
 }
