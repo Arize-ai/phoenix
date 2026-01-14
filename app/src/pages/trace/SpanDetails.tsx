@@ -62,6 +62,7 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
+import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -371,9 +372,8 @@ export function SpanDetails({
                   title="All Attributes"
                   {...defaultCardProps}
                   titleExtra={attributesContextualHelp}
-                  extra={<CopyToClipboardButton text={span.attributes} />}
                 >
-                  <JSONBlock>{span.attributes}</JSONBlock>
+                  <AttributesJSONBlock attributes={span.attributes} />
                 </Card>
               </View>
             </LazyTabPanel>
@@ -1811,9 +1811,8 @@ function SpanIO({ span }: { span: Span }) {
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
-          extra={<CopyToClipboardButton text={span.attributes} />}
         >
-          <JSONBlock>{span.attributes}</JSONBlock>
+          <AttributesJSONBlock attributes={span.attributes} />
         </Card>
       ) : null}
     </Flex>
