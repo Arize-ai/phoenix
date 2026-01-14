@@ -163,3 +163,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All 495 frontend tests pass, including the 12 tests related to JSON_PATH (6 for extraction, 6 for formatting)
 - Pattern learned: When a task description requests tests that already exist from previous implementation work, verify test coverage rather than adding duplicate tests
 - The test file structure groups all template language tests together (mustache-like, f-string, JSON_PATH) making it easy to compare patterns across different formats
+
+## frontend-template-editor-update
+
+- Updated `app/src/components/templateEditor/TemplateEditor.tsx` to import and use the `JSONPathTemplating()` extension
+- Added import statement on line 16: `import { JSONPathTemplating } from "./language/jsonPath";`
+- Replaced the TODO comment in the JSON_PATH case (lines 68-70) with `ext.push(JSONPathTemplating());` to add syntax highlighting support
+- The implementation follows the exact same pattern as FString and Mustache cases - each calls their respective templating extension function
+- Important: Had to fix a pre-existing linting issue in `languageUtils.test.ts` where `JSONPathTemplatingLanguage` was imported but not used (from previous task)
+- All 495 frontend tests pass after changes
+- TypeScript typecheck passes with no errors
+- Pattern learned: When adding language support to TemplateEditor, the pattern is consistent: import the templating extension function, then call it in the appropriate switch case
+- The TemplateEditor uses useMemo to cache the extensions array, only recalculating when templateFormat changes, which is good for performance

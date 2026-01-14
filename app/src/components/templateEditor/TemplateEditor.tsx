@@ -13,6 +13,7 @@ import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fString";
+import { JSONPathTemplating } from "./language/jsonPath";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
 import { TemplateFormats } from "./constants";
 import { TemplateFormat } from "./types";
@@ -66,7 +67,7 @@ export const TemplateEditor = ({
         ext.push(MustacheLikeTemplating());
         break;
       case TemplateFormats.JSONPath:
-        // TODO: Add JSONPathTemplating() when implemented
+        ext.push(JSONPathTemplating());
         break;
       case TemplateFormats.NONE:
         break;

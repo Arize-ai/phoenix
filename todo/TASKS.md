@@ -115,7 +115,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-template-editor-update
 
 - content: Update `app/src/components/templateEditor/TemplateEditor.tsx` to support JSON_PATH format. Add case for JSON_PATH in the syntax highlighting extension selection, importing and using JSONPathTemplating extension.
-- status: pending
+- status: complete
 - dependencies: frontend-jsonpath-language
 
 ---

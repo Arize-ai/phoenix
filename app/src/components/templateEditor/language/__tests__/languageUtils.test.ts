@@ -1,9 +1,5 @@
 import { formatFString, FStringTemplatingLanguage } from "../fString";
-import {
-  extractVariablesFromJSONPath,
-  formatJSONPath,
-  JSONPathTemplatingLanguage,
-} from "../jsonPath";
+import { extractVariablesFromJSONPath, formatJSONPath } from "../jsonPath";
 import { extractVariables } from "../languageUtils";
 import {
   formatMustacheLike,
