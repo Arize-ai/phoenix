@@ -175,3 +175,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - TypeScript typecheck passes with no errors
 - Pattern learned: When adding language support to TemplateEditor, the pattern is consistent: import the templating extension function, then call it in the appropriate switch case
 - The TemplateEditor uses useMemo to cache the extensions array, only recalculating when templateFormat changes, which is good for performance
+
+## frontend-playground-radio-group
+
+- Updated `app/src/pages/playground/TemplateFormatRadioGroup.tsx` to add JSON_PATH as a selectable radio button option
+- Added new ToggleButton between F-String and None options with `aria-label="JSONPath"` and `id={TemplateFormats.JSONPath}`
+- The component uses ToggleButtonGroup from @phoenix/components which handles selection state automatically
+- No changes needed to the selection handler - it already uses `isTemplateFormat()` type guard which automatically accepts JSON_PATH (updated in frontend-types-update task)
+- No existing tests for this component, so verified changes with TypeScript typecheck and full frontend test suite (495 tests pass)
+- Pattern learned: UI components that use enum values with proper type guards automatically support new enum values without handler changes
+- The component imports TemplateFormats from constants.ts, ensuring consistency with the enum definition
+- Simple UI change that follows existing patterns - minimal risk, straightforward implementation

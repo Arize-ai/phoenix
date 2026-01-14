@@ -50,6 +50,9 @@ export function TemplateFormatRadioGroup({
         <ToggleButton aria-label="F-String" id={TemplateFormats.FString}>
           F-String
         </ToggleButton>
+        <ToggleButton aria-label="JSONPath" id={TemplateFormats.JSONPath}>
+          JSONPath
+        </ToggleButton>
         {showNoneOption && (
           <ToggleButton aria-label="None" id={TemplateFormats.NONE}>
             None

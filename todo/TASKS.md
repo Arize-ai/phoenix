@@ -125,7 +125,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-playground-radio-group
 
 - content: Update `app/src/pages/playground/TemplateFormatRadioGroup.tsx` to include JSON_PATH as a selectable option. Add appropriate label and description for the new format.
-- status: pending
+- status: complete
 - dependencies: frontend-template-editor-update
 
 ### frontend-playground-utils
