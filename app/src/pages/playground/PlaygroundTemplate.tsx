@@ -150,7 +150,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PlaygroundModelMenu playgroundInstanceId={instanceId} />
             {/* Un-comment this to get legacy behavior for cross-checking */}
             {/* <ModelConfigButton {...props} /> */}
-            <ModelParametersConfigButton playgroundInstanceId={instanceId} />
+            <ModelParametersConfigButton
+              playgroundInstanceId={instanceId}
+              disableEphemeralRouting={props.disableEphemeralRouting}
+            />
           </CompositeField>
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />

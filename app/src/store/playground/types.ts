@@ -90,6 +90,10 @@ export type ModelConfig = {
    * When set, the request will use the custom provider instead of the built-in provider.
    */
   customProviderId?: string | null;
+  /**
+   * The name of the custom provider for display purposes.
+   */
+  customProviderName?: string | null;
   invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };

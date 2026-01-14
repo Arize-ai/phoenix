@@ -1,19 +1,25 @@
 directive @oneOf on INPUT_OBJECT
 
+type AWSBedrockAccessKeys {
+  awsAccessKeyId: String!
+  awsSecretAccessKey: String!
+  awsSessionToken: String
+}
+
+input AWSBedrockAccessKeysInput {
+  awsAccessKeyId: String!
+  awsSecretAccessKey: String!
+  awsSessionToken: String
+}
+
 type AWSBedrockAuthenticationMethod {
-  awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
+  accessKeys: AWSBedrockAccessKeys
+  environment: Boolean
 }
 
-input AWSBedrockAuthenticationMethodInput {
-  awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
-}
-
-enum AWSBedrockClientInterface {
-  CONVERSE
+input AWSBedrockAuthenticationMethodInput @oneOf {
+  accessKeys: AWSBedrockAccessKeysInput
+  environment: Boolean
 }
 
 type AWSBedrockClientKwargs {
@@ -27,10 +33,8 @@ input AWSBedrockClientKwargsInput {
 }
 
 type AWSBedrockCustomProviderConfig {
-  supportsStreaming: Boolean!
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs!
-  awsBedrockClientInterface: AWSBedrockClientInterface!
 }
 
 input AWSBedrockCustomProviderConfigInput {
@@ -179,10 +183,6 @@ input AnthropicAuthenticationMethodInput {
   apiKey: String!
 }
 
-enum AnthropicClientInterface {
-  CHAT
-}
-
 type AnthropicClientKwargs {
   baseUrl: String
   defaultHeaders: JSON
@@ -194,10 +194,8 @@ input AnthropicClientKwargsInput {
 }
 
 type AnthropicCustomProviderConfig {
-  supportsStreaming: Boolean!
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
-  anthropicClientInterface: AnthropicClientInterface!
 }
 
 input AnthropicCustomProviderConfigInput {
@@ -242,11 +240,13 @@ input AzureOpenAIADTokenProviderInput {
 type AzureOpenAIAuthenticationMethod {
   apiKey: String
   azureAdTokenProvider: AzureADTokenProvider
+  environment: Boolean
 }
 
 input AzureOpenAIAuthenticationMethodInput @oneOf {
   apiKey: String
   azureAdTokenProvider: AzureOpenAIADTokenProviderInput
+  environment: Boolean
 }
 
 type AzureOpenAIClientKwargs {
@@ -260,10 +260,8 @@ input AzureOpenAIClientKwargsInput {
 }
 
 type AzureOpenAICustomProviderConfig {
-  supportsStreaming: Boolean!
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
-  azureOpenaiClientInterface: OpenAIClientInterface!
 }
 
 input AzureOpenAICustomProviderConfigInput {
@@ -359,6 +357,7 @@ type ChatCompletionFunctionCall {
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
+  credentials: [GenerativeCredentialInput!]
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   template: PromptTemplateOptions
@@ -396,6 +395,7 @@ type ChatCompletionMutationPayload {
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
+  credentials: [GenerativeCredentialInput!]
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   templateFormat: PromptTemplateFormat! = MUSTACHE
@@ -481,6 +481,7 @@ input ChatPromptVersionInput {
   responseFormat: ResponseFormatInput = null
   modelProvider: ModelProvider!
   modelName: String!
+  customProviderId: ID = null
 }
 
 type ClassificationEvaluatorConfig {
@@ -1630,6 +1631,7 @@ input EvaluatorPreviewItemInput {
 
 input EvaluatorPreviewsInput {
   previews: [EvaluatorPreviewItemInput!]!
+  credentials: [GenerativeCredentialInput!]
 }
 
 type EvaluatorPreviewsPayload {
@@ -1986,7 +1988,6 @@ input GenerativeModelBuiltinProviderInput {
   endpoint: String
   region: String
   customHeaders: JSON
-  credentials: [GenerativeCredentialInput!]
 }
 
 """A connection to a list of items."""
@@ -2126,10 +2127,6 @@ input GoogleGenAIAuthenticationMethodInput {
   apiKey: String!
 }
 
-enum GoogleGenAIClientInterface {
-  CHAT
-}
-
 type GoogleGenAIClientKwargs {
   httpOptions: GoogleGenAIHttpOptions
 }
@@ -2139,10 +2136,8 @@ input GoogleGenAIClientKwargsInput {
 }
 
 type GoogleGenAICustomProviderConfig {
-  supportsStreaming: Boolean!
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
-  googleGenaiClientInterface: GoogleGenAIClientInterface!
 }
 
 input GoogleGenAICustomProviderConfigInput {
@@ -2466,10 +2461,6 @@ input OpenAIAuthenticationMethodInput {
   apiKey: String!
 }
 
-enum OpenAIClientInterface {
-  CHAT
-}
-
 type OpenAIClientKwargs {
   baseUrl: String
   organization: String
@@ -2485,10 +2476,8 @@ input OpenAIClientKwargsInput {
 }
 
 type OpenAICustomProviderConfig {
-  supportsStreaming: Boolean!
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
-  openaiClientInterface: OpenAIClientInterface!
 }
 
 input OpenAICustomProviderConfigInput {
@@ -3059,6 +3048,7 @@ type PromptVersion implements Node {
   createdAt: DateTime!
   tags: [PromptVersionTag!]!
   user: User
+  customProvider: GenerativeModelCustomProvider
   previousVersion: PromptVersion
 
   """

@@ -35,8 +35,6 @@ class TestGenerativeModelCustomProviderMutations:
             updatedAt
             config {
               ... on OpenAICustomProviderConfig {
-                openaiClientInterface
-                supportsStreaming
                 openaiAuthenticationMethod {
                   apiKey
                 }
@@ -48,8 +46,6 @@ class TestGenerativeModelCustomProviderMutations:
                 }
               }
               ... on AzureOpenAICustomProviderConfig {
-                azureOpenaiClientInterface
-                supportsStreaming
                 azureOpenaiAuthenticationMethod {
                   apiKey
                   azureAdTokenProvider {
@@ -65,8 +61,6 @@ class TestGenerativeModelCustomProviderMutations:
                 }
               }
               ... on AnthropicCustomProviderConfig {
-                anthropicClientInterface
-                supportsStreaming
                 anthropicAuthenticationMethod {
                   apiKey
                 }
@@ -76,12 +70,12 @@ class TestGenerativeModelCustomProviderMutations:
                 }
               }
               ... on AWSBedrockCustomProviderConfig {
-                awsBedrockClientInterface
-                supportsStreaming
                 awsBedrockAuthenticationMethod {
-                  awsAccessKeyId
-                  awsSecretAccessKey
-                  awsSessionToken
+                  accessKeys {
+                    awsAccessKeyId
+                    awsSecretAccessKey
+                    awsSessionToken
+                  }
                 }
                 awsBedrockClientKwargs {
                   regionName
@@ -89,8 +83,6 @@ class TestGenerativeModelCustomProviderMutations:
                 }
               }
               ... on GoogleGenAICustomProviderConfig {
-                googleGenaiClientInterface
-                supportsStreaming
                 googleGenaiAuthenticationMethod {
                   apiKey
                 }
@@ -182,8 +174,6 @@ class TestGenerativeModelCustomProviderMutations:
         assert isinstance(openai_provider["createdAt"], str)
         assert isinstance(openai_provider["updatedAt"], str)
         config = openai_provider["config"]
-        assert config["openaiClientInterface"] == "CHAT"
-        assert config["supportsStreaming"] is True
         assert config["openaiAuthenticationMethod"]["apiKey"] == "sk-test-key"
         assert config["openaiClientKwargs"]["baseUrl"] == "https://api.openai.com/v1"
         assert config["openaiClientKwargs"]["organization"] == "org-123"
@@ -221,7 +211,6 @@ class TestGenerativeModelCustomProviderMutations:
         assert azure_provider["description"] == "Test Azure OpenAI provider"
         assert azure_provider["provider"] == "azure"
         azure_config = azure_provider["config"]
-        assert azure_config["azureOpenaiClientInterface"] == "CHAT"
         assert azure_config["azureOpenaiAuthenticationMethod"]["apiKey"] == "azure-key-123"
         assert azure_config["azureOpenaiAuthenticationMethod"]["azureAdTokenProvider"] is None
         assert (
@@ -308,8 +297,6 @@ class TestGenerativeModelCustomProviderMutations:
         assert anthropic_provider["description"] == "Test Anthropic provider"
         assert anthropic_provider["provider"] == "anthropic"
         anthropic_config = anthropic_provider["config"]
-        assert anthropic_config["anthropicClientInterface"] == "CHAT"
-        assert anthropic_config["supportsStreaming"] is True
         assert anthropic_config["anthropicAuthenticationMethod"]["apiKey"] == "sk-ant-test-key"
         assert anthropic_config["anthropicClientKwargs"]["baseUrl"] == "https://api.anthropic.com"
 
@@ -348,8 +335,6 @@ class TestGenerativeModelCustomProviderMutations:
         assert google_provider["description"] == "Test Google GenAI provider"
         assert google_provider["provider"] == "google"
         google_config = google_provider["config"]
-        assert google_config["googleGenaiClientInterface"] == "CHAT"
-        assert google_config["supportsStreaming"] is True
         assert google_config["googleGenaiAuthenticationMethod"]["apiKey"] == "google-api-key-123"
         assert "httpOptions" in google_config["googleGenaiClientKwargs"]
         http_options = google_config["googleGenaiClientKwargs"]["httpOptions"]
@@ -368,8 +353,10 @@ class TestGenerativeModelCustomProviderMutations:
                     "clientConfig": {
                         "awsBedrock": {
                             "awsBedrockAuthenticationMethod": {
-                                "awsAccessKeyId": "AKIAIOSFODNN7EXAMPLE",
-                                "awsSecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                                "accessKeys": {
+                                    "awsAccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+                                    "awsSecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                                }
                             },
                             "awsBedrockClientKwargs": {"regionName": "us-east-1"},
                         }
@@ -389,16 +376,10 @@ class TestGenerativeModelCustomProviderMutations:
         assert aws_provider["description"] == "Test AWS Bedrock provider"
         assert aws_provider["provider"] == "aws"
         aws_config = aws_provider["config"]
-        assert aws_config["awsBedrockClientInterface"] == "CONVERSE"
-        assert aws_config["supportsStreaming"] is True
-        assert (
-            aws_config["awsBedrockAuthenticationMethod"]["awsAccessKeyId"] == "AKIAIOSFODNN7EXAMPLE"
-        )
-        assert (
-            aws_config["awsBedrockAuthenticationMethod"]["awsSecretAccessKey"]
-            == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-        )
-        assert aws_config["awsBedrockAuthenticationMethod"]["awsSessionToken"] is None
+        access_keys = aws_config["awsBedrockAuthenticationMethod"]["accessKeys"]
+        assert access_keys["awsAccessKeyId"] == "AKIAIOSFODNN7EXAMPLE"
+        assert access_keys["awsSecretAccessKey"] == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        assert access_keys["awsSessionToken"] is None
         assert aws_config["awsBedrockClientKwargs"]["regionName"] == "us-east-1"
 
         # Create AWS Bedrock provider with session token
@@ -413,9 +394,11 @@ class TestGenerativeModelCustomProviderMutations:
                     "clientConfig": {
                         "awsBedrock": {
                             "awsBedrockAuthenticationMethod": {
-                                "awsAccessKeyId": "AKIAIOSFODNN7EXAMPLE",
-                                "awsSecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-                                "awsSessionToken": "FwoGZXIvYXdzEBYaDExample",
+                                "accessKeys": {
+                                    "awsAccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+                                    "awsSecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                                    "awsSessionToken": "FwoGZXIvYXdzEBYaDExample",
+                                }
                             },
                             "awsBedrockClientKwargs": {"regionName": "us-west-2"},
                         }
@@ -436,10 +419,8 @@ class TestGenerativeModelCustomProviderMutations:
         )
         assert aws_session_provider is not None
         assert aws_session_provider["name"] == aws_session_name
-        assert (
-            aws_session_provider["config"]["awsBedrockAuthenticationMethod"]["awsSessionToken"]
-            == "FwoGZXIvYXdzEBYaDExample"
-        )
+        access_keys = aws_session_provider["config"]["awsBedrockAuthenticationMethod"]["accessKeys"]
+        assert access_keys["awsSessionToken"] == "FwoGZXIvYXdzEBYaDExample"
         assert aws_session_provider["config"]["awsBedrockClientKwargs"]["regionName"] == "us-west-2"
 
         # Create provider with minimal config (optional fields omitted)
@@ -605,14 +586,12 @@ class TestGenerativeModelCustomProviderMutations:
         assert any("not found" in e.message.lower() for e in nonexistent_patch_result.errors)
 
         # Patch provider to change SDK type (OpenAI -> Anthropic)
-        # This verifies that SDK switching is allowed
-        switched_sdk_name = f"switched-sdk-provider-{token_hex(2)}"
-        patch_sdk_switch_result = await gql_client.execute(
+        # This should FAIL because incompatible SDK changes are blocked
+        patch_incompatible_sdk_result = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "id": minimal_id,  # This was an OpenAI provider
-                    "name": switched_sdk_name,
                     "clientConfig": {
                         "anthropic": {
                             "anthropicAuthenticationMethod": {"apiKey": "sk-ant-switched-key"},
@@ -623,24 +602,51 @@ class TestGenerativeModelCustomProviderMutations:
             },
             operation_name="PatchGenerativeModelCustomProvider",
         )
-        assert not patch_sdk_switch_result.errors
-        assert patch_sdk_switch_result.data is not None
-        # The returned ID should now be an Anthropic provider type
-        switched_id = patch_sdk_switch_result.data["patchGenerativeModelCustomProvider"][
+        assert patch_incompatible_sdk_result.errors is not None
+        assert any(
+            "cannot change sdk" in e.message.lower() for e in patch_incompatible_sdk_result.errors
+        )
+
+        # Patch provider to change SDK type (OpenAI -> Azure OpenAI)
+        # This should SUCCEED because openai and azure_openai are compatible SDKs
+        switched_sdk_name = f"switched-sdk-provider-{token_hex(2)}"
+        patch_compatible_sdk_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": minimal_id,  # This was an OpenAI provider
+                    "name": switched_sdk_name,
+                    "clientConfig": {
+                        "azureOpenai": {
+                            "azureOpenaiAuthenticationMethod": {"apiKey": "azure-key-compat"},
+                            "azureOpenaiClientKwargs": {
+                                "azureEndpoint": "https://compat.openai.azure.com",
+                            },
+                        }
+                    },
+                }
+            },
+            operation_name="PatchGenerativeModelCustomProvider",
+        )
+        assert not patch_compatible_sdk_result.errors
+        assert patch_compatible_sdk_result.data is not None
+        switched_id = patch_compatible_sdk_result.data["patchGenerativeModelCustomProvider"][
             "provider"
         ]["id"]
 
-        # Verify the SDK was switched - fetch using the new Anthropic-typed ID
+        # Verify the SDK was switched to Azure OpenAI
         switched_provider = await _fetch_provider_via_node_query(
             gql_client, switched_id, self.QUERY
         )
         assert switched_provider is not None
         assert switched_provider["name"] == switched_sdk_name
-        # Verify Anthropic config is present
+        # Verify Azure OpenAI config is present
         switched_config = switched_provider["config"]
-        assert switched_config["anthropicClientInterface"] == "CHAT"
-        assert switched_config["anthropicAuthenticationMethod"]["apiKey"] == "sk-ant-switched-key"
-        assert switched_config["anthropicClientKwargs"]["baseUrl"] == "https://api.anthropic.com"
+        assert switched_config["azureOpenaiAuthenticationMethod"]["apiKey"] == "azure-key-compat"
+        assert (
+            switched_config["azureOpenaiClientKwargs"]["azureEndpoint"]
+            == "https://compat.openai.azure.com"
+        )
 
         # ===== DELETE TESTS =====
 

@@ -45,6 +45,10 @@ export type ModelMenuValue = {
    * The custom provider ID if using a custom provider
    */
   customProviderId?: string;
+  /**
+   * The custom provider name if using a custom provider
+   */
+  customProviderName?: string;
 };
 
 type CustomProviderInfo = {
@@ -337,13 +341,15 @@ function ModelsByProviderMenu({
   const handleModelSelect = (
     providerKey: string,
     modelName: string,
-    customProviderId?: string
+    customProviderId?: string,
+    customProviderName?: string
   ) => {
     if (isModelProvider(providerKey)) {
       onChange?.({
         provider: providerKey,
         modelName,
         customProviderId,
+        customProviderName,
       });
     }
   };
@@ -373,7 +379,8 @@ function ModelsByProviderMenu({
               handleModelSelect(
                 providerKey,
                 modelInfo.modelName,
-                modelInfo.customProviderId
+                modelInfo.customProviderId,
+                customProvider.name
               );
             }
             break;
@@ -504,6 +511,7 @@ function ProviderMenu({
               providerKey={providerKey}
               models={customProvider.modelNames}
               customProviderId={customProvider.id}
+              customProviderName={customProvider.name}
               onChange={onChange}
             />
           </SubmenuTrigger>
@@ -549,6 +557,10 @@ type ProviderModelsSubmenuProps = {
    * If provided, this is a custom provider and the ID will be included in the selection
    */
   customProviderId?: string;
+  /**
+   * If provided, this is a custom provider and the name will be included in the selection
+   */
+  customProviderName?: string;
 };
 
 /**
@@ -561,6 +573,7 @@ function ProviderModelsSubmenu({
   models,
   onChange,
   customProviderId,
+  customProviderName,
 }: ProviderModelsSubmenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -633,6 +646,7 @@ function ProviderModelsSubmenu({
               provider: providerKey,
               modelName,
               customProviderId,
+              customProviderName,
             });
           }}
         >

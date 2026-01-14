@@ -28,6 +28,8 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
     from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
 
+    from phoenix.db.models import GenerativeModelSDK
+
 # Generic type for client factory
 ClientT = TypeVar("ClientT")
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
@@ -65,6 +67,35 @@ class ModelProvider(Enum):
     AWS = "AWS"
 
 
+def is_sdk_compatible_with_model_provider(
+    sdk: "GenerativeModelSDK",
+    model_provider: ModelProvider,
+) -> bool:
+    """
+    Check if a custom provider's SDK can be used with a prompt's model provider.
+
+    This prevents misconfigurations like using an AWS Bedrock custom provider
+    with an OpenAI prompt.
+    """
+    if sdk == "openai" or sdk == "azure_openai":
+        # openai and azure_openai SDKs are compatible with OpenAI-family providers
+        return model_provider in (
+            ModelProvider.OPENAI,
+            ModelProvider.AZURE_OPENAI,
+            ModelProvider.DEEPSEEK,
+            ModelProvider.XAI,
+            ModelProvider.OLLAMA,
+        )
+    if sdk == "anthropic":
+        return model_provider is ModelProvider.ANTHROPIC
+    if sdk == "google_genai":
+        return model_provider is ModelProvider.GOOGLE
+    if sdk == "aws_bedrock":
+        return model_provider is ModelProvider.AWS
+    else:
+        assert_never(sdk)
+
+
 class AuthenticationMethodApiKey(BaseModel):
     model_config = ConfigDict(
         frozen=True,
@@ -76,6 +107,18 @@ class AuthenticationMethodApiKey(BaseModel):
         ...,
         description="API key",
     )
+
+
+class AuthenticationMethodEnvironment(BaseModel):
+    """
+    Authentication method that delegates to the SDK's default credential chain.
+
+    For AWS: boto3 credential chain (IAM role, env vars, ~/.aws/credentials)
+    For Azure: DefaultAzureCredential (Managed Identity, Azure CLI, env vars)
+    """
+
+    model_config = ConfigDict(frozen=True)
+    type: Literal["environment"] = "environment"
 
 
 OpenAIAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -111,12 +154,10 @@ class OpenAICustomProviderConfig(BaseModel):
         str_strip_whitespace=True,
     )
     type: Literal["openai"] = "openai"
-    supports_streaming: bool = True
     openai_authentication_method: OpenAIAuthenticationMethod = Field(
         ...,
         description="OpenAI authentication method",
     )
-    openai_client_interface: Literal["chat"] = "chat"
     openai_client_kwargs: OpenAIClientKwargs | None = Field(
         default=None,
         description="OpenAI client kwargs",
@@ -189,7 +230,9 @@ class AuthenticationMethodAzureADTokenProvider(BaseModel):
 
 
 AzureOpenAIAuthenticationMethod = Annotated[
-    AuthenticationMethodApiKey | AuthenticationMethodAzureADTokenProvider,
+    AuthenticationMethodApiKey
+    | AuthenticationMethodAzureADTokenProvider
+    | AuthenticationMethodEnvironment,
     Field(discriminator="type"),
 ]
 
@@ -216,12 +259,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         str_strip_whitespace=True,
     )
     type: Literal["azure_openai"] = "azure_openai"
-    supports_streaming: bool = True
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod = Field(
         ...,
         description="Azure OpenAI authentication method",
     )
-    azure_openai_client_interface: Literal["chat"] = "chat"
     azure_openai_client_kwargs: AzureOpenAIClientKwargs = Field(
         ...,
         description="Azure OpenAI client kwargs",
@@ -301,6 +342,29 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     )
 
             return create_client_with_token
+
+        elif method.type == "environment":
+            # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
+            try:
+                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+            except ImportError:
+                raise ImportError(
+                    "Azure identity package not installed. Run: pip install azure-identity"
+                )
+            scope = "https://cognitiveservices.azure.com/.default"
+            default_cred = DefaultAzureCredential()
+            token_provider = get_bearer_token_provider(default_cred, scope)
+
+            def create_client_with_default_cred() -> AsyncOpenAI:
+                # No env var isolation needed - credentials are already resolved via token_provider
+                return AsyncOpenAI(
+                    api_key=token_provider,
+                    base_url=base_url,
+                    default_headers=merged_headers,
+                )
+
+            return create_client_with_default_cred
+
         else:
             assert_never(method.type)
 
@@ -330,12 +394,10 @@ class AnthropicCustomProviderConfig(BaseModel):
         str_strip_whitespace=True,
     )
     type: Literal["anthropic"] = "anthropic"
-    supports_streaming: bool = True
     anthropic_authentication_method: AnthropicAuthenticationMethod = Field(
         ...,
         description="Anthropic authentication method",
     )
-    anthropic_client_interface: Literal["chat"] = "chat"
     anthropic_client_kwargs: AnthropicClientKwargs | None = Field(
         default=None,
         description="Anthropic client kwargs",
@@ -379,12 +441,15 @@ class AnthropicCustomProviderConfig(BaseModel):
         return create_client
 
 
-class AWSBedrockAuthenticationMethod(BaseModel):
+class AWSBedrockAuthenticationMethodAccessKeys(BaseModel):
+    """Authentication using explicit AWS access keys."""
+
     model_config = ConfigDict(
         frozen=True,
         str_min_length=1,
         str_strip_whitespace=True,
     )
+    type: Literal["access_keys"] = "access_keys"
     aws_access_key_id: str = Field(
         ...,
         description="AWS access key ID",
@@ -397,6 +462,12 @@ class AWSBedrockAuthenticationMethod(BaseModel):
         default=None,
         description="AWS session token (optional)",
     )
+
+
+AWSBedrockAuthenticationMethod = Annotated[
+    AWSBedrockAuthenticationMethodAccessKeys | AuthenticationMethodEnvironment,
+    Field(discriminator="type"),
+]
 
 
 class AWSBedrockClientKwargs(BaseModel):
@@ -421,12 +492,10 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         str_strip_whitespace=True,
     )
     type: Literal["aws_bedrock"] = "aws_bedrock"
-    supports_streaming: bool = True
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethod = Field(
         ...,
         description="AWS Bedrock authentication method",
     )
-    aws_bedrock_client_interface: Literal["converse"] = "converse"
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs = Field(
         ...,
         description="AWS Bedrock client kwargs",
@@ -460,33 +529,50 @@ class AWSBedrockCustomProviderConfig(BaseModel):
 
         method = self.aws_bedrock_authentication_method
 
-        aws_access_key_id = method.aws_access_key_id
-        aws_secret_access_key = method.aws_secret_access_key
-        aws_session_token = method.aws_session_token
-
         # Capture extra_headers in closure for use in factory
         headers = extra_headers
 
-        # Create session once with env var isolation - session holds only config,
-        # not HTTP connections. Explicit credentials are captured at session creation.
-        with without_env_vars("AWS_*"):
-            session = aioboto3.Session(
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-            )
+        if method.type == "access_keys":
+            # Explicit credentials provided
+            aws_access_key_id = method.aws_access_key_id
+            aws_secret_access_key = method.aws_secret_access_key
+            aws_session_token = method.aws_session_token
 
-        def create_client() -> "AbstractAsyncContextManager[BedrockRuntimeClient]":
-            # Client creation still needs env var isolation for endpoint resolution
+            # Create session with env var isolation - explicit credentials are captured
             with without_env_vars("AWS_*"):
+                session = aioboto3.Session(
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    aws_session_token=aws_session_token,
+                    region_name=region_name,
+                )
+
+            def create_client_with_keys() -> "AbstractAsyncContextManager[BedrockRuntimeClient]":
+                # Client creation still needs env var isolation for endpoint resolution
+                with without_env_vars("AWS_*"):
+                    client_context = session.client(
+                        service_name="bedrock-runtime",
+                        endpoint_url=endpoint_url,
+                    )
+                return _bedrock_client_with_headers(client_context, headers)
+
+            return create_client_with_keys
+
+        elif method.type == "environment":
+            # Use boto3 default credential chain (IAM role, env vars, ~/.aws/credentials)
+            session = aioboto3.Session(region_name=region_name)
+
+            def create_client_with_env() -> "AbstractAsyncContextManager[BedrockRuntimeClient]":
                 client_context = session.client(
                     service_name="bedrock-runtime",
                     endpoint_url=endpoint_url,
                 )
-            return _bedrock_client_with_headers(client_context, headers)
+                return _bedrock_client_with_headers(client_context, headers)
 
-        return create_client
+            return create_client_with_env
+
+        else:
+            assert_never(method.type)
 
 
 GoogleGenAIAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -526,12 +612,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         str_strip_whitespace=True,
     )
     type: Literal["google_genai"] = "google_genai"
-    supports_streaming: bool = True
     google_genai_authentication_method: GoogleGenAIAuthenticationMethod = Field(
         ...,
         description="Google GenAI authentication method",
     )
-    google_genai_client_interface: Literal["chat"] = "chat"
     google_genai_client_kwargs: GoogleGenAIClientKwargs | None = Field(
         default=None,
         description="Google GenAI client kwargs",

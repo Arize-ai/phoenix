@@ -150,6 +150,10 @@ export const promptVersionToInstance = ({
         modelName
         modelProvider
         invocationParameters
+        customProvider {
+          id
+          name
+        }
         responseFormat {
           definition
         }
@@ -218,6 +222,8 @@ export const promptVersionToInstance = ({
       ...newInstance.model,
       modelName,
       provider,
+      customProviderId: promptVersion.customProvider?.id ?? null,
+      customProviderName: promptVersion.customProvider?.name ?? null,
       supportedInvocationParameters: supportedInvocationParameters || [],
       invocationParameters: objectToInvocationParameters(
         {
@@ -410,6 +416,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   const newPromptVersion = {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
+    customProviderId: instance.model.customProviderId ?? null,
     template: {
       messages: templateMessages,
     },

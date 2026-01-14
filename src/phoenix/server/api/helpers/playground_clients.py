@@ -40,7 +40,9 @@ from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
 from phoenix.db import models
-from phoenix.db.types.model_provider import GenerativeModelCustomerProviderConfig
+from phoenix.db.types.model_provider import (
+    GenerativeModelCustomerProviderConfig,
+)
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
     GenericType,
@@ -1881,6 +1883,7 @@ async def get_playground_client(
     model: GenerativeModelInput,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
 ) -> "PlaygroundStreamingClient[Any]":
     """
     Create a playground streaming client for the given model configuration.
@@ -1894,6 +1897,7 @@ async def get_playground_client(
         model: The model configuration specifying either a builtin or custom provider.
         db: Database session factory for loading secrets and custom provider configs.
         decrypt: Function to decrypt encrypted values from the database.
+        credentials: Optional list of credentials to use for authentication.
 
     Returns:
         A configured PlaygroundStreamingClient ready for chat completions.
@@ -1903,7 +1907,7 @@ async def get_playground_client(
         NotFound: If a custom provider ID doesn't exist.
     """
     if builtin := model.builtin:
-        return await _get_builtin_provider_client(builtin, session, decrypt)
+        return await _get_builtin_provider_client(builtin, session, decrypt, credentials)
     if custom := model.custom:
         return await _get_custom_provider_client(custom, session, decrypt)
     raise BadRequest("Model input must specify either a builtin or custom provider")
@@ -1958,12 +1962,13 @@ async def _get_builtin_provider_client(
     obj: GenerativeModelBuiltinProviderInput,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
 ) -> "PlaygroundStreamingClient[Any]":
     """
     Create a playground client from a builtin provider configuration.
 
     Credentials are resolved in priority order:
-    1. Explicitly provided in obj.credentials
+    1. Explicitly provided credentials
     2. Encrypted secrets in the database
     3. Environment variables
     """
@@ -1979,7 +1984,7 @@ async def _get_builtin_provider_client(
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
         api_key = (
-            _get_credential_from_input(obj.credentials, "OPENAI_API_KEY")
+            _get_credential_from_input(credentials, "OPENAI_API_KEY")
             or (await _resolve_secrets(session, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
             or getenv("OPENAI_API_KEY")
         )
@@ -2019,7 +2024,7 @@ async def _get_builtin_provider_client(
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
         api_key = (
-            _get_credential_from_input(obj.credentials, "AZURE_OPENAI_API_KEY")
+            _get_credential_from_input(credentials, "AZURE_OPENAI_API_KEY")
             or (await _resolve_secrets(session, decrypt, "AZURE_OPENAI_API_KEY")).get(
                 "AZURE_OPENAI_API_KEY"
             )
@@ -2087,7 +2092,7 @@ async def _get_builtin_provider_client(
             raise BadRequest("Anthropic package not installed. Run: pip install anthropic")
 
         api_key = (
-            _get_credential_from_input(obj.credentials, "ANTHROPIC_API_KEY")
+            _get_credential_from_input(credentials, "ANTHROPIC_API_KEY")
             or (await _resolve_secrets(session, decrypt, "ANTHROPIC_API_KEY")).get(
                 "ANTHROPIC_API_KEY"
             )
@@ -2121,8 +2126,8 @@ async def _get_builtin_provider_client(
 
         # Try input credentials first
         api_key = _get_credential_from_input(
-            obj.credentials, "GEMINI_API_KEY"
-        ) or _get_credential_from_input(obj.credentials, "GOOGLE_API_KEY")
+            credentials, "GEMINI_API_KEY"
+        ) or _get_credential_from_input(credentials, "GOOGLE_API_KEY")
 
         # Fall back to database secrets
         if not api_key:
@@ -2157,9 +2162,9 @@ async def _get_builtin_provider_client(
         region = obj.region or getenv("AWS_REGION") or "us-east-1"
 
         # Collect credentials from input
-        aws_access_key_id = _get_credential_from_input(obj.credentials, "AWS_ACCESS_KEY_ID")
-        aws_secret_access_key = _get_credential_from_input(obj.credentials, "AWS_SECRET_ACCESS_KEY")
-        aws_session_token = _get_credential_from_input(obj.credentials, "AWS_SESSION_TOKEN")
+        aws_access_key_id = _get_credential_from_input(credentials, "AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = _get_credential_from_input(credentials, "AWS_SECRET_ACCESS_KEY")
+        aws_session_token = _get_credential_from_input(credentials, "AWS_SESSION_TOKEN")
 
         # Fall back to database secrets for missing credentials
         if not aws_access_key_id or not aws_secret_access_key:
@@ -2201,7 +2206,7 @@ async def _get_builtin_provider_client(
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
         api_key = (
-            _get_credential_from_input(obj.credentials, "DEEPSEEK_API_KEY")
+            _get_credential_from_input(credentials, "DEEPSEEK_API_KEY")
             or (await _resolve_secrets(session, decrypt, "DEEPSEEK_API_KEY")).get(
                 "DEEPSEEK_API_KEY"
             )
@@ -2236,7 +2241,7 @@ async def _get_builtin_provider_client(
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
         api_key = (
-            _get_credential_from_input(obj.credentials, "XAI_API_KEY")
+            _get_credential_from_input(credentials, "XAI_API_KEY")
             or (await _resolve_secrets(session, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
             or getenv("XAI_API_KEY")
         )
@@ -2335,6 +2340,7 @@ async def _get_custom_provider_client(
     provider = provider_record.provider
     headers = dict(obj.extra_headers) if obj.extra_headers else None
     cfg = config.root
+
     if cfg.type == "openai":
         try:
             openai_client_factory = cfg.get_client_factory(extra_headers=headers)

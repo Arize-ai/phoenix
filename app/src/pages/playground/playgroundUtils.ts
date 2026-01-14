@@ -1182,7 +1182,6 @@ const getBaseChatCompletionInput = ({
           name: instance.model.modelName || "",
           baseUrl: instance.model.baseUrl,
           customHeaders: instance.model.customHeaders,
-          credentials: getCredentials(credentials, instance.model.provider),
           ...azureModelParams,
           ...awsModelParams,
         },
@@ -1191,6 +1190,7 @@ const getBaseChatCompletionInput = ({
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model,
+    credentials: getAllCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
       instance.model.provider,
@@ -1231,26 +1231,33 @@ export const denormalizePlaygroundInstance = (
 };
 
 /**
- * A function that gets the credentials for a provider
+ * A function that gets all credentials from all providers.
+ * This is needed because evaluators may use different providers than the prompt.
  */
-function getCredentials(
-  credentials: CredentialsState,
-  provider: ModelProvider
+export function getAllCredentials(
+  credentials: CredentialsState
 ): GenerativeCredentialInput[] {
-  const providerCredentials = credentials[provider];
-  const providerCredentialsConfig = ProviderToCredentialsConfigMap[provider];
-  if (!providerCredentials) {
-    // This means the credentials are missing, however we don't want to throw here so we return an empty array
-    return [];
+  const allCredentials: GenerativeCredentialInput[] = [];
+
+  for (const [provider, config] of Object.entries(
+    ProviderToCredentialsConfigMap
+  )) {
+    const providerCredentials = credentials[provider as ModelProvider];
+    if (!providerCredentials) {
+      continue;
+    }
+    for (const credential of config) {
+      const value = providerCredentials[credential.envVarName];
+      if (value) {
+        allCredentials.push({
+          envVarName: credential.envVarName,
+          value,
+        });
+      }
+    }
   }
-  if (providerCredentialsConfig.length === 0) {
-    // This means that the provider doesn't require any credentials
-    return [];
-  }
-  return providerCredentialsConfig.map((credential) => ({
-    envVarName: credential.envVarName,
-    value: providerCredentials[credential.envVarName] ?? "",
-  }));
+
+  return allCredentials;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d0dc3af443ecb81334dd2139a8cbaeb>>
+ * @generated SignedSource<<15fd03cba65e4896154ed1837554254f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -173,7 +173,20 @@ v9 = {
   "name": "invocationParameters",
   "storageKey": null
 },
-v10 = [
+v10 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "GenerativeModelCustomProvider",
+  "kind": "LinkedField",
+  "name": "customProvider",
+  "plural": false,
+  "selections": [
+    (v2/*: any*/),
+    (v3/*: any*/)
+  ],
+  "storageKey": null
+},
+v11 = [
   {
     "alias": null,
     "args": null,
@@ -182,31 +195,31 @@ v10 = [
     "storageKey": null
   }
 ],
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "ResponseFormat",
   "kind": "LinkedField",
   "name": "responseFormat",
   "plural": false,
-  "selections": (v10/*: any*/),
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
+  "selections": (v11/*: any*/),
   "storageKey": null
 },
 v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "toolCallId",
+  "name": "__typename",
   "storageKey": null
 },
 v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "toolCallId",
+  "storageKey": null
+},
+v15 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -232,7 +245,7 @@ v14 = {
           "name": "content",
           "plural": true,
           "selections": [
-            (v12/*: any*/),
+            (v13/*: any*/),
             {
               "kind": "InlineFragment",
               "selections": [
@@ -269,7 +282,7 @@ v14 = {
                   "name": "toolCall",
                   "plural": false,
                   "selections": [
-                    (v13/*: any*/),
+                    (v14/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -307,7 +320,7 @@ v14 = {
                   "name": "toolResult",
                   "plural": false,
                   "selections": [
-                    (v13/*: any*/),
+                    (v14/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -332,7 +345,7 @@ v14 = {
   "type": "PromptChatTemplate",
   "abstractKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -340,8 +353,8 @@ v15 = {
   "name": "template",
   "plural": false,
   "selections": [
-    (v12/*: any*/),
-    (v14/*: any*/),
+    (v13/*: any*/),
+    (v15/*: any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -359,31 +372,31 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": (v10/*: any*/),
-  "storageKey": null
-},
-v17 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateType",
+  "selections": (v11/*: any*/),
   "storageKey": null
 },
 v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "templateFormat",
+  "name": "templateType",
   "storageKey": null
 },
 v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "templateFormat",
+  "storageKey": null
+},
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -428,9 +441,10 @@ return {
                       (v7/*: any*/),
                       (v8/*: any*/),
                       (v9/*: any*/),
-                      (v11/*: any*/),
-                      (v15/*: any*/),
-                      (v16/*: any*/)
+                      (v10/*: any*/),
+                      (v12/*: any*/),
+                      (v16/*: any*/),
+                      (v17/*: any*/)
                     ],
                     "args": null,
                     "argumentDefinitions": []
@@ -440,8 +454,8 @@ return {
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
-                  (v17/*: any*/),
                   (v18/*: any*/),
+                  (v19/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -451,11 +465,11 @@ return {
                     "plural": true,
                     "selections": [
                       (v3/*: any*/),
-                      (v19/*: any*/)
+                      (v20/*: any*/)
                     ],
                     "storageKey": null
                   },
-                  (v11/*: any*/),
+                  (v12/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -464,12 +478,12 @@ return {
                     "name": "template",
                     "plural": false,
                     "selections": [
-                      (v12/*: any*/),
-                      (v14/*: any*/)
+                      (v13/*: any*/),
+                      (v15/*: any*/)
                     ],
                     "storageKey": null
                   },
-                  (v16/*: any*/)
+                  (v17/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -498,7 +512,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v12/*: any*/),
+          (v13/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -518,12 +532,13 @@ return {
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
-                  (v11/*: any*/),
-                  (v15/*: any*/),
+                  (v10/*: any*/),
+                  (v12/*: any*/),
                   (v16/*: any*/),
-                  (v5/*: any*/),
                   (v17/*: any*/),
+                  (v5/*: any*/),
                   (v18/*: any*/),
+                  (v19/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -533,7 +548,7 @@ return {
                     "plural": true,
                     "selections": [
                       (v3/*: any*/),
-                      (v19/*: any*/),
+                      (v20/*: any*/),
                       (v2/*: any*/)
                     ],
                     "storageKey": null
@@ -551,12 +566,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7829e3bdc0bbd6d0362786cf18a72ed5",
+    "cacheID": "84a2719f062a06e9a808e7f3040a50d7",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n  $promptVersionId: ID\n  $tagName: Identifier\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version(versionId: $promptVersionId, tagName: $tagName) {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        tags {\n          name\n          promptVersionId\n          id\n        }\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n  $promptVersionId: ID\n  $tagName: Identifier\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version(versionId: $promptVersionId, tagName: $tagName) {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        tags {\n          name\n          promptVersionId\n          id\n        }\n        responseFormat {\n          definition\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          definition\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

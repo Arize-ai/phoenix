@@ -26,11 +26,14 @@ import type {
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import { getAllCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
   | { kind: "success"; annotation: Annotation }
@@ -44,12 +47,11 @@ export const EvaluatorOutputPreview = () => {
   const evaluatorStore = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const playgroundStore = usePlaygroundStore();
+  const credentials = useCredentialsContext((state) => state);
   const [previewEvaluator, isLoadingEvaluatorPreview] =
     useMutation<EvaluatorOutputPreviewMutation>(graphql`
-      mutation EvaluatorOutputPreviewMutation(
-        $input: EvaluatorPreviewItemInput!
-      ) {
-        evaluatorPreviews(input: { previews: [$input] }) {
+      mutation EvaluatorOutputPreviewMutation($input: EvaluatorPreviewsInput!) {
+        evaluatorPreviews(input: $input) {
           results {
             __typename
             ... on EvaluationSuccess {
@@ -108,14 +110,24 @@ export const EvaluatorOutputPreview = () => {
     previewEvaluator({
       variables: {
         input: {
-          context: state.evaluatorMappingSource,
-          evaluator: params,
-          inputMapping: state.evaluator.inputMapping,
+          previews: [
+            {
+              context: state.evaluatorMappingSource,
+              evaluator: params,
+              inputMapping: state.evaluator.inputMapping,
+            },
+          ],
+          credentials: getAllCredentials(credentials),
         },
       },
       onCompleted(response, errors) {
         if (errors) {
-          setError(errors[0].message);
+          const errorMessages = getErrorMessagesFromRelayMutationError(errors);
+          const errorMessage =
+            errorMessages?.join("\n") ??
+            errors[0]?.message ??
+            "An unknown error occurred";
+          setError(errorMessage);
         } else {
           const results: EvaluationPreviewResult[] =
             response.evaluatorPreviews.results
@@ -149,7 +161,12 @@ export const EvaluatorOutputPreview = () => {
         }
       },
       onError(error) {
-        setError(error.message);
+        const errorMessages = getErrorMessagesFromRelayMutationError(error);
+        const errorMessage =
+          errorMessages?.join("\n") ??
+          error.message ??
+          "An unknown error occurred";
+        setError(errorMessage);
       },
     });
   };
@@ -235,18 +252,27 @@ export const EvaluatorOutputPreview = () => {
           </Flex>
 
           {error && (
-            <div
-              css={css`
-                padding: var(--ac-global-dimension-size-100);
-                background-color: var(--ac-global-color-danger-100);
-                border-radius: var(--ac-global-rounding-small);
-                white-space: pre-wrap;
-                overflow: auto;
-                max-height: 200px;
-              `}
+            <Card
+              title="Error"
+              extra={
+                <IconButton size="S" onPress={() => setError(null)}>
+                  <Icon svg={<Icons.CloseOutline />} />
+                </IconButton>
+              }
             >
-              <Text color="danger">{error}</Text>
-            </div>
+              <div
+                css={css`
+                  padding: var(--ac-global-dimension-size-100);
+                  background-color: var(--ac-global-color-danger-100);
+                  border-radius: var(--ac-global-rounding-small);
+                  white-space: pre-wrap;
+                  overflow: auto;
+                  max-height: 200px;
+                `}
+              >
+                <Text color="danger">{error}</Text>
+              </div>
+            </Card>
           )}
         </Flex>
       )}

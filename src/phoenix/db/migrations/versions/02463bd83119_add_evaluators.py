@@ -229,8 +229,37 @@ def upgrade() -> None:
         ),
     )
 
+    # Add custom_provider_id FK to prompt_versions for evaluator provider binding
+    # NULL = use built-in provider (secrets/env vars)
+    # SET = use custom provider config
+    with op.batch_alter_table(
+        "prompt_versions",
+        table_kwargs={"sqlite_autoincrement": True},
+    ) as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "custom_provider_id",
+                _Integer,
+                sa.ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+        )
+    # Create index outside batch operation to avoid _alembic_tmp_ naming issues
+    op.create_index(
+        "ix_prompt_versions_custom_provider_id",
+        "prompt_versions",
+        ["custom_provider_id"],
+    )
+
 
 def downgrade() -> None:
+    # Drop index outside batch operation first
+    op.drop_index("ix_prompt_versions_custom_provider_id", table_name="prompt_versions")
+    with op.batch_alter_table(
+        "prompt_versions",
+        table_kwargs={"sqlite_autoincrement": True},
+    ) as batch_op:
+        batch_op.drop_column("custom_provider_id")
     op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")

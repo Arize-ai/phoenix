@@ -318,12 +318,16 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model, session=session, decrypt=info.context.decrypt
+                model=input.model,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
             llm_evaluators = await get_llm_evaluators(
                 evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
             if (
                 playground_project_id := await session.scalar(
@@ -447,12 +451,16 @@ class Subscription:
         )
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model, session=session, decrypt=info.context.decrypt
+                model=input.model,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
             llm_evaluators = await get_llm_evaluators(
                 evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))

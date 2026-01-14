@@ -94,8 +94,9 @@ export function createDefaultFormData(
         sdk: "AWS_BEDROCK",
         provider: SDK_DEFAULT_PROVIDER.AWS_BEDROCK,
         aws_region: "",
-        aws_access_key_id: "",
-        aws_secret_access_key: "",
+        aws_auth_method: "environment",
+        aws_access_key_id: undefined,
+        aws_secret_access_key: undefined,
         aws_session_token: undefined,
         aws_endpoint_url: undefined,
       } satisfies AWSBedrockFormData;
@@ -169,8 +170,12 @@ export function transformConfigToFormValues(
       const kwargs = config?.azureOpenaiClientKwargs;
 
       // Determine auth method based on which credentials are present
-      const authMethodType: AzureOpenAIFormData["azure_auth_method"] =
-        authMethod?.azureAdTokenProvider ? "ad_token_provider" : "api_key";
+      let authMethodType: AzureOpenAIFormData["azure_auth_method"] = "api_key";
+      if (authMethod?.environment) {
+        authMethodType = "environment";
+      } else if (authMethod?.azureAdTokenProvider) {
+        authMethodType = "ad_token_provider";
+      }
 
       return {
         ...baseValues,
@@ -200,20 +205,27 @@ export function transformConfigToFormValues(
         ),
       };
 
-    case "AWS_BEDROCK":
+    case "AWS_BEDROCK": {
+      const authMethod = config?.awsBedrockAuthenticationMethod;
+      // Determine auth method based on which fields are present
+      let authMethodType: AWSBedrockFormData["aws_auth_method"] = "access_keys";
+      if (authMethod?.environment) {
+        authMethodType = "environment";
+      }
+
       return {
         ...baseValues,
         sdk: "AWS_BEDROCK",
         aws_region: config?.awsBedrockClientKwargs?.regionName || "",
-        aws_access_key_id:
-          config?.awsBedrockAuthenticationMethod?.awsAccessKeyId || "",
+        aws_auth_method: authMethodType,
+        aws_access_key_id: authMethod?.accessKeys?.awsAccessKeyId ?? undefined,
         aws_secret_access_key:
-          config?.awsBedrockAuthenticationMethod?.awsSecretAccessKey || "",
-        aws_session_token:
-          config?.awsBedrockAuthenticationMethod?.awsSessionToken ?? undefined,
+          authMethod?.accessKeys?.awsSecretAccessKey ?? undefined,
+        aws_session_token: authMethod?.accessKeys?.awsSessionToken ?? undefined,
         aws_endpoint_url:
           config?.awsBedrockClientKwargs?.endpointUrl ?? undefined,
       };
+    }
 
     case "GOOGLE_GENAI": {
       const httpOptions = config?.googleGenaiClientKwargs?.httpOptions;
@@ -286,39 +298,44 @@ export function buildClientConfig(
       // Build auth method based on selected type
       // Note: We don't use compressObject here because the GraphQL types require
       // specific fields to be non-optional
-      const authMethodType = formData.azure_auth_method;
-      let authMethod: AzureOpenAIAuthenticationMethodInput;
-
-      if (authMethodType === "ad_token_provider") {
-        invariant(
-          formData.azure_tenant_id,
-          "Azure tenant ID is required for AD token provider"
-        );
-        invariant(
-          formData.azure_client_id,
-          "Azure client ID is required for AD token provider"
-        );
-        invariant(
-          formData.azure_client_secret,
-          "Azure client secret is required for AD token provider"
-        );
-        authMethod = {
-          azureAdTokenProvider: {
-            azureTenantId: formData.azure_tenant_id,
-            azureClientId: formData.azure_client_id,
-            azureClientSecret: formData.azure_client_secret,
-            ...(formData.azure_scope && { scope: formData.azure_scope }),
-          },
-        };
-      } else {
-        invariant(
-          formData.azure_api_key,
-          "Azure API key is required when using API key authentication"
-        );
-        authMethod = {
-          apiKey: formData.azure_api_key,
-        };
-      }
+      const authMethod: AzureOpenAIAuthenticationMethodInput = (() => {
+        switch (formData.azure_auth_method) {
+          case "environment":
+            return { environment: true };
+          case "ad_token_provider":
+            invariant(
+              formData.azure_tenant_id,
+              "Azure tenant ID is required for AD token provider"
+            );
+            invariant(
+              formData.azure_client_id,
+              "Azure client ID is required for AD token provider"
+            );
+            invariant(
+              formData.azure_client_secret,
+              "Azure client secret is required for AD token provider"
+            );
+            return {
+              azureAdTokenProvider: {
+                azureTenantId: formData.azure_tenant_id,
+                azureClientId: formData.azure_client_id,
+                azureClientSecret: formData.azure_client_secret,
+                ...(formData.azure_scope && { scope: formData.azure_scope }),
+              },
+            };
+          case "api_key":
+            invariant(
+              formData.azure_api_key,
+              "Azure API key is required when using API key authentication"
+            );
+            return { apiKey: formData.azure_api_key };
+          default:
+            invariant(
+              false,
+              `Unknown Azure auth method: ${formData.azure_auth_method}`
+            );
+        }
+      })();
 
       // Build azureOpenaiClientKwargs with required fields directly (not via compactObject)
       // to ensure it's never undefined. Optional fields are added conditionally.
@@ -355,20 +372,41 @@ export function buildClientConfig(
         },
       };
     case "AWS_BEDROCK": {
-      // Validate required field before constructing the object.
+      // Validate required fields before constructing the object.
       // This should be guaranteed by Zod validation, but we assert here for type safety
       // and defense-in-depth against validation bypasses.
       invariant(formData.aws_region, "AWS region is required but was empty");
+      invariant(
+        formData.aws_auth_method,
+        "AWS authentication method is required but was empty"
+      );
+
+      // Build auth method based on selected type
+      const awsAuthMethod = (() => {
+        switch (formData.aws_auth_method) {
+          case "environment":
+            return { environment: true as const };
+          case "access_keys":
+            return {
+              accessKeys: {
+                awsAccessKeyId: formData.aws_access_key_id!,
+                awsSecretAccessKey: formData.aws_secret_access_key!,
+                ...(formData.aws_session_token && {
+                  awsSessionToken: formData.aws_session_token,
+                }),
+              },
+            };
+          default:
+            invariant(
+              false,
+              `Unknown AWS auth method: ${formData.aws_auth_method}`
+            );
+        }
+      })();
 
       return {
         awsBedrock: {
-          awsBedrockAuthenticationMethod: {
-            awsAccessKeyId: formData.aws_access_key_id,
-            awsSecretAccessKey: formData.aws_secret_access_key,
-            ...(formData.aws_session_token && {
-              awsSessionToken: formData.aws_session_token,
-            }),
-          },
+          awsBedrockAuthenticationMethod: awsAuthMethod,
           // Build awsBedrockClientKwargs with required fields directly (not via compactObject)
           // to ensure it's never undefined. Optional fields are added conditionally.
           awsBedrockClientKwargs: {
@@ -511,6 +549,7 @@ function hasConfigChanged(
       invariant(originalValues.sdk === "AWS_BEDROCK", "SDK mismatch");
       return (
         formData.aws_region !== originalValues.aws_region ||
+        formData.aws_auth_method !== originalValues.aws_auth_method ||
         formData.aws_access_key_id !== originalValues.aws_access_key_id ||
         formData.aws_secret_access_key !==
           originalValues.aws_secret_access_key ||

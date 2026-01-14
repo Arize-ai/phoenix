@@ -55,6 +55,7 @@ export function PlaygroundModelMenu({
         patch: {
           modelName: model.modelName,
           customProviderId: model.customProviderId ?? null,
+          customProviderName: model.customProviderName ?? null,
         },
       });
     },
