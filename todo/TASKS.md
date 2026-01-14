@@ -87,7 +87,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-jsonpath-grammar
 
 - content: Create Lezer grammar for JSON_PATH templating in `app/src/components/templateEditor/language/jsonPath/`. Follow the pattern of fString and mustacheLike directories. Grammar should parse `{$.path}` syntax with escape sequence `\{`. Create the .grammar file defining TemplateContent, Variable, Text, and Escape nodes.
-- status: pending
+- status: complete
 - dependencies: frontend-types-update
 
 ### frontend-jsonpath-language

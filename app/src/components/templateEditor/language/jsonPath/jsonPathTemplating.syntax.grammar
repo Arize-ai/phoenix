@@ -1,0 +1,34 @@
+// https://lezer.codemirror.net/docs/guide/
+
+// the top level rule is the entry point for the parser
+// these are the tokens that can appear in the top level of the tree
+@top JSONPathTemplate {(Template | char | emptyTemplate | lEscape | sym )*}
+
+@skip {} {
+  // https://lezer.codemirror.net/docs/guide/#local-token-groups
+  // this rule uses local tokens so it must be defined
+  // inside of a skip block
+  Template { LBrace Variable+ RBrace }
+}
+
+//https://lezer.codemirror.net/docs/guide/#tokens
+// lowercase tokens are consumed by the parser but not included in the tree
+// uppercase tokens are included in the tree
+@tokens {
+  LBrace { "{" }
+  emptyTemplate { "{}" }
+  lEscape { "\\" "{" }
+  sym { "\"" | "'" }
+  char { $[\n\r\t\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}] | "\\" esc }
+  esc  { $["\\\/bfnrt] | "u" hex hex hex hex }
+  hex  { $[0-9a-fA-F] }
+  @precedence { lEscape, LBrace, char, sym }
+}
+
+// https://lezer.codemirror.net/docs/guide/#local-token-groups
+// tokens that only exist in the context that they are used
+// they only apply while inside the Template scope in this case
+@local tokens {
+  RBrace { "}" }
+  Variable { ("\\" "}") | (![}])+ }
+}

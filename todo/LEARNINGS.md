@@ -107,3 +107,18 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Test file follows the pattern of other component tests: uses describe blocks, groups related tests, and tests both positive and negative cases
 - All 482 frontend tests pass (including 5 new tests for types)
 - Pattern learned: TypeScript's `as const` and `keyof typeof` patterns create self-updating types that automatically include new enum values, reducing maintenance burden
+
+## frontend-jsonpath-grammar
+
+- Created Lezer grammar for JSON_PATH templating in `app/src/components/templateEditor/language/jsonPath/`
+- The grammar file `jsonPathTemplating.syntax.grammar` follows the same pattern as fString and mustacheLike grammars
+- Key design: Uses single brackets `{$.path}` syntax with escape sequence `\{` for literal braces
+- Grammar defines top-level rule `@top JSONPathTemplate` with Template, char, emptyTemplate, lEscape, and sym tokens
+- The Token structure is similar to fString (single bracket) but different from mustacheLike (double brackets)
+- Created TypeScript declaration file `jsonPathTemplating.syntax.grammar.d.ts` exporting LRParser type
+- The Lezer grammar compiler is already configured in `vite.config.mts` via the `lezer()` plugin (line 43)
+- Building the app (`pnpm build`) automatically compiles .grammar files using @lezer/generator/rollup plugin
+- No manual build step needed - vite automatically processes .grammar files during build
+- Typecheck passed after grammar creation, confirming no TypeScript errors
+- Pattern learned: Lezer grammars use @tokens for top-level tokens and @local tokens for context-specific tokens (like Variable inside Template scope)
+- The @precedence directive ensures lEscape takes priority over LBrace to correctly handle escaped brackets
