@@ -77,7 +77,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-types-update
 
 - content: Update TypeScript types in `app/src/components/templateEditor/types.ts` to include JSON_PATH. Ensure `isTemplateFormat()` type guard handles the new format.
-- status: pending
+- status: complete
 - dependencies: frontend-template-format-enum
 
 ---

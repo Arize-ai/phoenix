@@ -94,3 +94,16 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The TypeScript type system automatically picks up new enum values via `(typeof TemplateFormats)[keyof typeof TemplateFormats]` pattern in types.ts
 - All 477 frontend tests pass after changes
 - Pattern: When adding enum values used in exhaustive switches, add stub cases immediately to avoid breaking the build, even if full implementation comes later
+
+## frontend-types-update
+
+- The TypeScript type definitions in `app/src/components/templateEditor/types.ts` automatically include JSON_PATH without code changes
+- The `TemplateFormat` type is derived from `TemplateFormats` constant using `(typeof TemplateFormats)[keyof typeof TemplateFormats]` pattern
+- The `isTemplateFormat()` type guard uses `Object.values(TemplateFormats).includes()` which automatically picks up new enum values
+- Created comprehensive unit tests in `app/src/components/templateEditor/__tests__/types.test.ts` to verify:
+  - `isTemplateFormat()` returns true for all valid formats including JSON_PATH
+  - `isTemplateFormat()` returns false for invalid strings (including lowercase variants)
+  - All values from TemplateFormats constant are accepted by the type guard
+- Test file follows the pattern of other component tests: uses describe blocks, groups related tests, and tests both positive and negative cases
+- All 482 frontend tests pass (including 5 new tests for types)
+- Pattern learned: TypeScript's `as const` and `keyof typeof` patterns create self-updating types that automatically include new enum values, reducing maintenance burden
