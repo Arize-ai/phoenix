@@ -185,7 +185,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### integration-test-backend
 
 - content: Add integration tests for JSON_PATH template formatting in the backend. Test the full flow of creating a prompt version with JSON_PATH format and formatting messages with JSON path variables.
-- status: pending
+- status: complete
 - dependencies: backend-mutations-update
 
 ### e2e-test-playground

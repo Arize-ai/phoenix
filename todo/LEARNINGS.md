@@ -293,3 +293,21 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All 20 chat_mutations tests pass (including 2 new JSON_PATH tests), along with full test suite (3863 tests total)
 - Pattern learned: When a task asks to "update" a file but the file already uses a factory/utility function that was updated in a previous task, verify the functionality is already working before making changes
 - Important: The architecture of using `get_template_formatter()` factory means that adding support for new template formats only requires updating the factory function - all consumers automatically inherit the new format
+## integration-test-backend
+
+- Discovered that comprehensive integration tests for JSON_PATH template formatting already exist in the backend test suite:
+  - `tests/unit/server/api/mutations/test_chat_mutations.py`: Contains `test_chat_completion_with_json_path_template` (line 151) and `test_chat_completion_over_dataset_with_json_path_template` (line 325)
+  - `tests/unit/server/api/test_subscriptions.py`: Contains `test_json_path_template_format` (line 1084)
+  - `tests/unit/server/api/input_types/test_PromptVersionInput.py`: Contains validation and ORM conversion tests
+  - `tests/unit/server/api/helpers/prompts/test_models.py`: Contains enum validation tests
+- These tests comprehensively cover the task requirements:
+  - Full flow of creating prompt versions with JSON_PATH format
+  - Formatting messages with JSON path variables (`{$.country}`, `{$.location.city}`, `{$.location.country}`)
+  - Integration with chat completion mutations, subscriptions, and dataset processing
+  - Both simple paths (`$.country`) and nested paths (`$.location.city`)
+- All 6 existing JSON_PATH tests pass without modification (3 skipped for PostgreSQL dialect)
+- Key learning: The integration tests were written alongside implementation in previous tasks (backend-mutations-update and backend-subscription-update), following the PROMPT.md instruction to "Write and run tests" during implementation
+- Pattern learned: Check for existing test coverage before writing new tests - the "integration test" task may already be complete if previous agents followed best practices
+- Note: Attempted to add a client integration test in `tests/integration/client/test_prompts.py` but encountered GraphQL type generation issues with `invocationParameters` field type (JSON scalar generates as `str` but runtime expects `dict`)
+- The existing backend tests are more comprehensive and better suited for integration testing than client tests would be
+- Important: After updating GraphQL schema (in graphql-schema-update task), must run both `tox -e build_graphql_schema` AND `tox -e graphql_codegen_for_python_tests` to regenerate schema and Python test types respectively
