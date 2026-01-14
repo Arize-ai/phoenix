@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Sequence,
     TypeVar,
+    Union,
     cast,
     overload,
 )
@@ -71,7 +72,7 @@ def _format_trace_id(trace_id: int) -> str:
 @overload
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -82,7 +83,7 @@ def trace(
 @overload
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -94,7 +95,7 @@ def trace(
 
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -131,13 +132,6 @@ def trace(
     ) -> Callable[FnParams, Any]:
         @wraps(func)
         def _wrapper_sync(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
-            span_label = (
-                span_name
-                if span_name is not None
-                else cast(str, getattr(func, "__qualname__", func.__name__))
-            )
-            _span_name: str = span_label
-
             bound: Optional[BoundArguments]
             has_trace_id_param: bool = False
             try:
@@ -151,6 +145,15 @@ def trace(
                 has_trace_id_param = "trace_id" in sig.parameters
             except Exception:
                 bound = None
+
+            # Determine span name
+            _span_name: str
+            if callable(span_name):
+                _span_name = span_name(bound) if bound is not None else func.__qualname__
+            elif span_name is not None:
+                _span_name = span_name
+            else:
+                _span_name = cast(str, getattr(func, "__qualname__", func.__name__))
 
             tracer_from_args: Optional[Tracer] = None
             if bound is not None:
@@ -183,7 +186,7 @@ def trace(
                     # Inject trace_id if the function has a trace_id parameter
                     if has_trace_id_param:
                         try:
-                            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+                            span_context = span.get_span_context()
                             if span_context is not None and span_context.trace_id != 0:
                                 trace_id_hex = _format_trace_id(span_context.trace_id)
                                 kwargs["trace_id"] = trace_id_hex
@@ -226,13 +229,6 @@ def trace(
 
         @wraps(func)
         async def _wrapper_async(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
-            span_label = (
-                span_name
-                if span_name is not None
-                else cast(str, getattr(func, "__qualname__", func.__name__))
-            )
-            _span_name: str = span_label
-
             bound: Optional[BoundArguments]
             has_trace_id_param: bool = False
             try:
@@ -246,6 +242,15 @@ def trace(
                 has_trace_id_param = "trace_id" in sig.parameters
             except Exception:
                 bound = None
+
+            # Determine span name
+            _span_name: str
+            if callable(span_name):
+                _span_name = span_name(bound) if bound is not None else func.__qualname__
+            elif span_name is not None:
+                _span_name = span_name
+            else:
+                _span_name = cast(str, getattr(func, "__qualname__", func.__name__))
 
             tracer_from_args: Optional[Tracer] = None
             if bound is not None:
@@ -278,7 +283,7 @@ def trace(
                     # Inject trace_id if the function has a trace_id parameter
                     if has_trace_id_param:
                         try:
-                            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+                            span_context = span.get_span_context()
                             if span_context is not None and span_context.trace_id != 0:
                                 trace_id_hex = _format_trace_id(span_context.trace_id)
                                 kwargs["trace_id"] = trace_id_hex

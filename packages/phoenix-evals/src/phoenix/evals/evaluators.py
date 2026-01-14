@@ -126,7 +126,7 @@ def _remap_and_validate_input(
             remapped_eval_input = model_instance.model_dump()
         except ValidationError as e:
             raise ValueError(f"Input validation failed: {e}")
-    return remapped_eval_input
+    return cast(EvalInput, remapped_eval_input)
 
 
 # --- Score model ---
@@ -410,7 +410,7 @@ class Evaluator(ABC):
             input_mapping=input_mapping,
             input_schema=self.input_schema,
         )
-        return self._traced_evaluate(remapped_eval_input)
+        return cast(List[Score], self._traced_evaluate(remapped_eval_input))
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
@@ -429,7 +429,7 @@ class Evaluator(ABC):
             input_mapping=input_mapping,
             input_schema=self.input_schema,
         )
-        return await self._async_traced_evaluate(remapped_eval_input)
+        return cast(List[Score], await self._async_traced_evaluate(remapped_eval_input))
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""
