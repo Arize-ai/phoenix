@@ -201,3 +201,15 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - TypeScript typecheck and linting both pass
 - Pattern learned: When lower-level utilities are properly abstracted (like `getTemplateFormatUtils()`), higher-level functions automatically gain new functionality without modification
 - Important: JSONPath variables include the full path including `$.` prefix (e.g., `$.user.name`), unlike simple variable names in other formats
+
+## frontend-playground-utils-tests
+
+- Tests for JSON_PATH variable extraction in playground utils were already implemented in the previous task (frontend-playground-utils)
+- The previous agent correctly followed the PROMPT.md instructions to write tests alongside the implementation (step 4: "Write tests")
+- All required test coverage was present in `app/src/pages/playground/__tests__/playgroundUtils.test.ts`:
+  - `extractVariablesFromInstances()` tests for chat messages, text completion prompts, and multiple instances with JSONPath format
+  - `getVariablesMapFromInstances()` tests to verify variable mapping works correctly with JSONPath path syntax
+- All 93 tests in playgroundUtils.test.ts pass, including the 6 JSON_PATH tests added in the previous task
+- Pattern learned: Tasks that request only tests may already be complete if the previous implementation task followed best practices of writing tests during implementation
+- When encountering a "tests-only" task, check git history and existing test files before writing duplicate tests
+- The test coverage is comprehensive: simple paths, nested paths, duplicate variable deduplication, and integration with the variables cache

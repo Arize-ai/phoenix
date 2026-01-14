@@ -137,7 +137,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### frontend-playground-utils-tests
 
 - content: Add tests for JSON_PATH variable extraction in `app/src/pages/playground/__tests__/playgroundUtils.test.ts`. Test extraction from chat messages and text completion prompts using JSON_PATH format.
-- status: pending
+- status: complete
 - dependencies: frontend-playground-utils
 
 ---
