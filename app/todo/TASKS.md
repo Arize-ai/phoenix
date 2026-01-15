@@ -33,7 +33,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### add-dataset-id-to-store-factory
 
 - content: Update `createPlaygroundStore` in `src/store/playground/playgroundStore.tsx` to accept an optional `datasetId?: string` parameter. This ID will be used to generate a dataset-specific storage key for the persist middleware.
-- status: pending
+- status: complete
 - dependencies: update-playground-types
 
 ---

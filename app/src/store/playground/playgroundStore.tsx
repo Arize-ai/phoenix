@@ -247,7 +247,10 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   };
 }
 
-export const createPlaygroundStore = (props: InitialPlaygroundState) => {
+export const createPlaygroundStore = (
+  props: InitialPlaygroundState,
+  datasetId?: string
+) => {
   const { instances, instanceMessages } = getInitialInstances(props);
   const playgroundStore: StateCreator<
     PlaygroundState,
