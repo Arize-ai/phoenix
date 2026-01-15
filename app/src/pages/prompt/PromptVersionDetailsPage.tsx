@@ -1,4 +1,4 @@
-import { useLoaderData } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -19,10 +19,11 @@ import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMes
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
 
+import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersionButton";
+
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
-import { TagPromptVersionButton } from "./TagPromptVersionButton";
 
 export function PromptVersionDetailsPage() {
   const loaderData = useLoaderData<typeof promptVersionLoader>();
@@ -37,6 +38,8 @@ function PromptVersionDetailsPageContent({
 }: {
   promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
+  const { promptId } = useParams();
+  invariant(promptId, "promptId is required");
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">
@@ -65,7 +68,10 @@ function PromptVersionDetailsPageContent({
               <CopyToClipboardButton text={promptVersion.id}>
                 Version ID
               </CopyToClipboardButton>
-              <TagPromptVersionButton />
+              <TagPromptVersionButton
+                promptId={promptId}
+                versionId={promptVersion.id}
+              />
               <TooltipTrigger delay={0}>
                 <TriggerWrap>
                   <LinkButton
