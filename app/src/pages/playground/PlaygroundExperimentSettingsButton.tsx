@@ -18,7 +18,6 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -51,9 +50,12 @@ export function PlaygroundExperimentSettingsButton({
   const [searchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
 
-  const appendedMessagesPath = usePlaygroundContext(
-    (state) => state.appendedMessagesPath
+  const appendedMessagesPathByDataset = usePlaygroundContext(
+    (state) => state.appendedMessagesPathByDataset
   );
+  const appendedMessagesPath = datasetId
+    ? (appendedMessagesPathByDataset[datasetId] ?? null)
+    : null;
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
@@ -62,10 +64,6 @@ export function PlaygroundExperimentSettingsButton({
   );
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
-  );
-
-  const setPlaygroundAppendedMessagesPathForDataset = usePreferencesContext(
-    (state) => state.setPlaygroundAppendedMessagesPathForDataset
   );
 
   return (
@@ -115,13 +113,8 @@ export function PlaygroundExperimentSettingsButton({
                 size="S"
                 onChange={(value) => {
                   const path = value || null;
-                  setAppendedMessagesPath(path);
-                  // Save to preferences if a dataset is selected
                   if (datasetId) {
-                    setPlaygroundAppendedMessagesPathForDataset({
-                      datasetId,
-                      path,
-                    });
+                    setAppendedMessagesPath(datasetId, path);
                   }
                 }}
               >

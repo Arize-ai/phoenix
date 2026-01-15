@@ -202,28 +202,6 @@ function PlaygroundContent() {
       left.every((id, index) => id === right[index])
   );
 
-  const setAppendedMessagesPath = usePlaygroundContext(
-    (state) => state.setAppendedMessagesPath
-  );
-  const playgroundAppendedMessagesPathByDataset = usePreferencesContext(
-    (state) => state.playgroundAppendedMessagesPathByDataset
-  );
-
-  // Load saved path from preferences when dataset changes.
-  useEffect(() => {
-    if (datasetId) {
-      const savedPath =
-        playgroundAppendedMessagesPathByDataset[datasetId] ?? null;
-      setAppendedMessagesPath(savedPath);
-    } else {
-      setAppendedMessagesPath(null);
-    }
-  }, [
-    datasetId,
-    playgroundAppendedMessagesPathByDataset,
-    setAppendedMessagesPath,
-  ]);
-
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(

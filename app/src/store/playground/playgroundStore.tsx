@@ -1,5 +1,5 @@
 import { create, StateCreator } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -265,7 +265,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    appendedMessagesPath: null,
+    appendedMessagesPathByDataset: {},
     templateVariablesPath: "input",
     ...props,
     instances,
@@ -883,8 +883,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setRepetitions: (repetitions: number) => {
       set({ repetitions }, false, { type: "setRepetitions" });
     },
-    setAppendedMessagesPath: (appendedMessagesPath: string | null) => {
-      set({ appendedMessagesPath }, false, { type: "setAppendedMessagesPath" });
+    setAppendedMessagesPath: (datasetId: string, path: string | null) => {
+      set(
+        (state) => ({
+          appendedMessagesPathByDataset: {
+            ...state.appendedMessagesPathByDataset,
+            [datasetId]: path,
+          },
+        }),
+        false,
+        { type: "setAppendedMessagesPath" }
+      );
     },
     setTemplateVariablesPath: (templateVariablesPath: string | null) => {
       set({ templateVariablesPath }, false, {
@@ -1382,7 +1391,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       );
     },
   });
-  return create(devtools(playgroundStore, { name: "playgroundStore" }));
+  return create(
+    persist(devtools(playgroundStore, { name: "playgroundStore" }), {
+      name: "arize-phoenix-playground",
+      partialize: (state) => ({
+        appendedMessagesPathByDataset: state.appendedMessagesPathByDataset,
+      }),
+    })
+  );
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
