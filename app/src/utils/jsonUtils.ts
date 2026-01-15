@@ -326,6 +326,83 @@ export type UnnestResult =
  * // { value: "plain string", wasUnnested: false }
  * ```
  */
+/**
+ * Recursively clears values in a JSON structure while preserving the structure itself.
+ * - Strings become empty strings
+ * - Numbers and booleans are preserved
+ * - Arrays are recursively cleared (empty arrays remain empty)
+ * - Objects have their values recursively cleared
+ * - null/undefined become empty strings
+ *
+ * @param obj - The value to clear
+ * @returns A new value with the same structure but cleared string values
+ *
+ * @example
+ * ```ts
+ * clearJSONValues({ name: "John", age: 30 })
+ * // { name: "", age: 30 }
+ *
+ * clearJSONValues({ items: ["a", "b"] })
+ * // { items: ["", ""] }
+ *
+ * clearJSONValues({ nested: { value: "test" } })
+ * // { nested: { value: "" } }
+ * ```
+ */
+export function clearJSONValues(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return "";
+  }
+  if (Array.isArray(obj)) {
+    return obj.length > 0 ? obj.map(clearJSONValues) : [];
+  }
+  if (typeof obj === "object") {
+    const cleared: Record<string, unknown> = {};
+    for (const key in obj) {
+      cleared[key] = clearJSONValues((obj as Record<string, unknown>)[key]);
+    }
+    return cleared;
+  }
+  // Primitive values (string, number, boolean)
+  if (typeof obj === "string") {
+    return "";
+  }
+  if (typeof obj === "number") {
+    return obj;
+  }
+  if (typeof obj === "boolean") {
+    return obj;
+  }
+  return "";
+}
+
+/**
+ * Creates an empty JSON structure based on an existing JSON string,
+ * preserving keys but clearing all string values.
+ *
+ * @param jsonString - The JSON string to use as a template
+ * @returns A JSON string with the same structure but cleared string values,
+ *          or a default empty object template if parsing fails
+ *
+ * @example
+ * ```ts
+ * createEmptyJSONStructure('{"name": "John", "age": 30}')
+ * // '{\n  "name": "",\n  "age": 30\n}'
+ *
+ * createEmptyJSONStructure('invalid json')
+ * // '{\n  \n}'
+ * ```
+ */
+export function createEmptyJSONStructure(jsonString: string): string {
+  try {
+    const parsed = JSON.parse(jsonString);
+    const cleared = clearJSONValues(parsed);
+    return JSON.stringify(cleared, null, 2);
+  } catch {
+    return "{\n  \n}";
+  }
+}
+
 export function unnestSingleStringValue(value: unknown): UnnestResult {
   if (!isStringKeyedObject(value)) {
     return { value, wasUnnested: false };
