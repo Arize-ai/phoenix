@@ -91,5 +91,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### verify-existing-tests-pass
 
 - content: Run the full test suite (`pnpm test`) and fix any broken tests related to playground store changes. Ensure TypeScript compilation passes (`pnpm typecheck`).
-- status: pending
+- status: complete
 - dependencies: add-store-persistence-tests
