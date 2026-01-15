@@ -1,10 +1,7 @@
-// This document is for a correctness eval on tools and goal completion for the agent.
-
 import "dotenv/config";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
-import assert from "assert";
 
 const model = openai("gpt-4");
 
@@ -90,28 +87,6 @@ function extractInputOutputFromSpan(span: any): {
 }
 
 async function main() {
-  const projectName =
-    process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
-  const allSpans = await getSpans({
-    project: { projectName },
-    limit: 300,
-  });
-  const orchestratorSpans: typeof allSpans.spans = [];
-
-  for (const span of allSpans.spans) {
-    if (span.name === "agent.Financial Analysis Orchestrator") {
-      orchestratorSpans.push(span);
-    }
-  }
-  console.log(orchestratorSpans.length);
-
-  // const evaluator = await createClassificationEvaluator({
-  //   name: "completeness",
-  //   model,
-  //   choices: { complete: 1, incomplete: 0 },
-  //   promptTemplate: financial_completeness_template,
-  // });
-
   const evaluator = createClassificationEvaluator<{
     input: string;
     output: string;
@@ -122,18 +97,51 @@ async function main() {
     choices: { complete: 1, incomplete: 0 },
   });
 
-  const parentSpans: Array<{ input: string; output: string; spanId: string }> =
-    [];
+  // should try to combine all this:
+  // const projectName =
+  //   process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
+  // const allSpans = await getSpans({ project: { projectName }, limit: 500 });
+  // const orchestratorSpans: typeof allSpans.spans = [];
 
-  for (const span of orchestratorSpans) {
-    const { input, output } = extractInputOutputFromSpan(span);
-    const spanId = span.context?.span_id || span.id;
+  // for (const span of allSpans.spans) {
+  //   if (span.name === "agent.Financial Analysis Orchestrator") {
+  //     orchestratorSpans.push(span);
+  //   }
+  // }
+  // console.log(orchestratorSpans.length);
+  // const parentSpans: Array<{ input: string; output: string; spanId: string }> =
+  //   [];
 
-    parentSpans.push({
-      input: input || "",
-      output: output || "",
-      spanId: spanId?.toString() || "",
-    });
+  // for (const span of orchestratorSpans) {
+  //   const { input, output } = extractInputOutputFromSpan(span);
+  //   const spanId = span.context?.span_id || span.id;
+
+  //   parentSpans.push({
+  //     input: input || "",
+  //     output: output || "",
+  //     spanId: spanId?.toString() || "",
+  //   });
+  // }
+
+  const projectName =
+    process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
+  const allSpans = await getSpans({ project: { projectName }, limit: 500 });
+  const orchestrators: Array<{
+    input: string;
+    output: string;
+    spanId: string;
+  }> = [];
+  for (const span of allSpans.spans) {
+    if (span.name === "agent.Financial Analysis Orchestrator") {
+      const { input, output } = extractInputOutputFromSpan(span);
+      const spanId = span.context?.span_id || span.id;
+
+      orchestrators.push({
+        input: input || "",
+        output: output || "",
+        spanId: spanId?.toString() || "",
+      });
+    }
   }
 
   const spanAnnotations = await Promise.all(

@@ -64,7 +64,8 @@
                       {
                         "group": "TypeScript",
                         "pages": [
-                          "docs/phoenix/get-started/ts-get-started-tracing"
+                          "docs/phoenix/get-started/ts-get-started-tracing",
+                          "docs/phoenix/get-started/ts-get-started-evaluations"
                         ]
                       }
                     ]

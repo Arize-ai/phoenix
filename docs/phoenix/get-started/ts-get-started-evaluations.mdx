@@ -1,0 +1,237 @@
+---
+title: "Measure Performance with Evaluations"
+---
+
+In this guide, we’ll set up evaluations in Phoenix so we can measure the quality of model outputs from a real application.
+
+Traces tell us what happened during a run, but they don’t tell us whether the output was _good_. Evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
+
+We’ll start with data that already exists in Phoenix, define a simple evaluation, and run it so we can see results directly in the UI. The goal is to move from “I have model outputs” to “I can measure quality in a repeatable way.”
+
+Since we already have traces, we can take this a step further by scoring them against metrics like correctness, relevance, or custom checks that matter to your use case.
+
+## **Before We Start**
+
+To follow along, you’ll need to have completed [Get Started with Tracing](https://arize.com/docs/phoenix/get-started/ts-get-started-tracing) which means we have: 
+
+- Financial Analysis and Research Chatbot 
+- Trace Data in Phoenix
+
+## **Step 1: Make Sure You Have Data in Phoenix**
+
+Before we can run evaluations, we need something to evaluate.
+
+Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
+
+- A project in Phoenix
+- Traces containing LLM inputs and outputs
+
+It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data. 
+
+We can create a new folder in`src/mastra` called `evals` to hold the different scripts we will create during this evaluation guide. 
+
+The first one we will be to creating is to run more queries so that we can have more trace data in our Phoenix project to evaluate. 
+
+Create a file called `add_traces.ts`:
+```typescript
+import "dotenv/config";
+import { MastraClient } from "@mastra/client-js";
+
+const mastraClient = new MastraClient({
+  baseUrl: "http://localhost:4111",
+});
+
+const agent = mastraClient.getAgent("financialOrchestratorAgent");
+
+const questions = [
+  "Research NVDA with focus on valuation metrics and growth prospects",
+  "Research AAPL, MSFT with focus on comparative financial analysis",
+  "Research META, SNAP, PINS with focus on social media sector trends",
+  "Research RIVN with focus on financial health and viability",
+  "Research KO with focus on dividend yield and stability",
+  "Research META with focus on latest developments and stock performance",
+  "Research AAPL, MSFT, GOOGL, AMZN, META with focus on big tech comparison and market outlook",
+];
+
+for (const question of questions) {
+  const response = await agent.generate({
+    messages: [{ role: "user", content: question }],
+  });
+}
+```
+
+## **Step 2: Define an Evaluation**
+
+Now that we have trace data, the next question is how we decide whether an output is actually good.
+
+An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
+
+In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
+
+For LLM-as-a-judge evaluations, that means defining three things:
+
+- A prompt that describes the judgment criteria
+- An LLM that performs the evaluation
+- The data we want to score
+
+In this step, we’ll define a basic completeness evaluation that checks whether the agent’s output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals) you can use or adapt for other metrics like relevance or hallucinations.
+
+First, create a file called `eval.ts` in `src/mastra/evals` to hold our evaluation code.
+
+Let's start by adding our imports at the top of this file. We'll be using `phoenix-evals` to create our evaluator and `phoenix-client` to pull down our traces into code & push our annotations back to the project. 
+
+```typescript
+import "dotenv/config";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+```
+
+### **Define the LLM Judge**
+
+We’ll start creating the pieces of our evaluator by defining the model that will act as the judge. 
+
+```typescript 
+const model = openai("gpt-4");
+```
+
+### **Define the Evaluation Prompt**
+
+We’ll start by defining the prompt that tells the evaluator how to judge an answer. 
+
+```typescript
+const financial_completeness_template = `
+You are evaluating whether a financial research report correctly completes ALL parts of the user's task.
+
+User input: {{input}}
+
+Generated report:
+{{output}}
+
+To be marked as "correct", the report should:
+1. Cover ALL companies/tickers mentioned in the input (if multiple are listed, all must be addressed)
+2. Address ALL focus areas mentioned in the input (e.g., if user asks for "earnings and outlook", both must be covered)
+3. Provide relevant financial information for each company/ticker requested
+
+The report is "incorrect" if:
+- It misses any company/ticker mentioned in the input
+- It fails to address any focus area mentioned in the input
+- It only partially covers the requested companies or topics
+
+Examples:
+- Input: "tickers: AAPL, MSFT, focus: earnings and outlook" → Report must cover BOTH AAPL AND MSFT, AND address BOTH earnings AND outlook
+- Input: "tickers: TSLA, focus: valuation metrics" → Report must cover TSLA AND address valuation metrics
+- Input: "tickers: NVDA, AMD, focus: comparative analysis" → Report must cover BOTH NVDA AND AMD AND provide comparison
+
+Respond with ONLY one word: "complete" or "incomplete"
+Then provide a brief explanation of which parts were completed or missed.
+`;
+```
+This prompt defines what correctness means for our application.
+
+### **Create the Evaluator**
+
+Now we can combine the prompt and model into an evaluator.
+
+```typescript
+const evaluator = createClassificationEvaluator<{
+    input: string;
+    output: string;
+    }>({
+    name: "completeness",
+    model: openai("gpt-4o-mini"),
+    promptTemplate: simple_financial_completeness_template,
+    choices: { complete: 1, incomplete: 0 },
+});
+```
+At this point, we’ve defined how Phoenix should evaluate correctness, but we haven’t run it yet.
+
+## **Step 3: Prep our Data** 
+
+Before we run our evaluator, we'll need to pull down our trace data and prepare it to pass into the evaluator. 
+Once we get all the spans, we'll isolate just the orchestrator agent spans as its inputs & outputs are all we need. 
+
+```typescript
+const projectName = process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
+const allSpans = await getSpans({ project: { projectName }, limit: 500 });
+const orchestratorSpans: typeof allSpans.spans = [];
+
+for (const span of allSpans.spans) {
+    if (span.name === "agent.Financial Analysis Orchestrator") {
+        orchestratorSpans.push(span);
+    }
+}
+``` 
+
+# __**TODO: add in other data manipulation code**__
+
+
+## **Step 4: Run the Evaluator**
+
+Now that we have our data and our evaluator, the next step is to run our evaulator on our data!. 
+
+```typescript
+const spanAnnotations = await Promise.all(
+    parentSpans.map(async (parentSpan) => {
+      const evaluationResult = await evaluator.evaluate({
+        input: parentSpan.input,
+        output: parentSpan.output,
+      });
+      console.log(evaluationResult.explanation);
+
+      return {
+        spanId: parentSpan.spanId,
+        name: "completeness" as const,
+        label: evaluationResult.label,
+        score: evaluationResult.score,
+        explanation: evaluationResult.explanation || undefined,
+        annotatorKind: "LLM" as const,
+        metadata: {
+          evaluator: "completeness",
+          input: parentSpan.input,
+          output: parentSpan.output,
+        },
+      };
+    }),
+  );
+```
+
+This produces evaluation results for each span in the dataset.
+
+## **Step 4: Log Evaluation Results to Phoenix**
+
+Finally, we’ll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
+
+```typescript
+await logSpanAnnotations({
+    spanAnnotations,
+    sync: true,
+});
+```
+
+Once this completes, head back to Phoenix.
+
+You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
+
+# __**TODO: add in video**__
+
+
+<Frame caption="Tracing Project with Evaluation Annotations">
+<video
+  controls
+  className="w-full aspect-video rounded-xl"
+  src=""
+/>
+</Frame>
+
+**Congratulations**! You’ve run your first evaluation in Phoenix.
+
+## **Learn More About Evals**
+
+Now that you have evaluation results in Phoenix, you can start using them to guide iteration.
+
+You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to make iterations to your application with no code is through prompt playground. The [Iterate on Your Prompts guide](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground) walks through this workflow in more detail.
+
+To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
+
+This was a simple example, but evaluations in Phoenix can support much more advanced workflows over time.
