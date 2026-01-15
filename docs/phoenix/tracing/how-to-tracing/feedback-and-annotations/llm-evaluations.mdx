@@ -83,8 +83,8 @@ client.spans.log_document_annotations_dataframe(
     annotator_kind="LLM",
 )
 client.spans.log_span_annotations_dataframe(
-    dataframe=hallucination_eval_df,
-    annotation_name="Hallucination",
+    dataframe=faithfulness_eval_df,
+    annotation_name="Faithfulness",
     annotator_kind="LLM",
 )
 # ... continue with additional evaluations as needed
@@ -98,10 +98,10 @@ import pandas as pd
 qa_correctness_eval_df["annotation_name"] = "QA Correctness"
 qa_correctness_eval_df["annotator_kind"] = "LLM"
 
-hallucination_eval_df["annotation_name"] = "Hallucination"
-hallucination_eval_df["annotator_kind"] = "LLM"
+faithfulness_eval_df["annotation_name"] = "Faithfulness"
+faithfulness_eval_df["annotator_kind"] = "LLM"
 
-annotations_df = pd.concat([qa_correctness_eval_df, hallucination_eval_df], ignore_index=True)
+annotations_df = pd.concat([qa_correctness_eval_df, faithfulness_eval_df], ignore_index=True)
 
 px_client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
 ```

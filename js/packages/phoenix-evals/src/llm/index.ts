@@ -3,7 +3,7 @@ export * from "./createClassificationEvaluator";
 export * from "./createClassifierFn";
 export * from "./createCorrectnessEvaluator";
 export * from "./createDocumentRelevanceEvaluator";
-export * from "./createHallucinationEvaluator";
-export * from "./createToolInvocationEvaluator";
+export * from "./createFaithfulnessEvaluator";
+export * from "./createHallucinationEvaluator"; // Deprecated: use createFaithfulnessEvaluator
 export * from "./generateClassification";
 export * from "./LLMEvaluator";

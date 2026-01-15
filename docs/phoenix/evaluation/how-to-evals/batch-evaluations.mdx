@@ -45,14 +45,14 @@ result.head()
 ```python
 from phoenix.evals import bind_evaluator, evaluate_dataframe
 from phoenix.evals.llm import LLM
-from phoenix.evals.metrics import HallucinationEvaluator, exact_match
+from phoenix.evals.metrics import FaithfulnessEvaluator, exact_match
 
 df = pd.DataFrame(
     {
         # exact_match columns
         "output": ["Yes", "Yes", "No"],
         "expected": ["Yes", "No", "No"],
-        # hallucination columns (need mapping)
+        # faithfulness columns (need mapping)
         "context": ["This is a test", "This is another test", "This is a third test"],
         "query": [
             "What is the name of this test?",
@@ -64,11 +64,11 @@ df = pd.DataFrame(
 )
 
 llm = LLM(provider="openai", model="gpt-4o")
-hallucination_evaluator = bind_evaluator(
-    HallucinationEvaluator(llm=llm), {"input": "query", "output": "response"}
+faithfulness_evaluator = bind_evaluator(
+    FaithfulnessEvaluator(llm=llm), {"input": "query", "output": "response"}
 )
 
-result = evaluate_dataframe(df, [exact_match, hallucination_evaluator])
+result = evaluate_dataframe(df, [exact_match, faithfulness_evaluator])
 result.head()
 ```
 
@@ -76,7 +76,7 @@ result.head()
 
 ```python
 from phoenix.evals.llm import LLM
-from phoenix.evals.metrics import HallucinationEvaluator
+from phoenix.evals.metrics import FaithfulnessEvaluator
 from phoenix.evals import async_evaluate_dataframe
 
 df = pd.DataFrame(
@@ -92,9 +92,9 @@ df = pd.DataFrame(
 )
 
 llm = LLM(provider="openai", model="gpt-4o")
-hallucination_evaluator = HallucinationEvaluator(llm=llm)
+faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
-result = await async_evaluate_dataframe(df, [hallucination_evaluator], concurrency=5)
+result = await async_evaluate_dataframe(df, [faithfulness_evaluator], concurrency=5)
 result.head()
 ```
 

@@ -38,18 +38,18 @@ Phoenix provides LLM evaluators out of the box. These evaluators are vendor agno
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
-from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals import LLM
 
-hallucination_evaluator = HallucinationEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+faithfulness_evaluator = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
 ```
 </Tab>
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
-const hallucinationEvaluator = createHallucinationEvaluator({
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
 });
 ```
