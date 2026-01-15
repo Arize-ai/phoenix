@@ -102,6 +102,14 @@ def test_add_json_path_to_template_format(
         assert result is not None
         assert result[0] == "JSON_PATH"
 
+        # Delete the JSON_PATH row before downgrade, since the downgrade
+        # will recreate the table with a constraint that doesn't allow JSON_PATH
+        conn.execute(
+            text("DELETE FROM prompt_versions WHERE id = :id"),
+            {"id": prompt_version_id},
+        )
+        conn.commit()
+
     # STEP 3: Test downgrade
     _down(_engine, _alembic_config, "02463bd83119", _schema)
 
@@ -122,7 +130,4 @@ def test_add_json_path_to_template_format(
             ).scalar()
             assert table_def is not None
             # Verify JSON_PATH is not in the constraint
-            assert (
-                "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')" in table_def
-                or """CHECK (template_format IN ('F_STRING', 'MUSTACHE', 'NONE'))""" in table_def
-            )
+            assert "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')" in table_def
