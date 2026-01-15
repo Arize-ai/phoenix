@@ -379,6 +379,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               // when the user has saved an azure prompt and we load it back in
               const { baseUrl, endpoint, apiVersion, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
+
+              // Preserve the response format invocation parameter regardless of dirty state
+              // This ensures response format is not lost when the model changes
+              const responseFormatInvocationParameter =
+                instance.model.invocationParameters.find(
+                  (p) =>
+                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+                );
+
               // try to port dirty invocation parameters to the new supported invocation parameters
               // ensure that the invocation parameters are only the ones that are supported by the model
               const dirtyInvocationParameters =
@@ -394,6 +404,32 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   filteredInvocationParameters,
                   supportedInvocationParameters
                 );
+
+              // Add back the response format if it exists and is supported by the model
+              // but only if it's not already present in mergedInvocationParameters
+              // (it would be present if the parameter had dirty: true)
+              const modelSupportsResponseFormat =
+                supportedInvocationParameters.some(
+                  (p) =>
+                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+                );
+              const responseFormatAlreadyInMerged =
+                mergedInvocationParameters.some(
+                  (p) =>
+                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+                );
+              const finalInvocationParameters =
+                responseFormatInvocationParameter &&
+                modelSupportsResponseFormat &&
+                !responseFormatAlreadyInMerged
+                  ? [
+                      ...mergedInvocationParameters,
+                      responseFormatInvocationParameter,
+                    ]
+                  : mergedInvocationParameters;
+
               return {
                 ...instance,
                 model: {
@@ -403,7 +439,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   apiVersion: instance.model.apiVersion ?? apiVersion,
                   region: instance.model.region ?? region,
                   supportedInvocationParameters,
-                  invocationParameters: mergedInvocationParameters,
+                  invocationParameters: finalInvocationParameters,
                 },
                 // Delete tools if the model does not support tool choice
                 tools: supportedInvocationParameters.find(
