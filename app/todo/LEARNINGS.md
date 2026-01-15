@@ -31,3 +31,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Since the parameter is optional with no default usage yet, all existing call sites continue to work without modification
 - The LSP errors visible in `playgroundStore.tsx` are pre-existing from the prior type update task (`update-playground-types`) - these are about `appendedMessagesPath` vs `appendedMessagesPathByDataset` mismatches that will be resolved in the `implement-dynamic-storage-key` task
 - The next task (`implement-dynamic-storage-key`) will use this `datasetId` parameter to generate dataset-specific storage keys in the persist middleware
+
+## implement-dynamic-storage-key
+
+- Updated `persist` middleware to use dynamic storage key: `arize-phoenix-playground-dataset-{datasetId}` when datasetId is provided, otherwise `arize-phoenix-playground`
+- Changed initial state from `appendedMessagesPathByDataset: {}` to `appendedMessagesPath: null` in `playgroundStore.tsx:271`
+- Updated `setAppendedMessagesPath` action signature from `(datasetId: string, path: string | null)` to `(path: string | null)` - simplified since store is now dataset-specific
+- Updated `partialize` function to persist `appendedMessagesPath` instead of `appendedMessagesPathByDataset`
+- Also updated the type signature in `types.ts:451` for `setAppendedMessagesPath`
+- TypeScript errors remain in consumer files (`PlaygroundChatTemplate.tsx`, `PlaygroundExperimentSettingsButton.tsx`, `playgroundUtils.ts`) - these are expected and will be fixed by the `update-appended-messages-path-consumers` task
+- Tests pass (477 tests) - Vitest uses Babel/esbuild transpilation which ignores TypeScript errors

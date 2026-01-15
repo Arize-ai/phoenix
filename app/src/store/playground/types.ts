@@ -446,9 +446,9 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setRepetitions: (repetitions: number) => void;
   /**
-   * Set the appended messages path for a specific dataset
+   * Set the appended messages path
    */
-  setAppendedMessagesPath: (datasetId: string, path: string | null) => void;
+  setAppendedMessagesPath: (path: string | null) => void;
   /**
    * Set the template variables path for dataset experiments
    */

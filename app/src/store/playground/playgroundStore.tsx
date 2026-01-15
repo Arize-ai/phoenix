@@ -268,7 +268,7 @@ export const createPlaygroundStore = (
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    appendedMessagesPathByDataset: {},
+    appendedMessagesPath: null,
     templateVariablesPath: "input",
     ...props,
     instances,
@@ -850,17 +850,10 @@ export const createPlaygroundStore = (
     setRepetitions: (repetitions: number) => {
       set({ repetitions }, false, { type: "setRepetitions" });
     },
-    setAppendedMessagesPath: (datasetId: string, path: string | null) => {
-      set(
-        (state) => ({
-          appendedMessagesPathByDataset: {
-            ...state.appendedMessagesPathByDataset,
-            [datasetId]: path,
-          },
-        }),
-        false,
-        { type: "setAppendedMessagesPath" }
-      );
+    setAppendedMessagesPath: (path: string | null) => {
+      set({ appendedMessagesPath: path }, false, {
+        type: "setAppendedMessagesPath",
+      });
     },
     setTemplateVariablesPath: (templateVariablesPath: string | null) => {
       set({ templateVariablesPath }, false, {
@@ -1358,11 +1351,15 @@ export const createPlaygroundStore = (
       );
     },
   });
+  const storageName = datasetId
+    ? `arize-phoenix-playground-dataset-${datasetId}`
+    : "arize-phoenix-playground";
+
   return create(
     persist(devtools(playgroundStore, { name: "playgroundStore" }), {
-      name: "arize-phoenix-playground",
+      name: storageName,
       partialize: (state) => ({
-        appendedMessagesPathByDataset: state.appendedMessagesPathByDataset,
+        appendedMessagesPath: state.appendedMessagesPath,
       }),
     })
   );

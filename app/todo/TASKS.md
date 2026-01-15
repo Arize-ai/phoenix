@@ -43,7 +43,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### implement-dynamic-storage-key
 
 - content: Modify the `persist` middleware configuration in `createPlaygroundStore` to use a dynamic storage key based on datasetId. When datasetId is provided, use `arize-phoenix-playground-dataset-{datasetId}`. When datasetId is undefined/null, use the default `arize-phoenix-playground`. Update the `partialize` function to persist the renamed `appendedMessagesPath` field instead of `appendedMessagesPathByDataset`.
-- status: pending
+- status: complete
 - dependencies: add-dataset-id-to-store-factory
 
 ---
