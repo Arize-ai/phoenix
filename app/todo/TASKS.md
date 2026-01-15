@@ -75,7 +75,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### update-set-appended-messages-path-action
 
 - content: Update the `setAppendedMessagesPath` action in `playgroundStore.tsx` to set a single path value instead of updating a record keyed by datasetId. Update the function signature from `(datasetId: string, path: string | null)` to just `(path: string | null)`.
-- status: pending
+- status: complete
 - dependencies: update-appended-messages-path-consumers
 
 ---
