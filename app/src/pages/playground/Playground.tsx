@@ -62,6 +62,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
     `,
     {}
   );
+
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );

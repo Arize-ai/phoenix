@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useEffect } from "react";
 
 import {
   Button,
@@ -18,6 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH } from "@phoenix/store";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -44,27 +45,38 @@ const TEMPLATE_VARIABLES_PATH_OPTIONS = [
 
 export function PlaygroundExperimentSettingsButton({
   isDisabled,
+  datasetId,
 }: {
   isDisabled?: boolean;
+  datasetId: string;
 }) {
-  const [searchParams] = useSearchParams();
-  const datasetId = searchParams.get("datasetId");
-
-  const appendedMessagesPathByDataset = usePlaygroundContext(
-    (state) => state.appendedMessagesPathByDataset
+  const playgroundDatasetState = usePlaygroundContext(
+    (state) => state.stateByDatasetId[datasetId]
   );
-  const appendedMessagesPath = datasetId
-    ? (appendedMessagesPathByDataset[datasetId] ?? null)
-    : null;
+  const { appendedMessagesPath, templateVariablesPath } =
+    playgroundDatasetState ?? {};
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
-  const templateVariablesPath = usePlaygroundContext(
-    (state) => state.templateVariablesPath
-  );
+
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
   );
+
+  // ensure default state is set when switching datasets
+  useEffect(() => {
+    if (!datasetId) {
+      return;
+    }
+
+    if (playgroundDatasetState) {
+      return;
+    }
+    setTemplateVariablesPath({
+      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      datasetId,
+    });
+  }, [datasetId, playgroundDatasetState, setTemplateVariablesPath]);
 
   return (
     <DialogTrigger>
@@ -90,11 +102,17 @@ export function PlaygroundExperimentSettingsButton({
                 allowsCustomValue
                 onSelectionChange={(key) => {
                   if (typeof key === "string") {
-                    setTemplateVariablesPath(key || null);
+                    setTemplateVariablesPath({
+                      templateVariablesPath: key || null,
+                      datasetId,
+                    });
                   }
                 }}
                 onInputChange={(value) => {
-                  setTemplateVariablesPath(value || null);
+                  setTemplateVariablesPath({
+                    templateVariablesPath: value || null,
+                    datasetId,
+                  });
                 }}
               >
                 {(item) => (
@@ -112,10 +130,7 @@ export function PlaygroundExperimentSettingsButton({
                 value={appendedMessagesPath ?? ""}
                 size="S"
                 onChange={(value) => {
-                  const path = value || null;
-                  if (datasetId) {
-                    setAppendedMessagesPath(datasetId, path);
-                  }
+                  setAppendedMessagesPath({ path: value || null, datasetId });
                 }}
               >
                 <Label>Appended dataset messages path</Label>

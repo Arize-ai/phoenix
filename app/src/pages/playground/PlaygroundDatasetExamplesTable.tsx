@@ -717,9 +717,10 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.allInstanceMessages
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const templateVariablesPath = usePlaygroundContext(
-    (state) => state.templateVariablesPath
+  const playgroundDatasetState = usePlaygroundContext((state) =>
+    datasetId ? state.stateByDatasetId[datasetId] : null
   );
+  const { templateVariablesPath } = playgroundDatasetState ?? {};
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
@@ -1317,7 +1318,7 @@ export function PlaygroundDatasetExamplesTable({
                 output: row.original.output,
                 metadata: row.original.metadata,
               }}
-              templateVariablesPath={templateVariablesPath}
+              templateVariablesPath={templateVariablesPath ?? null}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);
