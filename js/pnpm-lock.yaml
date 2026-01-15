@@ -51,6 +51,25 @@ importers:
         specifier: ^4.0.10
         version: 4.0.10(@types/node@24.9.1)(jiti@2.6.1)(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1)
 
+  benchmarks/evals-benchmarks:
+    dependencies:
+      '@ai-sdk/openai':
+        specifier: ^2.0.0
+        version: 2.0.76(zod@4.1.13)
+      '@arizeai/phoenix-client':
+        specifier: workspace:*
+        version: link:../../packages/phoenix-client
+      '@arizeai/phoenix-evals':
+        specifier: workspace:*
+        version: link:../../packages/phoenix-evals
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   examples/apps/demo-document-relevancy-experiment:
     dependencies:
       '@ai-sdk/openai':
