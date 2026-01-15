@@ -1397,7 +1397,7 @@ describe("getVariablesMapFromInstances", () => {
     });
   });
 
-  it("should extract variables and map them correctly for chat messages with JSONPath", () => {
+  it("should parse JSON data and return it as variablesMap for JSONPath format", () => {
     const instances: PlaygroundInstance[] = [
       {
         ...baseTestPlaygroundInstance,
@@ -1411,19 +1411,24 @@ describe("getVariablesMapFromInstances", () => {
       },
     ];
     const templateFormat = TemplateFormats.JSONPath;
+    // JSON_PATH uses __json_data__ to store the JSON string
     const input: PlaygroundInput = {
-      variablesValueCache: { "$.user.name": "John" },
+      variablesValueCache: {
+        __json_data__: JSON.stringify({ user: { name: "John" } }),
+      },
     };
 
+    // For JSON_PATH, the variablesMap should be the parsed JSON object,
+    // which the backend will use to run JSONPath queries
     expect(
       getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
-      variablesMap: { "$.user.name": "John" },
-      variableKeys: ["$.user.name"],
+      variablesMap: { user: { name: "John" } },
+      variableKeys: [],
     });
   });
 
-  it("should extract variables and map them correctly for text completion prompts with JSONPath", () => {
+  it("should handle nested JSON data for JSONPath format", () => {
     const instances: PlaygroundInstance[] = [
       {
         ...baseTestPlaygroundInstance,
@@ -1435,18 +1440,20 @@ describe("getVariablesMapFromInstances", () => {
     ];
     const templateFormat = TemplateFormats.JSONPath;
     const input: PlaygroundInput = {
-      variablesValueCache: { "$.name": "John" },
+      variablesValueCache: {
+        __json_data__: JSON.stringify({ name: "John", age: 30 }),
+      },
     };
 
     expect(
       getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
-      variablesMap: { "$.name": "John" },
-      variableKeys: ["$.name"],
+      variablesMap: { name: "John", age: 30 },
+      variableKeys: [],
     });
   });
 
-  it("should handle multiple instances and variable extraction with JSONPath", () => {
+  it("should handle complex nested JSON data for JSONPath format", () => {
     const instances: PlaygroundInstance[] = [
       {
         ...baseTestPlaygroundInstance,
@@ -1454,30 +1461,77 @@ describe("getVariablesMapFromInstances", () => {
           __type: "chat",
           messages: [
             { id: 0, content: "Hello {$.user.name}", role: "user" },
-            { id: 1, content: "How are you, {$.user.name}?", role: "ai" },
-          ],
-        },
-      },
-      {
-        ...baseTestPlaygroundInstance,
-        template: {
-          __type: "chat",
-          messages: [
-            { id: 0, content: "{$.user.name} is {$.user.age}", role: "user" },
+            { id: 1, content: "You are {$.user.age} years old", role: "ai" },
           ],
         },
       },
     ];
     const templateFormat = TemplateFormats.JSONPath;
     const input: PlaygroundInput = {
-      variablesValueCache: { "$.user.name": "John", "$.user.age": "30" },
+      variablesValueCache: {
+        __json_data__: JSON.stringify({
+          user: { name: "John", age: 30 },
+          messages: [{ text: "hello" }],
+        }),
+      },
     };
 
     expect(
       getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
-      variablesMap: { "$.user.name": "John", "$.user.age": "30" },
-      variableKeys: ["$.user.name", "$.user.age"],
+      variablesMap: {
+        user: { name: "John", age: 30 },
+        messages: [{ text: "hello" }],
+      },
+      variableKeys: [],
+    });
+  });
+
+  it("should return empty variablesMap for invalid JSON in JSONPath format", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [{ id: 0, content: "Hello {$.name}", role: "user" }],
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    const input: PlaygroundInput = {
+      variablesValueCache: {
+        __json_data__: "not valid json",
+      },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateFormat, input })
+    ).toEqual({
+      variablesMap: {},
+      variableKeys: [],
+    });
+  });
+
+  it("should return empty variablesMap when no __json_data__ for JSONPath format", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [{ id: 0, content: "Hello {$.name}", role: "user" }],
+        },
+      },
+    ];
+    const templateFormat = TemplateFormats.JSONPath;
+    const input: PlaygroundInput = {
+      variablesValueCache: {},
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateFormat, input })
+    ).toEqual({
+      variablesMap: {},
+      variableKeys: [],
     });
   });
 });

@@ -1,10 +1,10 @@
-import { LanguageSupport, LRLanguage } from "@codemirror/language";
-import { styleTags, tags as t } from "@lezer/highlight";
 import {
   autocompletion,
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import { LanguageSupport, LRLanguage } from "@codemirror/language";
+import { styleTags, tags as t } from "@lezer/highlight";
 
 import { extractVariables, format } from "../languageUtils";
 
@@ -106,12 +106,9 @@ function createJSONPathAutocomplete(
       return null;
     }
 
-    // Extract the text after the opening brace
-    const textAfterBrace = textBefore.slice(lastOpenBrace + 1);
-
     // Match the current word being typed (starting with $ and including dots and brackets)
     const word =
-      context.matchBefore(/\$[\w.\[\]]*/) || context.matchBefore(/\w*/);
+      context.matchBefore(/\$[\w.[\]]*/) || context.matchBefore(/\w*/);
     if (!word) return null;
 
     // Don't autocomplete if cursor is not at the end of the word and not explicit

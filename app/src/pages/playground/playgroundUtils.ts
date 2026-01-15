@@ -843,6 +843,12 @@ export const extractVariablesFromInstances = ({
   );
 };
 
+/**
+ * The special key used to store JSON data for JSON_PATH templates.
+ * This should match the key used in PlaygroundInput.tsx
+ */
+const JSON_DATA_KEY = "__json_data__";
+
 export const getVariablesMapFromInstances = ({
   instances,
   templateFormat,
@@ -855,6 +861,22 @@ export const getVariablesMapFromInstances = ({
   if (templateFormat == TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
+
+  // Special handling for JSON_PATH format:
+  // The frontend stores the JSON data as a string under __json_data__,
+  // but the backend expects the actual parsed JSON object to run jsonpath queries against.
+  if (templateFormat === TemplateFormats.JSONPath) {
+    const jsonString = input.variablesValueCache?.[JSON_DATA_KEY] ?? "{}";
+    try {
+      const variablesMap = JSON.parse(jsonString);
+      // Return the parsed JSON object so the backend can run JSONPath queries against it
+      return { variablesMap, variableKeys: [] };
+    } catch {
+      // If JSON is invalid, return empty object
+      return { variablesMap: {}, variableKeys: [] };
+    }
+  }
+
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateFormat,

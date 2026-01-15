@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
-import { PathAutocompleteOption } from "@phoenix/components/templateEditor/language/jsonPath";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { PathAutocompleteOption } from "@phoenix/components/templateEditor/language/jsonPath";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   flattenObject,
