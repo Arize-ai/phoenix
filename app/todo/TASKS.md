@@ -59,7 +59,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### integrate-dataset-id-from-url
 
 - content: Update `Playground.tsx` to extract `datasetId` from URL search params and pass it to `PlaygroundProvider`. This ensures the correct store is created/loaded based on the current dataset selection.
-- status: pending
+- status: complete
 - dependencies: update-playground-provider
 
 ---

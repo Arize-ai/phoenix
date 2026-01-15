@@ -62,6 +62,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
     `,
     {}
   );
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId") ?? undefined;
+
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -79,6 +82,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   return (
     <PlaygroundProvider
       {...props}
+      datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
     >

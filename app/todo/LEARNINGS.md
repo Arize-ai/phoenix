@@ -52,3 +52,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - The `datasetIdRef` is used to track changes but isn't strictly necessary since `useMemo` handles the recreation
 - TypeScript errors still exist in consumer files from previous tasks - these are expected until `update-appended-messages-path-consumers` is completed
 - Tests pass (477 tests) and the implementation is ready for the next task (`integrate-dataset-id-from-url`)
+
+## integrate-dataset-id-from-url
+
+- Updated `Playground.tsx` to extract `datasetId` from URL search params using `useSearchParams()` from `react-router`
+- The `useSearchParams` hook was already imported at line 4, so no new import was needed
+- Used `searchParams.get("datasetId") ?? undefined` to convert `null` to `undefined` (matching the expected `string | undefined` type for the `datasetId` prop)
+- The `datasetId` extraction is placed in the `Playground()` component (not `PlaygroundContent()`) since that's where `PlaygroundProvider` is rendered
+- Note: `PlaygroundContent()` also extracts `datasetId` (line 186 original) for local use in determining `isDatasetMode` - this is separate from the provider prop and both are needed
+- Pre-existing TypeScript errors remain in consumer files (`PlaygroundChatTemplate.tsx`, `PlaygroundExperimentSettingsButton.tsx`, `playgroundUtils.ts`) - these will be fixed by `update-appended-messages-path-consumers` task
+- All 477 tests pass
