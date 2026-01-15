@@ -34,11 +34,13 @@ You can create datasets in code, but for this walkthrough we’ll use the Phoeni
 
 This dataset now represents a concrete failure case for your application.
 
+# __TODO__
+
 <Frame caption="Create a New Dataset & add Examples">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
+  src=""
 />
 </Frame>
 
@@ -57,11 +59,13 @@ Traces capture the exact prompts sent to the model, along with their context and
 
 This gives us a concrete starting point for prompt iteration.
 
+# __TODO__
+
 <Frame caption="Save the Financial Research Agent Prompt">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/save_a_prompt.mp4"
+  src=""
 />
 </Frame>
 
@@ -76,25 +80,21 @@ The playground lets us run prompts against a dataset of inputs so we can see how
 1. Navigate to the **Prompt Playground**.
 2. Select the prompt you just saved from the Prompt Hub.
 3. Choose the dataset you just created.
-4. Modify the User Prompt to accept the inputs of the dataset.
+4. Modify the User Prompt to be the inputs of the dataset. 
 
-   The Start of the User prompt should look like this:
-
-   ```
-   Current Task:
-   Research: {tickers}
-   Focus on: {focus}
-   ```
+    The User prompt should be: `{{input}}`
 
 5. Run the prompt across the dataset.
 
 This gives us a baseline for how the current prompt performs.
 
+# __TODO__
+
 <Frame caption="Run the Saved Prompt on your Dataset of Failed Traces">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first%20prompt%20run.mp4"
+  src=""
 />
 </Frame>
 
@@ -112,18 +112,19 @@ Using these explanations, we can notice that many times the reason our agent run
 
 1. Update the prompt directly in the playground. Add this line in:
 
-   > Make sure to include more than 1 financial ratio (such as P/E or P/B).
+   > # __TODO__
 
 2. Run it to preview how outputs change.
 3. Save the new version as a separate prompt in the Prompt Hub.
 
 Saving prompt variants makes it easy to track changes and compare different approaches over time.
 
+# __TODO__
 <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/iterate%20on%20prompt.mp4"
+  src=""
 />
 </Frame>
 
@@ -141,11 +142,12 @@ In this step, we'll just navigate to the experiments page and take a look at the
 
 Now you can see what we just ran in prompt playground side by side.
 
+# __TODO__
 <Frame caption="View Prompt Playground Runs through Experiment View">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompt%20playground%20experiment%20view.mp4"
+  src=""
 />
 </Frame>
 
@@ -155,7 +157,7 @@ Now you can see what we just ran in prompt playground side by side.
 
 Now that you’ve iterated on a prompt, you can start incorporating prompt iteration directly into your development workflow.
 
-To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
+To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](/docs/phoenix/get-started/get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
 
 You can use the Prompt Playground to test prompt changes across different datasets, compare prompt variants, and see how small changes affect outputs at scale. Saving prompts to the Prompt Hub helps keep track of versions and reuse prompts across experiments.
 
