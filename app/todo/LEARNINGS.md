@@ -41,3 +41,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Also updated the type signature in `types.ts:451` for `setAppendedMessagesPath`
 - TypeScript errors remain in consumer files (`PlaygroundChatTemplate.tsx`, `PlaygroundExperimentSettingsButton.tsx`, `playgroundUtils.ts`) - these are expected and will be fixed by the `update-appended-messages-path-consumers` task
 - Tests pass (477 tests) - Vitest uses Babel/esbuild transpilation which ignores TypeScript errors
+
+## update-playground-provider
+
+- Added `datasetId?: string` prop to `PlaygroundProvider` in `src/contexts/PlaygroundContext.tsx`
+- Used `useMemo` with `datasetId` as dependency to recreate the store when datasetId changes
+- The `props` object is intentionally NOT in the dependency array - only `datasetId` triggers store recreation
+- Added eslint-disable comments for `react-hooks/exhaustive-deps` and `react-compiler/react-compiler` since we intentionally only want to recreate on datasetId change
+- Created a new `PlaygroundProviderProps` type that extends `InitialPlaygroundState` with the optional `datasetId` prop
+- The `datasetIdRef` is used to track changes but isn't strictly necessary since `useMemo` handles the recreation
+- TypeScript errors still exist in consumer files from previous tasks - these are expected until `update-appended-messages-path-consumers` is completed
+- Tests pass (477 tests) and the implementation is ready for the next task (`integrate-dataset-id-from-url`)

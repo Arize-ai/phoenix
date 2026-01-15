@@ -53,7 +53,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### update-playground-provider
 
 - content: Update `PlaygroundProvider` in `src/contexts/PlaygroundContext.tsx` to accept an optional `datasetId` prop and pass it to `createPlaygroundStore`. The provider should recreate the store when the datasetId changes (use datasetId as part of the key).
-- status: pending
+- status: complete
 - dependencies: implement-dynamic-storage-key
 
 ### integrate-dataset-id-from-url
