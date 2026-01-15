@@ -1,6 +1,5 @@
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
-import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -17,22 +16,22 @@ import {
 } from "@phoenix/components";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { TagPromptVersionButtonTagsQuery } from "@phoenix/pages/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
+import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 
-import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersionButtonTagsQuery.graphql";
-import { NewPromptVersionDialog } from "./NewPromptVersionTagDialog";
+type TagPromptVersionButtonProps = {
+  promptId: string;
+  versionId: string;
+};
 
-export function TagPromptVersionButton() {
+export function TagPromptVersionButton({
+  promptId,
+  versionId,
+}: TagPromptVersionButtonProps) {
   const [showTagList, setShowTagList] = useState<boolean>(false);
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
   const notifySuccess = useNotifySuccess();
-  const { promptId, versionId } = useParams();
-  if (!promptId) {
-    throw new Error("Expected promptId to be defined");
-  }
-  if (!versionId) {
-    throw new Error("Expected versionId to be defined");
-  }
 
   return (
     <div>
