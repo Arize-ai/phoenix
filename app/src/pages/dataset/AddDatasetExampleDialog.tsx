@@ -55,6 +55,47 @@ const defaultCardProps: Partial<CardProps> = {
   collapsible: true,
 };
 
+/**
+ * Creates an empty JSON structure based on an existing JSON object,
+ * preserving keys but clearing all values
+ */
+function createEmptyStructure(jsonString: string): string {
+  try {
+    const parsed = JSON.parse(jsonString);
+    const cleared = clearValues(parsed);
+    return JSON.stringify(cleared, null, 2);
+  } catch {
+    return "{\n  \n}";
+  }
+}
+
+function clearValues(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return "";
+  }
+  if (Array.isArray(obj)) {
+    return obj.length > 0 ? obj.map(clearValues) : [];
+  }
+  if (typeof obj === "object") {
+    const cleared: Record<string, unknown> = {};
+    for (const key in obj) {
+      cleared[key] = clearValues((obj as Record<string, unknown>)[key]);
+    }
+    return cleared;
+  }
+  // Primitive values (string, number, boolean)
+  if (typeof obj === "string") {
+    return "";
+  }
+  if (typeof obj === "number") {
+    return 0;
+  }
+  if (typeof obj === "boolean") {
+    return false;
+  }
+  return "";
+}
+
 export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const { datasetId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -123,10 +164,11 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
 
           if (createMore) {
             // Clear all form fields and keep dialog open
+            // Preserve structure but clear values from previous example
             reset({
-              input: "{\n  \n}",
-              output: "{\n  \n}",
-              metadata: "{\n  \n}",
+              input: createEmptyStructure(newExample.input),
+              output: createEmptyStructure(newExample.output),
+              metadata: createEmptyStructure(newExample.metadata),
               description: "",
             });
           } else {
