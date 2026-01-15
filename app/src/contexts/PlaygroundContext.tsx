@@ -1,10 +1,4 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useContext,
-  useMemo,
-  useRef,
-} from "react";
+import { createContext, PropsWithChildren, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -28,26 +22,9 @@ type PlaygroundProviderProps = PropsWithChildren<
 
 export function PlaygroundProvider({
   children,
-  datasetId,
   ...props
 }: PlaygroundProviderProps) {
-  // Track the datasetId to detect changes
-  const datasetIdRef = useRef(datasetId);
-  const storeRef = useRef<PlaygroundStore | null>(null);
-
-  // Create or recreate the store when datasetId changes
-  const store = useMemo(() => {
-    // If datasetId changed and we have an existing store, we need a new one
-    if (datasetIdRef.current !== datasetId) {
-      datasetIdRef.current = datasetId;
-    }
-    storeRef.current = createPlaygroundStore(props, datasetId);
-    return storeRef.current;
-    // We intentionally only depend on datasetId to recreate the store
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datasetId]);
-
+  const [store] = useState<PlaygroundStore>(() => createPlaygroundStore(props));
   return (
     <PlaygroundContext.Provider value={store}>
       {children}
