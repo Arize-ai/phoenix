@@ -62,3 +62,14 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - Note: `PlaygroundContent()` also extracts `datasetId` (line 186 original) for local use in determining `isDatasetMode` - this is separate from the provider prop and both are needed
 - Pre-existing TypeScript errors remain in consumer files (`PlaygroundChatTemplate.tsx`, `PlaygroundExperimentSettingsButton.tsx`, `playgroundUtils.ts`) - these will be fixed by `update-appended-messages-path-consumers` task
 - All 477 tests pass
+
+## update-appended-messages-path-consumers
+
+- Updated 3 consumer files to use `appendedMessagesPath` directly instead of `appendedMessagesPathByDataset[datasetId]`:
+  1. `PlaygroundExperimentSettingsButton.tsx` - Simplified state access and removed the datasetId lookup. Also removed the `datasetId` guard in `onChange` since the store is now dataset-specific
+  2. `PlaygroundChatTemplate.tsx` - Simplified state access, removed `datasetId` lookup logic
+  3. `playgroundUtils.ts` - Updated `getChatCompletionOverDatasetInput` to destructure `appendedMessagesPath` directly and use it in the return value
+- Removed unused `useSearchParams` import from `PlaygroundExperimentSettingsButton.tsx` and `PlaygroundChatTemplate.tsx` after the datasetId lookup was removed
+- The `setAppendedMessagesPath` action was already updated in the `implement-dynamic-storage-key` task to take only `(path: string | null)` - consumers now call it correctly
+- Note: The next task `update-set-appended-messages-path-action` may be redundant since the action signature was already updated - verify before implementing
+- All 477 tests pass, TypeScript type checking passes

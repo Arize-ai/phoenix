@@ -1,5 +1,3 @@
-import { useSearchParams } from "react-router";
-
 import {
   Button,
   ComboBox,
@@ -47,15 +45,9 @@ export function PlaygroundExperimentSettingsButton({
 }: {
   isDisabled?: boolean;
 }) {
-  const [searchParams] = useSearchParams();
-  const datasetId = searchParams.get("datasetId");
-
-  const appendedMessagesPathByDataset = usePlaygroundContext(
-    (state) => state.appendedMessagesPathByDataset
+  const appendedMessagesPath = usePlaygroundContext(
+    (state) => state.appendedMessagesPath
   );
-  const appendedMessagesPath = datasetId
-    ? (appendedMessagesPathByDataset[datasetId] ?? null)
-    : null;
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
@@ -112,10 +104,7 @@ export function PlaygroundExperimentSettingsButton({
                 value={appendedMessagesPath ?? ""}
                 size="S"
                 onChange={(value) => {
-                  const path = value || null;
-                  if (datasetId) {
-                    setAppendedMessagesPath(datasetId, path);
-                  }
+                  setAppendedMessagesPath(value || null);
                 }}
               >
                 <Label>Appended dataset messages path</Label>

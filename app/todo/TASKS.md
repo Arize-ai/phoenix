@@ -69,7 +69,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### update-appended-messages-path-consumers
 
 - content: Update all components that use `appendedMessagesPathByDataset` to use the new `appendedMessagesPath` field. This includes `PlaygroundExperimentSettingsButton.tsx`, `playgroundUtils.ts`, and any other files that reference this field. The datasetId lookup is no longer needed since the store is already dataset-specific.
-- status: pending
+- status: complete
 - dependencies: integrate-dataset-id-from-url
 
 ### update-set-appended-messages-path-action

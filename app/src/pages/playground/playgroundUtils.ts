@@ -1331,7 +1331,7 @@ export const getChatCompletionOverDatasetInput = ({
   const {
     templateFormat,
     repetitions,
-    appendedMessagesPathByDataset,
+    appendedMessagesPath,
     templateVariablesPath,
   } = playgroundStore.getState();
 
@@ -1348,7 +1348,7 @@ export const getChatCompletionOverDatasetInput = ({
         inputMapping,
       })
     ),
-    appendedMessagesPath: appendedMessagesPathByDataset[datasetId] ?? null,
+    appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
   };
 };
