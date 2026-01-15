@@ -32,7 +32,9 @@ choices:
   incorrect: 0.0 # Adjust labels as needed
 ```
 
-**Template placeholders:** Use `{{variable_name}}` syntax (Mustache format). Common placeholders:
+**Template placeholders:** Use `{{variable_name}}` syntax (Mustache format). IMPORTANT: If the user does not specify what input data is provided, ask follow-up questions so you know exactly what placeholders are needed in the prompt template and what they should be called.
+
+Common placeholders:
 
 - `{{input}}` - User query or conversation context
 - `{{output}}` - LLM response to evaluate
