@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 4.0.29](https://img.shields.io/badge/Version-4.0.29-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.29.0](https://img.shields.io/badge/AppVersion-12.29.0-informational?style=flat-square)
+![Version: 4.0.30](https://img.shields.io/badge/Version-4.0.30-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 12.30.0](https://img.shields.io/badge/AppVersion-12.30.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -121,7 +121,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-12.29.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-12.30.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
