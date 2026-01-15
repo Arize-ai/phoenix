@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Control, Controller, UseFormHandleSubmit, useForm } from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
@@ -165,7 +165,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
 
 type AddExampleDialogContentProps = {
   close: () => void;
-  control: any;
+  control: Control<DatasetExamplePatch>;
   submitError: string | null;
   isValid: boolean;
   isCommitting: boolean;
@@ -173,7 +173,7 @@ type AddExampleDialogContentProps = {
   setCreateMore: (value: boolean) => void;
   modifierKey: string;
   onSubmit: (data: DatasetExamplePatch, close: () => void) => void;
-  handleSubmit: any;
+  handleSubmit: UseFormHandleSubmit<DatasetExamplePatch>;
 };
 
 function AddExampleDialogContent(props: AddExampleDialogContentProps) {
