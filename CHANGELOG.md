@@ -1,5 +1,25 @@
 # Changelog
 
+## [12.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.29.0...arize-phoenix-v12.30.0) (2026-01-15)
+
+
+### Features
+
+* Add AttributesJSONBlock component for enhanced JSON attribute display ([#10918](https://github.com/Arize-ai/phoenix/issues/10918)) ([0c2426b](https://github.com/Arize-ai/phoenix/commit/0c2426b31031f92fc04b8b7f45ce9de005cb3cbf))
+* add text block and json block icons for attribute string expansion ([#10972](https://github.com/Arize-ai/phoenix/issues/10972)) ([cb938e8](https://github.com/Arize-ai/phoenix/commit/cb938e8f79a4f8e695f7c2bfcb19d98e2dd32dbd))
+
+
+### Bug Fixes
+
+* preserve reasoning_effort and other invocation parameters ([#10915](https://github.com/Arize-ai/phoenix/issues/10915)) ([e1cf433](https://github.com/Arize-ai/phoenix/commit/e1cf43386310be0ddad73049655f0bc8f49bf477))
+* Preserve response format during model updates in playground store ([#10964](https://github.com/Arize-ai/phoenix/issues/10964)) ([8f50e27](https://github.com/Arize-ai/phoenix/commit/8f50e27d92c2fe2fd3fb994c0f576f3a918533fc))
+* Store correct repetition count for non-streaming experiments ([#10953](https://github.com/Arize-ai/phoenix/issues/10953)) ([b3c21ff](https://github.com/Arize-ai/phoenix/commit/b3c21ffffe89c7745c90a240e41602a82b357ca0))
+
+
+### Documentation
+
+* Add CLAUDE.md with development guidelines for Claude Code ([#10927](https://github.com/Arize-ai/phoenix/issues/10927)) ([6932ac4](https://github.com/Arize-ai/phoenix/commit/6932ac48837061e3303d1b57d1d5b8eac3d521aa))
+
 ## [12.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.28.1...arize-phoenix-v12.29.0) (2026-01-12)
 
 
