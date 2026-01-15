@@ -35,7 +35,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### add-tagging-entrypoint
 
 - content: Add the existing tag version action to the `/playground` page UI.
-- status: pending
+- status: complete
 - dependencies: locate-tag-version-ui
 
 ### wire-tag-modal-playground

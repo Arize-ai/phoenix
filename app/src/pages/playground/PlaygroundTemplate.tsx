@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useMemo } from "react";
+import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -21,6 +22,7 @@ import { ModelParametersConfigButton } from "@phoenix/components/playground/mode
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { TagPromptVersionButton } from "@phoenix/pages/prompt/TagPromptVersionButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
@@ -42,6 +44,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const promptId = prompt?.id;
   const promptVersionId = prompt?.version;
   const promptTagName = prompt?.tag ?? null;
+  const { promptId: routePromptId, versionId: routeVersionId } = useParams();
   const dirty = usePlaygroundContext(
     (state) => state.dirtyInstances[instanceId]
   );
@@ -152,6 +155,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             {/* <ModelConfigButton {...props} /> */}
             <ModelParametersConfigButton playgroundInstanceId={instanceId} />
           </CompositeField>
+          {routePromptId && routeVersionId ? <TagPromptVersionButton /> : null}
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
