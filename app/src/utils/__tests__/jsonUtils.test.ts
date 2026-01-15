@@ -1,4 +1,6 @@
 import {
+  clearJSONValues,
+  createEmptyJSONStructure,
   flattenObject,
   formatContentAsString,
   isJSONObjectString,
@@ -970,6 +972,253 @@ describe("unnestSingleStringValue", () => {
       const input = [1, 2, 3];
       const result = unnestSingleStringValue(input);
       expect(result).toEqual({ value: input, wasUnnested: false });
+    });
+  });
+});
+
+describe("clearJSONValues", () => {
+  describe("primitive values", () => {
+    it("clears string to empty string", () => {
+      expect(clearJSONValues("hello")).toBe("");
+    });
+
+    it("preserves numbers", () => {
+      expect(clearJSONValues(42)).toBe(42);
+      expect(clearJSONValues(0)).toBe(0);
+      expect(clearJSONValues(-3.14)).toBe(-3.14);
+    });
+
+    it("preserves booleans", () => {
+      expect(clearJSONValues(true)).toBe(true);
+      expect(clearJSONValues(false)).toBe(false);
+    });
+
+    it("converts null to empty string", () => {
+      expect(clearJSONValues(null)).toBe("");
+    });
+
+    it("converts undefined to empty string", () => {
+      expect(clearJSONValues(undefined)).toBe("");
+    });
+  });
+
+  describe("objects", () => {
+    it("clears string values in objects", () => {
+      expect(clearJSONValues({ name: "John" })).toEqual({ name: "" });
+    });
+
+    it("preserves numbers in objects", () => {
+      expect(clearJSONValues({ age: 30 })).toEqual({ age: 30 });
+    });
+
+    it("preserves booleans in objects", () => {
+      expect(clearJSONValues({ active: true })).toEqual({ active: true });
+    });
+
+    it("handles mixed value types", () => {
+      expect(
+        clearJSONValues({
+          name: "John",
+          age: 30,
+          active: true,
+          email: "test@example.com",
+        })
+      ).toEqual({
+        name: "",
+        age: 30,
+        active: true,
+        email: "",
+      });
+    });
+
+    it("handles nested objects", () => {
+      expect(
+        clearJSONValues({
+          user: {
+            name: "John",
+            address: {
+              city: "NYC",
+              zip: 10001,
+            },
+          },
+        })
+      ).toEqual({
+        user: {
+          name: "",
+          address: {
+            city: "",
+            zip: 10001,
+          },
+        },
+      });
+    });
+
+    it("returns empty object for empty object", () => {
+      expect(clearJSONValues({})).toEqual({});
+    });
+  });
+
+  describe("arrays", () => {
+    it("clears string values in arrays", () => {
+      expect(clearJSONValues(["a", "b", "c"])).toEqual(["", "", ""]);
+    });
+
+    it("preserves numbers in arrays", () => {
+      expect(clearJSONValues([1, 2, 3])).toEqual([1, 2, 3]);
+    });
+
+    it("handles mixed value types in arrays", () => {
+      expect(clearJSONValues(["hello", 42, true])).toEqual(["", 42, true]);
+    });
+
+    it("returns empty array for empty array", () => {
+      expect(clearJSONValues([])).toEqual([]);
+    });
+
+    it("handles arrays of objects", () => {
+      expect(
+        clearJSONValues([
+          { name: "John", age: 30 },
+          { name: "Jane", age: 25 },
+        ])
+      ).toEqual([
+        { name: "", age: 30 },
+        { name: "", age: 25 },
+      ]);
+    });
+
+    it("handles nested arrays", () => {
+      expect(
+        clearJSONValues([
+          ["a", "b"],
+          ["c", "d"],
+        ])
+      ).toEqual([
+        ["", ""],
+        ["", ""],
+      ]);
+    });
+  });
+
+  describe("complex structures", () => {
+    it("handles deeply nested structures", () => {
+      expect(
+        clearJSONValues({
+          level1: {
+            level2: {
+              level3: {
+                value: "deep",
+                count: 100,
+              },
+            },
+          },
+        })
+      ).toEqual({
+        level1: {
+          level2: {
+            level3: {
+              value: "",
+              count: 100,
+            },
+          },
+        },
+      });
+    });
+
+    it("handles objects with array values", () => {
+      expect(
+        clearJSONValues({
+          items: ["item1", "item2"],
+          counts: [1, 2, 3],
+        })
+      ).toEqual({
+        items: ["", ""],
+        counts: [1, 2, 3],
+      });
+    });
+
+    it("handles arrays with nested objects", () => {
+      expect(
+        clearJSONValues({
+          users: [
+            { name: "John", scores: [85, 90] },
+            { name: "Jane", scores: [95, 88] },
+          ],
+        })
+      ).toEqual({
+        users: [
+          { name: "", scores: [85, 90] },
+          { name: "", scores: [95, 88] },
+        ],
+      });
+    });
+  });
+});
+
+describe("createEmptyJSONStructure", () => {
+  describe("valid JSON strings", () => {
+    it("creates empty structure from simple object", () => {
+      const input = '{"name": "John", "age": 30}';
+      const result = createEmptyJSONStructure(input);
+      expect(JSON.parse(result)).toEqual({ name: "", age: 30 });
+    });
+
+    it("creates empty structure from nested object", () => {
+      const input = '{"user": {"name": "John", "email": "test@example.com"}}';
+      const result = createEmptyJSONStructure(input);
+      expect(JSON.parse(result)).toEqual({ user: { name: "", email: "" } });
+    });
+
+    it("creates empty structure from object with array", () => {
+      const input = '{"items": ["a", "b", "c"]}';
+      const result = createEmptyJSONStructure(input);
+      expect(JSON.parse(result)).toEqual({ items: ["", "", ""] });
+    });
+
+    it("preserves numbers and booleans", () => {
+      const input = '{"count": 42, "active": true, "label": "test"}';
+      const result = createEmptyJSONStructure(input);
+      expect(JSON.parse(result)).toEqual({
+        count: 42,
+        active: true,
+        label: "",
+      });
+    });
+
+    it("returns formatted JSON with 2-space indentation", () => {
+      const input = '{"a":"b"}';
+      const result = createEmptyJSONStructure(input);
+      expect(result).toBe('{\n  "a": ""\n}');
+    });
+
+    it("handles empty object", () => {
+      const input = "{}";
+      const result = createEmptyJSONStructure(input);
+      expect(result).toBe("{}");
+    });
+
+    it("handles array at root", () => {
+      const input = '["a", "b"]';
+      const result = createEmptyJSONStructure(input);
+      expect(JSON.parse(result)).toEqual(["", ""]);
+    });
+  });
+
+  describe("invalid JSON strings", () => {
+    it("returns default empty object for invalid JSON", () => {
+      expect(createEmptyJSONStructure("invalid")).toBe("{\n  \n}");
+    });
+
+    it("returns default empty object for unclosed brace", () => {
+      expect(createEmptyJSONStructure("{")).toBe("{\n  \n}");
+    });
+
+    it("returns default empty object for empty string", () => {
+      expect(createEmptyJSONStructure("")).toBe("{\n  \n}");
+    });
+
+    it("returns default empty object for malformed JSON", () => {
+      expect(createEmptyJSONStructure("{a: 1}")).toBe("{\n  \n}");
     });
   });
 });
