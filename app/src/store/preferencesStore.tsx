@@ -59,13 +59,6 @@ export interface PreferencesProps {
    */
   playgroundStreamingEnabled: boolean;
   /**
-   * Appended dataset messages path configured per dataset.
-   * Stores the path to messages in dataset example inputs that should be appended to playground prompts.
-   * Keyed by dataset ID.
-   * @default {}
-   */
-  playgroundAppendedMessagesPathByDataset: Record<string, string | null>;
-  /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
@@ -133,16 +126,6 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling playground streaming
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
-  /**
-   * Setter for the playground appended messages path for a specific dataset
-   */
-  setPlaygroundAppendedMessagesPathForDataset: ({
-    datasetId,
-    path,
-  }: {
-    datasetId: string;
-    path: string | null;
-  }) => void;
   /**
    * Setter for enabling/disabling span annotating
    */
@@ -255,21 +238,6 @@ export const createPreferencesStore = (
     programmingLanguage: "Python",
     setProgrammingLanguage: (programmingLanguage) => {
       set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
-    },
-    playgroundAppendedMessagesPathByDataset: {},
-    setPlaygroundAppendedMessagesPathForDataset: ({ datasetId, path }) => {
-      set(
-        (state) => {
-          return {
-            playgroundAppendedMessagesPathByDataset: {
-              ...state.playgroundAppendedMessagesPathByDataset,
-              [datasetId]: path,
-            },
-          };
-        },
-        false,
-        { type: "setPlaygroundAppendedMessagesPathForDataset" }
-      );
     },
     ...initialProps,
   });
