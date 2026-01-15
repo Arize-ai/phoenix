@@ -4,10 +4,10 @@ import {
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 
 import { openai } from "@ai-sdk/openai";
-const hallucinationEvaluator = createHallucinationEvaluator({
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
 });
 
@@ -18,7 +18,7 @@ const examples = [
     question:
       "Which magazine was started first Arthur's Magazine or First for Women?",
     right_answer: "Arthur's Magazine",
-    hallucinated_answer: "First for Women was started first.",
+    unfaithful_answer: "First for Women was started first.",
   },
   {
     knowledge:
@@ -26,8 +26,7 @@ const examples = [
     question:
       "The Oberoi family is part of a hotel company that has a head office in what city?",
     right_answer: "Delhi",
-    hallucinated_answer:
-      "The Oberoi family's hotel company is based in Mumbai.",
+    unfaithful_answer: "The Oberoi family's hotel company is based in Mumbai.",
   },
   {
     knowledge:
@@ -35,7 +34,7 @@ const examples = [
     question:
       'Musician and satirist Allie Goertz wrote a song about the "The Simpsons" character Milhouse, who Matt Groening named after who?',
     right_answer: "President Richard Nixon",
-    hallucinated_answer:
+    unfaithful_answer:
       "Allie Goertz wrote a song about Milhouse, a popular TV character, named after an influential political figure.",
   },
   {
@@ -43,7 +42,7 @@ const examples = [
       'Margaret "Peggy" Seeger (born June 17, 1935) is an American folksinger. She is also well known in Britain, where she has lived for more than 30 years, and was married to the singer and songwriter Ewan MacColl until his death in 1989.James Henry Miller (25 January 1915 – 22 October 1989), better known by his stage name Ewan MacColl, was an English folk singer, songwriter, communist, labour activist, actor, poet, playwright and record producer.',
     question: " What nationality was James Henry Miller's wife?",
     right_answer: "American",
-    hallucinated_answer: "James Henry Miller's wife was British.",
+    unfaithful_answer: "James Henry Miller's wife was British.",
   },
   {
     knowledge:
@@ -51,7 +50,7 @@ const examples = [
     question:
       "Cadmium Chloride is slightly soluble in this chemical, it is also called what?",
     right_answer: "alcohol",
-    hallucinated_answer: "water with a hint of alcohol",
+    unfaithful_answer: "water with a hint of alcohol",
   },
   {
     knowledge:
@@ -59,7 +58,7 @@ const examples = [
     question:
       "Which tennis player won more Grand Slam titles, Henri Leconte or Jonathan Stark?",
     right_answer: "Jonathan Stark",
-    hallucinated_answer: "Henri Leconte won more Grand Slam titles.",
+    unfaithful_answer: "Henri Leconte won more Grand Slam titles.",
   },
   {
     knowledge:
@@ -67,7 +66,7 @@ const examples = [
     question:
       "Which genus of moth in the world's seventh-largest country contains only one species?",
     right_answer: "Crambidae",
-    hallucinated_answer:
+    unfaithful_answer:
       "The Indogrammodes genus of moths found in India has only one species.",
   },
   {
@@ -76,13 +75,13 @@ const examples = [
     question:
       'Who was once considered the best kick boxer in the world, however he has been involved in a number of controversies relating to his "unsportsmanlike conducts" in the sport and crimes of violence outside of the ring.',
     right_answer: "Badr Hari",
-    hallucinated_answer: "Badr Hari is a notorious kickboxer.",
+    unfaithful_answer: "Badr Hari is a notorious kickboxer.",
   },
 ];
 
 type TaskOutput = {
-  expected_label: "hallucinated" | "factual";
-  label: "hallucinated" | "factual";
+  expected_label: "unfaithful" | "faithful";
+  label: "unfaithful" | "faithful";
   score: number;
   explanation: string;
 };
@@ -94,7 +93,7 @@ const correctEvaluator = asExperimentEvaluator({
     const output = args.output as TaskOutput;
     const score = output.expected_label === output.label ? 1 : 0;
     const label =
-      output.expected_label === "hallucinated" ? "hallucinated" : "factual";
+      output.expected_label === "unfaithful" ? "unfaithful" : "faithful";
     return {
       label: label,
       score: score,
@@ -106,13 +105,13 @@ const correctEvaluator = asExperimentEvaluator({
 
 async function main() {
   const dataset = await createDataset({
-    name: "hallucination-eval" + Math.random(),
-    description: "Evaluate the hallucination of the model",
+    name: "faithfulness-eval" + Math.random(),
+    description: "Evaluate the faithfulness of the model",
     examples: examples.map((example) => ({
       input: { question: example.question, context: example.knowledge },
       output: {
         answer: example.right_answer,
-        hallucinated_answer: example.hallucinated_answer,
+        unfaithful_answer: example.unfaithful_answer,
       },
       metadata: {
         knowledge: example.knowledge,
@@ -121,25 +120,25 @@ async function main() {
   });
 
   const task: ExperimentTask = async (example) => {
-    const useHallucination = Math.random() < 0.2;
-    const answer = useHallucination
-      ? example.output?.hallucinated_answer
+    const useUnfaithful = Math.random() < 0.2;
+    const answer = useUnfaithful
+      ? example.output?.unfaithful_answer
       : example.output?.answer;
 
-    const evalResult = await hallucinationEvaluator.evaluate({
+    const evalResult = await faithfulnessEvaluator.evaluate({
       input: example.input.question as string,
       context: example.input.context as string,
       output: answer as string,
     });
 
     return {
-      expected_label: useHallucination ? "hallucinated" : "factual",
+      expected_label: useUnfaithful ? "unfaithful" : "faithful",
       ...evalResult,
     };
   };
   runExperiment({
-    experimentName: "hallucination-eval",
-    experimentDescription: "Evaluate the hallucination of the model",
+    experimentName: "faithfulness-eval",
+    experimentDescription: "Evaluate the faithfulness of the model",
     concurrency: 8,
     dataset: dataset,
     task,
