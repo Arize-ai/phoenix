@@ -1,0 +1,217 @@
+---
+title: "Defining the Dataset That Powers Your Experiments"
+description: "A dataset is the foundation for systematic evaluation and iterative improvement in your AI workflow."
+---
+
+<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/python_experiments_quickstart.ipynb" />
+
+## Why Create a Dataset?
+In AI application development, quick iteration can mask regressions or blind spots in quality. Prompt tweaks, model swaps, or architectural changes may seem better in isolation, but without systematic evaluation it’s just guesswork.
+
+That's where datasets come in: they act as structured collections of representative examples that you care about and want to systematically test your application against. A dataset is your definition of the test cases that matter as your system evolves. Each example captures:
+
+- The input that your application will receive
+- An optional reference or expected output (so you can evaluate correctness or quality via evaluators)
+- Optional metadata (ex: tags, error types, model parameters)
+
+Using datasets gives you a reliable foundation for evaluating, tracking, and improving your AI workflows in a way engineers are familiar with.
+## What Should Your Dataset Contain?
+The ideal dataset reflects the core behaviors you want your application to get right. Consider including:
+
+- Normal-case examples that represent typical user interactions.
+- Edge cases where your application historically struggled.
+- Flagged or failed runs pulled from logs, user feedback, or tracing. These illustrate concrete failure modes you want to improve. 
+
+
+Some useful dataset types you might build include:
+- Golden datasets: Curated examples with human-verified or “ideal” outputs that serve as a reliable benchmark.
+- Regression datasets: Cases that previously failed or revealed a weakness you want to prevent from re-occurring.
+- Real user logs: Production or staging logs captured via Phoenix traces
+
+By intentionally gathering both typical and challenging cases, you set up your experiments to surface meaningful changes when your code or prompts evolve.
+
+# Define an Agent 
+
+First, let's define an agent. The dataset we create will be used to run experiments on this agent to evaluate its performance.
+
+We'll build a customer support agent using the `agno` framework that helps users resolve their issues by classifying support tickets and retrieving relevant policies. 
+
+It has two tools: `classify_ticket`, which categorizes support tickets into billing, technical, account, or other categories, and `retrieve_policy`, which fetches the appropriate internal support policy based on the ticket category.
+
+### Install Dependencies
+
+```bash
+pip install agno arize-phoenix openai openinference-instrumentation-agno openinference-instrumentation-openai
+```
+
+### Configure Tracing 
+
+```python
+from phoenix.otel import register
+register(project_name="experiments-tutorial", auto_instrument=True)
+```
+### Agent Tools 
+```python expandable
+from agno.tools import tool
+from agno.models.openai import OpenAIChat
+from openai import OpenAI
+
+CATEGORIES = ["billing", "technical", "account", "other"]
+
+openai_client = OpenAI()
+
+@tool
+def classify_ticket(ticket_text: str) -> str:
+    """
+    Classify a support ticket into:
+    billing, technical, account, or other.
+    """
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You classify customer support tickets into one of the "
+                "following categories: billing, technical, account, other. "
+                "Respond with ONLY the category name."
+            ),
+        },
+        {
+            "role": "user",
+            "content": ticket_text,
+        },
+    ]
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+    )
+    label = response.choices[0].message.content.strip().lower()
+
+    if label not in CATEGORIES:
+        return "other"
+
+    return label
+```
+
+```python
+POLICIES = {
+    "billing": "Billing policy: Refunds are issued for duplicate charges within 7 days.",
+    "technical": "Technical policy: Troubleshoot login issues, outages, and errors.",
+    "account": "Account policy: Users can update email and password in account settings.",
+    "other": "General support policy: Route to a human agent."
+}
+
+@tool
+def retrieve_policy(category: str) -> str:
+    """Retrieve internal support policy."""
+    return POLICIES.get(category, POLICIES["other"])
+```
+### Configure Agent 
+
+```python
+from agno.agent import Agent
+
+support_agent = Agent(
+    name="SupportAgent",
+    model=OpenAIChat(id="gpt-4o-mini"),
+    tools=[classify_ticket, retrieve_policy],
+    instructions="""
+You are a customer support assistant.
+
+Steps:
+1. Use classify_ticket to determine the issue category.
+2. Use retrieve_policy to fetch the relevant policy.
+3. Write a helpful, polite response grounded in the policy.
+Do not invent policies.
+"""
+)
+``` 
+
+# Create Dataset 
+
+Let's create a sample dataset and upload it to Phoenix. 
+
+We've constructed 30 examples. Some of our examples have a reference output column (we consider these to be easier queries). When we upload the dataset, we have the user query in the input column and the optional reference in the output column.
+
+```python
+import pandas as pd
+import phoenix as px
+from phoenix.client import Client
+
+
+data = [
+    # Easy queries(ground truth available)
+    {"query": "I was charged twice for my subscription this month.", "expected_category": "billing"},
+    {"query": "My app crashes every time I try to log in.", "expected_category": "technical"},
+    {"query": "How do I change the email on my account?", "expected_category": "account"},
+    {"query": "I want a refund because I was billed incorrectly.", "expected_category": "billing"},
+    {"query": "The website shows a 500 error.", "expected_category": "technical"},
+    {"query": "I forgot my password and cannot sign in.", "expected_category": "account"},
+    {"query": "I was billed after canceling my subscription.", "expected_category": "billing"},
+    {"query": "The app freezes on startup.", "expected_category": "technical"},
+    {"query": "How can I update my billing address?", "expected_category": "account"},
+    {"query": "Why was my credit card charged twice?", "expected_category": "billing"},
+    {"query": "Push notifications are not working.", "expected_category": "technical"},
+    {"query": "Can I change my username?", "expected_category": "account"},
+    {"query": "I was charged even though my trial should be free.", "expected_category": "billing"},
+    {"query": "The page won't load on mobile.", "expected_category": "technical"},
+    {"query": "How do I delete my account?", "expected_category": "account"},
+
+    # Harder queries(no ground truth)
+    {"query": "I canceled last week but still see a pending charge and now the app won't open.", "expected_category": None},
+    {"query": "Nothing works anymore and I don't even know where to start.", "expected_category": None},
+    {"query": "I updated my email and now I can't log in — also was billed today.", "expected_category": None},
+    {"query": "This service is unusable and I want my money back.", "expected_category": None},
+    {"query": "I think something is wrong with my account but support never responds.", "expected_category": None},
+    {"query": "My subscription status looks wrong and the app crashes randomly.", "expected_category": None},
+    {"query": "Why am I being charged if I can't access my account?", "expected_category": None},
+    {"query": "The app broke after the last update and now billing looks incorrect.", "expected_category": None},
+    {"query": "I'm locked out and still getting charged — please help.", "expected_category": None},
+    {"query": "This feels like both a billing and technical issue.", "expected_category": None},
+    {"query": "Everything worked yesterday, today nothing does.", "expected_category": None},
+    {"query": "I don't recognize this charge and the app won't load.", "expected_category": None},
+    {"query": "Account settings changed on their own and I was billed.", "expected_category": None},
+    {"query": "I want to cancel but can't log in and was charged again.", "expected_category": None},
+    {"query": "The system is broken and I'm losing money.", "expected_category": None},
+]
+
+# Create DataFrame
+dataset_df = pd.DataFrame(data)
+
+# -----------------------------
+# Upload Dataset
+# -----------------------------
+
+px_client = Client()
+
+dataset = px_client.datasets.create_dataset(
+    dataframe=dataset_df,
+    name="support-ticket-queries",
+    input_keys=["query"],
+    output_keys=["expected_category"],
+)
+```
+
+Once you upload the dataset to Phoenix, it should look like this in the UI: 
+![Uploaded Dataset](https://storage.googleapis.com/arize-phoenix-assets/assets/images/experiment-tutorial-upload-dataset.png)
+
+
+# Using Dataset Splits 
+As we saw above, not all examples in a dataset serve the same purpose. Dataset splits let you organize a single dataset into meaningful subsets based on whatever distinctions matter to you. 
+
+These splits can represent baseline examples, hard cases, holdout test cases, or any custom grouping that reflects how you want to experiment with your system. 
+Once created, you can run experiments on targeted subsets of examples and compare results across them. This makes it easier to answer questions like whether a change improved typical behavior but regressed on edge cases, or how performance differs between validation and test examples.  
+
+For our dataset, we'll create two splits: add the "easier" examples with ground truth to a split called "baseline", and add the remaining examples to a split called "challenging". Create these splits in the Phoenix UI by following the video below.
+
+<video controls loop autoPlay muted style={{ width: '100%', maxWidth: '800px' }}>
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiments_quickstart_dataset_splits.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
+# Next Steps 
+
+Now that you have a dataset with splits defined, you're ready to run experiments to evaluate your agent's performance.
+
+<Card title="Run Experiments with Evaluators" icon="flask" href="/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-evals" />

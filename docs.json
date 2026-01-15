@@ -201,6 +201,14 @@
                 "group": "Datasets & Experiments",
                 "icon": "flask",
                 "pages": [
+                  {
+                    "group": "Tutorial",
+                    "pages": [
+                      "docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset",
+                      "docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-evals",
+                      "docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments"
+                    ]
+                  },
                   "docs/phoenix/datasets-and-experiments/overview-datasets",
                   {
                     "group": "How-to: Datasets",
