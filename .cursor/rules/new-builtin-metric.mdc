@@ -1,0 +1,343 @@
+# Creating a New Built-in Classification Metric
+
+This guide describes how to create a new built-in classification evaluator metric for Phoenix evals. Follow these steps in order.
+
+## Overview
+
+Built-in metrics consist of:
+
+1. **YAML Config** - Prompt template with criteria
+2. **Generated Types** - Auto-generated Python and TypeScript code
+3. **Python Evaluator** - Python class wrapping the config
+4. **TypeScript Evaluator** - TypeScript factory function
+5. **Benchmark Suite** - Synthetic test examples
+
+## Step 1: Create the YAML Config
+
+Create a new file in `prompts/classification_evaluator_configs/` named `{METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.yaml`.
+
+**Required fields:**
+
+```yaml
+name: metric_name # lowercase, snake_case
+description: Brief description of what this metric evaluates
+optimization_direction: maximize # or minimize or neutral
+messages:
+  - role: user
+    content: >-
+      # Your prompt template here
+      # Use mustache {{placeholder}} for template variables
+choices:
+  correct: 1.0 # Map label to score
+  incorrect: 0.0 # Adjust labels as needed
+```
+
+**Template placeholders:** Use `{{variable_name}}` syntax (Mustache format). Common placeholders:
+
+- `{{input}}` - User query or conversation context
+- `{{output}}` - LLM response to evaluate
+- `{{reference}}` - Ground truth or expected output
+
+**Reference existing configs:**
+
+- `TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml` - Tool selection evaluation
+- `TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml` - Tool invocation evaluation
+- `CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG.yaml` - Response correctness
+- `HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml` - Hallucination detection
+
+## Step 2: Compile Prompts
+
+Run to generate Python and TypeScript types:
+
+```bash
+tox -e compile_prompts
+```
+
+This generates:
+
+- `packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs/`
+- `js/packages/phoenix-evals/src/__generated__/default_templates/`
+
+## Step 3: Create Python Evaluator
+
+Create `packages/phoenix-evals/src/phoenix/evals/metrics/{metric_name}.py`:
+
+```python
+from pydantic import BaseModel, Field
+
+from ..__generated__.classification_evaluator_configs import (
+    {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG,
+)
+from ..evaluators import ClassificationEvaluator
+from ..llm import LLM
+from ..llm.prompts import PromptTemplate
+
+
+class {MetricName}Evaluator(ClassificationEvaluator):
+    """
+    Docstring describing the evaluator.
+
+    Args:
+        llm (LLM): The LLM instance to use for evaluation.
+
+    Notes:
+        - What this metric evaluates
+        - What it returns
+        - Requirements
+
+    Examples::
+
+        from phoenix.evals.metrics.{metric_name} import {MetricName}Evaluator
+        from phoenix.evals import LLM
+
+        llm = LLM(provider="openai", model="gpt-4o-mini")
+        evaluator = {MetricName}Evaluator(llm=llm)
+        scores = evaluator.evaluate({
+            "input": "...",
+            "output": "...",
+        })
+    """
+
+    NAME = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.name
+    PROMPT = PromptTemplate(
+        template=[
+            msg.model_dump() for msg in {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.messages
+        ],
+    )
+    CHOICES = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
+
+    class {MetricName}InputSchema(BaseModel):
+        # Define input fields matching template placeholders
+        input: str = Field(description="Description of this field")
+        output: str = Field(description="Description of this field")
+
+    def __init__(self, llm: LLM):
+        super().__init__(
+            name=self.NAME,
+            llm=llm,
+            prompt_template=self.PROMPT.template,
+            choices=self.CHOICES,
+            direction=self.DIRECTION,
+            input_schema=self.{MetricName}InputSchema,
+        )
+```
+
+## Step 4: Create TypeScript Evaluator
+
+Create `js/packages/phoenix-evals/src/llm/create{MetricName}Evaluator.ts`:
+
+````typescript
+import { {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
+import { CreateClassificationEvaluatorArgs } from "../types/evals";
+import { ClassificationEvaluator } from "./ClassificationEvaluator";
+import { createClassificationEvaluator } from "./createClassificationEvaluator";
+
+export interface {MetricName}EvaluatorArgs<
+  RecordType extends Record<string, unknown> = {MetricName}EvaluationRecord,
+> extends Omit<
+    CreateClassificationEvaluatorArgs<RecordType>,
+    "promptTemplate" | "choices" | "optimizationDirection" | "name"
+  > {
+  optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
+  name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
+  choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
+  promptTemplate?: CreateClassificationEvaluatorArgs<RecordType>["promptTemplate"];
+}
+
+export type {MetricName}EvaluationRecord = {
+  input: string;
+  output: string;
+  // Add fields matching template placeholders
+};
+
+/**
+ * Creates a {metric_name} evaluator function.
+ *
+ * @example
+ * ```ts
+ * const evaluator = create{MetricName}Evaluator({ model: openai("gpt-4o-mini") });
+ * const result = await evaluator.evaluate({
+ *   input: "...",
+ *   output: "...",
+ * });
+ * ```
+ */
+export function create{MetricName}Evaluator<
+  RecordType extends Record<string, unknown> = {MetricName}EvaluationRecord,
+>(args: {MetricName}EvaluatorArgs<RecordType>): ClassificationEvaluator<RecordType> {
+  const {
+    choices = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.choices,
+    promptTemplate = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.template,
+    optimizationDirection = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.optimizationDirection,
+    name = {METRIC_NAME}_CLASSIFICATION_EVALUATOR_CONFIG.name,
+    ...rest
+  } = args;
+  return createClassificationEvaluator<RecordType>({
+    ...rest,
+    promptTemplate,
+    choices,
+    optimizationDirection,
+    name,
+  });
+}
+````
+
+**Add export to** `js/packages/phoenix-evals/src/llm/index.ts`:
+
+```typescript
+export * from "./create{MetricName}Evaluator";
+```
+
+## Step 5: Build JS Packages
+
+```bash
+cd js && pnpm build
+```
+
+## Step 6: Create Benchmark Suite
+
+Create `js/benchmarks/evals-benchmarks/src/{metric_name}_benchmark.ts`.
+
+**Reference existing benchmarks** in the same directory for patterns:
+
+- `correctness_benchmark.ts` - Good example of category-based organization
+- `hallucination_benchmark.ts` - Simpler structure
+- `tool_invocation_benchmark.ts` - Multi-tool and context handling
+- `document_relevance_benchmark.ts` - Large synthetic dataset
+
+**Target dataset size:** Aim for **30-50 synthetic examples** covering:
+
+- 2-4 examples per failure mode (incorrect cases)
+- 2-4 examples per success scenario (correct cases)
+- At least 2 edge case categories
+
+**Synthetic dataset creation:** For complex metrics, consider initiating a **separate AI agent session** dedicated to synthetic dataset generation. This agent can:
+
+- Focus solely on creating realistic, diverse test cases
+- Iterate on edge cases without context switching
+- Generate examples in batches by category
+
+**Structure:**
+
+```typescript
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { asExperimentEvaluator, getExperiment, runExperiment } from "@arizeai/phoenix-client/experiments";
+import { create{MetricName}Evaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = create{MetricName}Evaluator({ model: openai("gpt-4o-mini") });
+
+// Define examples by category (target: 30-50 total examples)
+const examplesByCategory = {
+  // Failure modes (2-4 examples each)
+  failure_mode_1: [
+    { input: "...", output: "...", expected_label: "incorrect" as const },
+    // ...
+  ],
+  // Success cases (2-4 examples each)
+  correct_case_1: [
+    { input: "...", output: "...", expected_label: "correct" as const },
+    // ...
+  ],
+  // Edge cases
+  edge_cases: [
+    // ...
+  ],
+};
+
+// Accuracy evaluator to compare predicted vs expected labels
+const accuracyEvaluator = asExperimentEvaluator({
+  name: "accuracy",
+  kind: "CODE",
+  evaluate: async (args) => {
+    const output = args.output as TaskOutput;
+    const score = output.expected_label === output.label ? 1 : 0;
+    return {
+      label: score === 1 ? "accurate" : "inaccurate",
+      score,
+      explanation: `Expected: ${output.expected_label}, Got: ${output.label}`,
+    };
+  },
+});
+
+async function main() {
+  const dataset = await createDataset({ ... });
+  const experiment = await runExperiment({
+    dataset,
+    task,
+    evaluators: [accuracyEvaluator],
+  });
+
+  const result = await getExperiment({ experimentId: experiment.id });
+
+  // Print detailed results by category
+  printResultsByCategory(result);
+
+  // Print confusion matrix
+  printConfusionMatrix(result);
+}
+
+function printConfusionMatrix(result) {
+  let truePositive = 0, falsePositive = 0, trueNegative = 0, falseNegative = 0;
+
+  for (const run of Object.values(result.runs)) {
+    const output = run.output;
+    const expected = output.expected_label;
+    const predicted = output.label;
+
+    if (expected === "correct" && predicted === "correct") truePositive++;
+    else if (expected === "incorrect" && predicted === "correct") falsePositive++;
+    else if (expected === "incorrect" && predicted === "incorrect") trueNegative++;
+    else if (expected === "correct" && predicted === "incorrect") falseNegative++;
+  }
+
+  console.log("\nCONFUSION MATRIX");
+  console.log("                  Predicted");
+  console.log("                  correct  incorrect");
+  console.log(`Actual correct      ${truePositive}        ${falseNegative}`);
+  console.log(`Actual incorrect    ${falsePositive}        ${trueNegative}`);
+  console.log(`\nPrecision: ${(truePositive / (truePositive + falsePositive) * 100).toFixed(1)}%`);
+  console.log(`Recall: ${(truePositive / (truePositive + falseNegative) * 100).toFixed(1)}%`);
+}
+
+main();
+```
+
+**Benchmark categories should include:**
+
+- Positive examples (expected: correct/pass)
+- Negative examples for each failure mode
+- Edge cases
+- Different input formats if applicable
+
+## Step 7: Run Benchmark
+
+```bash
+# Start Phoenix (or use Phoenix Cloud)
+PHOENIX_WORKING_DIR=/tmp/phoenix-test phoenix serve
+
+# Run benchmark
+cd js/benchmarks/evals-benchmarks
+export OPENAI_API_KEY="..."
+pnpm tsx src/{metric_name}_benchmark.ts
+```
+
+## Checklist
+
+- [ ] YAML config created with clear criteria
+- [ ] `tox -e compile_prompts` run successfully
+- [ ] Python evaluator class with docstrings and examples
+- [ ] TypeScript evaluator wrapper with types
+- [ ] Export added to `llm/index.ts`
+- [ ] JS packages rebuilt (`pnpm build`)
+- [ ] Benchmark suite with diverse test cases
+- [ ] Benchmark run with acceptable accuracy (>80% target)
+
+## Tips for Good Prompts
+
+1. **Be explicit about criteria** - List what makes something correct vs incorrect
+2. **Handle edge cases** - Multi-item evaluations, context from earlier turns
+3. **Separate concerns** - If evaluating X, explicitly state you're NOT evaluating Y
+4. **Provide reasoning guidance** - Tell the judge what to consider before deciding
+5. **Use clear data formatting** - Wrap inputs in XML-style tags like `<context>`, `<output>`
