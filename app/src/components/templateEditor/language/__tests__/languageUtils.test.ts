@@ -42,6 +42,34 @@ can you help with this json?
         input: `{"name": "{{  name  }}"}`,
         expected: ["name"],
       },
+      // Dot notation tests
+      {
+        input: "{{user.name}}",
+        expected: ["user.name"],
+      },
+      {
+        input: "{{input.query}} and {{reference.answer}}",
+        expected: ["input.query", "reference.answer"],
+      },
+      // Array indexing tests
+      {
+        input: "{{items[0]}}",
+        expected: ["items[0]"],
+      },
+      {
+        input: "{{messages[0].content}}",
+        expected: ["messages[0].content"],
+      },
+      // Combined dot notation and array indexing
+      {
+        input: "{{input.messages[0].content}}",
+        expected: ["input.messages[0].content"],
+      },
+      {
+        input:
+          "User: {{input.messages[0].content}}\nExpected: {{reference.answer}}",
+        expected: ["input.messages[0].content", "reference.answer"],
+      },
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(
@@ -137,6 +165,73 @@ can you help with this json?
         input: `{"name": "{{  name  }}"}`,
         variables: { name: "John" },
         expected: `{"name": "John"}`,
+      },
+      // Dot notation tests
+      {
+        input: "{{user.name}}",
+        variables: { user: { name: "Alice" } },
+        expected: "Alice",
+      },
+      {
+        input: "Hello {{user.firstName}} {{user.lastName}}!",
+        variables: { user: { firstName: "John", lastName: "Doe" } },
+        expected: "Hello John Doe!",
+      },
+      {
+        input: "{{a.b.c.d}}",
+        variables: { a: { b: { c: { d: "deep" } } } },
+        expected: "deep",
+      },
+      // Array indexing tests
+      {
+        input: "{{items[0]}}",
+        variables: { items: ["first", "second", "third"] },
+        expected: "first",
+      },
+      {
+        input: "{{items[2]}}",
+        variables: { items: ["a", "b", "c"] },
+        expected: "c",
+      },
+      // Combined dot notation and array indexing
+      {
+        input: "{{messages[0].content}}",
+        variables: { messages: [{ role: "user", content: "Hello" }] },
+        expected: "Hello",
+      },
+      {
+        input: "{{input.messages[0].content}}",
+        variables: {
+          input: {
+            messages: [{ role: "user", content: "Show database schema" }],
+          },
+        },
+        expected: "Show database schema",
+      },
+      {
+        input:
+          "User: {{input.messages[0].content}}\nExpected: {{reference.answer}}",
+        variables: {
+          input: { messages: [{ role: "user", content: "Hello" }] },
+          reference: { answer: "Hi there!" },
+        },
+        expected: "User: Hello\nExpected: Hi there!",
+      },
+      {
+        input: "{{data[0][1]}}",
+        variables: {
+          data: [
+            ["a", "b", "c"],
+            ["d", "e", "f"],
+          ],
+        },
+        expected: "b",
+      },
+      // Missing nested path leaves template as-is
+      {
+        input: "{{user.email}}",
+        variables: { user: { name: "Alice" } },
+        expected: "{{user.email}}",
       },
     ] as const;
     tests.forEach(({ input, variables, expected }) => {

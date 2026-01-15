@@ -1,9 +1,11 @@
 import { LRParser } from "@lezer/lr";
 
+import { getRootKey, getValueAtPath } from "@phoenix/utils/objectUtils";
+
 /**
  * Extracts all variables from a templated string.
  *
- * @returns An array of variable names.
+ * @returns An array of variable names (may include dot notation paths like "input.query" or "messages[0].content").
  */
 export const extractVariables = ({
   parser,
@@ -35,6 +37,7 @@ export const extractVariables = ({
  * Formats a templated string with the given variables.
  *
  * The parser should be a language parser that emits Variable nodes as children of some parent node.
+ * Supports dot notation and array indexing in variable names (e.g., "input.messages[0].content").
  */
 export const format = ({
   parser,
@@ -57,10 +60,11 @@ export const format = ({
   text: string;
   /**
    * A mapping of variable names to their values.
+   * Can be a nested object - paths like "input.query" will be resolved.
    *
-   * If a variable is not found in this object, it will be left as is.
+   * If a variable path cannot be resolved, the template placeholder will be left as is.
    */
-  variables: Record<string, string | number | boolean | undefined>;
+  variables: Record<string, unknown>;
   /**
    * Runs after formatting the text but just before returning the result
    *
@@ -76,16 +80,24 @@ export const format = ({
   do {
     if (cur.name === "Variable") {
       // grab the content inside of the braces, ignoring whitespace
-      const variable = result.slice(cur.node.from, cur.node.to).trim();
+      const variablePath = result.slice(cur.node.from, cur.node.to).trim();
       // grab the position of the content including the braces
       const Template = cur.node.parent!;
-      if (variable in variables) {
-        // replace the content (including braces and whitespace) with the variable value
-        result = `${result.slice(0, Template.from)}${variables[variable]}${result.slice(Template.to)}`;
-        // reparse the result so that positions are updated
-        tree = parser.parse(result);
-        // reset the cursor to the start of the new tree
-        cur = tree.cursor();
+
+      // Check if the root key exists in variables
+      const rootKey = getRootKey(variablePath);
+      if (rootKey in variables) {
+        // Use getValueAtPath to resolve the full path (supports dot notation and array indexing)
+        const value = getValueAtPath(variables, variablePath);
+        if (value !== undefined) {
+          // replace the content (including braces and whitespace) with the variable value
+          const replacement = typeof value === "string" ? value : String(value);
+          result = `${result.slice(0, Template.from)}${replacement}${result.slice(Template.to)}`;
+          // reparse the result so that positions are updated
+          tree = parser.parse(result);
+          // reset the cursor to the start of the new tree
+          cur = tree.cursor();
+        }
       }
     }
   } while (cur.next());

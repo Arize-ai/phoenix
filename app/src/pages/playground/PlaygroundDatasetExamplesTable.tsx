@@ -86,6 +86,7 @@ import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
+import { flattenObject } from "@phoenix/utils/jsonUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
@@ -130,11 +131,14 @@ const outputContentCSS = css`
 `;
 
 /**
- * Get possible variable names based on the template variables path.
+ * Get all possible variable paths based on the template variables path.
+ *
+ * Uses flattenObject to generate all possible paths including nested properties
+ * and array indices (e.g., "input.messages[0].content").
  *
  * @param datasetExample - The full dataset example with input, output, and metadata
  * @param templateVariablesPath - The path prefix for template variables
- * @returns Array of possible variable names
+ * @returns Array of possible variable paths
  */
 function getPossibleVariablesForPath({
   datasetExample,
@@ -143,24 +147,30 @@ function getPossibleVariablesForPath({
   datasetExample: { input: unknown; output: unknown; metadata: unknown };
   templateVariablesPath: string | null;
 }): string[] {
-  // TODO: dynamically parse all valid root-level paths from the dataset example
-  // instead of hardcoding these known keys
   const templateVariablesContext = {
     input: datasetExample.input,
     reference: datasetExample.output,
     metadata: datasetExample.metadata,
   };
 
-  // Look up the object at the path and return its keys
-  // When path is empty, getValueAtPath returns the whole context object
+  // Look up the object at the path
   const targetObject = getValueAtPath(
     templateVariablesContext,
     templateVariablesPath ?? ""
   );
-  if (isStringKeyedObject(targetObject)) {
-    return Object.keys(targetObject);
+
+  if (!isStringKeyedObject(targetObject) && !Array.isArray(targetObject)) {
+    return [];
   }
-  return [];
+
+  // Use flattenObject to get all possible paths with bracket notation for arrays
+  const flattened = flattenObject({
+    obj: targetObject as Record<string, unknown>,
+    keepNonTerminalValues: true,
+    formatIndices: true,
+  });
+
+  return Object.keys(flattened);
 }
 
 type ChatCompletionOverDatasetMutationPayload =
@@ -319,7 +329,9 @@ function EmptyExampleOutput({
 
   const missingVariables = useMemo(() => {
     return instanceVariables.filter((variable) => {
-      return targetObject[variable] == null;
+      // Use getValueAtPath to support dot notation and array indexing in variable names
+      const value = getValueAtPath(targetObject, variable);
+      return value == null;
     });
   }, [targetObject, instanceVariables]);
 
@@ -339,15 +351,32 @@ function EmptyExampleOutput({
   if (missingVariables.length > 0) {
     cellTopContent = <Text color="danger">Missing variables</Text>;
     content = (
-      <PlaygroundErrorWrap>
-        {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
-          ", "
-        )}.${
-          possibleVariables.length > 0
-            ? ` Possible inputs are: ${possibleVariables.join(", ")}`
-            : " No inputs found in dataset example."
-        }`}
-      </PlaygroundErrorWrap>
+      <OverflowCell
+        height={CELL_PRIMARY_CONTENT_HEIGHT}
+        isExpanded={isExpanded}
+        onExpandedChange={onExpandedChange}
+      >
+        <PlaygroundErrorWrap alignItems="start">
+          {`Dataset is missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(", ")}`}
+          {possibleVariables.length > 0 ? (
+            <Flex direction="column" gap="size-50">
+              Possible inputs:
+              <ul
+                css={css`
+                  margin: 0;
+                  padding-left: var(--ac-global-dimension-size-200);
+                `}
+              >
+                {possibleVariables.map((variable) => (
+                  <li key={variable}>{variable}</li>
+                ))}
+              </ul>
+            </Flex>
+          ) : (
+            <>No inputs found in dataset example.</>
+          )}
+        </PlaygroundErrorWrap>
+      </OverflowCell>
     );
   }
   return (

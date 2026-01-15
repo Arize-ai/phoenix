@@ -1,4 +1,4 @@
-import { compressObject } from "../objectUtils";
+import { compressObject, getRootKey, getValueAtPath } from "../objectUtils";
 
 type CompressObjectFixture = {
   name: string;
@@ -264,5 +264,161 @@ describe("compressObject", () => {
       const result = compressObject(input);
       expect(result).toEqual({ outer: { inner: null, empty: "" } });
     });
+  });
+});
+
+describe("getValueAtPath", () => {
+  describe("simple key access", () => {
+    it("returns value for simple key", () => {
+      expect(getValueAtPath({ name: "Alice" }, "name")).toBe("Alice");
+    });
+
+    it("returns undefined for missing key", () => {
+      expect(getValueAtPath({ name: "Alice" }, "email")).toBeUndefined();
+    });
+
+    it("returns the object itself for empty path", () => {
+      const obj = { name: "Alice" };
+      expect(getValueAtPath(obj, "")).toBe(obj);
+    });
+  });
+
+  describe("dot notation", () => {
+    it("accesses nested properties", () => {
+      expect(getValueAtPath({ user: { name: "Alice" } }, "user.name")).toBe(
+        "Alice"
+      );
+    });
+
+    it("accesses deeply nested properties", () => {
+      expect(
+        getValueAtPath({ a: { b: { c: { d: "deep" } } } }, "a.b.c.d")
+      ).toBe("deep");
+    });
+
+    it("returns undefined for missing nested key", () => {
+      expect(
+        getValueAtPath({ user: { name: "Alice" } }, "user.email")
+      ).toBeUndefined();
+    });
+
+    it("returns undefined when traversing through non-object", () => {
+      expect(getValueAtPath({ user: "Alice" }, "user.name")).toBeUndefined();
+    });
+  });
+
+  describe("array indexing", () => {
+    it("accesses array elements by index", () => {
+      expect(getValueAtPath({ items: ["a", "b", "c"] }, "items[0]")).toBe("a");
+      expect(getValueAtPath({ items: ["a", "b", "c"] }, "items[2]")).toBe("c");
+    });
+
+    it("returns undefined for out of bounds index", () => {
+      expect(
+        getValueAtPath({ items: ["a", "b", "c"] }, "items[10]")
+      ).toBeUndefined();
+    });
+
+    it("returns undefined when using array index on non-array", () => {
+      expect(
+        getValueAtPath({ items: "not-array" }, "items[0]")
+      ).toBeUndefined();
+    });
+
+    it("handles negative indices (JavaScript behavior)", () => {
+      // JavaScript arrays with negative indices return undefined
+      expect(
+        getValueAtPath({ items: ["a", "b", "c"] }, "items[-1]")
+      ).toBeUndefined();
+    });
+  });
+
+  describe("combined dot notation and array indexing", () => {
+    it("accesses nested array element properties", () => {
+      const obj = { messages: [{ role: "user", content: "Hello" }] };
+      expect(getValueAtPath(obj, "messages[0].content")).toBe("Hello");
+    });
+
+    it("accesses array in nested object", () => {
+      const obj = { input: { messages: ["Hello", "World"] } };
+      expect(getValueAtPath(obj, "input.messages[0]")).toBe("Hello");
+    });
+
+    it("handles complex paths", () => {
+      const obj = {
+        input: {
+          messages: [{ role: "user", content: "Show database schema" }],
+        },
+      };
+      expect(getValueAtPath(obj, "input.messages[0].content")).toBe(
+        "Show database schema"
+      );
+    });
+
+    it("handles multiple array indices", () => {
+      const obj = {
+        data: [
+          ["a", "b", "c"],
+          ["d", "e", "f"],
+        ],
+      };
+      expect(getValueAtPath(obj, "data[0][1]")).toBe("b");
+      expect(getValueAtPath(obj, "data[1][2]")).toBe("f");
+    });
+
+    it("handles alternating dot and array access", () => {
+      const obj = {
+        users: [{ addresses: [{ city: "NYC" }, { city: "LA" }] }],
+      };
+      expect(getValueAtPath(obj, "users[0].addresses[1].city")).toBe("LA");
+    });
+  });
+
+  describe("edge cases", () => {
+    it("returns undefined for null in path", () => {
+      expect(getValueAtPath({ user: null }, "user.name")).toBeUndefined();
+    });
+
+    it("returns null value correctly", () => {
+      expect(getValueAtPath({ value: null }, "value")).toBeNull();
+    });
+
+    it("returns undefined for malformed bracket syntax", () => {
+      expect(getValueAtPath({ items: ["a", "b"] }, "items[")).toBeUndefined();
+    });
+
+    it("handles empty array", () => {
+      expect(getValueAtPath({ items: [] }, "items[0]")).toBeUndefined();
+    });
+  });
+});
+
+describe("getRootKey", () => {
+  it("returns the key itself for simple key", () => {
+    expect(getRootKey("input")).toBe("input");
+    expect(getRootKey("name")).toBe("name");
+  });
+
+  it("extracts root from dot notation path", () => {
+    expect(getRootKey("input.query")).toBe("input");
+    expect(getRootKey("user.profile.name")).toBe("user");
+  });
+
+  it("extracts root from array index path", () => {
+    expect(getRootKey("messages[0]")).toBe("messages");
+    expect(getRootKey("items[0][1]")).toBe("items");
+  });
+
+  it("extracts root from combined path", () => {
+    expect(getRootKey("input.messages[0].content")).toBe("input");
+    expect(getRootKey("users[0].addresses[1].city")).toBe("users");
+  });
+
+  it("handles dot before bracket", () => {
+    expect(getRootKey("input.items[0]")).toBe("input");
+  });
+
+  it("handles bracket before dot", () => {
+    expect(getRootKey("items[0].name")).toBe("items");
   });
 });
