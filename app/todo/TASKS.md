@@ -85,7 +85,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### add-store-persistence-tests
 
 - content: Add unit tests to verify that: (1) stores with different datasetIds use different localStorage keys, (2) the default store uses `arize-phoenix-playground`, (3) dataset-specific stores use `arize-phoenix-playground-dataset-{id}`, (4) state is correctly persisted and restored per dataset.
-- status: pending
+- status: complete
 - dependencies: update-set-appended-messages-path-action
 
 ### verify-existing-tests-pass

@@ -82,3 +82,13 @@ Use this knowledge to avoid repeating mistakes and build on what works.
 - All consumers (`PlaygroundExperimentSettingsButton.tsx`) already call it correctly with just the path argument
 - This task serves as a verification checkpoint - confirmed that all 477 tests pass and TypeScript type checking passes
 - Learning: When tasks are tightly coupled, earlier tasks may proactively complete work from later tasks. Future task authors should consider this when defining task boundaries
+
+## add-store-persistence-tests
+
+- Added 5 unit tests to `src/store/playground/__tests__/playgroundStore.test.ts` in a new `describe("store persistence", ...)` block
+- Zustand's persist middleware writes to localStorage synchronously when state changes, so tests can immediately read from localStorage after calling store actions
+- The persist middleware stores state in a structure like `{ state: { appendedMessagesPath: "..." }, version: 0 }` - need to access `parsed.state.appendedMessagesPath` not just `parsed.appendedMessagesPath`
+- Tests cover: (1) default storage key `arize-phoenix-playground`, (2) dataset-specific key `arize-phoenix-playground-dataset-{id}`, (3) different datasetIds use different keys, (4) state persists and restores correctly, (5) default and dataset-specific stores are isolated
+- Important: Use `localStorage.clear()` in `beforeEach` and `afterEach` to prevent test pollution
+- Vitest already provides a `localStorage` mock via jsdom environment - no additional setup needed
+- Total tests increased from 477 to 482 (5 new tests added)
