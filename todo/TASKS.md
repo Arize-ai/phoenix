@@ -41,7 +41,7 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### wire-tag-modal-playground
 
 - content: Reuse the tag creation modal/dropdown in playground with prompt version data wiring.
-- status: pending
+- status: complete
 - dependencies: add-tagging-entrypoint
 
 ## Phase 3: Verification
@@ -49,5 +49,5 @@ Each agent picks the next pending task, implements it, and marks it complete.
 ### verify-playground-tagging
 
 - content: Manually verify the `/playground` tagging flow; skip automated tests.
-- status: pending
+- status: complete
 - dependencies: wire-tag-modal-playground
