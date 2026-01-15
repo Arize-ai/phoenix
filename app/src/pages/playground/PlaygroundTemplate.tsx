@@ -1,5 +1,4 @@
 import { Suspense, useCallback, useMemo } from "react";
-import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -21,8 +20,8 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
+import { TagPromptVersionButton } from "@phoenix/components/prompt/TagPromptVersionButton";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { TagPromptVersionButton } from "@phoenix/pages/prompt/TagPromptVersionButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
@@ -44,7 +43,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const promptId = prompt?.id;
   const promptVersionId = prompt?.version;
   const promptTagName = prompt?.tag ?? null;
-  const { promptId: routePromptId, versionId: routeVersionId } = useParams();
   const dirty = usePlaygroundContext(
     (state) => state.dirtyInstances[instanceId]
   );
@@ -155,7 +153,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             {/* <ModelConfigButton {...props} /> */}
             <ModelParametersConfigButton playgroundInstanceId={instanceId} />
           </CompositeField>
-          {routePromptId && routeVersionId ? <TagPromptVersionButton /> : null}
+          {promptId && promptVersionId && (
+            <TagPromptVersionButton
+              promptId={promptId}
+              versionId={promptVersionId}
+            />
+          )}
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
