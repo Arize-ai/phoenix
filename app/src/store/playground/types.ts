@@ -256,13 +256,13 @@ export interface PlaygroundProps {
    */
   repetitions: number;
   /**
-   * Dot-notation path to messages in dataset example input to append to prompt, keyed by dataset ID.
+   * Dot-notation path to messages in dataset example input to append to prompt.
    * When set, messages at this path will be appended to the playground prompt
    * after template variables are applied.
-   * @example { "dataset-123": "messages", "dataset-456": "input_messages" }
-   * @default {}
+   * @example "messages" or "input_messages"
+   * @default null
    */
-  appendedMessagesPathByDataset: Record<string, string | null>;
+  appendedMessagesPath: string | null;
   /**
    * Dot-notation path prefix for template variables when running over a dataset.
    * Default 'input' means {{query}} resolves to input.query of the dataset example.
