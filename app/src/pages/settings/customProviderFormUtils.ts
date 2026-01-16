@@ -387,10 +387,18 @@ export function buildClientConfig(
           case "default_credentials":
             return { defaultCredentials: true as const };
           case "access_keys":
+            invariant(
+              formData.aws_access_key_id,
+              "AWS Access Key ID is required for access keys authentication"
+            );
+            invariant(
+              formData.aws_secret_access_key,
+              "AWS Secret Access Key is required for access keys authentication"
+            );
             return {
               accessKeys: {
-                awsAccessKeyId: formData.aws_access_key_id!,
-                awsSecretAccessKey: formData.aws_secret_access_key!,
+                awsAccessKeyId: formData.aws_access_key_id,
+                awsSecretAccessKey: formData.aws_secret_access_key,
                 ...(formData.aws_session_token && {
                   awsSessionToken: formData.aws_session_token,
                 }),
