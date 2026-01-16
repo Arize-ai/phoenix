@@ -74,7 +74,7 @@ class AnnotationConfigInput:
 
 @strawberry.input(one_of=True)
 class AnnotationConfigOverrideInput:
-    """Input for providing an override for an annotation config. One of categorical or continuous."""
+    """Input for an annotation config override. One of categorical or continuous."""
 
     categorical: Optional[CategoricalAnnotationConfigOverrideInput] = strawberry.UNSET
     continuous: Optional[ContinuousAnnotationConfigOverrideInput] = strawberry.UNSET

@@ -6,7 +6,6 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
-    ContinuousAnnotationConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -1585,9 +1584,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_config()
         context = {"words": "hello", "text": "hello world"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1604,9 +1601,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_config()
         context = {"words": "hello", "text": "hello world"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1623,9 +1618,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_config()
         context = {"words": "hello", "text": "goodbye world"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1651,9 +1644,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             ],
         )
         context = {"expected": "Paris", "actual": "Paris"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1680,9 +1671,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             ],
         )
         context = {"pattern": r"\d+", "text": "The answer is 42"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1695,15 +1684,12 @@ class TestBuiltInEvaluatorOutputConfigUsage:
 
     def test_levenshtein_evaluator_uses_display_name(self) -> None:
         """Test that LevenshteinDistanceEvaluator uses the display_name in the result."""
-        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
         output_config = evaluator.output_config()
         context = {"expected": "hello", "actual": "hallo"}
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
@@ -1726,9 +1712,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             "expected": json.dumps({"a": 1}),
             "actual": json.dumps({"a": 1}),
         }
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={}, literal_mapping={}
-        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,

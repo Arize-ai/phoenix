@@ -33,15 +33,14 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
-from phoenix.server.api.context import Context
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationConfigOverride,
     ContinuousAnnotationConfig,
     ContinuousAnnotationConfigOverride,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
     LLMEvaluator,
@@ -74,6 +73,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     _to_pydantic_categorical_annotation_config_override,
 )
@@ -332,11 +332,11 @@ def _merge_builtin_output_config(
 ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
     """
     Merge the base output config from a builtin evaluator with any override from the input.
-    Uses output_config_override (union type) if provided, falls back to output_config (categorical only).
+    Uses output_config_override if provided, falls back to output_config (categorical only).
     """
-    from phoenix.db.types.annotation_configs import CategoricalAnnotationValue
-
     import strawberry
+
+    from phoenix.db.types.annotation_configs import CategoricalAnnotationValue
 
     override = None
 
@@ -380,7 +380,9 @@ def _merge_builtin_output_config(
     if isinstance(base_config, CategoricalAnnotationConfig):
         return merge_categorical_output_config(
             base=base_config,
-            override=override if isinstance(override, CategoricalAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
+            override=override
+            if isinstance(override, CategoricalAnnotationConfigOverride)
+            else None,  # pyright: ignore[reportArgumentType]
             display_name=display_name,
             description_override=evaluator_input.description,
         )
