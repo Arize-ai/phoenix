@@ -853,6 +853,7 @@
                 "icon": "database",
                 "pages": [
                   "docs/phoenix/integrations/vector-databases/mongodb",
+                  "docs/phoenix/integrations/vector-databases/opensearch",
                   "docs/phoenix/integrations/vector-databases/pinecone",
                   "docs/phoenix/integrations/vector-databases/qdrant",
                   "docs/phoenix/integrations/vector-databases/weaviate",
