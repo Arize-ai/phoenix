@@ -1080,7 +1080,7 @@ def _merge_builtin_output_config(
     """
     from phoenix.db.types.annotation_configs import CategoricalAnnotationValue
 
-    override = None
+    override: CategoricalAnnotationConfigOverride | ContinuousAnnotationConfigOverride | None = None
 
     if (
         evaluator_input.output_config_override is not None

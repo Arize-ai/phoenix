@@ -13,9 +13,9 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
-)
-from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfigOverride,
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+    ContinuousAnnotationConfigOverride,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
@@ -637,46 +637,59 @@ class DatasetEvaluator(Node):
             if evaluator_class is None:
                 return None
             base_config = evaluator_class.output_config()
+            override = record.output_config_override
             if isinstance(base_config, CategoricalAnnotationConfigModel):
-                effective_config = merge_categorical_output_config(
+                categorical_override = (
+                    override if isinstance(override, CategoricalAnnotationConfigOverride) else None
+                )
+                effective_categorical_config = merge_categorical_output_config(
                     base=base_config,
-                    override=record.output_config_override,  # pyright: ignore[reportArgumentType]
+                    override=categorical_override,
                     display_name=record.display_name.root,
                     description_override=record.description,
                 )
                 return _to_gql_categorical_annotation_config(
-                    config=effective_config,
+                    config=effective_categorical_config,
                     evaluator_id=record.builtin_evaluator_id,
                     annotation_name=record.display_name.root,
                 )
             else:
-                effective_config = merge_continuous_output_config(
+                continuous_override = (
+                    override if isinstance(override, ContinuousAnnotationConfigOverride) else None
+                )
+                effective_continuous_config = merge_continuous_output_config(
                     base=base_config,
-                    override=record.output_config_override,  # pyright: ignore[reportArgumentType]
+                    override=continuous_override,
                     display_name=record.display_name.root,
                     description_override=record.description,
                 )
                 return _to_gql_continuous_annotation_config(
-                    config=effective_config,
+                    config=effective_continuous_config,
                     evaluator_id=record.builtin_evaluator_id,
                     annotation_name=record.display_name.root,
                 )
 
         if record.evaluator_id is None:
             return None
-        base_config = await info.context.data_loaders.llm_evaluator_fields.load(
+        llm_base_config = await info.context.data_loaders.llm_evaluator_fields.load(
             (record.evaluator_id, models.LLMEvaluator.output_config)
         )
-        if base_config is None:
+        if llm_base_config is None or not isinstance(
+            llm_base_config, CategoricalAnnotationConfigModel
+        ):
             return None
-        effective_config = merge_categorical_output_config(
-            base=base_config,
-            override=record.output_config_override,  # pyright: ignore[reportArgumentType]
+        llm_override = record.output_config_override
+        llm_categorical_override = (
+            llm_override if isinstance(llm_override, CategoricalAnnotationConfigOverride) else None
+        )
+        effective_llm_config = merge_categorical_output_config(
+            base=llm_base_config,
+            override=llm_categorical_override,
             display_name=record.display_name.root,
             description_override=record.description,
         )
         return _to_gql_categorical_annotation_config(
-            config=effective_config,
+            config=effective_llm_config,
             evaluator_id=record.evaluator_id,
             annotation_name=record.display_name.root,
         )
