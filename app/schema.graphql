@@ -2630,6 +2630,7 @@ input PlaygroundEvaluatorInput {
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
   outputConfig: CategoricalAnnotationConfigOverrideInput = null
+  outputConfigOverride: AnnotationConfigOverrideInput = null
 }
 
 type PlaygroundModel implements ModelInterface {

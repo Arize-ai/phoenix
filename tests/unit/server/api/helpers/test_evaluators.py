@@ -6,6 +6,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    ContinuousAnnotationConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -1302,6 +1303,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
         # Context similar to subscriptions.py chat_completion context_dict
         context = {
             "input": [{"message": {"role": "user", "content": "Tell me about Paris"}}],
@@ -1313,7 +1315,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[0].message.content"},
             literal_mapping={"words": "France,capital"},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1324,6 +1331,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
         # Context similar to subscriptions.py chat_completion_over_dataset context_dict
         context = {
             "input": {"question": "What is the capital of France?", "topic": "geography"},
@@ -1336,7 +1344,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.messages[0].content"},
             literal_mapping={"words": "Paris"},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
 
@@ -1345,6 +1358,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "Paris"}},
@@ -1356,7 +1370,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="ExactMatch",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1367,6 +1386,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "London"}},
@@ -1378,7 +1398,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="ExactMatch",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 0.0
         assert result["explanation"] is not None
@@ -1397,6 +1422,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
 
         evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_config()
         # Provide JSON strings directly in context
         context = {
             "expected_json": json.dumps({"items": [1, 2, 3]}),
@@ -1409,7 +1435,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="JSONDistance",
+            output_config=output_config,
+        )
         assert result["error"] is None
         # Distance is 1 because one element differs
         assert result["score"] == 1.0
@@ -1419,6 +1450,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
         # Direct context values (fallback behavior)
         context = {
             "words": "hello,world",
@@ -1428,7 +1460,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={},
             literal_mapping={},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
 
@@ -1437,6 +1474,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "expected": [{"message": {"content": "Hello"}}],
             "output": [{"message": {"content": "Hallo"}}],
@@ -1448,7 +1486,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="LevenshteinDistance",
+            output_config=output_config,
+        )
         assert result["error"] is None
         # Distance between "Hello" and "Hallo" is 1
         assert result["score"] == 1.0
@@ -1458,6 +1501,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import RegexEvaluator
 
         evaluator = RegexEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "output": {
                 "response": {
@@ -1469,7 +1513,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.response.content"},
             literal_mapping={"pattern": r"\d+"},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Regex",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1480,6 +1529,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "output": [
                 {"message": {"content": "First response"}},
@@ -1491,7 +1541,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[*].message.content"},
             literal_mapping={"words": "keyword"},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
         assert result["error"] is None
         # The list gets stringified and searched
         assert result["score"] == 1.0
@@ -1501,6 +1556,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
         context = {
             "output": {"nested": {"value": "contains target word"}},
         }
@@ -1509,9 +1565,179 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.nested"},
             literal_mapping={"words": "target"},
         )
-        result = evaluator.evaluate(context=context, input_mapping=input_mapping)
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
         assert result["error"] is None
         assert result["score"] == 1.0
+
+
+class TestBuiltInEvaluatorOutputConfigUsage:
+    """Tests for builtin evaluator output_config usage at execution time."""
+
+    def test_contains_evaluator_uses_display_name_from_output_config(self) -> None:
+        """Test that ContainsEvaluator uses the display_name in the result."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
+        context = {"words": "hello", "text": "hello world"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="My Custom Contains",
+            output_config=output_config,
+        )
+        assert result["name"] == "My Custom Contains"
+        assert result["error"] is None
+
+    def test_contains_evaluator_maps_true_to_label_from_output_config(self) -> None:
+        """Test that ContainsEvaluator maps a true result to the correct label."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
+        context = {"words": "hello", "text": "hello world"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
+        assert result["label"] == "true"
+        assert result["score"] == 1.0
+
+    def test_contains_evaluator_maps_false_to_label_from_output_config(self) -> None:
+        """Test that ContainsEvaluator maps a false result to the correct label."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_config()
+        context = {"words": "hello", "text": "goodbye world"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Contains",
+            output_config=output_config,
+        )
+        assert result["label"] == "false"
+        assert result["score"] == 0.0
+
+    def test_exact_match_evaluator_uses_custom_output_config(self) -> None:
+        """Test that ExactMatchEvaluator uses a custom output config."""
+        from phoenix.server.api.evaluators import ExactMatchEvaluator
+
+        evaluator = ExactMatchEvaluator()
+        # Create a custom output config with different labels
+        custom_config = CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="exact",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="match", score=1.0),
+                CategoricalAnnotationValue(label="no_match", score=0.0),
+            ],
+        )
+        context = {"expected": "Paris", "actual": "Paris"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Exact Match Custom",
+            output_config=custom_config,
+        )
+        assert result["name"] == "Exact Match Custom"
+        assert result["label"] == "match"
+        assert result["score"] == 1.0
+
+    def test_regex_evaluator_uses_custom_output_config(self) -> None:
+        """Test that RegexEvaluator uses a custom output config."""
+        from phoenix.server.api.evaluators import RegexEvaluator
+
+        evaluator = RegexEvaluator()
+        # Create a custom output config with different labels
+        custom_config = CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="regex",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="pattern_found", score=1.0),
+                CategoricalAnnotationValue(label="pattern_not_found", score=0.0),
+            ],
+        )
+        context = {"pattern": r"\d+", "text": "The answer is 42"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Regex Custom",
+            output_config=custom_config,
+        )
+        assert result["name"] == "Regex Custom"
+        assert result["label"] == "pattern_found"
+        assert result["score"] == 1.0
+
+    def test_levenshtein_evaluator_uses_display_name(self) -> None:
+        """Test that LevenshteinDistanceEvaluator uses the display_name in the result."""
+        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
+        from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
+
+        evaluator = LevenshteinDistanceEvaluator()
+        output_config = evaluator.output_config()
+        context = {"expected": "hello", "actual": "hallo"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="Edit Distance",
+            output_config=output_config,
+        )
+        assert result["name"] == "Edit Distance"
+        assert result["score"] == 1.0
+        assert result["label"] is None
+
+    def test_json_distance_evaluator_uses_display_name(self) -> None:
+        """Test that JSONDistanceEvaluator uses the display_name in the result."""
+        import json
+
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_config()
+        context = {
+            "expected": json.dumps({"a": 1}),
+            "actual": json.dumps({"a": 1}),
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={}, literal_mapping={}
+        )
+        result = evaluator.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            display_name="JSON Diff",
+            output_config=output_config,
+        )
+        assert result["name"] == "JSON Diff"
+        assert result["score"] == 0.0
+        assert result["label"] is None
 
 
 @pytest.fixture

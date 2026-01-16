@@ -323,7 +323,7 @@ class BuiltInEvaluator(ABC):
     @classmethod
     @abstractmethod
     def output_config(cls) -> BuiltInEvaluatorOutputConfig:
-        """Returns the output config for this evaluator. This is the source of truth."""
+        """Returns the base output config for this evaluator (before any overrides are applied)."""
         raise NotImplementedError
 
     @abstractmethod
@@ -332,8 +332,28 @@ class BuiltInEvaluator(ABC):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         raise NotImplementedError
+
+    def _map_boolean_to_label_and_score(
+        self,
+        matched: bool,
+        output_config: BuiltInEvaluatorOutputConfig,
+    ) -> tuple[Optional[str], Optional[float]]:
+        """
+        Map a boolean result to a label and score using the output config.
+        For categorical configs, finds the matching label based on score.
+        """
+        if isinstance(output_config, CategoricalAnnotationConfig):
+            target_score = 1.0 if matched else 0.0
+            for value in output_config.values:
+                if value.score == target_score:
+                    return value.label, value.score
+            return None, target_score
+        else:
+            return None, 1.0 if matched else 0.0
 
 
 _BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
@@ -686,6 +706,8 @@ class ContainsEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -721,12 +743,13 @@ class ContainsEvaluator(BuiltInEvaluator):
                 explanation = (
                     f"one or more of the words {repr(words)} were {found_or_not} in the text"
                 )
+            label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={
                     "words": words,
@@ -743,7 +766,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -797,6 +820,8 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -823,12 +848,13 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 matched = expected.lower() == actual.lower()
 
             explanation = f"expected {'matches' if matched else 'does not match'} actual"
+            label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
                 error=None,
@@ -840,7 +866,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -897,6 +923,8 @@ class RegexEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -930,15 +958,17 @@ class RegexEvaluator(BuiltInEvaluator):
 
             if error:
                 explanation = error
+                label, score = None, None
             else:
                 match_type = "full match" if full_match else "search"
                 explanation = f"pattern {'matched' if matched else 'did not match'} ({match_type})"
+                label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0 if not error else None,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={"pattern": pattern, "text": text, "full_match": full_match},
                 error=error,
@@ -950,7 +980,7 @@ class RegexEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1021,6 +1051,8 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -1049,7 +1081,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             explanation = f"edit distance between expected and actual is {distance}"
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=float(distance),
@@ -1064,7 +1096,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1137,6 +1169,8 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -1169,10 +1203,10 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
 
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
-                score=float(distance),
+                score=float(distance) if error is None else None,
                 explanation=explanation,
                 metadata={"expected": expected_str, "actual": actual_str},
                 error=error,
@@ -1184,7 +1218,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,

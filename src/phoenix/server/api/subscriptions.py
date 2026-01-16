@@ -35,12 +35,20 @@ from phoenix.db.helpers import (
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigOverride,
+    ContinuousAnnotationConfig,
+    ContinuousAnnotationConfigOverride,
+)
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from phoenix.server.api.evaluators import (
     EvaluationResult,
     LLMEvaluator,
     evaluation_result_to_model,
     get_builtin_evaluator_by_id,
     get_llm_evaluators,
+    merge_continuous_output_config,
     merge_output_config,
 )
 from phoenix.server.api.exceptions import NotFound
@@ -175,16 +183,23 @@ async def _stream_single_chat_completion(
             for evaluator in input.evaluators:
                 _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                 if _is_builtin_evaluator(db_id):
-                    builtin_evaluator = get_builtin_evaluator_by_id(db_id)
-                    if builtin_evaluator is None:
+                    builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+                    if builtin_evaluator_cls is None:
                         continue
-                    builtin = builtin_evaluator()
+                    builtin = builtin_evaluator_cls()
+                    display_name = str(evaluator.display_name)
+                    base_config = builtin_evaluator_cls.output_config()
+                    merged_config = _merge_builtin_output_config(
+                        base_config=base_config,
+                        evaluator_input=evaluator,
+                        display_name=display_name,
+                    )
                     result: EvaluationResult = builtin.evaluate(
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
+                        display_name=display_name,
+                        output_config=merged_config,
                     )
-                    display_name = str(evaluator.display_name)
-                    result["name"] = display_name
                     if result["error"] is not None:
                         yield EvaluationErrorChunk(
                             evaluator_name=display_name,
@@ -308,6 +323,74 @@ def _is_span_result_payloads_stream(
 
 def _is_builtin_evaluator(evaluator_id: int) -> bool:
     return evaluator_id < 0
+
+
+def _merge_builtin_output_config(
+    base_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
+    evaluator_input: PlaygroundEvaluatorInput,
+    display_name: str,
+) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
+    """
+    Merge the base output config from a builtin evaluator with any override from the input.
+    Uses output_config_override (union type) if provided, falls back to output_config (categorical only).
+    """
+    from phoenix.db.types.annotation_configs import CategoricalAnnotationValue
+
+    import strawberry
+
+    override = None
+
+    if (
+        evaluator_input.output_config_override is not None
+        and evaluator_input.output_config_override.categorical is not strawberry.UNSET
+        and evaluator_input.output_config_override.categorical is not None
+    ):
+        cat = evaluator_input.output_config_override.categorical
+        values = None
+        if cat.values is not None:
+            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
+        override = CategoricalAnnotationConfigOverride(
+            type="CATEGORICAL",
+            optimization_direction=cat.optimization_direction,
+            values=values,
+        )
+    elif (
+        evaluator_input.output_config_override is not None
+        and evaluator_input.output_config_override.continuous is not strawberry.UNSET
+        and evaluator_input.output_config_override.continuous is not None
+    ):
+        cont = evaluator_input.output_config_override.continuous
+        override = ContinuousAnnotationConfigOverride(
+            type="CONTINUOUS",
+            optimization_direction=cont.optimization_direction,
+            lower_bound=cont.lower_bound,
+            upper_bound=cont.upper_bound,
+        )
+    elif evaluator_input.output_config is not None:
+        cat = evaluator_input.output_config
+        values = None
+        if cat.values is not None:
+            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
+        override = CategoricalAnnotationConfigOverride(
+            type="CATEGORICAL",
+            optimization_direction=cat.optimization_direction,
+            values=values,
+        )
+
+    if isinstance(base_config, CategoricalAnnotationConfig):
+        return merge_output_config(
+            base=base_config,
+            override=override if isinstance(override, CategoricalAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
+            display_name=display_name,
+            description_override=evaluator_input.description,
+        )
+    else:
+        return merge_continuous_output_config(
+            base=base_config,
+            override=override if isinstance(override, ContinuousAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
+            display_name=display_name,
+            description_override=evaluator_input.description,
+        )
 
 
 @strawberry.type
@@ -666,17 +749,23 @@ class Subscription:
                         for evaluator in input.evaluators:
                             _, db_id = from_global_id(evaluator.id)  # pyright: ignore
                             if _is_builtin_evaluator(db_id):
-                                builtin_evaluator = get_builtin_evaluator_by_id(db_id)
-                                if builtin_evaluator is None:
+                                builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+                                if builtin_evaluator_cls is None:
                                     continue
-                                builtin = builtin_evaluator()
-                                # TODO: update the name to use display_name
+                                builtin = builtin_evaluator_cls()
+                                display_name = str(evaluator.display_name)
+                                base_config = builtin_evaluator_cls.output_config()
+                                merged_config = _merge_builtin_output_config(
+                                    base_config=base_config,
+                                    evaluator_input=evaluator,
+                                    display_name=display_name,
+                                )
                                 result: EvaluationResult = builtin.evaluate(
                                     context=context_dict,
                                     input_mapping=evaluator.input_mapping,
+                                    display_name=display_name,
+                                    output_config=merged_config,
                                 )
-                                display_name = str(evaluator.display_name)
-                                result["name"] = display_name
                                 if result["error"] is not None:
                                     yield EvaluationErrorChunk(
                                         evaluator_name=display_name,
