@@ -80,9 +80,19 @@ export type GenerativeModelSDK =
 export type AzureAuthMethod = "api_key" | "ad_token_provider" | "environment";
 
 /**
+ * Default Azure authentication method.
+ */
+export const DEFAULT_AZURE_AUTH_METHOD: AzureAuthMethod = "api_key";
+
+/**
  * AWS Bedrock authentication method types.
  */
 export type AWSAuthMethod = "access_keys" | "environment";
+
+/**
+ * Default AWS Bedrock authentication method.
+ */
+export const DEFAULT_AWS_AUTH_METHOD: AWSAuthMethod = "environment";
 
 /**
  * Mapping from SDK enum to ModelProvider key.

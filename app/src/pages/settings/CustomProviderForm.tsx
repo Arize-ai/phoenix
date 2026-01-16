@@ -49,6 +49,8 @@ import {
   type AWSAuthMethod,
   AZURE_AUTH_METHOD_OPTIONS,
   type AzureAuthMethod,
+  DEFAULT_AWS_AUTH_METHOD,
+  DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
   SDK_OPTIONS,
@@ -310,7 +312,7 @@ function AzureOpenAIFields({
         render={({ field }) => (
           <Select
             {...field}
-            value={field.value ?? AZURE_AUTH_METHOD_OPTIONS[0].id}
+            value={field.value ?? DEFAULT_AZURE_AUTH_METHOD}
             onChange={(key) => {
               if (key != null) {
                 field.onChange(key);
@@ -565,7 +567,7 @@ function AWSFields({
         render={({ field }) => (
           <Select
             {...field}
-            value={field.value ?? AWS_AUTH_METHOD_OPTIONS[0].id}
+            value={field.value ?? DEFAULT_AWS_AUTH_METHOD}
             onChange={(key) => {
               if (key != null) {
                 field.onChange(key);
