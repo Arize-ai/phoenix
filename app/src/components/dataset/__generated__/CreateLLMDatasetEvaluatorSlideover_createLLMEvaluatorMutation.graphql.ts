@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cf98252c6b891ff1930880e66e73ec56>>
+ * @generated SignedSource<<2a0b9e6437851988b626b072d3d9f9a9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -183,16 +183,17 @@ v8 = {
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v10 = {
   "kind": "InlineFragment",
   "selections": [
     (v8/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "optimizationDirection",
-      "storageKey": null
-    },
+    (v9/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -222,32 +223,55 @@ v9 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v11 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v8/*: any*/),
+    (v9/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    }
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v11 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v12 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v13 = [
+v15 = [
   (v3/*: any*/),
   (v8/*: any*/)
 ],
-v14 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -311,7 +335,8 @@ return {
                     "name": "outputConfig",
                     "plural": false,
                     "selections": [
-                      (v9/*: any*/)
+                      (v10/*: any*/),
+                      (v11/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -359,7 +384,7 @@ return {
                 "selections": [
                   (v3/*: any*/),
                   (v4/*: any*/),
-                  (v10/*: any*/),
+                  (v12/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -371,9 +396,9 @@ return {
                       (v3/*: any*/),
                       (v8/*: any*/),
                       (v6/*: any*/),
-                      (v11/*: any*/),
+                      (v13/*: any*/),
+                      (v14/*: any*/),
                       (v12/*: any*/),
-                      (v10/*: any*/),
                       (v7/*: any*/),
                       {
                         "kind": "InlineFragment",
@@ -385,7 +410,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v13/*: any*/),
+                            "selections": (v15/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -457,7 +482,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v14/*: any*/),
+                  (v16/*: any*/),
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
@@ -497,7 +522,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v3/*: any*/),
-                                      (v11/*: any*/),
+                                      (v13/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -505,7 +530,7 @@ return {
                                         "name": "sequenceNumber",
                                         "storageKey": null
                                       },
-                                      (v12/*: any*/),
+                                      (v14/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -539,7 +564,7 @@ return {
                                         "kind": "LinkedField",
                                         "name": "tags",
                                         "plural": true,
-                                        "selections": (v13/*: any*/),
+                                        "selections": (v15/*: any*/),
                                         "storageKey": null
                                       }
                                     ],
@@ -574,9 +599,9 @@ return {
                     "abstractKey": null
                   },
                   (v8/*: any*/),
-                  (v11/*: any*/),
-                  (v12/*: any*/),
-                  (v10/*: any*/)
+                  (v13/*: any*/),
+                  (v14/*: any*/),
+                  (v12/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -588,8 +613,9 @@ return {
                 "name": "outputConfig",
                 "plural": false,
                 "selections": [
-                  (v14/*: any*/),
-                  (v9/*: any*/),
+                  (v16/*: any*/),
+                  (v10/*: any*/),
+                  (v11/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -601,7 +627,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v10/*: any*/)
+              (v12/*: any*/)
             ],
             "storageKey": null
           },
@@ -632,12 +658,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0a09f596c851c29ce77fc2cd215ec5db",
+    "cacheID": "6178822efb214275383eb8c4a463769f",
     "id": null,
     "metadata": {},
     "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      displayName\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f08996a5107c4bbfff9f633169c6b83d>>
+ * @generated SignedSource<<ca8ca48d9f759461589277056eac4d3c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,16 +168,17 @@ v12 = {
   "storageKey": null
 },
 v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v14 = {
   "kind": "InlineFragment",
   "selections": [
     (v6/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "optimizationDirection",
-      "storageKey": null
-    },
+    (v13/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -207,7 +208,30 @@ v13 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v14 = {
+v15 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v6/*: any*/),
+    (v13/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    }
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -318,7 +342,8 @@ return {
                     "name": "outputConfig",
                     "plural": false,
                     "selections": [
-                      (v13/*: any*/)
+                      (v14/*: any*/),
+                      (v15/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -377,7 +402,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v14/*: any*/),
+                  (v16/*: any*/),
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
@@ -418,8 +443,9 @@ return {
                 "name": "outputConfig",
                 "plural": false,
                 "selections": [
+                  (v16/*: any*/),
                   (v14/*: any*/),
-                  (v13/*: any*/),
+                  (v15/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -461,12 +487,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d43cc9bab63d53caf69bee5e490bf0a9",
+    "cacheID": "d8e67105749785e60d0ab18ed09225bd",
     "id": null,
     "metadata": {},
     "name": "EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation(\n  $input: UpdateDatasetBuiltinEvaluatorInput!\n) {\n  updateDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n      id\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    isBuiltin\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation(\n  $input: UpdateDatasetBuiltinEvaluatorInput!\n) {\n  updateDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n      id\n    }\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    isBuiltin\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

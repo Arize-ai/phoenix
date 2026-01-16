@@ -1041,9 +1041,8 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
             name="levenshtein_distance",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
+            optimization_direction=OptimizationDirection.MINIMIZE,
             lower_bound=0.0,
-            upper_bound=1.0,
         )
 
     def evaluate(
@@ -1159,9 +1158,8 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
             name="json_distance",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
+            optimization_direction=OptimizationDirection.MINIMIZE,
             lower_bound=0.0,
-            upper_bound=1.0,
         )
 
     def evaluate(

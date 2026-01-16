@@ -682,7 +682,10 @@ class EvaluatorMutationMixin:
         builtin_evaluator = get_builtin_evaluator_by_id(built_in_evaluator_id)
         if builtin_evaluator is None:
             raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
-        display_name = IdentifierModel.model_validate(input.display_name)
+        try:
+            display_name = IdentifierModel.model_validate(input.display_name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
 
         base_config = builtin_evaluator.output_config()
         output_config_override = _validate_and_convert_builtin_override(
@@ -754,7 +757,11 @@ class EvaluatorMutationMixin:
                         f"not found"
                     )
 
-                dataset_evaluator.display_name = IdentifierModel.model_validate(input.display_name)
+                try:
+                    display_name = IdentifierModel.model_validate(input.display_name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}")
+                dataset_evaluator.display_name = display_name
                 dataset_evaluator.input_mapping = input_mapping.to_dict()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
 

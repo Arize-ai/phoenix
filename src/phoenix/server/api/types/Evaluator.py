@@ -13,9 +13,13 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfigOverride,
-    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
     ContinuousAnnotationConfigOverride,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_id

@@ -79,6 +79,12 @@ export function PlaygroundDatasetSection({
                       score
                     }
                   }
+                  ... on ContinuousAnnotationConfig {
+                    name
+                    optimizationDirection
+                    lowerBound
+                    upperBound
+                  }
                 }
               }
             `,
@@ -145,7 +151,17 @@ export function PlaygroundDatasetSection({
             annotationType: "CATEGORICAL",
           } satisfies AnnotationConfig;
         }
-        // Fallback for continuous or unknown types
+        // Handle ContinuousAnnotationConfig from the union
+        if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
+          return {
+            name: outputConfig.name ?? datasetEvaluator.displayName,
+            optimizationDirection: outputConfig.optimizationDirection,
+            lowerBound: outputConfig.lowerBound,
+            upperBound: outputConfig.upperBound,
+            annotationType: "CONTINUOUS",
+          } satisfies AnnotationConfig;
+        }
+        // Fallback for freeform or unknown types
         return {
           name: datasetEvaluator.displayName,
           annotationType: "FREEFORM",
