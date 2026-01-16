@@ -29,4 +29,10 @@ export interface PlaygroundInstanceProps {
    * Whether to disable rendering the alphabetic index.
    */
   disableAlphabeticIndex?: boolean;
+  /**
+   * Whether to disable ephemeral routing fields (endpoint, region, base URL).
+   * When true, shows informational text about env var usage instead of editable fields.
+   * Used in evaluator context where routing must come from custom providers or env vars.
+   */
+  disableEphemeralRouting?: boolean;
 }

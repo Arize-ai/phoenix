@@ -12,7 +12,7 @@ export type MarkdownDisplayMode = "text" | "markdown";
 export type ModelConfigByProvider = Partial<
   Record<
     ModelProvider,
-    Omit<ModelConfig, "supportedInvocationParameters" | "customProviderId">
+    Omit<ModelConfig, "supportedInvocationParameters" | "customProvider">
   >
 >;
 

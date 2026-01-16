@@ -12,6 +12,7 @@ export const EvaluatorChatTemplate = () => {
       disableNewTool
       disableTools
       disableAlphabeticIndex
+      disableEphemeralRouting
     />
   );
 };

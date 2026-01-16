@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c46c7255e92cc0aae04791f84cdb578>>
+ * @generated SignedSource<<750a468d06bd33151b65761334e8ca2a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type CreateChatPromptVersionInput = {
   tags?: ReadonlyArray<SetPromptVersionTagInput> | null;
 };
 export type ChatPromptVersionInput = {
+  customProviderId?: string | null;
   description?: string | null;
   invocationParameters?: any;
   modelName: string;

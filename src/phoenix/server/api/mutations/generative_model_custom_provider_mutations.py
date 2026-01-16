@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Mapping, Sequence
 
 import sqlalchemy as sa
 import strawberry
@@ -47,6 +48,32 @@ def _get_sdk_from_config(
     if isinstance(config.root, AzureOpenAICustomProviderConfig):
         return "azure_openai"
     assert_never(config.root)
+
+
+# openai and azure_openai use the same underlying SDK, so switching between them is safe.
+# All other SDKs have different invocation parameters and are incompatible.
+_COMPATIBLE_SDKS: Mapping[models.GenerativeModelSDK, Sequence[models.GenerativeModelSDK]] = {
+    "openai": ("azure_openai",),
+    "azure_openai": ("openai",),
+}
+
+
+def _are_sdks_compatible(
+    old_sdk: models.GenerativeModelSDK, new_sdk: models.GenerativeModelSDK
+) -> bool:
+    """
+    Check if switching from one SDK to another is compatible.
+
+    Compatible switches:
+    - Same SDK (no change)
+    - openai ↔ azure_openai (same underlying SDK)
+
+    Incompatible switches (will break existing prompts):
+    - Any SDK → anthropic, google_genai, aws_bedrock (and vice versa)
+    """
+    if old_sdk == new_sdk:
+        return True
+    return new_sdk in _COMPATIBLE_SDKS.get(old_sdk, ())
 
 
 @strawberry.input
@@ -196,8 +223,20 @@ class GenerativeModelCustomProviderMutationMixin:
 
             if input.client_config:
                 new_config = input.client_config.to_orm()
-                # Update SDK if client config changes (allows switching SDK types)
                 new_sdk = _get_sdk_from_config(new_config)
+
+                # Block incompatible SDK changes to prevent breaking existing prompts.
+                # Prompts store invocation parameters in un-normalized form, so switching
+                # to an incompatible SDK would cause silent behavior changes or loud failures.
+                if not _are_sdks_compatible(provider.sdk, new_sdk):
+                    old_sdk_display = provider.sdk.replace("_", " ").title()
+                    new_sdk_display = new_sdk.replace("_", " ").title()
+                    raise BadRequest(
+                        f"Cannot change SDK from {old_sdk_display} to {new_sdk_display}. "
+                        f"Existing prompts using this provider would break. "
+                        f"Please create a new provider with the desired SDK instead."
+                    )
+
                 if new_sdk != provider.sdk:
                     provider.sdk = new_sdk
                 # Serialize and encrypt the config

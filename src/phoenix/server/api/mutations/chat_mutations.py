@@ -31,6 +31,9 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.model_provider import (
+    is_sdk_compatible_with_model_provider,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -73,6 +76,7 @@ from phoenix.server.api.input_types.EvaluatorPreviewInput import (
 )
 from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
+    GenerativeModelCustomProviderInput,
     GenerativeModelInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
@@ -92,6 +96,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -226,7 +231,10 @@ class ChatCompletionMutationMixin:
         project_name = generate_experiment_project_name()
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model, session=session, decrypt=info.context.decrypt
+                model=input.model,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
@@ -378,6 +386,7 @@ class ChatCompletionMutationMixin:
                     evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                     session=session,
                     decrypt=info.context.decrypt,
+                    credentials=input.credentials,
                 )
                 for (revision, repetition_number), experiment_run in zip(
                     unbatched_items, experiment_runs
@@ -495,7 +504,10 @@ class ChatCompletionMutationMixin:
     ) -> ChatCompletionMutationPayload:
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model, session=session, decrypt=info.context.decrypt
+                model=input.model,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
@@ -519,6 +531,7 @@ class ChatCompletionMutationMixin:
                     evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                     session=session,
                     decrypt=info.context.decrypt,
+                    credentials=input.credentials,
                 )
                 for repetition_number, result in enumerate(results, start=1):
                     if isinstance(result, BaseException):
@@ -644,18 +657,58 @@ class ChatCompletionMutationMixin:
                 )
                 context_result = _to_evaluation_result_union(eval_result, builtin_evaluator.name)
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
-                model_provider = inline_llm_evaluator.prompt_version.model_provider
-                model_name = inline_llm_evaluator.prompt_version.model_name
-                generative_provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-                model_input = GenerativeModelInput(
-                    builtin=GenerativeModelBuiltinProviderInput(
-                        provider_key=generative_provider_key,
-                        name=model_name,
+                prompt_version = inline_llm_evaluator.prompt_version
+                model_name = prompt_version.model_name
+                # Use custom provider if specified, otherwise fall back to built-in
+                if prompt_version.custom_provider_id is not None:
+                    # Validate SDK compatibility at runtime. This catches cases where someone
+                    # modified the custom provider's SDK in the database after it was attached
+                    # to a prompt.
+                    async with info.context.db() as session:
+                        custom_provider_id = from_global_id_with_expected_type(
+                            global_id=prompt_version.custom_provider_id,
+                            expected_type_name=GenerativeModelCustomProvider.__name__,
+                        )
+                        custom_provider = await session.get(
+                            models.GenerativeModelCustomProvider, custom_provider_id
+                        )
+                        if custom_provider is None:
+                            raise NotFound(
+                                f"Custom provider with ID '{custom_provider_id}' not found"
+                            )
+                        if not is_sdk_compatible_with_model_provider(
+                            custom_provider.sdk, prompt_version.model_provider
+                        ):
+                            raise BadRequest(
+                                f"Custom provider '{custom_provider.name}' has SDK "
+                                f"'{custom_provider.sdk}' which is not compatible with prompt's "
+                                f"model provider '{prompt_version.model_provider.value}'. "
+                                f"The custom provider's SDK may have been changed after it was "
+                                f"attached to this prompt."
+                            )
+
+                    model_input = GenerativeModelInput(
+                        custom=GenerativeModelCustomProviderInput(
+                            provider_id=prompt_version.custom_provider_id,
+                            model_name=model_name,
+                        )
                     )
-                )
+                else:
+                    generative_provider_key = GenerativeProviderKey.from_model_provider(
+                        prompt_version.model_provider
+                    )
+                    model_input = GenerativeModelInput(
+                        builtin=GenerativeModelBuiltinProviderInput(
+                            provider_key=generative_provider_key,
+                            name=model_name,
+                        )
+                    )
                 async with info.context.db() as session:
                     llm_client = await get_playground_client(
-                        model=model_input, session=session, decrypt=info.context.decrypt
+                        model=model_input,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                        credentials=input.credentials,
                     )
                 try:
                     prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(

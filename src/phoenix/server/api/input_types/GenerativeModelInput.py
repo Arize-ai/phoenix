@@ -1,17 +1,11 @@
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.api.types.GenerativeProvider import (
-    GenerativeProviderKey,
-)
-
-if TYPE_CHECKING:
-    pass
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 
 @strawberry.input
@@ -27,7 +21,6 @@ class GenerativeModelBuiltinProviderInput:
     """ The region to use for the model. """
     custom_headers: Optional[JSON] = UNSET
     """ Custom headers to use for the model. """
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
 
 
 @strawberry.input

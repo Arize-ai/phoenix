@@ -3,6 +3,7 @@ from typing import Any, Optional, Union, cast
 
 import strawberry
 from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
@@ -23,6 +24,8 @@ from phoenix.server.api.helpers.prompts.models import (
     normalize_tools,
     validate_invocation_parameters,
 )
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 @strawberry.input
@@ -87,6 +90,7 @@ class ChatPromptVersionInput:
     response_format: Optional[ResponseFormatInput] = None
     model_provider: ModelProvider
     model_name: str
+    custom_provider_id: Optional[GlobalID] = None
 
     def __post_init__(self) -> None:
         self.invocation_parameters = {
@@ -121,6 +125,13 @@ class ChatPromptVersionInput:
             self.invocation_parameters,
             model_provider,
         )
+        # Parse GlobalID to get the integer custom provider ID
+        custom_provider_id: Optional[int] = None
+        if self.custom_provider_id is not None:
+            custom_provider_id = from_global_id_with_expected_type(
+                global_id=self.custom_provider_id,
+                expected_type_name=GenerativeModelCustomProvider.__name__,
+            )
         return models.PromptVersion(
             description=self.description,
             user_id=user_id,
@@ -132,6 +143,7 @@ class ChatPromptVersionInput:
             response_format=response_format,
             model_provider=ModelProvider(self.model_provider),
             model_name=self.model_name,
+            custom_provider_id=custom_provider_id,
             # metadata_ will default to {} in the DB if not provided due to the NOT NULL constraint,
             # so setting it here allows us to more accurately check prompt version equality
             # between prompts that have been saved to the DB and those that haven't.
