@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Alert } from "@phoenix/components/alert";
+import { Alert } from "@phoenix/components";
 import { Button } from "@phoenix/components/button";
 import {
   DialogContent,

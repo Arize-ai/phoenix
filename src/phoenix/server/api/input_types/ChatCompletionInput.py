@@ -8,6 +8,7 @@ from strawberry.scalars import JSON
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
 )
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.Identifier import Identifier
 
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
@@ -21,6 +22,7 @@ from .PromptTemplateOptions import PromptTemplateOptions
 class ChatCompletionInput:
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
@@ -33,6 +35,7 @@ class ChatCompletionInput:
 class ChatCompletionOverDatasetInput:
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE

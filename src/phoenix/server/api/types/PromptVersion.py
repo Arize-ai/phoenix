@@ -18,6 +18,9 @@ from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
     get_raw_invocation_parameters,
 )
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+)
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
@@ -36,6 +39,7 @@ class PromptVersion(Node):
     id_attr: NodeID[int]
     prompt_id: strawberry.Private[int]
     user_id: strawberry.Private[Optional[int]]
+    custom_provider_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
@@ -67,6 +71,12 @@ class PromptVersion(Node):
         from .User import User
 
         return User(id=self.user_id)
+
+    @strawberry.field
+    async def custom_provider(self) -> Optional[GenerativeModelCustomProvider]:
+        if self.custom_provider_id is None:
+            return None
+        return GenerativeModelCustomProvider(id=self.custom_provider_id)
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
@@ -146,6 +156,7 @@ def to_gql_prompt_version(
         id_attr=prompt_version.id,
         prompt_id=prompt_version.prompt_id,
         user_id=prompt_version.user_id,
+        custom_provider_id=prompt_version.custom_provider_id,
         description=prompt_version.description,
         template_type=prompt_template_type,
         template_format=prompt_template_format,
