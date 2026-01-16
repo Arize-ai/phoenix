@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f0362460a7a2d0c10c8ffc8a962ffde>>
+ * @generated SignedSource<<4f2cd08b88b6fc14dc678557fbc1a00f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,9 +25,12 @@ export type EditCustomProviderButtonQuery$data = {
         readonly defaultHeaders: any | null;
       } | null;
       readonly awsBedrockAuthenticationMethod?: {
-        readonly awsAccessKeyId: string;
-        readonly awsSecretAccessKey: string;
-        readonly awsSessionToken: string | null;
+        readonly accessKeys: {
+          readonly awsAccessKeyId: string;
+          readonly awsSecretAccessKey: string;
+          readonly awsSessionToken: string | null;
+        } | null;
+        readonly defaultCredentials: boolean | null;
       };
       readonly awsBedrockClientKwargs?: {
         readonly endpointUrl: string | null;
@@ -41,6 +44,7 @@ export type EditCustomProviderButtonQuery$data = {
           readonly azureTenantId: string;
           readonly scope: string;
         } | null;
+        readonly defaultCredentials: boolean | null;
       };
       readonly azureOpenaiClientKwargs?: {
         readonly azureEndpoint: string;
@@ -269,6 +273,13 @@ v16 = {
   "abstractKey": null
 },
 v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "defaultCredentials",
+  "storageKey": null
+},
+v18 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -318,7 +329,8 @@ v17 = {
             }
           ],
           "storageKey": null
-        }
+        },
+        (v17/*: any*/)
       ],
       "storageKey": null
     },
@@ -345,7 +357,7 @@ v17 = {
   "type": "AzureOpenAICustomProviderConfig",
   "abstractKey": null
 },
-v18 = {
+v19 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -375,7 +387,7 @@ v18 = {
   "type": "AnthropicCustomProviderConfig",
   "abstractKey": null
 },
-v19 = {
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -389,24 +401,36 @@ v19 = {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "awsAccessKeyId",
+          "concreteType": "AWSBedrockAccessKeys",
+          "kind": "LinkedField",
+          "name": "accessKeys",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "awsAccessKeyId",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "awsSecretAccessKey",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "awsSessionToken",
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "awsSecretAccessKey",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "awsSessionToken",
-          "storageKey": null
-        }
+        (v17/*: any*/)
       ],
       "storageKey": null
     },
@@ -439,7 +463,7 @@ v19 = {
   "type": "AWSBedrockCustomProviderConfig",
   "abstractKey": null
 },
-v20 = {
+v21 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -523,10 +547,10 @@ return {
                 "selections": [
                   (v11/*: any*/),
                   (v16/*: any*/),
-                  (v17/*: any*/),
                   (v18/*: any*/),
                   (v19/*: any*/),
-                  (v20/*: any*/)
+                  (v20/*: any*/),
+                  (v21/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -578,10 +602,10 @@ return {
                   (v2/*: any*/),
                   (v11/*: any*/),
                   (v16/*: any*/),
-                  (v17/*: any*/),
                   (v18/*: any*/),
                   (v19/*: any*/),
-                  (v20/*: any*/)
+                  (v20/*: any*/),
+                  (v21/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -595,16 +619,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fbe88fa91634bb95aae93fa0a68d6362",
+    "cacheID": "055742443e6204daed704bfbc25cc58e",
     "id": null,
     "metadata": {},
     "name": "EditCustomProviderButtonQuery",
     "operationKind": "query",
-    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n          }\n          azureOpenaiClientKwargs {\n            azureEndpoint\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            awsAccessKeyId\n            awsSecretAccessKey\n            awsSessionToken\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EditCustomProviderButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModelCustomProvider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      config {\n        __typename\n        ... on UnparsableConfig {\n          parseError\n        }\n        ... on OpenAICustomProviderConfig {\n          openaiAuthenticationMethod {\n            apiKey\n          }\n          openaiClientKwargs {\n            baseUrl\n            organization\n            project\n            defaultHeaders\n          }\n        }\n        ... on AzureOpenAICustomProviderConfig {\n          azureOpenaiAuthenticationMethod {\n            apiKey\n            azureAdTokenProvider {\n              azureTenantId\n              azureClientId\n              azureClientSecret\n              scope\n            }\n            defaultCredentials\n          }\n          azureOpenaiClientKwargs {\n            azureEndpoint\n            defaultHeaders\n          }\n        }\n        ... on AnthropicCustomProviderConfig {\n          anthropicAuthenticationMethod {\n            apiKey\n          }\n          anthropicClientKwargs {\n            baseUrl\n            defaultHeaders\n          }\n        }\n        ... on AWSBedrockCustomProviderConfig {\n          awsBedrockAuthenticationMethod {\n            accessKeys {\n              awsAccessKeyId\n              awsSecretAccessKey\n              awsSessionToken\n            }\n            defaultCredentials\n          }\n          awsBedrockClientKwargs {\n            regionName\n            endpointUrl\n          }\n        }\n        ... on GoogleGenAICustomProviderConfig {\n          googleGenaiAuthenticationMethod {\n            apiKey\n          }\n          googleGenaiClientKwargs {\n            httpOptions {\n              baseUrl\n              headers\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "431654fd3aa7511a154331160e5a0233";
+(node as any).hash = "a36bcb56b143e42e1bb091e65a931421";
 
 export default node;

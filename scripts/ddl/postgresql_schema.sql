@@ -702,6 +702,8 @@ CREATE TABLE public.dataset_evaluators (
     evaluator_id BIGINT,
     builtin_evaluator_id BIGINT,
     display_name VARCHAR NOT NULL,
+    description VARCHAR,
+    output_config JSONB,
     input_mapping JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -1013,6 +1015,7 @@ CREATE TABLE public.prompt_versions (
     model_name VARCHAR NOT NULL,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    custom_provider_id BIGINT,
     CONSTRAINT pk_prompt_versions PRIMARY KEY (id),
     CHECK (((template_format)::text = ANY ((ARRAY[
             'F_STRING'::character varying,
@@ -1023,6 +1026,11 @@ CREATE TABLE public.prompt_versions (
             'CHAT'::character varying,
             'STR'::character varying
         ])::text[]))),
+    CONSTRAINT fk_prompt_versions_custom_provider_id_generative_model__f97f
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_prompt_versions_prompt_id_prompts FOREIGN KEY
         (prompt_id)
         REFERENCES public.prompts (id)
@@ -1033,6 +1041,8 @@ CREATE TABLE public.prompt_versions (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_prompt_versions_custom_provider_id ON public.prompt_versions
+    USING btree (custom_provider_id);
 CREATE INDEX ix_prompt_versions_prompt_id ON public.prompt_versions
     USING btree (prompt_id);
 CREATE INDEX ix_prompt_versions_user_id ON public.prompt_versions
@@ -1081,7 +1091,6 @@ CREATE TABLE public.llm_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
     prompt_id BIGINT NOT NULL,
     prompt_version_tag_id BIGINT,
-    annotation_name VARCHAR NOT NULL,
     output_config JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),

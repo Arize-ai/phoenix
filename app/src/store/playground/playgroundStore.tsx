@@ -464,7 +464,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             endpoint: null,
             region: null,
             customHeaders: null,
-            customProviderId: null,
+            customProvider: null,
           };
 
           // Build final model config

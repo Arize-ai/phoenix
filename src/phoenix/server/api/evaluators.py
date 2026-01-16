@@ -19,8 +19,11 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationConfigOverride,
 )
-from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.exceptions import NotFound
+from phoenix.db.types.model_provider import (
+    ModelProvider,
+    is_sdk_compatible_with_model_provider,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -36,8 +39,12 @@ from phoenix.server.api.helpers.prompts.models import (
     get_raw_invocation_parameters,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.input_types.GenerativeCredentialInput import (
+    GenerativeCredentialInput,
+)
 from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
+    GenerativeModelCustomProviderInput,
     GenerativeModelInput,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
@@ -51,6 +58,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
 
 logger = logging.getLogger(__name__)
+
 
 ToolCallId: TypeAlias = str
 
@@ -348,6 +356,7 @@ async def get_llm_evaluators(
     evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    credentials: list[GenerativeCredentialInput] | None = None,
 ) -> list[LLMEvaluator]:
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
@@ -395,15 +404,58 @@ async def get_llm_evaluators(
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
 
-        provider_key = GenerativeProviderKey.from_model_provider(prompt_version.model_provider)
-        model_input = GenerativeModelInput(
-            builtin=GenerativeModelBuiltinProviderInput(
-                provider_key=provider_key,
-                name=prompt_version.model_name,
+        # Create model input based on whether a custom provider is configured
+        if prompt_version.custom_provider_id is not None:
+            # Use custom provider - construct GlobalID for the provider
+            from phoenix.server.api.types.GenerativeModelCustomProvider import (
+                GenerativeModelCustomProvider,
             )
-        )
+
+            # Validate SDK compatibility at runtime. This catches cases where someone
+            # modified the custom provider's SDK in the database after it was attached
+            # to this prompt.
+            custom_provider = await session.get(
+                models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
+            )
+            if custom_provider is None:
+                raise NotFound(
+                    f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
+                )
+            if not is_sdk_compatible_with_model_provider(
+                custom_provider.sdk, prompt_version.model_provider
+            ):
+                raise BadRequest(
+                    f"Custom provider '{custom_provider.name}' has SDK '{custom_provider.sdk}' "
+                    f"which is not compatible with prompt's model provider "
+                    f"'{prompt_version.model_provider.value}'. The custom provider's SDK may have "
+                    f"been changed after it was attached to this prompt."
+                )
+
+            provider_global_id = GlobalID(
+                type_name=GenerativeModelCustomProvider.__name__,
+                node_id=str(prompt_version.custom_provider_id),
+            )
+            model_input = GenerativeModelInput(
+                custom=GenerativeModelCustomProviderInput(
+                    provider_id=provider_global_id,
+                    model_name=prompt_version.model_name,
+                )
+            )
+        else:
+            # Use built-in provider
+            provider_key = GenerativeProviderKey.from_model_provider(prompt_version.model_provider)
+            model_input = GenerativeModelInput(
+                builtin=GenerativeModelBuiltinProviderInput(
+                    provider_key=provider_key,
+                    name=prompt_version.model_name,
+                )
+            )
+
         llm_client = await get_playground_client(
-            model=model_input, session=session, decrypt=decrypt
+            model=model_input,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
         )
 
         llm_evaluators.append(
