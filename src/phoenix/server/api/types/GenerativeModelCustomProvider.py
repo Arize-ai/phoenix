@@ -28,22 +28,6 @@ class GenerativeModelSDK(Enum):
     GOOGLE_GENAI = "google_genai"
 
 
-class OpenAIClientInterface(Enum):
-    CHAT = "chat"
-
-
-class AnthropicClientInterface(Enum):
-    CHAT = "chat"
-
-
-class AWSBedrockClientInterface(Enum):
-    CONVERSE = "converse"
-
-
-class GoogleGenAIClientInterface(Enum):
-    CHAT = "chat"
-
-
 @strawberry.type
 class UnparsableConfig:
     parse_error: str
@@ -96,20 +80,16 @@ class OpenAIClientKwargs:
 
 @strawberry.type
 class OpenAICustomProviderConfig:
-    supports_streaming: bool
     openai_authentication_method: OpenAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
-    openai_client_interface: OpenAIClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.OpenAICustomProviderConfig) -> Self:
         return cls(
-            openai_client_interface=OpenAIClientInterface(config.openai_client_interface),
-            supports_streaming=config.supports_streaming,
             openai_authentication_method=OpenAIAuthenticationMethod.from_orm(
                 config.openai_authentication_method
             ),
-            openai_client_kwargs=(OpenAIClientKwargs.from_orm(config.openai_client_kwargs)),
+            openai_client_kwargs=OpenAIClientKwargs.from_orm(config.openai_client_kwargs),
         )
 
 
@@ -117,6 +97,10 @@ class OpenAICustomProviderConfig:
 class AzureOpenAIAuthenticationMethod:
     api_key: str | None = UNSET
     azure_ad_token_provider: AzureADTokenProvider | None = UNSET
+    default_credentials: bool | None = strawberry.field(
+        default=UNSET,
+        description="Use SDK default credentials (Managed Identity, Azure CLI, env vars).",
+    )
 
     @classmethod
     def from_orm(cls, method: mp.AzureOpenAIAuthenticationMethod) -> Self:
@@ -124,11 +108,19 @@ class AzureOpenAIAuthenticationMethod:
             return cls(
                 api_key=method.api_key,
                 azure_ad_token_provider=None,
+                default_credentials=None,
             )
         if method.type == "azure_ad_token_provider":
             return cls(
                 api_key=None,
                 azure_ad_token_provider=AzureADTokenProvider.from_orm(method),
+                default_credentials=None,
+            )
+        if method.type == "default_credentials":
+            return cls(
+                api_key=None,
+                azure_ad_token_provider=None,
+                default_credentials=True,
             )
         assert_never(method.type)
 
@@ -148,18 +140,12 @@ class AzureOpenAIClientKwargs:
 
 @strawberry.type
 class AzureOpenAICustomProviderConfig:
-    supports_streaming: bool
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
     azure_openai_client_kwargs: AzureOpenAIClientKwargs
-    azure_openai_client_interface: OpenAIClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AzureOpenAICustomProviderConfig) -> Self:
         return cls(
-            azure_openai_client_interface=OpenAIClientInterface(
-                config.azure_openai_client_interface
-            ),
-            supports_streaming=config.supports_streaming,
             azure_openai_authentication_method=AzureOpenAIAuthenticationMethod.from_orm(
                 config.azure_openai_authentication_method
             ),
@@ -195,38 +181,60 @@ class AnthropicClientKwargs:
 
 @strawberry.type
 class AnthropicCustomProviderConfig:
-    supports_streaming: bool
     anthropic_authentication_method: AnthropicAuthenticationMethod
     anthropic_client_kwargs: AnthropicClientKwargs | None = UNSET
-    anthropic_client_interface: AnthropicClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AnthropicCustomProviderConfig) -> Self:
         return cls(
-            anthropic_client_interface=AnthropicClientInterface(config.anthropic_client_interface),
-            supports_streaming=config.supports_streaming,
             anthropic_authentication_method=AnthropicAuthenticationMethod.from_orm(
                 config.anthropic_authentication_method
             ),
-            anthropic_client_kwargs=(
-                AnthropicClientKwargs.from_orm(config.anthropic_client_kwargs)
-            ),
+            anthropic_client_kwargs=AnthropicClientKwargs.from_orm(config.anthropic_client_kwargs),
         )
 
 
 @strawberry.type
-class AWSBedrockAuthenticationMethod:
+class AWSBedrockAccessKeys:
+    """AWS access key credentials."""
+
     aws_access_key_id: str
     aws_secret_access_key: str
     aws_session_token: str | None = UNSET
 
     @classmethod
-    def from_orm(cls, method: mp.AWSBedrockAuthenticationMethod) -> Self:
+    def from_orm(cls, method: mp.AWSBedrockAuthenticationMethodAccessKeys) -> Self:
         return cls(
             aws_access_key_id=method.aws_access_key_id,
             aws_secret_access_key=method.aws_secret_access_key,
             aws_session_token=method.aws_session_token,
         )
+
+
+@strawberry.type
+class AWSBedrockAuthenticationMethod:
+    access_keys: AWSBedrockAccessKeys | None = strawberry.field(
+        default=UNSET,
+        description="Explicit AWS access key credentials.",
+    )
+    default_credentials: bool | None = strawberry.field(
+        default=UNSET,
+        description="Use SDK default credentials (IAM role, env vars, config files).",
+    )
+
+    @classmethod
+    def from_orm(cls, method: mp.AWSBedrockAuthenticationMethod) -> Self:
+        if method.type == "access_keys":
+            return cls(
+                access_keys=AWSBedrockAccessKeys.from_orm(method),
+                default_credentials=None,
+            )
+        if method.type == "default_credentials":
+            return cls(
+                access_keys=None,
+                default_credentials=True,
+            )
+        assert_never(method.type)
 
 
 @strawberry.type
@@ -244,23 +252,17 @@ class AWSBedrockClientKwargs:
 
 @strawberry.type
 class AWSBedrockCustomProviderConfig:
-    supports_streaming: bool
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethod
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs
-    aws_bedrock_client_interface: AWSBedrockClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.AWSBedrockCustomProviderConfig) -> Self:
         return cls(
-            supports_streaming=config.supports_streaming,
             aws_bedrock_authentication_method=AWSBedrockAuthenticationMethod.from_orm(
                 config.aws_bedrock_authentication_method
             ),
             aws_bedrock_client_kwargs=AWSBedrockClientKwargs.from_orm(
                 config.aws_bedrock_client_kwargs
-            ),
-            aws_bedrock_client_interface=AWSBedrockClientInterface(
-                config.aws_bedrock_client_interface
             ),
         )
 
@@ -305,18 +307,12 @@ class GoogleGenAIClientKwargs:
 
 @strawberry.type
 class GoogleGenAICustomProviderConfig:
-    supports_streaming: bool
     google_genai_authentication_method: GoogleGenAIAuthenticationMethod
     google_genai_client_kwargs: GoogleGenAIClientKwargs | None = UNSET
-    google_genai_client_interface: GoogleGenAIClientInterface
 
     @classmethod
     def from_orm(cls, config: mp.GoogleGenAICustomProviderConfig) -> Self:
         return cls(
-            google_genai_client_interface=GoogleGenAIClientInterface(
-                config.google_genai_client_interface
-            ),
-            supports_streaming=config.supports_streaming,
             google_genai_authentication_method=GoogleGenAIAuthenticationMethod.from_orm(
                 config.google_genai_authentication_method
             ),

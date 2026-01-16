@@ -78,6 +78,7 @@ const ProviderQuery = graphql`
                 azureClientSecret
                 scope
               }
+              defaultCredentials
             }
             azureOpenaiClientKwargs {
               azureEndpoint
@@ -95,9 +96,12 @@ const ProviderQuery = graphql`
           }
           ... on AWSBedrockCustomProviderConfig {
             awsBedrockAuthenticationMethod {
-              awsAccessKeyId
-              awsSecretAccessKey
-              awsSessionToken
+              accessKeys {
+                awsAccessKeyId
+                awsSecretAccessKey
+                awsSessionToken
+              }
+              defaultCredentials
             }
             awsBedrockClientKwargs {
               regionName

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7322f9ec89fd5164aec3e32f00cece24>>
+ * @generated SignedSource<<cd3bbf19f05cfcb7475c71fc537b6ee7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,10 @@ import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type EvaluatorPreviewsInput = {
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  previews: ReadonlyArray<EvaluatorPreviewItemInput>;
+};
 export type EvaluatorPreviewItemInput = {
   context: any;
   evaluator: EvaluatorPreviewInput;
@@ -27,6 +31,7 @@ export type InlineLLMEvaluatorInput = {
   promptVersion: ChatPromptVersionInput;
 };
 export type ChatPromptVersionInput = {
+  customProviderId?: string | null;
   description?: string | null;
   invocationParameters?: any;
   modelName: string;
@@ -84,8 +89,12 @@ export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: any;
+};
 export type EvaluatorOutputPreviewMutation$variables = {
-  input: EvaluatorPreviewItemInput;
+  input: EvaluatorPreviewsInput;
 };
 export type EvaluatorOutputPreviewMutation$data = {
   readonly evaluatorPreviews: {
@@ -127,21 +136,9 @@ v1 = [
     "alias": null,
     "args": [
       {
-        "fields": [
-          {
-            "items": [
-              {
-                "kind": "Variable",
-                "name": "previews.0",
-                "variableName": "input"
-              }
-            ],
-            "kind": "ListValue",
-            "name": "previews"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
       }
     ],
     "concreteType": "EvaluatorPreviewsPayload",
@@ -263,16 +260,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "81bcf7d2f2eba21181d4b0c50f3b8019",
+    "cacheID": "bca0dc6c97c2c512cd5c3dae382629fd",
     "id": null,
     "metadata": {},
     "name": "EvaluatorOutputPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewItemInput!\n) {\n  evaluatorPreviews(input: {previews: [$input]}) {\n    results {\n      __typename\n      ... on EvaluationSuccess {\n        annotation {\n          explanation\n          label\n          score\n          name\n          id\n        }\n      }\n      ... on EvaluationError {\n        evaluatorName\n        message\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      __typename\n      ... on EvaluationSuccess {\n        annotation {\n          explanation\n          label\n          score\n          name\n          id\n        }\n      }\n      ... on EvaluationError {\n        evaluatorName\n        message\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "837674865d0b95985f11109e9e07fdb4";
+(node as any).hash = "93dcc88dc60666fd6d3844c6d33f86cc";
 
 export default node;

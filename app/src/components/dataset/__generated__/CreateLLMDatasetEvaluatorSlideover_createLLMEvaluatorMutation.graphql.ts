@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95adc11b4bfd2328a902f365801a7685>>
+ * @generated SignedSource<<55aea7af5be4804e97603bc1da985615>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type CreateDatasetLLMEvaluatorInput = {
   promptVersionId?: string | null;
 };
 export type ChatPromptVersionInput = {
+  customProviderId?: string | null;
   description?: string | null;
   invocationParameters?: any;
   modelName: string;

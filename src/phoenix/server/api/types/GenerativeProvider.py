@@ -46,6 +46,25 @@ class GenerativeProviderKey(Enum):
             return cls.AWS
         assert_never(model_provider)
 
+    def to_model_provider(self) -> "ModelProvider":
+        if self is GenerativeProviderKey.OPENAI:
+            return ModelProvider.OPENAI
+        if self is GenerativeProviderKey.AZURE_OPENAI:
+            return ModelProvider.AZURE_OPENAI
+        if self is GenerativeProviderKey.ANTHROPIC:
+            return ModelProvider.ANTHROPIC
+        if self is GenerativeProviderKey.GOOGLE:
+            return ModelProvider.GOOGLE
+        if self is GenerativeProviderKey.AWS:
+            return ModelProvider.AWS
+        if self is GenerativeProviderKey.DEEPSEEK:
+            return ModelProvider.DEEPSEEK
+        if self is GenerativeProviderKey.XAI:
+            return ModelProvider.XAI
+        if self is GenerativeProviderKey.OLLAMA:
+            return ModelProvider.OLLAMA
+        assert_never(self)
+
 
 GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] = MappingProxyType(
     {

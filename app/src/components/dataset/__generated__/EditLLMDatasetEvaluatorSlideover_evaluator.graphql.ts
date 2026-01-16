@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6abec095f49b0208a9c3a87ffbe4de63>>
+ * @generated SignedSource<<f18ed2c78901a9474034ea2f386979ca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -65,6 +65,10 @@ v1 = {
   "storageKey": null
 },
 v2 = [
+  (v0/*: any*/),
+  (v1/*: any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -73,24 +77,24 @@ v2 = [
     "storageKey": null
   }
 ],
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": (v2/*: any*/),
+  "selections": (v3/*: any*/),
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -169,10 +173,7 @@ return {
               "kind": "LinkedField",
               "name": "prompt",
               "plural": false,
-              "selections": [
-                (v0/*: any*/),
-                (v1/*: any*/)
-              ],
+              "selections": (v2/*: any*/),
               "storageKey": null
             },
             {
@@ -183,7 +184,7 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
+                (v4/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -213,11 +214,21 @@ return {
                     {
                       "alias": null,
                       "args": null,
+                      "concreteType": "GenerativeModelCustomProvider",
+                      "kind": "LinkedField",
+                      "name": "customProvider",
+                      "plural": false,
+                      "selections": (v2/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": "ResponseFormat",
                       "kind": "LinkedField",
                       "name": "responseFormat",
                       "plural": false,
-                      "selections": (v2/*: any*/),
+                      "selections": (v3/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -228,7 +239,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v4/*: any*/),
+                        (v5/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -255,7 +266,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v4/*: any*/),
+                                    (v5/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -292,7 +303,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v5/*: any*/),
+                                            (v6/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -330,7 +341,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v5/*: any*/),
+                                            (v6/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -372,7 +383,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v3/*: any*/)
+                    (v4/*: any*/)
                   ],
                   "args": null,
                   "argumentDefinitions": []

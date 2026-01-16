@@ -77,7 +77,25 @@ export type GenerativeModelSDK =
 /**
  * Azure authentication method types.
  */
-export type AzureAuthMethod = "api_key" | "ad_token_provider";
+export type AzureAuthMethod =
+  | "api_key"
+  | "ad_token_provider"
+  | "default_credentials";
+
+/**
+ * Default Azure authentication method.
+ */
+export const DEFAULT_AZURE_AUTH_METHOD: AzureAuthMethod = "api_key";
+
+/**
+ * AWS Bedrock authentication method types.
+ */
+export type AWSAuthMethod = "access_keys" | "default_credentials";
+
+/**
+ * Default AWS Bedrock authentication method.
+ */
+export const DEFAULT_AWS_AUTH_METHOD: AWSAuthMethod = "default_credentials";
 
 /**
  * Mapping from SDK enum to ModelProvider key.
@@ -150,17 +168,36 @@ export const SDK_DEFAULT_PROVIDER: Readonly<
 /**
  * Human-readable labels for Azure authentication methods.
  */
-export const AUTH_METHOD_LABELS: Readonly<Record<AzureAuthMethod, string>> = {
+const AZURE_AUTH_METHOD_LABELS: Readonly<Record<AzureAuthMethod, string>> = {
   api_key: "API Key",
   ad_token_provider: "Azure AD Token Provider",
+  default_credentials: "Default Credentials (Managed Identity)",
 } as const;
 
 /**
  * Azure auth method options for select dropdowns.
  */
-export const AUTH_METHOD_OPTIONS: ReadonlyArray<{
+export const AZURE_AUTH_METHOD_OPTIONS: ReadonlyArray<{
   id: AzureAuthMethod;
   label: string;
 }> = (
-  Object.entries(AUTH_METHOD_LABELS) as Array<[AzureAuthMethod, string]>
+  Object.entries(AZURE_AUTH_METHOD_LABELS) as Array<[AzureAuthMethod, string]>
+).map(([id, label]) => ({ id, label }));
+
+/**
+ * Human-readable labels for AWS Bedrock authentication methods.
+ */
+const AWS_AUTH_METHOD_LABELS: Readonly<Record<AWSAuthMethod, string>> = {
+  default_credentials: "Default Credentials (IAM Role)",
+  access_keys: "Access Keys",
+} as const;
+
+/**
+ * AWS Bedrock auth method options for select dropdowns.
+ */
+export const AWS_AUTH_METHOD_OPTIONS: ReadonlyArray<{
+  id: AWSAuthMethod;
+  label: string;
+}> = (
+  Object.entries(AWS_AUTH_METHOD_LABELS) as Array<[AWSAuthMethod, string]>
 ).map(([id, label]) => ({ id, label }));

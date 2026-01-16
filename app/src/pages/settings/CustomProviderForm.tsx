@@ -45,8 +45,12 @@ import {
 import { CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
 import {
-  AUTH_METHOD_OPTIONS,
+  AWS_AUTH_METHOD_OPTIONS,
+  type AWSAuthMethod,
+  AZURE_AUTH_METHOD_OPTIONS,
   type AzureAuthMethod,
+  DEFAULT_AWS_AUTH_METHOD,
+  DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
   SDK_OPTIONS,
@@ -120,13 +124,15 @@ export interface AnthropicFormData extends BaseProviderFormData {
 
 /**
  * AWS Bedrock SDK configuration.
- * Uses AWS credentials for authentication.
+ * Supports both explicit access keys and environment credentials (IAM role).
  */
 export interface AWSBedrockFormData extends BaseProviderFormData {
   sdk: "AWS_BEDROCK";
   aws_region: string;
-  aws_access_key_id: string;
-  aws_secret_access_key: string;
+  aws_auth_method: AWSAuthMethod;
+  // Access keys auth (when aws_auth_method === "access_keys")
+  aws_access_key_id?: string;
+  aws_secret_access_key?: string;
   aws_session_token?: string;
   aws_endpoint_url?: string;
 }
@@ -306,7 +312,7 @@ function AzureOpenAIFields({
         render={({ field }) => (
           <Select
             {...field}
-            value={field.value ?? AUTH_METHOD_OPTIONS[0].id}
+            value={field.value ?? DEFAULT_AZURE_AUTH_METHOD}
             onChange={(key) => {
               if (key != null) {
                 field.onChange(key);
@@ -322,7 +328,7 @@ function AzureOpenAIFields({
             </Button>
             <Popover>
               <ListBox>
-                {AUTH_METHOD_OPTIONS.map((opt) => (
+                {AZURE_AUTH_METHOD_OPTIONS.map((opt) => (
                   <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
                     {opt.label}
                   </SelectItem>
@@ -332,6 +338,13 @@ function AzureOpenAIFields({
           </Select>
         )}
       />
+      {authMethod === "default_credentials" && (
+        <Alert variant="info">
+          Uses Azure DefaultAzureCredential: Managed Identity, Azure CLI, or
+          environment variables (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+          AZURE_TENANT_ID).
+        </Alert>
+      )}
       {authMethod === "api_key" && (
         <Controller
           name="azure_api_key"
@@ -525,6 +538,9 @@ function AWSFields({
   control: Control<ProviderFormData>;
   isSubmitting: boolean;
 }) {
+  const authMethod =
+    useWatch({ control, name: "aws_auth_method" }) || DEFAULT_AWS_AUTH_METHOD;
+
   return (
     <ProviderSection title="AWS Bedrock Configuration">
       <Controller
@@ -545,54 +561,97 @@ function AWSFields({
         )}
       />
       <Controller
-        name="aws_access_key_id"
+        name="aws_auth_method"
         control={control}
-        rules={{ required: "Access Key ID is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
+        rules={{ required: "Authentication Method is required" }}
+        render={({ field }) => (
+          <Select
+            {...field}
+            value={field.value ?? DEFAULT_AWS_AUTH_METHOD}
+            onChange={(key) => {
+              if (key != null) {
+                field.onChange(key);
+              }
+            }}
+            isDisabled={isSubmitting}
             isRequired
-            isInvalid={invalid}
-            {...field}
-            isDisabled={isSubmitting}
           >
-            <Label>Access Key ID</Label>
-            <CredentialInput />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
+            <Label>Authentication Method</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                {AWS_AUTH_METHOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
         )}
       />
-      <Controller
-        name="aws_secret_access_key"
-        control={control}
-        rules={{ required: "Secret Access Key is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
-            isRequired
-            isInvalid={invalid}
-            {...field}
-            isDisabled={isSubmitting}
-          >
-            <Label>Secret Access Key</Label>
-            <CredentialInput />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
-        )}
-      />
-      <Controller
-        name="aws_session_token"
-        control={control}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
-            isInvalid={invalid}
-            {...field}
-            isDisabled={isSubmitting}
-          >
-            <Label>Session Token</Label>
-            <CredentialInput />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
-        )}
-      />
+      {authMethod === "default_credentials" && (
+        <Alert variant="info">
+          Uses boto3 default credential chain: IAM role, environment variables
+          (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY), or ~/.aws/credentials.
+        </Alert>
+      )}
+      {authMethod === "access_keys" && (
+        <>
+          <Controller
+            name="aws_access_key_id"
+            control={control}
+            rules={{ required: "Access Key ID is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <CredentialField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Access Key ID</Label>
+                <CredentialInput />
+                {error && <FieldError>{error.message}</FieldError>}
+              </CredentialField>
+            )}
+          />
+          <Controller
+            name="aws_secret_access_key"
+            control={control}
+            rules={{ required: "Secret Access Key is required" }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <CredentialField
+                isRequired
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Secret Access Key</Label>
+                <CredentialInput />
+                {error && <FieldError>{error.message}</FieldError>}
+              </CredentialField>
+            )}
+          />
+          <Controller
+            name="aws_session_token"
+            control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <CredentialField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+              >
+                <Label>Session Token</Label>
+                <CredentialInput />
+                {error && <FieldError>{error.message}</FieldError>}
+              </CredentialField>
+            )}
+          />
+        </>
+      )}
       <Controller
         name="aws_endpoint_url"
         control={control}
@@ -972,6 +1031,7 @@ const CREDENTIAL_FIELDS = [
   "azure_client_secret",
   "anthropic_api_key",
   "aws_region",
+  "aws_auth_method",
   "aws_access_key_id",
   "aws_secret_access_key",
   "google_api_key",
@@ -993,6 +1053,11 @@ function hasRequiredCredentials(
       if (authMethod === "api_key") {
         return Boolean(hasBaseConfig && credentials.azure_api_key);
       }
+      if (authMethod === "default_credentials") {
+        // Environment auth only needs the endpoint
+        return Boolean(hasBaseConfig);
+      }
+      // azure_ad_token_provider
       return Boolean(
         hasBaseConfig &&
           credentials.azure_tenant_id &&
@@ -1002,12 +1067,19 @@ function hasRequiredCredentials(
     }
     case "ANTHROPIC":
       return Boolean(credentials.anthropic_api_key);
-    case "AWS_BEDROCK":
+    case "AWS_BEDROCK": {
+      const hasRegion = credentials.aws_region;
+      const authMethod = credentials.aws_auth_method || DEFAULT_AWS_AUTH_METHOD;
+      if (authMethod === "default_credentials") {
+        // Environment auth only needs the region
+        return Boolean(hasRegion);
+      }
       return Boolean(
-        credentials.aws_region &&
+        hasRegion &&
           credentials.aws_access_key_id &&
           credentials.aws_secret_access_key
       );
+    }
     case "GOOGLE_GENAI":
       return Boolean(credentials.google_api_key);
     default:

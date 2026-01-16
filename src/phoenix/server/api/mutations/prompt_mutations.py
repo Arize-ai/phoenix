@@ -13,6 +13,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -120,6 +121,22 @@ class PromptMutationMixin:
         )
         prompt_version.prompt_id = prompt_id
         async with info.context.db() as session:
+            if prompt_version.custom_provider_id is not None:
+                custom_provider = await session.get(
+                    models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
+                )
+                if custom_provider is None:
+                    raise NotFound(
+                        f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
+                    )
+                if not is_sdk_compatible_with_model_provider(
+                    custom_provider.sdk,
+                    prompt_version.model_provider,
+                ):
+                    raise BadRequest(
+                        f"Custom provider with ID '{prompt_version.custom_provider_id}' is not "
+                        f"compatible with model provider '{prompt_version.model_provider}'"
+                    )
             session.add(prompt_version)
             try:
                 await session.flush()
@@ -201,6 +218,7 @@ class PromptMutationMixin:
                     response_format=version.response_format,
                     model_provider=version.model_provider,
                     model_name=version.model_name,
+                    custom_provider_id=version.custom_provider_id,
                 )
                 for version in prompt.prompt_versions
             ]
