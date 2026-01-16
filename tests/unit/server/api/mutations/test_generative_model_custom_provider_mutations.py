@@ -54,6 +54,7 @@ class TestGenerativeModelCustomProviderMutations:
                     azureClientSecret
                     scope
                   }
+                  defaultCredentials
                 }
                 azureOpenaiClientKwargs {
                   azureEndpoint
@@ -76,6 +77,7 @@ class TestGenerativeModelCustomProviderMutations:
                     awsSecretAccessKey
                     awsSessionToken
                   }
+                  defaultCredentials
                 }
                 awsBedrockClientKwargs {
                   regionName
@@ -422,6 +424,81 @@ class TestGenerativeModelCustomProviderMutations:
         access_keys = aws_session_provider["config"]["awsBedrockAuthenticationMethod"]["accessKeys"]
         assert access_keys["awsSessionToken"] == "FwoGZXIvYXdzEBYaDExample"
         assert aws_session_provider["config"]["awsBedrockClientKwargs"]["regionName"] == "us-west-2"
+
+        # ===== DEFAULT CREDENTIALS TESTS =====
+
+        # Create Azure OpenAI provider with default credentials (Managed Identity)
+        azure_default_creds_name = f"test-azure-default-creds-{token_hex(2)}"
+        azure_default_creds_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "name": azure_default_creds_name,
+                    "description": "Azure with default credentials",
+                    "provider": "azure",
+                    "clientConfig": {
+                        "azureOpenai": {
+                            "azureOpenaiAuthenticationMethod": {"defaultCredentials": True},
+                            "azureOpenaiClientKwargs": {
+                                "azureEndpoint": "https://default-creds.openai.azure.com",
+                            },
+                        }
+                    },
+                }
+            },
+            operation_name="CreateGenerativeModelCustomProviderMutation",
+        )
+        assert not azure_default_creds_result.errors
+        assert azure_default_creds_result.data is not None
+        azure_default_creds_id = azure_default_creds_result.data[
+            "createGenerativeModelCustomProvider"
+        ]["provider"]["id"]
+
+        # Verify Azure default credentials provider
+        azure_default_creds_provider = await _fetch_provider_via_node_query(
+            gql_client, azure_default_creds_id, self.QUERY
+        )
+        assert azure_default_creds_provider is not None
+        assert azure_default_creds_provider["name"] == azure_default_creds_name
+        azure_auth = azure_default_creds_provider["config"]["azureOpenaiAuthenticationMethod"]
+        assert azure_auth["defaultCredentials"] is True
+        assert azure_auth["apiKey"] is None
+        assert azure_auth["azureAdTokenProvider"] is None
+
+        # Create AWS Bedrock provider with default credentials (IAM role)
+        aws_default_creds_name = f"test-aws-default-creds-{token_hex(2)}"
+        aws_default_creds_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "name": aws_default_creds_name,
+                    "description": "AWS with default credentials",
+                    "provider": "aws",
+                    "clientConfig": {
+                        "awsBedrock": {
+                            "awsBedrockAuthenticationMethod": {"defaultCredentials": True},
+                            "awsBedrockClientKwargs": {"regionName": "us-east-1"},
+                        }
+                    },
+                }
+            },
+            operation_name="CreateGenerativeModelCustomProviderMutation",
+        )
+        assert not aws_default_creds_result.errors
+        assert aws_default_creds_result.data is not None
+        aws_default_creds_id = aws_default_creds_result.data["createGenerativeModelCustomProvider"][
+            "provider"
+        ]["id"]
+
+        # Verify AWS default credentials provider
+        aws_default_creds_provider = await _fetch_provider_via_node_query(
+            gql_client, aws_default_creds_id, self.QUERY
+        )
+        assert aws_default_creds_provider is not None
+        assert aws_default_creds_provider["name"] == aws_default_creds_name
+        aws_auth = aws_default_creds_provider["config"]["awsBedrockAuthenticationMethod"]
+        assert aws_auth["defaultCredentials"] is True
+        assert aws_auth["accessKeys"] is None
 
         # Create provider with minimal config (optional fields omitted)
         minimal_name = f"minimal-provider-{token_hex(2)}"
