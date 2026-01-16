@@ -369,9 +369,9 @@ class TestBuiltInEvaluatorOutputConfig:
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "LevenshteinDistance"
-        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.0
-        assert output_config["upperBound"] == 1.0
+        assert output_config["upperBound"] is None
 
 
 class TestDatasetEvaluatorBuiltinOutputConfig:
