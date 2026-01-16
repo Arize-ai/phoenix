@@ -539,7 +539,7 @@ function AWSFields({
   isSubmitting: boolean;
 }) {
   const authMethod =
-    useWatch({ control, name: "aws_auth_method" }) || "access_keys";
+    useWatch({ control, name: "aws_auth_method" }) || DEFAULT_AWS_AUTH_METHOD;
 
   return (
     <ProviderSection title="AWS Bedrock Configuration">
@@ -1069,7 +1069,7 @@ function hasRequiredCredentials(
       return Boolean(credentials.anthropic_api_key);
     case "AWS_BEDROCK": {
       const hasRegion = credentials.aws_region;
-      const authMethod = credentials.aws_auth_method || "access_keys";
+      const authMethod = credentials.aws_auth_method || DEFAULT_AWS_AUTH_METHOD;
       if (authMethod === "default_credentials") {
         // Environment auth only needs the region
         return Boolean(hasRegion);

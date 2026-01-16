@@ -223,7 +223,10 @@ export const promptVersionToInstance = ({
       modelName,
       provider,
       customProvider: promptVersion.customProvider
-        ? { id: promptVersion.customProvider.id, name: promptVersion.customProvider.name }
+        ? {
+            id: promptVersion.customProvider.id,
+            name: promptVersion.customProvider.name,
+          }
         : null,
       supportedInvocationParameters: supportedInvocationParameters || [],
       invocationParameters: objectToInvocationParameters(
