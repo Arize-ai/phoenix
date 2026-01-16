@@ -9,7 +9,7 @@ from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
     AuthenticationMethodApiKey,
     AuthenticationMethodAzureADTokenProvider,
-    AuthenticationMethodEnvironment,
+    AuthenticationMethodDefaultCredentials,
     AWSBedrockAuthenticationMethodAccessKeys,
     AWSBedrockClientKwargs,
     AWSBedrockCustomProviderConfig,
@@ -84,7 +84,7 @@ class AzureOpenAIADTokenProviderInput:
 class AzureOpenAIAuthenticationMethodInput:
     api_key: str | None = UNSET
     azure_ad_token_provider: AzureOpenAIADTokenProviderInput | None = UNSET
-    environment: bool | None = strawberry.field(
+    default_credentials: bool | None = strawberry.field(
         default=UNSET,
         description="Use SDK default credentials (Managed Identity, Azure CLI, env vars).",
     )
@@ -94,15 +94,17 @@ class AzureOpenAIAuthenticationMethodInput:
     ) -> (
         AuthenticationMethodApiKey
         | AuthenticationMethodAzureADTokenProvider
-        | AuthenticationMethodEnvironment
+        | AuthenticationMethodDefaultCredentials
     ):
-        if self.environment:
-            return AuthenticationMethodEnvironment()
+        if self.default_credentials:
+            return AuthenticationMethodDefaultCredentials()
         if self.azure_ad_token_provider:
             return self.azure_ad_token_provider.to_orm()
         if self.api_key:
             return AuthenticationMethodApiKey(api_key=self.api_key)
-        raise ValueError("One of api_key, azure_ad_token_provider, or environment must be provided")
+        raise ValueError(
+            "One of api_key, azure_ad_token_provider, or default_credentials must be provided"
+        )
 
 
 @strawberry.input
@@ -236,25 +238,25 @@ class AWSBedrockAccessKeysInput:
 
 @strawberry.input(one_of=True)
 class AWSBedrockAuthenticationMethodInput:
-    """AWS Bedrock auth - access keys or environment credentials."""
+    """AWS Bedrock auth - access keys or default credentials."""
 
     access_keys: AWSBedrockAccessKeysInput | None = strawberry.field(
         default=UNSET,
         description="Explicit AWS access key credentials.",
     )
-    environment: bool | None = strawberry.field(
+    default_credentials: bool | None = strawberry.field(
         default=UNSET,
-        description="Use SDK default credentials (IAM role, env vars, ~/.aws/credentials).",
+        description="Use SDK default credentials (IAM role, env vars, config files).",
     )
 
     def to_orm(
         self,
-    ) -> AWSBedrockAuthenticationMethodAccessKeys | AuthenticationMethodEnvironment:
-        if self.environment:
-            return AuthenticationMethodEnvironment()
+    ) -> AWSBedrockAuthenticationMethodAccessKeys | AuthenticationMethodDefaultCredentials:
+        if self.default_credentials:
+            return AuthenticationMethodDefaultCredentials()
         if self.access_keys:
             return self.access_keys.to_orm()
-        raise ValueError("One of access_keys or environment must be provided")
+        raise ValueError("One of access_keys or default_credentials must be provided")
 
 
 @strawberry.input

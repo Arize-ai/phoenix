@@ -109,7 +109,7 @@ class AuthenticationMethodApiKey(BaseModel):
     )
 
 
-class AuthenticationMethodEnvironment(BaseModel):
+class AuthenticationMethodDefaultCredentials(BaseModel):
     """
     Authentication method that delegates to the SDK's default credential chain.
 
@@ -118,7 +118,7 @@ class AuthenticationMethodEnvironment(BaseModel):
     """
 
     model_config = ConfigDict(frozen=True)
-    type: Literal["environment"] = "environment"
+    type: Literal["default_credentials"] = "default_credentials"
 
 
 OpenAIAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -232,7 +232,7 @@ class AuthenticationMethodAzureADTokenProvider(BaseModel):
 AzureOpenAIAuthenticationMethod = Annotated[
     AuthenticationMethodApiKey
     | AuthenticationMethodAzureADTokenProvider
-    | AuthenticationMethodEnvironment,
+    | AuthenticationMethodDefaultCredentials,
     Field(discriminator="type"),
 ]
 
@@ -343,7 +343,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
             return create_client_with_token
 
-        elif method.type == "environment":
+        elif method.type == "default_credentials":
             # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
@@ -465,7 +465,7 @@ class AWSBedrockAuthenticationMethodAccessKeys(BaseModel):
 
 
 AWSBedrockAuthenticationMethod = Annotated[
-    AWSBedrockAuthenticationMethodAccessKeys | AuthenticationMethodEnvironment,
+    AWSBedrockAuthenticationMethodAccessKeys | AuthenticationMethodDefaultCredentials,
     Field(discriminator="type"),
 ]
 
@@ -558,7 +558,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
 
             return create_client_with_keys
 
-        elif method.type == "environment":
+        elif method.type == "default_credentials":
             # Use boto3 default credential chain (IAM role, env vars, ~/.aws/credentials)
             session = aioboto3.Session(region_name=region_name)
 

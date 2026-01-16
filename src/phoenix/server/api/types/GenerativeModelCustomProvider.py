@@ -97,9 +97,9 @@ class OpenAICustomProviderConfig:
 class AzureOpenAIAuthenticationMethod:
     api_key: str | None = UNSET
     azure_ad_token_provider: AzureADTokenProvider | None = UNSET
-    environment: bool | None = strawberry.field(
+    default_credentials: bool | None = strawberry.field(
         default=UNSET,
-        description="True if using SDK default credentials (Managed Identity, Azure CLI, env vars).",
+        description="Use SDK default credentials (Managed Identity, Azure CLI, env vars).",
     )
 
     @classmethod
@@ -108,19 +108,19 @@ class AzureOpenAIAuthenticationMethod:
             return cls(
                 api_key=method.api_key,
                 azure_ad_token_provider=None,
-                environment=None,
+                default_credentials=None,
             )
         if method.type == "azure_ad_token_provider":
             return cls(
                 api_key=None,
                 azure_ad_token_provider=AzureADTokenProvider.from_orm(method),
-                environment=None,
+                default_credentials=None,
             )
-        if method.type == "environment":
+        if method.type == "default_credentials":
             return cls(
                 api_key=None,
                 azure_ad_token_provider=None,
-                environment=True,
+                default_credentials=True,
             )
         assert_never(method.type)
 
@@ -217,9 +217,9 @@ class AWSBedrockAuthenticationMethod:
         default=UNSET,
         description="Explicit AWS access key credentials.",
     )
-    environment: bool | None = strawberry.field(
+    default_credentials: bool | None = strawberry.field(
         default=UNSET,
-        description="True if using SDK default credentials (IAM role, env vars, ~/.aws/credentials).",
+        description="Use SDK default credentials (IAM role, env vars, config files).",
     )
 
     @classmethod
@@ -227,12 +227,12 @@ class AWSBedrockAuthenticationMethod:
         if method.type == "access_keys":
             return cls(
                 access_keys=AWSBedrockAccessKeys.from_orm(method),
-                environment=None,
+                default_credentials=None,
             )
-        if method.type == "environment":
+        if method.type == "default_credentials":
             return cls(
                 access_keys=None,
-                environment=True,
+                default_credentials=True,
             )
         assert_never(method.type)
 

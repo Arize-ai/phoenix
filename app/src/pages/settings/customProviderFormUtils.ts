@@ -171,7 +171,7 @@ export function transformConfigToFormValues(
 
       // Determine auth method based on which credentials are present
       let authMethodType: AzureOpenAIFormData["azure_auth_method"] = "api_key";
-      if (authMethod?.environment) {
+      if (authMethod?.defaultCredentials) {
         authMethodType = "default_credentials";
       } else if (authMethod?.azureAdTokenProvider) {
         authMethodType = "ad_token_provider";
@@ -209,7 +209,7 @@ export function transformConfigToFormValues(
       const authMethod = config?.awsBedrockAuthenticationMethod;
       // Determine auth method based on which fields are present
       let authMethodType: AWSBedrockFormData["aws_auth_method"] = "access_keys";
-      if (authMethod?.environment) {
+      if (authMethod?.defaultCredentials) {
         authMethodType = "default_credentials";
       }
 
@@ -301,7 +301,7 @@ export function buildClientConfig(
       const authMethod: AzureOpenAIAuthenticationMethodInput = (() => {
         switch (formData.azure_auth_method) {
           case "default_credentials":
-            return { environment: true };
+            return { defaultCredentials: true };
           case "ad_token_provider":
             invariant(
               formData.azure_tenant_id,
@@ -385,7 +385,7 @@ export function buildClientConfig(
       const awsAuthMethod = (() => {
         switch (formData.aws_auth_method) {
           case "default_credentials":
-            return { environment: true as const };
+            return { defaultCredentials: true as const };
           case "access_keys":
             return {
               accessKeys: {

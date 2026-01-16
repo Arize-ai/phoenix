@@ -78,7 +78,7 @@ const ProviderQuery = graphql`
                 azureClientSecret
                 scope
               }
-              environment
+              defaultCredentials
             }
             azureOpenaiClientKwargs {
               azureEndpoint
@@ -101,7 +101,7 @@ const ProviderQuery = graphql`
                 awsSecretAccessKey
                 awsSessionToken
               }
-              environment
+              defaultCredentials
             }
             awsBedrockClientKwargs {
               regionName

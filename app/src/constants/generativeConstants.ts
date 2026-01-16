@@ -77,7 +77,10 @@ export type GenerativeModelSDK =
 /**
  * Azure authentication method types.
  */
-export type AzureAuthMethod = "api_key" | "ad_token_provider" | "default_credentials";
+export type AzureAuthMethod =
+  | "api_key"
+  | "ad_token_provider"
+  | "default_credentials";
 
 /**
  * Default Azure authentication method.
