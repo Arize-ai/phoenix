@@ -675,6 +675,8 @@ class ChatCompletionMutationMixin:
                 eval_result = builtin_evaluator.evaluate(
                     context=context,
                     input_mapping=input_mapping,
+                    display_name=builtin_evaluator.name,
+                    output_config=builtin_evaluator_cls.output_config(),
                 )
                 context_result = _to_evaluation_result_union(eval_result, builtin_evaluator.name)
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
