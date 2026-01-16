@@ -44,7 +44,7 @@ jobs:
 
   publish-experimental-packages:
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.phoenix-otel == 'true' || needs.changes.outputs.workflow_file == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.phoenix-otel == 'true' || needs.changes.outputs.phoenix-cli == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -70,4 +70,4 @@ jobs:
 
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals ./packages/phoenix-otel
+        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp ./packages/phoenix-evals ./packages/phoenix-otel ./packages/phoenix-cli
