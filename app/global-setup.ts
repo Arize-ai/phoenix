@@ -4,7 +4,7 @@ async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  page.goto(`${baseURL}/login`);
+  await page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
