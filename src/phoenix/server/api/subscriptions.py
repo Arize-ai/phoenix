@@ -48,8 +48,8 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_builtin_evaluator_by_id,
     get_llm_evaluators,
+    merge_categorical_output_config,
     merge_continuous_output_config,
-    merge_output_config,
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.message_helpers import (
@@ -237,7 +237,7 @@ async def _stream_single_chat_completion(
                     if evaluator_input.output_config is not None
                     else None
                 )
-                merged_output_config = merge_output_config(
+                merged_output_config = merge_categorical_output_config(
                     base=llm_evaluator.output_config,
                     override=output_config_override,
                     display_name=str(evaluator_input.display_name),
@@ -378,7 +378,7 @@ def _merge_builtin_output_config(
         )
 
     if isinstance(base_config, CategoricalAnnotationConfig):
-        return merge_output_config(
+        return merge_categorical_output_config(
             base=base_config,
             override=override if isinstance(override, CategoricalAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
             display_name=display_name,
@@ -801,7 +801,7 @@ class Subscription:
                                 if evaluator_input.output_config is not None
                                 else None
                             )
-                            merged_output_config = merge_output_config(
+                            merged_output_config = merge_categorical_output_config(
                                 base=llm_evaluator.output_config,
                                 override=output_config_override,
                                 display_name=str(evaluator_input.display_name),

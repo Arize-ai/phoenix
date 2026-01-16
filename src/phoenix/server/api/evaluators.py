@@ -693,7 +693,7 @@ class ContainsEvaluator(BuiltInEvaluator):
     def output_config(cls) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
-            name=cls.name,
+            name="contains",
             optimization_direction=OptimizationDirection.MAXIMIZE,
             values=[
                 CategoricalAnnotationValue(label="true", score=1.0),
@@ -807,7 +807,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
     def output_config(cls) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
-            name=cls.name,
+            name="exact_match",
             optimization_direction=OptimizationDirection.MAXIMIZE,
             values=[
                 CategoricalAnnotationValue(label="true", score=1.0),
@@ -910,7 +910,7 @@ class RegexEvaluator(BuiltInEvaluator):
     def output_config(cls) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
-            name=cls.name,
+            name="regex",
             optimization_direction=OptimizationDirection.MAXIMIZE,
             values=[
                 CategoricalAnnotationValue(label="true", score=1.0),
@@ -1040,7 +1040,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     def output_config(cls) -> ContinuousAnnotationConfig:
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
-            name=cls.name,
+            name="levenshtein_distance",
             optimization_direction=OptimizationDirection.MAXIMIZE,
             lower_bound=0.0,
             upper_bound=1.0,
@@ -1158,7 +1158,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
     def output_config(cls) -> ContinuousAnnotationConfig:
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
-            name=cls.name,
+            name="json_distance",
             optimization_direction=OptimizationDirection.MAXIMIZE,
             lower_bound=0.0,
             upper_bound=1.0,
@@ -1231,14 +1231,14 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             )
 
 
-def merge_output_config(
+def merge_categorical_output_config(
     base: CategoricalAnnotationConfig,
     override: Optional[CategoricalAnnotationConfigOverride],
     display_name: str,
     description_override: Optional[str],
 ) -> CategoricalAnnotationConfig:
     """
-    Merge a base output config with optional overrides.
+    Merge a base categorical output config with optional overrides.
 
     Args:
         base: The base CategoricalAnnotationConfig from the LLM evaluator

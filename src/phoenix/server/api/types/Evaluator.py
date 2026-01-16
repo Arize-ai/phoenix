@@ -626,8 +626,8 @@ class DatasetEvaluator(Node):
         Works for both builtin evaluators and LLM evaluators.
         """
         from phoenix.server.api.evaluators import (
+            merge_categorical_output_config,
             merge_continuous_output_config,
-            merge_output_config,
         )
 
         record = await self._get_record(info)
@@ -638,7 +638,7 @@ class DatasetEvaluator(Node):
                 return None
             base_config = evaluator_class.output_config()
             if isinstance(base_config, CategoricalAnnotationConfigModel):
-                effective_config = merge_output_config(
+                effective_config = merge_categorical_output_config(
                     base=base_config,
                     override=record.output_config_override,  # pyright: ignore[reportArgumentType]
                     display_name=record.display_name.root,
@@ -669,7 +669,7 @@ class DatasetEvaluator(Node):
         )
         if base_config is None:
             return None
-        effective_config = merge_output_config(
+        effective_config = merge_categorical_output_config(
             base=base_config,
             override=record.output_config_override,  # pyright: ignore[reportArgumentType]
             display_name=record.display_name.root,
