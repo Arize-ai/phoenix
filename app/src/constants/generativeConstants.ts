@@ -77,7 +77,7 @@ export type GenerativeModelSDK =
 /**
  * Azure authentication method types.
  */
-export type AzureAuthMethod = "api_key" | "ad_token_provider" | "environment";
+export type AzureAuthMethod = "api_key" | "ad_token_provider" | "default_credentials";
 
 /**
  * Default Azure authentication method.
@@ -87,12 +87,12 @@ export const DEFAULT_AZURE_AUTH_METHOD: AzureAuthMethod = "api_key";
 /**
  * AWS Bedrock authentication method types.
  */
-export type AWSAuthMethod = "access_keys" | "environment";
+export type AWSAuthMethod = "access_keys" | "default_credentials";
 
 /**
  * Default AWS Bedrock authentication method.
  */
-export const DEFAULT_AWS_AUTH_METHOD: AWSAuthMethod = "environment";
+export const DEFAULT_AWS_AUTH_METHOD: AWSAuthMethod = "default_credentials";
 
 /**
  * Mapping from SDK enum to ModelProvider key.
@@ -168,7 +168,7 @@ export const SDK_DEFAULT_PROVIDER: Readonly<
 const AZURE_AUTH_METHOD_LABELS: Readonly<Record<AzureAuthMethod, string>> = {
   api_key: "API Key",
   ad_token_provider: "Azure AD Token Provider",
-  environment: "Default Credentials (Managed Identity)",
+  default_credentials: "Default Credentials (Managed Identity)",
 } as const;
 
 /**
@@ -185,7 +185,7 @@ export const AZURE_AUTH_METHOD_OPTIONS: ReadonlyArray<{
  * Human-readable labels for AWS Bedrock authentication methods.
  */
 const AWS_AUTH_METHOD_LABELS: Readonly<Record<AWSAuthMethod, string>> = {
-  environment: "Default Credentials (IAM Role)",
+  default_credentials: "Default Credentials (IAM Role)",
   access_keys: "Access Keys",
 } as const;
 

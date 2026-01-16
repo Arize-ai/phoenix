@@ -510,7 +510,10 @@ function ProviderMenu({
             <ProviderModelsSubmenu
               providerKey={providerKey}
               models={customProvider.modelNames}
-              customProvider={{ id: customProvider.id, name: customProvider.name }}
+              customProvider={{
+                id: customProvider.id,
+                name: customProvider.name,
+              }}
               onChange={onChange}
             />
           </SubmenuTrigger>

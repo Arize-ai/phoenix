@@ -338,7 +338,7 @@ function AzureOpenAIFields({
           </Select>
         )}
       />
-      {authMethod === "environment" && (
+      {authMethod === "default_credentials" && (
         <Alert variant="info">
           Uses Azure DefaultAzureCredential: Managed Identity, Azure CLI, or
           environment variables (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
@@ -593,7 +593,7 @@ function AWSFields({
           </Select>
         )}
       />
-      {authMethod === "environment" && (
+      {authMethod === "default_credentials" && (
         <Alert variant="info">
           Uses boto3 default credential chain: IAM role, environment variables
           (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY), or ~/.aws/credentials.
@@ -1053,7 +1053,7 @@ function hasRequiredCredentials(
       if (authMethod === "api_key") {
         return Boolean(hasBaseConfig && credentials.azure_api_key);
       }
-      if (authMethod === "environment") {
+      if (authMethod === "default_credentials") {
         // Environment auth only needs the endpoint
         return Boolean(hasBaseConfig);
       }
@@ -1070,7 +1070,7 @@ function hasRequiredCredentials(
     case "AWS_BEDROCK": {
       const hasRegion = credentials.aws_region;
       const authMethod = credentials.aws_auth_method || "access_keys";
-      if (authMethod === "environment") {
+      if (authMethod === "default_credentials") {
         // Environment auth only needs the region
         return Boolean(hasRegion);
       }

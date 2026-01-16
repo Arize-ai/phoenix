@@ -83,7 +83,7 @@ const azureEndpointSchema = z
 const azureOpenAISchema = baseProviderSchema.extend({
   sdk: z.literal("AZURE_OPENAI"),
   azure_endpoint: azureEndpointSchema,
-  azure_auth_method: z.enum(["api_key", "ad_token_provider", "environment"]),
+  azure_auth_method: z.enum(["api_key", "ad_token_provider", "default_credentials"]),
   azure_api_key: z.string().optional(),
   azure_tenant_id: z.string().optional(),
   azure_client_id: z.string().optional(),
@@ -104,7 +104,7 @@ const anthropicSchema = baseProviderSchema.extend({
 const awsBedrockSchema = baseProviderSchema.extend({
   sdk: z.literal("AWS_BEDROCK"),
   aws_region: z.string().min(1, "Region is required"),
-  aws_auth_method: z.enum(["access_keys", "environment"]),
+  aws_auth_method: z.enum(["access_keys", "default_credentials"]),
   aws_access_key_id: z.string().optional(),
   aws_secret_access_key: z.string().optional(),
   aws_session_token: z.string().optional(),
@@ -172,7 +172,7 @@ export const providerFormSchema = baseProviderFormSchema.superRefine(
           });
         }
       }
-      // No validation needed for "environment" - it has no required fields
+      // No validation needed for "default_credentials" - it has no required fields
     }
 
     // AWS Bedrock conditional validation
@@ -199,7 +199,7 @@ export const providerFormSchema = baseProviderFormSchema.superRefine(
           });
         }
       }
-      // No validation needed for "environment" - it has no required fields
+      // No validation needed for "default_credentials" - it has no required fields
     }
   }
 );

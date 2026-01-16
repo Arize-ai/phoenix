@@ -94,7 +94,7 @@ export function createDefaultFormData(
         sdk: "AWS_BEDROCK",
         provider: SDK_DEFAULT_PROVIDER.AWS_BEDROCK,
         aws_region: "",
-        aws_auth_method: "environment",
+        aws_auth_method: "default_credentials",
         aws_access_key_id: undefined,
         aws_secret_access_key: undefined,
         aws_session_token: undefined,
@@ -172,7 +172,7 @@ export function transformConfigToFormValues(
       // Determine auth method based on which credentials are present
       let authMethodType: AzureOpenAIFormData["azure_auth_method"] = "api_key";
       if (authMethod?.environment) {
-        authMethodType = "environment";
+        authMethodType = "default_credentials";
       } else if (authMethod?.azureAdTokenProvider) {
         authMethodType = "ad_token_provider";
       }
@@ -210,7 +210,7 @@ export function transformConfigToFormValues(
       // Determine auth method based on which fields are present
       let authMethodType: AWSBedrockFormData["aws_auth_method"] = "access_keys";
       if (authMethod?.environment) {
-        authMethodType = "environment";
+        authMethodType = "default_credentials";
       }
 
       return {
@@ -300,7 +300,7 @@ export function buildClientConfig(
       // specific fields to be non-optional
       const authMethod: AzureOpenAIAuthenticationMethodInput = (() => {
         switch (formData.azure_auth_method) {
-          case "environment":
+          case "default_credentials":
             return { environment: true };
           case "ad_token_provider":
             invariant(
@@ -384,7 +384,7 @@ export function buildClientConfig(
       // Build auth method based on selected type
       const awsAuthMethod = (() => {
         switch (formData.aws_auth_method) {
-          case "environment":
+          case "default_credentials":
             return { environment: true as const };
           case "access_keys":
             return {
