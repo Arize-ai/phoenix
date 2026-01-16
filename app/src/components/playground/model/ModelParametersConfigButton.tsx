@@ -80,7 +80,13 @@ export type ModelParametersConfigButtonProps = {
   playgroundInstanceId: number;
   /**
    * Whether to disable ephemeral routing fields.
-   * When true, shows env var info instead of editable fields for providers that need routing.
+   *
+   * Ephemeral routing fields are provider-specific configuration values (like Azure endpoint,
+   * AWS region, or custom base URLs) that are entered in the UI but not persisted with the prompt.
+   * They exist only for the current browser session and are typically stored in localStorage.
+   *
+   * When true, shows informational text about environment variables instead of editable fields.
+   * This is used in evaluator contexts where routing must come from custom providers or env vars.
    */
   disableEphemeralRouting?: boolean;
 };
@@ -101,23 +107,23 @@ export function ModelParametersConfigButton(
   const customProviderName = model?.customProviderName;
 
   // When a custom provider is selected, hide routing fields (they come from the provider config)
-  const hasCustomProvider = !!customProviderId;
+  const usingCustomProvider = !!customProviderId;
 
   // Provider capability flags - only show routing fields for built-in providers
   // When disableEphemeralRouting is true, we show env var info instead of editable fields
-  const needsBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
-  const needsAzureFields = provider === "AZURE_OPENAI";
-  const needsRegion = provider === "AWS";
+  const canConfigureBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
+  const canConfigureAzureFields = provider === "AZURE_OPENAI";
+  const canConfigureRegion = provider === "AWS";
 
   const showBaseUrl =
-    !hasCustomProvider && !disableEphemeralRouting && needsBaseUrl;
+    !usingCustomProvider && !disableEphemeralRouting && canConfigureBaseUrl;
   const showAzureFields =
-    !hasCustomProvider && !disableEphemeralRouting && needsAzureFields;
+    !usingCustomProvider && !disableEphemeralRouting && canConfigureAzureFields;
   const showRegion =
-    !hasCustomProvider && !disableEphemeralRouting && needsRegion;
+    !usingCustomProvider && !disableEphemeralRouting && canConfigureRegion;
 
   // Show env var info when ephemeral routing is disabled and no custom provider
-  const showEnvVarInfo = disableEphemeralRouting && !hasCustomProvider;
+  const showEnvVarInfo = disableEphemeralRouting && !usingCustomProvider;
 
   return (
     <DialogTrigger>
@@ -138,7 +144,7 @@ export function ModelParametersConfigButton(
               />
 
               {/* Custom provider info - shown when a custom provider is selected */}
-              {hasCustomProvider && customProviderName && (
+              {usingCustomProvider && customProviderName && (
                 <Flex direction="column" gap="size-50">
                   <Text weight="heavy" size="S" color="text-700">
                     Custom Provider
@@ -160,7 +166,7 @@ export function ModelParametersConfigButton(
                   playgroundInstanceId={playgroundInstanceId}
                 />
               )}
-              {showEnvVarInfo && needsAzureFields && (
+              {showEnvVarInfo && canConfigureAzureFields && (
                 <EnvVarRoutingInfo
                   label="Endpoint"
                   envVarName="AZURE_OPENAI_ENDPOINT"
@@ -173,7 +179,7 @@ export function ModelParametersConfigButton(
                   playgroundInstanceId={playgroundInstanceId}
                 />
               )}
-              {showEnvVarInfo && needsRegion && (
+              {showEnvVarInfo && canConfigureRegion && (
                 <EnvVarRoutingInfo label="Region" envVarName="AWS_REGION" />
               )}
 
