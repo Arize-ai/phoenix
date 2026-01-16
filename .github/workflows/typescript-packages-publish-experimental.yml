@@ -20,6 +20,7 @@ jobs:
       phoenix-mcp: ${{ steps.filter.outputs.phoenix-mcp }}
       phoenix-evals: ${{ steps.filter.outputs.phoenix-evals }}
       phoenix-otel: ${{ steps.filter.outputs.phoenix-otel }}
+      phoenix-cli: ${{ steps.filter.outputs.phoenix-cli }}
     steps:
       # For pull requests it's not necessary to checkout the code
       - uses: dorny/paths-filter@v3
@@ -36,6 +37,8 @@ jobs:
               - 'js/packages/phoenix-otel/**'
             phoenix-config:
               - 'js/packages/phoenix-config/**'
+            phoenix-cli:
+              - 'js/packages/phoenix-cli/**'
             workflow_file:
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 
