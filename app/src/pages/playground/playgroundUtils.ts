@@ -1190,7 +1190,7 @@ const getBaseChatCompletionInput = ({
   return {
     messages: instanceMessages.map(toGqlChatCompletionMessage),
     model,
-    credentials: getAllCredentials(credentials),
+    credentials: toGqlCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
       instance.model.provider,
@@ -1231,10 +1231,11 @@ export const denormalizePlaygroundInstance = (
 };
 
 /**
- * A function that gets all credentials from all providers.
+ * Transforms credentials state into GraphQL input format.
+ * Collects all non-empty credentials from all providers for API calls.
  * This is needed because evaluators may use different providers than the prompt.
  */
-export function getAllCredentials(
+export function toGqlCredentials(
   credentials: CredentialsState
 ): GenerativeCredentialInput[] {
   const allCredentials: GenerativeCredentialInput[] = [];
