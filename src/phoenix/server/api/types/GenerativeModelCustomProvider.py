@@ -97,8 +97,10 @@ class OpenAICustomProviderConfig:
 class AzureOpenAIAuthenticationMethod:
     api_key: str | None = UNSET
     azure_ad_token_provider: AzureADTokenProvider | None = UNSET
-    environment: bool | None = UNSET
-    """True if using SDK default credentials (Managed Identity, Azure CLI, env vars)."""
+    environment: bool | None = strawberry.field(
+        default=UNSET,
+        description="True if using SDK default credentials (Managed Identity, Azure CLI, env vars).",
+    )
 
     @classmethod
     def from_orm(cls, method: mp.AzureOpenAIAuthenticationMethod) -> Self:
@@ -211,11 +213,14 @@ class AWSBedrockAccessKeys:
 
 @strawberry.type
 class AWSBedrockAuthenticationMethod:
-    access_keys: AWSBedrockAccessKeys | None = UNSET
-    """Explicit AWS access key credentials."""
-
-    environment: bool | None = UNSET
-    """True if using SDK default credentials (IAM role, env vars, ~/.aws/credentials)."""
+    access_keys: AWSBedrockAccessKeys | None = strawberry.field(
+        default=UNSET,
+        description="Explicit AWS access key credentials.",
+    )
+    environment: bool | None = strawberry.field(
+        default=UNSET,
+        description="True if using SDK default credentials (IAM role, env vars, ~/.aws/credentials).",
+    )
 
     @classmethod
     def from_orm(cls, method: mp.AWSBedrockAuthenticationMethod) -> Self:

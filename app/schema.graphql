@@ -13,12 +13,20 @@ input AWSBedrockAccessKeysInput {
 }
 
 type AWSBedrockAuthenticationMethod {
+  """Explicit AWS access key credentials."""
   accessKeys: AWSBedrockAccessKeys
+
+  """
+  True if using SDK default credentials (IAM role, env vars, ~/.aws/credentials).
+  """
   environment: Boolean
 }
 
 input AWSBedrockAuthenticationMethodInput @oneOf {
+  """Explicit AWS access key credentials."""
   accessKeys: AWSBedrockAccessKeysInput
+
+  """Use SDK default credentials (IAM role, env vars, ~/.aws/credentials)."""
   environment: Boolean
 }
 
@@ -240,12 +248,18 @@ input AzureOpenAIADTokenProviderInput {
 type AzureOpenAIAuthenticationMethod {
   apiKey: String
   azureAdTokenProvider: AzureADTokenProvider
+
+  """
+  True if using SDK default credentials (Managed Identity, Azure CLI, env vars).
+  """
   environment: Boolean
 }
 
 input AzureOpenAIAuthenticationMethodInput @oneOf {
   apiKey: String
   azureAdTokenProvider: AzureOpenAIADTokenProviderInput
+
+  """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
   environment: Boolean
 }
 
