@@ -1992,7 +1992,10 @@ async def _get_builtin_provider_client(
 
         if not api_key:
             if not base_url:
-                raise BadRequest("An API key is required for OpenAI models")
+                raise BadRequest(
+                    "An API key is required for OpenAI models. "
+                    "Set the OPENAI_API_KEY environment variable or use a custom provider."
+                )
             api_key = "sk-placeholder"  # Some OpenAI-compatible APIs don't need a key
 
         # Create factory that returns fresh OpenAI client (native async context manager)
@@ -2033,7 +2036,10 @@ async def _get_builtin_provider_client(
         endpoint = obj.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
 
         if not endpoint:
-            raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
+            raise BadRequest(
+                "An Azure endpoint is required for Azure OpenAI models. "
+                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
+            )
 
         # Construct the v1 API base URL
         endpoint = endpoint.rstrip("/")
@@ -2099,7 +2105,10 @@ async def _get_builtin_provider_client(
             or getenv("ANTHROPIC_API_KEY")
         )
         if not api_key:
-            raise BadRequest("An API key is required for Anthropic models")
+            raise BadRequest(
+                "An API key is required for Anthropic models. "
+                "Set the ANTHROPIC_API_KEY environment variable or use a custom provider."
+            )
 
         # Create factory that returns fresh Anthropic client (native async context manager)
         def create_anthropic_client() -> anthropic.AsyncAnthropic:
@@ -2139,7 +2148,10 @@ async def _get_builtin_provider_client(
             api_key = getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")
 
         if not api_key:
-            raise BadRequest("An API key is required for Google GenAI models")
+            raise BadRequest(
+                "An API key is required for Google GenAI models. "
+                "Set the GEMINI_API_KEY environment variable or use a custom provider."
+            )
 
         # Create factory that returns fresh Google GenAI async client (native async context manager)
         # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
@@ -2216,7 +2228,10 @@ async def _get_builtin_provider_client(
 
         if not api_key:
             if base_url == "https://api.deepseek.com":
-                raise BadRequest("An API key is required for DeepSeek models")
+                raise BadRequest(
+                    "An API key is required for DeepSeek models. "
+                    "Set the DEEPSEEK_API_KEY environment variable or use a custom provider."
+                )
             api_key = "sk-placeholder"  # Custom endpoints may not need a key
 
         # Create factory that returns fresh OpenAI client (native async context manager)
@@ -2249,7 +2264,10 @@ async def _get_builtin_provider_client(
 
         if not api_key:
             if base_url == "https://api.x.ai/v1":
-                raise BadRequest("An API key is required for xAI models")
+                raise BadRequest(
+                    "An API key is required for xAI models. "
+                    "Set the XAI_API_KEY environment variable or use a custom provider."
+                )
             api_key = "sk-placeholder"  # Custom endpoints may not need a key
 
         # Create factory that returns fresh OpenAI client (native async context manager)
@@ -2275,7 +2293,11 @@ async def _get_builtin_provider_client(
 
         base_url = obj.base_url or getenv("OLLAMA_BASE_URL")
         if not base_url:
-            raise BadRequest("A base URL is required for Ollama models")
+            raise BadRequest(
+                "A base URL is required for Ollama models. "
+                "Set the OLLAMA_BASE_URL environment variable (e.g., http://localhost:11434/v1) "
+                "or use a custom provider."
+            )
 
         # Create factory that returns fresh OpenAI client (native async context manager)
         def create_ollama_client() -> AsyncOpenAI:
