@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b245ab302e51963c23e3c7a9cb3ee70>>
+ * @generated SignedSource<<3cf2f0c657bb31aa404fedc0f39706b6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEP
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
@@ -36,21 +37,20 @@ export type GenerativeModelInput = {
 };
 export type GenerativeModelBuiltinProviderInput = {
   baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
   region?: string | null;
 };
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: any;
-};
 export type GenerativeModelCustomProviderInput = {
   extraHeaders?: any | null;
   modelName: string;
   providerId: string;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: any;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;

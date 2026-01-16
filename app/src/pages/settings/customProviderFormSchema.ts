@@ -83,7 +83,11 @@ const azureEndpointSchema = z
 const azureOpenAISchema = baseProviderSchema.extend({
   sdk: z.literal("AZURE_OPENAI"),
   azure_endpoint: azureEndpointSchema,
-  azure_auth_method: z.enum(["api_key", "ad_token_provider"]),
+  azure_auth_method: z.enum([
+    "api_key",
+    "ad_token_provider",
+    "default_credentials",
+  ]),
   azure_api_key: z.string().optional(),
   azure_tenant_id: z.string().optional(),
   azure_client_id: z.string().optional(),
@@ -104,8 +108,9 @@ const anthropicSchema = baseProviderSchema.extend({
 const awsBedrockSchema = baseProviderSchema.extend({
   sdk: z.literal("AWS_BEDROCK"),
   aws_region: z.string().min(1, "Region is required"),
-  aws_access_key_id: z.string().min(1, "Access key ID is required"),
-  aws_secret_access_key: z.string().min(1, "Secret access key is required"),
+  aws_auth_method: z.enum(["access_keys", "default_credentials"]),
+  aws_access_key_id: z.string().optional(),
+  aws_secret_access_key: z.string().optional(),
   aws_session_token: z.string().optional(),
   aws_endpoint_url: urlFieldSchema,
 });
@@ -127,7 +132,7 @@ const baseProviderFormSchema = z.discriminatedUnion("sdk", [
   googleGenAISchema,
 ]);
 
-// Add conditional validation for Azure auth methods on top of the discriminated union
+// Add conditional validation for auth methods on top of the discriminated union
 export const providerFormSchema = baseProviderFormSchema.superRefine(
   (data, ctx) => {
     // Azure OpenAI conditional validation
@@ -171,6 +176,34 @@ export const providerFormSchema = baseProviderFormSchema.superRefine(
           });
         }
       }
+      // No validation needed for "default_credentials" - it has no required fields
+    }
+
+    // AWS Bedrock conditional validation
+    if (data.sdk === "AWS_BEDROCK") {
+      if (data.aws_auth_method === "access_keys") {
+        // Access keys are required when using access_keys auth
+        if (!data.aws_access_key_id || data.aws_access_key_id.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              "Access Key ID is required when using Access Keys authentication",
+            path: ["aws_access_key_id"],
+          });
+        }
+        if (
+          !data.aws_secret_access_key ||
+          data.aws_secret_access_key.length === 0
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              "Secret Access Key is required when using Access Keys authentication",
+            path: ["aws_secret_access_key"],
+          });
+        }
+      }
+      // No validation needed for "default_credentials" - it has no required fields
     }
   }
 );

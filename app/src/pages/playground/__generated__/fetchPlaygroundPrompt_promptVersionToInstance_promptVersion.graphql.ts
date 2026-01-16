@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ffb2d54f0edd697dcfb1a18c4b99ef9>>
+ * @generated SignedSource<<561dd8448ca766e73d03bc1758d0297c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,10 @@ export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | 
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 import { FragmentRefs } from "relay-runtime";
 export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
+  readonly customProvider: {
+    readonly id: string;
+    readonly name: string;
+  } | null;
   readonly id: string;
   readonly invocationParameters: any | null;
   readonly modelName: string;
@@ -73,6 +77,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "32e07f4440b74bd812bb76ef07ce018e";
+(node as any).hash = "68fb96bcc60939df0dc7e9fbb8238986";
 
 export default node;

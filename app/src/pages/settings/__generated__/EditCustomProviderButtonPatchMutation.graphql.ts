@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<efd1e16716c821b9cf69882611e39aed>>
+ * @generated SignedSource<<2595edf12761e835793facb07f6a36b6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,7 @@ export type AzureOpenAICustomProviderConfigInput = {
 export type AzureOpenAIAuthenticationMethodInput = {
   apiKey?: string | null;
   azureAdTokenProvider?: AzureOpenAIADTokenProviderInput | null;
+  defaultCredentials?: boolean | null;
 };
 export type AzureOpenAIADTokenProviderInput = {
   azureClientId: string;
@@ -72,6 +73,10 @@ export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
 };
 export type AWSBedrockAuthenticationMethodInput = {
+  accessKeys?: AWSBedrockAccessKeysInput | null;
+  defaultCredentials?: boolean | null;
+};
+export type AWSBedrockAccessKeysInput = {
   awsAccessKeyId: string;
   awsSecretAccessKey: string;
   awsSessionToken?: string | null;

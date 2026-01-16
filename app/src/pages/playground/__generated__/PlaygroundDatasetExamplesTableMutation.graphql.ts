@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec6dd542324d60dd0f948890f8ab0af9>>
+ * @generated SignedSource<<190c0dec7ff3a7d13eac1fb35793fa25>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
@@ -45,21 +46,20 @@ export type GenerativeModelInput = {
 };
 export type GenerativeModelBuiltinProviderInput = {
   baseUrl?: string | null;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
   region?: string | null;
 };
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: any;
-};
 export type GenerativeModelCustomProviderInput = {
   extraHeaders?: any | null;
   modelName: string;
   providerId: string;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: any;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;

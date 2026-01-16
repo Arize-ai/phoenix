@@ -1894,6 +1894,13 @@ class PromptVersion(HasId):
         index=True,
         nullable=True,
     )
+    # NULL = use built-in provider (secrets/env vars)
+    # SET = use custom provider config for evaluator execution
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     template_type: Mapped[PromptTemplateType] = mapped_column(
         _PromptTemplateType,
         CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
@@ -1926,6 +1933,10 @@ class PromptVersion(HasId):
         back_populates="prompt_version",
         cascade="all, delete-orphan",
         uselist=True,
+    )
+
+    custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship(
+        "GenerativeModelCustomProvider"
     )
 
     def has_identical_content(self, other: Self) -> bool:
