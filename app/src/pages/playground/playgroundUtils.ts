@@ -1166,12 +1166,12 @@ const getBaseChatCompletionInput = ({
       : {};
 
   // Determine if we're using a custom provider or built-in provider
-  const isCustomProvider = !!instance.model.customProviderId;
+  const customProvider = instance.model.customProvider;
 
-  const model = isCustomProvider
+  const model = customProvider
     ? {
         custom: {
-          providerId: instance.model.customProviderId!,
+          providerId: customProvider.id,
           modelName: instance.model.modelName || "",
           extraHeaders: instance.model.customHeaders,
         },

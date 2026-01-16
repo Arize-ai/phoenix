@@ -32,7 +32,7 @@ export function PlaygroundModelMenu({
     ? {
         provider: instance.model.provider,
         modelName: instance.model.modelName,
-        customProviderId: instance.model.customProviderId ?? undefined,
+        customProvider: instance.model.customProvider ?? undefined,
       }
     : null;
 
@@ -54,8 +54,7 @@ export function PlaygroundModelMenu({
         instanceId: playgroundInstanceId,
         patch: {
           modelName: model.modelName,
-          customProviderId: model.customProviderId ?? null,
-          customProviderName: model.customProviderName ?? null,
+          customProvider: model.customProvider ?? null,
         },
       });
     },

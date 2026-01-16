@@ -38,17 +38,21 @@ const menuWidthCSS = css`
   min-width: 350px;
 `;
 
+/**
+ * Reference to a custom provider.
+ */
+export type CustomProviderRef = {
+  id: string;
+  name: string;
+};
+
 export type ModelMenuValue = {
   provider: GenerativeProviderKey;
   modelName: string;
   /**
-   * The custom provider ID if using a custom provider
+   * Reference to custom provider if using one
    */
-  customProviderId?: string;
-  /**
-   * The custom provider name if using a custom provider
-   */
-  customProviderName?: string;
+  customProvider?: CustomProviderRef;
 };
 
 type CustomProviderInfo = {
@@ -341,15 +345,13 @@ function ModelsByProviderMenu({
   const handleModelSelect = (
     providerKey: string,
     modelName: string,
-    customProviderId?: string,
-    customProviderName?: string
+    customProvider?: CustomProviderRef
   ) => {
     if (isModelProvider(providerKey)) {
       onChange?.({
         provider: providerKey,
         modelName,
-        customProviderId,
-        customProviderName,
+        customProvider,
       });
     }
   };
@@ -376,12 +378,10 @@ function ModelsByProviderMenu({
             );
             if (customProvider) {
               const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
-              handleModelSelect(
-                providerKey,
-                modelInfo.modelName,
-                modelInfo.customProviderId,
-                customProvider.name
-              );
+              handleModelSelect(providerKey, modelInfo.modelName, {
+                id: customProvider.id,
+                name: customProvider.name,
+              });
             }
             break;
           }
@@ -510,8 +510,7 @@ function ProviderMenu({
             <ProviderModelsSubmenu
               providerKey={providerKey}
               models={customProvider.modelNames}
-              customProviderId={customProvider.id}
-              customProviderName={customProvider.name}
+              customProvider={{ id: customProvider.id, name: customProvider.name }}
               onChange={onChange}
             />
           </SubmenuTrigger>
@@ -554,13 +553,9 @@ type ProviderModelsSubmenuProps = {
   models: readonly string[];
   onChange?: (model: ModelMenuValue) => void;
   /**
-   * If provided, this is a custom provider and the ID will be included in the selection
+   * If provided, this is a custom provider and the ref will be included in the selection
    */
-  customProviderId?: string;
-  /**
-   * If provided, this is a custom provider and the name will be included in the selection
-   */
-  customProviderName?: string;
+  customProvider?: CustomProviderRef;
 };
 
 /**
@@ -572,8 +567,7 @@ function ProviderModelsSubmenu({
   providerKey,
   models,
   onChange,
-  customProviderId,
-  customProviderName,
+  customProvider,
 }: ProviderModelsSubmenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -645,8 +639,7 @@ function ProviderModelsSubmenu({
             onChange?.({
               provider: providerKey,
               modelName,
-              customProviderId,
-              customProviderName,
+              customProvider,
             });
           }}
         >

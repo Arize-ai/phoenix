@@ -103,11 +103,10 @@ export function ModelParametersConfigButton(
   );
 
   const provider = model?.provider;
-  const customProviderId = model?.customProviderId;
-  const customProviderName = model?.customProviderName;
+  const customProvider = model?.customProvider;
 
   // When a custom provider is selected, hide routing fields (they come from the provider config)
-  const usingCustomProvider = !!customProviderId;
+  const usingCustomProvider = !!customProvider;
 
   // Provider capability flags - only show routing fields for built-in providers
   // When disableEphemeralRouting is true, we show env var info instead of editable fields
@@ -144,12 +143,12 @@ export function ModelParametersConfigButton(
               />
 
               {/* Custom provider info - shown when a custom provider is selected */}
-              {usingCustomProvider && customProviderName && (
+              {customProvider && (
                 <Flex direction="column" gap="size-50">
                   <Text weight="heavy" size="S" color="text-700">
                     Custom Provider
                   </Text>
-                  <Text size="S">{customProviderName}</Text>
+                  <Text size="S">{customProvider.name}</Text>
                 </Flex>
               )}
 
