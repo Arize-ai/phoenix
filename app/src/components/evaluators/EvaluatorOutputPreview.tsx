@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   Card,
   DialogTrigger,
@@ -32,7 +32,7 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { getAllCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
@@ -117,7 +117,7 @@ export const EvaluatorOutputPreview = () => {
               inputMapping: state.evaluator.inputMapping,
             },
           ],
-          credentials: getAllCredentials(credentials),
+          credentials: toGqlCredentials(credentials),
         },
       },
       onCompleted(response, errors) {
@@ -232,47 +232,26 @@ export const EvaluatorOutputPreview = () => {
                     </View>
                   </Card>
                 ) : (
-                  <Card title={`Evaluator Error: ${result.evaluatorName}`}>
-                    <div
-                      css={css`
-                        padding: var(--ac-global-dimension-size-100);
-                        background-color: var(--ac-global-color-danger-100);
-                        border-radius: var(--ac-global-rounding-small);
-                        white-space: pre-wrap;
-                        overflow: auto;
-                        max-height: 200px;
-                      `}
-                    >
-                      <Text color="danger">{result.message}</Text>
-                    </div>
-                  </Card>
+                  <Alert
+                    variant="danger"
+                    title={`Evaluator Error: ${result.evaluatorName}`}
+                  >
+                    {result.message}
+                  </Alert>
                 )}
               </Flex>
             ))}
           </Flex>
 
           {error && (
-            <Card
+            <Alert
+              variant="danger"
               title="Error"
-              extra={
-                <IconButton size="S" onPress={() => setError(null)}>
-                  <Icon svg={<Icons.CloseOutline />} />
-                </IconButton>
-              }
+              dismissable
+              onDismissClick={() => setError(null)}
             >
-              <div
-                css={css`
-                  padding: var(--ac-global-dimension-size-100);
-                  background-color: var(--ac-global-color-danger-100);
-                  border-radius: var(--ac-global-rounding-small);
-                  white-space: pre-wrap;
-                  overflow: auto;
-                  max-height: 200px;
-                `}
-              >
-                <Text color="danger">{error}</Text>
-              </div>
-            </Card>
+              {error}
+            </Alert>
           )}
         </Flex>
       )}
