@@ -124,7 +124,8 @@
                           "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
                           "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
                           "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
-                          "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans"
+                          "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
+                          "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli"
                         ]
                       },
                       "docs/phoenix/tracing/how-to-tracing/cost-tracking",
@@ -888,7 +889,8 @@
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
                   "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
-                  "docs/phoenix/sdk-api-reference/typescript/mcp-server"
+                  "docs/phoenix/sdk-api-reference/typescript/mcp-server",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
                 ]
               },
               {
@@ -1014,6 +1016,12 @@
                 "group": " ",
                 "pages": [
                   "docs/phoenix/release-notes",
+                  {
+                    "group": "01.2026",
+                    "pages": [
+                      "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
+                    ]
+                  },
                   {
                     "group": "12.2025",
                     "pages": [
