@@ -1017,6 +1017,12 @@
                 "pages": [
                   "docs/phoenix/release-notes",
                   {
+                    "group": "01.2026",
+                    "pages": [
+                      "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
+                    ]
+                  },
+                  {
                     "group": "12.2025",
                     "pages": [
                       "docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences",
