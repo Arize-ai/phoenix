@@ -574,9 +574,9 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "levenshtein_no_override"
-        assert output_config["optimizationDirection"] == "MAXIMIZE"
+        assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.0
-        assert output_config["upperBound"] == 1.0
+        assert output_config["upperBound"] is None
 
     async def test_continuous_builtin_with_override(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient

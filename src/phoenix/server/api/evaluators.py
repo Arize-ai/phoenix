@@ -344,14 +344,16 @@ class BuiltInEvaluator(ABC):
     ) -> tuple[Optional[str], Optional[float]]:
         """
         Map a boolean result to a label and score using the output config.
-        For categorical configs, finds the matching label based on score.
+        For categorical configs, uses positional indexing where:
+        - values[0] is the "matched/pass" case
+        - values[1] is the "not matched/fail" case
         """
         if isinstance(output_config, CategoricalAnnotationConfig):
-            target_score = 1.0 if matched else 0.0
-            for value in output_config.values:
-                if value.score == target_score:
-                    return value.label, value.score
-            return None, target_score
+            index = 0 if matched else 1
+            if index < len(output_config.values):
+                value = output_config.values[index]
+                return value.label, value.score
+            return None, 1.0 if matched else 0.0
         else:
             return None, 1.0 if matched else 0.0
 

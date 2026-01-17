@@ -1682,6 +1682,40 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "pattern_found"
         assert result["score"] == 1.0
 
+    def test_contains_evaluator_uses_custom_scores(self) -> None:
+        """Test that ContainsEvaluator correctly uses custom scores from output config."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        custom_config = CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="contains_custom_scores",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="Pass", score=100.0),
+                CategoricalAnnotationValue(label="Fail", score=-50.0),
+            ],
+        )
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+
+        result_match = evaluator.evaluate(
+            context={"words": "hello", "text": "hello world"},
+            input_mapping=input_mapping,
+            display_name="Contains Custom",
+            output_config=custom_config,
+        )
+        assert result_match["label"] == "Pass"
+        assert result_match["score"] == 100.0
+
+        result_no_match = evaluator.evaluate(
+            context={"words": "goodbye", "text": "hello world"},
+            input_mapping=input_mapping,
+            display_name="Contains Custom",
+            output_config=custom_config,
+        )
+        assert result_no_match["label"] == "Fail"
+        assert result_no_match["score"] == -50.0
+
     def test_levenshtein_evaluator_uses_display_name(self) -> None:
         """Test that LevenshteinDistanceEvaluator uses the display_name in the result."""
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
