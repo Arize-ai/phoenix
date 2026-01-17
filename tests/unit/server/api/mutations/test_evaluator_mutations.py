@@ -2088,9 +2088,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             displayName="test-levenshtein",
-            outputConfigOverride={
-                "continuous": {"upperBound": -1.0}
-            },
+            outputConfigOverride={"continuous": {"upperBound": -1.0}},
         )
         assert result.errors
         assert "lower_bound" in result.errors[0].message.lower()
@@ -2101,9 +2099,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             displayName="test-levenshtein-2",
-            outputConfigOverride={
-                "continuous": {"lowerBound": 5.0, "upperBound": 10.0}
-            },
+            outputConfigOverride={"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
         )
         assert result.data and not result.errors
 
@@ -2423,7 +2419,9 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             },
         )
         assert create_result.data and not create_result.errors
-        dataset_evaluator_id = create_result.data["createDatasetBuiltinEvaluator"]["evaluator"]["id"]
+        dataset_evaluator_id = create_result.data["createDatasetBuiltinEvaluator"]["evaluator"][
+            "id"
+        ]
 
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
@@ -2431,9 +2429,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "displayName": "test-levenshtein-update",
-                    "outputConfigOverride": {
-                        "continuous": {"upperBound": -1.0}
-                    },
+                    "outputConfigOverride": {"continuous": {"upperBound": -1.0}},
                 }
             },
         )
@@ -2447,9 +2443,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "displayName": "test-levenshtein-update",
-                    "outputConfigOverride": {
-                        "continuous": {"lowerBound": 5.0, "upperBound": 10.0}
-                    },
+                    "outputConfigOverride": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
                 }
             },
         )

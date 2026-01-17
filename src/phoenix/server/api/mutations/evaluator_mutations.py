@@ -205,14 +205,10 @@ def _validate_and_convert_builtin_override(
             if cont_override.upper_bound is not None
             else base_config.upper_bound
         )
-        if (
-            merged_lower is not None
-            and merged_upper is not None
-            and merged_lower >= merged_upper
-        ):
+        if merged_lower is not None and merged_upper is not None and merged_lower >= merged_upper:
             raise BadRequest(
                 f"Override bounds are invalid when merged with base config: "
-                f"lower_bound ({merged_lower}) must be strictly less than upper_bound ({merged_upper})"
+                f"lower_bound ({merged_lower}) must be less than upper_bound ({merged_upper})"
             )
 
         return ContinuousAnnotationConfigOverrideModel(
