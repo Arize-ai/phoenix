@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 0.1.0
+
+### Minor Changes
+
+- d69eb80: initial trace dump api
+
 ## 0.0.4
 
 ### Patch Changes
