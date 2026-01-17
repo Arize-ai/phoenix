@@ -60,7 +60,7 @@ px traces ./my-traces --limit 50
 | Variable | Description |
 |----------|-------------|
 | `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
-| `PHOENIX_PROJECT` | Project name or UUID |
+| `PHOENIX_PROJECT` | Project name or ID |
 | `PHOENIX_API_KEY` | API key for authentication (if required) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
 
@@ -104,7 +104,7 @@ px traces --format raw --no-progress | jq     # Pipe to jq
 | `--last-n-minutes <number>` | Only fetch traces from the last N minutes | — |
 | `--since <timestamp>` | Fetch traces since ISO timestamp | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
-| `--project <name>` | Project name or UUID | From env |
+| `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress output | — |
@@ -125,7 +125,7 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--file <path>` | Save to file instead of stdout | stdout |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
-| `--project <name>` | Project name or UUID | From env |
+| `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 

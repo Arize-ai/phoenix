@@ -16,7 +16,7 @@ export interface PhoenixConfig {
   endpoint?: string;
 
   /**
-   * The project name or UUID
+   * The project name or ID
    */
   project?: string;
 

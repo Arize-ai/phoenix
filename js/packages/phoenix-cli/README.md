@@ -59,7 +59,7 @@ px traces ./my-traces --limit 50
 | Variable                 | Description                                          |
 | ------------------------ | ---------------------------------------------------- |
 | `PHOENIX_HOST`           | Phoenix API endpoint (e.g., `http://localhost:6006`) |
-| `PHOENIX_PROJECT`        | Project name or UUID                                 |
+| `PHOENIX_PROJECT`        | Project name or ID                                   |
 | `PHOENIX_API_KEY`        | API key for authentication (if required)             |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string                        |
 

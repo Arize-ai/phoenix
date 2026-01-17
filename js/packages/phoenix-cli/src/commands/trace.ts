@@ -189,7 +189,7 @@ export function createTraceCommand(): Command {
     .description("Fetch a specific trace by ID")
     .argument("<trace-id>", "Trace identifier (OTEL trace ID or prefix)")
     .option("--endpoint <url>", "Phoenix API endpoint")
-    .option("--project <name>", "Project name or UUID")
+    .option("--project <name>", "Project name or ID")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option(
       "--format <format>",

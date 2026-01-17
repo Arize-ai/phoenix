@@ -45,39 +45,24 @@ export interface ResolveProjectIdOptions {
   /**
    * Project identifier to resolve.
    *
-   * Phoenix project IDs are base64-encoded "global IDs" (commonly something like `base64("Project:<id>")`).
-   * If `projectIdentifier` decodes to a `Project:`-prefixed string, it's treated as an ID; otherwise it's treated as a name.
+   * Phoenix project IDs are hex-encoded strings. If `projectIdentifier` looks like a hex string,
+   * it's treated as an ID; otherwise it's treated as a name and resolved via the API.
    */
   projectIdentifier: string;
 }
 
 function looksLikePhoenixProjectId(projectIdentifier: string): boolean {
-  // Base64 "global id" heuristic:
-  // - Accepts base64 and base64url
-  // - Decodes to UTF-8
-  // - Must be an ASCII-ish string starting with "Project:"
+  // Project IDs are hex-encoded strings (e.g., "a1b2c3d4e5f6...")
   const trimmed = projectIdentifier.trim();
   if (!trimmed) return false;
 
-  // Quick allow-list to avoid Buffer.from decoding random strings.
-  if (!/^[A-Za-z0-9+/=_-]+$/.test(trimmed)) return false;
-
-  // Normalize base64url to base64.
-  const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
-
-  let decoded: string;
-  try {
-    decoded = Buffer.from(normalized, "base64").toString("utf8");
-  } catch {
-    return false;
-  }
-
-  return decoded.startsWith("Project:") || decoded.startsWith("project:");
+  // Check if the string is a valid hex string (only 0-9, a-f, A-F)
+  return /^[0-9a-fA-F]+$/.test(trimmed);
 }
 
 /**
  * Resolve project identifier to project ID
- * If the identifier looks like a Phoenix project ID (base64 global-id), returns it as-is; otherwise fetches by name.
+ * If the identifier looks like a Phoenix project ID (hex string), returns it as-is; otherwise fetches by name.
  */
 export async function resolveProjectId({
   client,
