@@ -1,11 +1,11 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
-import { formatExperimentsOutput } from "../src/commands/formatExperiments";
 import {
+  type ExperimentWithRuns,
   formatExperimentJsonOutput,
   formatExperimentOutput,
-  type ExperimentWithRuns,
 } from "../src/commands/formatExperiment";
+import { formatExperimentsOutput } from "../src/commands/formatExperiments";
 
 import { describe, expect, it } from "vitest";
 
