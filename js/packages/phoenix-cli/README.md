@@ -22,7 +22,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-cli/README.md" />
 </p>
 
-A command-line interface for retrieving trace data from [Arize Phoenix](https://github.com/Arize-ai/phoenix). Fetch, debug, and export traces directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+A command-line interface for [Arize Phoenix](https://github.com/Arize-ai/phoenix). Fetch traces, list datasets, and export experiment results directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
 
 ## Installation
 
@@ -112,6 +112,73 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--file <path>`     | Save to file instead of stdout | stdout   |
 | `--format <format>` | `pretty`, `json`, or `raw`     | `pretty` |
 
+### `px datasets`
+
+List all available datasets.
+
+```bash
+px datasets
+px datasets --format json                    # JSON output
+px datasets --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--limit <number>`  | Maximum number of datasets | —        |
+
+### `px dataset <dataset-identifier>`
+
+Fetch examples from a dataset.
+
+```bash
+px dataset query_response                        # Fetch all examples
+px dataset query_response --split train          # Filter by split
+px dataset query_response --split train --split test  # Multiple splits
+px dataset query_response --version <version-id> # Specific version
+px dataset query_response --file dataset.json    # Save to file
+px dataset query_response --format raw | jq '.examples[].input'
+```
+
+| Option           | Description                              | Default  |
+| ---------------- | ---------------------------------------- | -------- |
+| `--split <name>` | Filter by split (can be used repeatedly) | —        |
+| `--version <id>` | Fetch from specific dataset version      | latest   |
+| `--file <path>`  | Save to file instead of stdout           | stdout   |
+| `--format <fmt>` | `pretty`, `json`, or `raw`               | `pretty` |
+
+### `px experiments --dataset <name-or-id>`
+
+List experiments for a dataset, optionally exporting full data to files.
+
+```bash
+px experiments --dataset my-dataset                 # List experiments
+px experiments --dataset my-dataset --format json   # JSON output
+px experiments --dataset my-dataset ./experiments   # Export to directory
+```
+
+| Option                   | Description                               | Default  |
+| ------------------------ | ----------------------------------------- | -------- |
+| `--dataset <name-or-id>` | Dataset name or ID (required)             | —        |
+| `[directory]`            | Export experiment JSON files to directory | stdout   |
+| `--format <format>`      | `pretty`, `json`, or `raw`                | `pretty` |
+| `--limit <number>`       | Maximum number of experiments             | —        |
+
+### `px experiment <experiment-id>`
+
+Fetch a single experiment with all run data.
+
+```bash
+px experiment RXhwZXJpbWVudDox
+px experiment RXhwZXJpbWVudDox --file exp.json   # Save to file
+px experiment RXhwZXJpbWVudDox --format json     # JSON output
+```
+
+| Option              | Description                    | Default  |
+| ------------------- | ------------------------------ | -------- |
+| `--file <path>`     | Save to file instead of stdout | stdout   |
+| `--format <format>` | `pretty`, `json`, or `raw`     | `pretty` |
+
 ## Output Formats
 
 **`pretty`** (default) — Human-readable tree view:
@@ -194,6 +261,39 @@ px traces --limit 50 --format raw --no-progress | \
 
 ```bash
 px traces --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
+```
+
+### List datasets and experiments
+
+```bash
+# List all datasets
+px datasets --format raw --no-progress | jq '.[].name'
+# Output: "query_response"
+
+# List experiments for a dataset
+px experiments --dataset query_response --format raw --no-progress | \
+  jq '.[] | {id, successful_run_count, failed_run_count}'
+# Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
+
+# Export all experiment data for a dataset to a directory
+px experiments --dataset query_response ./experiments/
+```
+
+### Analyze experiment results
+
+```bash
+# Get input queries and latency from an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | {query: .input.query, latency_ms, trace_id}'
+
+# Find failed runs in an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | select(.error != null) | {query: .input.query, error}'
+# Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
+
+# Calculate average latency across runs
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '[.[].latency_ms] | add / length'
 ```
 
 ---
