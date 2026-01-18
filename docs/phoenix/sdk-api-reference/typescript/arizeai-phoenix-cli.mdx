@@ -14,14 +14,15 @@ description: Command-line interface for retrieving trace data from Arize Phoenix
   GitHub
 </Card>
 
-Phoenix CLI is a command-line interface for retrieving trace data from your Phoenix projects. Fetch, debug, and export traces directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, and export experiment results directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
 
 You can use Phoenix CLI for:
 
 * **Immediate Debugging**: Fetch the most recent trace of a failed or unexpected run with a single command
-* **Bulk Export**: Export large numbers of traces to JSON files for offline analysis or building evaluation datasets
-* **Terminal Workflows**: Integrate trace data into your existing tools, piping output to Unix utilities like `jq`
-* **AI Coding Assistants**: Use with Claude Code, Cursor, Windsurf, or other AI-powered tools to analyze agent traces
+* **Bulk Export**: Export large numbers of traces or experiment results to JSON files for offline analysis
+* **Dataset & Experiment Access**: List datasets and retrieve full experiment data including runs, evaluations, and trace IDs
+* **Terminal Workflows**: Integrate trace and experiment data into your existing tools, piping output to Unix utilities like `jq`
+* **AI Coding Assistants**: Use with Claude Code, Cursor, Windsurf, or other AI-powered tools to analyze agent traces and experiments
 
 Don't see a use-case covered? `@arizeai/phoenix-cli` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
 
@@ -129,6 +130,62 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px datasets`
+
+List all available datasets.
+
+```bash
+px datasets
+px datasets --format json                    # JSON output
+px datasets --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of datasets | — |
+
+### `px experiments --dataset <name-or-id>`
+
+List experiments for a dataset, optionally exporting full data to files.
+
+```bash
+px experiments --dataset my-dataset                 # List experiments
+px experiments --dataset my-dataset --format json   # JSON output
+px experiments --dataset my-dataset ./experiments   # Export to directory
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dataset <name-or-id>` | Dataset name or ID (required) | — |
+| `[directory]` | Export experiment JSON files to directory | stdout |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of experiments | — |
+
+### `px experiment <experiment-id>`
+
+Fetch a single experiment with all run data, including inputs, outputs, evaluations, and trace IDs.
+
+```bash
+px experiment RXhwZXJpbWVudDox
+px experiment RXhwZXJpbWVudDox --file exp.json   # Save to file
+px experiment RXhwZXJpbWVudDox --format json     # JSON output
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
 ## Output Formats
 
 **`pretty`** (default) — Human-readable tree view:
@@ -211,6 +268,39 @@ px traces --limit 50 --format raw --no-progress | \
 
 ```bash
 px traces --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
+```
+
+### List datasets and experiments
+
+```bash
+# List all datasets
+px datasets --format raw --no-progress | jq '.[].name'
+# Output: "query_response"
+
+# List experiments for a dataset
+px experiments --dataset query_response --format raw --no-progress | \
+  jq '.[] | {id, successful_run_count, failed_run_count}'
+# Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
+
+# Export all experiment data for a dataset to a directory
+px experiments --dataset query_response ./experiments/
+```
+
+### Analyze experiment results
+
+```bash
+# Get input queries and latency from an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | {query: .input.query, latency_ms, trace_id}'
+
+# Find failed runs in an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | select(.error != null) | {query: .input.query, error}'
+# Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
+
+# Calculate average latency across runs
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '[.[].latency_ms] | add / length'
 ```
 
 ## Use with AI Coding Assistants
