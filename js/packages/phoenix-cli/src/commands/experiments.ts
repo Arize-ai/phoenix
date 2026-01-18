@@ -4,7 +4,10 @@ import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
 
-import { formatExperimentsOutput, type OutputFormat } from "./formatExperiments";
+import {
+  formatExperimentsOutput,
+  type OutputFormat,
+} from "./formatExperiments";
 
 import { Command } from "commander";
 import * as fs from "fs";
@@ -34,20 +37,17 @@ async function fetchExperiments(
   const pageLimit = options.limit || 100;
 
   do {
-    const response = await client.GET(
-      "/v1/datasets/{dataset_id}/experiments",
-      {
-        params: {
-          path: {
-            dataset_id: datasetId,
-          },
-          query: {
-            cursor,
-            limit: pageLimit,
-          },
+    const response = await client.GET("/v1/datasets/{dataset_id}/experiments", {
+      params: {
+        path: {
+          dataset_id: datasetId,
         },
-      }
-    );
+        query: {
+          cursor,
+          limit: pageLimit,
+        },
+      },
+    });
 
     if (response.error || !response.data) {
       throw new Error(`Failed to fetch experiments: ${response.error}`);
@@ -258,10 +258,7 @@ export function createExperimentsCommand(): Command {
       "[directory]",
       "Directory to write experiment files (optional, downloads full JSON data)"
     )
-    .requiredOption(
-      "--dataset <name-or-id>",
-      "Dataset name or ID (required)"
-    )
+    .requiredOption("--dataset <name-or-id>", "Dataset name or ID (required)")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option(

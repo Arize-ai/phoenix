@@ -125,11 +125,7 @@ export function createDatasetsCommand(): Command {
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators")
-    .option(
-      "--limit <number>",
-      "Maximum number of datasets to fetch",
-      parseInt
-    )
+    .option("--limit <number>", "Maximum number of datasets to fetch", parseInt)
     .action(datasetsHandler);
 
   return command;

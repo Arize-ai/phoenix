@@ -83,7 +83,9 @@ describe("Dataset Formatting", () => {
       expect(output).toContain("Datasets:");
       expect(output).toContain("┌─ test-dataset (abc123def456)");
       expect(output).toContain("│  Examples: 100");
-      expect(output).toContain("│  Description: — A test dataset for unit tests");
+      expect(output).toContain(
+        "│  Description: — A test dataset for unit tests"
+      );
       expect(output).toContain("└─");
     });
 

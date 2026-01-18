@@ -76,7 +76,9 @@ function formatExperimentPretty(data: ExperimentWithRuns): string {
       const repInfo =
         run.repetition_number > 1 ? ` (rep ${run.repetition_number})` : "";
 
-      lines.push(`│    ${status} ${run.id}${repInfo} - ${duration}${traceInfo}`);
+      lines.push(
+        `│    ${status} ${run.id}${repInfo} - ${duration}${traceInfo}`
+      );
 
       if (run.error) {
         lines.push(`│      Error: ${truncate(run.error, 80)}`);
@@ -157,7 +159,9 @@ function formatExperimentJsonPretty(jsonData: string): string {
         lines.push(`┌─ ${status} Run: ${runId}`);
 
         if (run.example_id || run.dataset_example_id) {
-          lines.push(`│  Example ID: ${run.example_id || run.dataset_example_id}`);
+          lines.push(
+            `│  Example ID: ${run.example_id || run.dataset_example_id}`
+          );
         }
 
         if (run.repetition_number) {
@@ -165,7 +169,9 @@ function formatExperimentJsonPretty(jsonData: string): string {
         }
 
         if (run.start_time && run.end_time) {
-          lines.push(`│  Duration: ${formatDurationMs(run.start_time, run.end_time)}`);
+          lines.push(
+            `│  Duration: ${formatDurationMs(run.start_time, run.end_time)}`
+          );
         }
 
         if (run.trace_id) {
