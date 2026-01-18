@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import {
+  createDatasetsCommand,
+  createExperimentCommand,
+  createExperimentsCommand,
   createProjectsCommand,
   createTraceCommand,
   createTracesCommand,
@@ -21,6 +24,9 @@ export function main() {
   program.addCommand(createProjectsCommand());
   program.addCommand(createTracesCommand());
   program.addCommand(createTraceCommand());
+  program.addCommand(createDatasetsCommand());
+  program.addCommand(createExperimentsCommand());
+  program.addCommand(createExperimentCommand());
 
   // Show help if no command provided
   if (process.argv.length === 2) {

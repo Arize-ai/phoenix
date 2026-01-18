@@ -95,3 +95,68 @@ export async function resolveProjectId({
     );
   }
 }
+
+export interface ResolveDatasetIdOptions {
+  /**
+   * Phoenix API client.
+   */
+  client: PhoenixClient;
+  /**
+   * Dataset identifier to resolve.
+   *
+   * Phoenix dataset IDs are hex-encoded strings. If `datasetIdentifier` looks like a hex string,
+   * it's treated as an ID; otherwise it's treated as a name and resolved via the API.
+   */
+  datasetIdentifier: string;
+}
+
+function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
+  // Dataset IDs are hex-encoded strings (e.g., "a1b2c3d4e5f6...")
+  const trimmed = datasetIdentifier.trim();
+  if (!trimmed) return false;
+
+  // Check if the string is a valid hex string (only 0-9, a-f, A-F)
+  return /^[0-9a-fA-F]+$/.test(trimmed);
+}
+
+/**
+ * Resolve dataset identifier to dataset ID
+ * If the identifier looks like a Phoenix dataset ID (hex string), returns it as-is; otherwise fetches by name.
+ */
+export async function resolveDatasetId({
+  client,
+  datasetIdentifier,
+}: ResolveDatasetIdOptions): Promise<string> {
+  if (looksLikePhoenixDatasetId(datasetIdentifier)) {
+    return datasetIdentifier;
+  }
+
+  // Otherwise, fetch the dataset by name to get its ID
+  try {
+    const response = await client.GET("/v1/datasets", {
+      params: {
+        query: {
+          name: datasetIdentifier,
+          limit: 1,
+        },
+      },
+    });
+
+    if (response.error || !response.data) {
+      throw new Error(
+        `Failed to resolve dataset "${datasetIdentifier}": ${response.error}`
+      );
+    }
+
+    const datasets = response.data.data;
+    if (datasets.length === 0) {
+      throw new Error(`Dataset not found: "${datasetIdentifier}"`);
+    }
+
+    return datasets[0].id;
+  } catch (error) {
+    throw new Error(
+      `Failed to resolve dataset "${datasetIdentifier}": ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
