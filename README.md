@@ -51,18 +51,6 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 
 Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
 
-## AI Coding Assistants
-
-Phoenix integrates with AI coding assistants like [Claude Code](https://claude.com/product/claude-code), [Cursor](https://cursor.sh), [Windsurf](https://codeium.com/windsurf), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). Use the [Phoenix CLI](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) (`@arizeai/phoenix-cli`) to fetch traces, datasets, and experiment results directly into your terminal for AI-assisted debugging and analysis:
-
-```bash
-npx @arizeai/phoenix-cli traces --limit 5  # Fetch recent traces for analysis
-npx @arizeai/phoenix-cli dataset my-dataset --format json  # Export dataset examples
-npx @arizeai/phoenix-cli experiment <id> --format raw | jq '.'  # Analyze experiment runs
-```
-
-For richer integration, the [Phoenix MCP server](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) provides tool-based access for assistants that support the [Model Context Protocol](https://modelcontextprotocol.io/).
-
 ## Installation
 
 Install Phoenix via `pip` or `conda`
