@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {
+  createDatasetCommand,
   createDatasetsCommand,
   createExperimentCommand,
   createExperimentsCommand,
@@ -25,6 +26,7 @@ export function main() {
   program.addCommand(createTracesCommand());
   program.addCommand(createTraceCommand());
   program.addCommand(createDatasetsCommand());
+  program.addCommand(createDatasetCommand());
   program.addCommand(createExperimentsCommand());
   program.addCommand(createExperimentCommand());
 

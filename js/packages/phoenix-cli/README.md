@@ -127,6 +127,26 @@ px datasets --format raw --no-progress | jq  # Pipe to jq
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--limit <number>`  | Maximum number of datasets | —        |
 
+### `px dataset <dataset-identifier>`
+
+Fetch examples from a dataset.
+
+```bash
+px dataset query_response                        # Fetch all examples
+px dataset query_response --split train          # Filter by split
+px dataset query_response --split train --split test  # Multiple splits
+px dataset query_response --version <version-id> # Specific version
+px dataset query_response --file dataset.json    # Save to file
+px dataset query_response --format raw | jq '.examples[].input'
+```
+
+| Option           | Description                              | Default  |
+| ---------------- | ---------------------------------------- | -------- |
+| `--split <name>` | Filter by split (can be used repeatedly) | —        |
+| `--version <id>` | Fetch from specific dataset version      | latest   |
+| `--file <path>`  | Save to file instead of stdout           | stdout   |
+| `--format <fmt>` | `pretty`, `json`, or `raw`               | `pretty` |
+
 ### `px experiments --dataset <name-or-id>`
 
 List experiments for a dataset, optionally exporting full data to files.
