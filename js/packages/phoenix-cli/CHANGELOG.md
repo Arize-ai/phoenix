@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- c71dc1d: add annotation argument to the CLI
+
 ## 0.2.0
 
 ### Minor Changes
