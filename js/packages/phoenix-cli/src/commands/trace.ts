@@ -10,6 +10,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace } from "../trace";
 
 import { formatTraceOutput, type OutputFormat } from "./formatTraces";
+import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 import { Command } from "commander";
 import * as fs from "fs";
@@ -23,6 +24,7 @@ interface TraceOptions {
   format?: OutputFormat;
   progress?: boolean;
   file?: string;
+  includeAnnotations?: boolean;
 }
 
 /**
@@ -146,6 +148,36 @@ async function traceHandler(
       noProgress: !options.progress,
     });
 
+    if (options.includeAnnotations) {
+      const spanIds = spans
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+      const annotations = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+      });
+
+      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
+      for (const annotation of annotations) {
+        const spanId = annotation.span_id;
+        if (!annotationsBySpanId.has(spanId)) {
+          annotationsBySpanId.set(spanId, []);
+        }
+        annotationsBySpanId.get(spanId)!.push(annotation);
+      }
+
+      for (const span of spans) {
+        const spanId = span.context?.span_id;
+        if (!spanId) continue;
+        const spanAnnotations = annotationsBySpanId.get(spanId);
+        if (spanAnnotations) {
+          (span as typeof span & { annotations?: SpanAnnotation[] }).annotations =
+            spanAnnotations;
+        }
+      }
+    }
+
     // Build trace
     const trace = buildTrace({ spans });
 
@@ -198,6 +230,10 @@ export function createTraceCommand(): Command {
     )
     .option("--no-progress", "Disable progress indicators")
     .option("--file <path>", "Save trace to file instead of stdout")
+    .option(
+      "--include-annotations",
+      "Include span annotations in the trace export"
+    )
     .action(traceHandler);
 
   return command;

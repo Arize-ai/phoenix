@@ -10,6 +10,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
 
 import { formatTracesOutput, type OutputFormat } from "./formatTraces";
+import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 import { Command } from "commander";
 import * as fs from "fs";
@@ -27,6 +28,7 @@ interface TracesOptions {
   lastNMinutes?: number;
   since?: string;
   maxConcurrent?: number;
+  includeAnnotations?: boolean;
 }
 
 /**
@@ -264,6 +266,46 @@ async function tracesHandler(
       noProgress: !options.progress,
     });
 
+    if (options.includeAnnotations) {
+      writeProgress({
+        message: "Fetching span annotations...",
+        noProgress: !options.progress,
+      });
+
+      const spanIds = traces
+        .flatMap((trace) => trace.spans)
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+
+      const annotations = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        maxConcurrent: options.maxConcurrent,
+      });
+
+      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
+      for (const annotation of annotations) {
+        const spanId = annotation.span_id;
+        if (!annotationsBySpanId.has(spanId)) {
+          annotationsBySpanId.set(spanId, []);
+        }
+        annotationsBySpanId.get(spanId)!.push(annotation);
+      }
+
+      for (const trace of traces) {
+        for (const span of trace.spans) {
+          const spanId = span.context?.span_id;
+          if (!spanId) continue;
+          const spanAnnotations = annotationsBySpanId.get(spanId);
+          if (spanAnnotations) {
+            (span as typeof span & { annotations?: SpanAnnotation[] }).annotations =
+              spanAnnotations;
+          }
+        }
+      }
+    }
+
     // Output traces
     if (directory) {
       if (userSpecifiedFormat && options.format && options.format !== "json") {
@@ -335,6 +377,10 @@ export function createTracesCommand(): Command {
       "Maximum concurrent fetches for bulk operations",
       parseInt,
       10
+    )
+    .option(
+      "--include-annotations",
+      "Include span annotations in the trace export"
     )
     .action(tracesHandler);
 
