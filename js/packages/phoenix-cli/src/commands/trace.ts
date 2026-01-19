@@ -172,8 +172,9 @@ async function traceHandler(
         if (!spanId) continue;
         const spanAnnotations = annotationsBySpanId.get(spanId);
         if (spanAnnotations) {
-          (span as typeof span & { annotations?: SpanAnnotation[] }).annotations =
-            spanAnnotations;
+          (
+            span as typeof span & { annotations?: SpanAnnotation[] }
+          ).annotations = spanAnnotations;
         }
       }
     }

@@ -108,11 +108,11 @@ px trace abc123def456 --file trace.json      # Save to file
 px trace abc123def456 --format raw | jq      # Pipe to jq
 ```
 
-| Option              | Description                    | Default  |
-| ------------------- | ------------------------------ | -------- |
-| `--file <path>`     | Save to file instead of stdout | stdout   |
-| `--format <format>` | `pretty`, `json`, or `raw`     | `pretty` |
-| `--include-annotations` | Include span annotations in trace export | — |
+| Option                  | Description                              | Default  |
+| ----------------------- | ---------------------------------------- | -------- |
+| `--file <path>`         | Save to file instead of stdout           | stdout   |
+| `--format <format>`     | `pretty`, `json`, or `raw`               | `pretty` |
+| `--include-annotations` | Include span annotations in trace export | —        |
 
 ### `px datasets`
 
