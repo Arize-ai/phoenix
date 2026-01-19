@@ -133,6 +133,7 @@ The commands support additional flags to filter and format the output:
 | `--file <path>` | `trace` | Save the fetched trace to a file instead of printing | stdout |
 | `--max-concurrent <int>` | `traces` | Maximum concurrent fetch requests | 10 |
 | `--no-progress` | All commands | Disable progress bar output (useful for scripts and AI assistants) | Progress on |
+| `--include-annotations` | `trace`, `traces` | Include span annotations in trace export | Off |
 
 ### Output formats
 
@@ -179,6 +180,12 @@ You can optionally save the trace to a file using the `--file` option:
 px trace <trace-id> --file ./my-trace.json
 ```
 
+To include span annotations in the trace export:
+
+```bash
+px trace <trace-id> --include-annotations --format json
+```
+
 To fetch a trace from a different project than the one configured:
 
 ```bash
@@ -195,6 +202,12 @@ You can specify a destination directory for bulk exports. For example, the follo
 
 ```bash
 px traces ./my-traces-data --limit 10
+```
+
+Include span annotations in the export:
+
+```bash
+px traces ./my-traces-data --limit 10 --include-annotations
 ```
 
 If you omit the directory, the tool will output the results to your terminal:
@@ -256,7 +269,18 @@ When using `json` or `raw` format, traces are output with the following structur
         "llm.token_count.completion": 256,
         "input.value": "What is the weather?",
         "output.value": "The weather is sunny..."
-      }
+      },
+      "annotations": [
+        {
+          "span_id": "span-1",
+          "name": "quality_score",
+          "annotator_kind": "LLM",
+          "result": {
+            "label": "good",
+            "score": 0.95
+          }
+        }
+      ]
     }
   ],
   "rootSpan": { ... },

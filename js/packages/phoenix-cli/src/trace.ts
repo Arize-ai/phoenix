@@ -1,14 +1,16 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
 export type Span = componentsV1["schemas"]["Span"];
+export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
+export type SpanWithAnnotations = Span & { annotations?: SpanAnnotation[] };
 
 /**
  * Represents a trace with its spans organized hierarchically
  */
 export interface Trace {
   traceId: string;
-  spans: Span[];
-  rootSpan?: Span;
+  spans: SpanWithAnnotations[];
+  rootSpan?: SpanWithAnnotations;
   startTime?: string;
   endTime?: string;
   duration?: number;
@@ -22,7 +24,7 @@ export interface GroupSpansByTraceOptions {
   /**
    * Spans to group.
    */
-  spans: Span[];
+  spans: SpanWithAnnotations[];
 }
 
 /**
@@ -30,8 +32,8 @@ export interface GroupSpansByTraceOptions {
  */
 export function groupSpansByTrace({
   spans,
-}: GroupSpansByTraceOptions): Map<string, Span[]> {
-  const traces = new Map<string, Span[]>();
+}: GroupSpansByTraceOptions): Map<string, SpanWithAnnotations[]> {
+  const traces = new Map<string, SpanWithAnnotations[]>();
 
   for (const span of spans) {
     const traceId = span.context.trace_id;
@@ -51,7 +53,7 @@ export interface BuildTraceOptions {
   /**
    * Spans belonging to a single trace.
    */
-  spans: Span[];
+  spans: SpanWithAnnotations[];
 }
 
 /**

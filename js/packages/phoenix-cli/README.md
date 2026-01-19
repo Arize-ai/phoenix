@@ -96,6 +96,7 @@ px traces --format raw --no-progress | jq     # Pipe to jq
 | `--since <timestamp>`       | Fetch traces since ISO timestamp          | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`                | `pretty` |
 | `--no-progress`             | Disable progress output                   | —        |
+| `--include-annotations`     | Include span annotations in trace export  | —        |
 
 ### `px trace <trace-id>`
 
@@ -107,10 +108,11 @@ px trace abc123def456 --file trace.json      # Save to file
 px trace abc123def456 --format raw | jq      # Pipe to jq
 ```
 
-| Option              | Description                    | Default  |
-| ------------------- | ------------------------------ | -------- |
-| `--file <path>`     | Save to file instead of stdout | stdout   |
-| `--format <format>` | `pretty`, `json`, or `raw`     | `pretty` |
+| Option                  | Description                              | Default  |
+| ----------------------- | ---------------------------------------- | -------- |
+| `--file <path>`         | Save to file instead of stdout           | stdout   |
+| `--format <format>`     | `pretty`, `json`, or `raw`               | `pretty` |
+| `--include-annotations` | Include span annotations in trace export | —        |
 
 ### `px datasets`
 
