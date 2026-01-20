@@ -269,7 +269,37 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
-    stateByDatasetId: {},
+    stateByDatasetId: props.datasetId
+      ? {
+          [props.datasetId]: {
+            templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+          },
+        }
+      : {},
+    datasetId: props.datasetId,
+    setDatasetId: (datasetId: string | null) => {
+      set({ datasetId }, false, { type: "setDatasetId" });
+      if (!datasetId) {
+        return;
+      }
+      const datasetState = get().stateByDatasetId[datasetId];
+      if (datasetState) {
+        return;
+      }
+      // initialize state to defaults when switching to a new dataset
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+            },
+          },
+        },
+        false,
+        { type: "setDatasetId/initialize" }
+      );
+    },
     setInput: (input) => {
       set({ input }, false, { type: "setInput" });
     },

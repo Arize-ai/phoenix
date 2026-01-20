@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-
 import {
   Button,
   ComboBox,
@@ -18,7 +16,6 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { DEFAULT_TEMPLATE_VARIABLES_PATH } from "@phoenix/store";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -62,21 +59,6 @@ export function PlaygroundExperimentSettingsButton({
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
   );
-
-  // ensure default state is set when switching datasets
-  useEffect(() => {
-    if (!datasetId) {
-      return;
-    }
-
-    if (playgroundDatasetState) {
-      return;
-    }
-    setTemplateVariablesPath({
-      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-      datasetId,
-    });
-  }, [datasetId, playgroundDatasetState, setTemplateVariablesPath]);
 
   return (
     <DialogTrigger>

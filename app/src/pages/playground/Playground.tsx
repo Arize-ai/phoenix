@@ -50,6 +50,9 @@ const playgroundWrapCSS = css`
 `;
 
 export function Playground(props: Partial<PlaygroundProps>) {
+  const [searchParams] = useSearchParams();
+  const initialDatasetId = searchParams.get("datasetId");
+
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
@@ -79,6 +82,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }
   return (
     <PlaygroundProvider
+      datasetId={initialDatasetId}
       {...props}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}

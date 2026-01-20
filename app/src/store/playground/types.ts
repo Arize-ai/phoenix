@@ -285,6 +285,7 @@ export type PlaygroundStateByDatasetId = z.infer<
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
+  datasetId: string | null;
 };
 
 /**
@@ -329,6 +330,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * A map of dataset id to the playground state for that dataset
    */
   stateByDatasetId: PlaygroundStateByDatasetId;
+
+  /**
+   * The id of the dataset currently being used
+   * @default null
+   */
+  datasetId: string | null;
+  /**
+   * Setter for the dataset id
+   * @param datasetId the id of the dataset to set
+   */
+  setDatasetId: (datasetId: string | null) => void;
 
   /**
    * Setter for the invocation mode
