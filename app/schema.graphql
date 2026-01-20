@@ -143,6 +143,11 @@ input AnnotationConfigInput @oneOf {
   freeform: FreeformAnnotationConfigInput
 }
 
+input AnnotationConfigOverrideInput @oneOf {
+  categorical: CategoricalAnnotationConfigOverrideInput
+  continuous: ContinuousAnnotationConfigOverrideInput
+}
+
 input AnnotationFilter {
   include: AnnotationFilterCondition
   exclude: AnnotationFilterCondition
@@ -313,7 +318,10 @@ type BuiltInEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   user: User
+  outputConfig: BuiltInEvaluatorOutputConfig!
 }
+
+union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
 
 enum CanonicalParameterName {
   TEMPERATURE
@@ -591,6 +599,12 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
+input ContinuousAnnotationConfigOverrideInput {
+  optimizationDirection: OptimizationDirection = null
+  lowerBound: Float = null
+  upperBound: Float = null
+}
+
 type CostBreakdown {
   """
   Total number of tokens, including tokens for which no cost was computed.
@@ -638,6 +652,8 @@ input CreateDatasetBuiltinEvaluatorInput {
   evaluatorId: ID!
   displayName: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
+  outputConfigOverride: AnnotationConfigOverrideInput = null
+  description: String = null
 }
 
 input CreateDatasetInput {
@@ -887,7 +903,7 @@ type DatasetEvaluator implements Node {
   dataset: Dataset!
   evaluator: Evaluator!
   description: String
-  outputConfig: CategoricalAnnotationConfig
+  outputConfig: BuiltInEvaluatorOutputConfig
   inputMapping: EvaluatorInputMapping!
 }
 
@@ -2614,6 +2630,7 @@ input PlaygroundEvaluatorInput {
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
   outputConfig: CategoricalAnnotationConfigOverrideInput = null
+  outputConfigOverride: AnnotationConfigOverrideInput = null
 }
 
 type PlaygroundModel implements ModelInterface {
@@ -3979,6 +3996,8 @@ input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
   displayName: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
+  outputConfigOverride: AnnotationConfigOverrideInput
+  description: String
 }
 
 input UpdateDatasetLLMEvaluatorInput {

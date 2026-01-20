@@ -55,11 +55,13 @@ export function LLMDatasetEvaluatorDetails({
           }
         }
         outputConfig {
-          name
-          optimizationDirection
-          values {
-            label
-            score
+          ... on CategoricalAnnotationConfig {
+            name
+            optimizationDirection
+            values {
+              label
+              score
+            }
           }
         }
       }
