@@ -33,8 +33,8 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi codegen-python-client codegen-ts-client \
 	dev dev-backend dev-frontend \
-	test test-python test-ts typecheck typecheck-python typecheck-ts \
-	format format-python format-ts lint lint-python lint-ts \
+	test test-python test-frontend test-ts typecheck typecheck-python typecheck-frontend typecheck-ts \
+	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	clean clean-all
 
@@ -43,51 +43,56 @@ help: ## Show this help message
 	@echo -e "$(CYAN)Phoenix Monorepo - Available Make Targets$(NC)"
 	@echo -e ""
 	@echo -e "$(GREEN)Schema Generation:$(NC)"
-	@echo -e "  $(YELLOW)graphql$(NC)                  - Generate GraphQL schema and build Relay (Python → TypeScript)"
-	@echo -e "  $(YELLOW)openapi$(NC)                  - Generate OpenAPI schema and clients (Python + TypeScript)"
-	@echo -e "  schema-graphql             - Generate GraphQL schema only"
-	@echo -e "  relay-build                - Build Relay from existing schema"
-	@echo -e "  schema-openapi             - Generate OpenAPI schema only"
-	@echo -e "  codegen-python-client      - Generate Python client types from OpenAPI"
-	@echo -e "  codegen-ts-client          - Generate TypeScript client types from OpenAPI"
+	@echo -e "  $(YELLOW)graphql$(NC)               - Generate GraphQL schema and build Relay (Python → TypeScript)"
+	@echo -e "  $(YELLOW)openapi$(NC)               - Generate OpenAPI schema and clients (Python + TypeScript)"
+	@echo -e "  schema-graphql         - Generate GraphQL schema only"
+	@echo -e "  relay-build            - Build Relay from existing schema"
+	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
+	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
+	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
-	@echo -e "  $(YELLOW)setup$(NC)                    - Complete development environment setup"
-	@echo -e "  check-tools                - Verify required tools are installed"
-	@echo -e "  install-python             - Install Python dependencies"
-	@echo -e "  install-node               - Install Node.js dependencies"
-	@echo -e "  setup-symlinks             - Create Python package symlinks"
+	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
+	@echo -e "  check-tools            - Verify required tools are installed"
+	@echo -e "  install-python         - Install Python dependencies"
+	@echo -e "  install-node           - Install Node.js dependencies"
+	@echo -e "  setup-symlinks         - Create Python package symlinks"
 	@echo -e ""
 	@echo -e "$(GREEN)Development:$(NC)"
-	@echo -e "  $(YELLOW)dev$(NC)                      - Full dev environment (backend + frontend)"
-	@echo -e "  dev-backend                - Backend only (FastAPI server)"
-	@echo -e "  dev-frontend               - Frontend only (React dev server)"
+	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
+	@echo -e "  dev-backend            - Backend only (FastAPI server)"
+	@echo -e "  dev-frontend           - Frontend only (React dev server)"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
-	@echo -e "  $(YELLOW)test$(NC)                     - Run all tests (Python + TypeScript)"
-	@echo -e "  test-python                - Run Python tests (unit + integration)"
-	@echo -e "  test-ts                    - Run TypeScript tests (app + packages)"
-	@echo -e "  typecheck                  - Type check all code (Python + TypeScript)"
-	@echo -e "  typecheck-python           - Type check Python only"
-	@echo -e "  typecheck-ts               - Type check TypeScript only"
+	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + frontend + TypeScript)"
+	@echo -e "  test-python            - Run Python tests (unit + integration)"
+	@echo -e "  test-frontend          - Run frontend tests (app/)"
+	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
+	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
+	@echo -e "  typecheck-python       - Type check Python only"
+	@echo -e "  typecheck-frontend     - Type check frontend only (app/)"
+	@echo -e "  typecheck-ts           - Type check TypeScript packages only (js/)"
 	@echo -e ""
 	@echo -e "$(GREEN)Code Quality:$(NC)"
-	@echo -e "  $(YELLOW)format$(NC)                   - Format all code (Python + TypeScript)"
-	@echo -e "  format-python              - Format Python with ruff"
-	@echo -e "  format-ts                  - Format TypeScript with prettier"
-	@echo -e "  $(YELLOW)lint$(NC)                     - Lint all code (Python + TypeScript)"
-	@echo -e "  lint-python                - Lint Python with ruff"
-	@echo -e "  lint-ts                    - Lint TypeScript with ESLint"
+	@echo -e "  $(YELLOW)format$(NC)                - Format all code (Python + frontend + TypeScript)"
+	@echo -e "  format-python          - Format Python with ruff"
+	@echo -e "  format-frontend        - Format frontend (app/)"
+	@echo -e "  format-ts              - Format TypeScript packages (js/)"
+	@echo -e "  clean-notebooks        - Clean Jupyter notebook metadata"
+	@echo -e "  $(YELLOW)lint$(NC)                  - Lint all code (Python + frontend + TypeScript)"
+	@echo -e "  lint-python            - Lint Python with ruff"
+	@echo -e "  lint-frontend          - Lint frontend (app/)"
+	@echo -e "  lint-ts                - Lint TypeScript packages (js/)"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
-	@echo -e "  $(YELLOW)build$(NC)                    - Build everything (Python + frontend + TypeScript packages)"
-	@echo -e "  build-python               - Build Python package"
-	@echo -e "  build-frontend             - Build frontend"
-	@echo -e "  build-ts                   - Build TypeScript packages"
+	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
+	@echo -e "  build-python           - Build Python package"
+	@echo -e "  build-frontend         - Build frontend"
+	@echo -e "  build-ts               - Build TypeScript packages"
 	@echo -e ""
 	@echo -e "$(GREEN)Cleanup:$(NC)"
-	@echo -e "  clean                      - Clean build artifacts"
-	@echo -e "  clean-all                  - Clean everything including node_modules"
+	@echo -e "  clean                  - Clean build artifacts"
+	@echo -e "  clean-all              - Clean everything including node_modules"
 	@echo -e ""
 	@echo -e "Highlighted targets are the most commonly used."
 	@echo -e ""
@@ -196,27 +201,35 @@ dev-frontend: ## Frontend only (React dev server)
 #=============================================================================
 
 test-python: ## Run Python tests (unit + integration)
-	@echo -e "$(CYAN)Running Python tests...$(NC)"
-	@$(TOX) run -q -e unit_tests,integration_tests
+	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
+	@$(TOX) run -q -e unit_tests -- -n auto
+	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
+	@$(TOX) run -q -e integration_tests
 
-test-ts: ## Run TypeScript tests (app + packages)
-	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"
+test-frontend: ## Run frontend tests (app/)
+	@echo -e "$(CYAN)Running frontend tests...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) test
+
+test-ts: ## Run TypeScript package tests (js/)
+	@echo -e "$(CYAN)Running TypeScript package tests...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run -r test
 
-test: test-python test-ts ## Run all tests (Python + TypeScript)
+test: test-python test-frontend test-ts ## Run all tests (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
 typecheck-python: ## Type check Python code
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
 	@$(TOX) run -q -e remove_symlinks,type_check,add_symlinks
 
-typecheck-ts: ## Type check TypeScript code
-	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
+typecheck-frontend: ## Type check frontend (app/)
+	@echo -e "$(CYAN)Type checking frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent typecheck
+
+typecheck-ts: ## Type check TypeScript packages (js/)
+	@echo -e "$(CYAN)Type checking TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
 
-typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeScript)
+typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -228,27 +241,40 @@ format-python: ## Format Python code with ruff
 	@$(TOX) run -q -e ruff
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-format-ts: ## Format TypeScript code
-	@echo -e "$(CYAN)Formatting TypeScript code...$(NC)"
+format-frontend: ## Format frontend (app/)
+	@echo -e "$(CYAN)Formatting frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent lint:fix
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+format-ts: ## Format TypeScript packages (js/)
+	@echo -e "$(CYAN)Formatting TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent prettier:write
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-format: format-python format-ts ## Format all code (Python + TypeScript)
+format: format-python format-frontend format-ts ## Format all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
+
+clean-notebooks: ## Clean Jupyter notebook metadata
+	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
+	@$(TOX) run -q -e clean_jupyter_notebooks
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-python: ## Lint Python code with ruff
 	@echo -e "$(CYAN)Linting Python code...$(NC)"
 	@$(TOX) run -q -e ruff
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-lint-ts: ## Lint TypeScript code
-	@echo -e "$(CYAN)Linting TypeScript code...$(NC)"
+lint-frontend: ## Lint frontend (app/)
+	@echo -e "$(CYAN)Linting frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent lint
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+lint-ts: ## Lint TypeScript packages (js/)
+	@echo -e "$(CYAN)Linting TypeScript packages...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent lint
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-lint: lint-python lint-ts ## Lint all code (Python + TypeScript)
+lint: lint-python lint-frontend lint-ts ## Lint all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Linting complete$(NC)"
 
 #=============================================================================
