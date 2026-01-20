@@ -1,0 +1,123 @@
+---
+title: "Run Experiments with Code Evals"
+description: "Learn how to define and run experiments to systematically evaluate your AI application using code-based evaluators and ground truth data."
+---
+
+<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+
+## Parts of an Experiment
+
+An experiment consists of four main components:
+
+<Steps>
+  <Step title={<span className="step-title">Task Function</span>}>
+    The task function represents the work your application performs for a single dataset example. You can pass the input (or other fields) from your dataset into this function, which produces an output for evaluation.
+
+    The task can be as simple or complex as your real system—it might call a single LLM, invoke a multi-step pipeline, retrieve context, or execute tool calls. What matters is that the task mirrors how your application behaves in practice so that experiment results reflect real-world performance. 
+
+    By defining the task once and running it across all dataset examples, you ensure that every version of your system is evaluated under consistent conditions.
+  </Step>
+
+  <Step title={<span className="step-title">Evaluators</span>}>
+    Evaluators determine how Phoenix measures the quality of each task output. They take the task output and optionally compare it against a reference or expected output from the dataset.
+
+    **Code-based evaluators** are deterministic Python functions useful when you have a clear, programmatic definition of correctness, such as exact match or comparing outputs against ground truth labels.
+
+    Alternatively, [**LLM as a Judge evaluators**](/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge) use an LLM to assess output quality and are useful for subjective quality assessments or when you don't have ground truth.
+
+    You can use one or multiple evaluators in the same experiment to capture different dimensions of quality.
+  </Step>
+
+  <Step title={<span className="step-title">Dataset Selection</span>}>
+    Next, you connect the experiment to your dataset. You can run an experiment over the entire dataset or select a specific subset. This configuration step defines the exact scope and rigor of your experiment.
+  </Step>
+
+  <Step title={<span className="step-title">Run the Experiment</span>}>
+    Once the task, evaluators, dataset, and configuration are defined, you can run the experiment. Phoenix executes the task across all selected examples, applies evaluators to each output, and stores the results.
+
+    Each experiment run is tracked with its configuration, outputs, and evaluation scores, making it easy to compare experiments over time. This allows you to answer questions like whether a prompt change improved accuracy, whether a model swap introduced regressions, or how performance differs across different datasets.
+  </Step>
+</Steps>
+
+## Why Use Experiments Instead of Regular Evaluations?
+
+While you can run individual evaluations on traces or ad-hoc examples, experiments provide a structured, repeatable framework for systematic evaluation. Experiments offer:
+
+- **Consistency**: Experiments ensure every version of your system is evaluated under identical conditions, using the same dataset and task. This eliminates variability from manual testing or one-off evaluations.
+
+- **Comparability**: Experiments track configuration, outputs, and scores over time, making it easy to compare different versions of your agent. You can answer questions like "Did my prompt change improve accuracy?" or "Did switching models introduce regressions?"
+
+- **Systematic Coverage**: Experiments run your task function across all dataset examples, ensuring comprehensive evaluation rather than spot-checking a few cases.
+
+
+## Code-Based Evaluator for Tool Call Accuracy
+
+This experiment evaluates the accuracy of the agent's `classify_ticket` tool by comparing its output against ground truth labels in the dataset. Since we have a golden dataset with ground truth available, we can use a code-based evaluator for fast, deterministic evaluation.
+
+### Define the Task Function
+
+In this example, our task function extracts the query from the dataset input, calls the `classify_ticket` tool to classify the support ticket, and returns the classification result. This task function will be used for all dataset examples.
+
+For the full implementation of the `classify_ticket_task` function, see the [reference notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb).
+
+```python
+def classify_ticket_task(input):
+    """
+    Task used specifically for evaluating tool call accuracy.
+    """
+    query = input.get("query")
+    classification = classify_ticket(query)
+    return classification
+```
+
+### Define the Code-Based Evaluator
+
+Since our dataset has ground truth available in the `expected_category` field, we can use a code-based evaluator to check if the task output matches what we expect. This evaluator compares the tool's output against the reference output from the dataset:
+
+```python
+# Define Code-Based Evaluator for Tool Call Accuracy
+from phoenix.experiments.evaluators import create_evaluator
+
+@create_evaluator(kind="CODE", name="tool-call-accuracy")
+def tool_call_accuracy(output: str, expected: dict) -> bool:
+    """
+    Code-based evaluator that checks if the classify_ticket tool output
+    matches the expected category from the dataset.
+    """
+    if expected is None:
+        return None
+    expected_category = expected.get("expected_category")
+    return output.strip().lower() == expected_category.strip().lower()
+```
+
+### Run the Experiment
+
+Now we can run the experiment on our dataset with ground truth. We'll use the golden dataset we created earlier:
+
+```python
+from phoenix.experiments import run_experiment
+
+golden_dataset = px_client.datasets.get_dataset(
+    dataset="support-ticket-queries"
+)
+
+experiment = run_experiment(
+    golden_dataset,
+    classify_ticket_task,
+    evaluators=[tool_call_accuracy],
+    experiment_name="tool call accuracy experiment",
+    experiment_description="Evaluating classify_ticket tool accuracy against ground truth labels using a code-based evaluator"
+)
+```
+
+In the Phoenix UI, you can click into the experiment to view task function traces, scores per example, and aggregate experiment performance metrics.
+
+<Frame caption="Running an experiment with a code-based evaluator">
+  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiment_quickstart_code_eval.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+</Frame>
+
+# Next Steps
+
+Now that you know how to run experiments with ground truth, you can also evaluate your agent using LLM as a Judge evaluators for more subjective quality assessments.
+
+<Card title="Run Experiments with LLM as a Judge" icon="brain" href="/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge" />

@@ -205,7 +205,8 @@
                     "group": "Tutorial",
                     "pages": [
                       "docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset",
-                      "docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-evals",
+                      "docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals",
+                      "docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge",
                       "docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments"
                     ]
                   },
