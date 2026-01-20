@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f38ee5d0f84be5c9f1275a859025c08a>>
+ * @generated SignedSource<<3d8ea2b74fe05529a988a72af799d6b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,6 +78,7 @@ export type PlaygroundEvaluatorInput = {
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
   outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
+  outputConfigOverride?: AnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
@@ -90,6 +91,15 @@ export type CategoricalAnnotationConfigOverrideInput = {
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
+};
+export type AnnotationConfigOverrideInput = {
+  categorical?: CategoricalAnnotationConfigOverrideInput | null;
+  continuous?: ContinuousAnnotationConfigOverrideInput | null;
+};
+export type ContinuousAnnotationConfigOverrideInput = {
+  lowerBound?: number | null;
+  optimizationDirection?: OptimizationDirection | null;
+  upperBound?: number | null;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
