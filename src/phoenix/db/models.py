@@ -2270,6 +2270,7 @@ class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
     )
     evaluator_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("evaluators.id", ondelete="CASCADE"),

@@ -193,6 +193,7 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
         sa.Column(
             "evaluator_id",
