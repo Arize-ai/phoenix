@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional
+from typing import Optional, Union
 
 import strawberry
 from fastapi import Request
@@ -15,6 +15,18 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.models import EvaluatorKind
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfigOverride as CategoricalAnnotationConfigOverrideModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfigOverride as ContinuousAnnotationConfigOverrideModel,
+)
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -24,6 +36,7 @@ from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
 from phoenix.server.api.input_types.AnnotationConfigInput import (
+    AnnotationConfigOverrideInput,
     CategoricalAnnotationConfigInput,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
@@ -138,6 +151,74 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     return evaluator_rowid, evaluator_types[type_name]
 
 
+def _validate_and_convert_builtin_override(
+    override_input: Optional[AnnotationConfigOverrideInput],
+    base_config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
+    evaluator_name: str,
+) -> Optional[
+    Union[CategoricalAnnotationConfigOverrideModel, ContinuousAnnotationConfigOverrideModel]
+]:
+    """
+    Validate that the override input type matches the base config type from the registry.
+    Returns the converted Pydantic model or None if no override provided.
+    """
+    import strawberry
+
+    from phoenix.db.types.annotation_configs import AnnotationType, CategoricalAnnotationValue
+
+    if override_input is None:
+        return None
+
+    if isinstance(base_config, CategoricalAnnotationConfigModel):
+        if override_input.categorical is strawberry.UNSET or override_input.categorical is None:
+            raise BadRequest(
+                f"Builtin evaluator '{evaluator_name}' has a categorical output config "
+                f"and requires a categorical override, but received a continuous override"
+            )
+        cat_override = override_input.categorical
+        values = None
+        if cat_override.values is not None:
+            values = [
+                CategoricalAnnotationValue(label=v.label, score=v.score)
+                for v in cat_override.values
+            ]
+        return CategoricalAnnotationConfigOverrideModel(
+            type=AnnotationType.CATEGORICAL.value,
+            optimization_direction=cat_override.optimization_direction,
+            values=values,
+        )
+    else:
+        if override_input.continuous is strawberry.UNSET or override_input.continuous is None:
+            raise BadRequest(
+                f"Builtin evaluator '{evaluator_name}' has a continuous output config "
+                f"and requires a continuous override, but received a categorical override"
+            )
+        cont_override = override_input.continuous
+
+        merged_lower = (
+            cont_override.lower_bound
+            if cont_override.lower_bound is not None
+            else base_config.lower_bound
+        )
+        merged_upper = (
+            cont_override.upper_bound
+            if cont_override.upper_bound is not None
+            else base_config.upper_bound
+        )
+        if merged_lower is not None and merged_upper is not None and merged_lower >= merged_upper:
+            raise BadRequest(
+                f"Override bounds are invalid when merged with base config: "
+                f"lower_bound ({merged_lower}) must be less than upper_bound ({merged_upper})"
+            )
+
+        return ContinuousAnnotationConfigOverrideModel(
+            type=AnnotationType.CONTINUOUS.value,
+            optimization_direction=cont_override.optimization_direction,
+            lower_bound=cont_override.lower_bound,
+            upper_bound=cont_override.upper_bound,
+        )
+
+
 @strawberry.input
 class CreateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
@@ -186,6 +267,8 @@ class CreateDatasetBuiltinEvaluatorInput:
     evaluator_id: GlobalID
     display_name: Identifier
     input_mapping: Optional[EvaluatorInputMappingInput] = None
+    output_config_override: Optional[AnnotationConfigOverrideInput] = None
+    description: Optional[str] = None
 
 
 @strawberry.input
@@ -193,6 +276,8 @@ class UpdateDatasetBuiltinEvaluatorInput:
     dataset_evaluator_id: GlobalID
     display_name: Identifier
     input_mapping: Optional[EvaluatorInputMappingInput] = None
+    output_config_override: Optional[AnnotationConfigOverrideInput] = UNSET
+    description: Optional[str] = UNSET
 
 
 @strawberry.input
@@ -614,7 +699,17 @@ class EvaluatorMutationMixin:
         builtin_evaluator = get_builtin_evaluator_by_id(built_in_evaluator_id)
         if builtin_evaluator is None:
             raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
-        display_name = IdentifierModel.model_validate(input.display_name)
+        try:
+            display_name = IdentifierModel.model_validate(input.display_name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        base_config = builtin_evaluator.output_config()
+        output_config_override = _validate_and_convert_builtin_override(
+            override_input=input.output_config_override,
+            base_config=base_config,
+            evaluator_name=builtin_evaluator.name,
+        )
 
         dataset_evaluator = models.DatasetEvaluators(
             dataset_id=dataset_rowid,
@@ -622,6 +717,8 @@ class EvaluatorMutationMixin:
             input_mapping=input_mapping.to_dict(),
             builtin_evaluator_id=built_in_evaluator_id,
             evaluator_id=None,
+            output_config_override=output_config_override,
+            description=input.description,
         )
 
         try:
@@ -667,9 +764,35 @@ class EvaluatorMutationMixin:
                     )
                 if dataset_evaluator.builtin_evaluator_id is None:
                     raise BadRequest("Cannot update a non-built-in evaluator")
-                dataset_evaluator.display_name = IdentifierModel.model_validate(input.display_name)
+
+                builtin_evaluator = get_builtin_evaluator_by_id(
+                    dataset_evaluator.builtin_evaluator_id
+                )
+                if builtin_evaluator is None:
+                    raise NotFound(
+                        f"Built-in evaluator with id {dataset_evaluator.builtin_evaluator_id} "
+                        f"not found"
+                    )
+
+                try:
+                    display_name = IdentifierModel.model_validate(input.display_name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}")
+                dataset_evaluator.display_name = display_name
                 dataset_evaluator.input_mapping = input_mapping.to_dict()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
+
+                if input.output_config_override is not UNSET:
+                    base_config = builtin_evaluator.output_config()
+                    output_config_override = _validate_and_convert_builtin_override(
+                        override_input=input.output_config_override,
+                        base_config=base_config,
+                        evaluator_name=builtin_evaluator.name,
+                    )
+                    dataset_evaluator.output_config_override = output_config_override
+
+                if input.description is not UNSET:
+                    dataset_evaluator.description = input.description
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")

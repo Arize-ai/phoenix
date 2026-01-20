@@ -5,7 +5,7 @@ import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -18,6 +18,10 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationConfigOverride,
+    CategoricalAnnotationValue,
+    ContinuousAnnotationConfig,
+    ContinuousAnnotationConfigOverride,
+    OptimizationDirection,
 )
 from phoenix.db.types.model_provider import (
     ModelProvider,
@@ -305,11 +309,22 @@ class LLMEvaluator:
             )
 
 
+BuiltInEvaluatorOutputConfig: TypeAlias = Union[
+    CategoricalAnnotationConfig, ContinuousAnnotationConfig
+]
+
+
 class BuiltInEvaluator(ABC):
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
     input_schema: dict[str, Any] = {}
+
+    @classmethod
+    @abstractmethod
+    def output_config(cls) -> BuiltInEvaluatorOutputConfig:
+        """Returns the base output config for this evaluator (before any overrides are applied)."""
+        raise NotImplementedError
 
     @abstractmethod
     def evaluate(
@@ -317,8 +332,30 @@ class BuiltInEvaluator(ABC):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         raise NotImplementedError
+
+    def _map_boolean_to_label_and_score(
+        self,
+        matched: bool,
+        output_config: BuiltInEvaluatorOutputConfig,
+    ) -> tuple[Optional[str], Optional[float]]:
+        """
+        Map a boolean result to a label and score using the output config.
+        For categorical configs, uses positional indexing where:
+        - values[0] is the "matched/pass" case
+        - values[1] is the "not matched/fail" case
+        """
+        if isinstance(output_config, CategoricalAnnotationConfig):
+            index = 0 if matched else 1
+            if index < len(output_config.values):
+                value = output_config.values[index]
+                return value.label, value.score
+            return None, 1.0 if matched else 0.0
+        else:
+            return None, 1.0 if matched else 0.0
 
 
 _BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
@@ -654,11 +691,25 @@ class ContainsEvaluator(BuiltInEvaluator):
         "required": ["words", "text"],
     }
 
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="contains",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
+
     def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -694,12 +745,13 @@ class ContainsEvaluator(BuiltInEvaluator):
                 explanation = (
                     f"one or more of the words {repr(words)} were {found_or_not} in the text"
                 )
+            label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={
                     "words": words,
@@ -716,7 +768,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -753,11 +805,25 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="exact_match",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
+
     def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -784,12 +850,13 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 matched = expected.lower() == actual.lower()
 
             explanation = f"expected {'matches' if matched else 'does not match'} actual"
+            label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
                 error=None,
@@ -801,7 +868,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -841,11 +908,25 @@ class RegexEvaluator(BuiltInEvaluator):
         "required": ["pattern", "text"],
     }
 
+    @classmethod
+    def output_config(cls) -> CategoricalAnnotationConfig:
+        return CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="regex",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            values=[
+                CategoricalAnnotationValue(label="true", score=1.0),
+                CategoricalAnnotationValue(label="false", score=0.0),
+            ],
+        )
+
     def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -879,15 +960,17 @@ class RegexEvaluator(BuiltInEvaluator):
 
             if error:
                 explanation = error
+                label, score = None, None
             else:
                 match_type = "full match" if full_match else "search"
                 explanation = f"pattern {'matched' if matched else 'did not match'} ({match_type})"
+                label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
-                label=None,
-                score=1.0 if matched else 0.0 if not error else None,
+                label=label,
+                score=score,
                 explanation=explanation,
                 metadata={"pattern": pattern, "text": text, "full_match": full_match},
                 error=error,
@@ -899,7 +982,7 @@ class RegexEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -955,11 +1038,22 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> ContinuousAnnotationConfig:
+        return ContinuousAnnotationConfig(
+            type="CONTINUOUS",
+            name="levenshtein_distance",
+            optimization_direction=OptimizationDirection.MINIMIZE,
+            lower_bound=0.0,
+        )
+
     def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -988,7 +1082,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             explanation = f"edit distance between expected and actual is {distance}"
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=float(distance),
@@ -1003,7 +1097,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1061,11 +1155,22 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         "required": ["expected", "actual"],
     }
 
+    @classmethod
+    def output_config(cls) -> ContinuousAnnotationConfig:
+        return ContinuousAnnotationConfig(
+            type="CONTINUOUS",
+            name="json_distance",
+            optimization_direction=OptimizationDirection.MINIMIZE,
+            lower_bound=0.0,
+        )
+
     def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
+        display_name: str,
+        output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
         try:
@@ -1098,10 +1203,10 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
 
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
-                score=float(distance),
+                score=float(distance) if error is None else None,
                 explanation=explanation,
                 metadata={"expected": expected_str, "actual": actual_str},
                 error=error,
@@ -1113,7 +1218,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=self.name,
+                name=display_name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1126,14 +1231,14 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             )
 
 
-def merge_output_config(
+def merge_categorical_output_config(
     base: CategoricalAnnotationConfig,
     override: Optional[CategoricalAnnotationConfigOverride],
     display_name: str,
     description_override: Optional[str],
 ) -> CategoricalAnnotationConfig:
     """
-    Merge a base output config with optional overrides.
+    Merge a base categorical output config with optional overrides.
 
     Args:
         base: The base CategoricalAnnotationConfig from the LLM evaluator
@@ -1163,4 +1268,48 @@ def merge_output_config(
         description=description,
         optimization_direction=optimization_direction,
         values=values,
+    )
+
+
+def merge_continuous_output_config(
+    base: ContinuousAnnotationConfig,
+    override: Optional[ContinuousAnnotationConfigOverride],
+    display_name: str,
+    description_override: Optional[str],
+) -> ContinuousAnnotationConfig:
+    """
+    Merge a base continuous output config with optional overrides.
+
+    Args:
+        base: The base ContinuousAnnotationConfig from the builtin evaluator
+        override: Optional overrides from the dataset evaluator
+        display_name: The display name to use as the config name
+        description_override: Optional description override
+
+    Returns:
+        A new ContinuousAnnotationConfig with overrides applied
+    """
+    optimization_direction = base.optimization_direction
+    lower_bound = base.lower_bound
+    upper_bound = base.upper_bound
+    description = base.description
+
+    if override is not None:
+        if override.optimization_direction is not None:
+            optimization_direction = override.optimization_direction
+        if override.lower_bound is not None:
+            lower_bound = override.lower_bound
+        if override.upper_bound is not None:
+            upper_bound = override.upper_bound
+
+    if description_override is not None:
+        description = description_override
+
+    return ContinuousAnnotationConfig(
+        type=base.type,
+        name=display_name,
+        description=description,
+        optimization_direction=optimization_direction,
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
     )

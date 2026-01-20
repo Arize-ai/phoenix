@@ -5,6 +5,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.server.api.input_types.AnnotationConfigInput import (
+    AnnotationConfigOverrideInput,
     CategoricalAnnotationConfigOverrideInput,
 )
 from phoenix.server.api.types.Identifier import Identifier
@@ -33,3 +34,4 @@ class PlaygroundEvaluatorInput:
         default_factory=EvaluatorInputMappingInput
     )
     output_config: Optional[CategoricalAnnotationConfigOverrideInput] = None
+    output_config_override: Optional[AnnotationConfigOverrideInput] = None
