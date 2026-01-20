@@ -116,20 +116,20 @@ check-tools: ## Verify required tools are installed
 
 install-python: ## Install Python dependencies
 	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
-	$(UV) venv --python 3.10
-	$(UV) pip install -e ".[dev]"
-	@echo -e "$(GREEN)Python dependencies installed!$(NC)"
+	@$(UV) venv --python 3.10
+	@$(UV) pip install -e ".[dev]"
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 install-node: ## Install Node.js dependencies
 	@echo -e "$(CYAN)Installing Node.js dependencies...$(NC)"
-	cd $(APP_DIR) && $(PNPM) install
-	cd $(JS_DIR) && $(PNPM) install
-	@echo -e "$(GREEN)Node.js dependencies installed!$(NC)"
+	@cd $(APP_DIR) && $(PNPM) install --silent
+	@cd $(JS_DIR) && $(PNPM) install --silent
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 setup-symlinks: ## Create Python package symlinks
 	@echo -e "$(CYAN)Creating Python package symlinks...$(NC)"
-	$(TOX) run -e add_symlinks
-	@echo -e "$(GREEN)Symlinks created!$(NC)"
+	@$(TOX) run -q -e add_symlinks
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 setup: check-tools install-python install-node setup-symlinks ## Complete development environment setup
 	@echo -e ""
@@ -146,43 +146,34 @@ setup: check-tools install-python install-node setup-symlinks ## Complete develo
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
-	$(TOX) run -e build_graphql_schema
-	@echo -e "$(GREEN)GraphQL schema generated at app/schema.graphql$(NC)"
+	@$(TOX) run -q -e build_graphql_schema
+	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
 	@echo -e "$(CYAN)Building Relay GraphQL types...$(NC)"
-	cd $(APP_DIR) && $(PNPM) run build:relay
-	@echo -e "$(GREEN)Relay types generated!$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent build:relay
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 graphql: schema-graphql relay-build ## Generate GraphQL schema and build Relay (full workflow)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ GraphQL schema workflow complete!$(NC)"
-	@echo -e "  1. GraphQL schema: app/schema.graphql"
-	@echo -e "  2. Relay types: app/src/__generated__/**"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ GraphQL schema workflow complete$(NC)"
 
 schema-openapi: ## Generate OpenAPI schema from Python
 	@echo -e "$(CYAN)Generating OpenAPI schema...$(NC)"
-	$(TOX) run -e build_openapi_schema
-	@echo -e "$(GREEN)OpenAPI schema generated at schemas/openapi.json$(NC)"
+	@$(TOX) run -q -e build_openapi_schema
+	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
-	$(TOX) run -e openapi_codegen_for_python_client
-	@echo -e "$(GREEN)Python client types generated at packages/phoenix-client/src/phoenix/client/__generated__/v1/$(NC)"
+	@$(TOX) run -q -e openapi_codegen_for_python_client
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@echo -e "$(CYAN)Generating TypeScript client types...$(NC)"
-	cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run generate
-	@echo -e "$(GREEN)TypeScript client types generated at js/packages/phoenix-client/src/__generated__/api/v1.ts$(NC)"
+	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 openapi: schema-openapi codegen-python-client codegen-ts-client ## Generate OpenAPI schema and all clients (full workflow)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete!$(NC)"
-	@echo -e "  1. OpenAPI schema: schemas/openapi.json"
-	@echo -e "  2. Python client: packages/phoenix-client/src/phoenix/client/__generated__/v1/"
-	@echo -e "  3. TypeScript client: js/packages/phoenix-client/src/__generated__/api/v1.ts"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
 
 #=============================================================================
 # Development
@@ -206,31 +197,27 @@ dev-frontend: ## Frontend only (React dev server)
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python tests...$(NC)"
-	$(TOX) run -e unit_tests,integration_tests
+	@$(TOX) run -q -e unit_tests,integration_tests
 
 test-ts: ## Run TypeScript tests (app + packages)
 	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"
-	cd $(APP_DIR) && $(PNPM) test
-	cd $(JS_DIR) && $(PNPM) run -r test
+	@cd $(APP_DIR) && $(PNPM) test
+	@cd $(JS_DIR) && $(PNPM) run -r test
 
 test: test-python test-ts ## Run all tests (Python + TypeScript)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ All tests complete!$(NC)"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
 typecheck-python: ## Type check Python code
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
-	$(TOX) run -e remove_symlinks,type_check,add_symlinks
+	@$(TOX) run -q -e remove_symlinks,type_check,add_symlinks
 
 typecheck-ts: ## Type check TypeScript code
 	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
-	cd $(APP_DIR) && $(PNPM) run typecheck
-	cd $(JS_DIR) && $(PNPM) run -r typecheck
+	@cd $(APP_DIR) && $(PNPM) run --silent typecheck
+	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
 
 typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeScript)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ Type checking complete!$(NC)"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
 # Code Quality
@@ -238,31 +225,31 @@ typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeSc
 
 format-python: ## Format Python code with ruff
 	@echo -e "$(CYAN)Formatting Python code...$(NC)"
-	$(TOX) run -e ruff
+	@$(TOX) run -q -e ruff
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format-ts: ## Format TypeScript code
 	@echo -e "$(CYAN)Formatting TypeScript code...$(NC)"
-	cd $(APP_DIR) && $(PNPM) run lint:fix
-	cd $(JS_DIR) && $(PNPM) run prettier:write
+	@cd $(APP_DIR) && $(PNPM) run --silent lint:fix
+	@cd $(JS_DIR) && $(PNPM) run --silent prettier:write
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format: format-python format-ts ## Format all code (Python + TypeScript)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ Code formatting complete!$(NC)"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
 
 lint-python: ## Lint Python code with ruff
 	@echo -e "$(CYAN)Linting Python code...$(NC)"
-	$(TOX) run -e ruff
+	@$(TOX) run -q -e ruff
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-ts: ## Lint TypeScript code
 	@echo -e "$(CYAN)Linting TypeScript code...$(NC)"
-	cd $(APP_DIR) && $(PNPM) run lint
-	cd $(JS_DIR) && $(PNPM) run lint
+	@cd $(APP_DIR) && $(PNPM) run --silent lint
+	@cd $(JS_DIR) && $(PNPM) run --silent lint
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint: lint-python lint-ts ## Lint all code (Python + TypeScript)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ Linting complete!$(NC)"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ Linting complete$(NC)"
 
 #=============================================================================
 # Build
@@ -270,23 +257,21 @@ lint: lint-python lint-ts ## Lint all code (Python + TypeScript)
 
 build-python: ## Build Python package
 	@echo -e "$(CYAN)Building Python package...$(NC)"
-	$(HATCH) build
-	@echo -e "$(GREEN)Python package built in dist/$(NC)"
+	@$(HATCH) build
+	@echo -e "$(GREEN)✓ dist/$(NC)"
 
 build-frontend: ## Build frontend for production
 	@echo -e "$(CYAN)Building frontend...$(NC)"
-	cd $(APP_DIR) && $(PNPM) run build
-	@echo -e "$(GREEN)Frontend built!$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent build
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 build-ts: ## Build TypeScript packages
 	@echo -e "$(CYAN)Building TypeScript packages...$(NC)"
-	cd $(JS_DIR) && $(PNPM) run -r build
-	@echo -e "$(GREEN)TypeScript packages built!$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent -r build
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
-	@echo -e ""
-	@echo -e "$(GREEN)✓ Build complete!$(NC)"
-	@echo -e ""
+	@echo -e "$(GREEN)✓ Build complete$(NC)"
 
 #=============================================================================
 # Cleanup
@@ -294,19 +279,19 @@ build: build-python build-frontend build-ts ## Build everything (Python + fronte
 
 clean: ## Clean build artifacts
 	@echo -e "$(CYAN)Cleaning build artifacts...$(NC)"
-	rm -rf dist/ build/ *.egg-info
-	rm -rf $(APP_DIR)/dist $(APP_DIR)/build
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	@echo -e "$(GREEN)Build artifacts cleaned!$(NC)"
+	@rm -rf dist/ build/ *.egg-info
+	@rm -rf $(APP_DIR)/dist $(APP_DIR)/build
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 clean-all: clean ## Clean everything including node_modules
-	@echo -e "$(CYAN)Cleaning all artifacts including node_modules...$(NC)"
-	rm -rf $(APP_DIR)/node_modules $(APP_DIR)/.pnpm-store
-	rm -rf $(JS_DIR)/node_modules $(JS_DIR)/.pnpm-store
-	find $(JS_DIR) -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf .venv
-	@echo -e "$(GREEN)All artifacts cleaned!$(NC)"
+	@echo -e "$(CYAN)Cleaning node_modules...$(NC)"
+	@rm -rf $(APP_DIR)/node_modules $(APP_DIR)/.pnpm-store
+	@rm -rf $(JS_DIR)/node_modules $(JS_DIR)/.pnpm-store
+	@find $(JS_DIR) -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf .venv
+	@echo -e "$(GREEN)✓ Done$(NC)"
