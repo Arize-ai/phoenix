@@ -1199,7 +1199,7 @@
                         }
                       ]
                     },
-                    "description": "Span IDs per example to link dataset examples back to traces"
+                    "description": "Span IDs to link examples back to spans"
                   }
                 }
               }
@@ -1258,7 +1258,7 @@
                   },
                   "span_id_key": {
                     "type": "string",
-                    "description": "Column name for span IDs linking dataset examples back to traces"
+                    "description": "Column name for span IDs to link examples back to spans"
                   },
                   "file": {
                     "type": "string",
