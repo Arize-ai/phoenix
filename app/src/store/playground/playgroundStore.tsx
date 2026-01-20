@@ -276,7 +276,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           },
         }
       : {},
-    datasetId: props.datasetId,
+    datasetId: props.datasetId ?? null,
     setDatasetId: (datasetId: string | null) => {
       set({ datasetId }, false, { type: "setDatasetId" });
       if (!datasetId) {

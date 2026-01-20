@@ -285,7 +285,7 @@ export type PlaygroundStateByDatasetId = z.infer<
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
-  datasetId: string | null;
+  datasetId?: string | null;
 };
 
 /**
