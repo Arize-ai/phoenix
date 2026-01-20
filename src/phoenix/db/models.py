@@ -57,9 +57,12 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigOverride as AnnotationConfigOverrideModel,
+)
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigOverrideType,
     AnnotationConfigType,
     CategoricalAnnotationConfig,
-    CategoricalAnnotationConfigOverride,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -424,6 +427,24 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         self, value: Optional[str], _: Dialect
     ) -> Optional[AnnotationConfigType]:
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
+
+
+class _AnnotationConfigOverride(TypeDecorator[AnnotationConfigOverrideType]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[AnnotationConfigOverrideType], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return AnnotationConfigOverrideModel(root=value).model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[AnnotationConfigOverrideType]:
+        return (
+            AnnotationConfigOverrideModel.model_validate(value).root if value is not None else None
+        )
 
 
 class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
@@ -2262,8 +2283,8 @@ class DatasetEvaluators(HasId):
     )
     display_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_config_override: Mapped[Optional[CategoricalAnnotationConfigOverride]] = mapped_column(
-        "output_config", _AnnotationConfig, nullable=True
+    output_config_override: Mapped[Optional[AnnotationConfigOverrideType]] = mapped_column(
+        "output_config", _AnnotationConfigOverride, nullable=True
     )
     input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
