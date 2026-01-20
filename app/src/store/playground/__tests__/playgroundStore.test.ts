@@ -44,6 +44,7 @@ describe("getInitialInstances", () => {
 
     // simulated props that would be passed to the PlaygroundProvider
     const initialProps: InitialPlaygroundState = {
+      datasetId: null,
       instances: [newInstance],
       modelConfigByProvider: {},
       datasetId: null,
@@ -990,7 +991,9 @@ describe("dataset-scoped state", () => {
     });
 
     // verify the custom path is set
-    expect(store.getState().stateByDatasetId[datasetId1].templateVariablesPath).toBe(customPath);
+    expect(
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+    ).toBe(customPath);
 
     // switch to dataset 2
     store.getState().setDatasetId(datasetId2);
@@ -1004,6 +1007,8 @@ describe("dataset-scoped state", () => {
     expect(store.getState().datasetId).toBe(datasetId1);
 
     // verify the custom path is still preserved
-    expect(store.getState().stateByDatasetId[datasetId1].templateVariablesPath).toBe(customPath);
+    expect(
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+    ).toBe(customPath);
   });
 });
