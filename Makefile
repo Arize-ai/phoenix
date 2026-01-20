@@ -243,7 +243,7 @@ format-python: ## Format Python code with ruff
 format-ts: ## Format TypeScript code
 	@echo -e "$(CYAN)Formatting TypeScript code...$(NC)"
 	cd $(APP_DIR) && $(PNPM) run lint:fix
-	cd $(JS_DIR) && $(PNPM) run lint:fix
+	cd $(JS_DIR) && $(PNPM) run prettier:write
 
 format: format-python format-ts ## Format all code (Python + TypeScript)
 	@echo -e ""
