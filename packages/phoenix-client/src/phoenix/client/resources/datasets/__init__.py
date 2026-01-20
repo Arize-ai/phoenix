@@ -320,11 +320,13 @@ class DatasetKeys:
         output_keys: frozenset[str],
         metadata_keys: frozenset[str],
         split_keys: frozenset[str] = frozenset(),
+        span_id_key: Optional[str] = None,
     ):
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
         self.split = split_keys
+        self.span_id = span_id_key
 
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
@@ -339,9 +341,23 @@ class DatasetKeys:
         if self.metadata & self.split:
             raise ValueError(f"Metadata and split keys overlap: {self.metadata & self.split}")
 
+        # Validate span_id_key doesn't overlap with other keys
+        if self.span_id:
+            span_id_set = frozenset([self.span_id])
+            if self.input & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with input keys")
+            if self.output & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with output keys")
+            if self.metadata & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with metadata keys")
+            if self.split & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with split keys")
+
     def check_differences(self, available_keys: frozenset[str]) -> None:
         """Check that all specified keys exist in available keys."""
         all_keys = self.input | self.output | self.metadata | self.split
+        if self.span_id:
+            all_keys = all_keys | frozenset([self.span_id])
         if diff := all_keys - available_keys:
             raise ValueError(f"Keys not found in available columns: {diff}")
 
@@ -733,6 +749,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -753,6 +770,9 @@ class Datasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            span_id_key: Optional column name containing span IDs to link dataset examples
+                back to their original traces. The column should contain OTEL span_id values
+                (string format). Examples will be linked to spans if they exist in the database.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -766,6 +786,28 @@ class Datasets:
             ValueError: If invalid parameter combinations are provided.
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import Client
+            import pandas as pd
+
+            client = Client()
+
+            # Create dataset with span ID links
+            spans_df = pd.DataFrame({
+                "input": ["What is AI?", "Explain ML"],
+                "output": ["Artificial Intelligence is...", "Machine Learning is..."],
+                "context.span_id": ["abc123", "def456"]
+            })
+
+            dataset = client.datasets.create_dataset(
+                name="my-dataset",
+                dataframe=spans_df,
+                input_keys=["input"],
+                output_keys=["output"],
+                span_id_key="context.span_id"
+            )
         """
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
@@ -808,6 +850,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -835,6 +878,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -855,6 +899,9 @@ class Datasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            span_id_key: Optional column name containing span IDs to link dataset examples
+                back to their original traces. The column should contain OTEL span_id values
+                (string format). Examples will be linked to spans if they exist in the database.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -926,6 +973,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -987,6 +1035,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1006,7 +1055,9 @@ class Datasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
+        keys = DatasetKeys(
+            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+        )
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1023,18 +1074,24 @@ class Datasets:
             file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
+        data_dict: dict[str, Any] = {
+            "action": action,
+            "name": dataset_name,
+            "description": dataset_description or "",
+            "input_keys[]": sorted(keys.input),
+            "output_keys[]": sorted(keys.output),
+            "metadata_keys[]": sorted(keys.metadata),
+            "split_keys[]": sorted(keys.split),
+        }
+
+        # Add span_id_key if present
+        if keys.span_id:
+            data_dict["span_id_key"] = keys.span_id
+
         response = self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
-            data={
-                "action": action,
-                "name": dataset_name,
-                "description": dataset_description or "",
-                "input_keys[]": sorted(keys.input),
-                "output_keys[]": sorted(keys.output),
-                "metadata_keys[]": sorted(keys.metadata),
-                "split_keys[]": sorted(keys.split),
-            },
+            data=data_dict,
             params={"sync": True},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1476,6 +1533,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1551,6 +1609,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1578,6 +1637,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1669,6 +1729,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1717,6 +1778,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1734,7 +1796,9 @@ class AsyncDatasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
+        keys = DatasetKeys(
+            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+        )
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1751,18 +1815,24 @@ class AsyncDatasets:
             file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
+        data_dict: dict[str, Any] = {
+            "action": action,
+            "name": dataset_name,
+            "description": dataset_description or "",
+            "input_keys[]": sorted(keys.input),
+            "output_keys[]": sorted(keys.output),
+            "metadata_keys[]": sorted(keys.metadata),
+            "split_keys[]": sorted(keys.split),
+        }
+
+        # Add span_id_key if present
+        if keys.span_id:
+            data_dict["span_id_key"] = keys.span_id
+
         response = await self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
-            data={
-                "action": action,
-                "name": dataset_name,
-                "description": dataset_description or "",
-                "input_keys[]": sorted(keys.input),
-                "output_keys[]": sorted(keys.output),
-                "metadata_keys[]": sorted(keys.metadata),
-                "split_keys[]": sorted(keys.split),
-            },
+            data=data_dict,
             params={"sync": True},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1926,10 +1996,12 @@ def _prepare_dataframe_as_csv(
 
     keys.check_differences(frozenset(df.columns))
 
-    # Ensure consistent column ordering: input, output, metadata, split
-    selected_columns = (
+    # Ensure consistent column ordering: input, output, metadata, split, span_id
+    selected_columns: list[str] = (
         sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata) + sorted(keys.split)
     )
+    if keys.span_id:
+        selected_columns.append(keys.span_id)
 
     csv_buffer = BytesIO()
     df[selected_columns].to_csv(csv_buffer, index=False)  # pyright: ignore[reportUnknownMemberType]
