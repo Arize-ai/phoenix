@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3cf2f0c657bb31aa404fedc0f39706b6>>
+ * @generated SignedSource<<c206875033a7aa67d7d004aacb216925>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -73,6 +73,7 @@ export type PlaygroundEvaluatorInput = {
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
   outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
+  outputConfigOverride?: AnnotationConfigOverrideInput | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
@@ -85,6 +86,15 @@ export type CategoricalAnnotationConfigOverrideInput = {
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
+};
+export type AnnotationConfigOverrideInput = {
+  categorical?: CategoricalAnnotationConfigOverrideInput | null;
+  continuous?: ContinuousAnnotationConfigOverrideInput | null;
+};
+export type ContinuousAnnotationConfigOverrideInput = {
+  lowerBound?: number | null;
+  optimizationDirection?: OptimizationDirection | null;
+  upperBound?: number | null;
 };
 export type PlaygroundOutputMutation$variables = {
   input: ChatCompletionInput;

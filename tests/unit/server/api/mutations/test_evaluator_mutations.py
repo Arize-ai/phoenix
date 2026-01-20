@@ -43,9 +43,17 @@ class TestDatasetLLMEvaluatorMutations:
             displayName
             description
             outputConfig {
-              name
-              description
-              values { label score }
+              ... on CategoricalAnnotationConfig {
+                name
+                description
+                values { label score }
+              }
+              ... on ContinuousAnnotationConfig {
+                name
+                description
+                lowerBound
+                upperBound
+              }
             }
             evaluator {
               ... on LLMEvaluator {
@@ -2056,6 +2064,45 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
+    async def test_create_dataset_builtin_evaluator_invalid_merged_continuous_bounds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test that continuous output config override validates merged bounds.
+
+        When only one bound is provided in the override, it should be validated
+        against the base config's bounds to ensure the merged result is valid.
+        """
+        from phoenix.server.api.evaluators import (
+            LevenshteinDistanceEvaluator,
+            _generate_builtin_evaluator_id,
+        )
+
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        levenshtein_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
+        levenshtein_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_id)))
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=levenshtein_gid,
+            displayName="test-levenshtein",
+            outputConfigOverride={"continuous": {"upperBound": -1.0}},
+        )
+        assert result.errors
+        assert "lower_bound" in result.errors[0].message.lower()
+        assert "upper_bound" in result.errors[0].message.lower()
+
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=levenshtein_gid,
+            displayName="test-levenshtein-2",
+            outputConfigOverride={"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+        )
+        assert result.data and not result.errors
+
 
 class TestUpdateDatasetBuiltinEvaluatorMutation:
     _UPDATE_MUTATION = """
@@ -2338,6 +2385,69 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             },
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
+
+    async def test_update_dataset_builtin_evaluator_invalid_merged_continuous_bounds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test that update mutation validates merged bounds for continuous config override."""
+        from phoenix.server.api.evaluators import (
+            LevenshteinDistanceEvaluator,
+            _generate_builtin_evaluator_id,
+        )
+
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        levenshtein_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
+        levenshtein_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_id)))
+
+        create_result = await gql_client.execute(
+            """
+            mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+              createDatasetBuiltinEvaluator(input: $input) {
+                evaluator { id }
+              }
+            }
+            """,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": levenshtein_gid,
+                    "displayName": "test-levenshtein-update",
+                }
+            },
+        )
+        assert create_result.data and not create_result.errors
+        dataset_evaluator_id = create_result.data["createDatasetBuiltinEvaluator"]["evaluator"][
+            "id"
+        ]
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "test-levenshtein-update",
+                    "outputConfigOverride": {"continuous": {"upperBound": -1.0}},
+                }
+            },
+        )
+        assert result.errors
+        assert "lower_bound" in result.errors[0].message.lower()
+        assert "upper_bound" in result.errors[0].message.lower()
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "displayName": "test-levenshtein-update",
+                    "outputConfigOverride": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                }
+            },
+        )
+        assert result.data and not result.errors
 
 
 @pytest.fixture

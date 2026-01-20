@@ -176,11 +176,13 @@ const EditEvaluatorDialog = ({
             }
           }
           outputConfig {
-            name
-            optimizationDirection
-            values {
-              label
-              score
+            ... on CategoricalAnnotationConfig {
+              name
+              optimizationDirection
+              values {
+                label
+                score
+              }
             }
           }
         }
@@ -252,7 +254,7 @@ const EditEvaluatorDialog = ({
           datasetEvaluator.outputConfig?.optimizationDirection ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.optimizationDirection,
         values:
-          datasetEvaluator.outputConfig?.values.map((value) => ({
+          datasetEvaluator.outputConfig?.values?.map((value) => ({
             label: value.label,
             score: value.score ?? undefined,
           })) ?? DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.values,
