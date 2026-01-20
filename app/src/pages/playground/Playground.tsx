@@ -203,6 +203,14 @@ function PlaygroundContent() {
       left.every((id, index) => id === right[index])
   );
 
+  const playgroundDatasetStateByDatasetId = usePlaygroundContext(
+    (state) => state.stateByDatasetId
+  );
+  const playgroundDatasetState = datasetId
+    ? playgroundDatasetStateByDatasetId[datasetId]
+    : null;
+  const { appendedMessagesPath } = playgroundDatasetState ?? {};
+
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
@@ -262,6 +270,9 @@ function PlaygroundContent() {
                         >
                           <PlaygroundTemplate
                             playgroundInstanceId={instanceId}
+                            appendedMessagesPath={
+                              appendedMessagesPath ?? undefined
+                            }
                           />
                         </View>
                       ))}

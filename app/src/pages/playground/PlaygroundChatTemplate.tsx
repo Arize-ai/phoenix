@@ -1,5 +1,4 @@
 import { PropsWithChildren, useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
 import {
   DndContext,
   KeyboardSensor,
@@ -77,22 +76,17 @@ const MESSAGE_Z_INDEX = 1;
  */
 const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
 
-interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
+interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
+  appendedMessagesPath?: string;
+}
 
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
-  const [searchParams] = useSearchParams();
-  const datasetId = searchParams.get("datasetId");
   const id = props.playgroundInstanceId;
 
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const playgroundDatasetStateByDatasetId = usePlaygroundContext(
-    (state) => state.stateByDatasetId
-  );
-  const playgroundDatasetState = datasetId
-    ? playgroundDatasetStateByDatasetId[datasetId]
-    : null;
-  const { appendedMessagesPath } = playgroundDatasetState ?? {};
+
+  const appendedMessagesPath = props.appendedMessagesPath;
   const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
   const playgroundInstance = usePlaygroundContext(instanceSelector);
   if (!playgroundInstance) {
