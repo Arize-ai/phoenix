@@ -2,8 +2,8 @@ import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
-import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 import {
   asTextPart,
   asToolCallPart,
@@ -251,7 +251,7 @@ export const promptMessageToOpenAI = promptMessageSchema.transform(
 
       return {
         role: "tool",
-        content: normalizeMessageContent(toolResult.toolResult.result),
+        content: formatContentAsString(toolResult.toolResult.result),
         tool_call_id: toolResult.toolResult.toolCallId,
       };
     }

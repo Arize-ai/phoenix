@@ -100,3 +100,46 @@ export function jsonStringToFlatObject(
   }
   return {} satisfies Record<string, string | boolean | number>;
 }
+
+/**
+ * Formats content of any type into a string suitable for rendering.
+ *
+ * Handles double-stringified JSON, pretty-prints objects and arrays,
+ * and preserves valid top-level JSON values.
+ *
+ * @param content - the content to format
+ * @returns a formatted string representation of the content
+ */
+export function formatContentAsString(content?: unknown): string {
+  if (typeof content === "string") {
+    const isDoubleStringified =
+      content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"');
+    try {
+      // If it's a double-stringified value, parse it twice
+      if (isDoubleStringified) {
+        // First parse removes the outer quotes and unescapes the inner content
+        const firstParse = JSON.parse(content);
+        // Second parse converts the string representation to actual JSON
+        const secondParse =
+          typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+        // Stringify the result to ensure consistent formatting
+        return JSON.stringify(secondParse, null, 2);
+      }
+    } catch {
+      // If parsing fails, fall through
+    }
+    // If the content is a valid non-string top level json value, return it as-is
+    // https://datatracker.ietf.org/doc/html/rfc7159#section-3
+    // 0-9 { [ null false true
+    // a regex that matches possible top level json values, besides strings
+    const nonStringStart = /^\s*[0-9{[]|true|false|null/.test(content);
+    if (nonStringStart) {
+      return content;
+    }
+  }
+
+  // For any content that doesn't match the json spec for a top level value, stringify it with pretty printing
+  return JSON.stringify(content, null, 2);
+}

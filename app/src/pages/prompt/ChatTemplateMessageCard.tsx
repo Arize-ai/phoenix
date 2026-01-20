@@ -17,10 +17,12 @@ import {
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { ToolCallPart, ToolResultPart } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
-import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import {
+  formatContentAsString,
+  safelyStringifyJSON,
+} from "@phoenix/utils/jsonUtils";
 
 const PART_TYPE_TITLE = {
   text: "Text",
@@ -40,7 +42,7 @@ export function ChatTemplateMessageToolResultPart({
 }: ChatTemplateMessageToolResultPartProps) {
   const value = useMemo(() => {
     const convertedToolResult = toolResult.toolResult.result;
-    return normalizeMessageContent(convertedToolResult);
+    return formatContentAsString(convertedToolResult);
   }, [toolResult]);
   return (
     <ChatTemplateMessagePartContainer
