@@ -49,7 +49,7 @@ import {
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
-import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
+import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
 
 import {
   ChatCompletionOverDatasetInput,
