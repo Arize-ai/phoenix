@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97f4ced9eef764910a2c7166985f81cc>>
+ * @generated SignedSource<<456544a281a8b783d22d3df286199750>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -156,6 +156,31 @@ return {
                       "storageKey": null
                     },
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "User",
+                      "kind": "LinkedField",
+                      "name": "user",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "username",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "profilePictureUrl",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,

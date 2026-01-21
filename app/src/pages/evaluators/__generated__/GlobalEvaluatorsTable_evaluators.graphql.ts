@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e56c64b8d94fd32c5cf23854fb30cc8c>>
+ * @generated SignedSource<<d8d1b271e9847d651cfa1016b88aaefe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,6 +44,31 @@ v2 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "user",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "username",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "profilePictureUrl",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -190,9 +215,18 @@ return {
                             (v2/*: any*/)
                           ],
                           "storageKey": null
-                        }
+                        },
+                        (v3/*: any*/)
                       ],
                       "type": "LLMEvaluator",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v3/*: any*/)
+                      ],
+                      "type": "CodeEvaluator",
                       "abstractKey": null
                     }
                   ],
