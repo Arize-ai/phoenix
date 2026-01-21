@@ -21,6 +21,7 @@ import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
@@ -98,6 +99,16 @@ const readRow = (row: EvaluatorsTable_row$key) => {
           }
           promptVersionTag {
             name
+          }
+          user {
+            username
+            profilePictureUrl
+          }
+        }
+        ... on CodeEvaluator {
+          user {
+            username
+            profilePictureUrl
           }
         }
       }
@@ -199,6 +210,27 @@ export const EvaluatorsTable = ({
             promptVersionTag={row.original.promptVersionTag?.name}
           />
         ),
+      },
+      {
+        header: "last modified by",
+        accessorKey: "user",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const user = row.original.user;
+          if (!user) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <UserPicture
+                name={user.username ?? undefined}
+                profilePictureUrl={user.profilePictureUrl}
+                size={20}
+              />
+              <Text>{user.username ?? "system"}</Text>
+            </Flex>
+          );
+        },
       },
       {
         header: "last updated",

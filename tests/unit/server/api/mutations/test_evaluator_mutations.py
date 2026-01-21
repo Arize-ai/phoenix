@@ -179,6 +179,8 @@ class TestDatasetLLMEvaluatorMutations:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.evaluator_id is not None
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
             llm_evaluator = await session.get(
                 models.LLMEvaluator, db_dataset_evaluator.evaluator_id
             )
@@ -1174,6 +1176,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
             assert db_evaluator is not None
             assert db_evaluator.description == "updated description"
+            # user_id is None when authentication is disabled
+            assert db_evaluator.user_id is None
             db_dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
                     models.DatasetEvaluators.evaluator_id == llm_evaluator.id
@@ -1181,6 +1185,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             )
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.output_config_override is None
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
             assert db_evaluator.output_config.name == "result"
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
@@ -1924,6 +1930,8 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.builtin_evaluator_id == builtin_evaluator_id
             assert db_dataset_evaluator.evaluator_id is None
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
             assert db_dataset_evaluator.input_mapping == {
                 "literal_mapping": {},
                 "path_mapping": {},
@@ -2196,6 +2204,8 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator.display_name.root == "updated-name"
             # Input mapping should revert to default value when not provided
             assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_dict()
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
 
         # Update the evaluator with new input_mapping
         result = await gql_client.execute(
