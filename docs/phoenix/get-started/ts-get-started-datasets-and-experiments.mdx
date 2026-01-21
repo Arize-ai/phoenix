@@ -1,0 +1,135 @@
+---
+title: "Optimize Your App with Experiments"
+---
+
+In this guide, we’ll run experiments in Phoenix to systematically improve an application.
+
+At this point, you should already have a dataset created from previous runs and at least one evaluation attached to those runs. Experiments let you rerun the same dataset through an updated version of your application and compare results side by side.
+
+## **Before We Start**
+
+To follow along, you should already have:
+
+- Traces & Evals attached to a project in Phoenix
+- A dataset created from previous runs, such as failed traces
+
+## **Step 1: Pull Down your Dataset**
+
+We’ll first pull down the dataset we created previously. This ensures we’re testing the new version of the agent on the exact same inputs that previously failed.
+
+# __**TODO: add in correct imports **__
+
+```typescript
+import "dotenv/config";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+import assert from "assert";
+import { getDataset } from "@arizeai/phoenix-client/datasets";
+import { asEvaluator, runExperiment } from "@phoenix/client/experiments";
+import { Agent } from "@mastra/core/agent";
+
+async function main() {
+  const dataset = await getDataset({
+    dataset: { datasetName: "ts-quickstart" },
+  });
+  console.log(dataset);
+}
+```
+
+## **Step 2: Use Explanations to Identify Improvements**
+
+Since we'll our dataset is grouping application failures, the next step is deciding which issues to fix. 
+
+Using the explanations from the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+
+The easiest way to see these is to go back into the trace view for these failed runs & read the explanations for why they were each labeled as "incomplete" answers.
+
+In this example, we’ll improve the agent by strengthening the agents' backstory instructions so the model has clearer guidance on what a good response looks like.
+
+### **Update the Agent Instructions**
+
+Below is an example of tightening the agent backstory to be more explicit about the expected output.
+
+# __**TODO: add in code snip **__
+```typescript
+```
+
+# __**TODO: might need to add this vvvvv **__
+
+Create an updated agent workflow with this new, modified agent. 
+
+```typescript
+```
+
+At this point, we’ve made a targeted change based on the explanations for why traces were classified as real failures.
+
+## **Step 3: Define an Experiment**
+
+Now that we’ve updated the agent, we will run this new agent flow to test whether the changes actually made an impact on response completeness. 
+
+Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This approach makes sure that any improvements are measured and easily able to be compared to previous runs.
+
+To define an experiment, we need to specify:
+
+- **The experiment task**
+
+  A task is a function or process that takes each example from a dataset and produces an output, typically by running your application logic or model on the input.
+
+- **The experiment evaluation**
+
+  An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
+
+In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we are re-running our agent system on these inputs and getting new outputs, we will rerun the same evaluation to directly compare results.
+
+task:
+```typescript
+
+```
+eval:
+
+```typescript
+
+```
+
+## **Step 4: Run the Experiment on the Dataset**
+
+Now we can run our experiment!
+
+```typescript
+run_experiment
+```
+
+Once this completes, Phoenix logs the experiment results automatically.
+
+## **Step 5: View Experiment Results in Phoenix**
+
+Head back to Phoenix and open the **Experiments** view.
+
+Here, you can see:
+
+- The original runs compared against the new ones under 'reference output' 
+- New application runs as a reults of our task  
+- Evaluation results for each version
+
+In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
+
+# __**TODO: add in new video **__
+
+<Frame caption="View Experiment Results">
+<video
+  controls
+  className="w-full aspect-video rounded-xl"
+  src=""
+/>
+</Frame>
+
+**Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
+
+## **Learn More About Datasets and Experiments**
+
+This was a simple example, but datasets and experiments can support much more advanced workflows.
+
+If you want to test prompt changes to a specific part of your application and keep track of different prompt versions, the [Prompt Playground](/docs/phoenix/get-started/ts-get-started-prompt-playground) guide walks through how to do that.
+
+To go deeper with datasets and experiments, you can build datasets for specific user segments or edge cases, compare multiple prompt or model variants, and track quality improvements over time as your application evolves. The [Datasets and Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) section covers these patterns in more detail.

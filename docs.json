@@ -66,7 +66,8 @@
                         "pages": [
                           "docs/phoenix/get-started/ts-get-started-tracing",
                           "docs/phoenix/get-started/ts-get-started-evaluations",
-                          "docs/phoenix/get-started/ts-get-started-prompt-playground"
+                          "docs/phoenix/get-started/ts-get-started-prompt-playground",
+                          "docs/phoenix/get-started/ts-get-started-datasets-and-experiments"
                         ]
                       }
                     ]

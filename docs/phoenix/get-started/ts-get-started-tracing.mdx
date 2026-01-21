@@ -13,13 +13,10 @@ To follow along, you’ll need an [OpenAI API key](https://platform.openai.com/a
 We’ll be using OpenAI as our LLM provider throughout our agent and eventually for our evals. 
 
 ---
-
 <Info>
-  **Follow along with code**: This guide has a companion code asset with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
+  **Follow along with code**: This guide has a companion code asset with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/ts_quickstart/src/mastra).
 </Info>
-
 ---
-
 ## **Step 1: Set Up Phoenix Cloud**
 
 Before we can send traces anywhere, we need Phoenix running.
@@ -310,7 +307,7 @@ Your output should be a polished financial analysis report that is clear, compre
 });
 ```
 
-##  **Step 4: Run Your Agent**
+##  **Step 5: Run Your Agent**
 
 You've now defined all the different parts of your multi-agent system. Before we run our chatbot for the first time, we need to connect these agents back to our Mastra object. Navigate to `index.ts` and add in our agents. 
 
@@ -350,8 +347,10 @@ To test our agent, run `npm run dev` in your terminal to spin up the Mastra dev 
 
 Once the run completes, head back to Phoenix and navigate to the **Traces** view. You should see a new trace corresponding to this run. Click into it to explore how the agents and tasks are executed.
 
+# __**TODO: change video**__
+
 <Frame caption="Invoke the Chatbot & See Full Trace in Phoenix ">
-<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-quickstart-tracing.mp4" />
+<video controls className="w-full aspect-video rounded-xl" src="" />
 </Frame>
 
 At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
@@ -370,6 +369,6 @@ This is something you couldn’t see before tracing. Instead of guessing how an 
 
 You’ve now sent a trace to Phoenix and seen how an agent runs shows up from start to finish.
 
-The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
+The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/ts-get-started-evaluations) to add even more value to setting up tracing.
 
 If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial ](https://arize.com/docs/phoenix/tracing/tutorial)walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.
