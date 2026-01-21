@@ -20,13 +20,13 @@ The Phoenix CLI now supports **datasets**, **experiments**, and **annotations**.
 px datasets
 
 # Fetch dataset examples
-px dataset query_response --split test
+px dataset <dataset-name>
 
 # Export experiment results
-px experiments --dataset my-dataset ./experiments/
+px experiments --dataset <dataset-name> ./experiments/
 
 # Get experiment details
-px experiment RXhwZXJpbWVudDox --format json
+px experiment <experiment-id> --format json
 
 # Include annotations in traces
 px traces --limit 10 --include-annotations
@@ -39,9 +39,13 @@ px traces --limit 10 --include-annotations
 Pull test cases for review:
 
 ```bash
-# Get train split examples
-px dataset query_response --split train --format raw | \
-  jq '.examples[] | {input, expected}'
+# Get all examples from a dataset
+px dataset <dataset-name> --format raw --no-progress | \
+  jq '.examples[] | {input, output}'
+
+# Filter by split (if dataset has splits defined)
+px dataset <dataset-name> --split train --format raw --no-progress | \
+  jq '.examples[]'
 ```
 
 ### Review Experiment Results
@@ -49,13 +53,13 @@ px dataset query_response --split train --format raw | \
 Check evaluation results:
 
 ```bash
-# Get experiment runs with annotations
-px experiment RXhwZXJpbWVudDox --format raw | \
-  jq '.[] | select(.annotations != null) | {input, output, annotations}'
+# Get experiment runs with their inputs and outputs
+px experiment <experiment-id> --format raw --no-progress | \
+  jq '.[] | {input, output, latency_ms, trace_id}'
 
-# Find failed runs
-px experiment RXhwZXJpbWVudDox --format raw | \
-  jq '.[] | select(.error != null) | {input, error}'
+# Find runs with annotations
+px experiment <experiment-id> --format raw --no-progress | \
+  jq '.[] | select(.annotations | length > 0)'
 ```
 
 ### Use Annotations
@@ -77,10 +81,10 @@ Save data to files for further processing:
 px traces --include-annotations --limit 100 ./production-samples/
 
 # Export experiments to directory
-px experiments --dataset my-dataset ./all-experiments/
+px experiments --dataset <dataset-name> ./all-experiments/
 
 # Filter examples with jq
-px traces --include-annotations --format raw | \
+px traces --include-annotations --format raw --no-progress | \
   jq '.[] | select(.spans[].annotations[] | select(.name == "quality" and .score >= 4))'
 ```
 
@@ -93,20 +97,20 @@ px traces --include-annotations --format raw | \
 px datasets --format json
 
 # Fetch dataset with specific splits
-px dataset my-dataset --split train --split validation
+px dataset <dataset-name> --split train --split validation
 
 # Get specific version
-px dataset my-dataset --version <version-id>
+px dataset <dataset-name> --version <version-id>
 ```
 
 ### Experiments
 
 ```bash
 # List experiments for a dataset
-px experiments --dataset my-dataset
+px experiments --dataset <dataset-name>
 
 # Export all experiment data
-px experiments --dataset my-dataset ./experiments/
+px experiments --dataset <dataset-name> ./experiments/
 
 # Fetch single experiment with full details
 px experiment <experiment-id> --format raw
@@ -124,21 +128,22 @@ px trace <trace-id> --include-annotations
 
 ## Example: Reviewing Experiment Results
 
-Get failing examples from an experiment:
+Get data from an experiment and dataset:
 
 ```bash
-# Export failing runs
-px experiment RXhwZXJpbWVudDox --format raw | \
-  jq '.[] | select(.error != null or (.annotations[] | select(.name == "quality" and .score < 3)))' \
-  > failing-examples.json
+# Export experiment runs to a file
+px experiment <experiment-id> --format raw --no-progress > experiment-runs.json
 
-# Export test cases
-px dataset my-dataset --split test --format raw | \
-  jq '.examples[] | {input, expected}' \
-  > test-cases.json
+# Extract inputs and outputs
+jq '.[] | {input, output, latency_ms}' experiment-runs.json > run-summary.json
+
+# Export dataset examples
+px dataset <dataset-name> --format raw --no-progress | \
+  jq '.examples[] | {input, output}' \
+  > dataset-examples.json
 ```
 
-You can then ask an AI assistant to review the failing examples or test changes against the test cases.
+You can then ask an AI assistant to review the experiment results or analyze patterns in the dataset.
 
 ## Installation
 
