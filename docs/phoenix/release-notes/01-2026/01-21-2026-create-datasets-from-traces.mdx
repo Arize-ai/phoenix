@@ -78,7 +78,7 @@ const { datasetId } = await createDataset({
 Using the Phoenix client, the workflow is straightforward: query production spans with filters, then create a dataset with span associations.
 
 ```mermaid
-graph LR
+flowchart LR
     A[Production Traces] -->|1. Query with filters| B[Filtered Spans]
     B -->|2. Transform data| C[Prepared Examples]
     C -->|3. Create dataset with span_id_key| D[Dataset]
