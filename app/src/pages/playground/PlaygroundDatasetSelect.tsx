@@ -94,6 +94,7 @@ export function PlaygroundDatasetSelect({
           isDisabled={isDisabled}
           leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
           onPress={() => {
+            setDatasetId(null);
             setSearchParams((prev) => {
               prev.delete("datasetId");
               prev.delete("splitId");
