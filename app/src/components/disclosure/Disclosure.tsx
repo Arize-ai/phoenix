@@ -15,7 +15,6 @@ import { classNames } from "@phoenix/utils";
 
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
-
 import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";

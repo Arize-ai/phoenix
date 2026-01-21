@@ -9,9 +9,7 @@ import { css } from "@emotion/react";
 import { Icon, Icons } from "../icon";
 import { BaseVariant, QuietVariant, SizingProps } from "../types";
 
-import { fieldBaseCSS } from "./styles";
-
-import { textFieldCSS } from "./styles";
+import { fieldBaseCSS, textFieldCSS } from "./styles";
 
 export interface SearchFieldProps extends AriaSearchFieldProps, SizingProps {
   /**

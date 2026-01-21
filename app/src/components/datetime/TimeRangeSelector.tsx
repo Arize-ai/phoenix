@@ -16,9 +16,8 @@ import { Popover, PopoverArrow } from "../overlay";
 import { ComponentSize } from "../types";
 import { View } from "../view";
 
-import { TimeRangeForm } from "./TimeRangeForm";
-
 import { LAST_N_TIME_RANGES } from "./constants";
+import { TimeRangeForm } from "./TimeRangeForm";
 import { OpenTimeRangeWithKey } from "./types";
 import { getTimeRangeFromLastNTimeRangeKey, isTimeRangeKey } from "./utils";
 

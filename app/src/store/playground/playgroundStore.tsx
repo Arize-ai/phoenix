@@ -13,12 +13,12 @@ import {
   RESPONSE_FORMAT_PARAM_NAME,
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
 } from "@phoenix/pages/playground/constants";
-import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
   mergeInvocationParametersWithDefaults,
 } from "@phoenix/pages/playground/invocationParameterUtils";
+import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 
