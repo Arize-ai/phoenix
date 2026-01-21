@@ -710,6 +710,17 @@ class DatasetEvaluator(Node):
             path_mapping=input_mapping.get("path_mapping", {}),
         )
 
+    @strawberry.field
+    async def user(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        record = await self._get_record(info)
+        if record.user_id is None:
+            return None
+        from .User import User
+
+        return User(id=record.user_id)
+
     async def _get_record(self, info: Info[Context, None]) -> models.DatasetEvaluators:
         if self.db_record is not None:
             return self.db_record

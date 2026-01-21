@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e0e2056e833764653f1c40555f5c1141>>
+ * @generated SignedSource<<876eb6ef8caa271869f214cd10573434>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,10 @@ export type EvaluatorsTable_row$data = {
     readonly name: string;
   } | null;
   readonly updatedAt: string;
+  readonly user?: {
+    readonly profilePictureUrl: string | null;
+    readonly username: string;
+  } | null;
   readonly " $fragmentType": "EvaluatorsTable_row";
 };
 export type EvaluatorsTable_row$key = {
@@ -37,6 +41,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "c186b042884598f41e4b50c8132e7632";
+(node as any).hash = "2a80dc1f316d5c7ffd9b1553c63a47ac";
 
 export default node;

@@ -374,6 +374,7 @@ class EvaluatorMutationMixin:
                     input_mapping=input.input_mapping.to_dict()
                     if input.input_mapping is not None
                     else {"literal_mapping": {}, "path_mapping": {}},
+                    user_id=user_id,
                 )
 
                 # Handle prompt version ID if provided
@@ -589,12 +590,14 @@ class EvaluatorMutationMixin:
                     "path_mapping": {},
                 }
             )
+            dataset_evaluator.user_id = user_id
 
             llm_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
             llm_evaluator.output_config = output_config
             llm_evaluator.updated_at = datetime.now(timezone.utc)
+            llm_evaluator.user_id = user_id
 
             if new_prompt is not None:
                 # We already created a new prompt above
@@ -689,6 +692,12 @@ class EvaluatorMutationMixin:
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
         input_mapping: EvaluatorInputMappingInput = (
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
@@ -719,6 +728,7 @@ class EvaluatorMutationMixin:
             evaluator_id=None,
             output_config_override=output_config_override,
             description=input.description,
+            user_id=user_id,
         )
 
         try:
@@ -753,6 +763,12 @@ class EvaluatorMutationMixin:
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
         try:
             async with info.context.db() as session:
                 dataset_evaluator = await session.get(
@@ -781,6 +797,7 @@ class EvaluatorMutationMixin:
                 dataset_evaluator.display_name = display_name
                 dataset_evaluator.input_mapping = input_mapping.to_dict()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
+                dataset_evaluator.user_id = user_id
 
                 if input.output_config_override is not UNSET:
                     base_config = builtin_evaluator.output_config()
