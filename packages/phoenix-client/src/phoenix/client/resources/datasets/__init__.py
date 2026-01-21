@@ -46,6 +46,8 @@ class _InputDatasetExample(TypedDict, total=False):
     input: Required[Mapping[str, Any]]
     output: Required[Mapping[str, Any]]
     metadata: Mapping[str, Any]
+    span_id: Optional[str]
+    splits: Optional[Union[str, list[str]]]
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -320,11 +322,13 @@ class DatasetKeys:
         output_keys: frozenset[str],
         metadata_keys: frozenset[str],
         split_keys: frozenset[str] = frozenset(),
+        span_id_key: Optional[str] = None,
     ):
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
         self.split = split_keys
+        self.span_id = span_id_key
 
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
@@ -339,15 +343,32 @@ class DatasetKeys:
         if self.metadata & self.split:
             raise ValueError(f"Metadata and split keys overlap: {self.metadata & self.split}")
 
+        # Validate span_id_key doesn't overlap with other keys
+        if self.span_id:
+            span_id_set = frozenset([self.span_id])
+            if self.input & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with input keys")
+            if self.output & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with output keys")
+            if self.metadata & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with metadata keys")
+            if self.split & span_id_set:
+                raise ValueError(f"span_id_key '{self.span_id}' overlaps with split keys")
+
     def check_differences(self, available_keys: frozenset[str]) -> None:
         """Check that all specified keys exist in available keys."""
         all_keys = self.input | self.output | self.metadata | self.split
+        if self.span_id:
+            all_keys = all_keys | frozenset([self.span_id])
         if diff := all_keys - available_keys:
             raise ValueError(f"Keys not found in available columns: {diff}")
 
     def __iter__(self) -> "Iterator[str]":
         """Allow iteration over all keys."""
-        return iter(self.input | self.output | self.metadata | self.split)
+        all_keys = self.input | self.output | self.metadata | self.split
+        if self.span_id:
+            all_keys = all_keys | frozenset([self.span_id])
+        return iter(all_keys)
 
 
 def _parse_datetime(datetime_str: str) -> datetime:
@@ -733,6 +754,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -753,6 +775,9 @@ class Datasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            span_id_key: Optional column name containing span IDs to link dataset examples
+                back to their original traces. The column should contain OTEL span_id values
+                (string format). Examples will be linked to spans if they exist in the database.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -766,6 +791,28 @@ class Datasets:
             ValueError: If invalid parameter combinations are provided.
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
+
+        Example::
+
+            from phoenix.client import Client
+            import pandas as pd
+
+            client = Client()
+
+            # Create dataset with span ID links
+            spans_df = pd.DataFrame({
+                "input": ["What is AI?", "Explain ML"],
+                "output": ["Artificial Intelligence is...", "Machine Learning is..."],
+                "context.span_id": ["abc123", "def456"]
+            })
+
+            dataset = client.datasets.create_dataset(
+                name="my-dataset",
+                dataframe=spans_df,
+                input_keys=["input"],
+                output_keys=["output"],
+                span_id_key="context.span_id"
+            )
         """
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
@@ -781,6 +828,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -797,6 +845,7 @@ class Datasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -808,6 +857,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -819,6 +869,7 @@ class Datasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -835,6 +886,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -855,6 +907,9 @@ class Datasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            span_id_key: Optional column name containing span IDs to link dataset examples
+                back to their original traces. The column should contain OTEL span_id values
+                (string format). Examples will be linked to spans if they exist in the database.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -899,6 +954,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -915,6 +971,7 @@ class Datasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -926,6 +983,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -937,6 +995,7 @@ class Datasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -987,6 +1046,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1006,7 +1066,9 @@ class Datasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
+        keys = DatasetKeys(
+            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+        )
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1023,18 +1085,24 @@ class Datasets:
             file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
+        data_dict: dict[str, Any] = {
+            "action": action,
+            "name": dataset_name,
+            "description": dataset_description or "",
+            "input_keys[]": sorted(keys.input),
+            "output_keys[]": sorted(keys.output),
+            "metadata_keys[]": sorted(keys.metadata),
+            "split_keys[]": sorted(keys.split),
+        }
+
+        # Add span_id_key if present
+        if keys.span_id:
+            data_dict["span_id_key"] = keys.span_id
+
         response = self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
-            data={
-                "action": action,
-                "name": dataset_name,
-                "description": dataset_description or "",
-                "input_keys[]": sorted(keys.input),
-                "output_keys[]": sorted(keys.output),
-                "metadata_keys[]": sorted(keys.metadata),
-                "split_keys[]": sorted(keys.split),
-            },
+            data=data_dict,
             params={"sync": True},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1050,6 +1118,7 @@ class Datasets:
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
+        span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1062,6 +1131,7 @@ class Datasets:
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
+        span_ids_list = list(span_ids) if span_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1088,15 +1158,26 @@ class Datasets:
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
             )
 
-        payload = {
+        # Validate span_ids separately (can be string or None)
+        if span_ids_list and len(span_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
+            )
+
+        payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
-            "outputs": outputs_list or [{}] * len(inputs_list),
-            "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [None] * len(inputs_list),
         }
-
+        # Only include optional fields if they have meaningful values
+        if outputs_list:
+            payload["outputs"] = outputs_list
+        if metadata_list:
+            payload["metadata"] = metadata_list
+        if splits_list and any(s is not None for s in splits_list):
+            payload["splits"] = splits_list
+        if span_ids_list and any(s is not None for s in span_ids_list):
+            payload["span_ids"] = span_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1476,6 +1557,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1524,6 +1606,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1540,6 +1623,7 @@ class AsyncDatasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1551,6 +1635,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1562,6 +1647,7 @@ class AsyncDatasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1578,6 +1664,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1642,6 +1729,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1658,6 +1746,7 @@ class AsyncDatasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1669,6 +1758,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1680,6 +1770,7 @@ class AsyncDatasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1717,6 +1808,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1734,7 +1826,9 @@ class AsyncDatasets:
             output_keys_set = frozenset(output_keys_tuple)
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
-        keys = DatasetKeys(input_keys_set, output_keys_set, metadata_keys_set, split_keys_set)
+        keys = DatasetKeys(
+            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+        )
 
         if isinstance(table, Path) or isinstance(table, str):
             file = _prepare_csv(Path(table), keys)
@@ -1751,18 +1845,24 @@ class AsyncDatasets:
             file = _prepare_dataframe_as_csv(table, keys)
 
         logger.info("Uploading dataset...")
+        data_dict: dict[str, Any] = {
+            "action": action,
+            "name": dataset_name,
+            "description": dataset_description or "",
+            "input_keys[]": sorted(keys.input),
+            "output_keys[]": sorted(keys.output),
+            "metadata_keys[]": sorted(keys.metadata),
+            "split_keys[]": sorted(keys.split),
+        }
+
+        # Add span_id_key if present
+        if keys.span_id:
+            data_dict["span_id_key"] = keys.span_id
+
         response = await self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
-            data={
-                "action": action,
-                "name": dataset_name,
-                "description": dataset_description or "",
-                "input_keys[]": sorted(keys.input),
-                "output_keys[]": sorted(keys.output),
-                "metadata_keys[]": sorted(keys.metadata),
-                "split_keys[]": sorted(keys.split),
-            },
+            data=data_dict,
             params={"sync": True},
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1778,6 +1878,7 @@ class AsyncDatasets:
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
+        span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1788,6 +1889,7 @@ class AsyncDatasets:
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
+        span_ids_list = list(span_ids) if span_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1814,15 +1916,26 @@ class AsyncDatasets:
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
             )
 
-        payload = {
+        # Validate span_ids separately (can be string or None)
+        if span_ids_list and len(span_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
+            )
+
+        payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
-            "outputs": outputs_list or [{}] * len(inputs_list),
-            "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [None] * len(inputs_list),
         }
-
+        # Only include optional fields if they have meaningful values
+        if outputs_list:
+            payload["outputs"] = outputs_list
+        if metadata_list:
+            payload["metadata"] = metadata_list
+        if splits_list and any(s is not None for s in splits_list):
+            payload["splits"] = splits_list
+        if span_ids_list and any(s is not None for s in span_ids_list):
+            payload["span_ids"] = span_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1926,10 +2039,12 @@ def _prepare_dataframe_as_csv(
 
     keys.check_differences(frozenset(df.columns))
 
-    # Ensure consistent column ordering: input, output, metadata, split
-    selected_columns = (
+    # Ensure consistent column ordering: input, output, metadata, split, span_id
+    selected_columns: list[str] = (
         sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata) + sorted(keys.split)
     )
+    if keys.span_id:
+        selected_columns.append(keys.span_id)
 
     csv_buffer = BytesIO()
     df[selected_columns].to_csv(csv_buffer, index=False)  # pyright: ignore[reportUnknownMemberType]

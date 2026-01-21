@@ -1186,6 +1186,20 @@
                       ]
                     },
                     "description": "Split per example: string, string array, or null"
+                  },
+                  "span_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Span IDs to link examples back to spans"
                   }
                 }
               }
@@ -1241,6 +1255,10 @@
                     },
                     "uniqueItems": true,
                     "description": "Column names for auto-assigning examples to splits"
+                  },
+                  "span_id_key": {
+                    "type": "string",
+                    "description": "Column name for span IDs to link examples back to spans"
                   },
                   "file": {
                     "type": "string",

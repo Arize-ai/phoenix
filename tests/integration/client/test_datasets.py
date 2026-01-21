@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from secrets import token_hex
-from typing import Any
+from typing import Any, Sequence
 
 import pandas as pd
 import pytest
@@ -12,7 +12,7 @@ import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 
-from .._helpers import _AppInfo, _await_or_return, _gql
+from .._helpers import _AppInfo, _await_or_return, _ExistingSpan, _gql
 
 
 class TestDatasetIntegration:
@@ -1339,3 +1339,418 @@ Capital of Germany?,Berlin,geography,validation
         assert len(example_id_list) == len(set(example_id_list)), (
             f"Duplicate example IDs found in results! IDs: {example_id_list}"
         )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_key_csv(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
+        tmp_path: Path,
+    ) -> None:
+        """Test creating dataset with span_id_key parameter from CSV."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans required"
+        span_id_1 = _existing_spans[0].span_id
+        span_id_2 = _existing_spans[1].span_id
+
+        # Create CSV file with span_id column
+        unique_name = f"test_span_links_{token_hex(4)}"
+        csv_file = tmp_path / "test_data.csv"
+        csv_content = f"""question,answer,trace_span_id
+What is AI?,Artificial Intelligence,{span_id_1}
+What is ML?,Machine Learning,{span_id_2}
+What is DL?,Deep Learning,nonexistent-span
+What is NLP?,Natural Language Processing,
+"""
+        csv_file.write_text(csv_content)
+
+        # Create dataset with span_id_key parameter
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                csv_file_path=csv_file,
+                input_keys=["question"],
+                output_keys=["answer"],
+                span_id_key="trace_span_id",
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 4
+
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 4 examples were created
+        assert len(examples) == 4
+
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 2 examples should have valid span links
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 2
+
+        # The two valid span links should be span_id_1 and span_id_2
+        assert set(non_null_spans) == {span_id_1, span_id_2}
+
+        # Exactly 2 examples should have no span link (nonexistent + empty)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 2
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_key_dataframe(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
+    ) -> None:
+        """Test creating dataset with span_id_key parameter from DataFrame."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 1, "At least one existing span required"
+        span_id = _existing_spans[0].span_id
+
+        # Create DataFrame with span_id column
+        unique_name = f"test_span_links_df_{token_hex(4)}"
+        df = pd.DataFrame(
+            {
+                "input": ["What is Phoenix?", "What is OpenTelemetry?"],
+                "output": ["An observability platform", "A telemetry framework"],
+                "context.span_id": [span_id, None],
+            }
+        )
+
+        # Create dataset with span_id_key parameter
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                dataframe=df,
+                input_keys=["input"],
+                output_keys=["output"],
+                span_id_key="context.span_id",
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 2
+
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 2 examples were created
+        assert len(examples) == 2
+
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 1 example should have a valid span link
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 1
+        assert non_null_spans[0] == span_id
+
+        # Exactly 1 example should have no span link
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_in_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
+    ) -> None:
+        """Test creating dataset with span_id in examples parameter (JSON path)."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans required"
+        span_id_1 = _existing_spans[0].span_id
+        span_id_2 = _existing_spans[1].span_id
+
+        # Create dataset with span_id in examples
+        unique_name = f"test_span_examples_{token_hex(4)}"
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {
+                        "input": {"q": "What is span linking?"},
+                        "output": {"a": "It links examples to traces"},
+                        "span_id": span_id_1,
+                    },
+                    {
+                        "input": {"q": "How does it work?"},
+                        "output": {"a": "By storing span_rowid"},
+                        "span_id": span_id_2,
+                    },
+                    {
+                        "input": {"q": "What about missing spans?"},
+                        "output": {"a": "They are handled gracefully"},
+                        "span_id": "nonexistent-span",
+                    },
+                    {
+                        "input": {"q": "What about None?"},
+                        "output": {"a": "Also handled"},
+                        "span_id": None,
+                    },
+                ],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 4
+
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 4 examples were created
+        assert len(examples) == 4
+
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 2 examples should have valid span links
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 2
+
+        # The two valid span links should be span_id_1 and span_id_2
+        assert set(non_null_spans) == {span_id_1, span_id_2}
+
+        # Exactly 2 examples should have no span link (nonexistent + None)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 2
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_examples_with_span_id(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
+    ) -> None:
+        """Test adding examples with span_id to existing dataset."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 1, "At least one existing span required"
+        span_id = _existing_spans[0].span_id
+
+        # Create initial dataset without span links
+        unique_name = f"test_append_spans_{token_hex(4)}"
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"input": {"q": "Initial"}, "output": {"a": "Example"}},
+                ],
+            )
+        )
+
+        assert len(dataset) == 1
+
+        # Add examples with span links
+        updated_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset,
+                examples=[
+                    {
+                        "input": {"q": "Added with span"},
+                        "output": {"a": "Linked"},
+                        "span_id": span_id,
+                    },
+                ],
+            )
+        )
+
+        assert len(updated_dataset) == 2
+
+        # Verify examples via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": updated_dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 2 examples exist
+        assert len(examples) == 2
+
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 1 example should have a valid span link
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 1
+        assert non_null_spans[0] == span_id
+
+        # Exactly 1 example should have no span link (the original)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_dataset_with_only_inputs(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test create and add with only inputs (no outputs/metadata/splits/span_ids).
+
+        This tests the optimization that omits optional fields from the payload
+        when they have no meaningful values. The server should handle missing
+        keys and create examples with default values.
+        """
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        unique_name = f"test_minimal_dataset_{token_hex(4)}"
+
+        # Create dataset with only inputs - no outputs, metadata, splits, or span_ids
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is AI?"},
+                    {"question": "What is ML?"},
+                ],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 2
+
+        # Add more examples with only inputs
+        updated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset,
+                inputs=[{"question": "What is DL?"}],
+            )
+        )
+        assert len(updated) == 3
+
+        # Verify examples via GraphQL - check they have default values
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    revision {
+                                        input
+                                        output
+                                        metadata
+                                    }
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": updated.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 3 examples total (2 created + 1 added)
+        assert len(examples) == 3
+
+        for ex in examples:
+            revision = ex["node"]["revision"]
+            # Input should have our question
+            assert "question" in revision["input"]
+            # Output should be empty dict (server default)
+            assert revision["output"] == {}
+            # Metadata should be empty dict (server default)
+            assert revision["metadata"] == {}
+            # No span link
+            assert ex["node"]["span"] is None

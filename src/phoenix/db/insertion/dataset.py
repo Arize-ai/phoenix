@@ -29,6 +29,7 @@ class ExampleContent:
     output: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
     splits: frozenset[str] = field(default_factory=frozenset)  # Set of split names
+    span_id: Optional[str] = None  # OTEL span ID for linking back to traces
 
 
 Examples: TypeAlias = Iterable[ExampleContent]
@@ -138,6 +139,46 @@ async def insert_dataset_example_revision(
         .returning(models.DatasetExampleRevision.id)
     )
     return cast(DatasetExampleRevisionId, id_)
+
+
+async def resolve_span_ids_to_rowids(
+    session: AsyncSession,
+    span_ids: list[Optional[str]],
+) -> dict[str, int]:
+    """
+    Batch resolve span_id strings to database row IDs.
+
+    Args:
+        session: Database session
+        span_ids: List of OTEL span ID strings
+
+    Returns:
+        Dictionary mapping span_id to Span.id (database row ID)
+    """
+    # Filter out None and empty strings
+    valid_span_ids = [sid for sid in span_ids if sid]
+    if not valid_span_ids:
+        return {}
+
+    # Query spans table for matching span_ids
+    result = await session.execute(
+        select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(valid_span_ids))
+    )
+
+    # Build mapping of span_id (string) to span row ID (int)
+    span_id_to_rowid: dict[str, int] = {}
+    for span_id, row_id in result.all():
+        span_id_to_rowid[span_id] = row_id
+
+    # Log warnings for span IDs that couldn't be resolved
+    missing_span_ids = set(valid_span_ids) - set(span_id_to_rowid.keys())
+    if missing_span_ids:
+        logger.warning(
+            f"Could not resolve {len(missing_span_ids)} span IDs to database records. "
+            f"Examples will be created without span links."
+        )
+
+    return span_id_to_rowid
 
 
 async def bulk_create_dataset_splits(
@@ -276,13 +317,26 @@ async def add_dataset_examples(
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
 
+    # Collect all examples first to batch resolve span IDs
+    examples_list = list((await examples) if isinstance(examples, Awaitable) else examples)
+
+    # Batch resolve span IDs to row IDs
+    span_ids_to_resolve = [ex.span_id for ex in examples_list]
+    span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
+
     # Process examples and collect split assignments (by name, resolved to IDs after iteration)
     split_assignments: list[tuple[DatasetExampleId, str]] = []
-    for example in (await examples) if isinstance(examples, Awaitable) else examples:
+    for example in examples_list:
+        # Get span row ID if available
+        span_rowid = None
+        if example.span_id:
+            span_rowid = span_id_to_rowid.get(example.span_id)
+
         try:
             dataset_example_id = await insert_dataset_example(
                 session=session,
                 dataset_id=dataset_id,
+                span_rowid=span_rowid,
                 created_at=created_at,
             )
         except Exception:
