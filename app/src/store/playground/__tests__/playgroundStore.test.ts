@@ -47,7 +47,6 @@ describe("getInitialInstances", () => {
       datasetId: null,
       instances: [newInstance],
       modelConfigByProvider: {},
-      datasetId: null,
     };
 
     // Create normalized instances from the denormalized instance
