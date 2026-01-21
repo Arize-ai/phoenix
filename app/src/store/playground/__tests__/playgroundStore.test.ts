@@ -1,3 +1,4 @@
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -6,7 +7,6 @@ import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
 } from "@phoenix/pages/playground/constants";
-import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 
 import {
   _resetInstanceId,
