@@ -50,6 +50,9 @@ const playgroundWrapCSS = css`
 `;
 
 export function Playground(props: Partial<PlaygroundProps>) {
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
+
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
@@ -62,6 +65,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
     `,
     {}
   );
+
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -78,6 +82,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }
   return (
     <PlaygroundProvider
+      datasetId={datasetId}
       {...props}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
@@ -202,6 +207,14 @@ function PlaygroundContent() {
       left.every((id, index) => id === right[index])
   );
 
+  const playgroundDatasetStateByDatasetId = usePlaygroundContext(
+    (state) => state.stateByDatasetId
+  );
+  const playgroundDatasetState = datasetId
+    ? playgroundDatasetStateByDatasetId[datasetId]
+    : null;
+  const { appendedMessagesPath } = playgroundDatasetState ?? {};
+
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
@@ -261,6 +274,7 @@ function PlaygroundContent() {
                         >
                           <PlaygroundTemplate
                             playgroundInstanceId={instanceId}
+                            appendedMessagesPath={appendedMessagesPath}
                           />
                         </View>
                       ))}

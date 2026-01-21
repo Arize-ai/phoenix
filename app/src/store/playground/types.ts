@@ -255,26 +255,37 @@ export interface PlaygroundProps {
    * @default 1
    */
   repetitions: number;
-  /**
-   * Dot-notation path to messages in dataset example input to append to prompt.
-   * When set, messages at this path will be appended to the playground prompt
-   * after template variables are applied.
-   * @example "messages" or "input_messages"
-   * @default null
-   */
-  appendedMessagesPath: string | null;
-  /**
-   * Dot-notation path prefix for template variables when running over a dataset.
-   * Default 'input' means {{query}} resolves to input.query of the dataset example.
-   * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
-   * @example "input" or "reference" or null
-   * @default "input"
-   */
-  templateVariablesPath: string | null;
 }
+
+export const PlaygroundStateByDatasetIdSchema = z.record(
+  z.string(),
+  z.object({
+    /**
+     * Dot-notation path to messages in dataset example input to append to prompt.
+     * When set, messages at this path will be appended to the playground prompt
+     * after template variables are applied.
+     * @example "messages" or "input_messages"
+     * @default null
+     */
+    appendedMessagesPath: z.string().nullish(),
+    /**
+     * Dot-notation path prefix for template variables when running over a dataset.
+     * Default 'input' means {{query}} resolves to input.query of the dataset example.
+     * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
+     * @example "input" or "reference" or null
+     * @default "input"
+     */
+    templateVariablesPath: z.string().nullish(),
+  })
+);
+
+export type PlaygroundStateByDatasetId = z.infer<
+  typeof PlaygroundStateByDatasetIdSchema
+>;
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
+  datasetId?: string | null;
 };
 
 /**
@@ -314,6 +325,22 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * A map of instance id to whether the instance is dirty
    */
   dirtyInstances: Record<number, boolean>;
+
+  /**
+   * A map of dataset id to the playground state for that dataset
+   */
+  stateByDatasetId: PlaygroundStateByDatasetId;
+
+  /**
+   * The id of the dataset currently being used
+   * @default null
+   */
+  datasetId: string | null;
+  /**
+   * Setter for the dataset id
+   * @param datasetId the id of the dataset to set
+   */
+  setDatasetId: (datasetId: string | null) => void;
 
   /**
    * Setter for the invocation mode
@@ -446,13 +473,25 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setRepetitions: (repetitions: number) => void;
   /**
-   * Set the appended messages path for dataset experiments
+   * Set the appended messages path
    */
-  setAppendedMessagesPath: (path: string | null) => void;
+  setAppendedMessagesPath: ({
+    path,
+    datasetId,
+  }: {
+    path: string | null;
+    datasetId: string;
+  }) => void;
   /**
    * Set the template variables path for dataset experiments
    */
-  setTemplateVariablesPath: (path: string | null) => void;
+  setTemplateVariablesPath: ({
+    templateVariablesPath,
+    datasetId,
+  }: {
+    templateVariablesPath: string | null;
+    datasetId: string;
+  }) => void;
   /**
    * Set the dirty state of an instance
    */

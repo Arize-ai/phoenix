@@ -93,7 +93,10 @@ export function PlaygroundExperimentToolbar({
             isDisabled={isRunning}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
-          <PlaygroundExperimentSettingsButton isDisabled={isRunning} />
+          <PlaygroundExperimentSettingsButton
+            isDisabled={isRunning}
+            datasetId={datasetId}
+          />
         </Flex>
       </Flex>
     </View>

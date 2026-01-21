@@ -13,6 +13,7 @@ import {
   createNormalizedPlaygroundInstance,
   createOpenAIResponseFormat,
   createPlaygroundStore,
+  DEFAULT_TEMPLATE_VARIABLES_PATH,
   getInitialInstances,
 } from "../playgroundStore";
 import type { InitialPlaygroundState } from "../types";
@@ -43,6 +44,7 @@ describe("getInitialInstances", () => {
 
     // simulated props that would be passed to the PlaygroundProvider
     const initialProps: InitialPlaygroundState = {
+      datasetId: null,
       instances: [newInstance],
       modelConfigByProvider: {},
     };
@@ -64,6 +66,7 @@ describe("getInitialInstances", () => {
   it("should create a new default instance if no instances exist in initialProps and there are no saved modelConfigs", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const { instances } = getInitialInstances(initialProps);
 
@@ -75,6 +78,7 @@ describe("getInitialInstances", () => {
 
   it("should use saved model config if available", () => {
     const initialProps: InitialPlaygroundState = {
+      datasetId: null,
       modelConfigByProvider: {
         OPENAI: {
           modelName: "test-model",
@@ -93,6 +97,7 @@ describe("getInitialInstances", () => {
 
   it("should use default model provider config if available", () => {
     const initialProps: InitialPlaygroundState = {
+      datasetId: null,
       modelConfigByProvider: {
         OPENAI: {
           modelName: "test-model-openai",
@@ -116,6 +121,7 @@ describe("getInitialInstances", () => {
 
   it("should use any saved config if available if the default provider config is not", () => {
     const initialProps: InitialPlaygroundState = {
+      datasetId: null,
       modelConfigByProvider: {
         ANTHROPIC: {
           modelName: "test-model-anthropic",
@@ -137,6 +143,7 @@ describe("setSelectedRepetitionNumber", () => {
   it("should set selected repetition number for an instance", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
@@ -159,6 +166,7 @@ describe("appendRepetitionOutput", () => {
   it("should append content to null and existing output and preserve other repetitions", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().setRepetitions(2);
@@ -185,6 +193,7 @@ describe("setRepetitionError", () => {
   it("should set repetition error and preserve other repetition properties", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().runPlaygroundInstances();
@@ -226,6 +235,7 @@ describe("setRepetitionStatus", () => {
   it("should set repetition status", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().runPlaygroundInstances();
@@ -254,6 +264,7 @@ describe("setRepetitionSpanId", () => {
   it("should set repetition span id", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().runPlaygroundInstances();
@@ -274,6 +285,7 @@ describe("addRepetitionPartialToolCall", () => {
   it("should add new tool call and concatenate arguments to existing tool call", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().runPlaygroundInstances();
@@ -352,6 +364,7 @@ describe("setRepetitionToolCalls", () => {
   it("should set the tool calls for a repetition and replace existing tool calls if present", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().runPlaygroundInstances();
@@ -424,6 +437,7 @@ describe("clearRepetitions", () => {
   it("should clear repetitions for one instance without affecting other instances", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
@@ -467,6 +481,7 @@ describe("runPlaygroundInstances", () => {
   it("should create repetitions, set activeRunId, initialize status, and clear previous data", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
@@ -541,6 +556,7 @@ describe("markPlaygroundInstanceComplete", () => {
   it("should mark a specific instance as complete without affecting other instances", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
@@ -620,6 +636,7 @@ describe("cancelPlaygroundInstances", () => {
   it("should cancel all instances and set all repetitions to finished", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     store.getState().addInstance();
@@ -699,6 +716,7 @@ describe("updateModelSupportedInvocationParameters", () => {
     // the model changes (e.g., GPT-4o to GPT-4.1) because it's not marked as dirty.
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     const instanceId = store.getState().instances[0].id;
@@ -769,6 +787,7 @@ describe("updateModelSupportedInvocationParameters", () => {
     // clicking "Compare" because the new instance triggers updateModelSupportedInvocationParameters.
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     const firstInstanceId = store.getState().instances[0].id;
@@ -843,6 +862,7 @@ describe("updateModelSupportedInvocationParameters", () => {
     // code should NOT append it again.
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
+      datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
     const instanceId = store.getState().instances[0].id;
@@ -903,5 +923,91 @@ describe("updateModelSupportedInvocationParameters", () => {
     );
     expect(responseFormats).toHaveLength(1);
     expect(responseFormats[0]?.valueJson).toEqual(responseFormatValue);
+  });
+});
+
+describe("dataset-scoped state", () => {
+  beforeEach(() => {
+    _resetInstanceId();
+  });
+
+  it("should initialize templateVariablesPath when store is created with a dataset ID", () => {
+    const datasetId = "test-dataset-123";
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+      datasetId,
+    };
+    const store = createPlaygroundStore(initialProps);
+
+    // verify the dataset ID is set
+    expect(store.getState().datasetId).toBe(datasetId);
+
+    // verify templateVariablesPath is initialized to the default value
+    expect(store.getState().stateByDatasetId[datasetId]).toEqual({
+      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+    });
+  });
+
+  it("should initialize templateVariablesPath when dataset ID is changed to a new value", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+      datasetId: null,
+    };
+    const store = createPlaygroundStore(initialProps);
+
+    // verify initial state has no dataset
+    expect(store.getState().datasetId).toBe(null);
+    expect(store.getState().stateByDatasetId).toEqual({});
+
+    // change to a new dataset
+    const newDatasetId = "new-dataset-456";
+    store.getState().setDatasetId(newDatasetId);
+
+    // verify the dataset ID is updated
+    expect(store.getState().datasetId).toBe(newDatasetId);
+
+    // verify templateVariablesPath is initialized to the default value for the new dataset
+    expect(store.getState().stateByDatasetId[newDatasetId]).toEqual({
+      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+    });
+  });
+
+  it("should not re-initialize when switching back to a previously visited dataset", () => {
+    const datasetId1 = "dataset-1";
+    const datasetId2 = "dataset-2";
+    const customPath = "custom.path";
+
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+      datasetId: datasetId1,
+    };
+    const store = createPlaygroundStore(initialProps);
+
+    // set a custom template variables path for dataset 1
+    store.getState().setTemplateVariablesPath({
+      templateVariablesPath: customPath,
+      datasetId: datasetId1,
+    });
+
+    // verify the custom path is set
+    expect(
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+    ).toBe(customPath);
+
+    // switch to dataset 2
+    store.getState().setDatasetId(datasetId2);
+    expect(store.getState().datasetId).toBe(datasetId2);
+    expect(store.getState().stateByDatasetId[datasetId2]).toEqual({
+      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+    });
+
+    // switch back to dataset 1
+    store.getState().setDatasetId(datasetId1);
+    expect(store.getState().datasetId).toBe(datasetId1);
+
+    // verify the custom path is still preserved
+    expect(
+      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+    ).toBe(customPath);
   });
 });
