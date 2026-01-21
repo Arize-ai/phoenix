@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97f4ced9eef764910a2c7166985f81cc>>
+ * @generated SignedSource<<ba3122649f82a874ebe11d10f86dd1ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -156,6 +156,24 @@ return {
                       "storageKey": null
                     },
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "User",
+                      "kind": "LinkedField",
+                      "name": "user",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "email",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,

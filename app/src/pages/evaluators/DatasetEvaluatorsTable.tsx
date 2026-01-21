@@ -97,6 +97,9 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
         id
         displayName
         updatedAt
+        user {
+          email
+        }
         evaluator {
           id
           name
@@ -220,6 +223,12 @@ export const DatasetEvaluatorsTable = ({
             promptVersionTag={row.original.evaluator.promptVersionTag?.name}
           />
         ),
+      },
+      {
+        header: "created by",
+        accessorKey: "user.email",
+        enableSorting: false,
+        cell: TextCell,
       },
       {
         header: "last updated",

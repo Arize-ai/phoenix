@@ -179,6 +179,8 @@ class TestDatasetLLMEvaluatorMutations:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.evaluator_id is not None
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
             llm_evaluator = await session.get(
                 models.LLMEvaluator, db_dataset_evaluator.evaluator_id
             )
@@ -1924,6 +1926,8 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.builtin_evaluator_id == builtin_evaluator_id
             assert db_dataset_evaluator.evaluator_id is None
+            # user_id is None when authentication is disabled
+            assert db_dataset_evaluator.user_id is None
             assert db_dataset_evaluator.input_mapping == {
                 "literal_mapping": {},
                 "path_mapping": {},
