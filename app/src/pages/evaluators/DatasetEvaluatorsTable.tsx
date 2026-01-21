@@ -27,9 +27,9 @@ import {
   View,
 } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
-import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import type {
   DatasetEvaluatorFilter,
   DatasetEvaluatorSort,

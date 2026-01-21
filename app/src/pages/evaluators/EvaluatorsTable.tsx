@@ -19,9 +19,9 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
-import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
