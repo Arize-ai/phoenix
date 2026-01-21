@@ -13,12 +13,14 @@ title: "01.21.2026 Create Datasets from Traces with Span Associations"
 
 ## Overview
 
-**Available in arize-phoenix-client 1.28.0+**
+**Available in arize-phoenix-client 1.28.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
 
-Phoenix now supports creating datasets directly from production traces, preserving bidirectional associations between dataset examples and their originating spans. This enables teams to systematically convert real-world agent interactions into curated test cases for evaluation and stress testing.
+The Phoenix client now supports creating datasets directly from production traces, preserving bidirectional associations between dataset examples and their originating spans. This client-side capability enables teams to systematically query spans and convert real-world agent interactions into curated test cases for evaluation and testing.
 
-```python
+<CodeGroup>
+```python Python
 from phoenix.client import Client
+from datetime import datetime, timedelta, timezone
 
 client = Client()
 
@@ -27,6 +29,9 @@ spans_df = client.spans.get_spans_dataframe(
     project_identifier="production-agent",
     start_time=datetime.now(timezone.utc) - timedelta(days=7),
 )
+
+# Transform and prepare data
+prepared_df = prepare_dataset_from_spans_df(spans_df)
 
 # Create dataset with span associations
 dataset = client.datasets.create_dataset(
@@ -38,28 +43,49 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+```typescript TypeScript
+import { createClient, getSpans, createDataset } from "@arizeai/phoenix-client";
+
+const client = createClient();
+
+// Query spans from production traces
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "production-agent" },
+  startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  limit: 100,
+});
+
+// Transform and prepare data
+const preparedExamples = prepareExamples(spans);
+
+// Create dataset with span associations
+const { datasetId } = await createDataset({
+  client,
+  name: "edge-cases-from-production",
+  description: "Edge cases from production traces",
+  examples: preparedExamples.map((ex) => ({
+    input: { question: ex.question },
+    output: { answer: ex.answer },
+    spanId: ex.spanId, // Links examples to source spans
+  })),
+});
+```
+</CodeGroup>
+
 ## How It Works
 
-The workflow connects trace collection, span querying, and dataset creation into a single pipeline:
+Using the Phoenix client, the workflow is straightforward: query production spans with filters, then create a dataset with span associations.
 
 ```mermaid
-graph TB
-    A[Production Application] -->|Instrumented with OpenTelemetry| B[Phoenix Server]
-    B -->|Stores traces| C[Trace Database]
+graph LR
+    A[Production Traces] -->|1. Query with filters| B[Filtered Spans]
+    B -->|2. Transform data| C[Prepared Examples]
+    C -->|3. Create dataset with span_id_key| D[Dataset]
+    D -.->|Bidirectional link| A
 
-    D[Query Spans] -->|get_spans_dataframe| C
-    D -->|Returns DataFrame with span_id| E[Filtered Spans]
-
-    E -->|Transform & Prepare| F[Dataset DataFrame]
-    F -->|span_id_key parameter| G[create_dataset]
-
-    G -->|Creates examples with associations| H[Dataset with Span Links]
-
-    H -.->|Bidirectional link| C
-
-    style H fill:#e1f5ff
-    style C fill:#fff4e6
-    style E fill:#f0f0f0
+    style D fill:#e1f5ff
+    style A fill:#fff4e6
 ```
 
 Each dataset example maintains a reference to its source span, enabling:
@@ -73,18 +99,23 @@ Each dataset example maintains a reference to its source span, enabling:
 
 Production systems encounter scenarios that are difficult to anticipate during development. By querying failed or high-latency traces, teams can systematically build datasets that represent challenging real-world conditions.
 
-```python
+<CodeGroup>
+```python Python
+from phoenix.client.types import SpanQuery
+
 # Query traces that failed or took longer than expected
+query = SpanQuery().where('status_code = "ERROR" or attributes."llm.token_count.total" > 8000')
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="production-agent",
-    filter_condition='status_code = "ERROR" or attributes."llm.token_count.total" > 8000',
+    query=query,
     start_time=datetime.now(timezone.utc) - timedelta(days=30),
 )
 
-# Create dataset of difficult cases
+# Transform and create dataset of difficult cases
+prepared_df = prepare_examples(spans_df)
 dataset = client.datasets.create_dataset(
     name="production-edge-cases",
-    dataframe=prepare_examples(spans_df),
+    dataframe=prepared_df,
     input_keys=["question"],
     output_keys=["answer"],
     metadata_keys=["error_type", "latency_ms"],
@@ -92,22 +123,63 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+```typescript TypeScript
+// Query traces from last 30 days
+// Note: TypeScript client does not support filter conditions yet
+// Filter spans in your application logic after retrieval
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "production-agent" },
+  startTime: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+  limit: 1000,
+});
+
+// Filter for failed or high-token spans in application logic
+const filteredSpans = spans.filter(span =>
+  span.status_code === "ERROR" ||
+  (span.attributes?.["llm.token_count.total"] ?? 0) > 8000
+);
+
+// Transform and create dataset of difficult cases
+const preparedExamples = prepareExamples(filteredSpans);
+const { datasetId } = await createDataset({
+  client,
+  name: "production-edge-cases",
+  description: "Edge cases from failed or high-token traces",
+  examples: preparedExamples.map((ex) => ({
+    input: { question: ex.question },
+    output: { answer: ex.answer },
+    metadata: {
+      error_type: ex.errorType,
+      latency_ms: ex.latencyMs,
+    },
+    spanId: ex.spanId,
+  })),
+});
+```
+</CodeGroup>
+
 ### Building Golden Datasets from Validated Interactions
 
 Production traces that have been annotated or validated by human reviewers represent high-quality ground truth. These can be converted into golden datasets for regression testing.
 
-```python
+<CodeGroup>
+```python Python
+from phoenix.client.types import SpanQuery
+
 # Query annotated spans with positive feedback
+query = SpanQuery().where('attributes."annotation.quality" = "excellent"')
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="production-agent",
-    filter_condition='attributes."annotation.quality" = "excellent"',
+    query=query,
     start_time=datetime.now(timezone.utc) - timedelta(days=90),
 )
 
-# Create golden dataset
+# Transform and create golden dataset
+prepared_df = prepare_examples(spans_df)
 dataset = client.datasets.create_dataset(
     name="validated-golden-set",
-    dataframe=prepare_examples(spans_df),
+    dataframe=prepared_df,
     input_keys=["question"],
     output_keys=["answer"],
     metadata_keys=["validator_id", "quality_score"],
@@ -115,24 +187,119 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
-### Stress Testing with Representative Load Patterns
+```typescript TypeScript
+// Query spans from last 90 days
+// Note: TypeScript client does not support filter conditions yet
+// Filter for annotated spans in your application logic after retrieval
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "production-agent" },
+  startTime: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+  limit: 1000,
+});
 
-Datasets created from high-volume production periods capture realistic usage patterns, including common queries, edge cases, and concurrent request behaviors.
+// Filter for excellent quality annotations
+const filteredSpans = spans.filter(span =>
+  span.attributes?.["annotation.quality"] === "excellent"
+);
+
+// Transform and create golden dataset
+const preparedExamples = prepareExamples(filteredSpans);
+const { datasetId } = await createDataset({
+  client,
+  name: "validated-golden-set",
+  description: "Golden dataset from validated high-quality interactions",
+  examples: preparedExamples.map((ex) => ({
+    input: { question: ex.question },
+    output: { answer: ex.answer },
+    metadata: {
+      validator_id: ex.validatorId,
+      quality_score: ex.qualityScore,
+    },
+    spanId: ex.spanId,
+  })),
+});
+```
+</CodeGroup>
+
+### Regression Testing from Critical User Flows
+
+Production traces representing important user journeys can be captured as datasets to prevent regressions when updating prompts, models, or system components.
+
+<CodeGroup>
+```python Python
+from phoenix.client.types import SpanQuery
+
+# Query spans from key production workflows
+query = SpanQuery().where('attributes."workflow.type" = "checkout" or attributes."workflow.type" = "search"')
+spans_df = client.spans.get_spans_dataframe(
+    project_identifier="production-agent",
+    query=query,
+    start_time=datetime.now(timezone.utc) - timedelta(days=60),
+)
+
+# Transform and create regression test dataset
+prepared_df = prepare_examples(spans_df)
+dataset = client.datasets.create_dataset(
+    name="critical-flows-regression-suite",
+    dataframe=prepared_df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    metadata_keys=["workflow_type", "user_segment"],
+    span_id_key="context.span_id",
+)
+```
+
+```typescript TypeScript
+// Query spans from key production workflows
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "production-agent" },
+  startTime: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+  limit: 1000,
+});
+
+// Filter for critical workflow types
+const filteredSpans = spans.filter(span => {
+  const workflowType = span.attributes?.["workflow.type"];
+  return workflowType === "checkout" || workflowType === "search";
+});
+
+// Transform and create regression test dataset
+const preparedExamples = prepareExamples(filteredSpans);
+const { datasetId } = await createDataset({
+  client,
+  name: "critical-flows-regression-suite",
+  description: "Regression test suite from critical user flows",
+  examples: preparedExamples.map((ex) => ({
+    input: { question: ex.question },
+    output: { answer: ex.answer },
+    metadata: {
+      workflow_type: ex.workflowType,
+      user_segment: ex.userSegment,
+    },
+    spanId: ex.spanId,
+  })),
+});
+```
+</CodeGroup>
 
 ## Implementation Details
 
 ### Span Querying
 
-The `get_spans_dataframe` method returns a pandas DataFrame where:
-- `context.span_id` is the primary identifier (may be index or column)
-- Span attributes are flattened with prefix `attributes.*`
-- Input/output values are JSON-encoded strings requiring parsing
+**Python**: The `get_spans_dataframe` method returns a pandas DataFrame where `context.span_id` is the primary identifier (may be index or column), span attributes are flattened with prefix `attributes.*`, and input/output values are JSON-encoded strings requiring parsing.
+
+**TypeScript**: The `getSpans` method returns an array of span objects with `spanId`, `attributes`, and other properties directly accessible.
 
 ### Dataset Creation with Associations
 
-The `span_id_key` parameter in `create_dataset` specifies which column contains span identifiers:
+**Python**: The `span_id_key` parameter in `create_dataset` specifies which column contains span identifiers.
 
-```python
+**TypeScript**: The `spanId` field in each example object links the example to its source span.
+
+<CodeGroup>
+```python Python
 dataset = client.datasets.create_dataset(
     name="my-dataset",
     dataframe=df,
@@ -142,18 +309,30 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+```typescript TypeScript
+const { datasetId } = await createDataset({
+  client,
+  name: "my-dataset",
+  description: "My dataset description",
+  examples: examples.map((ex) => ({
+    input: { question: ex.question },
+    output: { answer: ex.answer },
+    spanId: ex.spanId, // Links example to source span
+  })),
+});
+```
+</CodeGroup>
+
 Phoenix validates that specified span IDs exist and creates bidirectional links. In the Phoenix UI, dataset examples display links to their source traces, and trace spans indicate when they've been converted to dataset examples.
 
 ### Data Preparation
 
-Typical preprocessing steps include:
+**Python**: Typical preprocessing steps include resetting the index if `context.span_id` is the DataFrame index, parsing JSON values, extracting nested fields, and filtering by metadata.
 
-1. **Resetting index** if `context.span_id` is the DataFrame index
-2. **Parsing JSON values** from `attributes.input.value` and `attributes.output.value`
-3. **Extracting nested fields** from parsed dictionaries
-4. **Filtering by metadata** such as model name, token counts, or timestamps
+**TypeScript**: Spans are returned as objects, so you can directly access and transform the data.
 
-```python
+<CodeGroup>
+```python Python
 def prepare_dataset_from_spans_df(spans_df: pd.DataFrame) -> pd.DataFrame:
     df = spans_df.copy()
 
@@ -174,6 +353,28 @@ def prepare_dataset_from_spans_df(spans_df: pd.DataFrame) -> pd.DataFrame:
     })
 ```
 
+```typescript TypeScript
+function prepareExamples(spans: Span[]) {
+  return spans.map((span) => {
+    // Parse input/output if needed
+    const input = typeof span.input === "string"
+      ? JSON.parse(span.input)
+      : span.input;
+    const output = typeof span.output === "string"
+      ? JSON.parse(span.output)
+      : span.output;
+
+    return {
+      spanId: span.spanId,
+      question: input.question,
+      answer: output.answer,
+      model: span.attributes?.["llm.model_name"],
+    };
+  });
+}
+```
+</CodeGroup>
+
 ## Complete Example
 
 A full end-to-end example demonstrating tracing setup, span querying, and dataset creation is available in the phoenix-client repository:
@@ -189,13 +390,22 @@ The example covers:
 
 ## Requirements
 
-- `arize-phoenix-client` 1.28.0 or later
 - Phoenix server running (local or hosted)
 - Existing traces with LLM spans
+- **Python**: `arize-phoenix-client` 1.28.0 or later
+- **TypeScript**: `@arizeai/phoenix-client` 2.0.0 or later
 
-```bash
+<CodeGroup>
+```bash Python
 pip install arize-phoenix-client>=1.28.0
 ```
+
+```bash TypeScript
+npm install @arizeai/phoenix-client
+# or
+pnpm add @arizeai/phoenix-client
+```
+</CodeGroup>
 
 ## Feedback
 
