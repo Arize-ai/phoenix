@@ -1339,3 +1339,495 @@ Capital of Germany?,Berlin,geography,validation
         assert len(example_id_list) == len(set(example_id_list)), (
             f"Duplicate example IDs found in results! IDs: {example_id_list}"
         )
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_key_csv(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        tmp_path: Path,
+    ) -> None:
+        """Test creating dataset with span_id_key parameter from CSV."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from sqlalchemy import insert, select
+
+        from phoenix.db import models
+        from phoenix.server.types import DbSessionFactory
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Get database session factory from the _app fixture
+        # We need to create spans directly in the database first
+        from phoenix.db.helpers import get_session_factory_from_env
+
+        db = get_session_factory_from_env()
+
+        # Create a project and spans in the database
+        async with db() as session:
+            from datetime import datetime, timezone
+
+            # Create a project
+            project_id = await session.scalar(
+                insert(models.Project).values(name="test-project").returning(models.Project.id)
+            )
+
+            # Create a trace
+            trace_id = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    project_rowid=project_id,
+                    trace_id="test-trace-123",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                )
+                .returning(models.Trace.id)
+            )
+
+            # Create spans with specific span_ids
+            await session.execute(
+                insert(models.Span).values(
+                    [
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-abc-123",
+                            "name": "test_span_1",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-def-456",
+                            "name": "test_span_2",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                    ]
+                )
+            )
+
+            await session.commit()
+
+        # Create CSV file with span_id column
+        unique_name = f"test_span_links_{token_hex(4)}"
+        csv_file = tmp_path / "test_data.csv"
+        csv_content = """question,answer,trace_span_id
+What is AI?,Artificial Intelligence,span-abc-123
+What is ML?,Machine Learning,span-def-456
+What is DL?,Deep Learning,nonexistent-span
+What is NLP?,Natural Language Processing,
+"""
+        csv_file.write_text(csv_content)
+
+        # Create dataset with span_id_key parameter
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                csv_file_path=csv_file,
+                input_keys=["question"],
+                output_keys=["answer"],
+                span_id_key="trace_span_id",
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 4
+
+        # Verify examples were linked to spans in the database
+        async with db() as session:
+            examples = list(
+                await session.scalars(
+                    select(models.DatasetExample)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == unique_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            )
+
+            # First example should be linked to span-abc-123
+            assert examples[0].span_rowid is not None
+
+            # Second example should be linked to span-def-456
+            assert examples[1].span_rowid is not None
+
+            # Third example has nonexistent span, should be None
+            assert examples[2].span_rowid is None
+
+            # Fourth example has empty span_id, should be None
+            assert examples[3].span_rowid is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_key_dataframe(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test creating dataset with span_id_key parameter from DataFrame."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from sqlalchemy import insert, select
+
+        from phoenix.db import models
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Get database session factory
+        from phoenix.db.helpers import get_session_factory_from_env
+
+        db = get_session_factory_from_env()
+
+        # Create a project and spans in the database
+        async with db() as session:
+            from datetime import datetime, timezone
+
+            # Create a project
+            project_id = await session.scalar(
+                insert(models.Project).values(name="test-project").returning(models.Project.id)
+            )
+
+            # Create a trace
+            trace_id = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    project_rowid=project_id,
+                    trace_id="test-trace-456",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                )
+                .returning(models.Trace.id)
+            )
+
+            # Create spans
+            await session.execute(
+                insert(models.Span).values(
+                    [
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-xyz-789",
+                            "name": "test_span_3",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                    ]
+                )
+            )
+
+            await session.commit()
+
+        # Create DataFrame with span_id column
+        unique_name = f"test_span_links_df_{token_hex(4)}"
+        df = pd.DataFrame(
+            {
+                "input": ["What is Phoenix?", "What is OpenTelemetry?"],
+                "output": ["An observability platform", "A telemetry framework"],
+                "context.span_id": ["span-xyz-789", None],
+            }
+        )
+
+        # Create dataset with span_id_key parameter
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                dataframe=df,
+                input_keys=["input"],
+                output_keys=["output"],
+                span_id_key="context.span_id",
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 2
+
+        # Verify examples were linked to spans in the database
+        async with db() as session:
+            examples = list(
+                await session.scalars(
+                    select(models.DatasetExample)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == unique_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            )
+
+            # First example should be linked to span-xyz-789
+            assert examples[0].span_rowid is not None
+
+            # Second example has None span_id, should be None
+            assert examples[1].span_rowid is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_span_id_in_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test creating dataset with span_id in examples parameter (JSON path)."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from sqlalchemy import insert, select
+
+        from phoenix.db import models
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Get database session factory
+        from phoenix.db.helpers import get_session_factory_from_env
+
+        db = get_session_factory_from_env()
+
+        # Create a project and spans in the database
+        async with db() as session:
+            from datetime import datetime, timezone
+
+            # Create a project
+            project_id = await session.scalar(
+                insert(models.Project).values(name="test-project").returning(models.Project.id)
+            )
+
+            # Create a trace
+            trace_id = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    project_rowid=project_id,
+                    trace_id="test-trace-json",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                )
+                .returning(models.Trace.id)
+            )
+
+            # Create spans
+            await session.execute(
+                insert(models.Span).values(
+                    [
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-json-111",
+                            "name": "test_span_json_1",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-json-222",
+                            "name": "test_span_json_2",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                    ]
+                )
+            )
+
+            await session.commit()
+
+        # Create dataset with span_id in examples
+        unique_name = f"test_span_examples_{token_hex(4)}"
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {
+                        "input": {"q": "What is span linking?"},
+                        "output": {"a": "It links examples to traces"},
+                        "span_id": "span-json-111",
+                    },
+                    {
+                        "input": {"q": "How does it work?"},
+                        "output": {"a": "By storing span_rowid"},
+                        "span_id": "span-json-222",
+                    },
+                    {
+                        "input": {"q": "What about missing spans?"},
+                        "output": {"a": "They are handled gracefully"},
+                        "span_id": "nonexistent-span",
+                    },
+                    {
+                        "input": {"q": "What about None?"},
+                        "output": {"a": "Also handled"},
+                        "span_id": None,
+                    },
+                ],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 4
+
+        # Verify examples were linked to spans in the database
+        async with db() as session:
+            examples = list(
+                await session.scalars(
+                    select(models.DatasetExample)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == unique_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            )
+
+            # First example should be linked to span-json-111
+            assert examples[0].span_rowid is not None
+
+            # Second example should be linked to span-json-222
+            assert examples[1].span_rowid is not None
+
+            # Third example has nonexistent span, should be None
+            assert examples[2].span_rowid is None
+
+            # Fourth example has None span_id, should be None
+            assert examples[3].span_rowid is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_examples_with_span_id(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test adding examples with span_id to existing dataset."""
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from sqlalchemy import insert, select
+
+        from phoenix.db import models
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        # Get database session factory
+        from phoenix.db.helpers import get_session_factory_from_env
+
+        db = get_session_factory_from_env()
+
+        # Create a project and spans in the database
+        async with db() as session:
+            from datetime import datetime, timezone
+
+            # Create a project
+            project_id = await session.scalar(
+                insert(models.Project).values(name="test-project").returning(models.Project.id)
+            )
+
+            # Create a trace
+            trace_id = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    project_rowid=project_id,
+                    trace_id="test-trace-append",
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                )
+                .returning(models.Trace.id)
+            )
+
+            # Create spans
+            await session.execute(
+                insert(models.Span).values(
+                    [
+                        {
+                            "trace_rowid": trace_id,
+                            "span_id": "span-append-111",
+                            "name": "test_span_append_1",
+                            "span_kind": "INTERNAL",
+                            "start_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc),
+                            "attributes": {},
+                            "events": [],
+                            "status_code": "OK",
+                            "status_message": "",
+                            "cumulative_error_count": 0,
+                            "cumulative_llm_token_count_prompt": 0,
+                            "cumulative_llm_token_count_completion": 0,
+                        },
+                    ]
+                )
+            )
+
+            await session.commit()
+
+        # Create initial dataset without span links
+        unique_name = f"test_append_spans_{token_hex(4)}"
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"input": {"q": "Initial"}, "output": {"a": "Example"}},
+                ],
+            )
+        )
+
+        assert len(dataset) == 1
+
+        # Add examples with span links
+        updated_dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset,
+                examples=[
+                    {
+                        "input": {"q": "Added with span"},
+                        "output": {"a": "Linked"},
+                        "span_id": "span-append-111",
+                    },
+                ],
+            )
+        )
+
+        assert len(updated_dataset) == 2
+
+        # Verify the added example was linked to the span
+        async with db() as session:
+            examples = list(
+                await session.scalars(
+                    select(models.DatasetExample)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == unique_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            )
+
+            # First example (original) should have no span link
+            assert examples[0].span_rowid is None
+
+            # Second example (added) should be linked to span-append-111
+            assert examples[1].span_rowid is not None

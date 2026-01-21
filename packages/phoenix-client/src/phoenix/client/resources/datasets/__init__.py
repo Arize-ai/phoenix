@@ -823,6 +823,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -839,6 +840,7 @@ class Datasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -862,6 +864,7 @@ class Datasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -985,6 +988,7 @@ class Datasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1107,6 +1111,7 @@ class Datasets:
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
+        span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1119,6 +1124,7 @@ class Datasets:
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
+        span_ids_list = list(span_ids) if span_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1145,6 +1151,12 @@ class Datasets:
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
             )
 
+        # Validate span_ids separately (can be string or None)
+        if span_ids_list and len(span_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"span_ids must have same length as inputs ({len(span_ids_list)} != {len(inputs_list)})"
+            )
+
         payload = {
             "action": action,
             "name": dataset_name,
@@ -1152,6 +1164,7 @@ class Datasets:
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
             "splits": splits_list or [None] * len(inputs_list),
+            "span_ids": span_ids_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:
@@ -1582,6 +1595,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1598,6 +1612,7 @@ class AsyncDatasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1621,6 +1636,7 @@ class AsyncDatasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1741,6 +1757,7 @@ class AsyncDatasets:
                 outputs=outputs,
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1848,6 +1865,7 @@ class AsyncDatasets:
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
+        span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1858,6 +1876,7 @@ class AsyncDatasets:
         outputs_list = list(outputs) if outputs else []
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
+        span_ids_list = list(span_ids) if span_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1884,6 +1903,12 @@ class AsyncDatasets:
                 f"splits must have same length as inputs ({len(splits_list)} != {len(inputs_list)})"
             )
 
+        # Validate span_ids separately (can be string or None)
+        if span_ids_list and len(span_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"span_ids must have same length as inputs ({len(span_ids_list)} != {len(inputs_list)})"
+            )
+
         payload = {
             "action": action,
             "name": dataset_name,
@@ -1891,6 +1916,7 @@ class AsyncDatasets:
             "outputs": outputs_list or [{}] * len(inputs_list),
             "metadata": metadata_list or [{}] * len(inputs_list),
             "splits": splits_list or [None] * len(inputs_list),
+            "span_ids": span_ids_list or [None] * len(inputs_list),
         }
 
         if dataset_description is not None:
