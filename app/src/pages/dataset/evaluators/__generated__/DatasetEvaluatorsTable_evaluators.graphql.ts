@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba3122649f82a874ebe11d10f86dd1ae>>
+ * @generated SignedSource<<456544a281a8b783d22d3df286199750>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,7 +168,14 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "email",
+                          "name": "username",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "profilePictureUrl",
                           "storageKey": null
                         }
                       ],

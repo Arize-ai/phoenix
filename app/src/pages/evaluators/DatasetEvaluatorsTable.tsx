@@ -27,6 +27,7 @@ import {
   View,
 } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import type {
@@ -98,7 +99,8 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
         displayName
         updatedAt
         user {
-          email
+          username
+          profilePictureUrl
         }
         evaluator {
           id
@@ -225,10 +227,25 @@ export const DatasetEvaluatorsTable = ({
         ),
       },
       {
-        header: "created by",
-        accessorKey: "user.email",
+        header: "last modified by",
+        accessorKey: "user",
         enableSorting: false,
-        cell: TextCell,
+        cell: ({ row }) => {
+          const user = row.original.user;
+          if (!user) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <UserPicture
+                name={user.username ?? undefined}
+                profilePictureUrl={user.profilePictureUrl}
+                size={20}
+              />
+              <Text>{user.username ?? "system"}</Text>
+            </Flex>
+          );
+        },
       },
       {
         header: "last updated",

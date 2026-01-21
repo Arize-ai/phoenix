@@ -18,9 +18,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
         datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
           id
           displayName
-          user {
-            email
-          }
           evaluator {
             __typename
             kind

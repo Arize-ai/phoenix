@@ -73,11 +73,6 @@ function DatasetEvaluatorDetailsPageContent({
               Evaluator: {datasetEvaluator.displayName}
             </Heading>
             <Text size="M">{evaluator.description}</Text>
-            {datasetEvaluator.user?.email && (
-              <Text size="S" color="text-700">
-                Created by: {datasetEvaluator.user.email}
-              </Text>
-            )}
           </Flex>
           <Button
             variant="primary"
