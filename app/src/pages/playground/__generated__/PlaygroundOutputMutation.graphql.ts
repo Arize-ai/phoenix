@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c206875033a7aa67d7d004aacb216925>>
+ * @generated SignedSource<<4f27abdb4a5d96f2e4fd72f0c0e95aae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,7 +50,7 @@ export type GenerativeModelCustomProviderInput = {
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
-  value: any;
+  value: string;
 };
 export type InvocationParameterInput = {
   canonicalName?: CanonicalParameterName | null;
