@@ -1,5 +1,12 @@
 # @arizeai/phoenix-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [01eb1fb]
+  - @arizeai/phoenix-client@5.7.0
+
 ## 0.3.0
 
 ### Minor Changes
