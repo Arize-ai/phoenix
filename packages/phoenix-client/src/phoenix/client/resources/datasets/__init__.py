@@ -1161,16 +1161,20 @@ class Datasets:
                 f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
-            "outputs": outputs_list or [{}] * len(inputs_list),
-            "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [None] * len(inputs_list),
-            "span_ids": span_ids_list or [None] * len(inputs_list),
         }
-
+        # Only include optional fields if they have meaningful values
+        if outputs_list:
+            payload["outputs"] = outputs_list
+        if metadata_list:
+            payload["metadata"] = metadata_list
+        if splits_list and any(s is not None for s in splits_list):
+            payload["splits"] = splits_list
+        if span_ids_list and any(s is not None for s in span_ids_list):
+            payload["span_ids"] = span_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1915,16 +1919,20 @@ class AsyncDatasets:
                 f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
             "inputs": inputs_list,
-            "outputs": outputs_list or [{}] * len(inputs_list),
-            "metadata": metadata_list or [{}] * len(inputs_list),
-            "splits": splits_list or [None] * len(inputs_list),
-            "span_ids": span_ids_list or [None] * len(inputs_list),
         }
-
+        # Only include optional fields if they have meaningful values
+        if outputs_list:
+            payload["outputs"] = outputs_list
+        if metadata_list:
+            payload["metadata"] = metadata_list
+        if splits_list and any(s is not None for s in splits_list):
+            payload["splits"] = splits_list
+        if span_ids_list and any(s is not None for s in span_ids_list):
+            payload["span_ids"] = span_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 

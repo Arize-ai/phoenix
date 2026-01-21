@@ -1673,3 +1673,84 @@ What is NLP?,Natural Language Processing,
         # Exactly 1 example should have no span link (the original)
         null_spans = [s for s in span_ids_in_examples if s is None]
         assert len(null_spans) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_dataset_with_only_inputs(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """Test create and add with only inputs (no outputs/metadata/splits/span_ids).
+
+        This tests the optimization that omits optional fields from the payload
+        when they have no meaningful values. The server should handle missing
+        keys and create examples with default values.
+        """
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+
+        unique_name = f"test_minimal_dataset_{token_hex(4)}"
+
+        # Create dataset with only inputs - no outputs, metadata, splits, or span_ids
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[
+                    {"question": "What is AI?"},
+                    {"question": "What is ML?"},
+                ],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 2
+
+        # Add more examples with only inputs
+        updated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset,
+                inputs=[{"question": "What is DL?"}],
+            )
+        )
+        assert len(updated) == 3
+
+        # Verify examples via GraphQL - check they have default values
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    revision {
+                                        input
+                                        output
+                                        metadata
+                                    }
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": updated.id})
+        examples = result["data"]["node"]["examples"]["edges"]
+
+        # Verify 3 examples total (2 created + 1 added)
+        assert len(examples) == 3
+
+        for ex in examples:
+            revision = ex["node"]["revision"]
+            # Input should have our question
+            assert "question" in revision["input"]
+            # Output should be empty dict (server default)
+            assert revision["output"] == {}
+            # Metadata should be empty dict (server default)
+            assert revision["metadata"] == {}
+            # No span link
+            assert ex["node"]["span"] is None
