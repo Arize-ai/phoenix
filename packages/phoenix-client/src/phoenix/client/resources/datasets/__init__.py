@@ -365,7 +365,10 @@ class DatasetKeys:
 
     def __iter__(self) -> "Iterator[str]":
         """Allow iteration over all keys."""
-        return iter(self.input | self.output | self.metadata | self.split)
+        all_keys = self.input | self.output | self.metadata | self.split
+        if self.span_id:
+            all_keys = all_keys | frozenset([self.span_id])
+        return iter(all_keys)
 
 
 def _parse_datetime(datetime_str: str) -> datetime:
