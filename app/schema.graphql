@@ -1173,6 +1173,16 @@ type DeleteApiKeyMutationPayload {
   query: Query!
 }
 
+input DeleteDatasetEvaluatorsInput {
+  datasetEvaluatorIds: [ID!]!
+  deleteAssociatedPrompt: Boolean! = true
+}
+
+type DeleteDatasetEvaluatorsPayload {
+  datasetEvaluatorIds: [ID!]!
+  query: Query!
+}
+
 input DeleteDatasetExamplesInput {
   exampleIds: [ID!]!
   datasetVersionDescription: String
@@ -2409,6 +2419,7 @@ type Mutation {
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
+  deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!

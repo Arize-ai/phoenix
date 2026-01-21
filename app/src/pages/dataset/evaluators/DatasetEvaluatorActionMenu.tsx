@@ -2,35 +2,43 @@ import { useState } from "react";
 
 import {
   Button,
+  Flex,
   Icon,
   Icons,
   Menu,
   MenuItem,
   MenuTrigger,
   Popover,
+  Text,
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
+import { DeleteDatasetEvaluatorDialog } from "./DeleteDatasetEvaluatorDialog";
+
 enum DatasetEvaluatorAction {
   EDIT = "edit",
+  DELETE = "delete",
 }
 
 export function DatasetEvaluatorActionMenu({
   datasetId,
   datasetEvaluatorId,
   evaluatorKind,
+  evaluatorName,
   isBuiltIn,
   updateConnectionIds,
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE";
+  evaluatorName: string;
   isBuiltIn: boolean;
   updateConnectionIds?: string[];
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -46,12 +54,36 @@ export function DatasetEvaluatorActionMenu({
                 case DatasetEvaluatorAction.EDIT:
                   setIsEditDialogOpen(true);
                   break;
+                case DatasetEvaluatorAction.DELETE:
+                  setIsDeleteDialogOpen(true);
+                  break;
               }
             }}
           >
             {(evaluatorKind === "LLM" || isBuiltIn) && (
-              <MenuItem id={DatasetEvaluatorAction.EDIT}>Edit</MenuItem>
+              <MenuItem id={DatasetEvaluatorAction.EDIT}>
+                <Flex
+                  direction="row"
+                  gap="size-75"
+                  justifyContent="start"
+                  alignItems="center"
+                >
+                  <Icon svg={<Icons.Edit2Outline />} />
+                  <Text>Edit</Text>
+                </Flex>
+              </MenuItem>
             )}
+            <MenuItem id={DatasetEvaluatorAction.DELETE}>
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <Text>Delete</Text>
+              </Flex>
+            </MenuItem>
           </Menu>
         </Popover>
       </MenuTrigger>
@@ -72,6 +104,14 @@ export function DatasetEvaluatorActionMenu({
           updateConnectionIds={updateConnectionIds}
         />
       )}
+      <DeleteDatasetEvaluatorDialog
+        datasetEvaluatorId={datasetEvaluatorId}
+        evaluatorName={evaluatorName}
+        isLLMEvaluator={evaluatorKind === "LLM" && !isBuiltIn}
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        updateConnectionIds={updateConnectionIds}
+      />
     </StopPropagation>
   );
 }

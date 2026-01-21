@@ -262,6 +262,7 @@ export const DatasetEvaluatorsTable = ({
             datasetEvaluatorId={row.original.id}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
+            evaluatorName={row.original.displayName}
             isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
