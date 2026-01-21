@@ -42,18 +42,20 @@ const TEMPLATE_VARIABLES_PATH_OPTIONS = [
 
 export function PlaygroundExperimentSettingsButton({
   isDisabled,
+  datasetId,
 }: {
   isDisabled?: boolean;
+  datasetId: string;
 }) {
-  const appendedMessagesPath = usePlaygroundContext(
-    (state) => state.appendedMessagesPath
+  const playgroundDatasetState = usePlaygroundContext(
+    (state) => state.stateByDatasetId[datasetId]
   );
+  const { appendedMessagesPath, templateVariablesPath } =
+    playgroundDatasetState ?? {};
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
-  const templateVariablesPath = usePlaygroundContext(
-    (state) => state.templateVariablesPath
-  );
+
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
   );
@@ -82,11 +84,17 @@ export function PlaygroundExperimentSettingsButton({
                 allowsCustomValue
                 onSelectionChange={(key) => {
                   if (typeof key === "string") {
-                    setTemplateVariablesPath(key || null);
+                    setTemplateVariablesPath({
+                      templateVariablesPath: key || null,
+                      datasetId,
+                    });
                   }
                 }}
                 onInputChange={(value) => {
-                  setTemplateVariablesPath(value || null);
+                  setTemplateVariablesPath({
+                    templateVariablesPath: value || null,
+                    datasetId,
+                  });
                 }}
               >
                 {(item) => (
@@ -104,7 +112,7 @@ export function PlaygroundExperimentSettingsButton({
                 value={appendedMessagesPath ?? ""}
                 size="S"
                 onChange={(value) => {
-                  setAppendedMessagesPath(value || null);
+                  setAppendedMessagesPath({ path: value || null, datasetId });
                 }}
               >
                 <Label>Appended dataset messages path</Label>
