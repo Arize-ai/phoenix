@@ -17,7 +17,7 @@ In this tutorial, with just a few additional lines of code, you'll be able to mo
 Throughout the tutorial we will include key code snippets, but to see the full implementation, check out the companion projects below.
 
 <Columns cols={2}>
-  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial">
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial">
     Companion TypeScript project with runnable examples
   </Card>
 
@@ -355,7 +355,7 @@ The generation span shows the retrieved context in the system prompt, so you can
 A single user request might trigger multiple LLM calls, tool executions, and retrievals. Let's allocate all of these under one parent span, so all operations for one request are nested together. Click on the parent span and see the entire execution tree: classification, tool calls, retrieval, generation, all in one view, with timing relationships visible at a glance.
 
 <Info>
-  See the entire agent with grouped tracing [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
+  See the entire agent with grouped tracing [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/support-agent.ts).
 </Info>
 
 To see all operations for a single request as one trace, wrap them in a parent span using the OpenTelemetry API:
@@ -440,7 +440,7 @@ const queries = [
 ```
 
 <Columns cols={2}>
-  <Card title="Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts">
+  <Card title="Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/support-agent.ts">
   </Card>
 
   <Card title="Complete Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">

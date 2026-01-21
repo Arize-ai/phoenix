@@ -18,7 +18,7 @@ In this chapter, you'll add session tracking to your support agent, run multi-tu
 Throughout the tutorial we will include key code snippets, but to see the full implementation, check out the companion projects below.
 
 <Columns cols={2}>
-  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial">
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial">
     Companion TypeScript project with runnable examples
   </Card>
 
@@ -30,7 +30,7 @@ Throughout the tutorial we will include key code snippets, but to see the full i
 # 3.1 Setting Up Sessions
 
 <Info>
-  See the full session-enabled agent code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts).
+  See the full session-enabled agent code [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/support-agent.ts).
 </Info>
 
 Adding session tracking to your agent is surprisingly simple. You need two things:
@@ -270,7 +270,7 @@ Now let's see sessions in action. Here's a conversation scenario that tests the 
 </Tabs>
 
 <Columns cols={2}>
-  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/support-agent.ts">
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/support-agent.ts">
     Run the sessions demo: `pnpm sessions`
   </Card>
 
@@ -293,7 +293,7 @@ This runs three conversation scenarios:
 # 3.3 Session-Level Evaluations
 
 <Info>
-  See the session evaluation code [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/evaluate-traces.ts).
+  See the session evaluation code [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/evaluate-traces.ts).
 </Info>
 
 You can now see full conversations in Phoenix, but manually reviewing every session doesn't scale. With hundreds of conversations happening daily, you need automated insights.
@@ -445,7 +445,7 @@ This evaluator determines if the customer's issue was actually resolved:
 ## Running Session Evaluations
 
 <Columns cols={2}>
-  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/evaluate-traces.ts">
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/js/examples/tutorials/tracing-tutorial/evaluate-traces.ts">
     Run session evaluations: `pnpm evaluate:sessions`
   </Card>
 
