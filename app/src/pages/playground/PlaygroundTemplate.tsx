@@ -29,7 +29,9 @@ import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/Upsert
 
 import { PlaygroundInstanceProps } from "./types";
 
-interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
+interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
+  appendedMessagesPath?: string | null;
+}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;

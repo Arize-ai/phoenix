@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   Card,
   CopyToClipboardButton,
@@ -75,13 +76,17 @@ const MESSAGE_Z_INDEX = 1;
  */
 const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
 
-interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
+interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
+  appendedMessagesPath?: string | null;
+}
 
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
 
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+
+  const appendedMessagesPath = props.appendedMessagesPath;
   const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
   const playgroundInstance = usePlaygroundContext(instanceSelector);
   if (!playgroundInstance) {
@@ -159,6 +164,15 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           })}
         </ul>
       </SortableContext>
+      {appendedMessagesPath ? (
+        <View paddingTop="size-100" paddingBottom="size-100">
+          <Alert variant="info">
+            Messages from the configured path{" "}
+            <strong>{appendedMessagesPath}</strong> will be appended to this
+            prompt.
+          </Alert>
+        </View>
+      ) : null}
       <View paddingTop="size-100" paddingBottom="size-100">
         <PlaygroundChatTemplateFooter
           instanceId={id}
