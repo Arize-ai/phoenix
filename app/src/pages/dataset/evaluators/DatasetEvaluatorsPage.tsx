@@ -1,6 +1,6 @@
 import { Suspense, useMemo } from "react";
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
@@ -21,6 +21,9 @@ export function DatasetEvaluatorsPage() {
     <DatasetEvaluatorsFilterProvider>
       <Suspense fallback={<Loading />}>
         <DatasetEvaluatorsPageContent />
+      </Suspense>
+      <Suspense>
+        <Outlet />
       </Suspense>
     </DatasetEvaluatorsFilterProvider>
   );

@@ -36,7 +36,6 @@ export function DatasetEvaluatorActionMenu({
       <MenuTrigger>
         <Button
           size="S"
-          variant="quiet"
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
         />
         <Popover placement="bottom right">

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d7cc6ace88379173d28e5ac09c3a7eb6>>
+ * @generated SignedSource<<5c9b714b48de3608c5309dbf1a57d353>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,10 +20,11 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly name: string;
     };
     readonly promptVersion?: {
+      readonly id: string;
       readonly tools: ReadonlyArray<{
         readonly definition: any;
       }>;
-      readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
+      readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "PromptModelConfigurationCard__main" | "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
     };
     readonly promptVersionTag?: {
       readonly name: string;
@@ -169,6 +170,7 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
+                (v0/*: any*/),
                 (v4/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -372,6 +374,16 @@ return {
                   ],
                   "args": null,
                   "argumentDefinitions": []
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "PromptChatMessagesCard__main"
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "PromptModelConfigurationCard__main"
                 }
               ],
               "storageKey": null
@@ -452,6 +464,6 @@ return {
 };
 })();
 
-(node as any).hash = "e81d3528b639b2670903885b5faee65c";
+(node as any).hash = "7453a9e30cb1bc7ac339bd695b17b2b1";
 
 export default node;

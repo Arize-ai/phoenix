@@ -1,4 +1,4 @@
-import { forwardRef, Ref } from "react";
+import { CSSProperties, forwardRef, Ref } from "react";
 import {
   Select as AriaSelect,
   SelectProps as AriaSelectProps,
@@ -16,13 +16,15 @@ export interface SelectProps<
   M extends "single" | "multiple" = "single",
 > extends AriaSelectProps<T, M>,
     SizingProps,
-    StylableProps {}
+    StylableProps {
+  minWidth?: CSSProperties["minWidth"];
+}
 
 function Select<T extends object, M extends "single" | "multiple">(
   props: SelectProps<T, M>,
   ref: Ref<HTMLDivElement>
 ) {
-  const { size = "M", ...otherProps } = props;
+  const { size = "M", minWidth = "200px", ...otherProps } = props;
   return (
     <SizeProvider size={size}>
       <AriaSelect
@@ -30,6 +32,10 @@ function Select<T extends object, M extends "single" | "multiple">(
         className="ac-select"
         ref={ref}
         css={css(fieldBaseCSS, selectCSS)}
+        style={{
+          minWidth,
+          ...otherProps.style,
+        }}
         {...otherProps}
       />
     </SizeProvider>

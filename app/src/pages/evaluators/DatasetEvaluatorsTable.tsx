@@ -17,17 +17,10 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import type {
@@ -195,13 +188,7 @@ export const DatasetEvaluatorsTable = ({
       {
         header: "name",
         accessorKey: "displayName",
-        cell: ({ getValue, row }) => {
-          return (
-            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
-              {getValue() as string}
-            </Link>
-          );
-        },
+        cell: TextCell,
       },
       {
         header: "kind",
@@ -257,14 +244,19 @@ export const DatasetEvaluatorsTable = ({
       cols.push({
         header: "",
         id: "actions",
+        size: 5,
         cell: ({ row }) => (
-          <DatasetEvaluatorActionMenu
-            datasetEvaluatorId={row.original.id}
-            datasetId={datasetId}
-            evaluatorKind={row.original.evaluator.kind}
-            isBuiltIn={row.original.evaluator.isBuiltin}
-            updateConnectionIds={updateConnectionIds}
-          />
+          <Flex direction="row" justifyContent="end" width="100%">
+            <StopPropagation>
+              <DatasetEvaluatorActionMenu
+                datasetEvaluatorId={row.original.id}
+                datasetId={datasetId}
+                evaluatorKind={row.original.evaluator.kind}
+                isBuiltIn={row.original.evaluator.isBuiltin}
+                updateConnectionIds={updateConnectionIds}
+              />
+            </StopPropagation>
+          </Flex>
         ),
       });
     }
@@ -332,7 +324,7 @@ export const DatasetEvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={onRowClick ? selectableTableCSS : tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>

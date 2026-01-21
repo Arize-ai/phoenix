@@ -1,7 +1,7 @@
-import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Token, TokenProps } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
+import { PromptBadge } from "@phoenix/components/prompt";
 
 import { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
 
@@ -25,36 +25,8 @@ export function PromptVersionTagsList({
   return (
     <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
       {data.tags.map((tag) => (
-        <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
+        <PromptBadge key={tag.id} tag={tag.name} />
       ))}
     </Flex>
-  );
-}
-
-export function TagVersionLabel({
-  children,
-  maxWidth,
-  size = "M",
-}: {
-  children: string;
-  maxWidth?: TokenProps["maxWidth"];
-  size?: TokenProps["size"];
-}) {
-  const color: TokenProps["color"] = useMemo(() => {
-    switch (children) {
-      case "production":
-        return "var(--ac-global-color-green-1000)";
-      case "staging":
-        return "var(--ac-global-color-yellow-1000)";
-      case "development":
-        return "var(--ac-global-color-blue-1000)";
-      default:
-        return "var(--ac-global-color-grey-900)";
-    }
-  }, [children]);
-  return (
-    <Token size={size} color={color} maxWidth={maxWidth} title={children}>
-      {children}
-    </Token>
   );
 }
