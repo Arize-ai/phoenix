@@ -62,7 +62,11 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
-import { AttributesJSONBlock } from "@phoenix/components/code";
+import {
+  AttributesDisplayProvider,
+  ConnectedAttributesJSONBlock,
+  ConnectedAttributesJSONBlockControls,
+} from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -71,6 +75,7 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { PrettyText } from "@phoenix/components/utility";
 import {
   useNotifySuccess,
   usePreferencesContext,
@@ -368,13 +373,16 @@ export function SpanDetails({
                 maxHeight="100%"
                 overflow="auto"
               >
-                <Card
-                  title="All Attributes"
-                  {...defaultCardProps}
-                  titleExtra={attributesContextualHelp}
-                >
-                  <AttributesJSONBlock attributes={span.attributes} />
-                </Card>
+                <AttributesDisplayProvider attributes={span.attributes}>
+                  <Card
+                    title="All Attributes"
+                    {...defaultCardProps}
+                    titleExtra={attributesContextualHelp}
+                    extra={<ConnectedAttributesJSONBlockControls />}
+                  >
+                    <ConnectedAttributesJSONBlock />
+                  </Card>
+                </AttributesDisplayProvider>
               </View>
             </LazyTabPanel>
 
@@ -1387,16 +1395,11 @@ function DocumentItem({
                             )}
                           </Flex>
                           {documentEvaluation.explanation ? (
-                            <p
-                              css={css`
-                                margin-top: var(
-                                  --ac-global-dimension-static-size-100
-                                );
-                                margin-bottom: 0;
-                              `}
-                            >
-                              {documentEvaluation.explanation}
-                            </p>
+                            <View paddingTop="size-100">
+                              <PrettyText>
+                                {documentEvaluation.explanation}
+                              </PrettyText>
+                            </View>
                           ) : null}
                         </Flex>
                       </View>
@@ -1807,13 +1810,16 @@ function SpanIO({ span }: { span: Span }) {
         </MarkdownDisplayProvider>
       ) : null}
       {isMissingIO ? (
-        <Card
-          title="All Attributes"
-          titleExtra={attributesContextualHelp}
-          {...defaultCardProps}
-        >
-          <AttributesJSONBlock attributes={span.attributes} />
-        </Card>
+        <AttributesDisplayProvider attributes={span.attributes}>
+          <Card
+            title="All Attributes"
+            titleExtra={attributesContextualHelp}
+            {...defaultCardProps}
+            extra={<ConnectedAttributesJSONBlockControls />}
+          >
+            <ConnectedAttributesJSONBlock />
+          </Card>
+        </AttributesDisplayProvider>
       ) : null}
     </Flex>
   );
