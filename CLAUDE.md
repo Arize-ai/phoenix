@@ -93,6 +93,8 @@ tox run -e phoenix_main                  # Server only
 PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev  # Fresh in-memory database
 ```
 
+When using `pnpm dev`, server logs are written to `/tmp/phoenix.log` for easier debugging.
+
 ## Project Structure
 
 ```
