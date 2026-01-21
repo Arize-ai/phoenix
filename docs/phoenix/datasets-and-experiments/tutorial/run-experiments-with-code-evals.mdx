@@ -56,7 +56,9 @@ This experiment evaluates the accuracy of the agent's `classify_ticket` tool by 
 
 ### Define the Task Function
 
-In this example, our task function extracts the query from the dataset input, calls the `classify_ticket` tool to classify the support ticket, and returns the classification result. This task function will be used for all dataset examples.
+In this example, the task function takes an example from the dataset, extracts the user’s query, and passes it to the `classify_ticket` tool. The tool invokes the underlying `classify_ticket` function, which makes an LLM call to determine the ticket’s category—billing, technical, account, or other. The task function then returns this classification as its final output. 
+
+This task function will be used for all dataset examples.
 
 For the full implementation of the `classify_ticket_task` function, see the [reference notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb).
 
