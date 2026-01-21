@@ -905,6 +905,7 @@ type DatasetEvaluator implements Node {
   description: String
   outputConfig: BuiltInEvaluatorOutputConfig
   inputMapping: EvaluatorInputMapping!
+  user: User
 }
 
 enum DatasetEvaluatorColumn {
