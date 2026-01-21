@@ -13,122 +13,75 @@ title: "01.21.2026 Phoenix CLI: Datasets, Experiments & Annotations for AI Codin
 
 ## Overview
 
-The Phoenix CLI now supports pulling **datasets**, **experiments**, and **annotations** directly into your terminal—enabling AI coding assistants to leverage evaluation data, experiment results, and human feedback for optimizing AI applications through open-coding workflows.
+The Phoenix CLI now supports **datasets**, **experiments**, and **annotations**. You can pull evaluation data, experiment results, and human feedback directly into your terminal or pipe them into AI coding assistants.
 
 ```bash
 # List available datasets
 px datasets
 
-# Fetch dataset examples with annotations
+# Fetch dataset examples
 px dataset query_response --split test
 
-# Export experiment results for analysis
+# Export experiment results
 px experiments --dataset my-dataset ./experiments/
 
-# Fetch experiment details with evaluations
+# Get experiment details
 px experiment RXhwZXJpbWVudDox --format json
 
-# Include annotations in trace data
+# Include annotations in traces
 px traces --limit 10 --include-annotations
 ```
 
-## Why This Matters for AI Development
+## Common Workflows
 
-AI coding assistants excel at iterative optimization when they have access to structured evaluation data. The expanded CLI capabilities enable several powerful workflows:
+### Analyze Dataset Examples
 
-### 1. **Dataset-Driven Development**
-
-Pull test cases directly into your development environment:
+Pull test cases for review:
 
 ```bash
-# Get all train split examples
+# Get train split examples
 px dataset query_response --split train --format raw | \
   jq '.examples[] | {input, expected}'
 ```
 
-Your AI assistant can now:
-- Analyze failing test cases from your datasets
-- Generate new examples based on dataset patterns
-- Validate code changes against specific dataset splits
-- Create targeted improvements for edge cases
+### Review Experiment Results
 
-### 2. **Experiment-Based Optimization**
-
-Access evaluation results to guide improvements:
+Check evaluation results:
 
 ```bash
-# Fetch experiment results with annotations
+# Get experiment runs with annotations
 px experiment RXhwZXJpbWVudDox --format raw | \
   jq '.[] | select(.annotations != null) | {input, output, annotations}'
+
+# Find failed runs
+px experiment RXhwZXJpbWVudDox --format raw | \
+  jq '.[] | select(.error != null) | {input, error}'
 ```
 
-This enables assistants to:
-- Identify which inputs produce poor results
-- Compare performance across different model configurations
-- Find patterns in failed runs
-- Prioritize optimization efforts based on evaluation metrics
+### Use Annotations
 
-### 3. **Annotation-Driven Refinement**
-
-Human feedback becomes actionable code improvements:
+Access human feedback on traces:
 
 ```bash
-# Find traces with quality annotations
+# Get traces with annotations
 px traces --include-annotations --limit 50 --format raw | \
-  jq '.[] | select(.spans[].annotations != null) |
-      {trace_id, annotations: [.spans[].annotations[] | select(.name == "quality")]}'
+  jq '.[] | select(.spans[].annotations != null)'
 ```
 
-Assistants can:
-- Learn from annotated examples of good vs. poor outputs
-- Fix issues highlighted by human reviewers
-- Incorporate annotation patterns into evaluation criteria
-- Build custom evaluators based on human feedback
+### Export for Analysis
 
-## Practical Workflows
-
-### Open-Coding with LLMs
-
-Open-coding is the practice of iteratively refining prompts, logic, and model configurations based on systematic evaluation. The CLI makes this workflow seamless:
-
-```
-Pull the last 20 failed runs from my experiment and suggest
-improvements to the prompt template.
-```
-
-The AI assistant:
-1. Runs `px experiment <id> --format raw --no-progress`
-2. Filters for failed runs with `jq`
-3. Analyzes error patterns
-4. Suggests specific prompt modifications
-5. Validates changes against dataset examples
-
-### Evaluation Dataset Creation
-
-Build high-quality test sets from production traces:
+Save data to files for further processing:
 
 ```bash
-# Export traces with annotations for dataset creation
+# Export traces to directory
 px traces --include-annotations --limit 100 ./production-samples/
 
-# Filter for high-quality examples
-px traces --include-annotations --format raw | \
-  jq '.[] | select(.spans[].annotations[] |
-      select(.name == "quality" and .score >= 4))'
-```
-
-### Comparative Analysis
-
-Compare experiments to understand what works:
-
-```bash
-# Export multiple experiments for comparison
+# Export experiments to directory
 px experiments --dataset my-dataset ./all-experiments/
 
-# Analyze performance differences
-for file in all-experiments/*.json; do
-  echo "$(basename $file): $(jq '[.[].latency_ms] | add/length' $file)ms avg"
-done
+# Filter examples with jq
+px traces --include-annotations --format raw | \
+  jq '.[] | select(.spans[].annotations[] | select(.name == "quality" and .score >= 4))'
 ```
 
 ## Dataset and Experiment Commands
@@ -169,41 +122,23 @@ px traces --include-annotations --limit 10
 px trace <trace-id> --include-annotations
 ```
 
-## Example: Prompt Optimization Workflow
+## Example: Reviewing Experiment Results
 
-Here's a complete workflow for optimizing a prompt based on experiment results:
+Get failing examples from an experiment:
 
 ```bash
-# 1. Get failing examples from experiment
+# Export failing runs
 px experiment RXhwZXJpbWVudDox --format raw | \
   jq '.[] | select(.error != null or (.annotations[] | select(.name == "quality" and .score < 3)))' \
   > failing-examples.json
 
-# 2. Ask assistant to analyze
-# "Analyze failing-examples.json and suggest prompt improvements"
-
-# 3. Validate suggestions against full dataset
+# Export test cases
 px dataset my-dataset --split test --format raw | \
   jq '.examples[] | {input, expected}' \
   > test-cases.json
-
-# "Test the improved prompt against test-cases.json"
 ```
 
-## Enabling Systematic AI Improvement
-
-These CLI capabilities transform how AI coding assistants help optimize AI applications:
-
-**Before**: Manual copying of traces, ad-hoc experimentation, disconnected feedback loops
-
-**After**:
-- Direct terminal access to evaluation data
-- Systematic analysis of experiment results
-- Annotation-driven improvements
-- Reproducible optimization workflows
-- Seamless integration with AI coding assistants
-
-The CLI bridges the gap between **evaluation insights** and **code improvements**, enabling data-driven development where AI assistants can systematically improve AI systems based on structured feedback.
+You can then ask an AI assistant to review the failing examples or test changes against the test cases.
 
 ## Installation
 
@@ -217,12 +152,20 @@ Or run directly:
 npx @arizeai/phoenix-cli datasets
 ```
 
-## Looking Ahead
+## Upgrading
 
-As AI systems become more sophisticated, the ability to systematically evaluate and improve them becomes critical. The Phoenix CLI's dataset, experiment, and annotation capabilities provide the foundation for **evaluation-driven development**—where every code change is validated against structured test cases and human feedback.
+If you already have the CLI installed, upgrade to 0.2.0 or later:
 
-This approach mirrors traditional test-driven development but adapted for the unique challenges of LLM applications: non-deterministic outputs, subjective quality metrics, and the need for continuous refinement based on real-world usage.
+```bash
+npm update -g @arizeai/phoenix-cli
+```
 
-We're excited to see how teams use these tools to build more reliable, higher-quality AI applications.
+Check your version:
 
-Share feedback and contribute on [GitHub](https://github.com/Arize-ai/phoenix).
+```bash
+px --version
+```
+
+## Feedback
+
+Share feedback or contribute on [GitHub](https://github.com/Arize-ai/phoenix).
