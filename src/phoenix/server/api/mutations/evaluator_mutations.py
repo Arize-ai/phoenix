@@ -590,12 +590,14 @@ class EvaluatorMutationMixin:
                     "path_mapping": {},
                 }
             )
+            dataset_evaluator.user_id = user_id
 
             llm_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
             llm_evaluator.output_config = output_config
             llm_evaluator.updated_at = datetime.now(timezone.utc)
+            llm_evaluator.user_id = user_id
 
             if new_prompt is not None:
                 # We already created a new prompt above
@@ -761,6 +763,12 @@ class EvaluatorMutationMixin:
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
         try:
             async with info.context.db() as session:
                 dataset_evaluator = await session.get(
@@ -789,6 +797,7 @@ class EvaluatorMutationMixin:
                 dataset_evaluator.display_name = display_name
                 dataset_evaluator.input_mapping = input_mapping.to_dict()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
+                dataset_evaluator.user_id = user_id
 
                 if input.output_config_override is not UNSET:
                     base_config = builtin_evaluator.output_config()
