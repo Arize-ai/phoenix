@@ -2,26 +2,21 @@ import { PropsWithChildren } from "react";
 import { Dialog, DialogTrigger } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  PopoverArrow,
-  SelectChevronUpDownIcon,
-  Text,
-  TimeRangeForm,
-  View,
-} from "@phoenix/components";
-import { ComponentSize } from "@phoenix/components/types";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
 import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
+
+import { Button } from "../button";
+import { Heading, Text } from "../content";
+import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
+import { Flex } from "../layout";
+import { ListBox, ListBoxItem } from "../listbox";
+import { Popover, PopoverArrow } from "../overlay";
+import { ComponentSize } from "../types";
+import { View } from "../view";
+
+import { TimeRangeForm } from "./TimeRangeForm";
 
 import { LAST_N_TIME_RANGES } from "./constants";
 import { OpenTimeRangeWithKey } from "./types";

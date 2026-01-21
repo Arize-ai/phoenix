@@ -18,7 +18,7 @@ import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
   mergeInvocationParametersWithDefaults,
-} from "@phoenix/pages/playground/playgroundUtils";
+} from "@phoenix/pages/playground/invocationParameterUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 

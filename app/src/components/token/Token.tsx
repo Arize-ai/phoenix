@@ -1,9 +1,10 @@
 import React, { forwardRef, HTMLProps, Ref } from "react";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
-import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { useTheme } from "@phoenix/contexts";
+
+import { Icon, Icons } from "../icon";
+import { SizingProps, StylableProps } from "../types";
 
 interface TokenProps
   extends Omit<HTMLProps<HTMLDivElement>, "size" | "css" | "onClick">,

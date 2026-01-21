@@ -11,7 +11,8 @@ import { Controller, useForm } from "react-hook-form";
 import { getLocalTimeZone, parseAbsolute } from "@internationalized/date";
 import { css } from "@emotion/react";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button } from "../button";
+import { Icon, Icons } from "../icon";
 
 import { DateField } from "./DateField";
 

@@ -8,12 +8,6 @@ import {
   PanelResizeHandle,
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
-import { json } from "@codemirror/lang-json";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, {
-  BasicSetupOptions,
-  EditorView,
-} from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
@@ -71,11 +65,7 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import {
-  useNotifySuccess,
-  usePreferencesContext,
-  useTheme,
-} from "@phoenix/contexts";
+import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -108,6 +98,7 @@ import {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
+import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
 import { SpanEventsList } from "./SpanEventsList";
@@ -545,7 +536,9 @@ function SpanInfo({ span }: { span: Span }) {
         {content}
         {attributesObject?.metadata ? (
           <Card {...defaultCardProps} title="Metadata">
-            <JSONBlock>{JSON.stringify(attributesObject.metadata)}</JSONBlock>
+            <ReadonlyJSONBlock>
+              {JSON.stringify(attributesObject.metadata)}
+            </ReadonlyJSONBlock>
           </Card>
         ) : null}
       </Flex>
@@ -783,9 +776,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                         <Text color="text-700" fontStyle="italic">
                           template variables
                         </Text>
-                        <JSONBlock>
+                        <ReadonlyJSONBlock>
                           {JSON.stringify(promptTemplateObject.variables)}
-                        </JSONBlock>
+                        </ReadonlyJSONBlock>
                       </CopyToClipboard>
                     </View>
                   )}
@@ -806,7 +799,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 text={invocation_parameters_str}
                 padding="size-100"
               >
-                <JSONBlock>{invocation_parameters_str}</JSONBlock>
+                <ReadonlyJSONBlock>
+                  {invocation_parameters_str}
+                </ReadonlyJSONBlock>
               </CopyToClipboard>
             </LazyTabPanel>
           )}
@@ -1256,11 +1251,11 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       }
                     `}
                   >
-                    <JSONBlock
+                    <ReadonlyJSONBlock
                       basicSetup={{ lineNumbers: false, foldGutter: false }}
                     >
                       {JSON.stringify(toolParameters) as string}
-                    </JSONBlock>
+                    </ReadonlyJSONBlock>
                   </div>
                 </Flex>
               </View>
@@ -1328,9 +1323,9 @@ function DocumentItem({
               >
                 <Heading level={4}>Document Metadata</Heading>
               </View>
-              <JSONBlock basicSetup={{ lineNumbers: false }}>
+              <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
                 {JSON.stringify(metadata)}
-              </JSONBlock>
+              </ReadonlyJSONBlock>
             </View>
           </>
         )}
@@ -1823,14 +1818,6 @@ function SpanIO({ span }: { span: Span }) {
   );
 }
 
-const codeMirrorCSS = css`
-  width: 100%;
-  .cm-editor,
-  .cm-gutters {
-    background-color: transparent;
-  }
-`;
-
 function CopyToClipboard({
   text,
   children,
@@ -1859,77 +1846,11 @@ function CopyToClipboard({
     </div>
   );
 }
-/**
- * A block of JSON content that is not editable.
- */
-export function JSONBlock({
-  children,
-  basicSetup = {},
-}: {
-  children: string;
-  basicSetup?: BasicSetupOptions;
-}) {
-  const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
-  // We need to make sure that the content can actually be displayed
-  // As JSON as we cannot fully trust the backend to always send valid JSON
-  const { value, mimeType } = useMemo(() => {
-    try {
-      // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
-      // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
-      return {
-        value: JSON.stringify(JSON.parse(children), null, 2),
-        mimeType: "json" as const,
-      };
-    } catch (_e) {
-      // Fall back to string
-      return { value: children, mimeType: "text" as const };
-    }
-  }, [children]);
-  if (mimeType === "json") {
-    return (
-      <CodeMirror
-        value={value}
-        basicSetup={{
-          lineNumbers: true,
-          foldGutter: true,
-          bracketMatching: true,
-          syntaxHighlighting: true,
-          highlightActiveLine: false,
-          highlightActiveLineGutter: false,
-          ...basicSetup,
-        }}
-        extensions={[json(), EditorView.lineWrapping]}
-        editable={false}
-        theme={codeMirrorTheme}
-        css={codeMirrorCSS}
-      />
-    );
-  } else {
-    return <PreBlock>{value}</PreBlock>;
-  }
-}
-
-function PreBlock({ children }: { children: string }) {
-  return (
-    <pre
-      data-testid="pre-block"
-      css={css`
-        white-space: pre-wrap;
-        padding: var(--ac-global-dimension-static-size-200);
-        font-size: var(--ac-global-font-size-s);
-      `}
-    >
-      {children}
-    </pre>
-  );
-}
-
 function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
   let content;
   switch (mimeType) {
     case "json":
-      content = <JSONBlock>{value}</JSONBlock>;
+      content = <ReadonlyJSONBlock>{value}</ReadonlyJSONBlock>;
       break;
     case "text":
       content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;

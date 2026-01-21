@@ -6,13 +6,10 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import {
-  BaseVariant,
-  QuietVariant,
-  SizingProps,
-} from "@phoenix/components/types";
+import { Icon, Icons } from "../icon";
+import { BaseVariant, QuietVariant, SizingProps } from "../types";
+
+import { fieldBaseCSS } from "./styles";
 
 import { textFieldCSS } from "./styles";
 
