@@ -1,26 +1,26 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "0.0.4",
+  "version": "0.3.1",
   "description": "A command-line interface for Phoenix",
-  "main": "dist/src/index.js",
-  "module": "dist/esm/index.js",
-  "types": "dist/src/index.d.ts",
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "bin": {
-    "phoenix-cli": "dist/src/index.js"
+    "phoenix-cli": "build/index.js",
+    "px": "build/index.js"
   },
   "files": [
-    "dist",
-    "src",
+    "build",
     "package.json"
   ],
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "rimraf build",
     "prebuild": "pnpm run clean",
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
-    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "build": "tsc && tsc-alias && chmod 755 build/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --typecheck"
+    "test": "vitest run",
+    "test:watch": "vitest watch"
   },
   "keywords": [
     "phoenix",
@@ -39,14 +39,18 @@
     "url": "https://github.com/Arize-ai/phoenix/issues"
   },
   "dependencies": {
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-config": "workspace:*",
+    "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "commander": "^12.1.0"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
-    "typescript": "^5.8.2",
-    "vitest": "^2.1.9",
     "rimraf": "^5.0.10",
-    "tsc-alias": "^1.8.11"
+    "tsc-alias": "^1.8.11",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

@@ -325,7 +325,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   upsertInvocationParameterInput: (params: {
     instanceId: number;
-    invocationParameterInput: InvocationParameterInput;
+    invocationParameterInput: ModelInvocationParameterInput;
   }) => void;
   /**
    * Delete an invocation parameter input for a model

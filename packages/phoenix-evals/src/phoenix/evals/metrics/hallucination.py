@@ -1,3 +1,13 @@
+"""
+Deprecated: This evaluator is maintained for backwards compatibility.
+
+Please use FaithfulnessEvaluator instead, which uses updated terminology:
+- 'faithful'/'unfaithful' labels instead of 'factual'/'hallucinated'
+- Maximizes score (1.0=faithful) instead of minimizing it
+"""
+
+import warnings
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -11,6 +21,10 @@ from ..llm.prompts import PromptTemplate
 class HallucinationEvaluator(ClassificationEvaluator):
     """
     A specialized evaluator for detecting hallucinations in grounded LLM responses.
+
+    .. deprecated::
+        HallucinationEvaluator is deprecated. Please use FaithfulnessEvaluator instead.
+        The new evaluator uses 'faithful'/'unfaithful' labels and maximizes score (1.0=faithful).
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
@@ -58,6 +72,14 @@ class HallucinationEvaluator(ClassificationEvaluator):
         self,
         llm: LLM,
     ):
+        warnings.warn(
+            "HallucinationEvaluator is deprecated and will be removed in a future version. "
+            "Please use FaithfulnessEvaluator instead. The new evaluator uses "
+            "'faithful'/'unfaithful' labels and maximizes score (1.0=faithful) instead of "
+            "minimizing it (0.0=factual).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name=self.NAME,
             llm=llm,

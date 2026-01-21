@@ -1,0 +1,406 @@
+---
+title: "Retrieve Traces via CLI"
+description: Fetch trace data from Phoenix using the command-line interface for debugging, analysis, and integration with AI coding assistants.
+---
+
+Phoenix CLI (`@arizeai/phoenix-cli`) is a command-line interface tool for retrieving trace data from your Phoenix projects. It allows you to use Phoenix's tracing and debugging features directly in your terminal and development workflows.
+
+You can use Phoenix CLI for the following use cases:
+
+* **Immediate debugging**: Fetch the most recent trace of a failed or unexpected run with a single command.
+* **Bulk export for analysis**: Export large numbers of traces to JSON files for offline analysis, building [evaluation](/docs/phoenix/evaluation/llm-evals) datasets, or regression tests.
+* **Terminal-based workflows**: Integrate trace data into your existing tools; for example, piping output to Unix utilities like `jq`, or feeding traces into an AI coding assistant for automated analysis.
+* **AI coding assistant integration**: Use with Claude Code, Cursor, Windsurf, or other AI-powered development tools to analyze and debug your LLM application traces.
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or run directly without installation:
+
+```bash
+npx @arizeai/phoenix-cli
+```
+
+## Setup
+
+### 1. Set your Phoenix endpoint
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+```
+
+For Phoenix Cloud:
+
+```bash
+export PHOENIX_HOST=https://app.phoenix.arize.com
+```
+
+### 2. Set your project name
+
+```bash
+export PHOENIX_PROJECT=your-project-name
+```
+
+The CLI will automatically fetch traces from `PHOENIX_PROJECT`. Replace `your-project-name` with the name of your Phoenix project.
+
+### 3. Set your API key (if required)
+
+```bash
+export PHOENIX_API_KEY=your-api-key
+```
+
+<Note>
+If you're using Phoenix Cloud or a Phoenix instance with authentication enabled, you'll need to set the `PHOENIX_API_KEY` environment variable or use the `--api-key` flag.
+</Note>
+
+## Use with AI Coding Assistants
+
+Phoenix CLI is designed to work seamlessly with AI coding assistants like **Claude Code**, **Cursor**, **Windsurf**, and other AI-powered development tools.
+
+### Claude Code
+
+After setting up the CLI, ask Claude Code questions like:
+
+```
+Use px to fetch the last 3 traces from my Phoenix project and analyze them for potential improvements
+```
+
+```
+Run px traces --limit 5 --format raw and identify any errors or slow spans in my agent workflow
+```
+
+Claude Code will use the `px --help` command to discover the CLI capabilities and fetch your traces for analysis.
+
+### Cursor / Windsurf
+
+In Cursor or Windsurf, you can:
+
+1. Run `px traces --limit 1 --format json` in the terminal
+2. Select the output and ask the AI to analyze it
+3. Or ask the AI directly to run the command and interpret results
+
+Example prompts:
+
+```
+Fetch my recent Phoenix traces using px and explain what my agent is doing
+```
+
+```
+Use the Phoenix CLI to get the last failed trace and help me debug it
+```
+
+## Find Project and Trace IDs
+
+In most cases, you won't need to find IDs manually (the CLI uses your environment's project name and latest traces by default). However, if you want to fetch a specific item by ID, you can find the IDs in the Phoenix UI:
+
+* **Project Name/ID**: Each project has a unique name and ID. You can find it in the project selector dropdown or in the project's URL.
+* **Trace ID**: Every trace has an ID. In the traces view, click on a specific trace to see its Trace ID (copyable from the trace details panel). You can use `px trace <trace-id>` to retrieve that exact trace.
+
+## Usage
+
+After installation and setup, you can use the `px` command to retrieve traces. The general usage is:
+
+```bash
+px COMMAND [ARGUMENTS] [OPTIONS]
+```
+
+Phoenix CLI provides the following commands:
+
+| Command | Fetches | Output location |
+|---------|---------|-----------------|
+| `projects` | List of all projects | stdout |
+| `trace <id>` | A specific trace by ID | stdout (or to a file with `--file`) |
+| `traces [directory]` | Recent traces from the project | Saves each trace as a JSON file in the given directory, or prints to stdout if no directory is provided |
+
+<Note>
+Traces are fetched chronologically with most recent first.
+</Note>
+
+### Options
+
+The commands support additional flags to filter and format the output:
+
+| Option / Flag | Applies to | Description | Default |
+|---------------|------------|-------------|---------|
+| `-n, --limit <int>` | `traces` | Maximum number of traces to fetch | 10 |
+| `--last-n-minutes <int>` | `traces` | Only fetch traces from the last N minutes | No filter |
+| `--since <timestamp>` | `traces` | Only fetch traces since a specific time (ISO 8601 format) | No filter |
+| `--project <name>` | `trace`, `traces` | Override the configured project | From env |
+| `--format <type>` | All commands | Output format: `pretty`, `json`, or `raw` | `pretty` |
+| `--file <path>` | `trace` | Save the fetched trace to a file instead of printing | stdout |
+| `--max-concurrent <int>` | `traces` | Maximum concurrent fetch requests | 10 |
+| `--no-progress` | All commands | Disable progress bar output (useful for scripts and AI assistants) | Progress on |
+| `--include-annotations` | `trace`, `traces` | Include span annotations in trace export | Off |
+
+### Output formats
+
+The `--format` option controls how the fetched data is displayed:
+
+* **`pretty`** (default): A human-readable tree view showing span hierarchy, status, and timing. Great for quick debugging:
+
+  ```
+  ┌─ Trace: abc123def456
+  │
+  │  Input: What is the weather in San Francisco?
+  │  Output: The weather is currently sunny...
+  │
+  │  Spans:
+  │  └─ ✓ agent_run (CHAIN) - 1250ms
+  │     ├─ ✓ llm_call (LLM) - 800ms
+  │     └─ ✓ tool_execution (TOOL) - 400ms
+  └─
+  ```
+
+* **`json`**: Well-formatted JSON output with indentation. Use this if you want to examine the data structure:
+
+  ```bash
+  px trace <trace-id> --format json
+  ```
+
+* **`raw`**: Compact JSON with no extra whitespace. Ideal for piping to `jq` or other tools:
+
+  ```bash
+  px trace <trace-id> --format raw | jq '.spans[] | select(.span_kind == "LLM")'
+  ```
+
+## Fetch a Single Trace
+
+You can fetch a single trace with its ID. The command will output to the terminal by default:
+
+```bash
+px trace <trace-id>
+```
+
+You can optionally save the trace to a file using the `--file` option:
+
+```bash
+px trace <trace-id> --file ./my-trace.json
+```
+
+To include span annotations in the trace export:
+
+```bash
+px trace <trace-id> --include-annotations --format json
+```
+
+To fetch a trace from a different project than the one configured:
+
+```bash
+px trace <trace-id> --project different-project
+```
+
+## Fetch Multiple Traces
+
+<Tip>
+For bulk fetches of traces, we recommend specifying a target directory path. Each fetched trace will be saved as a separate JSON file in that folder, making it easy to browse or process them later.
+</Tip>
+
+You can specify a destination directory for bulk exports. For example, the following command will save the 10 most recent traces as JSON files in the `my-traces-data` directory:
+
+```bash
+px traces ./my-traces-data --limit 10
+```
+
+Include span annotations in the export:
+
+```bash
+px traces ./my-traces-data --limit 10 --include-annotations
+```
+
+If you omit the directory, the tool will output the results to your terminal:
+
+```bash
+px traces --limit 10
+```
+
+When saving to a directory, files will be named by trace ID (e.g., `3b0b15fe-1e3a-4aef-afa8-48df15879cfe.json`).
+
+### Filter by time
+
+Fetch traces from a specific time range:
+
+```bash
+# Traces from the last 30 minutes
+px traces ./my-traces --limit 50 --last-n-minutes 30
+
+# Traces since a specific time
+px traces ./my-traces --since 2026-01-15T00:00:00Z
+```
+
+## Export to Files
+
+You can fetch traces and export them for offline analysis or building datasets:
+
+```bash
+px traces ./exported-traces --since 2026-01-01T00:00:00Z --limit 100
+```
+
+This command retrieves traces that occurred since January 1, 2026, saving each as a JSON file under `./exported-traces`. This is useful for:
+
+- Building regression test datasets
+- Offline analysis and debugging
+- Creating evaluation datasets for experiments
+
+## Trace Output Structure
+
+When using `json` or `raw` format, traces are output with the following structure:
+
+```json
+{
+  "traceId": "abc123def456",
+  "spans": [
+    {
+      "name": "chat_completion",
+      "context": {
+        "trace_id": "abc123def456",
+        "span_id": "span-1"
+      },
+      "span_kind": "LLM",
+      "parent_id": null,
+      "start_time": "2026-01-17T10:00:00.000Z",
+      "end_time": "2026-01-17T10:00:01.250Z",
+      "status_code": "OK",
+      "attributes": {
+        "llm.model_name": "gpt-4",
+        "llm.token_count.prompt": 512,
+        "llm.token_count.completion": 256,
+        "input.value": "What is the weather?",
+        "output.value": "The weather is sunny..."
+      },
+      "annotations": [
+        {
+          "span_id": "span-1",
+          "name": "quality_score",
+          "annotator_kind": "LLM",
+          "result": {
+            "label": "good",
+            "score": 0.95
+          }
+        }
+      ]
+    }
+  ],
+  "rootSpan": { ... },
+  "startTime": "2026-01-17T10:00:00.000Z",
+  "endTime": "2026-01-17T10:00:01.250Z",
+  "duration": 1250,
+  "status": "OK"
+}
+```
+
+### OpenInference Semantic Attributes
+
+Each span includes [OpenInference](https://github.com/Arize-ai/openinference) semantic attributes in the `attributes` field:
+
+- **LLM spans**: `llm.model_name`, `llm.token_count.prompt`, `llm.token_count.completion`, `llm.invocation_parameters`
+- **Input/Output**: `input.value`, `output.value`, `input.mime_type`, `output.mime_type`
+- **Tool calls**: `tool.name`, `tool.description`, `tool.parameters`
+- **Retrieval**: `retrieval.documents`
+- **Errors**: `exception.type`, `exception.message`, `exception.stacktrace`
+
+## AI Coding Assistant Examples
+
+### Debug a Failed Agent Run
+
+```bash
+# Fetch recent traces and find errors
+px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+```
+
+Then ask your AI assistant:
+
+```
+Here's a failed trace from my agent. Can you identify what went wrong and suggest a fix?
+```
+
+### Analyze Agent Performance
+
+```bash
+# Get traces sorted by duration
+px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+```
+
+Ask your AI assistant:
+
+```
+Analyze these slow traces and suggest optimizations for my agent workflow
+```
+
+### Review Token Usage
+
+```bash
+# Extract LLM spans with token counts
+px traces --limit 50 --format raw --no-progress | \
+  jq '[.[].spans[] | select(.span_kind == "LLM") | {name, model: .attributes["llm.model_name"], tokens: .attributes["llm.token_count.total"]}]'
+```
+
+## Pipeline Examples
+
+The CLI is designed to work seamlessly in shell pipelines:
+
+```bash
+# Count traces with errors
+px traces --limit 100 --format raw --no-progress | \
+  jq '[.[] | select(.status == "ERROR")] | length'
+
+# Extract all LLM models used
+px traces --limit 50 --format raw --no-progress | \
+  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"] // empty' | \
+  sort -u
+
+# Get total duration across traces
+px traces --limit 100 --format raw --no-progress | \
+  jq '[.[].duration // 0] | add'
+```
+
+## Troubleshooting
+
+### "Phoenix endpoint not configured"
+
+Set the `PHOENIX_HOST` environment variable:
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+```
+
+Or use the `--endpoint` flag:
+
+```bash
+px traces --endpoint http://localhost:6006 --limit 10
+```
+
+### "Project not configured"
+
+Set the `PHOENIX_PROJECT` environment variable:
+
+```bash
+export PHOENIX_PROJECT=my-project
+```
+
+Or use the `--project` flag:
+
+```bash
+px traces --project my-project --limit 10
+```
+
+### "Failed to resolve project"
+
+Make sure your project name or ID is correct. List available projects:
+
+```bash
+px projects
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="rectangle-terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full CLI reference documentation
+  </Card>
+  <Card title="Export Data & Query Spans" icon="database" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    Learn how to export trace data using the Phoenix client
+  </Card>
+</CardGroup>

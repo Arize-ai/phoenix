@@ -52,6 +52,12 @@ export interface Example {
    * - null for no split assignment
    */
   splits?: string | string[] | null;
+  /**
+   * OpenTelemetry span ID to link this example back to its source span.
+   * When provided, the dataset example will be associated with the span
+   * in the Phoenix UI, enabling traceability from datasets back to traces.
+   */
+  spanId?: string | null;
 }
 
 /**

@@ -1130,7 +1130,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -1152,7 +1152,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1179,7 +1179,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1206,7 +1206,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1233,7 +1233,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.125e-7,
+          "base_rate": 1.25e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -2960,6 +2960,28 @@
     {
       "name": "gpt-5.2-chat-latest",
       "name_pattern": "gpt-5\\.2-chat-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.75e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000014,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.2-codex",
+      "name_pattern": "gpt-5\\.2-codex",
       "source": "litellm",
       "token_prices": [
         {

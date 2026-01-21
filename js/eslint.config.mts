@@ -5,7 +5,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  { ignores: ["**/*.{js,jsx,cjs,mjs}", "**/dist/**"] },
+  { ignores: ["**/*.{js,jsx,cjs,mjs}", "**/dist/**", "**/build/**"] },
   {
     files: ["**/*.{ts,mts,cts}"],
     plugins: { js, "simple-import-sort": simpleImportSort },

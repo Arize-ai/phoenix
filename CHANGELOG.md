@@ -1,5 +1,47 @@
 # Changelog
 
+## [12.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.30.0...arize-phoenix-v12.31.0) (2026-01-21)
+
+
+### Features
+
+* add cursor rule for creating new built-in metrics (llm classification evaluators) ([#10987](https://github.com/Arize-ai/phoenix/issues/10987)) ([d329bea](https://github.com/Arize-ai/phoenix/commit/d329bea174a00a50c345fe18ddafa97d63479411))
+* add FaithfulnessEvaluator and deprecate HallucinationEvaluator ([#10962](https://github.com/Arize-ai/phoenix/issues/10962)) ([fc8b1b5](https://github.com/Arize-ai/phoenix/commit/fc8b1b5eaeadbd4e23ed684f0f2286f5a55d00a2))
+* add span_id_key to link dataset examples to traces ([#10942](https://github.com/Arize-ai/phoenix/issues/10942)) ([01eb1fb](https://github.com/Arize-ai/phoenix/commit/01eb1fbaa7ac029f044842d683f35c3fb21da627))
+* dataset and experiment cli commands ([#10997](https://github.com/Arize-ai/phoenix/issues/10997)) ([32343ff](https://github.com/Arize-ai/phoenix/commit/32343ffa860497545e4b3b51440d741f7678ffc3))
+* phoenix cli ([#10944](https://github.com/Arize-ai/phoenix/issues/10944)) ([d69eb80](https://github.com/Arize-ai/phoenix/commit/d69eb805d8277fc1f21f1a84d4d83f622a317aca))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#11001](https://github.com/Arize-ai/phoenix/issues/11001)) ([f6ec754](https://github.com/Arize-ai/phoenix/commit/f6ec754100c87fdc37306832446049bf89c7cb56))
+* normalize tool return content before rendering ([#10941](https://github.com/Arize-ai/phoenix/issues/10941)) ([3ce4ca8](https://github.com/Arize-ai/phoenix/commit/3ce4ca80af0b9f34773ff952e0ff159a84160d7f))
+
+
+### Documentation
+
+* opensearch integration page ([#10991](https://github.com/Arize-ai/phoenix/issues/10991)) ([7b2f828](https://github.com/Arize-ai/phoenix/commit/7b2f828f843085571c6a0ada00e94a1b97ae59d5))
+
+## [12.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.29.0...arize-phoenix-v12.30.0) (2026-01-15)
+
+
+### Features
+
+* Add AttributesJSONBlock component for enhanced JSON attribute display ([#10918](https://github.com/Arize-ai/phoenix/issues/10918)) ([0c2426b](https://github.com/Arize-ai/phoenix/commit/0c2426b31031f92fc04b8b7f45ce9de005cb3cbf))
+* add text block and json block icons for attribute string expansion ([#10972](https://github.com/Arize-ai/phoenix/issues/10972)) ([cb938e8](https://github.com/Arize-ai/phoenix/commit/cb938e8f79a4f8e695f7c2bfcb19d98e2dd32dbd))
+
+
+### Bug Fixes
+
+* preserve reasoning_effort and other invocation parameters ([#10915](https://github.com/Arize-ai/phoenix/issues/10915)) ([e1cf433](https://github.com/Arize-ai/phoenix/commit/e1cf43386310be0ddad73049655f0bc8f49bf477))
+* Preserve response format during model updates in playground store ([#10964](https://github.com/Arize-ai/phoenix/issues/10964)) ([8f50e27](https://github.com/Arize-ai/phoenix/commit/8f50e27d92c2fe2fd3fb994c0f576f3a918533fc))
+* Store correct repetition count for non-streaming experiments ([#10953](https://github.com/Arize-ai/phoenix/issues/10953)) ([b3c21ff](https://github.com/Arize-ai/phoenix/commit/b3c21ffffe89c7745c90a240e41602a82b357ca0))
+
+
+### Documentation
+
+* Add CLAUDE.md with development guidelines for Claude Code ([#10927](https://github.com/Arize-ai/phoenix/issues/10927)) ([6932ac4](https://github.com/Arize-ai/phoenix/commit/6932ac48837061e3303d1b57d1d5b8eac3d521aa))
+
 ## [12.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.28.1...arize-phoenix-v12.29.0) (2026-01-12)
 
 

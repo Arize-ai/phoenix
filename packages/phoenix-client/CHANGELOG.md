@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.2...arize-phoenix-client-v1.28.0) (2026-01-21)
+
+
+### Features
+
+* add FaithfulnessEvaluator and deprecate HallucinationEvaluator ([#10962](https://github.com/Arize-ai/phoenix/issues/10962)) ([fc8b1b5](https://github.com/Arize-ai/phoenix/commit/fc8b1b5eaeadbd4e23ed684f0f2286f5a55d00a2))
+* add span_id_key to link dataset examples to traces ([#10942](https://github.com/Arize-ai/phoenix/issues/10942)) ([01eb1fb](https://github.com/Arize-ai/phoenix/commit/01eb1fbaa7ac029f044842d683f35c3fb21da627))
+
 ## [1.27.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.1...arize-phoenix-client-v1.27.2) (2026-01-08)
 
 

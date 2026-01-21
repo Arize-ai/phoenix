@@ -1,10 +1,10 @@
-import { createHallucinationEvaluator } from "../../src/llm/createHallucinationEvaluator";
+import { createFaithfulnessEvaluator } from "../../src/llm/createFaithfulnessEvaluator";
 import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 import { openai } from "@ai-sdk/openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("createHallucinationEvaluator", () => {
+describe("createFaithfulnessEvaluator", () => {
   beforeEach(() => {
     // Mock the OpenAI API key environment variable
     vi.stubEnv("OPENAI_API_KEY", "sk-dummy-test-key-12345");
@@ -18,24 +18,24 @@ describe("createHallucinationEvaluator", () => {
 
   const model = openai("gpt-4o-mini");
 
-  const customHallucinationTemplate = `
-Custom template for hallucination detection:
+  const customFaithfulnessTemplate = `
+Custom template for faithfulness detection:
 Query: {{input}}
 Reference: {{reference}}
 Answer: {{output}}
-Is the answer hallucinated? Respond with "yes" or "no".
+Is the answer faithful? Respond with "yes" or "no".
 `;
 
-  it("should create a hallucination evaluator with default template and choices", async () => {
+  it("should create a faithfulness evaluator with default template and choices", async () => {
     // Mock the generateClassification function
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "faithful",
         explanation: "The answer is based on the reference text",
       });
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
     });
 
@@ -49,7 +49,7 @@ Is the answer hallucinated? Respond with "yes" or "no".
     // Verify the function was called with default template and choices
     expect(mockGenerateClassification).toHaveBeenCalledWith(
       expect.objectContaining({
-        labels: ["hallucinated", "factual"],
+        labels: ["faithful", "unfaithful"],
         prompt: expect.arrayContaining([
           expect.objectContaining({
             role: "user",
@@ -61,16 +61,16 @@ Is the answer hallucinated? Respond with "yes" or "no".
       })
     );
 
-    expect(result.label).toBe("factual");
-    expect(result.score).toBe(0); // factual = 1 in default choices
+    expect(result.label).toBe("faithful");
+    expect(result.score).toBe(1); // faithful = 1 in default choices
     expect(result.explanation).toBe(
       "The answer is based on the reference text"
     );
   });
 
   it("should advertize the variables needed", () => {
-    const hallucination = createHallucinationEvaluator({ model });
-    expect(hallucination.promptTemplateVariables).toEqual([
+    const faithfulness = createFaithfulnessEvaluator({ model });
+    expect(faithfulness.promptTemplateVariables).toEqual([
       "input",
       "context",
       "output",
@@ -78,16 +78,16 @@ Is the answer hallucinated? Respond with "yes" or "no".
   });
 
   it("should use default optimization direction from config", () => {
-    const evaluator = createHallucinationEvaluator({ model });
-    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
+    const evaluator = createFaithfulnessEvaluator({ model });
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
   });
 
   it("should allow overriding optimization direction", () => {
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
-      optimizationDirection: "MAXIMIZE",
+      optimizationDirection: "MINIMIZE",
     });
-    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
+    expect(evaluator.optimizationDirection).toBe("MINIMIZE");
   });
 
   it("should support custom template", async () => {
@@ -95,14 +95,14 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "yes",
-        explanation: "The answer contains hallucinated information",
+        label: "no",
+        explanation: "The answer contains unfaithful information",
       });
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
-      promptTemplate: customHallucinationTemplate,
-      choices: { yes: 0, no: 1 }, // Custom choices for custom template
+      promptTemplate: customFaithfulnessTemplate,
+      choices: { yes: 1, no: 0 }, // Custom choices for custom template
     });
 
     const result = await evaluator.evaluate({
@@ -117,13 +117,13 @@ Is the answer hallucinated? Respond with "yes" or "no".
       expect.objectContaining({
         labels: ["yes", "no"],
         prompt: expect.stringContaining(
-          "Custom template for hallucination detection"
+          "Custom template for faithfulness detection"
         ),
       })
     );
 
-    expect(result.label).toBe("yes");
-    expect(result.score).toBe(0); // yes = 0 in custom choices
+    expect(result.label).toBe("no");
+    expect(result.score).toBe(0); // no = 0 in custom choices
   });
 
   it("should support custom choices with default template", async () => {
@@ -132,13 +132,13 @@ Is the answer hallucinated? Respond with "yes" or "no".
       generateClassificationModule,
       "generateClassification"
     ).mockResolvedValue({
-      label: "hallucinated",
+      label: "unfaithful",
       explanation: "The answer contradicts the reference text",
     });
 
-    const customChoices = { factual: 0.8, hallucinated: 0.2 };
+    const customChoices = { faithful: 0.8, unfaithful: 0.2 };
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
       choices: customChoices,
     });
@@ -150,8 +150,8 @@ Is the answer hallucinated? Respond with "yes" or "no".
         "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
-    expect(result.label).toBe("hallucinated");
-    expect(result.score).toBe(0.2); // Custom score for hallucinated
+    expect(result.label).toBe("unfaithful");
+    expect(result.score).toBe(0.2); // Custom score for unfaithful
   });
 
   it("should have telemetry enabled by default", async () => {
@@ -159,11 +159,11 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "faithful",
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
       // Note: we're not explicitly setting telemetry options here
     });
@@ -188,11 +188,11 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "faithful",
         explanation: "This is a test explanation",
       });
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
       telemetry: { isEnabled: false }, // Explicitly disable telemetry
     });
@@ -217,13 +217,13 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "faithful",
         explanation: "This is a test explanation",
       });
 
     const customTracer = {} as import("@opentelemetry/api").Tracer; // Mock tracer object
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
       telemetry: {
         isEnabled: true,
@@ -254,11 +254,11 @@ Is the answer hallucinated? Respond with "yes" or "no".
     const mockGenerateClassification = vi
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
-        label: "factual",
+        label: "faithful",
         explanation: "Template variables correctly interpolated",
       });
 
-    const evaluator = createHallucinationEvaluator({
+    const evaluator = createFaithfulnessEvaluator({
       model,
     });
 

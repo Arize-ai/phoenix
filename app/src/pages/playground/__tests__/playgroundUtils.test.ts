@@ -38,7 +38,6 @@ import {
   getToolsFromAttributes,
   getVariablesMapFromInstances,
   mergeInvocationParametersWithDefaults,
-  normalizeMessageContent,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -1660,76 +1659,6 @@ describe("mergeInvocationParametersWithDefaults", () => {
       },
       { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
     ]);
-  });
-});
-
-describe("normalizeMessageContent", () => {
-  it("should return unknown json content as a string", () => {
-    const content = "Hello, world!";
-    expect(normalizeMessageContent(content)).toBe('"Hello, world!"');
-    const content2 = ".123";
-    expect(normalizeMessageContent(content2)).toBe('".123"');
-    const content3 = "True";
-    expect(normalizeMessageContent(content3)).toBe('"True"');
-    const content4 = "False";
-    expect(normalizeMessageContent(content4)).toBe('"False"');
-    const content5 = "Null";
-    expect(normalizeMessageContent(content5)).toBe('"Null"');
-    const content6 = "a";
-    expect(normalizeMessageContent(content6)).toBe('"a"');
-    const content7 = "u";
-    expect(normalizeMessageContent(content7)).toBe('"u"');
-  });
-
-  it("should return the content as a stringified JSON with pretty printing if it is an object", () => {
-    const content = { foo: "bar" };
-    expect(normalizeMessageContent(content)).toBe(
-      JSON.stringify(content, null, 2)
-    );
-  });
-
-  it("should return the content as a string if it is a number", () => {
-    const content = 123;
-    expect(normalizeMessageContent(content)).toBe("123");
-    const content2 = 123.456;
-    expect(normalizeMessageContent(content2)).toBe("123.456");
-    const content3 = -123.456;
-    expect(normalizeMessageContent(content3)).toBe("-123.456");
-    const content4 = 0;
-    expect(normalizeMessageContent(content4)).toBe("0");
-    const content6 = 0.5;
-    expect(normalizeMessageContent(content6)).toBe("0.5");
-  });
-
-  it("should return the content as a string if it is a boolean", () => {
-    const content = true;
-    expect(normalizeMessageContent(content)).toBe("true");
-    const content2 = false;
-    expect(normalizeMessageContent(content2)).toBe("false");
-  });
-
-  it("should return the content as a string if it is null", () => {
-    const content = null;
-    expect(normalizeMessageContent(content)).toBe("null");
-  });
-
-  it("should return the content as a string if it is an array", () => {
-    const content = [1, "2", 3, { foo: "bar" }];
-    expect(normalizeMessageContent(content)).toBe(
-      `[
-  1,
-  "2",
-  3,
-  {
-    "foo": "bar"
-  }
-]`
-    );
-  });
-
-  it("should handle double quoted strings", () => {
-    const content = `"\\"Hello, world!\\""`;
-    expect(normalizeMessageContent(content)).toBe(`"Hello, world!"`);
   });
 });
 

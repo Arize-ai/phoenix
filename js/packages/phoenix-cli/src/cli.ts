@@ -1,22 +1,39 @@
 #!/usr/bin/env node
 
+import {
+  createDatasetCommand,
+  createDatasetsCommand,
+  createExperimentCommand,
+  createExperimentsCommand,
+  createProjectsCommand,
+  createTraceCommand,
+  createTracesCommand,
+} from "./commands";
+
 import { Command } from "commander";
 
 // Phoenix CLI Main Logic
-// This file contains the main CLI functionality
-
 export function main() {
   const program = new Command();
 
   program
     .name("px")
-    .description("A command-line interface for Phoenix")
-    .version("1.0.0");
+    .description("Phoenix CLI - AI observability from the command line")
+    .version("0.0.4");
+
+  // Register commands
+  program.addCommand(createProjectsCommand());
+  program.addCommand(createTracesCommand());
+  program.addCommand(createTraceCommand());
+  program.addCommand(createDatasetsCommand());
+  program.addCommand(createDatasetCommand());
+  program.addCommand(createExperimentsCommand());
+  program.addCommand(createExperimentCommand());
+
+  // Show help if no command provided
+  if (process.argv.length === 2) {
+    program.help();
+  }
 
   program.parse();
-}
-
-// Run CLI if this file is executed directly
-if (require.main === module) {
-  main();
 }
