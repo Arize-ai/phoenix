@@ -63,9 +63,9 @@ import {
   ViewProps,
 } from "@phoenix/components";
 import {
-  AttributesDisplayProvider,
-  ConnectedAttributesJSONBlock,
-  ConnectedAttributesJSONBlockControls,
+  JSONStringExpanderBlock,
+  JSONStringExpanderControls,
+  JSONStringExpanderProvider,
 } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
@@ -373,16 +373,16 @@ export function SpanDetails({
                 maxHeight="100%"
                 overflow="auto"
               >
-                <AttributesDisplayProvider attributes={span.attributes}>
+                <JSONStringExpanderProvider jsonString={span.attributes}>
                   <Card
                     title="All Attributes"
                     {...defaultCardProps}
                     titleExtra={attributesContextualHelp}
-                    extra={<ConnectedAttributesJSONBlockControls />}
+                    extra={<JSONStringExpanderControls />}
                   >
-                    <ConnectedAttributesJSONBlock />
+                    <JSONStringExpanderBlock />
                   </Card>
-                </AttributesDisplayProvider>
+                </JSONStringExpanderProvider>
               </View>
             </LazyTabPanel>
 
@@ -1810,16 +1810,16 @@ function SpanIO({ span }: { span: Span }) {
         </MarkdownDisplayProvider>
       ) : null}
       {isMissingIO ? (
-        <AttributesDisplayProvider attributes={span.attributes}>
+        <JSONStringExpanderProvider jsonString={span.attributes}>
           <Card
             title="All Attributes"
             titleExtra={attributesContextualHelp}
             {...defaultCardProps}
-            extra={<ConnectedAttributesJSONBlockControls />}
+            extra={<JSONStringExpanderControls />}
           >
-            <ConnectedAttributesJSONBlock />
+            <JSONStringExpanderBlock />
           </Card>
-        </AttributesDisplayProvider>
+        </JSONStringExpanderProvider>
       ) : null}
     </Flex>
   );

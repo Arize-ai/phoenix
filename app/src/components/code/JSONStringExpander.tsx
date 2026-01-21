@@ -72,67 +72,65 @@ export function hasStringifiedJSON(value: unknown): boolean {
   return false;
 }
 
-type AttributesDisplayContextType = {
-  attributes: string;
+type JSONStringExpanderContextType = {
+  jsonString: string;
   isExpanded: boolean;
   toggleExpand: () => void;
   canExpand: boolean;
   displayValue: string;
 };
 
-const AttributesDisplayContext =
-  createContext<AttributesDisplayContextType | null>(null);
+const JSONStringExpanderContext =
+  createContext<JSONStringExpanderContextType | null>(null);
 
-function useAttributesDisplay(): AttributesDisplayContextType {
-  const context = useContext(AttributesDisplayContext);
+function useJSONStringExpander(): JSONStringExpanderContextType {
+  const context = useContext(JSONStringExpanderContext);
   if (context === null) {
     throw new Error(
-      "useAttributesDisplay must be used within an AttributesDisplayProvider"
+      "useJSONStringExpander must be used within a JSONStringExpanderProvider"
     );
   }
   return context;
 }
 
 /**
- * Provider that manages state for the attributes JSON block and its controls.
+ * Provider that manages state for expanding stringified JSON within JSON.
  */
-export function AttributesDisplayProvider({
-  attributes,
+export function JSONStringExpanderProvider({
+  jsonString,
   children,
-}: PropsWithChildren<{ attributes: string }>) {
+}: PropsWithChildren<{ jsonString: string }>) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const parsedAttributes = useMemo(() => {
+  const parsedJSON = useMemo(() => {
     try {
-      return JSON.parse(attributes) as Record<string, unknown>;
+      return JSON.parse(jsonString) as Record<string, unknown>;
     } catch {
       return null;
     }
-  }, [attributes]);
+  }, [jsonString]);
 
   const canExpand = useMemo(
-    () => parsedAttributes !== null && hasStringifiedJSON(parsedAttributes),
-    [parsedAttributes]
+    () => parsedJSON !== null && hasStringifiedJSON(parsedJSON),
+    [parsedJSON]
   );
 
   const displayValue = useMemo(() => {
-    if (!parsedAttributes) {
-      return attributes;
+    if (!parsedJSON) {
+      return jsonString;
     }
-    const valueToDisplay = isExpanded
-      ? formatValue(parsedAttributes)
-      : parsedAttributes;
+    const valueToDisplay = isExpanded ? formatValue(parsedJSON) : parsedJSON;
     return JSON.stringify(valueToDisplay, null, 2);
-  }, [parsedAttributes, isExpanded, attributes]);
+  }, [parsedJSON, isExpanded, jsonString]);
 
   const toggleExpand = useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
 
   return (
-    <AttributesDisplayContext.Provider
+    <JSONStringExpanderContext.Provider
       value={{
-        attributes,
+        jsonString,
         isExpanded,
         toggleExpand,
         canExpand,
@@ -140,17 +138,19 @@ export function AttributesDisplayProvider({
       }}
     >
       {children}
-    </AttributesDisplayContext.Provider>
+    </JSONStringExpanderContext.Provider>
   );
 }
 
 /**
- * Controls for the attributes JSON block (expand/collapse and copy buttons).
- * Must be used within an AttributesDisplayProvider.
+ * Controls for expanding/collapsing stringified JSON and copying.
+ * Must be used within a JSONStringExpanderProvider.
  */
-export function ConnectedAttributesJSONBlockControls() {
+export function JSONStringExpanderControls() {
   const { isExpanded, toggleExpand, canExpand, displayValue } =
-    useAttributesDisplay();
+    useJSONStringExpander();
+
+  const expandLabel = isExpanded ? "Collapse Strings" : "Expand Strings";
 
   return (
     <Flex direction="row" gap="size-100">
@@ -158,7 +158,7 @@ export function ConnectedAttributesJSONBlockControls() {
         <Button
           size="S"
           variant="default"
-          aria-label={isExpanded ? "Collapse Strings" : "Expand Strings"}
+          aria-label={expandLabel}
           leadingVisual={
             <Icon
               svg={isExpanded ? <Icons.BlockString /> : <Icons.BlockJSON />}
@@ -166,7 +166,7 @@ export function ConnectedAttributesJSONBlockControls() {
           }
           onPress={toggleExpand}
         >
-          {isExpanded ? "Collapse Strings" : "Expand Strings"}
+          {expandLabel}
         </Button>
       )}
       <CopyToClipboardButton text={displayValue} />
@@ -175,34 +175,23 @@ export function ConnectedAttributesJSONBlockControls() {
 }
 
 /**
- * Displays JSON attributes. Must be used within an AttributesDisplayProvider.
+ * Displays JSON with expanded stringified values.
+ * Must be used within a JSONStringExpanderProvider.
  */
-export function ConnectedAttributesJSONBlock() {
-  const { attributes, displayValue } = useAttributesDisplay();
+export function JSONStringExpanderBlock() {
+  const { jsonString, displayValue } = useJSONStringExpander();
 
-  const parsedAttributes = useMemo(() => {
+  const parsedJSON = useMemo(() => {
     try {
-      return JSON.parse(attributes) as Record<string, unknown>;
+      return JSON.parse(jsonString) as Record<string, unknown>;
     } catch {
       return null;
     }
-  }, [attributes]);
+  }, [jsonString]);
 
-  return parsedAttributes ? (
+  return parsedJSON ? (
     <JSONBlock value={displayValue} />
   ) : (
-    <PreBlock>{attributes}</PreBlock>
-  );
-}
-
-/**
- * Standalone component that displays JSON attributes with expand/collapse controls.
- * Use this when you don't need to separate the controls from the content.
- */
-export function AttributesJSONBlock({ attributes }: { attributes: string }) {
-  return (
-    <AttributesDisplayProvider attributes={attributes}>
-      <ConnectedAttributesJSONBlock />
-    </AttributesDisplayProvider>
+    <PreBlock>{jsonString}</PreBlock>
   );
 }
