@@ -46,6 +46,8 @@ class _InputDatasetExample(TypedDict, total=False):
     input: Required[Mapping[str, Any]]
     output: Required[Mapping[str, Any]]
     metadata: Mapping[str, Any]
+    span_id: Optional[str]
+    splits: Optional[Union[str, list[str]]]
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -949,6 +951,7 @@ class Datasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -965,6 +968,7 @@ class Datasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1154,7 +1158,7 @@ class Datasets:
         # Validate span_ids separately (can be string or None)
         if span_ids_list and len(span_ids_list) != len(inputs_list):
             raise ValueError(
-                f"span_ids must have same length as inputs ({len(span_ids_list)} != {len(inputs_list)})"
+                f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
         payload = {
@@ -1718,6 +1722,7 @@ class AsyncDatasets:
             raise ValueError("Please provide either dataframe or csv_file_path, but not both")
 
         splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1734,6 +1739,7 @@ class AsyncDatasets:
             outputs = [dict(example["output"]) for example in examples_list]
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1906,7 +1912,7 @@ class AsyncDatasets:
         # Validate span_ids separately (can be string or None)
         if span_ids_list and len(span_ids_list) != len(inputs_list):
             raise ValueError(
-                f"span_ids must have same length as inputs ({len(span_ids_list)} != {len(inputs_list)})"
+                f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
         payload = {

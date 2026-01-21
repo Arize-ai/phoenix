@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from secrets import token_hex
-from typing import Any
+from typing import Any, Sequence
 
 import pandas as pd
 import pytest
@@ -12,7 +12,7 @@ import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 
-from .._helpers import _AppInfo, _await_or_return, _gql
+from .._helpers import _AppInfo, _await_or_return, _ExistingSpan, _gql
 
 
 class TestDatasetIntegration:
@@ -1345,92 +1345,27 @@ Capital of Germany?,Berlin,geography,validation
         self,
         is_async: bool,
         _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
         tmp_path: Path,
     ) -> None:
         """Test creating dataset with span_id_key parameter from CSV."""
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
-        from sqlalchemy import insert, select
-
-        from phoenix.db import models
-        from phoenix.server.types import DbSessionFactory
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
 
-        # Get database session factory from the _app fixture
-        # We need to create spans directly in the database first
-        from phoenix.db.helpers import get_session_factory_from_env
-
-        db = get_session_factory_from_env()
-
-        # Create a project and spans in the database
-        async with db() as session:
-            from datetime import datetime, timezone
-
-            # Create a project
-            project_id = await session.scalar(
-                insert(models.Project).values(name="test-project").returning(models.Project.id)
-            )
-
-            # Create a trace
-            trace_id = await session.scalar(
-                insert(models.Trace)
-                .values(
-                    project_rowid=project_id,
-                    trace_id="test-trace-123",
-                    start_time=datetime.now(timezone.utc),
-                    end_time=datetime.now(timezone.utc),
-                )
-                .returning(models.Trace.id)
-            )
-
-            # Create spans with specific span_ids
-            await session.execute(
-                insert(models.Span).values(
-                    [
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-abc-123",
-                            "name": "test_span_1",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-def-456",
-                            "name": "test_span_2",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                    ]
-                )
-            )
-
-            await session.commit()
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans required"
+        span_id_1 = _existing_spans[0].span_id
+        span_id_2 = _existing_spans[1].span_id
 
         # Create CSV file with span_id column
         unique_name = f"test_span_links_{token_hex(4)}"
         csv_file = tmp_path / "test_data.csv"
-        csv_content = """question,answer,trace_span_id
-What is AI?,Artificial Intelligence,span-abc-123
-What is ML?,Machine Learning,span-def-456
+        csv_content = f"""question,answer,trace_span_id
+What is AI?,Artificial Intelligence,{span_id_1}
+What is ML?,Machine Learning,{span_id_2}
 What is DL?,Deep Learning,nonexistent-span
 What is NLP?,Natural Language Processing,
 """
@@ -1450,95 +1385,61 @@ What is NLP?,Natural Language Processing,
         assert dataset.name == unique_name
         assert len(dataset) == 4
 
-        # Verify examples were linked to spans in the database
-        async with db() as session:
-            examples = list(
-                await session.scalars(
-                    select(models.DatasetExample)
-                    .join(models.Dataset)
-                    .where(models.Dataset.name == unique_name)
-                    .order_by(models.DatasetExample.id)
-                )
-            )
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
 
-            # First example should be linked to span-abc-123
-            assert examples[0].span_rowid is not None
+        # Verify 4 examples were created
+        assert len(examples) == 4
 
-            # Second example should be linked to span-def-456
-            assert examples[1].span_rowid is not None
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
 
-            # Third example has nonexistent span, should be None
-            assert examples[2].span_rowid is None
+        # Exactly 2 examples should have valid span links
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 2
 
-            # Fourth example has empty span_id, should be None
-            assert examples[3].span_rowid is None
+        # The two valid span links should be span_id_1 and span_id_2
+        assert set(non_null_spans) == {span_id_1, span_id_2}
+
+        # Exactly 2 examples should have no span link (nonexistent + empty)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_dataset_with_span_id_key_dataframe(
         self,
         is_async: bool,
         _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id_key parameter from DataFrame."""
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
-        from sqlalchemy import insert, select
-
-        from phoenix.db import models
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
 
-        # Get database session factory
-        from phoenix.db.helpers import get_session_factory_from_env
-
-        db = get_session_factory_from_env()
-
-        # Create a project and spans in the database
-        async with db() as session:
-            from datetime import datetime, timezone
-
-            # Create a project
-            project_id = await session.scalar(
-                insert(models.Project).values(name="test-project").returning(models.Project.id)
-            )
-
-            # Create a trace
-            trace_id = await session.scalar(
-                insert(models.Trace)
-                .values(
-                    project_rowid=project_id,
-                    trace_id="test-trace-456",
-                    start_time=datetime.now(timezone.utc),
-                    end_time=datetime.now(timezone.utc),
-                )
-                .returning(models.Trace.id)
-            )
-
-            # Create spans
-            await session.execute(
-                insert(models.Span).values(
-                    [
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-xyz-789",
-                            "name": "test_span_3",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                    ]
-                )
-            )
-
-            await session.commit()
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 1, "At least one existing span required"
+        span_id = _existing_spans[0].span_id
 
         # Create DataFrame with span_id column
         unique_name = f"test_span_links_df_{token_hex(4)}"
@@ -1546,7 +1447,7 @@ What is NLP?,Natural Language Processing,
             {
                 "input": ["What is Phoenix?", "What is OpenTelemetry?"],
                 "output": ["An observability platform", "A telemetry framework"],
-                "context.span_id": ["span-xyz-789", None],
+                "context.span_id": [span_id, None],
             }
         )
 
@@ -1564,104 +1465,60 @@ What is NLP?,Natural Language Processing,
         assert dataset.name == unique_name
         assert len(dataset) == 2
 
-        # Verify examples were linked to spans in the database
-        async with db() as session:
-            examples = list(
-                await session.scalars(
-                    select(models.DatasetExample)
-                    .join(models.Dataset)
-                    .where(models.Dataset.name == unique_name)
-                    .order_by(models.DatasetExample.id)
-                )
-            )
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
 
-            # First example should be linked to span-xyz-789
-            assert examples[0].span_rowid is not None
+        # Verify 2 examples were created
+        assert len(examples) == 2
 
-            # Second example has None span_id, should be None
-            assert examples[1].span_rowid is None
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 1 example should have a valid span link
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 1
+        assert non_null_spans[0] == span_id
+
+        # Exactly 1 example should have no span link
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 1
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_dataset_with_span_id_in_examples(
         self,
         is_async: bool,
         _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id in examples parameter (JSON path)."""
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
-        from sqlalchemy import insert, select
-
-        from phoenix.db import models
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
 
-        # Get database session factory
-        from phoenix.db.helpers import get_session_factory_from_env
-
-        db = get_session_factory_from_env()
-
-        # Create a project and spans in the database
-        async with db() as session:
-            from datetime import datetime, timezone
-
-            # Create a project
-            project_id = await session.scalar(
-                insert(models.Project).values(name="test-project").returning(models.Project.id)
-            )
-
-            # Create a trace
-            trace_id = await session.scalar(
-                insert(models.Trace)
-                .values(
-                    project_rowid=project_id,
-                    trace_id="test-trace-json",
-                    start_time=datetime.now(timezone.utc),
-                    end_time=datetime.now(timezone.utc),
-                )
-                .returning(models.Trace.id)
-            )
-
-            # Create spans
-            await session.execute(
-                insert(models.Span).values(
-                    [
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-json-111",
-                            "name": "test_span_json_1",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-json-222",
-                            "name": "test_span_json_2",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                    ]
-                )
-            )
-
-            await session.commit()
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 2, "At least two existing spans required"
+        span_id_1 = _existing_spans[0].span_id
+        span_id_2 = _existing_spans[1].span_id
 
         # Create dataset with span_id in examples
         unique_name = f"test_span_examples_{token_hex(4)}"
@@ -1672,12 +1529,12 @@ What is NLP?,Natural Language Processing,
                     {
                         "input": {"q": "What is span linking?"},
                         "output": {"a": "It links examples to traces"},
-                        "span_id": "span-json-111",
+                        "span_id": span_id_1,
                     },
                     {
                         "input": {"q": "How does it work?"},
                         "output": {"a": "By storing span_rowid"},
-                        "span_id": "span-json-222",
+                        "span_id": span_id_2,
                     },
                     {
                         "input": {"q": "What about missing spans?"},
@@ -1696,95 +1553,61 @@ What is NLP?,Natural Language Processing,
         assert dataset.name == unique_name
         assert len(dataset) == 4
 
-        # Verify examples were linked to spans in the database
-        async with db() as session:
-            examples = list(
-                await session.scalars(
-                    select(models.DatasetExample)
-                    .join(models.Dataset)
-                    .where(models.Dataset.name == unique_name)
-                    .order_by(models.DatasetExample.id)
-                )
-            )
+        # Verify examples were linked to spans via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
 
-            # First example should be linked to span-json-111
-            assert examples[0].span_rowid is not None
+        # Verify 4 examples were created
+        assert len(examples) == 4
 
-            # Second example should be linked to span-json-222
-            assert examples[1].span_rowid is not None
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
 
-            # Third example has nonexistent span, should be None
-            assert examples[2].span_rowid is None
+        # Exactly 2 examples should have valid span links
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 2
 
-            # Fourth example has None span_id, should be None
-            assert examples[3].span_rowid is None
+        # The two valid span links should be span_id_1 and span_id_2
+        assert set(non_null_spans) == {span_id_1, span_id_2}
+
+        # Exactly 2 examples should have no span link (nonexistent + None)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_add_examples_with_span_id(
         self,
         is_async: bool,
         _app: _AppInfo,
+        _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test adding examples with span_id to existing dataset."""
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
-        from sqlalchemy import insert, select
-
-        from phoenix.db import models
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
 
-        # Get database session factory
-        from phoenix.db.helpers import get_session_factory_from_env
-
-        db = get_session_factory_from_env()
-
-        # Create a project and spans in the database
-        async with db() as session:
-            from datetime import datetime, timezone
-
-            # Create a project
-            project_id = await session.scalar(
-                insert(models.Project).values(name="test-project").returning(models.Project.id)
-            )
-
-            # Create a trace
-            trace_id = await session.scalar(
-                insert(models.Trace)
-                .values(
-                    project_rowid=project_id,
-                    trace_id="test-trace-append",
-                    start_time=datetime.now(timezone.utc),
-                    end_time=datetime.now(timezone.utc),
-                )
-                .returning(models.Trace.id)
-            )
-
-            # Create spans
-            await session.execute(
-                insert(models.Span).values(
-                    [
-                        {
-                            "trace_rowid": trace_id,
-                            "span_id": "span-append-111",
-                            "name": "test_span_append_1",
-                            "span_kind": "INTERNAL",
-                            "start_time": datetime.now(timezone.utc),
-                            "end_time": datetime.now(timezone.utc),
-                            "attributes": {},
-                            "events": [],
-                            "status_code": "OK",
-                            "status_message": "",
-                            "cumulative_error_count": 0,
-                            "cumulative_llm_token_count_prompt": 0,
-                            "cumulative_llm_token_count_completion": 0,
-                        },
-                    ]
-                )
-            )
-
-            await session.commit()
+        # Use existing spans from fixture
+        assert len(_existing_spans) >= 1, "At least one existing span required"
+        span_id = _existing_spans[0].span_id
 
         # Create initial dataset without span links
         unique_name = f"test_append_spans_{token_hex(4)}"
@@ -1807,7 +1630,7 @@ What is NLP?,Natural Language Processing,
                     {
                         "input": {"q": "Added with span"},
                         "output": {"a": "Linked"},
-                        "span_id": "span-append-111",
+                        "span_id": span_id,
                     },
                 ],
             )
@@ -1815,19 +1638,38 @@ What is NLP?,Natural Language Processing,
 
         assert len(updated_dataset) == 2
 
-        # Verify the added example was linked to the span
-        async with db() as session:
-            examples = list(
-                await session.scalars(
-                    select(models.DatasetExample)
-                    .join(models.Dataset)
-                    .where(models.Dataset.name == unique_name)
-                    .order_by(models.DatasetExample.id)
-                )
-            )
+        # Verify examples via GraphQL
+        query = """
+            query($datasetId: ID!) {
+                node(id: $datasetId) {
+                    ... on Dataset {
+                        examples {
+                            edges {
+                                node {
+                                    span { spanId }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        result, _ = _gql(_app, api_key, query=query, variables={"datasetId": updated_dataset.id})
+        examples = result["data"]["node"]["examples"]["edges"]
 
-            # First example (original) should have no span link
-            assert examples[0].span_rowid is None
+        # Verify 2 examples exist
+        assert len(examples) == 2
 
-            # Second example (added) should be linked to span-append-111
-            assert examples[1].span_rowid is not None
+        # Extract span IDs from examples (order-independent check)
+        span_ids_in_examples = [
+            ex["node"]["span"]["spanId"] if ex["node"]["span"] else None for ex in examples
+        ]
+
+        # Exactly 1 example should have a valid span link
+        non_null_spans = [s for s in span_ids_in_examples if s is not None]
+        assert len(non_null_spans) == 1
+        assert non_null_spans[0] == span_id
+
+        # Exactly 1 example should have no span link (the original)
+        null_spans = [s for s in span_ids_in_examples if s is None]
+        assert len(null_spans) == 1
