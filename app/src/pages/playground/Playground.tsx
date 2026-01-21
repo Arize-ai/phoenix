@@ -51,7 +51,7 @@ const playgroundWrapCSS = css`
 
 export function Playground(props: Partial<PlaygroundProps>) {
   const [searchParams] = useSearchParams();
-  const initialDatasetId = searchParams.get("datasetId");
+  const datasetId = searchParams.get("datasetId");
 
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
@@ -82,7 +82,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }
   return (
     <PlaygroundProvider
-      datasetId={initialDatasetId}
+      datasetId={datasetId}
       {...props}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
@@ -274,9 +274,7 @@ function PlaygroundContent() {
                         >
                           <PlaygroundTemplate
                             playgroundInstanceId={instanceId}
-                            appendedMessagesPath={
-                              appendedMessagesPath ?? undefined
-                            }
+                            appendedMessagesPath={appendedMessagesPath}
                           />
                         </View>
                       ))}

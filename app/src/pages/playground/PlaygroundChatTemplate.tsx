@@ -77,7 +77,7 @@ const MESSAGE_Z_INDEX = 1;
 const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
-  appendedMessagesPath?: string;
+  appendedMessagesPath?: string | null;
 }
 
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
