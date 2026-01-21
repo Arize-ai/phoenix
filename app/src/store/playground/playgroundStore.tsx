@@ -1,5 +1,5 @@
 import { create, StateCreator } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
@@ -26,18 +26,19 @@ import {
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "./playgroundStoreUtils";
-import type {
-  ChatMessage,
-  GenAIOperationType,
-  InitialPlaygroundState,
-  PlaygroundChatTemplate,
-  PlaygroundError,
-  PlaygroundInstance,
-  PlaygroundNormalizedChatTemplate,
-  PlaygroundNormalizedInstance,
-  PlaygroundRepetitionStatus,
-  PlaygroundState,
-  PlaygroundTextCompletionTemplate,
+import {
+  type ChatMessage,
+  type GenAIOperationType,
+  type InitialPlaygroundState,
+  type PlaygroundChatTemplate,
+  type PlaygroundError,
+  type PlaygroundInstance,
+  type PlaygroundNormalizedChatTemplate,
+  type PlaygroundNormalizedInstance,
+  type PlaygroundRepetitionStatus,
+  type PlaygroundState,
+  PlaygroundStateByDatasetIdSchema,
+  type PlaygroundTextCompletionTemplate,
 } from "./types";
 
 let playgroundInstanceId = 0;
@@ -265,11 +266,40 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    appendedMessagesPath: null,
-    templateVariablesPath: "input",
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
+    stateByDatasetId: props.datasetId
+      ? {
+          [props.datasetId]: {
+            templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+          },
+        }
+      : {},
+    datasetId: props.datasetId ?? null,
+    setDatasetId: (datasetId: string | null) => {
+      set({ datasetId }, false, { type: "setDatasetId" });
+      if (!datasetId) {
+        return;
+      }
+      const datasetState = get().stateByDatasetId[datasetId];
+      if (datasetState) {
+        return;
+      }
+      // initialize state to defaults when switching to a new dataset
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+            },
+          },
+        },
+        false,
+        { type: "setDatasetId/initialize" }
+      );
+    },
     setInput: (input) => {
       set({ input }, false, { type: "setInput" });
     },
@@ -883,13 +913,51 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setRepetitions: (repetitions: number) => {
       set({ repetitions }, false, { type: "setRepetitions" });
     },
-    setAppendedMessagesPath: (appendedMessagesPath: string | null) => {
-      set({ appendedMessagesPath }, false, { type: "setAppendedMessagesPath" });
+    setAppendedMessagesPath: ({
+      path,
+      datasetId,
+    }: {
+      path: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              appendedMessagesPath: path,
+            },
+          },
+        },
+        false,
+        {
+          type: "setAppendedMessagesPath",
+        }
+      );
     },
-    setTemplateVariablesPath: (templateVariablesPath: string | null) => {
-      set({ templateVariablesPath }, false, {
-        type: "setTemplateVariablesPath",
-      });
+    setTemplateVariablesPath: ({
+      templateVariablesPath,
+      datasetId,
+    }: {
+      templateVariablesPath: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              templateVariablesPath: templateVariablesPath,
+            },
+          },
+        },
+        false,
+        {
+          type: "setTemplateVariablesPath",
+        }
+      );
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,
@@ -1382,7 +1450,32 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       );
     },
   });
-  return create(devtools(playgroundStore, { name: "playgroundStore" }));
+
+  return create(
+    persist(devtools(playgroundStore, { name: "playgroundStore" }), {
+      name: "arize-phoenix-playground",
+      partialize: (state) => state.stateByDatasetId,
+      merge: (persistedState, currentState) => {
+        try {
+          const parsedPersistedState =
+            PlaygroundStateByDatasetIdSchema.parse(persistedState);
+          const merged = {
+            ...currentState,
+            stateByDatasetId: {
+              ...currentState.stateByDatasetId,
+              ...parsedPersistedState,
+            },
+          };
+
+          return merged;
+        } catch {
+          return currentState;
+        }
+      },
+    })
+  );
 };
+
+export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
