@@ -110,6 +110,23 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     description
                     ... on BuiltInEvaluator {
                       inputSchema
+                      outputConfig {
+                        ... on AnnotationConfigBase {
+                          name
+                        }
+                        ... on CategoricalAnnotationConfig {
+                          optimizationDirection
+                          values {
+                            label
+                            score
+                          }
+                        }
+                        ... on ContinuousAnnotationConfig {
+                          optimizationDirection
+                          lowerBound
+                          upperBound
+                        }
+                      }
                     }
                   }
                 }

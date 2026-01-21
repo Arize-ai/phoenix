@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20408dd993bc693e762a49b9dbd606f6>>
+ * @generated SignedSource<<28f5b9a8c895f7751fb9736d84096391>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
@@ -24,6 +25,16 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly inputSchema?: any | null;
         readonly kind: EvaluatorKind;
         readonly name: string;
+        readonly outputConfig?: {
+          readonly lowerBound?: number | null;
+          readonly name?: string;
+          readonly optimizationDirection?: OptimizationDirection;
+          readonly upperBound?: number | null;
+          readonly values?: ReadonlyArray<{
+            readonly label: string;
+            readonly score: number | null;
+          }>;
+        };
       };
       readonly id: string;
       readonly inputMapping: {
@@ -127,20 +138,83 @@ v8 = {
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "inputSchema",
+  "storageKey": null
+},
+v10 = {
   "kind": "InlineFragment",
   "selections": [
+    (v6/*: any*/)
+  ],
+  "type": "AnnotationConfigBase",
+  "abstractKey": "__isAnnotationConfigBase"
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v12 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v11/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
+v13 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v11/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "inputSchema",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
       "storageKey": null
     }
   ],
-  "type": "BuiltInEvaluator",
+  "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -189,7 +263,28 @@ return {
                       (v6/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/),
-                      (v9/*: any*/)
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v9/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "outputConfig",
+                            "plural": false,
+                            "selections": [
+                              (v10/*: any*/),
+                              (v12/*: any*/),
+                              (v13/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "BuiltInEvaluator",
+                        "abstractKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -221,7 +316,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
+          (v14/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -245,12 +340,42 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v10/*: any*/),
+                      (v14/*: any*/),
                       (v2/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/),
-                      (v9/*: any*/)
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v9/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "outputConfig",
+                            "plural": false,
+                            "selections": [
+                              (v14/*: any*/),
+                              (v10/*: any*/),
+                              (v12/*: any*/),
+                              (v13/*: any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v2/*: any*/)
+                                ],
+                                "type": "Node",
+                                "abstractKey": "__isNode"
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "BuiltInEvaluator",
+                        "abstractKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -267,16 +392,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e669a984162e993b60a2d5812903389e",
+    "cacheID": "4cecda9758740ea53a9052833f77c7b1",
     "id": null,
     "metadata": {},
     "name": "EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on BuiltInEvaluator {\n            inputSchema\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        displayName\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on BuiltInEvaluator {\n            inputSchema\n            outputConfig {\n              __typename\n              ... on AnnotationConfigBase {\n                __isAnnotationConfigBase: __typename\n                name\n              }\n              ... on CategoricalAnnotationConfig {\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f7e389926ea2dca52030c98f71672562";
+(node as any).hash = "4fd2609dfa883cdb3e4446cda71fffc3";
 
 export default node;

@@ -22,6 +22,11 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
@@ -116,6 +121,23 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
             }
             ... on BuiltInEvaluator {
               inputSchema
+              outputConfig {
+                ... on AnnotationConfigBase {
+                  name
+                  annotationType
+                }
+                ... on CategoricalAnnotationConfig {
+                  optimizationDirection
+                  values {
+                    score
+                  }
+                }
+                ... on ContinuousAnnotationConfig {
+                  optimizationDirection
+                  lowerBound
+                  upperBound
+                }
+              }
             }
           }
         }
@@ -167,6 +189,10 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           kind: evaluator.kind,
           isBuiltin: true,
         },
+        outputConfig: evaluator.outputConfig as Mutable<
+          | ContinuousEvaluatorAnnotationConfig
+          | ClassificationEvaluatorAnnotationConfig
+        >,
       } satisfies EvaluatorStoreProps;
     }
     return null;
