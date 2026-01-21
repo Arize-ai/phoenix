@@ -1,0 +1,124 @@
+---
+title: "Run Experiments with LLM as a Judge"
+description: "Learn how to define and run experiments to systematically evaluate your AI application using LLM as a Judge evaluators for subjective quality assessments."
+---
+
+<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+
+## LLM as a Judge Evaluators
+
+**LLM as a Judge evaluators** use an LLM to assess output quality. These are particularly useful when correctness is subjective or hard to encode with rules, such as evaluating relevance, helpfulness, reasoning quality, or actionability.
+
+These evaluators use criteria you define, making them suitable for datasets with or without reference outputs.
+
+## LLM as a Judge Evaluator for Overall Agent Performance
+
+This experiment evaluates the overall performance of the support agent using an LLM as a Judge evaluator. This allows us to assess subjective qualities like actionability and helpfulness that are difficult to measure with code-based evaluators.
+
+### Define the Task Function
+
+The task function is what Phoenix calls for each example in your dataset. It receives the input from the dataset (in our case, the `query` field) and returns an output that will be evaluated.
+
+In this example, our task function extracts the query from the dataset input, runs the full support agent (which includes tool calls and reasoning), and returns the agent's response:
+
+```python
+def my_support_agent_task(input):
+    """
+    Task function that will be run on each row of the dataset.
+    """
+    query = input.get("query")
+
+    # Call the agent with the query
+    response = support_agent.run(query)
+    return response.content
+```
+
+### Define the LLM as a Judge Evaluator
+
+We create an LLM as a Judge evaluator that assesses whether the agent's response is actionable and helpful. The evaluator uses a prompt template that defines the criteria for a good response:
+
+```python
+# Define LLM Judge Evaluator checking for Actionable Responses
+from phoenix.evals import create_classifier, LLM
+from phoenix.experiments.types import EvaluationResult
+
+# Define Prompt Template
+support_response_actionability_judge = """
+You are evaluating a customer support agent's response.
+
+Determine whether the response is ACTIONABLE and helps resolve the user's issue.
+
+Mark the response as CORRECT if it:
+- Directly addresses the user's specific question
+- Provides concrete steps, guidance, or information
+- Clearly routes the user toward a solution
+
+Mark the response as INCORRECT if it:
+- Is generic, vague, or non-specific
+- Avoids answering the question
+- Provides no clear next steps
+- Deflects with phrases like "contact support" without guidance
+
+User Query:
+{input.query}
+
+Agent Response:
+{output}
+
+Return only one label: "correct" or "incorrect".
+"""
+
+# Create Evaluator
+actionability_judge = create_classifier(
+    name="actionability-judge",
+    prompt_template=support_response_actionability_judge,
+    llm=LLM(model="gpt-4o-mini", provider="openai"),
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+
+def call_actionability_judge(input, output):
+    """
+    Wrapper function for the actionability judge evaluator.
+    This is needed because run_experiment expects a function, not an evaluator object.
+    """
+    results = actionability_judge.evaluate({
+        "input": input,
+        "output": output
+    })
+    result = results[0]
+    return EvaluationResult(
+        score=result.score,
+        label=result.label,
+        explanation=result.explanation
+    )
+```
+
+### Run the Experiment
+
+Run the experiment on your dataset.
+
+```python
+from phoenix.experiments import run_experiment
+
+experiment = run_experiment(
+    dataset,
+    my_support_agent_task,
+    evaluators=[call_actionability_judge],
+    experiment_name="support agent",
+    experiment_description="Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
+)
+```
+
+In the Phoenix UI, you can click into the experiment to view the full agent trace for each dataset example and see the evaluator output including the score, explanation, label, and trace.
+
+<Frame caption="Running an experiment with an LLM as a Judge evaluator">
+  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiments_quickstart_llm_judge.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+</Frame>
+
+# Next Steps
+
+Now that you know how to run experiments with LLM as a Judge evaluators, you can also use code-based evaluators when you have ground truth available.
+
+<Card title="Run Experiments with Code Evals" icon="check-circle" href="/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals" />
+<Card title="Iterating with Experiments in Your Workflow" icon="refresh" href="/docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments" />
+
