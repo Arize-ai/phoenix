@@ -36,7 +36,6 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
-from phoenix.server.ldap import is_ldap_user, is_null_email_marker
 
 logger = logging.getLogger(__name__)
 
@@ -165,13 +164,13 @@ async def list_users(
                     password_needs_reset=user.reset_password,
                 )
             )
-        elif isinstance(user, models.OAuth2User) and is_ldap_user(user.oauth2_client_id):
-            # Check if this is an LDAP user (identified by special marker)
+        elif isinstance(user, models.LDAPUser):
+            # LDAP users have auth_method='LDAP'
             data.append(
                 LDAPUser(
                     id=str(GlobalID("User", str(user.id))),
                     username=user.username,
-                    email="" if is_null_email_marker(user.email) else user.email,
+                    email=user.email or "",  # email can be NULL for LDAP users
                     role=user.role.name,
                     created_at=user.created_at,
                     updated_at=user.updated_at,
@@ -233,14 +232,6 @@ async def create_user(
             status_code=400,
             detail="Cannot create users with SYSTEM role",
         )
-
-    # Prevent OAuth2 users from using the LDAP marker or any variation
-    if isinstance(user_data, OAuth2UserData):
-        if is_ldap_user(user_data.oauth2_client_id):
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot create OAuth2 users with reserved LDAP identifier",
-            )
 
     user: models.User
     if isinstance(user_data, LocalUserData):
@@ -332,7 +323,11 @@ async def create_user(
     else:
         assert_never(user_data)
     # Send welcome email if requested
-    if request_body.send_welcome_email and request.app.state.email_sender is not None:
+    if (
+        request_body.send_welcome_email
+        and request.app.state.email_sender is not None
+        and user.email
+    ):
         try:
             await request.app.state.email_sender.send_welcome_email(user.email, user.username)
         except Exception as error:

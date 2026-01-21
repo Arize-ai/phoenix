@@ -108,7 +108,6 @@ from __future__ import annotations
 import logging
 import random
 import ssl
-from hashlib import md5
 from secrets import token_hex
 from typing import Any, Final, Literal, NamedTuple, cast, overload
 
@@ -238,134 +237,24 @@ def canonicalize_dn(dn: str) -> str | None:
     return ",".join(canonical_parts)
 
 
-# Unicode marker for identifying LDAP users in oauth2_client_id column.
-# U+E000 from Private Use Area - guaranteed never to be assigned by Unicode Standard.
-#
-# Design Context:
-#   Phoenix's user table was originally designed for OAuth2 providers, using
-#   oauth2_client_id to identify the authentication source (e.g., "google",
-#   "github"). LDAP users need a distinct marker to differentiate them from
-#   OAuth users without requiring a database schema migration.
-#
-# The "(stopgap)" Suffix:
-#   Indicates this is a temporary solution. A future schema change should add
-#   a dedicated identity_provider column (enum: "local", "ldap", "oauth2", etc.)
-#   with oauth2_client_id nullable only for OAuth users. This marker enables
-#   LDAP support without blocking on that migration.
-#
-# Why U+E000?
-#   Private Use Area characters cannot appear in legitimate OAuth client IDs,
-#   ensuring no collision with real OAuth providers. The marker is also
-#   unlikely to be accidentally typed or injected.
-LDAP_CLIENT_ID_MARKER: Final[str] = "\ue000LDAP(stopgap)"
-
-
-def is_ldap_user(oauth2_client_id: str | None) -> bool:
-    """Check if an oauth2_client_id indicates an LDAP user.
-
-    This function checks for the LDAP_CLIENT_ID_MARKER prefix to distinguish
-    LDAP-authenticated users from OAuth2-authenticated users. Used throughout
-    the codebase to apply LDAP-specific logic (e.g., re-authentication flows,
-    password change handling).
+def is_ldap_user(auth_method: str | None) -> bool:
+    """Check if auth_method indicates an LDAP user.
 
     Args:
-        oauth2_client_id: The OAuth2 client ID to check (can be None)
+        auth_method: The authentication method to check (e.g., 'LOCAL', 'OAUTH2', 'LDAP')
 
     Returns:
-        True if the client ID indicates an LDAP user, False otherwise
+        True if auth_method is 'LDAP', False otherwise
 
     Example:
-        >>> is_ldap_user("\\ue000LDAP(stopgap):user-unique-id")
+        >>> is_ldap_user("LDAP")
         True
-        >>> is_ldap_user("google-oauth2|12345")
+        >>> is_ldap_user("OAUTH2")
         False
         >>> is_ldap_user(None)
         False
     """
-    return bool(oauth2_client_id and oauth2_client_id.startswith(LDAP_CLIENT_ID_MARKER))
-
-
-# Marker for null email values in the database.
-#
-# When LDAP directories don't have email attributes, Phoenix generates a
-# deterministic marker to satisfy the database's NOT NULL constraint. This
-# marker uses a Private Use Area (PUA) Unicode character to ensure it cannot
-# collide with any real email address.
-#
-# Format: "\ue000NULL(stopgap)" + md5(unique_id)
-#   - \uE000: PUA character (guaranteed never assigned by Unicode Standard)
-#   - NULL: Human-readable indicator that email is absent
-#   - md5(unique_id): Deterministic hash for uniqueness (32 hex chars)
-#
-# Example: "\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
-#
-# Design Context:
-#   This is a temporary bridge solution. The eventual solution is to make the
-#   email column nullable in the database schema. Until then, this marker
-#   enables LDAP authentication for directories without email attributes.
-#
-# Security Note:
-#   MD5 is used for deterministic uniqueness, NOT cryptographic security.
-#   The hash ensures the same unique_id always produces the same marker,
-#   preventing race conditions on concurrent logins.
-NULL_EMAIL_MARKER_PREFIX: Final[str] = "\ue000NULL(stopgap)"
-
-
-def generate_null_email_marker(unique_id: str) -> str:
-    """Generate a deterministic null email marker from a unique_id.
-
-    This function creates a marker for LDAP users whose directories don't
-    have email attributes. The marker satisfies the database's NOT NULL
-    constraint while being programmatically distinguishable from real emails.
-
-    The marker is deterministic: the same unique_id always produces the same
-    marker. This prevents race conditions when the same user logs in
-    concurrently from multiple sessions.
-
-    Args:
-        unique_id: The LDAP unique identifier (objectGUID, entryUUID, etc.)
-                   Must be non-empty.
-
-    Returns:
-        A null email marker in format: "\\ue000NULL(stopgap){md5_hash}"
-
-    Raises:
-        ValueError: If unique_id is empty or None.
-
-    Example:
-        >>> generate_null_email_marker("550E8400-E29B-41D4-A716-446655440000")
-        '\\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b'
-    """
-    if not unique_id:
-        raise ValueError("unique_id is required to generate null email marker")
-
-    # Normalize to lowercase for consistent hashing (UUIDs are case-insensitive)
-    normalized = unique_id.lower()
-    return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
-
-
-def is_null_email_marker(email: str) -> bool:
-    """Check if an email value is a null email marker.
-
-    This function identifies placeholder values that were generated for LDAP
-    users whose directories don't have email attributes. Used to:
-    - Hide placeholder emails in the UI
-    - Skip email operations (welcome emails, password reset)
-    - Validate that users aren't trying to log in with marker values
-
-    Args:
-        email: The email value to check
-
-    Returns:
-        True if the value is a null email marker, False otherwise.
-
-    Example:
-        >>> is_null_email_marker("\\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b")
-        True
-        >>> is_null_email_marker("alice@example.com")
-        False
-    """
-    return email.startswith(NULL_EMAIL_MARKER_PREFIX)
+    return auth_method == "LDAP"
 
 
 class LDAPUserInfo(NamedTuple):

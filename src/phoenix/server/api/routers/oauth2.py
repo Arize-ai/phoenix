@@ -601,9 +601,9 @@ async def _sign_in_existing_oauth2_user(
         if user is None or not isinstance(user, models.OAuth2User):
             raise SignInNotAllowed("Sign in is not allowed.")
         # Security: Prevent OIDC from hijacking LDAP users
-        # LDAP users are identified by the special Unicode marker in oauth2_client_id
+        # LDAP users have auth_method='LDAP'
         # Use generic error message to avoid revealing auth method (username enumeration)
-        if is_ldap_user(user.oauth2_client_id):
+        if is_ldap_user(user.auth_method):
             raise SignInNotAllowed("Sign in is not allowed.")
         # Case 1: Different OAuth2 client - update both client and user IDs
         if oauth2_client_id != user.oauth2_client_id:

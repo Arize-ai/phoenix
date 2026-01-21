@@ -12,7 +12,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.UserApiKey import UserApiKey
-from phoenix.server.ldap import is_null_email_marker
 
 from .UserRole import UserRole, to_gql_user_role
 
@@ -45,14 +44,11 @@ class User(Node):
         info: Info[Context, None],
     ) -> str | None:
         if self.db_record:
-            val = self.db_record.email
-        else:
-            val = await info.context.data_loaders.user_fields.load(
-                (self.id, models.User.email),
-            )
-        if is_null_email_marker(val):
-            return None
-        return val
+            return self.db_record.email
+        email: str | None = await info.context.data_loaders.user_fields.load(
+            (self.id, models.User.email),
+        )
+        return email
 
     @strawberry.field
     async def username(
@@ -118,14 +114,7 @@ class User(Node):
                 )
             )
 
-        # Translate LDAP users from database storage to semantic type
-        if auth_method_val == "OAUTH2":
-            # Import here to avoid circular dependency
-            from phoenix.server.ldap import is_ldap_user
-
-            if is_ldap_user(oauth2_client_id):
-                return AuthMethod.LDAP
-
+        # auth_method now directly stores 'LDAP' for LDAP users
         return AuthMethod(auth_method_val)
 
     @strawberry.field

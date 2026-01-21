@@ -17,32 +17,30 @@ from pytest import LogCaptureFixture
 
 from phoenix.config import LDAPConfig
 from phoenix.server.ldap import (
-    LDAP_CLIENT_ID_MARKER,
-    NULL_EMAIL_MARKER_PREFIX,
     LDAPAuthenticator,
     LDAPUserInfo,
     _get_attribute,
     _get_unique_id,
     _is_member_of,
     canonicalize_dn,
-    generate_null_email_marker,
     is_ldap_user,
-    is_null_email_marker,
 )
 
 
 class TestIsLdapUser:
     """Test is_ldap_user utility function."""
 
-    def test_ldap_user_detected(self) -> None:
-        """Test LDAP user marker is correctly detected."""
-        ldap_client_id = f"{LDAP_CLIENT_ID_MARKER}:some-unique-id"
-        assert is_ldap_user(ldap_client_id) is True
+    def test_ldap_auth_method_detected(self) -> None:
+        """Test LDAP auth_method is correctly detected."""
+        assert is_ldap_user("LDAP") is True
 
     def test_oauth_user_not_detected(self) -> None:
-        """Test OAuth users are not detected as LDAP."""
-        assert is_ldap_user("google-oauth2|123456") is False
-        assert is_ldap_user("auth0|user123") is False
+        """Test OAuth2 auth_method is not detected as LDAP."""
+        assert is_ldap_user("OAUTH2") is False
+
+    def test_local_user_not_detected(self) -> None:
+        """Test LOCAL auth_method is not detected as LDAP."""
+        assert is_ldap_user("LOCAL") is False
 
     def test_none_returns_false(self) -> None:
         """Test None input returns False."""
@@ -51,10 +49,6 @@ class TestIsLdapUser:
     def test_empty_string_returns_false(self) -> None:
         """Test empty string returns False."""
         assert is_ldap_user("") is False
-
-    def test_marker_alone_detected(self) -> None:
-        """Test marker without suffix is still detected."""
-        assert is_ldap_user(LDAP_CLIENT_ID_MARKER) is True
 
 
 class TestLDAPSecurityValidation:
@@ -1759,52 +1753,3 @@ class TestSocketLeakPrevention:
 
         # CRITICAL: Socket must be closed when start_tls() fails (via unbind)
         mock_conn.unbind.assert_called_once()
-
-
-class TestNullEmailMarker:
-    """Test null email marker helpers for LDAP users without email attributes."""
-
-    def test_marker_prefix_format(self) -> None:
-        """NULL_EMAIL_MARKER_PREFIX uses PUA character U+E000."""
-        assert NULL_EMAIL_MARKER_PREFIX == "\ue000NULL(stopgap)"
-
-    def test_generate_marker_format_and_determinism(self) -> None:
-        """Generated marker: prefix + 32-char MD5 hash, deterministic, case-insensitive."""
-        # Different casings of same UUID should produce identical marker
-        ids = ["550e8400-e29b-41d4-a716-446655440000", "550E8400-E29B-41D4-A716-446655440000"]
-        results = [generate_null_email_marker(uid) for uid in ids]
-
-        assert results[0] == results[1]  # Case-insensitive
-        assert results[0].startswith(NULL_EMAIL_MARKER_PREFIX)
-        assert len(results[0]) == len(NULL_EMAIL_MARKER_PREFIX) + 32  # prefix + MD5
-
-        # Different IDs produce different markers
-        other = generate_null_email_marker("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-        assert other != results[0]
-
-    @pytest.mark.parametrize("invalid_id", ["", None])
-    def test_generate_marker_rejects_empty(self, invalid_id: str | None) -> None:
-        """Empty or None unique_id raises ValueError."""
-        with pytest.raises(ValueError, match="unique_id is required"):
-            generate_null_email_marker(invalid_id)  # type: ignore[arg-type]
-
-    @pytest.mark.parametrize(
-        "email,expected",
-        [
-            # Markers → True
-            (NULL_EMAIL_MARKER_PREFIX, True),
-            (NULL_EMAIL_MARKER_PREFIX + "abc123", True),
-            # Real emails → False
-            ("user@example.com", False),
-            ("admin@corp.local", False),
-            # Edge cases → False
-            ("", False),
-            # Similar but not markers → False
-            ("NULL123456789abcdef", False),  # Missing PUA
-            ("\ue001NULL123456", False),  # Wrong PUA
-            ("prefix\ue000NULL(stopgap)", False),  # Not at start
-        ],
-    )
-    def test_is_null_email_marker(self, email: str, expected: bool) -> None:
-        """is_null_email_marker correctly identifies markers vs real emails."""
-        assert is_null_email_marker(email) is expected
