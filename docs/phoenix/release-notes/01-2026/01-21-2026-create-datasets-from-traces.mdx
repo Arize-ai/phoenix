@@ -88,13 +88,13 @@ const { datasetId } = await createDataset({
 
 ## Filtering Spans
 
-Use queries to select specific spans based on attributes, status, or metadata.
+Use queries to select specific spans based on attributes, status, or OpenInference metadata.
 
 <CodeGroup>
 ```python Python
 from phoenix.client.types import SpanQuery
 
-# Query spans by status or attributes
+# Query spans by status or token count
 query = SpanQuery().where('status_code = "ERROR" or attributes."llm.token_count.total" > 8000')
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
@@ -102,15 +102,15 @@ spans_df = client.spans.get_spans_dataframe(
     start_time=datetime.now(timezone.utc) - timedelta(days=30),
 )
 
-# Query spans by annotation
-query = SpanQuery().where('attributes."annotation.quality" = "excellent"')
+# Query spans by session
+query = SpanQuery().where('attributes."session.id" = "abc123"')
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
     query=query,
 )
 
-# Query spans by workflow type
-query = SpanQuery().where('attributes."workflow.type" = "checkout"')
+# Query spans by model
+query = SpanQuery().where('attributes."llm.model_name" = "gpt-4"')
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
     query=query,
@@ -127,17 +127,17 @@ const { spans } = await getSpans({
   limit: 1000,
 });
 
-// Filter by status or attributes
+// Filter by status
 const errorSpans = spans.filter(span => span.status_code === "ERROR");
 
-// Filter by annotation
-const annotatedSpans = spans.filter(span =>
-  span.attributes?.["annotation.quality"] === "excellent"
+// Filter by session
+const sessionSpans = spans.filter(span =>
+  span.attributes?.["session.id"] === "abc123"
 );
 
-// Filter by workflow
-const checkoutSpans = spans.filter(span =>
-  span.attributes?.["workflow.type"] === "checkout"
+// Filter by model
+const gpt4Spans = spans.filter(span =>
+  span.attributes?.["llm.model_name"] === "gpt-4"
 );
 ```
 </CodeGroup>
