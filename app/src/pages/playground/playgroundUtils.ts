@@ -51,21 +51,6 @@ import {
 
 import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
 
-// Import for local use and re-export for backward compatibility
-import {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  mergeInvocationParametersWithDefaults,
-  toCamelCase,
-} from "./invocationParameterUtils";
-
-export {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  mergeInvocationParametersWithDefaults,
-  toCamelCase,
-};
-
 import {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
@@ -93,6 +78,11 @@ import {
   TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import {
+  areInvocationParamsEqual,
+  constrainInvocationParameterInputsToDefinition,
+  toCamelCase,
+} from "./invocationParameterUtils";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,

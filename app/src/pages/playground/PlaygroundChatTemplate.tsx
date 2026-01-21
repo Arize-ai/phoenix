@@ -52,6 +52,7 @@ import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
 } from "./constants";
+import { areInvocationParamsEqual } from "./invocationParameterUtils";
 import {
   AIMessageContentRadioGroup,
   AIMessageMode,
@@ -61,10 +62,7 @@ import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
-import {
-  areInvocationParamsEqual,
-  createToolCallForProvider,
-} from "./playgroundUtils";
+import { createToolCallForProvider } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
