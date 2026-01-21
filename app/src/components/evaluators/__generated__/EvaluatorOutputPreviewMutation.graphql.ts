@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cd3bbf19f05cfcb7475c71fc537b6ee7>>
+ * @generated SignedSource<<4be182a1fcd1b5893b7047a2d1712c47>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -91,7 +91,7 @@ export type EvaluatorInputMappingInput = {
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
-  value: any;
+  value: string;
 };
 export type EvaluatorOutputPreviewMutation$variables = {
   input: EvaluatorPreviewsInput;

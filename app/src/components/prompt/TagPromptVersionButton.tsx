@@ -14,9 +14,9 @@ import {
   PopoverArrow,
   View,
 } from "@phoenix/components";
+import { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { TagPromptVersionButtonTagsQuery } from "@phoenix/pages/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 
 type TagPromptVersionButtonProps = {
