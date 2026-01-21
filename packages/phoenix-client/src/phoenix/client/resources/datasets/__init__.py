@@ -363,6 +363,13 @@ class DatasetKeys:
         if diff := all_keys - available_keys:
             raise ValueError(f"Keys not found in available columns: {diff}")
 
+    def __iter__(self) -> "Iterator[str]":
+        """Allow iteration over all keys."""
+        all_keys = self.input | self.output | self.metadata | self.split
+        if self.span_id:
+            all_keys = all_keys | frozenset([self.span_id])
+        return iter(all_keys)
+
 
 def _parse_datetime(datetime_str: str) -> datetime:
     """Convert ISO datetime string to datetime object."""
