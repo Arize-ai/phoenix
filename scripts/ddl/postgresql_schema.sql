@@ -723,6 +723,8 @@ CREATE TABLE public.dataset_evaluators (
 
 CREATE INDEX ix_dataset_evaluators_builtin_evaluator_id ON public.dataset_evaluators
     USING btree (builtin_evaluator_id);
+CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
+    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 
