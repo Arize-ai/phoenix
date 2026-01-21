@@ -7,7 +7,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
 
-import opentelemetry.sdk.trace as trace_sdk
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
 from openinference.instrumentation import (
@@ -20,9 +19,7 @@ from openinference.instrumentation import (
 )
 from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Status, StatusCode, format_span_id, format_trace_id
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -31,10 +28,8 @@ from typing_extensions import TypedDict, assert_never
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
-    CategoricalAnnotationConfigOverride,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
-    ContinuousAnnotationConfigOverride,
     OptimizationDirection,
 )
 from phoenix.db.types.model_provider import (
@@ -65,7 +60,9 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelCustomProviderInput,
     GenerativeModelInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.input_types.PromptVersionInput import (
     PromptChatTemplateInput,
     TextContentValueInput,
@@ -74,7 +71,6 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
-from phoenix.trace.attributes import get_attribute_value, unflatten
 
 logger = logging.getLogger(__name__)
 
@@ -100,160 +96,76 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
-class LLMEvaluator:
+class BaseEvaluator(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def description(self) -> Optional[str]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def input_schema(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def output_config(
+        self,
+    ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+        name: str,
+        output_config: Any,
+        tracer: Optional[Tracer] = None,
+    ) -> EvaluationResult:
+        """
+        Evaluate the given context and return an evaluation result.
+
+        Args:
+            context: The evaluation context containing input data.
+            input_mapping: Mapping configuration for inputs.
+            name: Name for this evaluation.
+            output_config: Configuration for the evaluation output.
+            tracer: Optional OpenTelemetry tracer for recording spans.
+                   If provided, the caller is responsible for managing the tracer
+                   and retrieving any recorded spans after evaluation.
+        """
+        raise NotImplementedError
+
+
+class LLMEvaluator(BaseEvaluator):
     def __init__(
         self,
         name: str,
         description: Optional[str],
-        metadata: dict[str, Any],
         template: PromptChatTemplate,
         template_format: PromptTemplateFormat,
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: "PlaygroundStreamingClient[Any]",
+        llm_client: PlaygroundStreamingClient[Any],
         output_config: CategoricalAnnotationConfig,
-        id: Optional[int] = None,
     ):
         self._name = name
         self._description = description
-        self._metadata = metadata
         self._template = template
         self._template_format = template_format
         self._tools = tools
         self._invocation_parameters = invocation_parameters
         self._model_provider = model_provider
-        self._id = id
         self._llm_client = llm_client
         self._output_config = output_config
-        self._exporter = InMemorySpanExporter()
-        span_processor = SimpleSpanProcessor(self._exporter)
-        tracer_provider = trace_sdk.TracerProvider()
-        tracer_provider.add_span_processor(span_processor)
-        self._tracer = tracer_provider.get_tracer(__name__)
-        self._db_trace: Optional[models.Trace] = None
-        self._db_spans: list[models.Span] = []
-
-    @property
-    def db_trace(self) -> models.Trace:
-        if self._db_trace is None:
-            raise ValueError(
-                "evaluate method has yet to be called and hence no trace has been recorded"
-            )
-        return self._db_trace
-
-    @property
-    def db_spans(self) -> list[models.Span]:
-        if not self._db_spans:
-            raise ValueError(
-                "evaluate method has yet to be called and hence no spans have been recorded"
-            )
-        return self._db_spans
-
-    def _build_db_models(self) -> None:
-        finished_spans = self._exporter.get_finished_spans()
-        self._exporter.clear()
-
-        trace_ids = set(
-            [span.get_span_context().trace_id for span in finished_spans]  # type: ignore[no-untyped-call]
-        )
-        assert len(trace_ids) == 1
-        trace_id = format_trace_id(next(iter(trace_ids)))
-
-        start_time = min(
-            [
-                datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
-                for span in finished_spans
-                if span.start_time is not None
-            ]
-        )
-        end_time = max(
-            [
-                datetime.fromtimestamp(span.end_time / 1e9, tz=timezone.utc)
-                for span in finished_spans
-                if span.end_time is not None
-            ]
-        )
-
-        self._db_trace = models.Trace(
-            trace_id=trace_id,
-            start_time=start_time,
-            end_time=end_time,
-        )
-
-        root_spans = [span for span in finished_spans if span.parent is None]
-        child_spans = [span for span in finished_spans if span.parent is not None]
-        sorted_spans = root_spans + child_spans
-
-        self._db_spans = []
-        for span in sorted_spans:
-            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
-            span_id = format_span_id(span_context.span_id)
-
-            parent_id: Optional[str] = None
-            if span.parent is not None:
-                parent_id = format_span_id(span.parent.span_id)
-
-            assert span.start_time is not None
-            assert span.end_time is not None
-            start_time = datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
-            end_time = datetime.fromtimestamp(span.end_time / 1e9, tz=timezone.utc)
-
-            attributes = {}
-            if span.attributes:
-                attributes = unflatten(span.attributes.items())
-
-            span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
-
-            events = []
-            for event in span.events:
-                event_dict = {
-                    "name": event.name,
-                    "timestamp": datetime.fromtimestamp(
-                        event.timestamp / 1e9, tz=timezone.utc
-                    ).isoformat(),
-                    "attributes": dict(event.attributes) if event.attributes else {},
-                }
-                events.append(event_dict)
-
-            llm_token_count_prompt = None
-            llm_token_count_completion = None
-            if span_kind == "LLM":
-                llm_token_count_prompt = get_attribute_value(
-                    attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-                )
-                llm_token_count_completion = get_attribute_value(
-                    attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-                )
-
-            db_span = models.Span(
-                span_id=span_id,
-                parent_id=parent_id,
-                name=span.name,
-                span_kind=span_kind,
-                start_time=start_time,
-                end_time=end_time,
-                attributes=attributes,
-                events=events,
-                status_code=span.status.status_code.name,
-                status_message=span.status.description or "",
-                cumulative_error_count=sum(
-                    int(span.status.status_code.name == "ERROR") for span in finished_spans
-                ),
-                cumulative_llm_token_count_prompt=llm_token_count_prompt or 0,
-                cumulative_llm_token_count_completion=llm_token_count_completion or 0,
-                llm_token_count_prompt=llm_token_count_prompt,
-                llm_token_count_completion=llm_token_count_completion,
-            )
-            self._db_spans.append(db_span)
-
-    @property
-    def db_id(self) -> int:
-        if self._id is None:
-            raise ValueError(
-                "evaluator has not yet been persisted to the database and hence has no ID"
-            )
-        return self._id
 
     @property
     def name(self) -> str:
@@ -264,70 +176,15 @@ class LLMEvaluator:
         return self._description
 
     @property
-    def metadata(self) -> dict[str, Any]:
-        return self._metadata
-
-    @property
-    def template(self) -> PromptChatTemplate:
-        return self._template
-
-    @property
-    def template_format(self) -> PromptTemplateFormat:
-        return self._template_format
-
-    @property
-    def tools(self) -> PromptTools:
-        return self._tools
-
-    @property
-    def model_provider(self) -> ModelProvider:
-        return self._model_provider
-
-    @property
     def output_config(self) -> CategoricalAnnotationConfig:
         return self._output_config
 
-    @staticmethod
-    def from_orm(
-        llm_evaluator_orm: models.LLMEvaluator,
-        prompt_version_orm: models.PromptVersion,
-        llm_client: "PlaygroundStreamingClient[Any]",
-    ) -> "LLMEvaluator":
-        template = prompt_version_orm.template
-        assert isinstance(template, PromptChatTemplate)
-        tools = prompt_version_orm.tools
-        assert tools is not None
-
-        return LLMEvaluator(
-            id=llm_evaluator_orm.id,
-            name=llm_evaluator_orm.name.root,
-            description=llm_evaluator_orm.description,
-            metadata=llm_evaluator_orm.metadata_,
-            template=template,
-            template_format=prompt_version_orm.template_format,
-            tools=tools,
-            invocation_parameters=prompt_version_orm.invocation_parameters,
-            model_provider=prompt_version_orm.model_provider,
-            llm_client=llm_client,
-            output_config=llm_evaluator_orm.output_config,
-        )
-
-    @property
-    def node_id(self) -> GlobalID:
-        if self._id is None:
-            raise ValueError(
-                "LLMEvaluator has not yet been persisted to the database and hence has no node ID"
-            )
-        from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
-
-        return GlobalID(LLMEvaluatorNode.__name__, str(self._id))
-
     @property
     def input_schema(self) -> dict[str, Any]:
-        formatter = get_template_formatter(self.template_format)
+        formatter = get_template_formatter(self._template_format)
         variables: set[str] = set()
 
-        for msg in self.template.messages:
+        for msg in self._template.messages:
             if isinstance(msg.content, str):
                 variables.update(formatter.parse(msg.content))
             elif isinstance(msg.content, list):
@@ -351,9 +208,12 @@ class LLMEvaluator:
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: CategoricalAnnotationConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        with self._tracer.start_as_current_span(
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
             f"Evaluation: {self._name}",
             attributes={
                 **get_span_kind_attributes("evaluator"),
@@ -361,11 +221,13 @@ class LLMEvaluator:
             },
             context=Context(),  # inject blank context to ensure the evaluator span is the root
         ) as evaluator_span:
-            trace_id = format_trace_id(evaluator_span.get_span_context().trace_id)
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
 
             try:
                 with (
-                    self._tracer.start_as_current_span(
+                    tracer_.start_as_current_span(
                         "Apply template variables",
                         attributes={
                             SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",  # todo: use `get_openinference_span_kind_attributes` once the "TEMPLATE" type is added  # noqa: E501
@@ -451,7 +313,7 @@ class LLMEvaluator:
                 invocation_parameters.update(denormalized_tool_choice)
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
-                with self._tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self._llm_client.model_name,
                     attributes={
                         **get_span_kind_attributes("llm"),
@@ -485,7 +347,7 @@ class LLMEvaluator:
                     finally:
                         llm_span.set_attributes(self._llm_client.attributes)
 
-                with self._tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
                         **get_span_kind_attributes("chain"),
@@ -574,8 +436,6 @@ class LLMEvaluator:
                     end_time=end_time,
                 )
 
-        self._build_db_models()
-
         return result
 
 
@@ -584,26 +444,26 @@ BuiltInEvaluatorOutputConfig: TypeAlias = Union[
 ]
 
 
-class BuiltInEvaluator(ABC):
+class BuiltInEvaluator(BaseEvaluator):
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
-    input_schema: dict[str, Any] = {}
 
-    @classmethod
+    @property
     @abstractmethod
-    def output_config(cls) -> BuiltInEvaluatorOutputConfig:
+    def output_config(self) -> BuiltInEvaluatorOutputConfig:
         """Returns the base output config for this evaluator (before any overrides are applied)."""
         raise NotImplementedError
 
     @abstractmethod
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         raise NotImplementedError
 
@@ -659,37 +519,49 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
 
 
-async def get_llm_evaluators(
+async def _get_llm_evaluators(
+    *,
     evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
 ) -> list[LLMEvaluator]:
+    """
+    Get LLM evaluators for the given node IDs.
+
+    Returns a list of LLMEvaluator instances in the same order as the input node IDs.
+    This ordering guarantee is important for correlating evaluators with their inputs.
+    """
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
     if not evaluator_node_ids:
         return []
 
-    llm_evaluator_db_to_node_id: dict[int, GlobalID] = {}
+    # Build mapping from db_id to node_id, preserving input order
+    db_id_to_node_id: dict[int, GlobalID] = {}
+    ordered_db_ids: list[int] = []
     for evaluator_node_id in evaluator_node_ids:
         type_name, evaluator_db_id = from_global_id(evaluator_node_id)
         if type_name == LLMEvaluatorNode.__name__:
-            llm_evaluator_db_to_node_id[evaluator_db_id] = evaluator_node_id
+            db_id_to_node_id[evaluator_db_id] = evaluator_node_id
+            ordered_db_ids.append(evaluator_db_id)
 
-    if not llm_evaluator_db_to_node_id:
+    if not db_id_to_node_id:
         return []
 
+    # Query database (order not guaranteed)
     llm_evaluator_orms = (
         await session.scalars(
             select(
                 models.LLMEvaluator,
-            ).where(models.LLMEvaluator.id.in_(llm_evaluator_db_to_node_id.keys()))
+            ).where(models.LLMEvaluator.id.in_(db_id_to_node_id.keys()))
         )
     ).all()
 
-    llm_evaluators: list[LLMEvaluator] = []
+    # Build evaluators and store in dict keyed by db_id
+    evaluators_by_db_id: dict[int, LLMEvaluator] = {}
     for llm_evaluator_orm in llm_evaluator_orms:
-        llm_evaluator_node_id = llm_evaluator_db_to_node_id[llm_evaluator_orm.id]
+        llm_evaluator_node_id = db_id_to_node_id[llm_evaluator_orm.id]
         prompt_id = llm_evaluator_orm.prompt_id
         prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
         if prompt_version_tag_id is not None:
@@ -765,15 +637,148 @@ async def get_llm_evaluators(
             credentials=credentials,
         )
 
-        llm_evaluators.append(
-            LLMEvaluator.from_orm(
-                llm_evaluator_orm=llm_evaluator_orm,
-                prompt_version_orm=prompt_version,
-                llm_client=llm_client,
-            )
+        template = prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = prompt_version.tools
+        assert tools is not None
+
+        evaluators_by_db_id[llm_evaluator_orm.id] = LLMEvaluator(
+            name=llm_evaluator_orm.name.root,
+            description=llm_evaluator_orm.description,
+            template=template,
+            template_format=prompt_version.template_format,
+            tools=tools,
+            invocation_parameters=prompt_version.invocation_parameters,
+            model_provider=prompt_version.model_provider,
+            llm_client=llm_client,
+            output_config=llm_evaluator_orm.output_config,
         )
 
-    return llm_evaluators
+    # Return in original input order, raising if any are missing
+    result: list[LLMEvaluator] = []
+    for db_id in ordered_db_ids:
+        if db_id not in evaluators_by_db_id:
+            node_id = db_id_to_node_id[db_id]
+            raise NotFound(f"LLM evaluator with ID '{node_id}' not found")
+        result.append(evaluators_by_db_id[db_id])
+
+    return result
+
+
+async def get_evaluators(
+    *,
+    evaluator_node_ids: list[GlobalID],
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: list[GenerativeCredentialInput] | None = None,
+) -> list[BaseEvaluator]:
+    """
+    Get all evaluators for the given node IDs.
+
+    Returns a list of BaseEvaluator instances in the same order as the input node IDs.
+    This ordering guarantee is important for correlating evaluators with their inputs.
+    """
+    from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+    from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+
+    if not evaluator_node_ids:
+        return []
+
+    # Parse node IDs and separate by type
+    llm_node_ids: list[GlobalID] = []
+
+    for node_id in evaluator_node_ids:
+        type_name, db_id = from_global_id(node_id)
+        if type_name == LLMEvaluatorNode.__name__:
+            llm_node_ids.append(node_id)
+        elif type_name != BuiltInEvaluatorNode.__name__:
+            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+
+    # Fetch LLM evaluators (returned in order matching llm_node_ids)
+    llm_evaluators = await _get_llm_evaluators(
+        evaluator_node_ids=llm_node_ids,
+        session=session,
+        decrypt=decrypt,
+        credentials=credentials,
+    )
+    llm_iter = iter(llm_evaluators)
+
+    # Build result list in original input order
+    evaluators: list[BaseEvaluator] = []
+    for node_id in evaluator_node_ids:
+        type_name, db_id = from_global_id(node_id)
+
+        if type_name == LLMEvaluatorNode.__name__:
+            evaluators.append(next(llm_iter))
+        elif type_name == BuiltInEvaluatorNode.__name__:
+            builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+            if builtin_evaluator_cls is None:
+                raise NotFound(f"Built-in evaluator with ID '{node_id}' not found")
+            evaluators.append(builtin_evaluator_cls())
+        else:
+            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+
+    return evaluators
+
+
+async def get_evaluator_project_ids(
+    evaluator_node_ids: list[GlobalID],
+    dataset_id: int,
+    session: AsyncSession,
+) -> list[int]:
+    """
+    Look up project IDs for evaluators from the DatasetEvaluators table.
+
+    Returns a list of project IDs in the same order as the input evaluator_node_ids.
+    Raises NotFound if any evaluator doesn't have an associated project.
+    """
+    from phoenix.server.api.types.Evaluator import (
+        BuiltInEvaluator as BuiltInEvaluatorNode,
+    )
+    from phoenix.server.api.types.Evaluator import (
+        LLMEvaluator as LLMEvaluatorNode,
+    )
+
+    if not evaluator_node_ids:
+        return []
+
+    # Query DatasetEvaluators for project IDs
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(models.DatasetEvaluators.dataset_id == dataset_id)
+    )
+
+    # Build mappings from evaluator db_id to project_id
+    llm_project_ids: dict[int, int] = {}
+    builtin_project_ids: dict[int, int] = {}
+    for de in dataset_evaluators_result:
+        if de.evaluator_id is not None:
+            llm_project_ids[de.evaluator_id] = de.project_id
+        if de.builtin_evaluator_id is not None:
+            builtin_project_ids[de.builtin_evaluator_id] = de.project_id
+
+    # Build result list in input order
+    result: list[int] = []
+    for node_id in evaluator_node_ids:
+        type_name, db_id = from_global_id(node_id)
+        if type_name == LLMEvaluatorNode.__name__:
+            project_id = llm_project_ids.get(db_id)
+            if project_id is None:
+                raise NotFound(
+                    f"LLM evaluator '{node_id}' not found in dataset or has no associated project"
+                )
+            result.append(project_id)
+        elif type_name == BuiltInEvaluatorNode.__name__:
+            project_id = builtin_project_ids.get(db_id)
+            if project_id is None:
+                raise NotFound(
+                    f"Built-in evaluator '{node_id}' not found in dataset "
+                    "or has no associated project"
+                )
+            result.append(project_id)
+        else:
+            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+
+    return result
 
 
 def apply_input_mapping(
@@ -917,10 +922,8 @@ def create_llm_evaluator_from_inline(
     assert tools is not None
 
     return LLMEvaluator(
-        id=None,
         name="preview",
         description=description,
-        metadata={},
         template=template,
         template_format=prompt_version_orm.template_format,
         tools=tools,
@@ -936,33 +939,36 @@ class ContainsEvaluator(BuiltInEvaluator):
     name = "Contains"
     description = "Evaluates whether the output contains a specific string"
     metadata = {"type": "string_matching"}
-    input_schema = {
-        "type": "object",
-        "properties": {
-            "words": {
-                "type": "string",
-                "description": "A comma separated list of words to search for in the output",
-            },
-            "text": {
-                "type": "string",
-                "description": "The text to search for the words in",
-            },
-            "case_sensitive": {
-                "type": "boolean",
-                "description": "Whether to match the string case sensitive",
-            },
-            "require_all": {
-                "type": "boolean",
-                "description": (
-                    "If true, all words must be present. If false (default), any word matches."
-                ),
-            },
-        },
-        "required": ["words", "text"],
-    }
 
-    @classmethod
-    def output_config(cls) -> CategoricalAnnotationConfig:
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "words": {
+                    "type": "string",
+                    "description": "A comma separated list of words to search for in the output",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "The text to search for the words in",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether to match the string case sensitive",
+                },
+                "require_all": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, all words must be present. If false (default), any word matches."
+                    ),
+                },
+            },
+            "required": ["words", "text"],
+        }
+
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
             name="contains",
@@ -973,82 +979,186 @@ class ContainsEvaluator(BuiltInEvaluator):
             ],
         )
 
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            inputs = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
-            )
-            inputs = cast_template_variable_types(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            words = [word.strip() for word in inputs.get("words", "").split(",")]
-            text = inputs.get("text", "")
-            case_sensitive = inputs.get("case_sensitive", False)
-            require_all = inputs.get("require_all", False)
+        tracer_ = tracer or NoOpTracer()
 
-            match_fn = all if require_all else any
-            if case_sensitive:
-                matched = match_fn(word in text for word in words)
-            else:
-                matched = match_fn(word.lower() in text.lower() for word in words)
+        with tracer_.start_as_current_span(
+            f"Evaluation: {self.name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
 
-            if require_all:
-                all_or_not = "all" if matched else "not all"
-                explanation = f"{all_or_not} of the words {repr(words)} were found in the text"
-            else:
-                found_or_not = "found" if matched else "not found"
-                explanation = (
-                    f"one or more of the words {repr(words)} were {found_or_not} in the text"
+            try:
+                with tracer_.start_as_current_span(
+                    "Apply input mapping",
+                    attributes={
+                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
+                        **_get_template_path_mapping_attributes(
+                            path_mapping=input_mapping.path_mapping or {}
+                        ),
+                        **_get_template_literal_mapping_attributes(
+                            literal_mapping=input_mapping.literal_mapping or {}
+                        ),
+                        **_get_template_variables_attributes(variables=context),
+                        **get_input_attributes(
+                            {
+                                "variables": context,
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                words = [word.strip() for word in inputs.get("words", "").split(",")]
+                text = inputs.get("text", "")
+                case_sensitive = inputs.get("case_sensitive", False)
+                require_all = inputs.get("require_all", False)
+
+                with tracer_.start_as_current_span(
+                    f"Run {self.name}",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "words": words,
+                                "text": text,
+                                "case_sensitive": case_sensitive,
+                                "require_all": require_all,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    match_fn = all if require_all else any
+                    if case_sensitive:
+                        matched = match_fn(word in text for word in words)
+                    else:
+                        matched = match_fn(word.lower() in text.lower() for word in words)
+
+                    if require_all:
+                        all_or_not = "all" if matched else "not all"
+                        explanation = (
+                            f"{all_or_not} of the words {repr(words)} were found in the text"
+                        )
+                    else:
+                        found_or_not = "found" if matched else "not found"
+                        explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
+
+                    execution_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "matched": matched,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "matched": matched,
+                                "explanation": explanation,
+                            }
+                        ),
+                    },
+                ) as parse_span:
+                    label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
                 )
-            label, score = self._map_boolean_to_label_and_score(matched, output_config)
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={
-                    "words": words,
-                    "text": text,
-                    "case_sensitive": case_sensitive,
-                    "require_all": require_all,
-                },
-                error=None,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"Builtin evaluator '{self.name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={
+                        "words": words,
+                        "text": text,
+                        "case_sensitive": case_sensitive,
+                        "require_all": require_all,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
 
 
 @register_builtin_evaluator
@@ -1056,27 +1166,30 @@ class ExactMatchEvaluator(BuiltInEvaluator):
     name = "ExactMatch"
     description = "Evaluates whether the actual text exactly matches the expected text"
     metadata = {"type": "string_matching"}
-    input_schema = {
-        "type": "object",
-        "properties": {
-            "expected": {
-                "type": "string",
-                "description": "The expected text",
-            },
-            "actual": {
-                "type": "string",
-                "description": "The actual text to compare",
-            },
-            "case_sensitive": {
-                "type": "boolean",
-                "description": "Whether comparison is case-sensitive (default: True)",
-            },
-        },
-        "required": ["expected", "actual"],
-    }
 
-    @classmethod
-    def output_config(cls) -> CategoricalAnnotationConfig:
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "string",
+                    "description": "The expected text",
+                },
+                "actual": {
+                    "type": "string",
+                    "description": "The actual text to compare",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether comparison is case-sensitive (default: True)",
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
             name="exact_match",
@@ -1087,68 +1200,175 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             ],
         )
 
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            inputs = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
-            )
-            inputs = cast_template_variable_types(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            expected = inputs.get("expected", "")
-            actual = inputs.get("actual", "")
-            case_sensitive = inputs.get("case_sensitive", True)
+        tracer_ = tracer or NoOpTracer()
 
-            if case_sensitive:
-                matched = expected == actual
-            else:
-                matched = expected.lower() == actual.lower()
+        with tracer_.start_as_current_span(
+            f"Evaluation: {self.name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
 
-            explanation = f"expected {'matches' if matched else 'does not match'} actual"
-            label, score = self._map_boolean_to_label_and_score(matched, output_config)
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
-                error=None,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"Builtin evaluator '{self.name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+            try:
+                with tracer_.start_as_current_span(
+                    "Apply input mapping",
+                    attributes={
+                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
+                        **_get_template_path_mapping_attributes(
+                            path_mapping=input_mapping.path_mapping or {}
+                        ),
+                        **_get_template_literal_mapping_attributes(
+                            literal_mapping=input_mapping.literal_mapping or {}
+                        ),
+                        **_get_template_variables_attributes(variables=context),
+                        **get_input_attributes(
+                            {
+                                "variables": context,
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                expected = inputs.get("expected", "")
+                actual = inputs.get("actual", "")
+                case_sensitive = inputs.get("case_sensitive", True)
+
+                with tracer_.start_as_current_span(
+                    f"Run {self.name}",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "expected": expected,
+                                "actual": actual,
+                                "case_sensitive": case_sensitive,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    if case_sensitive:
+                        matched = expected == actual
+                    else:
+                        matched = expected.lower() == actual.lower()
+
+                    explanation = f"expected {'matches' if matched else 'does not match'} actual"
+
+                    execution_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "matched": matched,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "matched": matched,
+                                "explanation": explanation,
+                            }
+                        ),
+                    },
+                ) as parse_span:
+                    label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={
+                        "expected": expected,
+                        "actual": actual,
+                        "case_sensitive": case_sensitive,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
 
 
 @register_builtin_evaluator
@@ -1156,30 +1376,33 @@ class RegexEvaluator(BuiltInEvaluator):
     name = "Regex"
     description = "Evaluates whether the text matches a regex pattern"
     metadata = {"type": "pattern_matching"}
-    input_schema = {
-        "type": "object",
-        "properties": {
-            "pattern": {
-                "type": "string",
-                "description": "The regex pattern to match",
-            },
-            "text": {
-                "type": "string",
-                "description": "The text to search",
-            },
-            "full_match": {
-                "type": "boolean",
-                "description": (
-                    "If true, pattern must match entire text; "
-                    "if false, searches for pattern anywhere (default: False)"
-                ),
-            },
-        },
-        "required": ["pattern", "text"],
-    }
 
-    @classmethod
-    def output_config(cls) -> CategoricalAnnotationConfig:
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "The regex pattern to match",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "The text to search",
+                },
+                "full_match": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, pattern must match entire text; "
+                        "if false, searches for pattern anywhere (default: False)"
+                    ),
+                },
+            },
+            "required": ["pattern", "text"],
+        }
+
+    @property
+    def output_config(self) -> CategoricalAnnotationConfig:
         return CategoricalAnnotationConfig(
             type="CATEGORICAL",
             name="regex",
@@ -1190,79 +1413,188 @@ class RegexEvaluator(BuiltInEvaluator):
             ],
         )
 
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            inputs = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluation: {self.name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
-            inputs = cast_template_variable_types(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            pattern = inputs.get("pattern", "")
-            text = inputs.get("text", "")
-            full_match = inputs.get("full_match", False)
 
             try:
-                if full_match:
-                    match = re.fullmatch(pattern, text)
-                else:
-                    match = re.search(pattern, text)
-                matched = match is not None
-                error = None
-            except re.error as e:
-                matched = False
-                error = f"Invalid regex pattern: {e}"
+                with tracer_.start_as_current_span(
+                    "Apply input mapping",
+                    attributes={
+                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
+                        **_get_template_path_mapping_attributes(
+                            path_mapping=input_mapping.path_mapping or {}
+                        ),
+                        **_get_template_literal_mapping_attributes(
+                            literal_mapping=input_mapping.literal_mapping or {}
+                        ),
+                        **_get_template_variables_attributes(variables=context),
+                        **get_input_attributes(
+                            {
+                                "variables": context,
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_status(Status(StatusCode.OK))
 
-            if error:
-                explanation = error
-                label, score = None, None
-            else:
-                match_type = "full match" if full_match else "search"
-                explanation = f"pattern {'matched' if matched else 'did not match'} ({match_type})"
-                label, score = self._map_boolean_to_label_and_score(matched, output_config)
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={"pattern": pattern, "text": text, "full_match": full_match},
-                error=error,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"Builtin evaluator '{self.name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+                pattern = inputs.get("pattern", "")
+                text = inputs.get("text", "")
+                full_match = inputs.get("full_match", False)
+
+                with tracer_.start_as_current_span(
+                    f"Run {self.name}",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "pattern": pattern,
+                                "text": text,
+                                "full_match": full_match,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    try:
+                        if full_match:
+                            match = re.fullmatch(pattern, text)
+                        else:
+                            match = re.search(pattern, text)
+                        matched = match is not None
+                        error = None
+                    except re.error as e:
+                        matched = False
+                        error = f"Invalid regex pattern: {e}"
+
+                    if error:
+                        explanation = error
+                    else:
+                        match_type = "full match" if full_match else "search"
+                        explanation = (
+                            f"pattern {'matched' if matched else 'did not match'} ({match_type})"
+                        )
+
+                    execution_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "matched": matched,
+                                "error": error,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "matched": matched,
+                                "error": error,
+                                "explanation": explanation,
+                            }
+                        ),
+                    },
+                ) as parse_span:
+                    if error:
+                        label, score = None, None
+                    else:
+                        label, score = self._map_boolean_to_label_and_score(matched, output_config)
+
+                    parse_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={"pattern": pattern, "text": text, "full_match": full_match},
+                    error=error,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -1289,27 +1621,30 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     name = "LevenshteinDistance"
     description = "Calculates the Levenshtein (edit) distance between two strings"
     metadata = {"type": "string_distance"}
-    input_schema = {
-        "type": "object",
-        "properties": {
-            "expected": {
-                "type": "string",
-                "description": "The expected text",
-            },
-            "actual": {
-                "type": "string",
-                "description": "The actual text to compare",
-            },
-            "case_sensitive": {
-                "type": "boolean",
-                "description": "Whether comparison is case-sensitive (default: True)",
-            },
-        },
-        "required": ["expected", "actual"],
-    }
 
-    @classmethod
-    def output_config(cls) -> ContinuousAnnotationConfig:
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "string",
+                    "description": "The expected text",
+                },
+                "actual": {
+                    "type": "string",
+                    "description": "The actual text to compare",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Whether comparison is case-sensitive (default: True)",
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_config(self) -> ContinuousAnnotationConfig:
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
             name="levenshtein_distance",
@@ -1317,67 +1652,176 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             lower_bound=0.0,
         )
 
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            inputs = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
-            )
-            inputs = cast_template_variable_types(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            expected = inputs.get("expected", "")
-            actual = inputs.get("actual", "")
-            case_sensitive = inputs.get("case_sensitive", True)
+        tracer_ = tracer or NoOpTracer()
 
-            if case_sensitive:
-                distance = levenshtein_distance(expected, actual)
-            else:
-                distance = levenshtein_distance(expected.lower(), actual.lower())
+        with tracer_.start_as_current_span(
+            f"Evaluation: {self.name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
 
-            explanation = f"edit distance between expected and actual is {distance}"
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=float(distance),
-                explanation=explanation,
-                metadata={"expected": expected, "actual": actual, "case_sensitive": case_sensitive},
-                error=None,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"Builtin evaluator '{self.name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+            try:
+                with tracer_.start_as_current_span(
+                    "Apply input mapping",
+                    attributes={
+                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
+                        **_get_template_path_mapping_attributes(
+                            path_mapping=input_mapping.path_mapping or {}
+                        ),
+                        **_get_template_literal_mapping_attributes(
+                            literal_mapping=input_mapping.literal_mapping or {}
+                        ),
+                        **_get_template_variables_attributes(variables=context),
+                        **get_input_attributes(
+                            {
+                                "variables": context,
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                expected = inputs.get("expected", "")
+                actual = inputs.get("actual", "")
+                case_sensitive = inputs.get("case_sensitive", True)
+
+                with tracer_.start_as_current_span(
+                    f"Run {self.name}",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "expected": expected,
+                                "actual": actual,
+                                "case_sensitive": case_sensitive,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    if case_sensitive:
+                        distance = levenshtein_distance(expected, actual)
+                    else:
+                        distance = levenshtein_distance(expected.lower(), actual.lower())
+
+                    explanation = f"edit distance between expected and actual is {distance}"
+
+                    execution_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "distance": distance,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "distance": distance,
+                                "explanation": explanation,
+                            }
+                        ),
+                    },
+                ) as parse_span:
+                    label = None
+                    score = float(distance)
+
+                    parse_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=float(distance),
+                    explanation=explanation,
+                    metadata={
+                        "expected": expected,
+                        "actual": actual,
+                        "case_sensitive": case_sensitive,
+                    },
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        return result
 
 
 def json_diff_count(expected: Any, actual: Any) -> int:
@@ -1410,23 +1854,26 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
     name = "JSONDistance"
     description = "Compares two JSON structures and returns the number of differences"
     metadata = {"type": "json_comparison"}
-    input_schema = {
-        "type": "object",
-        "properties": {
-            "expected": {
-                "type": "string",
-                "description": "The expected JSON string",
-            },
-            "actual": {
-                "type": "string",
-                "description": "The actual JSON string to compare",
-            },
-        },
-        "required": ["expected", "actual"],
-    }
 
-    @classmethod
-    def output_config(cls) -> ContinuousAnnotationConfig:
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "expected": {
+                    "type": "string",
+                    "description": "The expected JSON string",
+                },
+                "actual": {
+                    "type": "string",
+                    "description": "The actual JSON string to compare",
+                },
+            },
+            "required": ["expected", "actual"],
+        }
+
+    @property
+    def output_config(self) -> ContinuousAnnotationConfig:
         return ContinuousAnnotationConfig(
             type="CONTINUOUS",
             name="json_distance",
@@ -1434,155 +1881,173 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             lower_bound=0.0,
         )
 
-    def evaluate(
+    async def evaluate(
         self,
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: BuiltInEvaluatorOutputConfig,
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            inputs = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
-            )
-            inputs = cast_template_variable_types(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=inputs,
-                input_schema=self.input_schema,
-            )
-            expected_str = inputs.get("expected", "")
-            actual_str = inputs.get("actual", "")
+        tracer_ = tracer or NoOpTracer()
 
+        with tracer_.start_as_current_span(
+            f"Evaluation: {self.name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
             try:
-                expected = json.loads(expected_str)
-                actual = json.loads(actual_str)
-                distance = json_diff_count(expected, actual)
-                error = None
-                explanation = f"JSON structures have {distance} difference(s)"
-            except json.JSONDecodeError as e:
-                distance = -1
-                error = f"Invalid JSON: {e}"
-                explanation = error
+                with tracer_.start_as_current_span(
+                    "Apply input mapping",
+                    attributes={
+                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
+                        **_get_template_path_mapping_attributes(
+                            path_mapping=input_mapping.path_mapping or {}
+                        ),
+                        **_get_template_literal_mapping_attributes(
+                            literal_mapping=input_mapping.literal_mapping or {}
+                        ),
+                        **_get_template_variables_attributes(variables=context),
+                        **get_input_attributes(
+                            {
+                                "variables": context,
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_status(Status(StatusCode.OK))
 
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=float(distance) if error is None else None,
-                explanation=explanation,
-                metadata={"expected": expected_str, "actual": actual_str},
-                error=error,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"Builtin evaluator '{self.name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=name,
-                annotator_kind="CODE",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+                expected_str = inputs.get("expected", "")
+                actual_str = inputs.get("actual", "")
 
+                with tracer_.start_as_current_span(
+                    f"Run {self.name}",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "expected": expected_str,
+                                "actual": actual_str,
+                            }
+                        ),
+                    },
+                ) as execution_span:
+                    try:
+                        expected = json.loads(expected_str)
+                        actual = json.loads(actual_str)
+                        distance = json_diff_count(expected, actual)
+                        error = None
+                        explanation = f"JSON structures have {distance} difference(s)"
+                    except json.JSONDecodeError as e:
+                        distance = -1
+                        error = f"Invalid JSON: {e}"
+                        explanation = error
 
-def merge_categorical_output_config(
-    base: CategoricalAnnotationConfig,
-    override: Optional[CategoricalAnnotationConfigOverride],
-    name: str,
-    description_override: Optional[str],
-) -> CategoricalAnnotationConfig:
-    """
-    Merge a base categorical output config with optional overrides.
+                    execution_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "distance": distance,
+                                "error": error,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
 
-    Args:
-        base: The base CategoricalAnnotationConfig from the LLM evaluator
-        override: Optional overrides from the dataset evaluator
-        name: The name to use as the config name
-        description_override: Optional description override
+                with tracer_.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "distance": distance,
+                                "error": error,
+                                "explanation": explanation,
+                            }
+                        ),
+                    },
+                ) as parse_span:
+                    label = None
+                    score = float(distance) if error is None else None
 
-    Returns:
-        A new CategoricalAnnotationConfig with overrides applied
-    """
-    values = base.values
-    optimization_direction = base.optimization_direction
-    description = base.description
+                    parse_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                            }
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
 
-    if override is not None:
-        if override.values is not None:
-            values = override.values
-        if override.optimization_direction is not None:
-            optimization_direction = override.optimization_direction
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=float(distance) if error is None else None,
+                    explanation=explanation,
+                    metadata={"expected": expected_str, "actual": actual_str},
+                    error=error,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": result["label"],
+                            "score": result["score"],
+                            "explanation": result["explanation"],
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                logger.exception(f"Builtin evaluator '{self.name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
 
-    if description_override is not None:
-        description = description_override
-
-    return CategoricalAnnotationConfig(
-        type=base.type,
-        name=name,
-        description=description,
-        optimization_direction=optimization_direction,
-        values=values,
-    )
-
-
-def merge_continuous_output_config(
-    base: ContinuousAnnotationConfig,
-    override: Optional[ContinuousAnnotationConfigOverride],
-    name: str,
-    description_override: Optional[str],
-) -> ContinuousAnnotationConfig:
-    """
-    Merge a base continuous output config with optional overrides.
-
-    Args:
-        base: The base ContinuousAnnotationConfig from the builtin evaluator
-        override: Optional overrides from the dataset evaluator
-        name: The name to use as the config name
-        description_override: Optional description override
-
-    Returns:
-        A new ContinuousAnnotationConfig with overrides applied
-    """
-    optimization_direction = base.optimization_direction
-    lower_bound = base.lower_bound
-    upper_bound = base.upper_bound
-    description = base.description
-
-    if override is not None:
-        if override.optimization_direction is not None:
-            optimization_direction = override.optimization_direction
-        if override.lower_bound is not None:
-            lower_bound = override.lower_bound
-        if override.upper_bound is not None:
-            upper_bound = override.upper_bound
-
-    if description_override is not None:
-        description = description_override
-
-    return ContinuousAnnotationConfig(
-        type=base.type,
-        name=name,
-        description=description,
-        optimization_direction=optimization_direction,
-        lower_bound=lower_bound,
-        upper_bound=upper_bound,
-    )
+        return result
 
 
 # message attributes

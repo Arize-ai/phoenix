@@ -12,6 +12,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptMessage,
@@ -917,23 +918,47 @@ async def assign_correctness_llm_evaluator_to_dataset(
     async def _assign_correctness_llm_evaluator_to_dataset(
         dataset_id: int,
     ) -> models.DatasetEvaluators:
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset_id,
+            evaluator_id=correctness_llm_evaluator.id,
+            display_name=correctness_llm_evaluator.name,
+            input_mapping={},
+            output_config_override=None,
+            project=models.Project(
+                name="correctness-evaluator-project",
+                description="Project for llm evaluator",
+            ),
+        )
         async with db() as session:
-            dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=dataset_id,
-                evaluator_id=correctness_llm_evaluator.id,
-                name=correctness_llm_evaluator.name,
-                input_mapping={},
-                output_config_override=None,
-                project=models.Project(
-                    name="correctness-evaluator-project",
-                    description="Project for llm evaluator",
-                ),
-            )
             session.add(dataset_evaluator)
-            await session.flush()
-            return dataset_evaluator
+        return dataset_evaluator
 
     return _assign_correctness_llm_evaluator_to_dataset
+
+
+@pytest.fixture
+async def assign_exact_match_builtin_evaluator_to_dataset(
+    db: DbSessionFactory,
+) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+    async def _assign_exact_match_builtin_evaluator_to_dataset(
+        dataset_id: int,
+    ) -> models.DatasetEvaluators:
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset_id,
+            builtin_evaluator_id=exact_match_id,
+            name=Identifier(root="exact-match"),
+            input_mapping={},
+            project=models.Project(
+                name="exact-match-evaluator-project",
+                description="Project for builtin evaluator",
+            ),
+        )
+        async with db() as session:
+            session.add(dataset_evaluator)
+        return dataset_evaluator
+
+    return _assign_exact_match_builtin_evaluator_to_dataset
 
 
 @pytest.fixture

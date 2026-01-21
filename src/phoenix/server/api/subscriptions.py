@@ -33,24 +33,20 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
-    CategoricalAnnotationConfigOverride,
-    ContinuousAnnotationConfig,
-    ContinuousAnnotationConfigOverride,
-)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
+    BaseEvaluator,
     EvaluationResult,
-    LLMEvaluator,
     evaluation_result_to_model,
-    get_builtin_evaluator_by_id,
-    get_llm_evaluators,
-    merge_categorical_output_config,
-    merge_continuous_output_config,
+    get_evaluator_project_ids,
+    get_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.annotation_configs import (
+    apply_overrides_to_annotation_config,
+    get_annotation_config_override,
+)
 from phoenix.server.api.helpers.message_helpers import (
     ChatCompletionMessage,
     extract_and_convert_example_messages,
@@ -73,10 +69,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
-from phoenix.server.api.mutations.annotation_config_mutations import (
-    _to_pydantic_categorical_annotation_config_override,
-)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -91,13 +83,14 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
+from phoenix.tracers import Tracer
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -127,7 +120,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
-    llm_evaluators: list[LLMEvaluator],
+    evaluators: list[BaseEvaluator],
 ) -> ChatStream:
     messages = [
         (
@@ -179,100 +172,46 @@ async def _stream_single_chat_completion(
             "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
             "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
         }
-        async with info.context.db() as session:
-            for evaluator in input.evaluators:
-                _, db_id = from_global_id(evaluator.id)  # pyright: ignore
-                if _is_builtin_evaluator(db_id):
-                    builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
-                    if builtin_evaluator_cls is None:
-                        continue
-                    builtin = builtin_evaluator_cls()
-                    name = str(evaluator.name)
-                    base_config = builtin_evaluator_cls.output_config()
-                    merged_config = _merge_builtin_output_config(
-                        base_config=base_config,
-                        evaluator_input=evaluator,
-                        name=name,
-                    )
-                    result: EvaluationResult = builtin.evaluate(
-                        context=context_dict,
-                        input_mapping=evaluator.input_mapping,
-                        name=name,
-                        output_config=merged_config,
-                    )
-                    if result["error"] is not None:
-                        yield EvaluationErrorChunk(
-                            evaluator_name=name,
-                            message=result["error"],
-                            dataset_example_id=None,
-                            repetition_number=repetition_number,
-                        )
-                        continue
-                    annotation = ExperimentRunAnnotation.from_dict(
-                        {
-                            "name": result["name"],
-                            "annotator_kind": result["annotator_kind"],
-                            "label": result["label"],
-                            "score": result["score"],
-                            "explanation": result["explanation"],
-                            "metadata": result["metadata"],
-                        }
-                    )
-                    await session.flush()
-                    yield EvaluationChunk(
-                        experiment_run_evaluation=annotation,
-                        dataset_example_id=None,
-                        repetition_number=repetition_number,
-                    )
+        for evaluator, evaluator_input in zip(evaluators, input.evaluators):
+            name = str(evaluator_input.name)
+            annotation_config_override = get_annotation_config_override(evaluator_input)
+            merged_config = apply_overrides_to_annotation_config(
+                annotation_config=evaluator.output_config,
+                annotation_config_override=annotation_config_override,
+                name_override=name,
+                description_override=evaluator_input.description,
+            )
 
-            evaluator_inputs_by_node_id = {
-                evaluator.id: evaluator for evaluator in input.evaluators
-            }
-            for llm_evaluator in llm_evaluators:
-                evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
-                output_config_override = (
-                    _to_pydantic_categorical_annotation_config_override(
-                        evaluator_input.output_config
-                    )
-                    if evaluator_input.output_config is not None
-                    else None
-                )
-                merged_output_config = merge_categorical_output_config(
-                    base=llm_evaluator.output_config,
-                    override=output_config_override,
-                    name=str(evaluator_input.name),
-                    description_override=None,
-                )
-                result = await llm_evaluator.evaluate(
-                    context=context_dict,
-                    input_mapping=evaluator_input.input_mapping,
-                    name=str(evaluator_input.name),
-                    output_config=merged_output_config,
-                )
-                if result["error"] is not None:
-                    yield EvaluationErrorChunk(
-                        evaluator_name=str(evaluator_input.name),
-                        message=result["error"],
-                        dataset_example_id=None,
-                        repetition_number=repetition_number,
-                    )
-                    continue
-                annotation = ExperimentRunAnnotation.from_dict(
-                    {
-                        "name": result["name"],
-                        "annotator_kind": result["annotator_kind"],
-                        "label": result["label"],
-                        "score": result["score"],
-                        "explanation": result["explanation"],
-                        "metadata": result["metadata"],
-                    }
-                )
-                yield EvaluationChunk(
-                    experiment_run_evaluation=annotation,
-                    span_evaluation=None,
+            result: EvaluationResult = await evaluator.evaluate(
+                context=context_dict,
+                input_mapping=evaluator_input.input_mapping,
+                name=name,
+                output_config=merged_config,
+            )
+            if result["error"] is not None:
+                yield EvaluationErrorChunk(
+                    evaluator_name=name,
+                    message=result["error"],
                     dataset_example_id=None,
                     repetition_number=repetition_number,
                 )
+                continue
+            annotation = ExperimentRunAnnotation.from_dict(
+                {
+                    "name": result["name"],
+                    "annotator_kind": result["annotator_kind"],
+                    "label": result["label"],
+                    "score": result["score"],
+                    "explanation": result["explanation"],
+                    "metadata": result["metadata"],
+                }
+            )
+            yield EvaluationChunk(
+                experiment_run_evaluation=annotation,
+                span_evaluation=None,
+                dataset_example_id=None,
+                repetition_number=repetition_number,
+            )
 
 
 async def _chat_completion_span_result_payloads(
@@ -321,80 +260,6 @@ def _is_span_result_payloads_stream(
     return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore
 
 
-def _is_builtin_evaluator(evaluator_id: int) -> bool:
-    return evaluator_id < 0
-
-
-def _merge_builtin_output_config(
-    base_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
-    evaluator_input: PlaygroundEvaluatorInput,
-    name: str,
-) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
-    """
-    Merge the base output config from a builtin evaluator with any override from the input.
-    Uses output_config_override if provided, falls back to output_config (categorical only).
-    """
-    import strawberry
-
-    from phoenix.db.types.annotation_configs import CategoricalAnnotationValue
-
-    override: CategoricalAnnotationConfigOverride | ContinuousAnnotationConfigOverride | None = None
-
-    if (
-        evaluator_input.output_config_override is not None
-        and evaluator_input.output_config_override.categorical is not strawberry.UNSET
-        and evaluator_input.output_config_override.categorical is not None
-    ):
-        cat = evaluator_input.output_config_override.categorical
-        values = None
-        if cat.values is not None:
-            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
-        override = CategoricalAnnotationConfigOverride(
-            type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
-            values=values,
-        )
-    elif (
-        evaluator_input.output_config_override is not None
-        and evaluator_input.output_config_override.continuous is not strawberry.UNSET
-        and evaluator_input.output_config_override.continuous is not None
-    ):
-        cont = evaluator_input.output_config_override.continuous
-        override = ContinuousAnnotationConfigOverride(
-            type="CONTINUOUS",
-            optimization_direction=cont.optimization_direction,
-            lower_bound=cont.lower_bound,
-            upper_bound=cont.upper_bound,
-        )
-    elif evaluator_input.output_config is not None:
-        cat = evaluator_input.output_config
-        values = None
-        if cat.values is not None:
-            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
-        override = CategoricalAnnotationConfigOverride(
-            type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
-            values=values,
-        )
-
-    if isinstance(base_config, CategoricalAnnotationConfig):
-        return merge_categorical_output_config(
-            base=base_config,
-            override=override
-            if isinstance(override, CategoricalAnnotationConfigOverride)
-            else None,  # pyright: ignore[reportArgumentType]
-            name=name,
-            description_override=evaluator_input.description,
-        )
-    else:
-        return merge_continuous_output_config(
-            base=base_config,
-            override=override if isinstance(override, ContinuousAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
-            name=name,
-            description_override=evaluator_input.description,
-        )
-
-
 @strawberry.type
 class Subscription:
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -408,7 +273,7 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            llm_evaluators = await get_llm_evaluators(
+            evaluators = await get_evaluators(
                 evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 decrypt=info.context.decrypt,
@@ -439,7 +304,7 @@ class Subscription:
                     repetition_number=repetition_number,
                     results=results,
                     info=info,
-                    llm_evaluators=llm_evaluators,
+                    evaluators=evaluators,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -541,11 +406,17 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            llm_evaluators = await get_llm_evaluators(
-                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+            evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            evaluators = await get_evaluators(
+                evaluator_node_ids=evaluator_node_ids,
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+            )
+            project_ids = await get_evaluator_project_ids(
+                evaluator_node_ids=evaluator_node_ids,
+                dataset_id=dataset_id,
+                session=session,
             )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
@@ -748,96 +619,43 @@ class Subscription:
                             "reference": revision.output,
                             "output": run.output.get("task_output", run.output),
                         }
-                        for evaluator in input.evaluators:
-                            _, db_id = from_global_id(evaluator.id)  # pyright: ignore
-                            if _is_builtin_evaluator(db_id):
-                                builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
-                                if builtin_evaluator_cls is None:
-                                    continue
-                                builtin = builtin_evaluator_cls()
-                                name = str(evaluator.name)
-                                base_config = builtin_evaluator_cls.output_config()
-                                merged_config = _merge_builtin_output_config(
-                                    base_config=base_config,
-                                    evaluator_input=evaluator,
-                                    name=name,
-                                )
-                                result: EvaluationResult = builtin.evaluate(
-                                    context=context_dict,
-                                    input_mapping=evaluator.input_mapping,
-                                    name=name,
-                                    output_config=merged_config,
-                                )
-                                if result["error"] is not None:
-                                    yield EvaluationErrorChunk(
-                                        evaluator_name=name,
-                                        message=result["error"],
-                                        dataset_example_id=example_id,
-                                        repetition_number=repetition_number,
-                                    )
-                                    continue
-                                annotation_model = evaluation_result_to_model(
-                                    result,
-                                    experiment_run_id=run.id,
-                                )
-                                session.add(annotation_model)
-                                await session.flush()
-                                yield EvaluationChunk(
-                                    experiment_run_evaluation=ExperimentRunAnnotation(
-                                        id=annotation_model.id,
-                                        db_record=annotation_model,
-                                    ),
-                                    span_evaluation=None,
-                                    dataset_example_id=example_id,
-                                    repetition_number=repetition_number,
-                                )
-                        evaluator_inputs_by_node_id = {
-                            evaluator.id: evaluator for evaluator in input.evaluators
-                        }
-                        for llm_evaluator in llm_evaluators:
-                            evaluator_input = evaluator_inputs_by_node_id[llm_evaluator.node_id]
-                            output_config_override = (
-                                _to_pydantic_categorical_annotation_config_override(
-                                    evaluator_input.output_config
-                                )
-                                if evaluator_input.output_config is not None
+                        for evaluator, evaluator_input, project_id in zip(
+                            evaluators, input.evaluators, project_ids
+                        ):
+                            name = str(evaluator_input.name)
+                            annotation_config_override = get_annotation_config_override(
+                                evaluator_input
+                            )
+                            merged_config = apply_overrides_to_annotation_config(
+                                annotation_config=evaluator.output_config,
+                                annotation_config_override=annotation_config_override,
+                                name_override=name,
+                                description_override=evaluator_input.description,
+                            )
+
+                            tracer = (
+                                Tracer()
+                                if input.tracing_enabled and project_id is not None
                                 else None
                             )
-                            merged_output_config = merge_categorical_output_config(
-                                base=llm_evaluator.output_config,
-                                override=output_config_override,
-                                name=str(evaluator_input.name),
-                                description_override=None,
-                            )
 
-                            result = await llm_evaluator.evaluate(
+                            result: EvaluationResult = await evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
-                                name=str(evaluator_input.name),
-                                output_config=merged_output_config,
+                                name=name,
+                                output_config=merged_config,
+                                tracer=tracer,
                             )
 
-                            if input.tracing_enabled:
-                                dataset_evaluator = await session.scalar(
-                                    select(models.DatasetEvaluators).where(
-                                        models.DatasetEvaluators.evaluator_id == llm_evaluator.db_id
-                                    )
+                            if tracer is not None:
+                                traces, _ = await tracer.save_db_models(
+                                    session=session, project_id=project_id
                                 )
-                                assert dataset_evaluator is not None
-                                db_trace = llm_evaluator.db_trace
-                                db_trace.project_rowid = dataset_evaluator.project_id
-                                session.add(db_trace)
-                                await session.flush()
-                                for db_span in llm_evaluator.db_spans:
-                                    db_span.trace_rowid = db_trace.id
-                                    db_span.trace = db_trace
-                                    session.add(db_span)
-                                await session.flush()
-                                result["trace_id"] = db_trace.trace_id
+                                result["trace_id"] = traces[0].trace_id
 
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(
-                                    evaluator_name=str(evaluator_input.name),
+                                    evaluator_name=name,
                                     message=result["error"],
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
