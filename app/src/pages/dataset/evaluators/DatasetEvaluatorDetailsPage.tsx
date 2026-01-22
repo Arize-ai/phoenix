@@ -10,7 +10,11 @@ import {
   Heading,
   Icon,
   Icons,
+  LazyTabPanel,
   Loading,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   View,
 } from "@phoenix/components";
@@ -27,6 +31,15 @@ const mainCSS = css`
   overflow: hidden;
   flex-direction: column;
   height: 100%;
+  .ac-tabs {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    div[role="tablist"] {
+      flex: none;
+    }
+  }
 `;
 
 export function DatasetEvaluatorDetailsPage() {
@@ -81,22 +94,35 @@ function DatasetEvaluatorDetailsPageContent({
           </Button>
         </Flex>
       </View>
-      {isLLMEvaluator && (
-        <LLMDatasetEvaluatorDetails
-          datasetEvaluatorRef={datasetEvaluator}
-          datasetId={datasetId}
-          isEditSlideoverOpen={isEditSlideoverOpen}
-          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-        />
-      )}
-      {isBuiltInEvaluator && (
-        <BuiltInDatasetEvaluatorDetails
-          datasetEvaluatorRef={datasetEvaluator}
-          datasetId={datasetId}
-          isEditSlideoverOpen={isEditSlideoverOpen}
-          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-        />
-      )}
+      <Tabs defaultSelectedKey="configuration">
+        <TabList>
+          <Tab id="configuration">Configuration</Tab>
+          <Tab id="traces">Traces</Tab>
+        </TabList>
+        <LazyTabPanel id="configuration">
+          {isLLMEvaluator && (
+            <LLMDatasetEvaluatorDetails
+              datasetEvaluatorRef={datasetEvaluator}
+              datasetId={datasetId}
+              isEditSlideoverOpen={isEditSlideoverOpen}
+              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+            />
+          )}
+          {isBuiltInEvaluator && (
+            <BuiltInDatasetEvaluatorDetails
+              datasetEvaluatorRef={datasetEvaluator}
+              datasetId={datasetId}
+              isEditSlideoverOpen={isEditSlideoverOpen}
+              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+            />
+          )}
+        </LazyTabPanel>
+        <LazyTabPanel id="traces">
+          <View padding="size-200">
+            <Text>Evaluator traces will be displayed here.</Text>
+          </View>
+        </LazyTabPanel>
+      </Tabs>
     </main>
   );
 }
