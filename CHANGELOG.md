@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.31.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.0...arize-phoenix-v12.31.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.28.0 ([#11018](https://github.com/Arize-ai/phoenix/issues/11018)) ([336c8dc](https://github.com/Arize-ai/phoenix/commit/336c8dc52af86bf979773181db9624543f3709c9))
+* resolve KeyError in spans query with pandas 3.0 ([#11035](https://github.com/Arize-ai/phoenix/issues/11035)) ([b02fda3](https://github.com/Arize-ai/phoenix/commit/b02fda3f1594f79a5d94f3b677d20b820b2bfd76))
+
+
+### Documentation
+
+* experiments tutorial narrative docs ([#10986](https://github.com/Arize-ai/phoenix/issues/10986)) ([bde8e0e](https://github.com/Arize-ai/phoenix/commit/bde8e0e66d6d2b2a672fa1a03f3544fd6ee9fbaf))
+
 ## [12.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.30.0...arize-phoenix-v12.31.0) (2026-01-21)
 
 
