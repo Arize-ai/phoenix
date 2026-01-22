@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Flex } from "@phoenix/components";
+import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { JSONDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/JSONDistanceEvaluatorCodeBlock";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
@@ -85,6 +86,7 @@ export const JSONDistanceEvaluatorForm = () => {
           onPathInputChange={setActualPath}
         />
       </Flex>
+      <BuiltInEvaluatorOutputConfig />
       <JSONDistanceEvaluatorCodeBlock />
     </Flex>
   );

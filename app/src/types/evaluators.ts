@@ -98,6 +98,28 @@ export type ClassificationEvaluatorAnnotationConfig = {
   values: ClassificationChoice[];
 };
 
+export type ContinuousEvaluatorAnnotationConfig = {
+  /**
+   * The name of the annotation produced by the evaluator
+   * @example
+   * "helpfulness"
+   */
+  name: string;
+  /**
+   * The direction to optimize the numeric evaluation score
+   * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
+   */
+  optimizationDirection: EvaluatorOptimizationDirection;
+  /**
+   * The lower bound of the annotation
+   */
+  lowerBound?: number | null;
+  /**
+   * The upper bound of the annotation
+   */
+  upperBound?: number | null;
+};
+
 /**
  * The kind of evaluator
  */

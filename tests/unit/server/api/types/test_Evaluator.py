@@ -614,3 +614,39 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.1
         assert output_config["upperBound"] == 0.9
+
+    async def test_dataset_evaluator_and_underlying_evaluator_output_config_have_different_ids(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that DatasetEvaluator.outputConfig and DatasetEvaluator.evaluator.outputConfig
+        have distinct IDs even when referencing the same underlying evaluator.
+        This ensures Relay can properly cache and differentiate these objects."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        outputConfig {
+                            ... on CategoricalAnnotationConfig { id }
+                        }
+                        evaluator {
+                            ... on BuiltInEvaluator {
+                                outputConfig {
+                                    ... on CategoricalAnnotationConfig { id }
+                                }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(
+                    GlobalID(DatasetEvaluator.__name__, str(_test_data["categorical_no_override"]))
+                )
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        dataset_evaluator_output_config_id = node["outputConfig"]["id"]
+        underlying_evaluator_output_config_id = node["evaluator"]["outputConfig"]["id"]
+        # These should be different IDs to avoid Relay cache collisions
+        assert dataset_evaluator_output_config_id != underlying_evaluator_output_config_id

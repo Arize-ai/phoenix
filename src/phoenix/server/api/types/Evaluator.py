@@ -300,6 +300,7 @@ class LLMEvaluator(Evaluator, Node):
         return _to_gql_categorical_annotation_config(
             config=config,
             annotation_name=config.name or "",
+            id_prefix="Evaluator",
             evaluator_id=self.id,
         )
 
@@ -515,7 +516,9 @@ class BuiltInEvaluator(Evaluator, Node):
         if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
         base_config = evaluator_class.output_config()
-        return _to_gql_builtin_output_config(base_config, evaluator_class.name, self.id)
+        return _to_gql_builtin_output_config(
+            base_config, evaluator_class.name, id_prefix="Evaluator", evaluator_id=self.id
+        )
 
     @strawberry.field
     async def datasets(
@@ -531,14 +534,20 @@ class BuiltInEvaluator(Evaluator, Node):
         return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
-def _generate_categorical_annotation_config_id(evaluator_id: int) -> int:
-    """Generate a stable negative ID using CRC32 checksum."""
-    return -abs(zlib.crc32(str(evaluator_id).encode("utf-8")))
+def _generate_output_config_id(id_prefix: str, evaluator_id: int) -> int:
+    """
+    Generate a stable negative ID for evaluator output configs.
+
+    The id_prefix ensures different contexts (e.g., "Evaluator" vs "DatasetEvaluator")
+    produce distinct IDs even when referencing the same underlying evaluator_id.
+    """
+    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}".encode("utf-8")))
 
 
 def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
     annotation_name: str,
+    id_prefix: str,
     evaluator_id: int,
 ) -> CategoricalAnnotationConfig:
     values = [
@@ -549,7 +558,7 @@ def _to_gql_categorical_annotation_config(
         for val in config.values
     ]
     return CategoricalAnnotationConfig(
-        id_attr=_generate_categorical_annotation_config_id(evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -561,10 +570,11 @@ def _to_gql_categorical_annotation_config(
 def _to_gql_continuous_annotation_config(
     config: ContinuousAnnotationConfigModel,
     annotation_name: str,
+    id_prefix: str,
     evaluator_id: int,
 ) -> ContinuousAnnotationConfig:
     return ContinuousAnnotationConfig(
-        id_attr=_generate_categorical_annotation_config_id(evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -583,12 +593,17 @@ BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
 def _to_gql_builtin_output_config(
     config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
     annotation_name: str,
+    id_prefix: str,
     evaluator_id: int,
 ) -> BuiltInEvaluatorOutputConfig:
     if isinstance(config, CategoricalAnnotationConfigModel):
-        return _to_gql_categorical_annotation_config(config, annotation_name, evaluator_id)
+        return _to_gql_categorical_annotation_config(
+            config, annotation_name, id_prefix, evaluator_id
+        )
     else:
-        return _to_gql_continuous_annotation_config(config, annotation_name, evaluator_id)
+        return _to_gql_continuous_annotation_config(
+            config, annotation_name, id_prefix, evaluator_id
+        )
 
 
 @strawberry.type
@@ -707,8 +722,9 @@ class DatasetEvaluator(Node):
                 )
                 return _to_gql_categorical_annotation_config(
                     config=effective_categorical_config,
-                    evaluator_id=record.builtin_evaluator_id,
                     annotation_name=record.display_name.root,
+                    id_prefix="DatasetEvaluator",
+                    evaluator_id=self.id,
                 )
             else:
                 continuous_override = (
@@ -722,8 +738,9 @@ class DatasetEvaluator(Node):
                 )
                 return _to_gql_continuous_annotation_config(
                     config=effective_continuous_config,
-                    evaluator_id=record.builtin_evaluator_id,
                     annotation_name=record.display_name.root,
+                    id_prefix="DatasetEvaluator",
+                    evaluator_id=self.id,
                 )
 
         if record.evaluator_id is None:
@@ -747,8 +764,9 @@ class DatasetEvaluator(Node):
         )
         return _to_gql_categorical_annotation_config(
             config=effective_llm_config,
-            evaluator_id=record.evaluator_id,
             annotation_name=record.display_name.root,
+            id_prefix="DatasetEvaluator",
+            evaluator_id=self.id,
         )
 
     @strawberry.field

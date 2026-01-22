@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
+import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
@@ -108,6 +109,7 @@ export const RegexEvaluatorForm = () => {
           )}
         />
       </Flex>
+      <BuiltInEvaluatorOutputConfig />
       <RegexEvaluatorCodeBlock />
     </Flex>
   );

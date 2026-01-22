@@ -7,6 +7,7 @@ import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templ
 import type {
   ClassificationChoice,
   ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorKind,
   EvaluatorMappingSource,
@@ -29,7 +30,9 @@ export type EvaluatorStoreProps = {
     isBuiltin: boolean;
     includeExplanation: boolean;
   };
-  outputConfig?: ClassificationEvaluatorAnnotationConfig;
+  outputConfig?:
+    | ClassificationEvaluatorAnnotationConfig
+    | ContinuousEvaluatorAnnotationConfig;
   dataset?: {
     id: string;
     readonly: boolean;
