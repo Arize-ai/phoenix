@@ -44,7 +44,7 @@ export async function startServer(env: Record<string, string> = {}): Promise<voi
     serverProcess.stdout?.on("data", (data: Buffer) => {
       const output = data.toString();
       // Look for the startup message
-      if ((output.includes("Mock LLM Server started") || output.includes("Ready to accept requests")) && !started) {
+      if (output.includes("Mock LLM Server running") && !started) {
         started = true;
         // Give a moment for the server to be fully ready
         setTimeout(resolve, 100);

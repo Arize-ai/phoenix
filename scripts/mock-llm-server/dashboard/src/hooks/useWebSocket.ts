@@ -28,6 +28,8 @@ const MAX_EVENTS = 100;
 
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUnmountingRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetricsSnapshot | null>(null);
@@ -37,20 +39,23 @@ export function useWebSocket(): UseWebSocketReturn {
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
+    isUnmountingRef.current = false;
 
     const connect = () => {
+      if (isUnmountingRef.current) return;
+
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log("WebSocket connected");
         setConnected(true);
       };
 
       ws.onclose = () => {
-        console.log("WebSocket disconnected");
         setConnected(false);
-        // Reconnect after 1 second
-        setTimeout(connect, 1000);
+        // Only reconnect if not intentionally unmounting
+        if (!isUnmountingRef.current) {
+          reconnectTimeoutRef.current = setTimeout(connect, 1000);
+        }
       };
 
       ws.onerror = (error) => {
@@ -96,6 +101,10 @@ export function useWebSocket(): UseWebSocketReturn {
     connect();
 
     return () => {
+      isUnmountingRef.current = true;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (wsRef.current) {
         wsRef.current.close();
       }
