@@ -103,7 +103,7 @@ const allSpans = await getSpans({ project: { projectName }, limit: 500 });
 // Step 3: Filter for orchestrator agent spans
 const orchestratorSpans: typeof allSpans.spans = [];
 for (const span of allSpans.spans) {
-  if (span.name === "agent.Financial Analysis Orchestrator") {
+  if (span.name === "invoke_agent Financial Analysis Orchestrator") {
     orchestratorSpans.push(span);
   }
 }

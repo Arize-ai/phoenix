@@ -1,8 +1,8 @@
 import { Agent } from "@mastra/core/agent";
 import { financialAnalysisTool } from "../tools/financial-analysis-tool";
 
-/* FIXME(mastra): Add a unique `id` parameter. See: https://mastra.ai/guides/v1/migrations/upgrade-to-v1/mastra#required-id-parameter-for-all-mastra-primitives */
 export const financialOrchestratorAgent = new Agent({
+  id: "financial-orchestrator-agent",
   name: "Financial Analysis Orchestrator",
   instructions: `You are a Financial Analysis Orchestrator that coordinates a multi-agent system to provide comprehensive financial reports.
 

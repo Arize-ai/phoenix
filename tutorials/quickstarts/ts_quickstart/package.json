@@ -20,22 +20,22 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.11",
-    "@arizeai/phoenix-client": "^5.6.1",
-    "@arizeai/phoenix-evals": "^0.7.0",
-    "@mastra/arize": "^0.1.1",
-    "@mastra/client-js": "^0.17.2",
-    "@mastra/core": "^1.0.0-beta.21",
-    "@mastra/evals": "^0.14.4",
-    "@mastra/libsql": "^0.16.4",
-    "@mastra/loggers": "^1.0.0-beta.4",
-    "@mastra/memory": "^1.0.0-beta.12",
-    "@mastra/observability": "^1.0.0-beta.10",
+    "@ai-sdk/openai": "^2.0.0",
+    "@arizeai/phoenix-client": "5.7.0",
+    "@arizeai/phoenix-evals": "0.7.0",
+    "@mastra/arize": "1.0.0",
+    "@mastra/client-js": "1.0.1",
+    "@mastra/core": "^1.0.4",
+    "@mastra/evals": "^1.0.0",
+    "@mastra/libsql": "1.0.0",
+    "@mastra/loggers": "^1.0.0",
+    "@mastra/memory": "^1.0.0",
+    "@mastra/observability": "^1.0.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@types/node": "^25.0.3",
-    "mastra": "^1.0.0-beta.14",
+    "@types/node": "^25.0.9",
+    "mastra": "^1.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

@@ -1,8 +1,8 @@
 import { Agent } from "@mastra/core/agent";
 import { financialSearchTool } from "../tools/financial-search-tool";
 
-/* FIXME(mastra): Add a unique `id` parameter. See: https://mastra.ai/guides/v1/migrations/upgrade-to-v1/mastra#required-id-parameter-for-all-mastra-primitives */
 export const financialResearcherAgent = new Agent({
+  id: "financial-researcher-agent",
   name: "Financial Research Analyst",
   instructions: `You are a Senior Financial Research Analyst.
 

@@ -21,8 +21,7 @@ export const financialSearchTool = createTool({
   outputSchema: z.object({
     research: z.string().describe("Comprehensive financial research summary"),
   }),
-  execute: async ({ context }) => {
-    const { tickers, focus } = context;
+  execute: async ({ tickers, focus }) => {
     const model = openai("gpt-4o-mini");
 
     const prompt = `Provide comprehensive financial data for ${tickers} focusing on ${focus}.

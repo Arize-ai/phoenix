@@ -20,20 +20,27 @@ export const financialAnalysisTool = createTool({
   outputSchema: z.object({
     report: z.string().describe("A polished financial analysis report"),
   }),
-  execute: async ({ context, mastra }) => {
-    const { tickers, focus } = context;
+  execute: async ({ tickers, focus }, context) => {
+    const mastra = context?.mastra;
+    if (!mastra) {
+      throw new Error("Mastra instance not available in tool context");
+    }
 
     // Step 1: Research phase
-    const researcher = mastra?.getAgent("financialResearcherAgent");
-    if (!researcher) throw new Error("Financial researcher agent not found");
+    const researcher = mastra.getAgent("financialResearcherAgent");
+    if (!researcher) {
+      throw new Error("Financial researcher agent not found");
+    }
 
     const research = await researcher.generate([
       { role: "user", content: `Research ${tickers} focusing on ${focus}` },
     ]);
 
     // Step 2: Writing phase
-    const writer = mastra?.getAgent("financialWriterAgent");
-    if (!writer) throw new Error("Financial writer agent not found");
+    const writer = mastra.getAgent("financialWriterAgent");
+    if (!writer) {
+      throw new Error("Financial writer agent not found");
+    }
 
     const report = await writer.generate([
       {
