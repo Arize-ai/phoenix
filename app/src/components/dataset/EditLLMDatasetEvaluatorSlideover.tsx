@@ -31,6 +31,7 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -158,11 +159,40 @@ const EditEvaluatorDialog = ({
             literalMapping
             pathMapping
           }
+          outputConfig {
+            ... on AnnotationConfigBase {
+              name
+            }
+            ... on CategoricalAnnotationConfig {
+              optimizationDirection
+              values {
+                label
+                score
+              }
+            }
+            ... on ContinuousAnnotationConfig {
+              optimizationDirection
+              lowerBound
+              upperBound
+            }
+          }
           evaluator {
             description
             kind
             name
             ... on LLMEvaluator {
+              outputConfig {
+                ... on AnnotationConfigBase {
+                  name
+                }
+                ... on CategoricalAnnotationConfig {
+                  optimizationDirection
+                  values {
+                    label
+                    score
+                  }
+                }
+              }
               prompt {
                 id
                 name
@@ -172,16 +202,6 @@ const EditEvaluatorDialog = ({
                   definition
                 }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
-              }
-            }
-          }
-          outputConfig {
-            ... on CategoricalAnnotationConfig {
-              name
-              optimizationDirection
-              values {
-                label
-                score
               }
             }
           }
@@ -224,6 +244,9 @@ const EditEvaluatorDialog = ({
     const includeExplanation = inferIncludeExplanationFromPrompt(
       datasetEvaluator.evaluator.promptVersion?.tools
     );
+    const outputConfig = (datasetEvaluator.outputConfig ??
+      datasetEvaluator.evaluator
+        .outputConfig) as Mutable<ClassificationEvaluatorAnnotationConfig>;
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
@@ -247,18 +270,7 @@ const EditEvaluatorDialog = ({
       datasetEvaluator: {
         id: datasetEvaluatorId,
       },
-      outputConfig: {
-        name:
-          datasetEvaluator.displayName ?? datasetEvaluator.evaluator.name ?? "",
-        optimizationDirection:
-          datasetEvaluator.outputConfig?.optimizationDirection ??
-          DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.optimizationDirection,
-        values:
-          datasetEvaluator.outputConfig?.values?.map((value) => ({
-            label: value.label,
-            score: value.score ?? undefined,
-          })) ?? DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig.values,
-      },
+      outputConfig,
       dataset: {
         readonly: true,
         id: datasetId,
@@ -281,6 +293,10 @@ const EditEvaluatorDialog = ({
       } = store.getState();
       invariant(dataset, "dataset is required");
       invariant(outputConfig, "outputConfig is required");
+      invariant(
+        "values" in outputConfig,
+        "outputConfig must have values, aka is a categorical annotation config"
+      );
       const input = updateLLMEvaluatorPayload({
         playgroundStore,
         instanceId,

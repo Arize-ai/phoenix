@@ -16,8 +16,10 @@ import {
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
 import type {
   ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
+  EvaluatorOptimizationDirection,
 } from "@phoenix/types";
 
 const createPromptVersionInput = ({
@@ -288,4 +290,53 @@ export const inferIncludeExplanationFromPrompt = (
   } catch {
     return false;
   }
+};
+
+/**
+ * The type of output config override used in dataset evaluator mutations.
+ */
+export type OutputConfigOverride =
+  | {
+      categorical: {
+        optimizationDirection: EvaluatorOptimizationDirection;
+      };
+    }
+  | {
+      continuous: {
+        optimizationDirection: EvaluatorOptimizationDirection;
+      };
+    };
+
+/**
+ * Build the output config override from the store's output config.
+ *
+ * This determines whether the config is categorical (has "values" property)
+ * or continuous and constructs the appropriate override structure.
+ */
+export const buildOutputConfigOverride = (
+  outputConfig:
+    | ClassificationEvaluatorAnnotationConfig
+    | ContinuousEvaluatorAnnotationConfig
+    | null
+    | undefined
+): OutputConfigOverride | undefined => {
+  if (!outputConfig) {
+    return undefined;
+  }
+
+  if ("values" in outputConfig) {
+    // Categorical config
+    return {
+      categorical: {
+        optimizationDirection: outputConfig.optimizationDirection,
+      },
+    };
+  }
+
+  // Continuous config
+  return {
+    continuous: {
+      optimizationDirection: outputConfig.optimizationDirection,
+    },
+  };
 };

@@ -206,16 +206,12 @@ function EvaluatorPromptPreviewContent(
   props: EvaluatorPromptPreviewContentProps
 ) {
   const { gqlTemplate, templateFormat } = props;
-  const { inputMappingRaw, evaluatorMappingSource } = useEvaluatorStore(
+  const { inputMapping, evaluatorMappingSource } = useEvaluatorStore(
     useShallow((state) => ({
-      inputMappingRaw: state.evaluator.inputMapping,
+      inputMapping: state.evaluator.inputMapping,
       evaluatorMappingSource: state.evaluatorMappingSource,
     }))
   );
-  // When used as a query input, Relay mutates the object to make it read-only.
-  // This causes downstream issues when react-hook-form tries to update the value.
-  // To avoid this, we deep clone the object before using it as a query input.
-  const inputMapping = structuredClone(inputMappingRaw);
   const data = useLazyLoadQuery<EvaluatorPromptPreviewQuery>(
     graphql`
       query EvaluatorPromptPreviewQuery(

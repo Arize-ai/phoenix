@@ -23,35 +23,30 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import { optimizationDirectionOptions } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
-const optimizationDirectionOptions: {
-  value: EvaluatorOptimizationDirection;
-  label: string;
-}[] = [
-  { value: "MAXIMIZE", label: "Maximize (higher is better)" },
-  { value: "MINIMIZE", label: "Minimize (lower is better)" },
-  { value: "NONE", label: "None" },
-];
 
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
   const { outputConfig, includeExplanation } = useEvaluatorStore(
     useShallow((state) => ({
-      outputConfig: state.outputConfig,
+      // only allow categorical annotation configs
+      outputConfig:
+        state.outputConfig && "values" in state.outputConfig
+          ? state.outputConfig
+          : undefined,
       includeExplanation: state.evaluator.includeExplanation,
     }))
   );
   invariant(
     outputConfig,
-    "outputConfig is required. Mount EvaluatorLLMChoice within an LLM Evaluator."
+    "outputConfig is required. Mount EvaluatorCategoricalChoiceConfig within an LLM Evaluator."
   );
   // make a small react hook form scoped down with validation rules
   const form = useForm({
@@ -65,6 +60,9 @@ const useEvaluatorLLMChoiceForm = () => {
       formState: { isValid: true, values: true },
       callback({ values: { outputConfig, includeExplanation }, isValid }) {
         if (!isValid) {
+          return;
+        }
+        if (!("values" in outputConfig)) {
           return;
         }
         const {
@@ -84,7 +82,7 @@ const useEvaluatorLLMChoiceForm = () => {
   return form;
 };
 
-export const EvaluatorLLMChoice = () => {
+export const EvaluatorCategoricalChoiceConfig = () => {
   const { control } = useEvaluatorLLMChoiceForm();
   const { fields, append, remove } = useFieldArray({
     control,
