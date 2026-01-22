@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useCallback, useEffect } from "react";
+import { PropsWithChildren, useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
@@ -40,17 +40,7 @@ const optimizationDirectionOptions: {
   { value: "NONE", label: "None" },
 ];
 
-const showField = ({
-  isDisabled,
-  value,
-}: {
-  isDisabled: boolean;
-  value: unknown;
-}) => {
-  return !isDisabled || (isDisabled && value != null);
-};
-
-const useEvaluatorCategoricalChoiceConfigForm = () => {
+const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
   const { outputConfig, includeExplanation } = useEvaluatorStore(
@@ -101,30 +91,14 @@ const useEvaluatorCategoricalChoiceConfigForm = () => {
   return form;
 };
 
-export type EvaluatorCategoricalChoiceConfigProps = {
-  isNameDisabled?: boolean;
-  isOptimizationDirectionDisabled?: boolean;
-  isChoicesDisabled?: boolean;
-};
-
-export const EvaluatorCategoricalChoiceConfig = ({
-  isNameDisabled = false,
-  isOptimizationDirectionDisabled = false,
-  isChoicesDisabled = false,
-}: EvaluatorCategoricalChoiceConfigProps) => {
-  const { control } = useEvaluatorCategoricalChoiceConfigForm();
+export const EvaluatorCategoricalChoiceConfig = () => {
+  const { control } = useEvaluatorLLMChoiceForm();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "outputConfig.values",
   });
   const outputConfigName = useEvaluatorStore(
     (state) => state.outputConfig?.name
-  );
-  const shouldShowField = useCallback(
-    (value: unknown) => {
-      return showField({ isDisabled: isChoicesDisabled, value });
-    },
-    [isChoicesDisabled]
   );
   return (
     <div
@@ -138,7 +112,7 @@ export const EvaluatorCategoricalChoiceConfig = ({
     >
       <Flex direction="column" gap="size-200">
         <Flex alignItems="center" justifyContent="space-between" gap="size-200">
-          <TextField isDisabled={isNameDisabled} value={outputConfigName}>
+          <TextField isDisabled value={outputConfigName}>
             <Label>Name</Label>
             <Input placeholder="e.g. correctness" />
           </TextField>
@@ -147,7 +121,6 @@ export const EvaluatorCategoricalChoiceConfig = ({
             name="outputConfig.optimizationDirection"
             render={({ field }) => (
               <Select
-                isDisabled={isOptimizationDirectionDisabled}
                 value={field.value}
                 onChange={field.onChange}
                 aria-label="Optimization direction"
@@ -175,10 +148,10 @@ export const EvaluatorCategoricalChoiceConfig = ({
           />
         </Flex>
         <Flex direction="column" gap="size-100">
-          <CategoricalColumnHeader
-            isDisabled={isChoicesDisabled}
-            values={fields}
-          />
+          <GridRow>
+            <Text>Choice</Text>
+            <Text>Score</Text>
+          </GridRow>
           {/* render choices. you must have at least 2 choices, you cannot delete if there are only two remaining */}
           {fields.map((item, index) => (
             <GridRow key={item.id}>
@@ -188,67 +161,56 @@ export const EvaluatorCategoricalChoiceConfig = ({
                 rules={{
                   required: "Choice label is required",
                 }}
-                render={({ field, fieldState: { error } }) =>
-                  shouldShowField(field.value) ? (
-                    <TextField
-                      {...field}
-                      aria-label={`Choice ${index + 1}`}
-                      isInvalid={!!error}
-                      isDisabled={isChoicesDisabled}
-                      css={css`
-                        flex: 1 1 auto;
-                        flex-shrink: 1;
-                      `}
-                    >
-                      <Input
-                        placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
-                      />
-                      <FieldError>{error?.message}</FieldError>
-                    </TextField>
-                  ) : (
-                    <React.Fragment />
-                  )
-                }
+                render={({ field, fieldState: { error } }) => (
+                  <TextField
+                    {...field}
+                    aria-label={`Choice ${index + 1}`}
+                    isInvalid={!!error}
+                    css={css`
+                      flex: 1 1 auto;
+                      flex-shrink: 1;
+                    `}
+                  >
+                    <Input
+                      placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
+                    />
+                    <FieldError>{error?.message}</FieldError>
+                  </TextField>
+                )}
               />
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Controller
                   control={control}
                   name={`outputConfig.values.${index}.score`}
-                  render={({ field, fieldState: { error } }) =>
-                    shouldShowField(field.value) ? (
-                      <NumberField
-                        {...field}
-                        value={
-                          typeof field.value === "number"
-                            ? field.value
-                            : undefined
-                        }
-                        aria-label={`Score ${index + 1}`}
-                        isInvalid={!!error}
-                        isDisabled={isChoicesDisabled}
+                  render={({ field, fieldState: { error } }) => (
+                    <NumberField
+                      {...field}
+                      value={
+                        typeof field.value === "number"
+                          ? field.value
+                          : undefined
+                      }
+                      aria-label={`Score ${index + 1}`}
+                      isInvalid={!!error}
+                      css={css`
+                        width: 100%;
+                      `}
+                    >
+                      <Input
+                        placeholder={`e.g. ${index} (optional)`}
+                        // the css field overrides the default input className, add it back
+                        className="react-aria-Input"
                         css={css`
                           width: 100%;
                         `}
-                      >
-                        <Input
-                          placeholder={`e.g. ${index} (optional)`}
-                          // the css field overrides the default input className, add it back
-                          className="react-aria-Input"
-                          css={css`
-                            width: 100%;
-                          `}
-                        />
-                        <FieldError>{error?.message}</FieldError>
-                      </NumberField>
-                    ) : (
-                      <React.Fragment />
-                    )
-                  }
+                      />
+                      <FieldError>{error?.message}</FieldError>
+                    </NumberField>
+                  )}
                 />
-                {index > 1 && !isChoicesDisabled && (
+                {index > 1 && (
                   <Button
                     type="button"
-                    isDisabled={isChoicesDisabled}
                     leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
                     aria-label="Remove choice"
                     onPress={() => {
@@ -276,24 +238,21 @@ export const EvaluatorCategoricalChoiceConfig = ({
                 </Switch>
               )}
             />
-            {!isChoicesDisabled && (
-              <Button
-                type="button"
-                size="S"
-                variant="quiet"
-                css={css`
-                  width: fit-content;
-                `}
-                isDisabled={isChoicesDisabled}
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-                aria-label="Add choice"
-                onPress={() => {
-                  append({ label: "", score: undefined });
-                }}
-              >
-                Add choice
-              </Button>
-            )}
+            <Button
+              type="button"
+              size="S"
+              variant="quiet"
+              css={css`
+                width: fit-content;
+              `}
+              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              aria-label="Add choice"
+              onPress={() => {
+                append({ label: "", score: undefined });
+              }}
+            >
+              Add choice
+            </Button>
           </Flex>
         </Flex>
       </Flex>
@@ -301,11 +260,7 @@ export const EvaluatorCategoricalChoiceConfig = ({
   );
 };
 
-const GridRow = ({
-  children,
-  className,
-}: PropsWithChildren<{ className?: string }>) => {
-  console.log({ className });
+const GridRow = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
@@ -315,50 +270,8 @@ const GridRow = ({
         gap: var(--ac-global-dimension-static-size-100);
         align-items: start;
       `}
-      className={className}
     >
       {children}
     </div>
-  );
-};
-
-const CategoricalColumnHeader = ({
-  isDisabled,
-  values,
-}: {
-  isDisabled: boolean;
-  values: { label?: string | null; score?: number | null }[];
-}) => {
-  // if not disabled, show the headers
-  if (!isDisabled) {
-    return (
-      <GridRow>
-        <Text>Choice</Text>
-        <Text>Score</Text>
-      </GridRow>
-    );
-  }
-  // if disabled, show each header only if there is some value for that header
-  const hasLabel = values.some((value) => value.label != null);
-  const hasScore = values.some((value) => value.score != null);
-  console.log({ hasLabel, hasScore });
-  if (!hasLabel && !hasScore) {
-    return null;
-  }
-  return (
-    <GridRow
-      css={css(
-        hasScore && hasLabel
-          ? undefined
-          : hasScore || hasLabel
-            ? css`
-                grid-template-columns: 1fr;
-              `
-            : undefined
-      )}
-    >
-      {hasLabel && <Text>Choice</Text>}
-      {hasScore && <Text>Score</Text>}
-    </GridRow>
   );
 };

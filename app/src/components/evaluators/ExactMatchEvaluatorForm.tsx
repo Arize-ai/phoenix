@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
+import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorOutputConfig } from "@phoenix/components/evaluators/EvaluatorOutputConfig";
 import { ExactMatchEvaluatorCodeBlock } from "@phoenix/components/evaluators/ExactMatchEvaluatorCodeBlock";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
@@ -110,18 +110,7 @@ export const ExactMatchEvaluatorForm = () => {
           )}
         />
       </Flex>
-      <EvaluatorOutputConfig
-        categoricalChoiceConfigProps={{
-          isNameDisabled: true,
-          isOptimizationDirectionDisabled: false,
-          isChoicesDisabled: true,
-        }}
-        continuousConfigProps={{
-          isNameDisabled: true,
-          isBoundsDisabled: true,
-          isOptimizationDirectionDisabled: false,
-        }}
-      />
+      <BuiltInEvaluatorOutputConfig />
       <ExactMatchEvaluatorCodeBlock />
     </Flex>
   );

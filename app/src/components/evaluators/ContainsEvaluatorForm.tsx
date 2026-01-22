@@ -3,9 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
+import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorOutputConfig } from "@phoenix/components/evaluators/EvaluatorOutputConfig";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
   useEvaluatorStore,
@@ -108,18 +108,7 @@ export const ContainsEvaluatorForm = () => {
           )}
         />
       </Flex>
-      <EvaluatorOutputConfig
-        categoricalChoiceConfigProps={{
-          isNameDisabled: true,
-          isOptimizationDirectionDisabled: false,
-          isChoicesDisabled: true,
-        }}
-        continuousConfigProps={{
-          isNameDisabled: true,
-          isBoundsDisabled: true,
-          isOptimizationDirectionDisabled: false,
-        }}
-      />
+      <BuiltInEvaluatorOutputConfig />
       <ContainsEvaluatorCodeBlock />
     </Flex>
   );

@@ -21,6 +21,11 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditBuiltInDatasetEvaluatorSlideoverProps = {
@@ -171,6 +176,10 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
   const evaluatorId = evaluator.id;
+  const evaluatorOutputConfig = evaluator.outputConfig as Mutable<
+    | ContinuousEvaluatorAnnotationConfig
+    | ClassificationEvaluatorAnnotationConfig
+  >;
   const initialState = useMemo(() => {
     if (evaluatorKind === "CODE") {
       return {
@@ -194,6 +203,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           isBuiltin: true,
           inputMapping,
         },
+        outputConfig: evaluatorOutputConfig,
       } satisfies EvaluatorStoreProps;
     }
     return null;
@@ -206,6 +216,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     inputMapping,
     datasetEvaluatorId,
     evaluatorDescription,
+    evaluatorOutputConfig,
   ]);
 
   if (!initialState) {
