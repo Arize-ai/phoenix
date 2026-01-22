@@ -214,7 +214,18 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     } = store.getState();
 
     // Construct outputConfigOverride from the store's outputConfig
-    let outputConfigOverride: { categorical?: { optimizationDirection: EvaluatorOptimizationDirection } } | { continuous?: { optimizationDirection: EvaluatorOptimizationDirection } } | undefined;
+    let outputConfigOverride:
+      | {
+          categorical?: {
+            optimizationDirection: EvaluatorOptimizationDirection;
+          };
+        }
+      | {
+          continuous?: {
+            optimizationDirection: EvaluatorOptimizationDirection;
+          };
+        }
+      | undefined;
     if (outputConfig) {
       if ("values" in outputConfig) {
         // Categorical config
@@ -239,9 +250,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           datasetId,
           evaluatorId: evaluator.id,
           displayName,
-          // deep clone the input mapping to ensure relay doesn't mutate the original object
-          // TODO: remove this once we are using zustand
-          inputMapping: structuredClone(inputMapping),
+          inputMapping,
           outputConfigOverride,
         },
         connectionIds: updateConnectionIds,

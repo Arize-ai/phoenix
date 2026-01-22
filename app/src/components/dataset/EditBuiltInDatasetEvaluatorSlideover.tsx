@@ -234,7 +234,18 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     } = store.getState();
 
     // Construct outputConfigOverride from the store's outputConfig
-    let outputConfigOverride: { categorical?: { optimizationDirection: EvaluatorOptimizationDirection } } | { continuous?: { optimizationDirection: EvaluatorOptimizationDirection } } | undefined;
+    let outputConfigOverride:
+      | {
+          categorical?: {
+            optimizationDirection: EvaluatorOptimizationDirection;
+          };
+        }
+      | {
+          continuous?: {
+            optimizationDirection: EvaluatorOptimizationDirection;
+          };
+        }
+      | undefined;
     if (outputConfig) {
       if ("values" in outputConfig) {
         // Categorical config
