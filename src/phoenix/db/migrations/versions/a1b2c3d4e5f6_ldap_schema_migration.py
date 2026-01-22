@@ -105,6 +105,19 @@ def upgrade() -> None:
         """)
 
     # Step 5: Create new constraints
+    #
+    # Constraint summary (R = Required, N = Must be NULL, O = Optional):
+    #
+    # | Field            | LOCAL | OAUTH2 | LDAP |
+    # |------------------|-------|--------|------|
+    # | email            |   R   |   R    |  *   |
+    # | password         |   R   |   N    |  N   |
+    # | ldap_unique_id   |   N   |   N    |  *   |
+    # | oauth2_client_id |   N   |   O    |  N   |
+    # | oauth2_user_id   |   N   |   O    |  N   |
+    #
+    # *: LDAP users must have email OR ldap_unique_id (or both).
+    #
     with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
         # CHECK constraints
         batch_op.create_check_constraint(
@@ -121,22 +134,31 @@ def upgrade() -> None:
             "AND ldap_unique_id IS NULL)",
         )
 
-        # OAUTH2/LDAP users: must NOT have password
+        # LDAP users: must NOT have oauth2 fields, must have at least one identifier
+        # (email or ldap_unique_id) to prevent orphan accounts that can't be found on login
         batch_op.create_check_constraint(
-            "non_local_auth_has_no_password",
-            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
-        )
-
-        # LDAP users: must NOT have oauth2 fields (they have ldap_unique_id instead)
-        batch_op.create_check_constraint(
-            "ldap_auth_no_oauth_fields",
-            "auth_method != 'LDAP' OR (oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            "ldap_auth_valid",
+            "auth_method != 'LDAP' OR ("
+            "oauth2_client_id IS NULL AND oauth2_user_id IS NULL AND "
+            "(email IS NOT NULL OR ldap_unique_id IS NOT NULL))",
         )
 
         # OAUTH2 users: must NOT have ldap_unique_id
         batch_op.create_check_constraint(
             "oauth2_auth_no_ldap_fields",
             "auth_method != 'OAUTH2' OR ldap_unique_id IS NULL",
+        )
+
+        # OAUTH2/LDAP users: must NOT have password
+        batch_op.create_check_constraint(
+            "non_local_auth_has_no_password",
+            "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
+        )
+
+        # LOCAL and OAUTH2 users: must have email (only LDAP supports null email mode)
+        batch_op.create_check_constraint(
+            "non_ldap_auth_has_email",
+            "auth_method = 'LDAP' OR email IS NOT NULL",
         )
 
     # Step 6: Create partial unique indexes
@@ -178,8 +200,9 @@ def downgrade() -> None:
 
     with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
         # Drop new constraints
+        batch_op.drop_constraint("non_ldap_auth_has_email", type_="check")
         batch_op.drop_constraint("oauth2_auth_no_ldap_fields", type_="check")
-        batch_op.drop_constraint("ldap_auth_no_oauth_fields", type_="check")
+        batch_op.drop_constraint("ldap_auth_valid", type_="check")
         batch_op.drop_constraint("non_local_auth_has_no_password", type_="check")
         batch_op.drop_constraint("local_auth_has_password_no_oauth", type_="check")
         batch_op.drop_constraint("valid_auth_method", type_="check")
@@ -235,6 +258,18 @@ def downgrade() -> None:
         )
 
         # Step 6: Recreate original CHECK constraints
+        #
+        # Original constraint summary (R = Required, N = Must be NULL, O = Optional):
+        #
+        # | Field            | LOCAL | OAUTH2 |
+        # |------------------|-------|--------|
+        # | email            |   R   |   R    |
+        # | password         |   R   |   N    |
+        # | oauth2_client_id |   N   |   O    |
+        # | oauth2_user_id   |   N   |   O    |
+        #
+        # Note: LDAP users were stored as OAUTH2 with a marker in oauth2_client_id.
+        #
         batch_op.create_check_constraint(
             "valid_auth_method",
             "auth_method IN ('LOCAL', 'OAUTH2')",

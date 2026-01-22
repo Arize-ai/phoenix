@@ -373,8 +373,9 @@ CREATE TABLE public.users (
     auth_method VARCHAR NOT NULL,
     ldap_unique_id VARCHAR,
     CONSTRAINT pk_users PRIMARY KEY (id),
-    CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL)))),
+    CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
     CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
+    CHECK ((((auth_method)::text = 'LDAP'::text) OR (email IS NOT NULL))),
     CHECK ((((auth_method)::text = 'LOCAL'::text) OR ((password_hash IS NULL) AND (password_salt IS NULL)))),
     CHECK ((((auth_method)::text <> 'OAUTH2'::text) OR (ldap_unique_id IS NULL))),
     CHECK (((auth_method)::text = ANY ((ARRAY[
@@ -711,6 +712,7 @@ CREATE TABLE public.dataset_evaluators (
     description VARCHAR,
     output_config JSONB,
     input_mapping JSONB NOT NULL,
+    user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
@@ -724,7 +726,11 @@ CREATE TABLE public.dataset_evaluators (
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
         (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_evaluators_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_dataset_evaluators_builtin_evaluator_id ON public.dataset_evaluators
@@ -733,6 +739,8 @@ CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
     USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
+CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
+    USING btree (user_id);
 
 
 -- Table: experiments

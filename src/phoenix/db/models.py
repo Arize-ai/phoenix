@@ -1586,6 +1586,17 @@ class User(HasId):
         "polymorphic_identity": None,  # Base class is abstract
     }
 
+    # Constraint summary (R = Required, N = Must be NULL, O = Optional):
+    #
+    # | Field            | LOCAL | OAUTH2 | LDAP |
+    # |------------------|-------|--------|------|
+    # | password         |   R   |   N    |  N   |
+    # | email            |   R   |   R    |  *   |
+    # | ldap_unique_id   |   N   |   N    |  *   |
+    # | oauth2_client_id |   N   |   O    |  N   |
+    # | oauth2_user_id   |   N   |   O    |  N   |
+    #
+    # *: LDAP users must have email OR ldap_unique_id (or both).
     __table_args__ = (
         # LOCAL users: must have password, must NOT have oauth2/ldap fields
         CheckConstraint(
@@ -1600,15 +1611,23 @@ class User(HasId):
             "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
             name="non_local_auth_has_no_password",
         ),
-        # LDAP users: must NOT have oauth2 fields (they have ldap_unique_id instead)
+        # LDAP users: must NOT have oauth2 fields, must have at least one identifier
+        # (email or ldap_unique_id) to prevent orphan accounts that can't be found on login
         CheckConstraint(
-            "auth_method != 'LDAP' OR (oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
-            name="ldap_auth_no_oauth_fields",
+            "auth_method != 'LDAP' OR ("
+            "oauth2_client_id IS NULL AND oauth2_user_id IS NULL AND "
+            "(email IS NOT NULL OR ldap_unique_id IS NOT NULL))",
+            name="ldap_auth_valid",
         ),
         # OAUTH2 users: must NOT have ldap_unique_id
         CheckConstraint(
             "auth_method != 'OAUTH2' OR ldap_unique_id IS NULL",
             name="oauth2_auth_no_ldap_fields",
+        ),
+        # LOCAL and OAUTH2 users: must have email (only LDAP supports null email mode)
+        CheckConstraint(
+            "auth_method = 'LDAP' OR email IS NOT NULL",
+            name="non_ldap_auth_has_email",
         ),
         # Partial unique indexes for external auth providers
         Index(

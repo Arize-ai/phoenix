@@ -162,6 +162,11 @@ async def get_or_create_ldap_user(
             )
     else:
         # Null email mode: email column is nullable, so just use None
+        # CRITICAL: unique_id is required when email is None. Without it, we'd create
+        # orphan users (both email=NULL and ldap_unique_id=NULL) that can never be
+        # found on subsequent logins - neither lookup path would match.
+        if unique_id is None:
+            raise ValueError("unique_id required when email is None")
         db_email = None
 
     # Username strategy: Try displayName first (user-friendly), handle collisions gracefully

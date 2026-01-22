@@ -247,9 +247,35 @@ def test_ldap_schema_migration(
         assert ldap_user_null[3] == ldap_unique_id_2, "LDAP user ldap_unique_id should be preserved"
         assert ldap_user_null[4] is None, "Null email marker should be converted to NULL"
 
-    # Test new constraints
+    # ==========================================================================
+    # TEST ALL CONSTRAINTS
+    # ==========================================================================
+    #
+    # Constraint summary (R = Required, N = Must be NULL, O = Optional):
+    #
+    # | Field            | LOCAL | OAUTH2 | LDAP |
+    # |------------------|-------|--------|------|
+    # | email            |   R   |   R    |  *   |
+    # | password         |   R   |   N    |  N   |
+    # | ldap_unique_id   |   N   |   N    |  *   |
+    # | oauth2_client_id |   N   |   O    |  N   |
+    # | oauth2_user_id   |   N   |   O    |  N   |
+    #
+    # *: LDAP users must have email OR ldap_unique_id (or both).
+    #
+    # Constraints:
+    # - valid_auth_method: auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')
+    # - local_auth_has_password_no_oauth: LOCAL must have password, no oauth2/ldap fields
+    # - non_local_auth_has_no_password: OAUTH2/LDAP must NOT have password
+    # - ldap_auth_valid: LDAP must have no oauth2 fields, must have email OR ldap_unique_id
+    # - oauth2_auth_no_ldap_fields: OAUTH2 must NOT have ldap_unique_id
+    # - non_ldap_auth_has_email: LOCAL/OAUTH2 must have email
+    # ==========================================================================
+
+    # -------------------------------------------------------------------------
+    # Test ldap_auth_valid: LDAP user with oauth2_client_id should fail
+    # -------------------------------------------------------------------------
     with _engine.connect() as conn:
-        # Test LDAP user with oauth2_client_id should fail
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -272,11 +298,364 @@ def test_ldap_schema_migration(
                 },
             )
         error_message = str(exc_info.value)
-        assert "ldap_auth_no_oauth_fields" in error_message, (
-            "Expected ldap_auth_no_oauth_fields constraint violation"
+        assert "ldap_auth_valid" in error_message, (
+            "Expected ldap_auth_valid constraint violation for LDAP with oauth2_client_id"
         )
 
-    # Test valid LDAP user creation
+    # -------------------------------------------------------------------------
+    # Test ldap_auth_valid: LDAP user with oauth2_user_id should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LDAP',
+                        false, NULL, 'should_be_null', :ldap_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"ldap_invalid_{token_hex(4)}",
+                    "email": f"ldap_invalid_{token_hex(4)}@example.com",
+                    "ldap_id": f"ldap-guid-{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "ldap_auth_valid" in error_message, (
+            "Expected ldap_auth_valid constraint violation for LDAP with oauth2_user_id"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test ldap_auth_valid: LDAP orphan (NULL email AND NULL ldap_unique_id) should fail
+    # This is the critical bug we're preventing!
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, NULL, 'LDAP',
+                        false, NULL, NULL, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"ldap_orphan_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "ldap_auth_valid" in error_message, (
+            "Expected ldap_auth_valid constraint violation for LDAP orphan "
+            "(NULL email AND NULL ldap_unique_id)"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test non_ldap_auth_has_email: LOCAL user with NULL email should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, NULL, 'LOCAL',
+                        :password_hash, :password_salt, false,
+                        NULL, NULL, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"local_no_email_{token_hex(4)}",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "non_ldap_auth_has_email" in error_message, (
+            "Expected non_ldap_auth_has_email constraint violation for LOCAL with NULL email"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test non_ldap_auth_has_email: OAUTH2 user with NULL email should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, NULL, 'OAUTH2',
+                        false, :client_id, :user_id, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"oauth_no_email_{token_hex(4)}",
+                    "client_id": f"google_{token_hex(4)}",
+                    "user_id": f"google_user_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "non_ldap_auth_has_email" in error_message, (
+            "Expected non_ldap_auth_has_email constraint violation for OAUTH2 with NULL email"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test oauth2_auth_no_ldap_fields: OAUTH2 user with ldap_unique_id should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'OAUTH2',
+                        false, :client_id, :user_id, :ldap_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"oauth_with_ldap_{token_hex(4)}",
+                    "email": f"oauth_with_ldap_{token_hex(4)}@example.com",
+                    "client_id": f"google_{token_hex(4)}",
+                    "user_id": f"google_user_{token_hex(4)}",
+                    "ldap_id": f"ldap-guid-{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "oauth2_auth_no_ldap_fields" in error_message, (
+            "Expected oauth2_auth_no_ldap_fields constraint violation"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test local_auth_has_password_no_oauth: LOCAL user with ldap_unique_id should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LOCAL',
+                        :password_hash, :password_salt, false,
+                        NULL, NULL, :ldap_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"local_with_ldap_{token_hex(4)}",
+                    "email": f"local_with_ldap_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "ldap_id": f"ldap-guid-{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "local_auth_has_password_no_oauth" in error_message, (
+            "Expected local_auth_has_password_no_oauth constraint violation for LOCAL with ldap_unique_id"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test local_auth_has_password_no_oauth: LOCAL user with oauth2_client_id should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LOCAL',
+                        :password_hash, :password_salt, false,
+                        :client_id, NULL, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"local_with_oauth_{token_hex(4)}",
+                    "email": f"local_with_oauth_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "client_id": f"google_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "local_auth_has_password_no_oauth" in error_message, (
+            "Expected local_auth_has_password_no_oauth constraint violation for LOCAL with oauth2_client_id"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test non_local_auth_has_no_password: LDAP user with password should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LDAP',
+                        :password_hash, :password_salt, false,
+                        NULL, NULL, :ldap_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"ldap_with_password_{token_hex(4)}",
+                    "email": f"ldap_with_password_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "ldap_id": f"ldap-guid-{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "non_local_auth_has_no_password" in error_message, (
+            "Expected non_local_auth_has_no_password constraint violation for LDAP with password"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test non_local_auth_has_no_password: OAUTH2 user with password should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'OAUTH2',
+                        :password_hash, :password_salt, false,
+                        :client_id, :user_id, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"oauth_with_password_{token_hex(4)}",
+                    "email": f"oauth_with_password_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "client_id": f"google_{token_hex(4)}",
+                    "user_id": f"google_user_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "non_local_auth_has_no_password" in error_message, (
+            "Expected non_local_auth_has_no_password constraint violation for OAUTH2 with password"
+        )
+
+    # -------------------------------------------------------------------------
+    # Test unique index: Duplicate ldap_unique_id should fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        duplicate_ldap_id = f"duplicate-ldap-guid-{token_hex(4)}"
+        # Create first LDAP user
+        conn.execute(
+            text(
+                """
+                INSERT INTO users (
+                    user_role_id, username, email, auth_method,
+                    reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                )
+                VALUES (
+                    :role_id, :username, :email, 'LDAP',
+                    false, NULL, NULL, :ldap_id
+                )
+                """
+            ),
+            {
+                "role_id": role_id,
+                "username": f"ldap_dup1_{token_hex(4)}",
+                "email": f"ldap_dup1_{token_hex(4)}@example.com",
+                "ldap_id": duplicate_ldap_id,
+            },
+        )
+        conn.commit()
+
+    with _engine.connect() as conn:
+        # Try to create second LDAP user with same ldap_unique_id
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LDAP',
+                        false, NULL, NULL, :ldap_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"ldap_dup2_{token_hex(4)}",
+                    "email": f"ldap_dup2_{token_hex(4)}@example.com",
+                    "ldap_id": duplicate_ldap_id,
+                },
+            )
+        error_message = str(exc_info.value).lower()
+        assert "unique" in error_message or "duplicate" in error_message, (
+            "Expected unique constraint violation for duplicate ldap_unique_id"
+        )
+
+    # ==========================================================================
+    # TEST VALID EDGE CASES
+    # ==========================================================================
+
+    # -------------------------------------------------------------------------
+    # Valid: LDAP user with ldap_unique_id but NULL email (null email mode)
+    # -------------------------------------------------------------------------
     with _engine.connect() as conn:
         new_ldap_id = conn.execute(
             text(
@@ -294,12 +673,100 @@ def test_ldap_schema_migration(
             ),
             {
                 "role_id": role_id,
-                "username": f"new_ldap_{token_hex(4)}",
-                "ldap_id": f"new-ldap-guid-{token_hex(4)}",
+                "username": f"ldap_null_email_{token_hex(4)}",
+                "ldap_id": f"ldap-guid-{token_hex(4)}",
             },
         ).scalar()
         conn.commit()
         assert isinstance(new_ldap_id, int), "Should be able to create LDAP user with NULL email"
+
+    # -------------------------------------------------------------------------
+    # Valid: LDAP user with email but NULL ldap_unique_id (simple mode)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        ldap_email_only_id = conn.execute(
+            text(
+                """
+                INSERT INTO users (
+                    user_role_id, username, email, auth_method,
+                    reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                )
+                VALUES (
+                    :role_id, :username, :email, 'LDAP',
+                    false, NULL, NULL, NULL
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "role_id": role_id,
+                "username": f"ldap_email_only_{token_hex(4)}",
+                "email": f"ldap_email_only_{token_hex(4)}@example.com",
+            },
+        ).scalar()
+        conn.commit()
+        assert isinstance(ldap_email_only_id, int), (
+            "Should be able to create LDAP user with email but NULL ldap_unique_id"
+        )
+
+    # -------------------------------------------------------------------------
+    # Valid: LDAP user with both email and ldap_unique_id (enterprise mode)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        ldap_both_id = conn.execute(
+            text(
+                """
+                INSERT INTO users (
+                    user_role_id, username, email, auth_method,
+                    reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                )
+                VALUES (
+                    :role_id, :username, :email, 'LDAP',
+                    false, NULL, NULL, :ldap_id
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "role_id": role_id,
+                "username": f"ldap_both_{token_hex(4)}",
+                "email": f"ldap_both_{token_hex(4)}@example.com",
+                "ldap_id": f"ldap-guid-{token_hex(4)}",
+            },
+        ).scalar()
+        conn.commit()
+        assert isinstance(ldap_both_id, int), (
+            "Should be able to create LDAP user with both email and ldap_unique_id"
+        )
+
+    # -------------------------------------------------------------------------
+    # Valid: OAUTH2 user with NULL oauth2 fields (pre-provisioned)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        oauth_preprovisioned_id = conn.execute(
+            text(
+                """
+                INSERT INTO users (
+                    user_role_id, username, email, auth_method,
+                    reset_password, oauth2_client_id, oauth2_user_id, ldap_unique_id
+                )
+                VALUES (
+                    :role_id, :username, :email, 'OAUTH2',
+                    false, NULL, NULL, NULL
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "role_id": role_id,
+                "username": f"oauth_preprovisioned_{token_hex(4)}",
+                "email": f"oauth_preprovisioned_{token_hex(4)}@example.com",
+            },
+        ).scalar()
+        conn.commit()
+        assert isinstance(oauth_preprovisioned_id, int), (
+            "Should be able to create OAUTH2 user with NULL oauth2 fields (pre-provisioned)"
+        )
 
     # Test downgrade
     _down(_engine, _alembic_config, "3f53d82a1b7e", _schema)
@@ -348,4 +815,187 @@ def test_ldap_schema_migration(
         assert ldap_user_null_reverted[3] is not None, "Null email should have marker regenerated"
         assert ldap_user_null_reverted[3].startswith(NULL_EMAIL_MARKER_PREFIX), (
             "Email should start with null marker prefix"
+        )
+
+    # ==========================================================================
+    # TEST DOWNGRADE CONSTRAINTS
+    # ==========================================================================
+    #
+    # After downgrade, the old constraints should be restored:
+    # - valid_auth_method: only 'LOCAL' and 'OAUTH2' (no 'LDAP')
+    # - email is NOT NULL (required for all users)
+    # - ldap_unique_id column does not exist
+    # - local_auth_has_password_no_oauth: LOCAL must have password, no oauth2 fields
+    # - non_local_auth_has_no_password: OAUTH2 must NOT have password
+    # ==========================================================================
+
+    # -------------------------------------------------------------------------
+    # Downgrade: Verify ldap_unique_id column was dropped
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        # Try to select ldap_unique_id - should fail because column doesn't exist
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(text("SELECT ldap_unique_id FROM users LIMIT 1"))
+        error_message = str(exc_info.value).lower()
+        assert "ldap_unique_id" in error_message, (
+            "Expected error mentioning ldap_unique_id column (should not exist after downgrade)"
+        )
+
+    # -------------------------------------------------------------------------
+    # Downgrade: auth_method='LDAP' should fail (not in valid_auth_method)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LDAP',
+                        false, NULL, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"ldap_after_downgrade_{token_hex(4)}",
+                    "email": f"ldap_after_downgrade_{token_hex(4)}@example.com",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "valid_auth_method" in error_message, (
+            "Expected valid_auth_method constraint violation for 'LDAP' after downgrade"
+        )
+
+    # -------------------------------------------------------------------------
+    # Downgrade: NULL email should fail (email is NOT NULL after downgrade)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        reset_password, oauth2_client_id, oauth2_user_id
+                    )
+                    VALUES (
+                        :role_id, :username, NULL, 'OAUTH2',
+                        false, :client_id, :user_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"oauth_null_email_downgrade_{token_hex(4)}",
+                    "client_id": LDAP_CLIENT_ID_MARKER,
+                    "user_id": f"ldap-guid-{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value).lower()
+        assert "null" in error_message or "not null" in error_message, (
+            "Expected NOT NULL constraint violation for NULL email after downgrade"
+        )
+
+    # -------------------------------------------------------------------------
+    # Downgrade: LOCAL user with oauth2_client_id should still fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'LOCAL',
+                        :password_hash, :password_salt, false,
+                        :client_id, NULL
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"local_with_oauth_downgrade_{token_hex(4)}",
+                    "email": f"local_with_oauth_downgrade_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "client_id": f"google_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "local_auth_has_password_no_oauth" in error_message, (
+            "Expected local_auth_has_password_no_oauth constraint after downgrade"
+        )
+
+    # -------------------------------------------------------------------------
+    # Downgrade: OAUTH2 user with password should still fail
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        with pytest.raises(Exception) as exc_info:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (
+                        user_role_id, username, email, auth_method,
+                        password_hash, password_salt, reset_password,
+                        oauth2_client_id, oauth2_user_id
+                    )
+                    VALUES (
+                        :role_id, :username, :email, 'OAUTH2',
+                        :password_hash, :password_salt, false,
+                        :client_id, :user_id
+                    )
+                    """
+                ),
+                {
+                    "role_id": role_id,
+                    "username": f"oauth_with_password_downgrade_{token_hex(4)}",
+                    "email": f"oauth_with_password_downgrade_{token_hex(4)}@example.com",
+                    "password_hash": b"test_hash",
+                    "password_salt": b"test_salt",
+                    "client_id": f"google_{token_hex(4)}",
+                    "user_id": f"google_user_{token_hex(4)}",
+                },
+            )
+        error_message = str(exc_info.value)
+        assert "non_local_auth_has_no_password" in error_message, (
+            "Expected non_local_auth_has_no_password constraint after downgrade"
+        )
+
+    # -------------------------------------------------------------------------
+    # Downgrade: Valid LDAP user creation (using legacy marker format)
+    # -------------------------------------------------------------------------
+    with _engine.connect() as conn:
+        legacy_ldap_id = conn.execute(
+            text(
+                """
+                INSERT INTO users (
+                    user_role_id, username, email, auth_method,
+                    reset_password, oauth2_client_id, oauth2_user_id
+                )
+                VALUES (
+                    :role_id, :username, :email, 'OAUTH2',
+                    false, :client_id, :user_id
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "role_id": role_id,
+                "username": f"legacy_ldap_{token_hex(4)}",
+                "email": f"legacy_ldap_{token_hex(4)}@example.com",
+                "client_id": LDAP_CLIENT_ID_MARKER,
+                "user_id": f"ldap-guid-{token_hex(4)}",
+            },
+        ).scalar()
+        conn.commit()
+        assert isinstance(legacy_ldap_id, int), (
+            "Should be able to create legacy LDAP user with marker after downgrade"
         )
