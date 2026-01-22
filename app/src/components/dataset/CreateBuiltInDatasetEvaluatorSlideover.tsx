@@ -15,6 +15,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -25,7 +26,6 @@ import {
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
-  EvaluatorOptimizationDirection,
 } from "@phoenix/types";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -213,36 +213,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
       outputConfig,
     } = store.getState();
 
-    // Construct outputConfigOverride from the store's outputConfig
-    let outputConfigOverride:
-      | {
-          categorical?: {
-            optimizationDirection: EvaluatorOptimizationDirection;
-          };
-        }
-      | {
-          continuous?: {
-            optimizationDirection: EvaluatorOptimizationDirection;
-          };
-        }
-      | undefined;
-    if (outputConfig) {
-      if ("values" in outputConfig) {
-        // Categorical config
-        outputConfigOverride = {
-          categorical: {
-            optimizationDirection: outputConfig.optimizationDirection,
-          },
-        };
-      } else {
-        // Continuous config
-        outputConfigOverride = {
-          continuous: {
-            optimizationDirection: outputConfig.optimizationDirection,
-          },
-        };
-      }
-    }
+    const outputConfigOverride = buildOutputConfigOverride(outputConfig);
 
     createDatasetBuiltInEvaluator({
       variables: {
