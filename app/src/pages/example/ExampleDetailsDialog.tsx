@@ -301,7 +301,9 @@ function ExampleDetailsDialogContent({
                       <JSONBlock value={input} />
                     ) : (
                       <View padding="size-200">
-                        <DynamicContent value={extractPrettyValue(revision.inputRaw)} />
+                        <DynamicContent
+                          value={extractPrettyValue(revision.inputRaw)}
+                        />
                       </View>
                     )}
                   </Card>
@@ -322,7 +324,9 @@ function ExampleDetailsDialogContent({
                       <JSONBlock value={output} />
                     ) : (
                       <View padding="size-200">
-                        <DynamicContent value={extractPrettyValue(revision.outputRaw)} />
+                        <DynamicContent
+                          value={extractPrettyValue(revision.outputRaw)}
+                        />
                       </View>
                     )}
                   </Card>
