@@ -19,7 +19,6 @@ import {
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 
 import {
@@ -122,8 +121,8 @@ const mainCSS = css`
 const TABS_CONFIG = {
   0: "experiments",
   1: "examples",
-  2: "versions",
-  3: "evaluators",
+  2: "evaluators",
+  3: "versions",
 } as const;
 
 const TABS_LIST = Object.values(TABS_CONFIG);
@@ -151,7 +150,6 @@ function DatasetPageContent({
 }: {
   dataset: DatasetPageQuery$data["dataset"];
 }) {
-  const isEvaluatorsEnabled = useFeatureFlag("evaluators");
   const datasetId = dataset.id;
 
   const navigate = useNavigate();
@@ -221,12 +219,10 @@ function DatasetPageContent({
           <Tab id="examples">
             Examples <Counter>{dataset.exampleCount}</Counter>
           </Tab>
+          <Tab id="evaluators">
+            Evaluators <Counter>{dataset.evaluatorCount}</Counter>
+          </Tab>
           <Tab id="versions">Versions</Tab>
-          {isEvaluatorsEnabled ? (
-            <Tab id="evaluators" isDisabled={!isEvaluatorsEnabled}>
-              Evaluators <Counter>{dataset.evaluatorCount}</Counter>
-            </Tab>
-          ) : null}
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -238,12 +234,12 @@ function DatasetPageContent({
             <Outlet />
           </Suspense>
         </LazyTabPanel>
-        <LazyTabPanel id="versions">
+        <LazyTabPanel id="evaluators">
           <Suspense>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
-        <LazyTabPanel id="evaluators">
+        <LazyTabPanel id="versions">
           <Suspense>
             <Outlet />
           </Suspense>
