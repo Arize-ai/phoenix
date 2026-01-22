@@ -281,6 +281,10 @@ const EditEvaluatorDialog = ({
       } = store.getState();
       invariant(dataset, "dataset is required");
       invariant(outputConfig, "outputConfig is required");
+      invariant(
+        "values" in outputConfig,
+        "outputConfig must have values, aka is a categorical annotation config"
+      );
       const input = updateLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
