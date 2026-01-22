@@ -5,3 +5,5 @@ export * from "./datasets";
 export * from "./dataset";
 export * from "./experiments";
 export * from "./experiment";
+export * from "./prompts";
+export * from "./prompt";

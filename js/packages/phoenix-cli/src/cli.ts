@@ -6,6 +6,8 @@ import {
   createExperimentCommand,
   createExperimentsCommand,
   createProjectsCommand,
+  createPromptCommand,
+  createPromptsCommand,
   createTraceCommand,
   createTracesCommand,
 } from "./commands";
@@ -29,6 +31,8 @@ export function main() {
   program.addCommand(createDatasetCommand());
   program.addCommand(createExperimentsCommand());
   program.addCommand(createExperimentCommand());
+  program.addCommand(createPromptsCommand());
+  program.addCommand(createPromptCommand());
 
   // Show help if no command provided
   if (process.argv.length === 2) {
