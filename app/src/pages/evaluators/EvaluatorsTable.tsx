@@ -6,6 +6,7 @@ import {
   useRef,
 } from "react";
 import { graphql, readInlineData } from "react-relay";
+import { Link } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -92,6 +93,14 @@ const readRow = (row: EvaluatorsTable_row$key) => {
         description
         createdAt
         updatedAt
+        datasets(first: 10) {
+          edges {
+            node {
+              id
+              name
+            }
+          }
+        }
         ... on LLMEvaluator {
           prompt {
             id
@@ -210,6 +219,26 @@ export const EvaluatorsTable = ({
             promptVersionTag={row.original.promptVersionTag?.name}
           />
         ),
+      },
+      {
+        header: "used in",
+        accessorKey: "datasets",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const datasets = row.original.datasets?.edges ?? [];
+          if (datasets.length === 0) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" wrap="wrap">
+              {datasets.map(({ node }) => (
+                <Link key={node.id} to={`/datasets/${node.id}`}>
+                  {node.name}
+                </Link>
+              ))}
+            </Flex>
+          );
+        },
       },
       {
         header: "last modified by",
