@@ -203,7 +203,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
-        sa.Column("display_name", sa.String, nullable=False),
+        sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("output_config", JSON_, nullable=True),
         sa.Column("input_mapping", JSON_, nullable=False),
@@ -239,7 +239,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint(
             "dataset_id",
-            "display_name",
+            "name",
         ),
     )
 

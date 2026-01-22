@@ -103,6 +103,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
             ... on Dataset {
               datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
                 id
+                name
                 ... on DatasetEvaluator {
                   outputConfig {
                     ... on AnnotationConfigBase {
@@ -121,7 +122,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                       upperBound
                     }
                   }
-                  displayName
                   inputMapping {
                     literalMapping
                     pathMapping
@@ -188,10 +188,10 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     );
   const evaluator = datasetEvaluator.evaluator;
   invariant(evaluator, "evaluator is required");
-  const displayName = datasetEvaluator.displayName;
+  const name = datasetEvaluator.name;
   const inputMapping = datasetEvaluator.inputMapping;
   const evaluatorKind = evaluator.kind;
-  const evaluatorName = evaluator.name;
+  const evaluatorGlobalName = evaluator.name;
   const evaluatorDescription = evaluator.description;
   const evaluatorId = evaluator.id;
   const evaluatorOutputConfig = (datasetEvaluator.outputConfig ??
@@ -215,8 +215,8 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
         evaluator: {
           ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
           id: evaluatorId,
-          name: evaluatorName ?? "",
-          displayName: displayName ?? "",
+          globalName: evaluatorGlobalName ?? "",
+          name: name ?? "",
           description: evaluatorDescription ?? "",
           kind: evaluatorKind,
           isBuiltin: true,
@@ -228,9 +228,9 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     return null;
   }, [
     datasetId,
-    displayName,
+    name,
     evaluatorKind,
-    evaluatorName,
+    evaluatorGlobalName,
     evaluatorId,
     inputMapping,
     datasetEvaluatorId,
@@ -247,7 +247,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      evaluator: { inputMapping, displayName },
+      evaluator: { inputMapping, name },
       outputConfig,
     } = store.getState();
 
@@ -257,7 +257,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
       variables: {
         input: {
           datasetEvaluatorId: datasetEvaluatorId,
-          displayName,
+          name,
           inputMapping,
           outputConfigOverride,
         },

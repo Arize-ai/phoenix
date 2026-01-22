@@ -40,7 +40,7 @@ class TestDatasetLLMEvaluatorMutations:
         createDatasetLlmEvaluator(input: $input) {
           evaluator {
             id
-            displayName
+            name
             description
             outputConfig {
               ... on CategoricalAnnotationConfig {
@@ -164,7 +164,7 @@ class TestDatasetLLMEvaluatorMutations:
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         llm_evaluator_data = dataset_evaluator["evaluator"]
-        assert dataset_evaluator["displayName"] == "test-evaluator"
+        assert dataset_evaluator["name"] == "test-evaluator"
         assert dataset_evaluator["description"] == "test description"
         assert dataset_evaluator["outputConfig"]["name"] == "test-evaluator"
         assert dataset_evaluator["outputConfig"]["description"] == "test description"
@@ -1048,12 +1048,8 @@ class TestDatasetLLMEvaluatorMutations:
         )
         assert result2.data and not result2.errors
 
-        assert (
-            result1.data["createDatasetLlmEvaluator"]["evaluator"]["displayName"] == "my-evaluator"
-        )
-        assert (
-            result2.data["createDatasetLlmEvaluator"]["evaluator"]["displayName"] == "my-evaluator"
-        )
+        assert result1.data["createDatasetLlmEvaluator"]["evaluator"]["name"] == "my-evaluator"
+        assert result2.data["createDatasetLlmEvaluator"]["evaluator"]["name"] == "my-evaluator"
 
         name1 = result1.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
         name2 = result2.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
@@ -1066,7 +1062,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         updateDatasetLlmEvaluator(input: $input) {
           evaluator {
             id
-            displayName
+            name
             evaluator {
               ... on LLMEvaluator {
                 id
@@ -1167,7 +1163,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         assert result.data and not result.errors
 
         updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
-        assert updated_evaluator["displayName"] == "updated-evaluator-name"
+        assert updated_evaluator["name"] == "updated-evaluator-name"
         llm_data = updated_evaluator["evaluator"]
         assert llm_data["description"] == "updated description"
         assert llm_data["kind"] == "LLM"
@@ -1878,7 +1874,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         createDatasetBuiltinEvaluator(input: $input) {
           evaluator {
             id
-            displayName
+            name
             evaluator {
               ... on BuiltInEvaluator {
                 id
@@ -1916,12 +1912,12 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=builtin_evaluator_gid,
-            displayName="test-builtin-evaluator",
+            name="test-builtin-evaluator",
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
         builtin_evaluator_data = dataset_evaluator["evaluator"]
-        assert dataset_evaluator["displayName"] == "test-builtin-evaluator"
+        assert dataset_evaluator["name"] == "test-builtin-evaluator"
         assert builtin_evaluator_data["kind"] == "CODE"
 
         dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
@@ -1942,7 +1938,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=builtin_evaluator_gid,
-            displayName="test-builtin-evaluator-2",
+            name="test-builtin-evaluator-2",
             inputMapping=dict(
                 literalMapping={"key": "value"},
                 pathMapping={"input": "context.input"},
@@ -1950,7 +1946,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
-        assert dataset_evaluator["displayName"] == "test-builtin-evaluator-2"
+        assert dataset_evaluator["name"] == "test-builtin-evaluator-2"
 
         dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
         async with db() as session:
@@ -1971,7 +1967,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
                 gql_client,
                 datasetId=dataset_id,
                 evaluatorId=second_builtin_evaluator_gid,
-                displayName="test-builtin-evaluator-3",
+                name="test-builtin-evaluator-3",
             )
             assert result.data and not result.errors
 
@@ -1989,7 +1985,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=str(GlobalID("Dataset", "999")),
             evaluatorId=builtin_evaluator_gid,
-            displayName="test",
+            name="test",
         )
         assert result.errors and "Dataset with id" in result.errors[0].message
 
@@ -1999,7 +1995,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=invalid_evaluator_id,
-            displayName="test",
+            name="test",
         )
         assert result.errors and "Invalid evaluator" in result.errors[0].message
 
@@ -2010,7 +2006,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=nonexistent_builtin_gid,
-            displayName="test",
+            name="test",
         )
         assert result.errors and "not found" in result.errors[0].message.lower()
 
@@ -2021,7 +2017,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=positive_id_gid,
-            displayName="test",
+            name="test",
         )
         assert result.errors and "Invalid built-in evaluator id" in result.errors[0].message
 
@@ -2030,11 +2026,11 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=builtin_evaluator_gid,
-            displayName="test-builtin-evaluator",  # Same as first one
+            name="test-builtin-evaluator",  # Same as first one
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
-    async def test_create_dataset_builtin_evaluator_duplicate_display_name_different_evaluators(
+    async def test_create_dataset_builtin_evaluator_duplicate_name_different_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
@@ -2056,19 +2052,16 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=first_builtin_evaluator_gid,
-            displayName="shared_name",
+            name="shared_name",
         )
         assert result.data and not result.errors
-        assert (
-            result.data["createDatasetBuiltinEvaluator"]["evaluator"]["displayName"]
-            == "shared_name"
-        )
+        assert result.data["createDatasetBuiltinEvaluator"]["evaluator"]["name"] == "shared_name"
 
         result = await self._create(
             gql_client,
             datasetId=dataset_id,
             evaluatorId=second_builtin_evaluator_gid,
-            displayName="shared_name",
+            name="shared_name",
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
@@ -2095,7 +2088,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
-            displayName="test-levenshtein",
+            name="test-levenshtein",
             outputConfigOverride={"continuous": {"upperBound": -1.0}},
         )
         assert result.errors
@@ -2106,7 +2099,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             gql_client,
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
-            displayName="test-levenshtein-2",
+            name="test-levenshtein-2",
             outputConfigOverride={"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
         )
         assert result.data and not result.errors
@@ -2118,7 +2111,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         updateDatasetBuiltinEvaluator(input: $input) {
           evaluator {
             id
-            displayName
+            name
             evaluator {
               ... on BuiltInEvaluator {
                 id
@@ -2155,7 +2148,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
               createDatasetBuiltinEvaluator(input: $input) {
                 evaluator {
                   id
-                  displayName
+                  name
                 }
               }
             }
@@ -2164,7 +2157,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetId": dataset_id,
                     "evaluatorId": builtin_evaluator_gid,
-                    "displayName": "original-name",
+                    "name": "original-name",
                     "inputMapping": dict(
                         literalMapping={"key": "original"},
                         pathMapping={"input": "context.original"},
@@ -2183,14 +2176,14 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "updated-name",
+                    "name": "updated-name",
                 }
             },
         )
         assert result.data and not result.errors
 
         updated_evaluator = result.data["updateDatasetBuiltinEvaluator"]["evaluator"]
-        assert updated_evaluator["displayName"] == "updated-name"
+        assert updated_evaluator["name"] == "updated-name"
         builtin_data = updated_evaluator["evaluator"]
         assert builtin_data["kind"] == "CODE"
 
@@ -2201,7 +2194,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 models.DatasetEvaluators, dataset_evaluator_rowid
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.display_name.root == "updated-name"
+            assert db_dataset_evaluator.name.root == "updated-name"
             # Input mapping should revert to default value when not provided
             assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_dict()
             # user_id is None when authentication is disabled
@@ -2213,7 +2206,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "updated-name",
+                    "name": "updated-name",
                     "inputMapping": dict(
                         literalMapping={"new_key": "new_value"},
                         pathMapping={"output": "context.output"},
@@ -2239,7 +2232,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "final-name",
+                    "name": "final-name",
                     "inputMapping": dict(
                         literalMapping={"final": "value"},
                         pathMapping={},
@@ -2250,14 +2243,14 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         assert result.data and not result.errors
 
         updated_evaluator = result.data["updateDatasetBuiltinEvaluator"]["evaluator"]
-        assert updated_evaluator["displayName"] == "final-name"
+        assert updated_evaluator["name"] == "final-name"
 
         async with db() as session:
             db_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_rowid
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.display_name.root == "final-name"
+            assert db_dataset_evaluator.name.root == "final-name"
             assert db_dataset_evaluator.input_mapping == {
                 "literal_mapping": {"final": "value"},
                 "path_mapping": {},
@@ -2270,7 +2263,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": nonexistent_id,
-                    "displayName": "test",
+                    "name": "test",
                 }
             },
         )
@@ -2316,7 +2309,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             dataset_evaluators=[
                 models.DatasetEvaluators(
                     dataset_id=empty_dataset.id,
-                    display_name=llm_evaluator_name,
+                    name=llm_evaluator_name,
                     description="test description",
                     output_config_override=None,
                     input_mapping={},
@@ -2347,7 +2340,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": llm_dataset_evaluator_id,
-                    "displayName": "updated-llm-name",
+                    "name": "updated-llm-name",
                 }
             },
         )
@@ -2364,15 +2357,15 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
 
         # Failure: Duplicate display name on the same dataset
-        # The unique constraint is on (dataset_id, display_name),
-        # so any evaluator with a duplicate display_name on the same dataset should fail
+        # The unique constraint is on (dataset_id, name),
+        # so any evaluator with a duplicate name on the same dataset should fail
         create_result2 = await gql_client.execute(
             """
             mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
               createDatasetBuiltinEvaluator(input: $input) {
                 evaluator {
                   id
-                  displayName
+                  name
                 }
               }
             }
@@ -2381,7 +2374,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetId": dataset_id,
                     "evaluatorId": builtin_evaluator_gid,  # Same builtin evaluator
-                    "displayName": "other-evaluator",
+                    "name": "other-evaluator",
                 }
             },
         )
@@ -2394,7 +2387,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "other-evaluator",  # Same as second assignment
+                    "name": "other-evaluator",  # Same as second assignment
                 }
             },
         )
@@ -2428,7 +2421,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetId": dataset_id,
                     "evaluatorId": levenshtein_gid,
-                    "displayName": "test-levenshtein-update",
+                    "name": "test-levenshtein-update",
                 }
             },
         )
@@ -2442,7 +2435,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "test-levenshtein-update",
+                    "name": "test-levenshtein-update",
                     "outputConfigOverride": {"continuous": {"upperBound": -1.0}},
                 }
             },
@@ -2456,7 +2449,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
-                    "displayName": "test-levenshtein-update",
+                    "name": "test-levenshtein-update",
                     "outputConfigOverride": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
                 }
             },
@@ -2489,7 +2482,7 @@ async def code_evaluator(
         dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
-                display_name=evaluator_name,
+                name=evaluator_name,
                 input_mapping={},
             )
         ],
@@ -2588,7 +2581,7 @@ async def llm_evaluator(
         dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
-                display_name=evaluator_name,
+                name=evaluator_name,
                 description="correctness description",
                 output_config_override=None,
                 input_mapping={},
@@ -2655,7 +2648,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_id=empty_dataset.id,
                 builtin_evaluator_id=builtin_evaluator_id,
                 evaluator_id=None,
-                display_name=IdentifierModel.model_validate("test-builtin-evaluator"),
+                name=IdentifierModel.model_validate("test-builtin-evaluator"),
                 input_mapping={},
                 project=models.Project(
                     name=f"{empty_dataset.name}/test-builtin-evaluator",
@@ -2742,7 +2735,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
-                        display_name=evaluator_name,
+                        name=evaluator_name,
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
@@ -2799,7 +2792,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_id=empty_dataset.id,
                 builtin_evaluator_id=builtin_evaluator_id,
                 evaluator_id=None,
-                display_name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
+                name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
                 input_mapping={},
                 project=models.Project(
                     name=f"{empty_dataset.name}/test-builtin-for-batch-delete",
@@ -2860,7 +2853,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
-                        display_name=evaluator_name,
+                        name=evaluator_name,
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
@@ -3010,7 +3003,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
-                        display_name=evaluator_name,
+                        name=evaluator_name,
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
@@ -3116,7 +3109,7 @@ class TestDeleteDatasetEvaluators:
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
-                        display_name=evaluator_name,
+                        name=evaluator_name,
                         description="test description",
                         output_config_override=None,
                         input_mapping={},

@@ -5,7 +5,7 @@ import strawberry
 
 @strawberry.enum
 class DatasetEvaluatorFilterColumn(Enum):
-    display_name = "display_name"
+    name = "name"
 
 
 @strawberry.input(description="The filter key and value for dataset evaluator connections")

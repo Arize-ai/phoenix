@@ -175,7 +175,7 @@ class TestDatasetEvaluatorDescriptionFallback:
             dataset_evaluator_with_desc = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=llm_evaluator.id,
-                display_name=Identifier("eval_with_desc"),
+                name=Identifier("eval_with_desc"),
                 description="Dataset evaluator override description",
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project=models.Project(
@@ -189,7 +189,7 @@ class TestDatasetEvaluatorDescriptionFallback:
             dataset_evaluator_no_desc = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=llm_evaluator.id,
-                display_name=Identifier("eval_no_desc"),
+                name=Identifier("eval_no_desc"),
                 description=None,
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project=models.Project(
@@ -228,7 +228,7 @@ class TestDatasetEvaluatorDescriptionFallback:
             dataset_evaluator_both_null = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=llm_evaluator_no_desc.id,
-                display_name=Identifier("eval_both_null"),
+                name=Identifier("eval_both_null"),
                 description=None,
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project_id=project_both_null.id,
@@ -427,7 +427,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             dataset_eval_categorical_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_evaluator_id,
-                display_name=Identifier("contains_no_override"),
+                name=Identifier("contains_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project_id=project.id,
             )
@@ -437,7 +437,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             dataset_eval_categorical_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_evaluator_id,
-                display_name=Identifier("contains_with_override"),
+                name=Identifier("contains_with_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 output_config_override=CategoricalAnnotationConfigOverride(
                     type="CATEGORICAL",
@@ -456,7 +456,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             dataset_eval_continuous_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=levenshtein_evaluator_id,
-                display_name=Identifier("levenshtein_no_override"),
+                name=Identifier("levenshtein_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project_id=project.id,
             )
@@ -466,7 +466,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             dataset_eval_continuous_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=levenshtein_evaluator_id,
-                display_name=Identifier("levenshtein_with_override"),
+                name=Identifier("levenshtein_with_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 output_config_override=ContinuousAnnotationConfigOverride(
                     type="CONTINUOUS",
@@ -496,7 +496,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             """query ($id: ID!) {
                 node(id: $id) {
                     ... on DatasetEvaluator {
-                        displayName
+                        name
                         outputConfig {
                             __typename
                             ... on CategoricalAnnotationConfig {
@@ -516,7 +516,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["displayName"] == "contains_no_override"
+        assert node["name"] == "contains_no_override"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "CategoricalAnnotationConfig"
         assert output_config["name"] == "contains_no_override"
@@ -532,7 +532,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             """query ($id: ID!) {
                 node(id: $id) {
                     ... on DatasetEvaluator {
-                        displayName
+                        name
                         description
                         outputConfig {
                             __typename
@@ -556,7 +556,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["displayName"] == "contains_with_override"
+        assert node["name"] == "contains_with_override"
         assert node["description"] == "Overridden description"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "CategoricalAnnotationConfig"
@@ -574,7 +574,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             """query ($id: ID!) {
                 node(id: $id) {
                     ... on DatasetEvaluator {
-                        displayName
+                        name
                         outputConfig {
                             __typename
                             ... on ContinuousAnnotationConfig {
@@ -595,7 +595,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["displayName"] == "levenshtein_no_override"
+        assert node["name"] == "levenshtein_no_override"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "levenshtein_no_override"
@@ -611,7 +611,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             """query ($id: ID!) {
                 node(id: $id) {
                     ... on DatasetEvaluator {
-                        displayName
+                        name
                         outputConfig {
                             __typename
                             ... on ContinuousAnnotationConfig {
@@ -632,7 +632,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["displayName"] == "levenshtein_with_override"
+        assert node["name"] == "levenshtein_with_override"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "levenshtein_with_override"

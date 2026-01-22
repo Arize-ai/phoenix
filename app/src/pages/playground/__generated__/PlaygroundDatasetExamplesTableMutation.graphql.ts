@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1495cae4cdf1bd6da4d1acd217d2e79b>>
+ * @generated SignedSource<<4452f9a4890730f33bbee8ca53c02c2f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,9 +75,9 @@ export type InvocationParameterInput = {
 };
 export type PlaygroundEvaluatorInput = {
   description?: string | null;
-  displayName: string;
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
+  name: string;
   outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
   outputConfigOverride?: AnnotationConfigOverrideInput | null;
 };

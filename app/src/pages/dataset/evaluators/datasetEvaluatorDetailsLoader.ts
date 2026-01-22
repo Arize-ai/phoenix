@@ -17,7 +17,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
         id
         datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
           id
-          displayName
+          name
           evaluator {
             __typename
             kind
@@ -61,8 +61,7 @@ export async function datasetEvaluatorDetailsLoader(
     { datasetId, datasetEvaluatorId: evaluatorId }
   );
 
-  const evaluatorDisplayName =
-    data?.dataset?.datasetEvaluator?.displayName ?? null;
+  const evaluatorDisplayName = data?.dataset?.datasetEvaluator?.name ?? null;
 
   return {
     queryRef,

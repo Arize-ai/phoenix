@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7ebf9e1d00fcb87a89aaa411f227050>>
+ * @generated SignedSource<<76fb8314ac05cd21f3ea419c3cc8bc0b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,6 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
-  readonly displayName: string;
   readonly evaluator: {
     readonly createdAt: string;
     readonly description: string | null;
@@ -30,6 +29,7 @@ export type DatasetEvaluatorsTable_row$data = {
     readonly updatedAt: string;
   };
   readonly id: string;
+  readonly name: string;
   readonly updatedAt: string;
   readonly user: {
     readonly profilePictureUrl: string | null;
@@ -47,6 +47,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "a6a630b3efa1afd319b1bbf051130735";
+(node as any).hash = "1e283596b83503cfd916106a76f2fe07";
 
 export default node;

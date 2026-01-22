@@ -349,7 +349,7 @@ class LLMEvaluator:
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: CategoricalAnnotationConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -467,7 +467,7 @@ class LLMEvaluator:
 
                 end_time = datetime.now(timezone.utc)
                 result = EvaluationResult(
-                    name=display_name,
+                    name=name,
                     annotator_kind="LLM",
                     label=label,
                     score=score,
@@ -524,7 +524,7 @@ class BuiltInEvaluator(ABC):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         raise NotImplementedError
@@ -900,7 +900,7 @@ class ContainsEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -940,7 +940,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=label,
                 score=score,
@@ -960,7 +960,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1014,7 +1014,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1045,7 +1045,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=label,
                 score=score,
@@ -1060,7 +1060,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1117,7 +1117,7 @@ class RegexEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1159,7 +1159,7 @@ class RegexEvaluator(BuiltInEvaluator):
                 label, score = self._map_boolean_to_label_and_score(matched, output_config)
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=label,
                 score=score,
@@ -1174,7 +1174,7 @@ class RegexEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1244,7 +1244,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1274,7 +1274,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             explanation = f"edit distance between expected and actual is {distance}"
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=float(distance),
@@ -1289,7 +1289,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1361,7 +1361,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         *,
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
-        display_name: str,
+        name: str,
         output_config: BuiltInEvaluatorOutputConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1395,7 +1395,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
 
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=float(distance) if error is None else None,
@@ -1410,7 +1410,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             logger.exception(f"Builtin evaluator '{self.name}' failed")
             end_time = datetime.now(timezone.utc)
             return EvaluationResult(
-                name=display_name,
+                name=name,
                 annotator_kind="CODE",
                 label=None,
                 score=None,
@@ -1426,7 +1426,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
 def merge_categorical_output_config(
     base: CategoricalAnnotationConfig,
     override: Optional[CategoricalAnnotationConfigOverride],
-    display_name: str,
+    name: str,
     description_override: Optional[str],
 ) -> CategoricalAnnotationConfig:
     """
@@ -1435,7 +1435,7 @@ def merge_categorical_output_config(
     Args:
         base: The base CategoricalAnnotationConfig from the LLM evaluator
         override: Optional overrides from the dataset evaluator
-        display_name: The display name to use as the config name
+        name: The name to use as the config name
         description_override: Optional description override
 
     Returns:
@@ -1456,7 +1456,7 @@ def merge_categorical_output_config(
 
     return CategoricalAnnotationConfig(
         type=base.type,
-        name=display_name,
+        name=name,
         description=description,
         optimization_direction=optimization_direction,
         values=values,
@@ -1466,7 +1466,7 @@ def merge_categorical_output_config(
 def merge_continuous_output_config(
     base: ContinuousAnnotationConfig,
     override: Optional[ContinuousAnnotationConfigOverride],
-    display_name: str,
+    name: str,
     description_override: Optional[str],
 ) -> ContinuousAnnotationConfig:
     """
@@ -1475,7 +1475,7 @@ def merge_continuous_output_config(
     Args:
         base: The base ContinuousAnnotationConfig from the builtin evaluator
         override: Optional overrides from the dataset evaluator
-        display_name: The display name to use as the config name
+        name: The name to use as the config name
         description_override: Optional description override
 
     Returns:
@@ -1499,7 +1499,7 @@ def merge_continuous_output_config(
 
     return ContinuousAnnotationConfig(
         type=base.type,
-        name=display_name,
+        name=name,
         description=description,
         optimization_direction=optimization_direction,
         lower_bound=lower_bound,
