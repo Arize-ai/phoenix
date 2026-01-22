@@ -1,4 +1,12 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 import type { DetailedMetricsSnapshot } from "../types";
 import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
 
@@ -11,7 +19,9 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
   if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Requests Completed per Second</h2>
+        <h2 className="text-sm font-medium mb-2">
+          Requests Completed per Second
+        </h2>
         <div className="h-64 flex items-center justify-center text-gray-500 text-xs">
           Collecting data...
         </div>
@@ -21,7 +31,7 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
 
   const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
   const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime
+    (point) => point.timestamp >= cutoffTime,
   );
 
   const data = filteredSeries.map((point) => ({
@@ -36,8 +46,16 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-medium">Requests Completed per Second</h2>
         <div className="flex gap-2 text-xs">
-          <span className="text-gray-500">now <span className="text-green-400 font-mono">{detailedMetrics.global.currentRPS}</span></span>
-          <span className="text-gray-500">peak <span className="text-green-400 font-mono">{peaks.maxRPS}</span></span>
+          <span className="text-gray-500">
+            now{" "}
+            <span className="text-green-400 font-mono">
+              {detailedMetrics.global.currentRPS}
+            </span>
+          </span>
+          <span className="text-gray-500">
+            peak{" "}
+            <span className="text-green-400 font-mono">{peaks.maxRPS}</span>
+          </span>
         </div>
       </div>
       <div className="h-64">
@@ -67,7 +85,11 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
               }}
               labelStyle={{ color: "#9ca3af" }}
             />
-            <ReferenceLine y={peaks.maxRPS} stroke="#10b981" strokeDasharray="3 3" />
+            <ReferenceLine
+              y={peaks.maxRPS}
+              stroke="#10b981"
+              strokeDasharray="3 3"
+            />
             <Line
               type="monotone"
               dataKey="rps"

@@ -1,4 +1,12 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 import type { DetailedMetricsSnapshot } from "../types";
 import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
 
@@ -7,11 +15,16 @@ interface Props {
   timeRange: TimeRange;
 }
 
-export function ConcurrentConnectionsChart({ detailedMetrics, timeRange }: Props) {
+export function ConcurrentConnectionsChart({
+  detailedMetrics,
+  timeRange,
+}: Props) {
   if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Active Requests (In-Flight)</h2>
+        <h2 className="text-sm font-medium mb-2">
+          Active Requests (In-Flight)
+        </h2>
         <div className="h-64 flex items-center justify-center text-gray-500 text-xs">
           Collecting data...
         </div>
@@ -21,7 +34,7 @@ export function ConcurrentConnectionsChart({ detailedMetrics, timeRange }: Props
 
   const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
   const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime
+    (point) => point.timestamp >= cutoffTime,
   );
 
   const data = filteredSeries.map((point) => ({
@@ -37,8 +50,18 @@ export function ConcurrentConnectionsChart({ detailedMetrics, timeRange }: Props
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-medium">Active Requests (In-Flight)</h2>
         <div className="flex gap-2 text-xs">
-          <span className="text-gray-500">now <span className="text-blue-400 font-mono">{currentConnections}</span></span>
-          <span className="text-gray-500">peak <span className="text-blue-400 font-mono">{peaks.maxConcurrentConnections}</span></span>
+          <span className="text-gray-500">
+            now{" "}
+            <span className="text-blue-400 font-mono">
+              {currentConnections}
+            </span>
+          </span>
+          <span className="text-gray-500">
+            peak{" "}
+            <span className="text-blue-400 font-mono">
+              {peaks.maxConcurrentConnections}
+            </span>
+          </span>
         </div>
       </div>
       <div className="h-64">
@@ -70,10 +93,10 @@ export function ConcurrentConnectionsChart({ detailedMetrics, timeRange }: Props
               labelStyle={{ color: "#9ca3af" }}
             />
             {peaks.maxConcurrentConnections > 0 && (
-              <ReferenceLine 
-                y={peaks.maxConcurrentConnections} 
-                stroke="#3b82f6" 
-                strokeDasharray="3 3" 
+              <ReferenceLine
+                y={peaks.maxConcurrentConnections}
+                stroke="#3b82f6"
+                strokeDasharray="3 3"
               />
             )}
             <Line

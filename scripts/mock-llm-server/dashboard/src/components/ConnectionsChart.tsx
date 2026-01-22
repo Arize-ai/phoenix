@@ -1,4 +1,11 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import type { DetailedMetricsSnapshot } from "../types";
 import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
 
@@ -21,7 +28,7 @@ export function ConnectionsChart({ detailedMetrics, timeRange }: Props) {
 
   const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
   const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime
+    (point) => point.timestamp >= cutoffTime,
   );
 
   const data = filteredSeries.map((point) => ({
@@ -36,7 +43,10 @@ export function ConnectionsChart({ detailedMetrics, timeRange }: Props) {
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-sm font-medium">Cumulative Requests</h2>
         <span className="text-xs text-gray-500">
-          total <span className="text-purple-400 font-mono">{peaks.totalConnections}</span>
+          total{" "}
+          <span className="text-purple-400 font-mono">
+            {peaks.totalConnections}
+          </span>
         </span>
       </div>
       <div className="h-64">

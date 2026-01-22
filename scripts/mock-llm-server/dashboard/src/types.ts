@@ -85,16 +85,19 @@ export interface ErrorEntry {
 
 export interface DetailedMetricsSnapshot {
   timestamp: number;
-  endpoints: Record<EndpointId, {
-    timeSeries: TimeSeriesPoint[];
-    peaks: PeakMetrics;
-    latencyHistogram: LatencyBucket[];
-    errors: ErrorEntry[];
-    currentRPS: number;
-    currentConnections: number;
-    totalStreaming: number;
-    totalNonStreaming: number;
-  }>;
+  endpoints: Record<
+    EndpointId,
+    {
+      timeSeries: TimeSeriesPoint[];
+      peaks: PeakMetrics;
+      latencyHistogram: LatencyBucket[];
+      errors: ErrorEntry[];
+      currentRPS: number;
+      currentConnections: number;
+      totalStreaming: number;
+      totalNonStreaming: number;
+    }
+  >;
   global: {
     timeSeries: TimeSeriesPoint[];
     peaks: PeakMetrics;
@@ -109,7 +112,13 @@ export interface DetailedMetricsSnapshot {
 }
 
 export interface ConnectionEvent {
-  type: "connection_open" | "connection_close" | "request_start" | "request_end" | "error" | "rate_limited";
+  type:
+    | "connection_open"
+    | "connection_close"
+    | "request_start"
+    | "request_end"
+    | "error"
+    | "rate_limited";
   endpoint: EndpointId;
   timestamp: number;
   requestId?: string;
@@ -141,9 +150,9 @@ export interface RateLimitConfig {
 }
 
 // Error/failure types
-export type ErrorType = 
-  | "timeout" 
-  | "server_error" 
+export type ErrorType =
+  | "timeout"
+  | "server_error"
   | "bad_request"
   | "slow_response"
   | "connection_reset";
@@ -177,21 +186,69 @@ export interface WebSocketMessage {
   data: unknown;
 }
 
-export const RATE_LIMIT_STRATEGIES: { id: RateLimitStrategy; label: string; description: string }[] = [
+export const RATE_LIMIT_STRATEGIES: {
+  id: RateLimitStrategy;
+  label: string;
+  description: string;
+}[] = [
   { id: "none", label: "Disabled", description: "No rate limiting" },
-  { id: "fixed-window", label: "Fixed Window", description: "N requests per time window" },
-  { id: "sliding-window", label: "Sliding Window", description: "N requests in rolling window" },
-  { id: "token-bucket", label: "Token Bucket", description: "Burst-friendly with steady refill" },
-  { id: "leaky-bucket", label: "Leaky Bucket", description: "Smooth constant rate output" },
-  { id: "after-n", label: "After N", description: "Fail after N total requests" },
+  {
+    id: "fixed-window",
+    label: "Fixed Window",
+    description: "N requests per time window",
+  },
+  {
+    id: "sliding-window",
+    label: "Sliding Window",
+    description: "N requests in rolling window",
+  },
+  {
+    id: "token-bucket",
+    label: "Token Bucket",
+    description: "Burst-friendly with steady refill",
+  },
+  {
+    id: "leaky-bucket",
+    label: "Leaky Bucket",
+    description: "Smooth constant rate output",
+  },
+  {
+    id: "after-n",
+    label: "After N",
+    description: "Fail after N total requests",
+  },
   { id: "random", label: "Random", description: "Fail with probability P" },
   { id: "always", label: "Always", description: "Reject all requests" },
 ];
 
-export const ERROR_TYPES: { id: ErrorType; label: string; description: string }[] = [
-  { id: "server_error", label: "Server Error (500)", description: "Returns HTTP 500" },
-  { id: "bad_request", label: "Bad Request (400)", description: "Returns HTTP 400" },
-  { id: "timeout", label: "Timeout", description: "Request hangs indefinitely" },
-  { id: "slow_response", label: "Slow Response", description: "5-10 second delay" },
-  { id: "connection_reset", label: "Connection Reset", description: "Abruptly closes connection" },
+export const ERROR_TYPES: {
+  id: ErrorType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: "server_error",
+    label: "Server Error (500)",
+    description: "Returns HTTP 500",
+  },
+  {
+    id: "bad_request",
+    label: "Bad Request (400)",
+    description: "Returns HTTP 400",
+  },
+  {
+    id: "timeout",
+    label: "Timeout",
+    description: "Request hangs indefinitely",
+  },
+  {
+    id: "slow_response",
+    label: "Slow Response",
+    description: "5-10 second delay",
+  },
+  {
+    id: "connection_reset",
+    label: "Connection Reset",
+    description: "Abruptly closes connection",
+  },
 ];

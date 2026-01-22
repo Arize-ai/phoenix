@@ -64,7 +64,9 @@ function EventRow({ event }: { event: ConnectionEvent }) {
   return (
     <tr className="border-t border-gray-700/30">
       <td className="py-0.5 pr-3 text-gray-600">{time}</td>
-      <td className={`py-0.5 pr-3 ${typeColors[event.type]}`}>{typeLabels[event.type]}</td>
+      <td className={`py-0.5 pr-3 ${typeColors[event.type]}`}>
+        {typeLabels[event.type]}
+      </td>
       <td className="py-0.5 pr-3 text-gray-400">{label}</td>
       <td className="py-0.5 text-gray-500">{details}</td>
     </tr>

@@ -24,11 +24,14 @@ const MAX_EVENTS = 100;
 
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const isUnmountingRef = useRef(false);
   const [connected, setConnected] = useState(false);
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
-  const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetricsSnapshot | null>(null);
+  const [detailedMetrics, setDetailedMetrics] =
+    useState<DetailedMetricsSnapshot | null>(null);
   const [config, setConfig] = useState<DynamicConfig | null>(null);
   const [events, setEvents] = useState<ConnectionEvent[]>([]);
 
@@ -117,7 +120,7 @@ export function useWebSocket(): UseWebSocketReturn {
     (updates: Partial<GlobalConfig>) => {
       send({ type: "update_global_config", data: updates });
     },
-    [send]
+    [send],
   );
 
   const resetConfig = useCallback(() => {

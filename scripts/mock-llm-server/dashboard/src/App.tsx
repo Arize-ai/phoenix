@@ -49,28 +49,77 @@ function App() {
             </span>
             {detailedMetrics && (
               <div className="flex items-center gap-4 ml-4 text-xs">
-                <Stat label="Active" value={detailedMetrics.global.currentConnections} color="blue" />
-                <Stat label="RPS" value={detailedMetrics.global.currentRPS} peak={detailedMetrics.global.peaks.maxRPS} color="green" />
-                <Stat label="Total" value={detailedMetrics.global.peaks.totalConnections} color="purple" />
+                <Stat
+                  label="Active"
+                  value={detailedMetrics.global.currentConnections}
+                  color="blue"
+                />
+                <Stat
+                  label="RPS"
+                  value={detailedMetrics.global.currentRPS}
+                  peak={detailedMetrics.global.peaks.maxRPS}
+                  color="green"
+                />
+                <Stat
+                  label="Total"
+                  value={detailedMetrics.global.peaks.totalConnections}
+                  color="purple"
+                />
                 <span className="flex items-center gap-1 text-gray-500">
-                  (<span className="text-cyan-400 font-mono">{detailedMetrics.global.totalStreaming}</span> stream
+                  (
+                  <span className="text-cyan-400 font-mono">
+                    {detailedMetrics.global.totalStreaming}
+                  </span>{" "}
+                  stream
                   <span className="text-gray-600">/</span>
-                  <span className="text-orange-400 font-mono">{detailedMetrics.global.totalNonStreaming}</span> sync)
+                  <span className="text-orange-400 font-mono">
+                    {detailedMetrics.global.totalNonStreaming}
+                  </span>{" "}
+                  sync)
                 </span>
-                <Stat 
-                  label="Errors" 
-                  value={detailedMetrics.global.peaks.totalErrors} 
-                  color={detailedMetrics.global.peaks.totalErrors > 0 ? "red" : "gray"} 
+                <Stat
+                  label="Errors"
+                  value={detailedMetrics.global.peaks.totalErrors}
+                  color={
+                    detailedMetrics.global.peaks.totalErrors > 0
+                      ? "red"
+                      : "gray"
+                  }
                 />
               </div>
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={handleExportJSON} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">JSON</button>
-            <button onClick={handleExportCSV} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">CSV</button>
-            <button onClick={resetRateLimiters} className="px-2 py-1 bg-yellow-600/80 hover:bg-yellow-600 rounded text-xs">Reset Limits</button>
-            <button onClick={resetDetailedMetrics} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Reset Metrics</button>
-            <button onClick={resetConfig} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Reset Config</button>
+            <button
+              onClick={handleExportJSON}
+              className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+            >
+              JSON
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+            >
+              CSV
+            </button>
+            <button
+              onClick={resetRateLimiters}
+              className="px-2 py-1 bg-yellow-600/80 hover:bg-yellow-600 rounded text-xs"
+            >
+              Reset Limits
+            </button>
+            <button
+              onClick={resetDetailedMetrics}
+              className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+            >
+              Reset Metrics
+            </button>
+            <button
+              onClick={resetConfig}
+              className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+            >
+              Reset Config
+            </button>
           </div>
         </div>
       </header>
@@ -83,14 +132,26 @@ function App() {
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <ThroughputChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
-          <ConcurrentConnectionsChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
-          <ConnectionsChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
+          <ThroughputChart
+            detailedMetrics={detailedMetrics}
+            timeRange={timeRange}
+          />
+          <ConcurrentConnectionsChart
+            detailedMetrics={detailedMetrics}
+            timeRange={timeRange}
+          />
+          <ConnectionsChart
+            detailedMetrics={detailedMetrics}
+            timeRange={timeRange}
+          />
         </div>
 
         {/* Controls Row */}
         <div className="grid grid-cols-4 gap-3 mb-3">
-          <ConnectionMonitor metrics={metrics} detailedMetrics={detailedMetrics} />
+          <ConnectionMonitor
+            metrics={metrics}
+            detailedMetrics={detailedMetrics}
+          />
           <LatencyControls config={config} onUpdate={updateGlobalConfig} />
           <RateLimitPanel config={config} onUpdate={updateGlobalConfig} />
           <FailureModes config={config} onUpdate={updateGlobalConfig} />
@@ -126,7 +187,9 @@ function Stat({
     <span className="flex items-center gap-1">
       <span className="text-gray-500">{label}:</span>
       <span className={`font-mono ${colors[color]}`}>{value}</span>
-      {peak !== undefined && <span className="text-gray-600">(peak {peak})</span>}
+      {peak !== undefined && (
+        <span className="text-gray-600">(peak {peak})</span>
+      )}
     </span>
   );
 }
