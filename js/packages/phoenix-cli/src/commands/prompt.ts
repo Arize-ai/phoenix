@@ -115,14 +115,10 @@ async function promptHandler(
     });
 
     // Fetch prompt version
-    const promptVersion = await fetchPromptVersion(
-      client,
-      promptIdentifier,
-      {
-        tag: options.tag,
-        versionId: options.version,
-      }
-    );
+    const promptVersion = await fetchPromptVersion(client, promptIdentifier, {
+      tag: options.tag,
+      versionId: options.version,
+    });
 
     writeProgress({
       message: `Found prompt version ${promptVersion.id}`,

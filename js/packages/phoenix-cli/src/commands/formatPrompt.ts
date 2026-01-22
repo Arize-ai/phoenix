@@ -8,7 +8,10 @@ type TextContentPart = componentsV1["schemas"]["TextContentPart"];
 type ToolCallContentPart = componentsV1["schemas"]["ToolCallContentPart"];
 type ToolResultContentPart = componentsV1["schemas"]["ToolResultContentPart"];
 
-type ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart;
+type ContentPart =
+  | TextContentPart
+  | ToolCallContentPart
+  | ToolResultContentPart;
 
 export interface FormatPromptOutputOptions {
   /**
@@ -100,7 +103,9 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
 
   lines.push(`┌─ Prompt Version: ${promptVersion.id}`);
   lines.push(`│`);
-  lines.push(`│  Model: ${promptVersion.model_provider} / ${promptVersion.model_name}`);
+  lines.push(
+    `│  Model: ${promptVersion.model_provider} / ${promptVersion.model_name}`
+  );
   lines.push(`│  Template Type: ${promptVersion.template_type}`);
   lines.push(`│  Template Format: ${promptVersion.template_format}`);
 
@@ -158,7 +163,9 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
   // Response format
   if (promptVersion.response_format) {
     lines.push(`│`);
-    lines.push(`│  Response Format: ${promptVersion.response_format.json_schema.name}`);
+    lines.push(
+      `│  Response Format: ${promptVersion.response_format.json_schema.name}`
+    );
   }
 
   lines.push(`└─`);
