@@ -20,7 +20,7 @@ npm install @arizeai/phoenix-evals
 
 ### Creating Custom Classifiers
 
-Create custom evaluators for tasks like hallucination detection, relevance scoring, or any binary/multi-class classification:
+Create custom evaluators for tasks like faithfulness detection, relevance scoring, or any binary/multi-class classification:
 
 ```javascript 
 import { createClassifier } from "@arizeai/phoenix-evals/llm";
@@ -29,32 +29,32 @@ import { openai } from "@ai-sdk/openai";
 const model = openai("gpt-4o-mini");
 
 const promptTemplate = `
-In this task, you will be presented with a query, a reference text and an answer. The answer is
-generated to the question based on the reference text. The answer may contain false information. You
-must use the reference text to determine if the answer to the question contains false information,
-if the answer is a hallucination of facts. Your objective is to determine whether the answer text
-contains factual information and is not a hallucination. A 'hallucination' refers to
-an answer that is not based on the reference text or assumes information that is not available in
-the reference text. Your response should be a single word: either "factual" or "hallucinated", and
+In this task, you will be presented with a query, some context and a response. The response is
+generated to the question based on the context. The response may contain false information. You
+must use the context to determine if the response to the question contains false information,
+if the response is unfaithful to the facts. Your objective is to determine whether the response text
+contains factual information and is faithful to the context. An 'unfaithful' response refers to
+a response that is not based on the context or assumes information that is not available in
+the context. Your response should be a single word: either "faithful" or "unfaithful", and
 it should not include any other text or characters.
 
     [BEGIN DATA]
     ************
     [Query]: {{input}}
     ************
-    [Reference text]: {{reference}}
+    [Context]: {{context}}
     ************
-    [Answer]: {{output}}
+    [Response]: {{output}}
     ************
     [END DATA]
 
-Is the answer above factual or hallucinated based on the query and reference text?
+Is the response above faithful or unfaithful based on the query and context?
 `;
 
 // Create the classifier
 const evaluator = await createClassifier({
   model,
-  choices: { factual: 1, hallucinated: 0 },
+  choices: { faithful: 1, unfaithful: 0 },
   promptTemplate: promptTemplate,
 });
 
@@ -62,11 +62,11 @@ const evaluator = await createClassifier({
 const result = await evaluator({
   output: "Arize is not open source.",
   input: "Is Arize Phoenix Open Source?",
-  reference: "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
+  context: "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
 });
 
 console.log(result);
-// Output: { label: "hallucinated", score: 0 }
+// Output: { label: "unfaithful", score: 0 }
 ```
 
 ### Pre-Built Evaluators
@@ -75,7 +75,7 @@ The library includes several pre-built evaluators for common evaluation tasks. T
 
 ```javascript 
 import {
-  createHallucinationEvaluator,
+  createFaithfulnessEvaluator,
 } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -84,21 +84,21 @@ const model = openai("gpt-4o-mini");
 // or use any other AI SDK provider
 // const model = anthropic("claude-3-haiku-20240307");
 
-// Hallucination Detection
-const hallucinationEvaluator = createHallucinationEvaluator({
+// Faithfulness Detection
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model,
 });
 
 
 // Use the evaluators
-const result = await hallucinationEvaluator({
+const result = await faithfulnessEvaluator({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
 });
 
 console.log(result);
-// Output: { label: "hallucinated", score: 0, explanation: "..." }
+// Output: { label: "unfaithful", score: 0, explanation: "..." }
 ```
 
 ## Experimentation with Phoenix
@@ -112,20 +112,20 @@ npm install @arizeai/phoenix-client
 ```
 
 ```javascript 
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import { asEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
 
 // Create your evaluator
-const hallucinationEvaluator = createHallucinationEvaluator({
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
 });
 
 // Create a dataset for your experiment
 const dataset = await createDataset({
-  name: "hallucination-eval",
-  description: "Evaluate the hallucination of the model",
+  name: "faithfulness-eval",
+  description: "Evaluate the faithfulness of the model",
   examples: [
     {
       input: {
@@ -144,14 +144,14 @@ const task = async (example) => {
 };
 
 // Create a custom evaluator to validate results
-const hallucinationCheck = asEvaluator({
-  name: "hallucination",
+const faithfulnessCheck = asEvaluator({
+  name: "faithfulness",
   kind: "LLM",
   evaluate: async ({ input, output }) => {
-    // Use the hallucination evaluator from phoenix-evals
-    const result = await hallucinationEvaluator({
+    // Use the faithfulness evaluator from phoenix-evals
+    const result = await faithfulnessEvaluator({
       input: input.question,
-      context: input.context, // Note: uses 'context' not 'reference'
+      context: input.context,
       output: output,
     });
 
@@ -161,11 +161,11 @@ const hallucinationCheck = asEvaluator({
 
 // Run the experiment with automatic tracing
 runExperiment({
-  experimentName: "hallucination-eval",
-  experimentDescription: "Evaluate the hallucination of the model",
+  experimentName: "faithfulness-eval",
+  experimentDescription: "Evaluate the faithfulness of the model",
   dataset: dataset,
   task,
-  evaluators: [hallucinationCheck],
+  evaluators: [faithfulnessCheck],
 });
 ```
 

@@ -8,6 +8,38 @@ GitHub
 </Card>
 
 
+<Update label="01.22.2026">
+## [01.22.2026: CLI Prompt Commands: Pipe Prompts to AI Assistants](/docs/phoenix/release-notes/01-2026/01-22-2026-cli-prompt-commands) 📝
+
+**Available in @arizeai/phoenix-cli 0.4.0+**
+
+Phoenix CLI now supports prompt introspection with `px prompts` and `px prompt`. List prompts, view their content, and pipe them directly to AI assistants like Claude Code for optimization suggestions. The `--format text` option outputs prompts with XML-style role tags, ideal for analysis workflows.
+</Update>
+
+<Update label="01.21.2026">
+## [01.21.2026: Create Datasets from Traces with Span Associations](/docs/phoenix/release-notes/01-2026/01-21-2026-create-datasets-from-traces) 🔗
+
+**Available in arize-phoenix-client 1.28.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+The Phoenix client now enables converting production traces into curated datasets while preserving associations back to source spans. Query spans using client methods, then create datasets with span associations to maintain bidirectional links. Use this to build golden datasets from validated interactions, curate edge cases from failed traces, or create regression test suites from critical user flows.
+</Update>
+
+<Update label="01.21.2026">
+## [01.21.2026: Phoenix CLI: Datasets, Experiments & Annotations](/docs/phoenix/release-notes/01-2026/01-21-2026-cli-datasets-experiments-annotations) 🧪
+
+**Available in @arizeai/phoenix-cli 0.2.0+**
+
+The Phoenix CLI now supports datasets, experiments, and annotations. Pull evaluation data, export experiment results, and access human feedback directly from the terminal. Works well with AI coding assistants for analyzing test cases and reviewing results.
+</Update>
+
+<Update label="01.17.2026">
+## [01.17.2026: Phoenix CLI: Terminal Access for AI Coding Assistants](/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging) 🖥️
+
+**Available in @arizeai/phoenix-cli 0.1.0+**
+
+AI coding assistants operate through terminals and files—they run shell commands, read output, and process data. The new Phoenix CLI makes trace data accessible through these interfaces, enabling tools like Claude Code, Cursor, and Windsurf to query your Phoenix instance directly. Export traces to JSON, pipe to `jq`, or save to disk for analysis.
+</Update>
+
 <Update label="12.20.2025">
 ## [12.20.2025: Improved User Preferences](/docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences) ⚙️
 

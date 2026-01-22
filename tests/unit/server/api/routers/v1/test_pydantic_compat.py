@@ -1,7 +1,5 @@
 import json
-from datetime import datetime
-
-import pytz
+from datetime import datetime, timezone
 
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 
@@ -12,7 +10,7 @@ class TestV1RoutesBaseModel:
             datetime_field: datetime
             string_field: str
 
-        dt = datetime(2021, 1, 1, hour=2, minute=43, second=1, tzinfo=pytz.UTC)
+        dt = datetime(2021, 1, 1, hour=2, minute=43, second=1, tzinfo=timezone.utc)
         model = Model(
             datetime_field=dt,
             string_field="test",

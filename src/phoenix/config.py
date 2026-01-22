@@ -943,7 +943,7 @@ def get_working_dir() -> Path:
     """
     working_dir_str = getenv(ENV_PHOENIX_WORKING_DIR)
     if working_dir_str is not None:
-        return Path(working_dir_str)
+        return Path(working_dir_str).resolve()
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
     return Path.home().resolve() / ".phoenix"
 

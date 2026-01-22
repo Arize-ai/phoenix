@@ -1,12 +1,21 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": ".",
-    "types": ["node"],
-    "noUncheckedIndexedAccess": true
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./build",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
-  "files": [],
-  "include": ["src/**/*.ts", "test/**/*.ts"],
-  "references": []
+  "tsc-alias": {
+    "resolveFullPaths": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }

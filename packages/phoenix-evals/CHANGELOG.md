@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.1...arize-phoenix-evals-v2.8.0) (2026-01-08)
+
+
+### Features
+
+* correctness evaluator ([#10829](https://github.com/Arize-ai/phoenix/issues/10829)) ([da13ad5](https://github.com/Arize-ai/phoenix/commit/da13ad54784bfbdcd133a0c18e5f99e80a2b6482))
+* Enable sync- and async- client kwargs for LLM constructor ([#10808](https://github.com/Arize-ai/phoenix/issues/10808)) ([1442074](https://github.com/Arize-ai/phoenix/commit/14420746db25e67ef58787c5e0656f9b41c968c8))
+* **evals:** add built-in tool selection correctness metric ([#10744](https://github.com/Arize-ai/phoenix/issues/10744)) ([9e816c9](https://github.com/Arize-ai/phoenix/commit/9e816c9dd988dabf864cf05764efcef6573b6930))
+
+
+### Bug Fixes
+
+* **prompts:** remove newlines from built-in prompts ([#10736](https://github.com/Arize-ai/phoenix/issues/10736)) ([edf35f0](https://github.com/Arize-ai/phoenix/commit/edf35f00ef90cc27160e0887b97a5bc49c6cd0e8))
+
 ## [2.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.0...arize-phoenix-evals-v2.7.1) (2025-12-12)
 
 

@@ -3616,6 +3616,8 @@ export interface operations {
                     metadata?: Record<string, unknown>[];
                     /** @description Split per example: string, string array, or null */
                     splits?: (string | string[] | null)[];
+                    /** @description Span IDs to link examples back to spans */
+                    span_ids?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
@@ -3627,6 +3629,8 @@ export interface operations {
                     "metadata_keys[]"?: string[];
                     /** @description Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Column name for span IDs to link examples back to spans */
+                    span_id_key?: string;
                     /** Format: binary */
                     file: string;
                 };

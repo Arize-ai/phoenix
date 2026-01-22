@@ -22,6 +22,7 @@ from typing import (
 )
 
 import pandas as pd
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
@@ -38,6 +39,7 @@ from .legacy.evaluators import (
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
+from .tracing import trace
 from .utils import (
     _deprecate_positional_args,
     _deprecate_source_and_heuristic,
@@ -49,7 +51,7 @@ from .utils import (
 EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
 KindType = Literal["human", "llm", "heuristic", "code"]
-DirectionType = Literal["maximize", "minimize"]
+DirectionType = Literal["maximize", "minimize", "neutral"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
 
@@ -58,6 +60,73 @@ def _coerce_to_str(value: Any) -> str:
 
 
 EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
+
+
+# --- Helper Functions ---
+def _get_evaluator_span_name_sync(bound: Any) -> str:
+    """Extract span name from evaluator instance for sync evaluation."""
+    evaluator = bound.arguments.get("self")
+    return f"{evaluator.name}.evaluate" if evaluator else "evaluator.evaluate"
+
+
+def _get_evaluator_span_name_async(bound: Any) -> str:
+    """Extract span name from evaluator instance for async evaluation."""
+    evaluator = bound.arguments.get("self")
+    return f"{evaluator.name}.async_evaluate" if evaluator else "evaluator.async_evaluate"
+
+
+def _get_evaluator_metadata(bound: Any) -> str:
+    """Extract evaluator metadata as JSON for the metadata span attribute."""
+    evaluator = bound.arguments.get("self")
+    metadata = {}
+    if evaluator:
+        metadata["evaluator.kind"] = evaluator.kind
+        metadata["evaluator.class"] = evaluator.__class__.__name__
+    return json.dumps(metadata)
+
+
+def _get_remapped_input(bound: Any) -> str:
+    """Extract and serialize remapped eval input."""
+    return json.dumps(bound.arguments.get("remapped_eval_input", {}))
+
+
+def _get_scores_output(result: Any) -> str:
+    """Serialize list of Score objects."""
+    return json.dumps([s.to_dict() for s in result])
+
+
+def _remap_and_validate_input(
+    eval_input: EvalInput,
+    required_fields: Set[str],
+    input_mapping: InputMappingType,
+    input_schema: Optional[type[BaseModel]],
+) -> EvalInput:
+    """Remap and validate evaluation input.
+
+    Args:
+        eval_input: The raw evaluation input dictionary.
+        required_fields: Set of required field names.
+        input_mapping: Mapping from evaluator field names to input keys.
+        input_schema: Optional Pydantic model for validation.
+
+    Returns:
+        The remapped and validated evaluation input.
+
+    Raises:
+        ValueError: If input validation fails.
+    """
+    remapped_eval_input = remap_eval_input(
+        eval_input=eval_input,
+        required_fields=required_fields,
+        input_mapping=input_mapping,
+    )
+    if input_schema is not None:
+        try:
+            model_instance = input_schema.model_validate(remapped_eval_input)
+            remapped_eval_input = model_instance.model_dump()
+        except ValidationError as e:
+            raise ValueError(f"Input validation failed: {e}")
+    return cast(EvalInput, remapped_eval_input)
 
 
 # --- Score model ---
@@ -176,7 +245,27 @@ class Score:
         print(json.dumps(score_dict, indent=indent))
 
 
-# --- Async helper ---
+def _add_trace_id_to_scores(scores: List[Score], trace_id: Optional[str]) -> List[Score]:
+    """Add trace_id to Score metadata."""
+    if not trace_id:
+        return scores
+
+    updated_scores = []
+    for score in scores:
+        updated_metadata = {**score.metadata, "trace_id": trace_id}
+        updated_score = Score(
+            name=score.name,
+            score=score.score,
+            label=score.label,
+            explanation=score.explanation,
+            metadata=updated_metadata,
+            kind=score.kind,
+            direction=score.direction,
+        )
+        updated_scores.append(updated_score)
+    return updated_scores
+
+
 def to_thread(fn: Callable[..., Any]) -> Callable[..., Any]:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
@@ -266,6 +355,42 @@ class Evaluator(ABC):
         result = await to_thread(self._evaluate)(eval_input)
         return cast(List[Score], result)
 
+    @trace(
+        span_name=_get_evaluator_span_name_sync,
+        span_kind=OpenInferenceSpanKindValues.EVALUATOR,
+        process_input={
+            SpanAttributes.INPUT_VALUE: _get_remapped_input,
+            SpanAttributes.METADATA: _get_evaluator_metadata,
+        },
+        process_output={
+            SpanAttributes.OUTPUT_VALUE: _get_scores_output,
+        },
+    )
+    def _traced_evaluate(
+        self, remapped_eval_input: EvalInput, trace_id: Optional[str] = None
+    ) -> List[Score]:
+        """Execute evaluation with tracing and inject trace_id into Score metadata."""
+        scores = self._evaluate(remapped_eval_input)
+        return _add_trace_id_to_scores(scores, trace_id)
+
+    @trace(
+        span_name=_get_evaluator_span_name_async,
+        span_kind=OpenInferenceSpanKindValues.EVALUATOR,
+        process_input={
+            SpanAttributes.INPUT_VALUE: _get_remapped_input,
+            SpanAttributes.METADATA: _get_evaluator_metadata,
+        },
+        process_output={
+            SpanAttributes.OUTPUT_VALUE: _get_scores_output,
+        },
+    )
+    async def _async_traced_evaluate(
+        self, remapped_eval_input: EvalInput, trace_id: Optional[str] = None
+    ) -> List[Score]:
+        """Async variant of _traced_evaluate."""
+        scores = await self._async_evaluate(remapped_eval_input)
+        return _add_trace_id_to_scores(scores, trace_id)
+
     def evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
     ) -> List[Score]:
@@ -279,18 +404,13 @@ class Evaluator(ABC):
         """
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
-        remapped_eval_input = remap_eval_input(
+        remapped_eval_input = _remap_and_validate_input(
             eval_input=eval_input,
             required_fields=required_fields,
             input_mapping=input_mapping,
+            input_schema=self.input_schema,
         )
-        if self.input_schema is not None:
-            try:
-                model_instance = self.input_schema.model_validate(remapped_eval_input)
-                remapped_eval_input = model_instance.model_dump()
-            except ValidationError as e:
-                raise ValueError(f"Input validation failed: {e}")
-        return self._evaluate(remapped_eval_input)
+        return cast(List[Score], self._traced_evaluate(remapped_eval_input))
 
     async def async_evaluate(
         self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
@@ -303,18 +423,13 @@ class Evaluator(ABC):
         """
         input_mapping = input_mapping or self._input_mapping
         required_fields = self._get_required_fields(input_mapping)
-        remapped_eval_input = remap_eval_input(
+        remapped_eval_input = _remap_and_validate_input(
             eval_input=eval_input,
             required_fields=required_fields,
             input_mapping=input_mapping,
+            input_schema=self.input_schema,
         )
-        if self.input_schema is not None:
-            try:
-                model_instance = self.input_schema.model_validate(remapped_eval_input)
-                remapped_eval_input = model_instance.model_dump()
-            except ValidationError as e:
-                raise ValueError(f"Input validation failed: {e}")
-        return await self._async_evaluate(remapped_eval_input)
+        return cast(List[Score], await self._async_traced_evaluate(remapped_eval_input))
 
     def bind(self, input_mapping: InputMappingType) -> None:
         """Binds an evaluator with a fixed input mapping."""

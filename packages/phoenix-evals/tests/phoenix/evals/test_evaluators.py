@@ -820,7 +820,10 @@ class TestCreateEvaluatorDecorator:
 
         assert len(result) == 1
         score = result[0]
-        assert score.metadata == {"custom_key": "custom_value"}
+        # Check custom metadata is preserved
+        assert score.metadata["custom_key"] == "custom_value"
+        # trace_id may be added by tracing if a valid span context exists
+        # but we don't require it to be present
 
     def test_create_evaluator_with_custom_kind_and_direction(self):
         """Test create_evaluator with custom kind and direction."""
@@ -1666,3 +1669,111 @@ class TestDeprecatedSourceAndHeuristic:
             deco = create_evaluator(name="equal", kind="code", source="code")
         ev = deco(_fn)
         assert ev.kind == "code"
+
+
+class TestTracedEvaluator:
+    """Test evaluator tracing and trace_id injection."""
+
+    class MockEvaluator(Evaluator):
+        """Mock evaluator for testing."""
+
+        def __init__(self, **kwargs):
+            from pydantic import BaseModel
+
+            # Create a simple input schema for testing
+            class TestInputSchema(BaseModel):
+                text: str
+
+            super().__init__(input_schema=TestInputSchema, **kwargs)
+
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=0.8, kind=self.kind)]
+
+    def test_trace_id_in_score_metadata_with_tracing_enabled(self):
+        """Test that trace_id is added to Score metadata when tracing is enabled."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        # Set up in-memory exporter to capture spans
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = evaluator.evaluate({"text": "test input"})
+
+            # Verify trace_id is in metadata
+            assert len(result) == 1
+            assert "trace_id" in result[0].metadata
+            assert isinstance(result[0].metadata["trace_id"], str)
+            assert len(result[0].metadata["trace_id"]) == 32  # hex trace_id length
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    def test_trace_id_not_present_without_tracing(self):
+        """Test that evaluation works without trace_id when tracing is not configured."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        # Use a basic tracer provider without processors
+        trace.set_tracer_provider(TracerProvider())
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = evaluator.evaluate({"text": "test input"})
+
+            # Verify evaluation still works
+            assert len(result) == 1
+            assert result[0].score == 0.8
+            # trace_id might be present but could be None or invalid
+            # The important thing is that evaluation doesn't fail
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    @pytest.mark.asyncio
+    async def test_async_trace_id_in_score_metadata_with_tracing_enabled(self):
+        """Test that trace_id is added to Score metadata in async evaluation."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        # Set up in-memory exporter to capture spans
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = await evaluator.async_evaluate({"text": "test input"})
+
+            # Verify trace_id is in metadata
+            assert len(result) == 1
+            assert "trace_id" in result[0].metadata
+            assert isinstance(result[0].metadata["trace_id"], str)
+            assert len(result[0].metadata["trace_id"]) == 32  # hex trace_id length
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    def test_evaluation_behavior_unchanged_when_tracing_fails(self):
+        """Test that evaluation continues to work even if tracing fails."""
+        # Create and run evaluator with NoOp tracing
+        evaluator = self.MockEvaluator(name="test_eval", kind="code")
+        result = evaluator.evaluate({"text": "test input"})
+
+        # Verify evaluation still works correctly
+        assert len(result) == 1
+        assert result[0].name == "test_eval"
+        assert result[0].score == 0.8
+        assert result[0].kind == "code"

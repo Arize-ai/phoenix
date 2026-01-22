@@ -272,11 +272,11 @@ relevance_results.head()
 
 #### RAG Q&A Evaluation
 
-Extract Q&A pairs with reference context for hallucination evaluation:
+Extract Q&A pairs with reference context for faithfulness evaluation:
 
 ```python
 from phoenix.client.helpers.spans import get_input_output_context
-from phoenix.evals.metrics import HallucinationEvaluator
+from phoenix.evals.metrics import FaithfulnessEvaluator
 
 # Extract Q&A with context documents
 qa_df = get_input_output_context(
@@ -290,16 +290,16 @@ qa_df = get_input_output_context(
 if qa_df is not None:
     print(qa_df.head())
 
-    # Run hallucination evaluations
-    hallucination_evaluator = HallucinationEvaluator(llm=llm)
+    # Run faithfulness evaluations
+    faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
-    hallucination_results = await async_evaluate_dataframe(
+    faithfulness_results = await async_evaluate_dataframe(
         dataframe=qa_df,
-        evaluators=[hallucination_evaluator],
+        evaluators=[faithfulness_evaluator],
         concurrency=10,
         exit_on_error=True,
     )
-    hallucination_results.head()
+    faithfulness_results.head()
 ```
 
 #### Time-Filtered RAG Spans

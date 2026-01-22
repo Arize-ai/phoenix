@@ -23,7 +23,6 @@ respx>=0.22.0
 syrupy
 tenacity
 tiktoken
-types-pytz
 typing-extensions
 vcrpy
 pytest-smtpd

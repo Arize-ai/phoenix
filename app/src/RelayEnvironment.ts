@@ -1,11 +1,13 @@
-import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
+import { readMultipartBody } from "@apollo/client/link/http/parseAndCheckHttpResponse";
 import {
   Environment,
-  FetchFunction,
+  type FetchFunction,
+  type GraphQLResponse,
   Network,
   Observable,
   RecordSource,
   Store,
+  type SubscribeFunction,
 } from "relay-runtime";
 import invariant from "tiny-invariant";
 
@@ -105,9 +107,73 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription(graphQLPath, {
-  fetch: graphQLFetch,
-});
+/**
+ * Custom multipart subscription function that properly supports cancellation.
+ *
+ * Apollo's createFetchMultipartSubscription doesn't use AbortController,
+ * so dispose() has no effect. This implementation fixes that by:
+ * 1. Creating an AbortController for each subscription
+ * 2. Passing the signal to fetch
+ * 3. Returning a cleanup function that aborts the fetch
+ *
+ * @see https://github.com/apollographql/apollo-client/blob/c33652da7c239275720831338f40674765897be7/src/utilities/subscriptions/relay/index.ts#L35-L61
+ */
+function createSubscribe(
+  uri: string,
+  fetchFn: typeof fetch
+): SubscribeFunction {
+  return (operation, variables) => {
+    return Observable.create<GraphQLResponse>((sink) => {
+      const controller = new AbortController();
+
+      const body = JSON.stringify({
+        operationName: operation.name,
+        variables,
+        query: operation.text || "",
+      });
+
+      fetchFn(uri, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept:
+            "multipart/mixed;boundary=graphql;subscriptionSpec=1.0,application/json",
+        },
+        body,
+        signal: controller.signal,
+      })
+        .then((response) => {
+          const ctype = response.headers?.get("content-type");
+
+          if (ctype !== null && /^multipart\/mixed/i.test(ctype)) {
+            return readMultipartBody(response, (value: GraphQLResponse) => {
+              sink.next(value);
+            });
+          }
+
+          throw new Error("Expected multipart response");
+        })
+        .then(() => {
+          sink.complete();
+        })
+        .catch((err: Error) => {
+          if (err.name === "AbortError") {
+            // Subscription was cancelled - complete normally
+            sink.complete();
+          } else {
+            sink.error(err);
+          }
+        });
+
+      // Return cleanup function that aborts the fetch
+      return () => {
+        controller.abort();
+      };
+    });
+  };
+}
+
+const subscribe = createSubscribe(graphQLPath, graphQLFetch);
 
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({

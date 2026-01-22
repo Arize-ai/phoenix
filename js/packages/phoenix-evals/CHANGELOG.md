@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.7.0
+
+### Minor Changes
+
+- da13ad5: add generic correctness evaluator
+
 ## 0.6.5
 
 ### Patch Changes

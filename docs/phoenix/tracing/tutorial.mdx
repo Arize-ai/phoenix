@@ -20,9 +20,17 @@ The agent classifies incoming queries, routes them to the right handler, and gen
 
 As you build each feature, you'll add the corresponding observability layer - so you can see exactly how classification decisions are made, why certain documents are retrieved, and whether conversations maintain context across turns.
 
-<Info>
-  **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
-</Info>
+### Follow along with Complete Code Walkthroughs
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial">
+    Companion TypeScript project with runnable examples
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+</Columns>
 
 # Chapter 1: Your First Traces
 
@@ -71,11 +79,8 @@ As you build each feature, you'll add the corresponding observability layer - so
 
 # Prerequisites
 
-- **Node.js 18+** installed
-- **Phoenix** running locally (`pip install arize-phoenix && phoenix serve`) or access to Phoenix Cloud
-- **OpenAI API key** for the LLM calls
-
-The tutorial uses TypeScript with the **Vercel AI SDK**, but the concepts apply to any language or framework.
+- Access to [Phoenix Cloud](https://arize.com/docs/phoenix/phoenix-cloud) or **Phoenix running locally** (`pip install arize-phoenix && phoenix serve`) 
+- **OpenAI API key** for LLM calls
 
 # Let's Get Started
 

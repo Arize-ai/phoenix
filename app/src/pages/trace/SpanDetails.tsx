@@ -49,8 +49,6 @@ import {
   Keyboard,
   LazyTabPanel,
   LinkButton,
-  List,
-  ListItem,
   Loading,
   Modal,
   ModalOverlay,
@@ -64,6 +62,7 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
+import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -77,7 +76,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { useDimensions, useTimeFormatters } from "@phoenix/hooks";
+import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -95,7 +94,10 @@ import {
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  formatContentAsString,
+  safelyParseJSON,
+} from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
@@ -108,6 +110,7 @@ import {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
+import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -372,16 +375,17 @@ export function SpanDetails({
                   title="All Attributes"
                   {...defaultCardProps}
                   titleExtra={attributesContextualHelp}
-                  extra={<CopyToClipboardButton text={span.attributes} />}
                 >
-                  <JSONBlock>{span.attributes}</JSONBlock>
+                  <AttributesJSONBlock attributes={span.attributes} />
                 </Card>
               </View>
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
               <View overflow="auto">
-                <SpanEventsList events={span.events} />
+                <Suspense fallback={<Loading />}>
+                  <SpanEventsList spanId={span.id} />
+                </Suspense>
               </View>
             </LazyTabPanel>
           </Tabs>
@@ -1413,6 +1417,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
+  const normalizedContent = formatContentAsString(messageContent);
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
   const toolCalls = message[MessageAttributePostfixes.tool_calls]
@@ -1496,7 +1501,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   {messageContent ? (
                     <View width="100%">
                       <ConnectedMarkdownBlock>
-                        {messageContent}
+                        {normalizedContent}
                       </ConnectedMarkdownBlock>
                     </View>
                   ) : null}
@@ -1506,7 +1511,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             messageContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
-                  {messageContent}
+                  {normalizedContent}
                 </ConnectedMarkdownBlock>
               </View>
             ) : null}
@@ -1810,9 +1815,8 @@ function SpanIO({ span }: { span: Span }) {
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
-          extra={<CopyToClipboardButton text={span.attributes} />}
         >
-          <JSONBlock>{span.attributes}</JSONBlock>
+          <AttributesJSONBlock attributes={span.attributes} />
         </Card>
       ) : null}
     </Flex>
@@ -1858,7 +1862,7 @@ function CopyToClipboard({
 /**
  * A block of JSON content that is not editable.
  */
-function JSONBlock({
+export function JSONBlock({
   children,
   basicSetup = {},
 }: {
@@ -1934,76 +1938,6 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       assertUnreachable(mimeType);
   }
   return content;
-}
-
-function EmptyIndicator({ text }: { text: string }) {
-  return (
-    <Flex
-      direction="column"
-      alignItems="center"
-      flex="1 1 auto"
-      height="size-2400"
-      justifyContent="center"
-      gap="size-100"
-    >
-      <Text size="L">{text}</Text>
-    </Flex>
-  );
-}
-function SpanEventsList({ events }: { events: Span["events"] }) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (events.length === 0) {
-    return <EmptyIndicator text="No events" />;
-  }
-  return (
-    <List>
-      {events.map((event, idx) => {
-        const isException = event.name === "exception";
-
-        return (
-          <ListItem key={idx}>
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <View flex="none">
-                <div
-                  data-event-type={isException ? "exception" : "info"}
-                  css={css`
-                    &[data-event-type="exception"] {
-                      --px-event-icon-color: var(--ac-global-color-danger);
-                    }
-                    &[data-event-type="info"] {
-                      --px-event-icon-color: var(--ac-global-color-info);
-                    }
-                    .ac-icon-wrap {
-                      color: var(--px-event-icon-color);
-                    }
-                  `}
-                >
-                  <Icon
-                    svg={
-                      isException ? (
-                        <Icons.AlertTriangleOutline />
-                      ) : (
-                        <Icons.InfoOutline />
-                      )
-                    }
-                  />
-                </div>
-              </View>
-              <Flex direction="column" gap="size-25" flex="1 1 auto">
-                <Text weight="heavy">{event.name}</Text>
-                <Text color="text-700">{event.message}</Text>
-              </Flex>
-              <View>
-                <Text color="text-700">
-                  {fullTimeFormatter(new Date(event.timestamp))}
-                </Text>
-              </View>
-            </Flex>
-          </ListItem>
-        );
-      })}
-    </List>
-  );
 }
 
 const attributesContextualHelp = (

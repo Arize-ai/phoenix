@@ -51,9 +51,6 @@ export default defineConfig(() => {
     preview: {
       port: 6006,
     },
-    server: {
-      open: "http://localhost:6006",
-    },
     resolve: {
       alias: {
         "@phoenix": resolve(__dirname, "src"),

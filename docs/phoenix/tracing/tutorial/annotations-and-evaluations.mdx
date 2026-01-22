@@ -13,7 +13,19 @@ In this chapter, you'll learn to
 - **Capture user reactions from your application**. When user's complain, attach that feedback to your data and use it to improve.
 - **Run automated LLM-as-Judge evaluations to find patterns in what's failing**. Scale your analysis over thousands of traces using an LLM, so that you can build confident and data-driven analysis of what improvements need to be made.
 
-> **Follow along with code**: This guide has a companion TypeScript project with runnable examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial).
+**Follow along with code**
+
+Throughout the tutorial we will include key code snippets, but to see the full implementation, check out the companion projects below.
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial">
+    Companion TypeScript project with runnable examples
+  </Card>
+
+  <Card title="Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+</Columns>
 
 # 2.1 Human Annotations in the UI
 
@@ -55,23 +67,48 @@ Let's simulate a thumbs up/thumbs down feature, and then store that as annotatio
 
 To attach feedback to a trace, you need the span ID. Here's how to capture it:
 
-```typescript
-import { trace } from "@opentelemetry/api";
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { trace } from "@opentelemetry/api";
 
-async function handleSupportQuery(userQuery: string) {
-  return tracer.startActiveSpan("support-agent", async (span) => {
-    // Capture the span ID for later feedback
-    const spanId = span.spanContext().spanId;
-    
-    // ... process query ...
-    
-    return {
-      response: "Your order has shipped!",
-      spanId, // Return this to your frontend
-    };
-  });
-}
-```
+    async function handleSupportQuery(userQuery: string) {
+      return tracer.startActiveSpan("support-agent", async (span) => {
+        // Capture the span ID for later feedback
+        const spanId = span.spanContext().spanId;
+        
+        // ... process query ...
+        
+        return {
+          response: "Your order has shipped!",
+          spanId, // Return this to your frontend
+        };
+      });
+    }
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    from opentelemetry import trace
+
+    def handle_support_query(user_query: str):
+        tracer = trace.get_tracer("support-agent")
+        
+        with tracer.start_as_current_span("support-agent") as agent_span:
+            # Capture the span ID for later feedback
+            span_id = format_span_id(agent_span.get_span_context().span_id)
+            
+            # ... process query ...
+            
+            return {
+                "query": user_query,
+                "response": response,
+                "spanId": span_id,
+            }
+    ```
+  </Tab>
+</Tabs>
 
 In a web application, you'd return the `spanId` to your frontend along with the response, then send it back when the user clicks thumbs up/down.
 
@@ -79,39 +116,76 @@ In a web application, you'd return the `spanId` to your frontend along with the 
 
 Install the Phoenix client:
 
-```bash
-npm install @arizeai/phoenix-client
-```
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```bash
+    npm install @arizeai/phoenix-client
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```bash
+    pip install arize-phoenix-client
+    ```
+  </Tab>
+</Tabs>
 
 Then log annotations:
 
-```typescript
-import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 
-// When user clicks thumbs up
-await logSpanAnnotations({
-  spanAnnotations: [{
-    spanId: "abc123...",  // The span ID from your response
-    name: "user_feedback",
-    label: "thumbs-up",
-    score: 1,
-    annotatorKind: "HUMAN",
-    metadata: {
-      source: "web_app",
-      userId: "user_456",
-    },
-  }],
-  sync: true,
-});
-```
+    // When user clicks thumbs up
+    await logSpanAnnotations({
+      spanAnnotations: [{
+        spanId: "abc123...",  // The span ID from your response
+        name: "user_feedback",
+        label: "thumbs-up",
+        score: 1,
+        annotatorKind: "HUMAN",
+        metadata: {
+          source: "web_app",
+          userId: "user_456",
+        },
+      }],
+      sync: true,
+    });
+    ```
+  </Tab>
 
-Run the support agent, where we let you give feedback on the 7 traces and push annotations to Phoenix:
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.client.resources.spans import SpanAnnotationData
+    from phoenix.client import Client
 
-```bash
-pnpm start
-```
+    phoenix_client = Client()
 
-After the agent generates 7 responses, you'll be prompted to rate each one:
+    # When user clicks thumbs up, store the annotation
+    annotations = []
+    if answer in ["y", "1", "yes"]:
+        annotations.append(
+            SpanAnnotationData(
+                name="user_feedback",
+                span_id=resp["spanId"],
+                annotator_kind="HUMAN",
+                result={"label": "thumbs-up", "score": 1.0},
+                metadata={"category": resp["category"], "source": "interactive_tutorial"},
+            )
+        )
+
+    phoenix_client.spans.log_span_annotations(
+        span_annotations=annotations,
+        sync=False,
+    )
+    ```
+  </Tab>
+</Tabs>
+
+Run the support agent, where we let you give feedback on the traces and push annotations to Phoenix:
+
+After the agent generates responses, you'll be prompted to rate each one:
 
 - Enter `y` for thumbs-up (good response)
 - Enter `n` for thumbs-down (bad response)
@@ -127,49 +201,107 @@ Instead of manually clicking through each unhelpful trace, you can automate this
 
 ## Install the Phoenix Evals Package
 
-```bash
-npm install @arizeai/phoenix-evals
-```
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```bash
+    npm install @arizeai/phoenix-evals
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```bash
+    pip install arize-phoenix-evals
+    ```
+  </Tab>
+</Tabs>
 
 ## Tool Result Evaluator
 
 Did the tool call succeed or return an error? This is a simple code-based check:
 
-```typescript
-// Filter for tool spans
-const toolSpans = spans.filter((span) => span.name === "ai.toolCall");
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    // Filter for tool spans
+    const toolSpans = spans.filter((span) => span.name === "ai.toolCall");
 
-for (const span of toolSpans) {
-    const spanId = span.context.span_id;
-    const output = JSON.stringify(span.attributes["output.value"] || "");
+    for (const span of toolSpans) {
+        const spanId = span.context.span_id;
+        const output = JSON.stringify(span.attributes["output.value"] || "");
 
-    // Simple check: does the output contain "error" or "not found"?
-    const hasError = output.toLowerCase().includes("error") || 
-                     output.toLowerCase().includes("not found");
-    
-    const status = hasError ? "❌ ERROR" : "✅ SUCCESS";
-    console.log(`   Tool span ${spanId.substring(0, 8)}... ${status}`);
+        // Simple check: does the output contain "error" or "not found"?
+        const hasError = output.toLowerCase().includes("error") || 
+                         output.toLowerCase().includes("not found");
+        
+        const status = hasError ? "❌ ERROR" : "✅ SUCCESS";
+        console.log(`   Tool span ${spanId.substring(0, 8)}... ${status}`);
 
-    annotations.push({
-      spanId,
-      name: "tool_result",
-      label: hasError ? "error" : "success",
-      score: hasError ? 0 : 1,
-      explanation: hasError ? "Tool returned an error or 'not found' response" : "Tool executed successfully",
-      annotatorKind: "LLM" as const,  // Using "LLM" for consistency, though this is code-based
-      metadata: {
-        evaluator: "tool_result",
-        type: "code",
-      },
-    });
-  }
-```
+        annotations.push({
+          spanId,
+          name: "tool_result",
+          label: hasError ? "error" : "success",
+          score: hasError ? 0 : 1,
+          explanation: hasError ? "Tool returned an error or 'not found' response" : "Tool executed successfully",
+          annotatorKind: "LLM" as const,  // Using "LLM" for consistency, though this is code-based
+          metadata: {
+            evaluator: "tool_result",
+            type: "code",
+          },
+        });
+      }
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    import json
+    from phoenix.client.resources.spans import SpanAnnotationData
+
+    # Filter for tool spans (lookupOrderStatus)
+    tool_spans = [span for span in spans if span.get("name") == "lookupOrderStatus"]
+
+    # Tool Result Evaluator - code-based check
+    tool_annotations = []
+
+    for span in tool_spans:
+        # Access span_id from context
+        context = span.get("context", {})
+        span_id = context.get("span_id", "") if isinstance(context, dict) else ""
+
+        # Access attributes (may be a dict or JSON string)
+        attributes = span.get("attributes", {})
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+
+        output_value = attributes.get("output.value", "")
+
+        # Simple check: does the output contain "error" or "not found"?
+        output_str = json.dumps(output_value) if not isinstance(output_value, str) else output_value
+        has_error = "error" in output_str.lower() or "not found" in output_str.lower()
+
+        tool_annotations.append(
+            SpanAnnotationData(
+                name="tool_result",
+                span_id=span_id,
+                annotator_kind="CODE",
+                result={"label": "error" if has_error else "success", "score": 0.0 if has_error else 1.0},
+                metadata={
+                    "evaluator": "tool_result",
+                    "type": "code",
+                },
+            )
+        )
+    ```
+  </Tab>
+</Tabs>
 
 ## Retrieval Relevance Evaluator
 
 Was the retrieved context actually relevant to the question?
 
-```typescript
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript wrap
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
@@ -225,28 +357,117 @@ for (const span of llmSpans) {
       evaluator: "retrieval_relevance",
     },
   });
-```
+    ```
+  </Tab>
 
-## Push Evaluations
+  <Tab title="Python" icon="python">
+    ```python wrap
+    import json
+    from phoenix.evals import LLM, create_classifier
+    from phoenix.client.resources.spans import SpanAnnotationData
 
-```typescript
-// Step 4: Log annotations to Phoenix
-await logSpanAnnotations({
-  spanAnnotations: annotations,
-  sync: false,  // async mode - Phoenix processes in background
-});
-console.log(`✅ Logged ${annotations.length} evaluation annotations`);
-```
+    # Filter for retrieval spans (RETRIEVER kind) - FAQ retrieval
+    retrieval_spans = [
+        span for span in spans
+        if span.get("span_kind") == "RETRIEVER" or span.get("name") == "faq-retrieval"
+    ]
 
+    # Create an LLM-as-Judge evaluator that determines if retrieved context was relevant
+    llm = LLM(provider="openai", model="gpt-4o-mini")
+
+    retrieval_relevance_evaluator = create_classifier(
+        name="retrieval_relevance",
+        prompt_template="""You are evaluating whether the retrieved context is relevant to answering the user's prompt.
+
+    Classify the retrieval as:
+    - RELEVANT: The context contains information that directly helps answer the question
+    - IRRELEVANT: The context does NOT contain useful information for the question
+
+    You are comparing the "Context" object and the "prompt" object.
+
+    [Context and Prompt]: {input}""",
+        llm=llm,
+        choices={"relevant": 1, "irrelevant": 0},
+    )
+
+    # Evaluate each retrieval span
+    rag_annotations = []
+
+    for span in retrieval_spans:
+        # Access span_id from context
+        context = span.get("context", {})
+        span_id = context.get("span_id", "") if isinstance(context, dict) else ""
+
+        # Access attributes (may be a dict or JSON string)
+        attributes = span.get("attributes", {})
+        if isinstance(attributes, str):
+            attributes = json.loads(attributes)
+
+        # Logic to extract the query and retrieved documents here
+
+        # Build input for evaluator: query + retrieved context
+        context_text = "\n\n".join(documents)
+        evaluation_input = f"Query: {query}\n\nRetrieved Context:\n{context_text}"
+
+        result = retrieval_relevance_evaluator.evaluate({"input": evaluation_input})
+        score_result = result[0] if isinstance(result, list) else result
+
+        rag_annotations.append(
+            SpanAnnotationData(
+                name="retrieval_relevance",
+                span_id=span_id,
+                annotator_kind="LLM",
+                result={
+                    "label": score_result.label,
+                    "score": score_result.score if hasattr(score_result, "score") else (1.0 if score_result.label == "relevant" else 0.0),
+                },
+                metadata={
+                    "model": "gpt-4o-mini",
+                    "evaluator": "retrieval_relevance",
+                },
+            )
+        )
+    ```
+  </Tab>
+</Tabs>
+
+## Log Evaluations to Phoenix
 The full evaluation script in the tutorial handles both evaluators.
+
+
+<Tabs>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    await logSpanAnnotations({
+      spanAnnotations: annotations,
+      sync: false,  // async mode - Phoenix processes in background
+    });
+    ```
+  </Tab>
+
+  <Tab title="Python" icon="python">
+    ```python
+    all_eval_annotations = tool_annotations + rag_annotations
+
+    phoenix_client.spans.log_span_annotations(
+        span_annotations=all_eval_annotations,
+        sync=False,
+    )
+    ```
+  </Tab>
+</Tabs>
+
 
 ## Run the Evaluation Script
 
-The tutorial includes a complete [evaluation script](https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/evaluate-traces.ts):
+<Columns cols={2}>
+  <Card title="Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/tracing/ts-tutorial/evaluate-traces.ts">
+    Run evaluation script using `pnpm evaluate`
+  </Card>
 
-```bash
-pnpm evaluate
-```
+  <Card title="Complete Python Tutorial" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/python_tracing_quickstart.ipynb">
+  </Card>
+</Columns>
 
 This will:
 

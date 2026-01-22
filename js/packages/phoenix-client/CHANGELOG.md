@@ -1,5 +1,35 @@
 # @arizeai/phoenix-client
 
+## 5.8.0
+
+### Minor Changes
+
+- af4dc46: Add prompt introspection commands to Phoenix CLI
+  - `px prompts`: List all available prompts with names and descriptions
+  - `px prompt <identifier>`: Show a specific prompt with support for `--tag` and `--version` options
+  - `--format text`: Output prompt content with XML-style role tags for piping to AI assistants like Claude Code
+  - Pretty print now includes full tool definitions with parameters, types, and descriptions
+  - Added `listPrompts` function to phoenix-client
+
+## 5.7.0
+
+### Minor Changes
+
+- 01eb1fb: feat: Add spanId support for linking dataset examples to traces
+  - Added `spanId` field to the `Example` interface for linking dataset examples back to their source spans
+  - Updated `createDataset` to accept examples with `spanId` and pass them to the API
+  - Updated `appendDatasetExamples` to accept examples with `spanId` and pass them to the API
+  - Added comprehensive unit tests for span ID functionality
+  - Added example script demonstrating how to create datasets from spans with trace associations
+
+  This feature enables traceability from datasets back to the original traces in Phoenix, making it easier to understand the provenance of dataset examples.
+
+## 5.6.1
+
+### Patch Changes
+
+- ed59696: feat: Bump generated api schema
+
 ## 5.6.0
 
 ### Minor Changes

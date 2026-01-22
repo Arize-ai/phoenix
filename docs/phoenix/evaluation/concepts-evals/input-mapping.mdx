@@ -54,7 +54,7 @@ const evalInput: EvalInput = {
 
 We want to run two evaluators over this example:
 
-* `Hallucination`, which requires `query`, `context`, and `response`
+* `Faithfulness`, which requires `input`, `context`, and `output`
 * `exact_match`, which requires `expected` and `output`
 
 Rather than modifying our data to fit the two evaluators, we make the evaluators fit the data.
@@ -66,7 +66,7 @@ Binding an `input_mapping` enables the evaluators to run on the same payload - t
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
-# define an input_mapping to map inputs required by hallucination evaluator to our data
+# define an input_mapping to map inputs required by faithfulness evaluator to our data
 input_mapping = {
     "input": "input.query",  # dot notation to access nested keys
     "output": "output.responses[0]",  # brackets to access list elements
@@ -75,13 +75,13 @@ input_mapping = {
     ),  # lambda function to combine the document chunks
 }
 # the evaluator uses the input_mapping to transform the eval_input into the expected input schema
-result = hallucination_evaluator.evaluate(eval_input, input_mapping)
+result = faithfulness_evaluator.evaluate(eval_input, input_mapping)
 ```
 </Tab>
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { bindEvaluator, createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 type EvalInput = {
@@ -93,14 +93,14 @@ type EvalInput = {
   expected: string;
 };
 
-// Define an input mapping to map inputs required by hallucination evaluator to our data
+// Define an input mapping to map inputs required by faithfulness evaluator to our data
 const evaluator = bindEvaluator<EvalInput>(
-  createHallucinationEvaluator({ model: openai("gpt-4") }),
+  createFaithfulnessEvaluator({ model: openai("gpt-4") }),
   {
     inputMapping: {
       input: "input.query",  // dot notation to access nested keys
       output: "output.response",  // dot notation to access nested keys
-      reference: (data) => data.input.documents.join(" "),  // function to combine document chunks
+      context: (data) => data.input.documents.join(" "),  // function to combine document chunks
     },
   }
 );
@@ -239,16 +239,16 @@ Python Evaluators use Pydantic models for input validation and type safety. Most
 from pydantic import BaseModel
 from typing import List
 
-class HallucinationInput(BaseModel):
-    query: str
+class FaithfulnessInput(BaseModel):
+    input: str
     context: List[str]
-    response: str
+    output: str
 
-evaluator = HallucinationEvaluator(
-    name="hallucination",
+evaluator = FaithfulnessEvaluator(
+    name="faithfulness",
     llm=llm,
     prompt_template="...",
-    input_schema=HallucinationInput
+    input_schema=FaithfulnessInput
 )
 ```
 
@@ -261,11 +261,11 @@ LLM evaluators infer schemas from prompt templates:
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
-# This creates a schema with required str fields: query, context, response
+# This creates a schema with required str fields: input, context, output
 evaluator = LLMEvaluator(
-    name="hallucination",
+    name="faithfulness",
     llm=llm,
-    prompt_template="Query: {query}\nContext: {context}\nResponse: {response}"
+    prompt_template="Query: {input}\nContext: {context}\nResponse: {output}"
 )
 ```
 </Tab>
@@ -401,7 +401,7 @@ scores = bound_evaluator({
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { bindEvaluator, createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 type EvalInput = {
@@ -414,11 +414,11 @@ type EvalInput = {
 
 // Create a bound evaluator with fixed mapping
 const boundEvaluator = bindEvaluator<EvalInput>(
-  createHallucinationEvaluator({ model: openai("gpt-4") }),
+  createFaithfulnessEvaluator({ model: openai("gpt-4") }),
   {
     inputMapping: {
       input: "input.query",
-      reference: "input.documents",
+      context: "input.documents",
       output: "output.answer",
     },
   }

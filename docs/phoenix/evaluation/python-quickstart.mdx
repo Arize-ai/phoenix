@@ -7,7 +7,7 @@ Now that you have Phoenix up and running, and sent traces to your first project,
 
 <Steps>
   <Step title={<span className="step-title">Launch Phoenix</span>}>
-    Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started) & [Get Started with Tracing guide](./get-started-tracing).
+    Before running evals, make sure Phoenix is running & you have sent traces in your project. For more step by step instructions, check out this [Get Started guide](/docs/phoenix/get-started) & [Get Started with Tracing guide](/docs/phoenix/get-started/get-started-tracing).
 
     <Tabs>
       <Tab title="Phoenix Cloud">
@@ -42,236 +42,113 @@ Now that you have Phoenix up and running, and sent traces to your first project,
   <Step title={<span className="step-title">Install Phoenix Evals</span>}>
     You'll need to install the evals library that's apart of Phoenix.
 
-    <Tabs>
-      <Tab title="Python" icon="python">
-        ```bash
-        pip install -q "arize-phoenix-evals>=2"
-        pip install -q "arize-phoenix-client"
-        ```
-      </Tab>
-
-      <Tab title="TypeScript" icon="js">
-        ```bash
-        npm install @arizeai/phoenix-evals @arizeai/phoenix-client
-        ```
-      </Tab>
-    </Tabs>
+    ```bash
+    pip install -q "arize-phoenix-evals>=2"
+    pip install -q "arize-phoenix-client"
+    ```
   </Step>
 
   <Step title={<span className="step-title">Pull down your Trace Data</span>}>
     Since, we are running our evaluations on our trace data from our first project, we'll need to pull that data into our code.
 
-    <Tabs>
-      <Tab title="Python" icon="python">
-        ```python
-        from phoenix.client import Client
+    ```python
+    from phoenix.client import Client
 
-        px_client = Client()
-        primary_df = px_client.spans.get_spans_dataframe(project_identifier="my-llm-app")
-        ```
-      </Tab>
-
-      <Tab title="TypeScript" icon="js">
-        ```typescript
-        import { getSpans } from "@arizeai/phoenix-client/spans";
-
-        // Simple: Get first batch of spans (most common use case)
-        const { spans } = await getSpans({
-          project: { projectName: "my-llm-app" },
-          limit: 100,
-        });
-
-        // Full: Get ALL spans with pagination
-        const allSpans = [];
-        let cursor: string | undefined;
-
-        do {
-          const result = await getSpans({
-            project: { projectName: "my-llm-app" },
-            cursor,
-            limit: 100,
-          });
-          allSpans.push(...result.spans);
-          cursor = result.nextCursor ?? undefined;
-        } while (cursor);
-        ```
-      </Tab>
-    </Tabs>
+    px_client = Client()
+    primary_df = px_client.spans.get_spans_dataframe(project_identifier="my-llm-app")
+    ```
   </Step>
 
   <Step title={<span className="step-title">Set Up Evaluations</span>}>
     In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through an LLM as a Judge Model.
 
-        **1) Define your LLM Judge Model**
+    **1) Define your LLM Judge Model**
 
-        We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/).
+    We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/).
 
-        If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
+    If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
 
-        <Tabs>
-          <Tab title="Python" icon="python">
-            ```python
-            import os
-            from getpass import getpass
+    ```python
+    import os
+    from getpass import getpass
 
-            if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-                openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
+    if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
+        openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
 
-            os.environ["OPENAI_API_KEY"] = openai_api_key
+    os.environ["OPENAI_API_KEY"] = openai_api_key
 
-            from phoenix.evals.llm import LLM
-            llm = LLM(model="gpt-4o", provider="openai")
-            ```
-          </Tab>
+    from phoenix.evals.llm import LLM
+    llm = LLM(model="gpt-4o", provider="openai")
+    ```
 
-          <Tab title="TypeScript" icon="js">
-            ```typescript
-            // pnpm add @ai-sdk/openai
+    **2) Define your Evaluators**
 
-            import { createOpenAI } from "@ai-sdk/openai";
+    We will set up a Q&A correctness Evaluator with the LLM of choice. I want to first define my LLM-as-a-Judge prompt template. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels.
 
-            const openai = createOpenAI({
-              apiKey: process.env.OPENAI_API_KEY || "your-api-key-here",
-            });
+    ```python
+    CORRECTNESS_TEMPLATE = """
+    You are given a question and an answer. Decide if the answer is fully correct.
+    Rules: The answer must be factually accurate, complete, and directly address the question.
+    If it is, respond with "correct". Otherwise respond with "incorrect".
+    [BEGIN DATA]
+        ************
+        [Question]: {attributes.llm.input_messages}
+        ************
+        [Answer]: {attributes.llm.output_messages}
+    [END DATA]
 
-            const llm = openai("gpt-4o");
-            ```
+    Your response must be a single word, either "correct" or "incorrect",
+    and should not contain any text or characters aside from that word.
+    "correct" means that the question is correctly and fully answered by the answer.
+    "incorrect" means that the question is not correctly or only partially answered by the
+    answer.
+    """
+    ```
 
+    Now we want to define our Classification Evaluator
 
-        **2) Define your Evaluators**
+    ```python
+    from phoenix.evals import create_classifier
 
-        We will set up a Q&A correctness Evaluator with the LLM of choice. I want to first define my LLM-as-a-Judge prompt template. Most LLM-as-a-judge evaluations can be framed as a classification task where the output is one of two or more categorical labels.
-
-        <Tabs>
-          <Tab title="Python" icon="python">
-            ```python
-            CORRECTNESS_TEMPLATE = """ 
-            You are given a question and an answer. Decide if the answer is fully correct. 
-            Rules: The answer must be factually accurate, complete, and directly address the question. 
-            If it is, respond with "correct". Otherwise respond with "incorrect". 
-            [BEGIN DATA]
-                ************
-                [Question]: {attributes.llm.input_messages}
-                ************
-                [Answer]: {attributes.llm.output_messages}
-            [END DATA]
-
-            Your response must be a single word, either "correct" or "incorrect",
-            and should not contain any text or characters aside from that word.
-            "correct" means that the question is correctly and fully answered by the answer.
-            "incorrect" means that the question is not correctly or only partially answered by the
-            answer.
-            """
-            ```
-          </Tab>
-
-          <Tab title="TypeScript" icon="js">
-            ```typescript
-            const CORRECTNESS_TEMPLATE = `
-            You are given a question and an answer. Decide if the answer is fully correct.
-            Rules: The answer must be factually accurate, complete, and directly address the question.
-            If it is, respond with "correct". Otherwise respond with "incorrect".
-
-            [BEGIN DATA]
-                ************
-                [Question]: {{attributes.llm.input_messages}}
-                ************
-                [Answer]: {{attributes.llm.output_messages}}
-            [END DATA]
-
-            Your response must be a single word, either "correct" or "incorrect",
-            and should not contain any text or characters aside from that word.
-            "correct" means that the question is correctly and fully answered by the answer.
-            "incorrect" means that the question is not correctly or only partially answered by the
-            answer.
-            `;
-            ```
-          </Tab>
-        </Tabs>
-
-        Now we want to define our Classification Evaluator
-
-        <Tabs>
-          <Tab title="Python" icon="python">
-            ```python
-            from phoenix.evals import create_classifier
-
-            correctness_evaluator = create_classifier(
-                name="correctness",
-                prompt_template=CORRECTNESS_TEMPLATE,
-                llm=llm,
-                choices={"correct": 1.0, "incorrect": 0.0},
-            )
-            ```
-          </Tab>
-
-          <Tab title="TypeScript" icon="js">
-            ```typescript
-            import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-
-            const correctnessEvaluator = createClassificationEvaluator({
-              name: "correctness",
-              promptTemplate: CORRECTNESS_TEMPLATE,
-              model: llm,
-              choices: { correct: 1.0, incorrect: 0.0 },
-            });
-            ```
-          </Tab>
-        </Tabs>
-      </Tab>
-
-    </Tabs>
+    correctness_evaluator = create_classifier(
+        name="correctness",
+        prompt_template=CORRECTNESS_TEMPLATE,
+        llm=llm,
+        choices={"correct": 1.0, "incorrect": 0.0},
+    )
+    ```
   </Step>
 
   <Step title={<span className="step-title">Run Evaluation</span>}>
     Now that we have defined our evaluator, we're ready to evaluate our traces.
 
-    <Tabs>
-      <Tab title="Python" icon="python">
-        ```python
-        from phoenix.evals import evaluate_dataframe
+    ```python
+    from phoenix.evals import evaluate_dataframe
 
-        results_df = evaluate_dataframe(
-            dataframe=primary_df,
-            evaluators=[correctness_evaluator]
-        )
-        ```
-      </Tab>
-    </Tabs>
+    results_df = evaluate_dataframe(
+        dataframe=primary_df,
+        evaluators=[correctness_evaluator]
+    )
+    ```
   </Step>
 
   <Step title={<span className="step-title">Log results to Visualize in Phoenix</span>}>
     You'll now be able to log your evaluations in your project view.
 
-    <Tabs>
-      <Tab title="Python" icon="python">
-        ```python
-        px_client.log_span_annotations(
-            dataframe=results_df,
-            annotation_name="QA Correctness",
-            annotator_kind="LLM"
-        )
-        ```
-      </Tab>
+    First, format the evaluation results for logging using the `to_annotation_dataframe` utility:
 
-      <Tab title="TypeScript" icon="js">
-        ```typescript
-        import { logSpanAnnotations } from "@arizeai/phoenix-client/annotations";
+    ```python
+    from phoenix.evals.utils import to_annotation_dataframe
 
-        await logSpanAnnotations({
-          spanAnnotations: results
-            .filter((r) => r.label !== undefined)
-            .map((r) => ({
-              spanId: r.spanId,
-              name: "QA Correctness",
-              label: r.label,
-              score: r.score,
-              annotatorKind: "LLM" as const,
-            })),
-        });
-        ```
-      </Tab>
-    </Tabs>
+    # Format evaluation results for logging
+    annotations_df = to_annotation_dataframe(results_df)
+    ```
+
+    Then log the annotations to Phoenix:
+
+    ```python
+    px_client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
+    ```
   </Step>
 </Steps>
 

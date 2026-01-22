@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "1.27.1"
+version = "1.28.0"
 dependencies = [
   "httpx",
   "tqdm",

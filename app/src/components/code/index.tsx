@@ -1,5 +1,7 @@
+export * from "./PreBlock";
 export * from "./JSONEditor";
 export * from "./JSONBlock";
+export * from "./AttributesJSONBlock";
 export * from "./PythonBlock";
 export * from "./PythonBlockWithCopy";
 export * from "./CodeWrap";

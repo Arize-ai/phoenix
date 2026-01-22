@@ -1,0 +1,46 @@
+# Phoenix Helm values for testing ROLE_ATTRIBUTE_PATH in K8s
+auth:
+  enabled: true
+  secret:
+    - key: "PHOENIX_SECRET"
+      value: "phoenix-secret-abc-123-for-development-only-not-secure"
+    - key: "PHOENIX_POSTGRES_PASSWORD"
+      value: "postgres"
+
+# Use the OIDC dev Postgres for Phoenix as well
+postgresql:
+  enabled: false
+
+database:
+  postgres:
+    host: "postgres"
+    port: 5432
+    db: "postgres"
+    user: "postgres"
+    password: "postgres"
+
+additionalEnv:
+  - name: PHOENIX_OAUTH2_DEV_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: phoenix-oauth-test
+        key: PHOENIX_OAUTH2_DEV_CLIENT_ID
+  - name: PHOENIX_OAUTH2_DEV_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: phoenix-oauth-test
+        key: PHOENIX_OAUTH2_DEV_CLIENT_SECRET
+  - name: PHOENIX_OAUTH2_DEV_OIDC_CONFIG_URL
+    valueFrom:
+      secretKeyRef:
+        name: phoenix-oauth-test
+        key: PHOENIX_OAUTH2_DEV_OIDC_CONFIG_URL
+  - name: PHOENIX_OAUTH2_DEV_ROLE_ATTRIBUTE_PATH
+    valueFrom:
+      secretKeyRef:
+        name: phoenix-oauth-test
+        key: PHOENIX_OAUTH2_DEV_ROLE_ATTRIBUTE_PATH
+  - name: PHOENIX_OAUTH2_DEV_DISPLAY_NAME
+    value: "OIDC Dev"
+  - name: PHOENIX_OAUTH2_DEV_ALLOW_SIGN_UP
+    value: "true"

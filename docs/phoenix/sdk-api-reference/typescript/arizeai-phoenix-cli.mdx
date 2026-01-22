@@ -1,0 +1,454 @@
+---
+title: "@arizeai/phoenix-cli"
+description: Command-line interface for retrieving trace data from Arize Phoenix projects.
+---
+
+<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline'/></a>
+
+<Card
+  horizontal
+  title="phoenix/js/packages/phoenix-cli at main · Arize-ai/phoenix"
+  href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli"
+  icon="github"
+>
+  GitHub
+</Card>
+
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+
+You can use Phoenix CLI for:
+
+* **Immediate Debugging**: Fetch the most recent trace of a failed or unexpected run with a single command
+* **Bulk Export**: Export large numbers of traces or experiment results to JSON files for offline analysis
+* **Dataset & Experiment Access**: List datasets and retrieve full experiment data including runs, evaluations, and trace IDs
+* **Prompt Introspection**: View and export prompt templates for analysis, optimization, or use with other tools
+* **Terminal Workflows**: Integrate trace and experiment data into your existing tools, piping output to Unix utilities like `jq`
+* **AI Coding Assistants**: Use with Claude Code, Cursor, Windsurf, or other AI-powered tools to analyze traces, experiments, and optimize prompts
+
+Don't see a use-case covered? `@arizeai/phoenix-cli` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or run directly with npx:
+
+```bash
+npx @arizeai/phoenix-cli
+```
+
+## Quick Start
+
+```bash
+# Configure your Phoenix instance
+export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_PROJECT=my-project
+export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
+
+# Fetch the most recent trace
+px traces --limit 1
+
+# Fetch a specific trace by ID
+px trace abc123def456
+
+# Export traces to a directory
+px traces ./my-traces --limit 50
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
+| `PHOENIX_PROJECT` | Project name or ID |
+| `PHOENIX_API_KEY` | API key for authentication (if required) |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
+
+CLI flags take priority over environment variables.
+
+## Commands
+
+### `px projects`
+
+List all available projects.
+
+```bash
+px projects
+px projects --format raw  # JSON output for piping
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum projects to fetch per page | 100 |
+
+### `px traces [directory]`
+
+Fetch recent traces from the configured project.
+
+```bash
+px traces --limit 10                          # Output to stdout
+px traces ./my-traces --limit 10              # Save to directory
+px traces --last-n-minutes 60 --limit 20      # Filter by time
+px traces --since 2026-01-13T10:00:00Z        # Since timestamp
+px traces --format raw --no-progress | jq     # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[directory]` | Save traces as JSON files to directory | stdout |
+| `-n, --limit <number>` | Number of traces to fetch (newest first) | 10 |
+| `--last-n-minutes <number>` | Only fetch traces from the last N minutes | — |
+| `--since <timestamp>` | Fetch traces since ISO timestamp | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress output | — |
+| `--max-concurrent <number>` | Maximum concurrent fetches | 10 |
+
+### `px trace <trace-id>`
+
+Fetch a specific trace by ID.
+
+```bash
+px trace abc123def456
+px trace abc123def456 --file trace.json      # Save to file
+px trace abc123def456 --format raw | jq      # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px datasets`
+
+List all available datasets.
+
+```bash
+px datasets
+px datasets --format json                    # JSON output
+px datasets --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of datasets | — |
+
+### `px dataset <dataset-identifier>`
+
+Fetch examples from a dataset.
+
+```bash
+px dataset query_response                        # Fetch all examples
+px dataset query_response --split train          # Filter by split
+px dataset query_response --split train --split test  # Multiple splits
+px dataset query_response --version <version-id> # Specific version
+px dataset query_response --file dataset.json    # Save to file
+px dataset query_response --format raw | jq '.examples[].input'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--split <name>` | Filter by split (can be used repeatedly) | — |
+| `--version <id>` | Fetch from specific dataset version | latest |
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px experiments --dataset <name-or-id>`
+
+List experiments for a dataset, optionally exporting full data to files.
+
+```bash
+px experiments --dataset my-dataset                 # List experiments
+px experiments --dataset my-dataset --format json   # JSON output
+px experiments --dataset my-dataset ./experiments   # Export to directory
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--dataset <name-or-id>` | Dataset name or ID (required) | — |
+| `[directory]` | Export experiment JSON files to directory | stdout |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of experiments | — |
+
+### `px experiment <experiment-id>`
+
+Fetch a single experiment with all run data, including inputs, outputs, evaluations, and trace IDs.
+
+```bash
+px experiment RXhwZXJpbWVudDox
+px experiment RXhwZXJpbWVudDox --file exp.json   # Save to file
+px experiment RXhwZXJpbWVudDox --format json     # JSON output
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px prompts`
+
+List all available prompts.
+
+```bash
+px prompts
+px prompts --format json                    # JSON output
+px prompts --format raw --no-progress | jq  # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+| `--limit <number>` | Maximum number of prompts | — |
+
+### `px prompt <prompt_identifier>`
+
+Show a Phoenix prompt. Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
+
+```bash
+px prompt my-assistant-prompt                    # Latest version (pretty)
+px prompt my-assistant-prompt --tag production   # Get by tag
+px prompt my-assistant-prompt --version abc123   # Specific version
+px prompt my-assistant-prompt --format json      # JSON output
+px prompt my-assistant-prompt --format text      # Plain text for piping
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tag <name>` | Get prompt version by tag name | — |
+| `--version <id>` | Get specific prompt version by ID | latest |
+| `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+The `text` format outputs prompt content with XML-style role tags, ideal for piping to AI assistants:
+
+```xml
+<system>You are a helpful assistant specialized in...</system>
+<user>{{user_input}}</user>
+```
+
+## Output Formats
+
+**`pretty`** (default) — Human-readable tree view:
+
+```
+┌─ Trace: abc123def456
+│
+│  Input: What is the weather in San Francisco?
+│  Output: The weather is currently sunny...
+│
+│  Spans:
+│  └─ ✓ agent_run (CHAIN) - 1250ms
+│     ├─ ✓ llm_call (LLM) - 800ms
+│     └─ ✓ tool_execution (TOOL) - 400ms
+└─
+```
+
+**`json`** — Formatted JSON with indentation.
+
+**`raw`** — Compact JSON for piping to `jq` or other tools.
+
+## JSON Structure
+
+```json
+{
+  "traceId": "abc123def456",
+  "spans": [
+    {
+      "name": "chat_completion",
+      "context": {
+        "trace_id": "abc123def456",
+        "span_id": "span-1"
+      },
+      "span_kind": "LLM",
+      "parent_id": null,
+      "start_time": "2026-01-17T10:00:00.000Z",
+      "end_time": "2026-01-17T10:00:01.250Z",
+      "status_code": "OK",
+      "attributes": {
+        "llm.model_name": "gpt-4",
+        "llm.token_count.prompt": 512,
+        "llm.token_count.completion": 256,
+        "input.value": "What is the weather?",
+        "output.value": "The weather is sunny..."
+      }
+    }
+  ],
+  "rootSpan": { ... },
+  "startTime": "2026-01-17T10:00:00.000Z",
+  "endTime": "2026-01-17T10:00:01.250Z",
+  "duration": 1250,
+  "status": "OK"
+}
+```
+
+Spans include [OpenInference](https://github.com/Arize-ai/openinference) semantic attributes like `llm.model_name`, `llm.token_count.*`, `input.value`, `output.value`, `tool.name`, and `exception.*`.
+
+## Examples
+
+### Debug failed traces
+
+```bash
+px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+```
+
+### Find slowest traces
+
+```bash
+px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+```
+
+### Extract LLM models used
+
+```bash
+px traces --limit 50 --format raw --no-progress | \
+  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
+```
+
+### Count errors
+
+```bash
+px traces --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
+```
+
+### List datasets and experiments
+
+```bash
+# List all datasets
+px datasets --format raw --no-progress | jq '.[].name'
+# Output: "query_response"
+
+# List experiments for a dataset
+px experiments --dataset query_response --format raw --no-progress | \
+  jq '.[] | {id, successful_run_count, failed_run_count}'
+# Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
+
+# Export all experiment data for a dataset to a directory
+px experiments --dataset query_response ./experiments/
+```
+
+### Analyze experiment results
+
+```bash
+# Get input queries and latency from an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | {query: .input.query, latency_ms, trace_id}'
+
+# Find failed runs in an experiment
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | select(.error != null) | {query: .input.query, error}'
+# Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
+
+# Calculate average latency across runs
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '[.[].latency_ms] | add / length'
+```
+
+### Work with prompts
+
+```bash
+# List all prompts
+px prompts --format raw --no-progress | jq '.[].name'
+
+# Get prompt template content
+px prompt my-evaluator --format text --no-progress
+
+# View prompt with all metadata
+px prompt my-evaluator --format json --no-progress | jq '.template'
+
+# Get a specific tagged version
+px prompt my-evaluator --tag production --format text --no-progress
+```
+
+## Use with AI Coding Assistants
+
+Phoenix CLI is designed to work seamlessly with AI coding assistants like Claude Code, Cursor, and Windsurf.
+
+### Claude Code
+
+Ask Claude Code:
+
+```
+Use px to fetch the last 3 traces from my Phoenix project and analyze them for potential improvements
+```
+
+Claude Code will discover the CLI via `px --help` and fetch your traces for analysis.
+
+#### Prompt Optimization with Claude Code
+
+Pipe your Phoenix prompts directly to Claude Code for analysis and optimization suggestions:
+
+```bash
+# Get prompt optimization ideas
+px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt and suggest improvements for clarity and effectiveness"
+
+# Analyze prompt for edge cases
+px prompt my-assistant --format text --no-progress | claude -p "What edge cases might this prompt fail to handle?"
+
+# Generate test cases for a prompt
+px prompt my-classifier --format text --no-progress | claude -p "Generate 5 diverse test inputs to evaluate this prompt"
+```
+
+You can also ask Claude Code to work with your prompts interactively:
+
+```
+Fetch my "correctness-evaluator" prompt from Phoenix and suggest how to make the rubric more specific
+```
+
+### Cursor / Windsurf
+
+Run the CLI in the terminal and ask the AI to interpret:
+
+```
+Fetch my recent Phoenix traces using px and explain what my agent is doing
+```
+
+For prompt work:
+
+```
+List my Phoenix prompts with px and help me improve the system prompt for my assistant
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Retrieve Traces via CLI" icon="terminal" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli">
+    User guide for fetching traces from the command line
+  </Card>
+  <Card title="@arizeai/phoenix-client" icon="code" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client">
+    TypeScript client for the Phoenix API
+  </Card>
+</CardGroup>
+
+## License
+
+Apache 2.0

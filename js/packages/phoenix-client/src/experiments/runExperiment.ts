@@ -48,7 +48,6 @@ import {
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
 
-import assert from "assert";
 import { queue } from "async";
 import invariant from "tiny-invariant";
 
@@ -181,7 +180,7 @@ export async function runExperiment({
   diagLogLevel,
 }: RunExperimentParams): Promise<RanExperiment> {
   // Validation
-  assert(
+  invariant(
     isValidRepetitionParam(repetitions),
     "repetitions must be an integer greater than 0"
   );
@@ -416,7 +415,7 @@ function runTaskWithExamples({
   repetitions?: number;
 }): Promise<void> {
   // Validate the input
-  assert(
+  invariant(
     isValidRepetitionParam(repetitions),
     "repetitions must be an integer greater than 0"
   );

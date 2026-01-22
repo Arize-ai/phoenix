@@ -1,0 +1,71 @@
+---
+title: "Iterating with Experiments in Your Workflow"
+description: "Learn how to use experiments to systematically validate changes to your AI application and compare different versions over time."
+---
+
+<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+
+Once experiments are defined, they can be integrated into your development workflow as a systematic way to validate changes to your application. In practice, this means updating the underlying code that your experiment task calls—such as prompt changes, model swaps, retrieval logic, or system configuration—and then rerunning the experiment to observe how those changes affect evaluation metrics.
+
+Because experiments in Phoenix are tied to a fixed dataset and evaluation setup, you can clearly see how metrics evolve as your system changes. This allows you to compare results across runs and identify whether a change led to an improvement, a regression, or a tradeoff across different quality dimensions.
+
+Over time, this creates a measurable history of how your application has evolved and helps teams make decisions based on data rather than intuition.
+
+# Iterating on Your Agent
+
+Let's demonstrate this workflow by creating an improved version of our support agent with enhanced instructions to improve actionability, then running an experiment to compare it against the initial experiment.
+
+# Create an Improved Agent
+
+We'll create a new version of the agent with enhanced instructions that emphasize specific, actionable responses. The key change is in the `instructions` parameter in the agent's prompt.
+
+For the complete implementation including the task function, see the [reference notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb).
+
+# Run Another Experiment
+
+Run an experiment with the improved agent using the same dataset and evaluator to compare performance:
+
+```python
+# Run experiment with improved agent to compare actionability scores
+from phoenix.experiments import run_experiment
+
+# Get the dataset 
+improved_experiment = run_experiment(
+    dataset,
+    improved_support_agent_task,
+    evaluators=[call_actionability_judge],
+    experiment_name="improved support agent",
+    experiment_description="Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps"
+)
+```
+
+With the improved prompt, the evaluator scores should be higher compared to the initial experiment, indicating better actionability and helpfulness.
+
+![Improved Agent Experiment with LLM as a Judge Evals](https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiment_quickstart_improved_prompt.png)
+
+# Comparing Experiments
+
+After running both experiments, you can compare the results in the Phoenix UI. To compare experiments:
+
+1. Navigate to the **Experiments** page in Phoenix
+2. Select the experiments you want to compare by checking the boxes next to their names
+3. Click the **Compare** button in the toolbar
+4. The comparison view will open, showing side-by-side output and metrics for each experiment
+
+The experiment comparison view allows you to:
+
+- See side-by-side metrics, outputs, and evaluation scores for each experiment
+- Identify which examples improved or regressed
+- Understand the tradeoffs between different quality dimensions
+
+<Frame caption="Compare Experiments">
+  <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiment_quickstart_compare_experiments.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+</Frame>
+
+# Next Steps
+
+You've now learned the fundamentals of running experiments with Phoenix. Explore advanced experiment features to enhance your evaluation workflow:
+
+<Card title="Using Repetitions in Experiments" icon="repeat" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions" />
+<Card title="Custom Evaluators" icon="wand-magic-sparkles" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators" />
+<Card title="Dataset Splits" icon="layer-group" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits" />

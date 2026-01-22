@@ -5,14 +5,12 @@ import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface DocumentRelevanceEvaluatorArgs<
-  RecordType extends Record<
-    string,
-    unknown
-  > = DocumentRelevanceEvaluationRecord,
+  RecordType extends Record<string, unknown> =
+    DocumentRelevanceEvaluationRecord,
 > extends Omit<
-    CreateClassificationEvaluatorArgs<RecordType>,
-    "promptTemplate" | "choices" | "optimizationDirection" | "name"
-  > {
+  CreateClassificationEvaluatorArgs<RecordType>,
+  "promptTemplate" | "choices" | "optimizationDirection" | "name"
+> {
   optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
   name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
   choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
@@ -55,10 +53,8 @@ export interface DocumentRelevanceEvaluationRecord {
  * ```
  */
 export function createDocumentRelevanceEvaluator<
-  RecordType extends Record<
-    string,
-    unknown
-  > = DocumentRelevanceEvaluationRecord,
+  RecordType extends Record<string, unknown> =
+    DocumentRelevanceEvaluationRecord,
 >(
   args: DocumentRelevanceEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {

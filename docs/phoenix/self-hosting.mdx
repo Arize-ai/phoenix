@@ -3,233 +3,100 @@ title: "Self-Hosting"
 description: How to self-host a Phoenix instance
 ---
 
-To begin using Phoenix, you can either run it locally or launch a Phoenix Cloud instance.
+Phoenix is **free to self-host** with no feature limitations. Your data stays entirely within your infrastructure—nothing is sent to Arize and can be fully air-gapped.
 
-For most first time users, trying out a [Phoenix cloud account](/docs/phoenix/phoenix-cloud) is the simplest option.
-
-<Columns cols={2}>
-  <Card
-    title="As a Container"
-    href="#run-phoenix-using-docker"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-container-icon.png"
-  >
-    Self-host your own Phoenix
+<CardGroup cols={3}>
+  <Card title="100% Free" icon="gift" href="/docs/phoenix/self-hosting/license">
+    No license fees, no usage limits, no feature gates
   </Card>
-  <Card
-    title="From the Terminal"
-    href="#run-phoenix-through-your-terminal"
-    img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-local-icon.png"
-  >
-    Run Phoenix via the CLI on your local machine
+  <Card title="Complete Privacy" icon="shield-check" href="/docs/phoenix/self-hosting/security/privacy">
+    Your traces, prompts, and data never leave your infrastructure
   </Card>
-</Columns>
+  <Card title="Full Featured" icon="sparkles" href="/docs/phoenix/user-guide">
+    Tracing, evals, datasets, experiments, prompt management
+  </Card>
+</CardGroup>
 
 <Tip>
-**Phoenix is free to self-host.** Deploy on Docker, Kubernetes, Helm, AWS, Railway, and more. See the [Phoenix Deployment Options Guide](/docs/phoenix/phoenix-deployment-options) for all deployment options.
+**New to Phoenix?** Try [Phoenix Cloud](/docs/phoenix/phoenix-cloud) to get started instantly without any setup, then self-host when you're ready for production.
 </Tip>
 
-# Run Phoenix through your Terminal
+## Choose Your Deployment
 
-Running Phoenix through your terminal is the fastest way to get Phoenix up and running locally.
+<CardGroup cols={3}>
+  <Card title="Terminal" href="/docs/phoenix/self-hosting/deployment-options/terminal" icon="terminal">
+    Run via CLI
+  </Card>
+  <Card title="Docker" href="/docs/phoenix/self-hosting/deployment-options/docker" icon="docker">
+    Docker or Compose
+  </Card>
+  <Card title="Kubernetes" href="/docs/phoenix/self-hosting/deployment-options/kubernetes" icon="rocket-launch">
+    Deploy on K8s
+  </Card>
+  <Card title="Helm" href="/docs/phoenix/self-hosting/deployment-options/kubernetes-helm" icon="dharmachakra">
+    Helm charts
+  </Card>
+  <Card title="AWS" href="/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation" icon="aws">
+    CloudFormation
+  </Card>
+  <Card title="Railway" href="/docs/phoenix/self-hosting/deployment-options/railway" icon="train">
+    One-click deploy
+  </Card>
+</CardGroup>
 
-<Steps>
-  <Step title={<span className="step-title">Install the Phoenix Library</span>}>
-    Run the following command in your terminal to install Phoenix:
+## Configure Your Instance
 
-    `pip install arize-phoenix`
-  </Step>
+<CardGroup cols={2}>
+  <Card title="Environment Variables" href="/docs/phoenix/self-hosting/configuration#environment-variables" icon="sliders">
+    Ports, storage, database connections
+  </Card>
+  <Card title="Authentication" href="/docs/phoenix/self-hosting/features/authentication" icon="lock">
+    OAuth2, LDAP, local accounts
+  </Card>
+  <Card title="Access Controls" href="/docs/phoenix/settings/access-control-rbac" icon="user-shield">
+    Role-based permissions
+  </Card>
+  <Card title="Data Retention" href="/docs/phoenix/settings/data-retention" icon="clock">
+    Trace retention policies
+  </Card>
+</CardGroup>
 
-  <Step title={<span className="step-title">Start Phoenix</span>}>
-    Once installed, start the Phoenix server with:
+## Images
 
-    `phoenix serve`
+### Docker
 
-    This will launch Phoenix locally and make the application available in your browser. It should look something like this:
+Available on [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix/tags):
 
-    <Frame><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/local_phoenix_start.jpeg" alt="Local Phoenix Start" /></Frame>
-  </Step>
+| Tag | Description |
+| :-- | :---------- |
+| `arizephoenix/phoenix:latest` | Latest released version using root permissions. |
+| `arizephoenix/phoenix:latest-nonroot` | Latest released version using nonroot permissions. **Ensure the image has the required filesystem permissions before using.** |
+| `arizephoenix/phoenix:latest-debug` | Latest released version using a debug base image. |
+| `arizephoenix/phoenix:version-X.X.X` | Pinned release version using root permissions. |
+| `arizephoenix/phoenix:version-X.X.X-nonroot` | Pinned release version using nonroot permissions. |
+| `arizephoenix/phoenix:version-X.X.X-debug` | Pinned release version using a debug base image. |
 
-  <Step title={<span className="step-title">Open Phoenix UI</span>}>
-    Once Phoenix is running, you can open the UI directly from the links displayed in your terminal. By default, the Phoenix UI will be available at:
+<Warning>
+Pin to a specific version (e.g., `arizephoenix/phoenix:version-8.0.0`) for production deployments.
+</Warning>
 
-    👉 [http://localhost:6006](http://localhost:6006)
+### Helm
 
-    This launches the Phoenix dashboard in your browser, where you can begin exploring logs, traces, and other features.
+Available on [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix-helm/tags):
 
-    **Congratulations!** You now have Phoenix up and running. From here, you can start sending traces, create and upload datasets, run experiments, and explore everything else Phoenix has to offer.
+| Chart | Description |
+| :-- | :---------- |
+| `arizephoenix/phoenix-helm:X.X.X` | Helm chart for Kubernetes deployments. New patch versions defaulting to the latest Phoenix release are regularly published. |
 
-    Continue to the next guide to send your first trace and begin working with Phoenix in action.
-  </Step>
-</Steps>
+See the [Helm deployment guide](/docs/phoenix/self-hosting/deployment-options/kubernetes-helm) for installation instructions.
 
-# Run Phoenix using Docker
+## Learn More
 
-<Card title="Docker Hub" href="https://hub.docker.com/r/arizephoenix/phoenix" />
-
-<Steps>
-  <Step title={<span className="step-title">Prerequisites</span>}>
-    1. Ensure Docker is installed and running on your system. You can verify this by running:
-
-    ```bash
-    docker info
-    ```
-
-        If you don't see any server information in the output, make sure Docker is installed correctly and launch the Docker daemon.
-
-    2. Phoenix Version: Our Docker Compose files are pegged to the latest release of Phoenix. If you want to use a different version, you can specify it in the `docker-compose.yml` file.
-
-    Some Optional Steps
-
-    1. Persistent Disc: You can configure external disc storage to store your data in a SQLite database
-
-    2. External Postgres: You will need to set the `PHOENIX_SQL_DATABASE_URL` environment variable to the connection string for your Postgres instance.
-  </Step>
-
-  <Step title={<span className="step-title">Run Local Instance of Arize Phoenix</span>}>
-    <Tabs>
-      <Tab title="Docker">
-        Pull the image you would like to run:
-
-        ```bash
-        docker pull arizephoenix/phoenix
-        ```
-
-        Pick an image you would like to run or simply run the latest:
-
-        <Warning>
-        Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:4.0.0
-        </Warning>
-
-        ```bash
-        docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
-        ```
-
-        See for details on the ports for the container.
-
-        Navigate to [http://localhost:6006](http://localhost:6006) and you should see your local Arize Phoenix.
-
-        Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car. Look at the next tab for an example **compose.yaml** file.
-      </Tab>
-
-      <Tab title="compose.yaml">
-        A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car.
-
-        Here is an example **compose.yaml:**
-
-        ```yaml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest
-            ports:
-              - "6006:6006"  # UI and OTLP HTTP collector
-              - "4317:4317"  # OTLP gRPC collector
-          backend:
-            build:
-              context: ./backend
-              dockerfile: Dockerfile
-              args:
-                OPENAI_API_KEY: ${OPENAI_API_KEY}
-            ports:
-              - "8000:8000"
-            environment:
-              - OPENAI_API_KEY=${OPENAI_API_KEY}
-              - COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
-              - PROD_CORS_ORIGIN=http://localhost:3000
-              # Set INSTRUMENT_LLAMA_INDEX=false to disable instrumentation
-              - INSTRUMENT_LLAMA_INDEX=true
-            healthcheck:
-              test: ["CMD", "wget", "--spider", "http://0.0.0.0:8000/api/chat/healthcheck"]
-              interval: 5s
-              timeout: 1s
-              retries: 5
-          frontend:
-            build: frontend
-            ports:
-              - "3000:3000"
-            depends_on:
-              backend:
-                condition: service_healthy
-        ```
-
-        This way you will always have a running Phoenix instance when you run
-
-        ```bash
-        docker compose up
-        ```
-
-        For the full details of on how to configure Phoenix, check out the Configuration section
-      </Tab>
-
-      <Tab title="PostgreSQL">
-        You can quickly launch Phoenix with a PostGreSQL backend using docker compose.
-
-        First, ensure that Docker Compose is installed on your machine [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/).
-
-        Copy the following YAML file into a new file called `docker-compose.yml`
-
-        ```yaml
-        # docker-compose.yml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest # Must be greater than 4.0 version to work
-            depends_on:
-              - db
-            ports:
-              - 6006:6006  # PHOENIX_PORT
-              - 4317:4317  # PHOENIX_GRPC_PORT
-              - 9090:9090  # [Optional] PROMETHEUS PORT IF ENABLED
-            environment:
-              - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-          db:
-            image: postgres
-            restart: always
-            environment:
-              - POSTGRES_USER=postgres
-              - POSTGRES_PASSWORD=postgres
-              - POSTGRES_DB=postgres
-            ports:
-              - 5432
-            volumes:
-              - database_data:/var/lib/postgresql/data
-        volumes:
-          database_data:
-            driver: local
-        ```
-
-        Run docker compose to run phoenix with postgres
-
-        ```bash
-        docker compose up --build
-        ```
-
-        Note that the above setup is using your local disc as a volume mount to store the postgres data. For production deployments you will have to setup a persistent volume. You can also run Phoenix using SQLite with a persistent disc attached.
-      </Tab>
-
-      <Tab title="SQLite">
-        You can also run Phoenix using SQLite with a persistent disc attached:
-
-        ```yaml
-        # docker-compose.yml
-        services:
-          phoenix:
-            image: arizephoenix/phoenix:latest # Must be greater than 4.0 version to work
-            ports:
-              - 6006:6006  # PHOENIX_PORT
-              - 4317:4317  # PHOENIX_GRPC_PORT
-              - 9090:9090  # [Optional] PROMETHEUS PORT IF ENABLED
-            environment:
-              - PHOENIX_WORKING_DIR=/mnt/data
-            volumes:
-              - phoenix_data:/mnt/data   # PHOENIX_WORKING_DIR
-        volumes:
-          phoenix_data:
-            driver: local
-        ```
-      </Tab>
-    </Tabs>
-
-    **Congratulations!** You now have Phoenix up and running. From here, you can start sending traces, create and upload datasets, run experiments, and explore everything else Phoenix has to offer.
-
-    Continue to the next guide to send your first trace and begin working with Phoenix in action.
-  </Step>
-</Steps>
+<CardGroup cols={2}>
+  <Card title="Architecture" href="/docs/phoenix/self-hosting/architecture" icon="sitemap">
+    Storage options, scaling patterns, tenancy
+  </Card>
+  <Card title="Start Tracing" href="/docs/phoenix/get-started/get-started-tracing" icon="play">
+    Send your first traces to Phoenix
+  </Card>
+</CardGroup>
