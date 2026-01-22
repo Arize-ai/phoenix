@@ -291,6 +291,18 @@ class DeleteEvaluatorsPayload:
     query: Query
 
 
+@strawberry.input
+class DeleteDatasetEvaluatorsInput:
+    dataset_evaluator_ids: list[GlobalID]
+    delete_associated_prompt: bool = True
+
+
+@strawberry.type
+class DeleteDatasetEvaluatorsPayload:
+    dataset_evaluator_ids: list[GlobalID]
+    query: Query
+
+
 @strawberry.type
 class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -672,6 +684,102 @@ class EvaluatorMutationMixin:
             await session.execute(stmt)
         return DeleteEvaluatorsPayload(
             evaluator_ids=filtered_gids,
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def delete_dataset_evaluators(
+        self, info: Info[Context, None], input: DeleteDatasetEvaluatorsInput
+    ) -> DeleteDatasetEvaluatorsPayload:
+        """
+        Delete dataset evaluators by their IDs.
+
+        For built-in evaluators (those with builtin_evaluator_id set), only the
+        DatasetEvaluators row is deleted since no Evaluator record exists.
+
+        For custom LLM evaluators (those with evaluator_id set), the Evaluator record
+        is deleted, which cascades to delete both the LLMEvaluator and DatasetEvaluators rows.
+
+        If delete_associated_prompt is True (default), the associated prompt for LLM evaluators
+        will also be deleted.
+        """
+        # Parse and validate all dataset_evaluator_ids
+        dataset_evaluator_rowids: list[int] = []
+        for dataset_evaluator_gid in input.dataset_evaluator_ids:
+            try:
+                dataset_evaluator_rowid = from_global_id_with_expected_type(
+                    global_id=dataset_evaluator_gid,
+                    expected_type_name=DatasetEvaluator.__name__,
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset evaluator id: {dataset_evaluator_gid}")
+            dataset_evaluator_rowids.append(dataset_evaluator_rowid)
+
+        if not dataset_evaluator_rowids:
+            return DeleteDatasetEvaluatorsPayload(
+                dataset_evaluator_ids=[],
+                query=Query(),
+            )
+
+        deleted_gids: list[GlobalID] = []
+
+        async with info.context.db() as session:
+            # Fetch all DatasetEvaluators records
+            stmt = select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_rowids)
+            )
+            result = await session.execute(stmt)
+            dataset_evaluators = list(result.scalars().all())
+
+            # Separate built-in evaluators from custom evaluators
+            builtin_dataset_evaluator_ids: list[int] = []
+            custom_evaluator_ids: list[int] = []
+
+            for de in dataset_evaluators:
+                if de.builtin_evaluator_id is not None:
+                    # Built-in evaluator: delete only the DatasetEvaluators row
+                    builtin_dataset_evaluator_ids.append(de.id)
+                elif de.evaluator_id is not None:
+                    # Custom evaluator: delete the Evaluator row (cascades to DatasetEvaluators)
+                    custom_evaluator_ids.append(de.evaluator_id)
+
+                # Track the deleted IDs
+                deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(de.id)))
+
+            # Collect prompt_ids from LLM evaluators before deletion (if we need to delete them)
+            prompt_ids_to_delete: list[int] = []
+            if input.delete_associated_prompt and custom_evaluator_ids:
+                llm_evaluator_stmt = select(models.LLMEvaluator).where(
+                    models.LLMEvaluator.id.in_(custom_evaluator_ids)
+                )
+                llm_result = await session.execute(llm_evaluator_stmt)
+                llm_evaluators = list(llm_result.scalars().all())
+                prompt_ids_to_delete = [e.prompt_id for e in llm_evaluators]
+
+            # Delete built-in dataset evaluators directly
+            if builtin_dataset_evaluator_ids:
+                delete_builtin_stmt = delete(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.id.in_(builtin_dataset_evaluator_ids)
+                )
+                await session.execute(delete_builtin_stmt)
+
+            # Delete custom evaluators (cascades to DatasetEvaluators)
+            if custom_evaluator_ids:
+                delete_custom_stmt = delete(models.Evaluator).where(
+                    models.Evaluator.id.in_(custom_evaluator_ids)
+                )
+                await session.execute(delete_custom_stmt)
+
+            # Delete associated prompts after evaluators are deleted
+            # (FK constraint requires evaluator to be deleted first)
+            if prompt_ids_to_delete:
+                delete_prompts_stmt = delete(models.Prompt).where(
+                    models.Prompt.id.in_(prompt_ids_to_delete)
+                )
+                await session.execute(delete_prompts_stmt)
+
+        return DeleteDatasetEvaluatorsPayload(
+            dataset_evaluator_ids=deleted_gids,
             query=Query(),
         )
 
