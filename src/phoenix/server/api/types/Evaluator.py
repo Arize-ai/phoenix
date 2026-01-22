@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import sqlalchemy as sa
 import strawberry
-from strawberry.relay import Node, NodeID
+from strawberry import UNSET
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias
@@ -28,6 +29,11 @@ from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
+)
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
 )
 
 from .Identifier import Identifier
@@ -89,6 +95,14 @@ class Evaluator(Node):
     @strawberry.field
     async def is_builtin(self) -> bool:
         return self.id < 0
+
+    @strawberry.field
+    async def datasets(
+        self,
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
+        raise NotImplementedError
 
 
 @strawberry.type
@@ -194,6 +208,19 @@ class CodeEvaluator(Evaluator, Node):
         from .User import User
 
         return User(id=user_id)
+
+    @strawberry.field
+    async def datasets(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
+        from .Dataset import Dataset
+
+        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
 @strawberry.type
@@ -394,6 +421,19 @@ class LLMEvaluator(Evaluator, Node):
 
         return to_gql_prompt_version(prompt_version)
 
+    @strawberry.field
+    async def datasets(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
+        from .Dataset import Dataset
+
+        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
+
 
 @strawberry.type
 class BuiltInEvaluator(Evaluator, Node):
@@ -476,6 +516,19 @@ class BuiltInEvaluator(Evaluator, Node):
             raise NotFound(f"Built-in evaluator not found: {self.id}")
         base_config = evaluator_class.output_config()
         return _to_gql_builtin_output_config(base_config, evaluator_class.name, self.id)
+
+    @strawberry.field
+    async def datasets(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
+        from .Dataset import Dataset
+
+        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
 def _generate_categorical_annotation_config_id(evaluator_id: int) -> int:

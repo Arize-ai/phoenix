@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1b64fe927908a21a4cfdc903e6f1f711>>
+ * @generated SignedSource<<4dff4359b44f18b28bda4a3862ebc914>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -94,7 +94,11 @@ v3 = {
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v4 = [
+  (v2/*: any*/),
+  (v3/*: any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -208,6 +212,44 @@ return {
                     "storageKey": null
                   },
                   {
+                    "alias": null,
+                    "args": [
+                      {
+                        "kind": "Literal",
+                        "name": "first",
+                        "value": 10
+                      }
+                    ],
+                    "concreteType": "DatasetConnection",
+                    "kind": "LinkedField",
+                    "name": "datasets",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DatasetEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Dataset",
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": (v4/*: any*/),
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": "datasets(first:10)"
+                  },
+                  {
                     "kind": "InlineFragment",
                     "selections": [
                       {
@@ -217,10 +259,7 @@ return {
                         "kind": "LinkedField",
                         "name": "prompt",
                         "plural": false,
-                        "selections": [
-                          (v2/*: any*/),
-                          (v3/*: any*/)
-                        ],
+                        "selections": (v4/*: any*/),
                         "storageKey": null
                       },
                       {
@@ -236,7 +275,7 @@ return {
                         ],
                         "storageKey": null
                       },
-                      (v4/*: any*/)
+                      (v5/*: any*/)
                     ],
                     "type": "LLMEvaluator",
                     "abstractKey": null
@@ -244,7 +283,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v4/*: any*/)
+                      (v5/*: any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -317,12 +356,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cd65b3f66acfb01939102519f65e984e",
+    "cacheID": "afb291fe6049c385b494acd70dc8152c",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

@@ -20,6 +20,7 @@ from .dataset_examples_and_versions_by_experiment_run import (
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
 )
 from .dataset_labels import DatasetLabelsDataLoader
+from .datasets_by_evaluator import DatasetsByEvaluatorDataLoader
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -97,6 +98,7 @@ __all__ = [
     "DatasetDatasetSplitsDataLoader",
     "DatasetEvaluatorsByIdDataLoader",
     "DatasetEvaluatorsDataLoader",
+    "DatasetsByEvaluatorDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DatasetExamplesAndVersionsByExperimentRunDataLoader",
