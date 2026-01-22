@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.31.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.1...arize-phoenix-v12.31.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* **app:** enable cancellation of multipart GraphQL subscriptions ([#11041](https://github.com/Arize-ai/phoenix/issues/11041)) ([ea65b8a](https://github.com/Arize-ai/phoenix/commit/ea65b8aebeae72fd3a89e3459246b05a27bb632e))
+* remove pytz dependency ([#11044](https://github.com/Arize-ai/phoenix/issues/11044)) ([673f119](https://github.com/Arize-ai/phoenix/commit/673f119fd31c8a64665b20cae5650de4a5ce711c))
+
 ## [12.31.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.0...arize-phoenix-v12.31.1) (2026-01-22)
 
 
