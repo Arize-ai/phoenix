@@ -48,12 +48,37 @@ app.use((req, res, next) => {
 // Dashboard
 // =============================================================================
 
+// Simple rate limiter for dashboard routes (prevents abuse of file system access)
+const dashboardRateLimiter = (() => {
+  const requests = new Map<string, number[]>();
+  const windowMs = 60000; // 1 minute
+  const maxRequests = 100; // 100 requests per minute per IP
+  
+  return (req: Request, res: Response, next: () => void) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const now = Date.now();
+    const timestamps = requests.get(ip) || [];
+    
+    // Remove old timestamps outside the window
+    const validTimestamps = timestamps.filter(t => now - t < windowMs);
+    
+    if (validTimestamps.length >= maxRequests) {
+      res.status(429).json({ error: "Too many requests" });
+      return;
+    }
+    
+    validTimestamps.push(now);
+    requests.set(ip, validTimestamps);
+    next();
+  };
+})();
+
 // Serve static dashboard files in production
 const dashboardPath = path.join(__dirname, "../dashboard/dist");
-app.use("/dashboard", express.static(dashboardPath));
+app.use("/dashboard", dashboardRateLimiter, express.static(dashboardPath));
 
 // Serve index.html for all dashboard routes (SPA support)
-app.get("/dashboard/*", (_req: Request, res: Response) => {
+app.get("/dashboard/*", dashboardRateLimiter, (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPath, "index.html"));
 });
 

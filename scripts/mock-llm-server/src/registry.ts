@@ -4,6 +4,27 @@ import type { RateLimiter, RateLimitConfig } from "./rate-limiting/types.js";
 import { createRateLimiter, DEFAULT_RATE_LIMIT_CONFIG } from "./rate-limiting/index.js";
 
 /**
+ * Sanitize an object to prevent prototype pollution attacks.
+ * Removes dangerous keys like __proto__, constructor, prototype.
+ */
+function sanitizeObject<T extends object>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+  
+  const dangerous = ["__proto__", "constructor", "prototype"];
+  const sanitized = { ...obj } as T & Record<string, unknown>;
+  
+  for (const key of dangerous) {
+    if (key in sanitized) {
+      delete sanitized[key];
+    }
+  }
+  
+  return sanitized as T;
+}
+
+/**
  * Error types for injection
  */
 export type ErrorType = 
@@ -177,18 +198,21 @@ class EndpointRegistry extends EventEmitter {
    * Update global config
    */
   updateGlobalConfig(updates: Partial<GlobalConfig>): void {
+    // Sanitize input to prevent prototype pollution
+    const sanitizedUpdates = sanitizeObject(updates);
+    
     // Handle nested rateLimit updates
-    if (updates.rateLimit) {
+    if (sanitizedUpdates.rateLimit) {
       this.config.global.rateLimit = {
         ...this.config.global.rateLimit,
-        ...updates.rateLimit,
+        ...sanitizeObject(sanitizedUpdates.rateLimit),
       };
-      delete updates.rateLimit;
+      delete sanitizedUpdates.rateLimit;
     }
 
     this.config.global = {
       ...this.config.global,
-      ...updates,
+      ...sanitizedUpdates,
     };
 
     // Recreate all rate limiters with new global config
@@ -206,20 +230,22 @@ class EndpointRegistry extends EventEmitter {
    * Update endpoint-specific config
    */
   updateEndpointConfig(endpointId: EndpointId, updates: Partial<EndpointConfig>): void {
+    // Sanitize input to prevent prototype pollution
+    const sanitizedUpdates = sanitizeObject(updates);
     const existing = this.config.endpoints[endpointId] || {};
 
     // Handle nested rateLimit updates
-    if (updates.rateLimit) {
+    if (sanitizedUpdates.rateLimit) {
       existing.rateLimit = {
         ...(existing.rateLimit || this.config.global.rateLimit),
-        ...updates.rateLimit,
+        ...sanitizeObject(sanitizedUpdates.rateLimit),
       };
-      delete updates.rateLimit;
+      delete sanitizedUpdates.rateLimit;
     }
 
     this.config.endpoints[endpointId] = {
       ...existing,
-      ...updates,
+      ...sanitizedUpdates,
     };
 
     // Recreate rate limiter for this endpoint
