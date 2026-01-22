@@ -28,11 +28,7 @@ import { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/DeleteData
 export type DeleteDatasetEvaluatorDialogProps = {
   datasetEvaluatorId: string;
   evaluatorName: string;
-  /**
-   * Whether this is an LLM evaluator (not built-in).
-   * When true, shows the option to delete the associated prompt.
-   */
-  isLLMEvaluator?: boolean;
+  evaluatorKind: "LLM" | "CODE";
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
@@ -46,7 +42,7 @@ export type DeleteDatasetEvaluatorDialogProps = {
 export function DeleteDatasetEvaluatorDialog({
   datasetEvaluatorId,
   evaluatorName,
-  isLLMEvaluator = false,
+  evaluatorKind,
   isOpen,
   onOpenChange,
   onDeleted,
@@ -74,7 +70,8 @@ export function DeleteDatasetEvaluatorDialog({
         variables: {
           input: {
             datasetEvaluatorIds: [datasetEvaluatorId],
-            deleteAssociatedPrompt: isLLMEvaluator && deleteAssociatedPrompt,
+            deleteAssociatedPrompt:
+              evaluatorKind === "LLM" && deleteAssociatedPrompt,
           },
           connectionIds: updateConnectionIds,
         },
@@ -100,7 +97,7 @@ export function DeleteDatasetEvaluatorDialog({
     datasetEvaluatorId,
     deleteAssociatedPrompt,
     evaluatorName,
-    isLLMEvaluator,
+    evaluatorKind,
     notifyError,
     notifySuccess,
     onDeleted,
@@ -124,7 +121,7 @@ export function DeleteDatasetEvaluatorDialog({
                 <Text color="danger">
                   {`Are you sure you want to delete evaluator "${evaluatorName}"? This action cannot be undone.`}
                 </Text>
-                {isLLMEvaluator && (
+                {evaluatorKind === "LLM" && (
                   <Checkbox
                     isSelected={deleteAssociatedPrompt}
                     onChange={setDeleteAssociatedPrompt}

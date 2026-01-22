@@ -107,7 +107,7 @@ export function DatasetEvaluatorActionMenu({
       <DeleteDatasetEvaluatorDialog
         datasetEvaluatorId={datasetEvaluatorId}
         evaluatorName={evaluatorName}
-        isLLMEvaluator={evaluatorKind === "LLM" && !isBuiltIn}
+        evaluatorKind={evaluatorKind}
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         updateConnectionIds={updateConnectionIds}
