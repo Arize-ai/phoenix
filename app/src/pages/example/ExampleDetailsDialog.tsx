@@ -4,6 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Card,
   CardProps,
   CopyToClipboardButton,
@@ -16,10 +17,17 @@ import {
   Flex,
   Heading,
   LinkButton,
+  ListBox,
+  Popover,
+  Select,
+  SelectItem,
+  SelectValue,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { Skeleton } from "@phoenix/components/loading";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -30,6 +38,63 @@ import { Mutable } from "@phoenix/typeUtils";
 import type { ExampleDetailsDialogQuery } from "./__generated__/ExampleDetailsDialogQuery.graphql";
 import { EditExampleButton } from "./EditExampleButton";
 import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
+
+type ViewMode = "json" | "pretty";
+
+/**
+ * Extracts the display value for "pretty" mode.
+ * If the value is an object with a single key and the value is a string,
+ * returns just that string for markdown rendering.
+ * Otherwise returns the original value.
+ */
+function extractPrettyValue(value: unknown): unknown {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const keys = Object.keys(value);
+    if (keys.length === 1) {
+      const innerValue = (value as Record<string, unknown>)[keys[0]];
+      // If the inner value is a string, return it directly for markdown rendering
+      if (typeof innerValue === "string") {
+        return innerValue;
+      }
+    }
+  }
+  return value;
+}
+
+/**
+ * A select component for switching between JSON and Pretty view modes.
+ */
+function ViewModeSelect({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+}) {
+  return (
+    <Select
+      size="S"
+      selectedKey={value}
+      onSelectionChange={(key) => onChange(key as ViewMode)}
+      aria-label="View mode"
+    >
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          <SelectItem id="json" textValue="JSON">
+            JSON
+          </SelectItem>
+          <SelectItem id="pretty" textValue="Pretty">
+            Pretty
+          </SelectItem>
+        </ListBox>
+      </Popover>
+    </Select>
+  );
+}
 
 /**
  * Skeleton fallback for the dialog content while data is loading.
@@ -99,6 +164,8 @@ function ExampleDetailsDialogContent({
   datasetVersionId?: string;
 }) {
   const [fetchKey, setFetchKey] = useState(0);
+  const [inputViewMode, setInputViewMode] = useState<ViewMode>("pretty");
+  const [outputViewMode, setOutputViewMode] = useState<ViewMode>("pretty");
   const data = useLazyLoadQuery<ExampleDetailsDialogQuery>(
     graphql`
       query ExampleDetailsDialogQuery($exampleId: ID!, $datasetVersionId: ID) {
@@ -134,11 +201,14 @@ function ExampleDetailsDialogContent({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const revision = useMemo(() => {
-    const revision = data.example.revision;
+    const rev = data.example.revision;
     return {
-      input: JSON.stringify(revision?.input, null, 2),
-      output: JSON.stringify(revision?.output, null, 2),
-      metadata: JSON.stringify(revision?.metadata, null, 2),
+      input: JSON.stringify(rev?.input, null, 2),
+      output: JSON.stringify(rev?.output, null, 2),
+      metadata: JSON.stringify(rev?.metadata, null, 2),
+      // Raw values for DynamicContent
+      inputRaw: rev?.input,
+      outputRaw: rev?.output,
     };
   }, [data]);
   const sourceSpanInfo = useMemo(() => {
@@ -217,16 +287,44 @@ function ExampleDetailsDialogContent({
                   <Card
                     title="Input"
                     {...defaultCardProps}
-                    extra={<CopyToClipboardButton text={input} />}
+                    extra={
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <ViewModeSelect
+                          value={inputViewMode}
+                          onChange={setInputViewMode}
+                        />
+                        <CopyToClipboardButton text={input} />
+                      </Flex>
+                    }
                   >
-                    <JSONBlock value={input} />
+                    {inputViewMode === "json" ? (
+                      <JSONBlock value={input} />
+                    ) : (
+                      <View padding="size-200">
+                        <DynamicContent value={extractPrettyValue(revision.inputRaw)} />
+                      </View>
+                    )}
                   </Card>
                   <Card
                     title="Output"
                     {...defaultCardProps}
-                    extra={<CopyToClipboardButton text={output} />}
+                    extra={
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <ViewModeSelect
+                          value={outputViewMode}
+                          onChange={setOutputViewMode}
+                        />
+                        <CopyToClipboardButton text={output} />
+                      </Flex>
+                    }
                   >
-                    <JSONBlock value={output} />
+                    {outputViewMode === "json" ? (
+                      <JSONBlock value={output} />
+                    ) : (
+                      <View padding="size-200">
+                        <DynamicContent value={extractPrettyValue(revision.outputRaw)} />
+                      </View>
+                    )}
                   </Card>
                   <Card
                     title="Metadata"
