@@ -78,17 +78,17 @@ export const EvaluatorOutputPreview = () => {
     const instanceId = instances[0].id;
     invariant(instanceId != null, "instanceId is required");
     const state = evaluatorStore.getState();
-    const outputConfig = state.outputConfig;
-    invariant(outputConfig, "outputConfig is required");
-    invariant(
-      "values" in outputConfig,
-      "outputConfig must have values, aka is a categorical annotation config"
-    );
+
     let params:
       | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
       | { builtInEvaluatorId: string };
     if (!state.evaluator.isBuiltin) {
-      invariant(state.outputConfig, "outputConfig is required");
+      const outputConfig = state.outputConfig;
+      invariant(outputConfig, "outputConfig is required");
+      invariant(
+        "values" in outputConfig,
+        "outputConfig must have values, aka is a categorical annotation config"
+      );
       const payload = createLLMEvaluatorPayload({
         playgroundStore,
         description: state.evaluator.description,
