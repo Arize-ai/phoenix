@@ -23,11 +23,11 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
+import { optimizationDirectionOptions } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { optimizationDirectionOptions } from "@phoenix/components/evaluators/OptimizationDirectionField";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
