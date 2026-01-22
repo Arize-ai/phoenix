@@ -45,12 +45,19 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
     if (!rateLimitResult.allowed) {
       metrics.rateLimited(provider.id);
       detailedMetrics.rateLimited(provider.id);
-      res.status(429).json(provider.formatRateLimitError(rateLimitResult.retryAfter || 60));
+      res
+        .status(429)
+        .json(provider.formatRateLimitError(rateLimitResult.retryAfter || 60));
       return;
     }
 
     // 3. Failure injection (enhanced)
-    const failureResult = await handleFailureInjection(provider.id, requestId, res, provider);
+    const failureResult = await handleFailureInjection(
+      provider.id,
+      requestId,
+      res,
+      provider,
+    );
     if (failureResult.handled) {
       return;
     }
@@ -58,7 +65,11 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
     // 4. Validate request
     const validation = provider.validateRequest(req);
     if (!validation.valid) {
-      res.status(400).json(provider.formatValidationError(validation.message!, validation.field));
+      res
+        .status(400)
+        .json(
+          provider.formatValidationError(validation.message!, validation.field),
+        );
       return;
     }
 
@@ -74,7 +85,9 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
     // 7. Build handler config with load-based latency adjustment
     const loadFactor = registry.getLoadFactor(provider.id);
     const handlerConfig: HandlerConfig = {
-      streamInitialDelayMs: Math.round(endpointConfig.streamInitialDelayMs * loadFactor),
+      streamInitialDelayMs: Math.round(
+        endpointConfig.streamInitialDelayMs * loadFactor,
+      ),
       streamDelayMs: Math.round(endpointConfig.streamDelayMs * loadFactor),
       streamJitterMs: endpointConfig.streamJitterMs,
       streamChunkSize: endpointConfig.streamChunkSize,
@@ -88,7 +101,13 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
         // Check for streaming interruption
         const shouldInterrupt = registry.shouldInterruptStream(provider.id);
         if (shouldInterrupt) {
-          await handleStreamingWithInterruption(req, res, provider, handlerConfig, requestId);
+          await handleStreamingWithInterruption(
+            req,
+            res,
+            provider,
+            handlerConfig,
+            requestId,
+          );
         } else {
           await provider.handleStreaming(req, res, handlerConfig);
         }
@@ -124,20 +143,31 @@ async function handleFailureInjection(
   endpointId: string,
   requestId: string,
   res: Response,
-  provider: Provider
+  provider: Provider,
 ): Promise<{ handled: boolean; metricsStarted: boolean }> {
-  const config = registry.getEndpointConfig(endpointId as Parameters<typeof registry.getEndpointConfig>[0]);
-  
+  const config = registry.getEndpointConfig(
+    endpointId as Parameters<typeof registry.getEndpointConfig>[0],
+  );
+
   if (config.errorRate <= 0 || Math.random() >= config.errorRate) {
     return { handled: false, metricsStarted: false };
   }
 
-  const errorTypes = config.errorTypes.length > 0 ? config.errorTypes : ["server_error"];
+  const errorTypes =
+    config.errorTypes.length > 0 ? config.errorTypes : ["server_error"];
   const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
 
   // Start tracking for injected failures (assume non-streaming since failure happens before we know)
-  metrics.requestStart(endpointId as Parameters<typeof metrics.requestStart>[0], requestId, false);
-  detailedMetrics.requestStart(endpointId as Parameters<typeof detailedMetrics.requestStart>[0], requestId, false);
+  metrics.requestStart(
+    endpointId as Parameters<typeof metrics.requestStart>[0],
+    requestId,
+    false,
+  );
+  detailedMetrics.requestStart(
+    endpointId as Parameters<typeof detailedMetrics.requestStart>[0],
+    requestId,
+    false,
+  );
 
   switch (errorType) {
     case "timeout":
@@ -149,13 +179,35 @@ async function handleFailureInjection(
     case "server_error":
       metrics.requestError(requestId, "server_error_injected");
       detailedMetrics.requestError(requestId, "server_error_injected");
-      res.status(500).json(provider.formatServerError("Internal server error (injected)"));
+      res
+        .status(500)
+        .json(provider.formatServerError("Internal server error (injected)"));
       return { handled: true, metricsStarted: true };
 
     case "bad_request":
       metrics.requestError(requestId, "bad_request_injected");
       detailedMetrics.requestError(requestId, "bad_request_injected");
-      res.status(400).json(provider.formatValidationError("Bad request (injected)"));
+      res
+        .status(400)
+        .json(provider.formatValidationError("Bad request (injected)"));
+      return { handled: true, metricsStarted: true };
+
+    case "authentication_error":
+      metrics.requestError(requestId, "authentication_error_injected");
+      detailedMetrics.requestError(requestId, "authentication_error_injected");
+      res
+        .status(401)
+        .json(provider.formatAuthenticationError("Invalid API key (injected)"));
+      return { handled: true, metricsStarted: true };
+
+    case "permission_denied":
+      metrics.requestError(requestId, "permission_denied_injected");
+      detailedMetrics.requestError(requestId, "permission_denied_injected");
+      res
+        .status(403)
+        .json(
+          provider.formatPermissionDeniedError("Permission denied (injected)"),
+        );
       return { handled: true, metricsStarted: true };
 
     case "slow_response":
@@ -197,7 +249,7 @@ async function handleStreamingWithInterruption(
   res: Response,
   provider: Provider,
   handlerConfig: HandlerConfig,
-  requestId: string
+  requestId: string,
 ): Promise<void> {
   // Start streaming normally
   const originalEnd = res.end.bind(res);
@@ -209,8 +261,10 @@ async function handleStreamingWithInterruption(
   const originalWrite = res.write.bind(res) as typeof res.write;
   res.write = function (
     chunk: unknown,
-    encodingOrCallback?: BufferEncoding | ((error: Error | null | undefined) => void),
-    callback?: (error: Error | null | undefined) => void
+    encodingOrCallback?:
+      | BufferEncoding
+      | ((error: Error | null | undefined) => void),
+    callback?: (error: Error | null | undefined) => void,
   ): boolean {
     chunkCount++;
     if (chunkCount >= interruptAfter && !interrupted) {

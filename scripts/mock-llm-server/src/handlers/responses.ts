@@ -12,7 +12,8 @@ import { generateToolCallId, generateFakeData } from "../fake-data.js";
  * Generate a response ID
  */
 function generateResponseId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let id = "resp_";
   for (let i = 0; i < 24; i++) {
     id += chars[Math.floor(Math.random() * chars.length)];
@@ -24,7 +25,8 @@ function generateResponseId(): string {
  * Generate an output item ID
  */
 function generateItemId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let id = "item_";
   for (let i = 0; i < 24; i++) {
     id += chars[Math.floor(Math.random() * chars.length)];
@@ -70,7 +72,7 @@ function getInputText(req: ResponseCreateRequest): string {
  */
 export function handleNonStreaming(
   req: ResponseCreateRequest,
-  config: ServerConfig
+  config: ServerConfig,
 ): ResponseObject {
   const id = generateResponseId();
   const createdAt = Date.now() / 1000;
@@ -88,7 +90,7 @@ export function handleNonStreaming(
   if (shouldMakeToolCall && req.tools) {
     // Generate a function call
     const tool = req.tools[Math.floor(Math.random() * req.tools.length)];
-    
+
     // Guard: ensure tool has valid function name
     if (tool?.function?.name) {
       const args = generateFakeData(tool.function.parameters);
@@ -139,7 +141,7 @@ export function handleNonStreaming(
     .map((o) =>
       o.type === "message"
         ? o.content?.map((c) => c.text).join("") || ""
-        : o.arguments || ""
+        : o.arguments || "",
     )
     .join("");
 
@@ -167,7 +169,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: ResponseCreateRequest,
   res: Response,
-  config: ServerConfig
+  config: ServerConfig,
 ): Promise<void> {
   const id = generateResponseId();
   const createdAt = Date.now() / 1000;
@@ -266,7 +268,7 @@ async function streamTextContent(
   responseId: string,
   createdAt: number,
   config: ServerConfig,
-  sendEvent: (event: { type: string; [key: string]: unknown }) => void
+  sendEvent: (event: { type: string; [key: string]: unknown }) => void,
 ): Promise<void> {
   const content = config.getDefaultResponse();
   const itemId = generateItemId();
@@ -366,16 +368,16 @@ async function streamFunctionCall(
   responseId: string,
   createdAt: number,
   config: ServerConfig,
-  sendEvent: (event: { type: string; [key: string]: unknown }) => void
+  sendEvent: (event: { type: string; [key: string]: unknown }) => void,
 ): Promise<void> {
   const tool = req.tools![Math.floor(Math.random() * req.tools!.length)];
-  
+
   // Guard: if tool is invalid, fall back to text streaming
   if (!tool?.function?.name) {
     await streamTextContent(req, res, responseId, createdAt, config, sendEvent);
     return;
   }
-  
+
   const args = JSON.stringify(generateFakeData(tool.function.parameters));
   const itemId = generateItemId();
   const callId = generateToolCallId();

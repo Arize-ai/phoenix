@@ -1,5 +1,10 @@
 // Types
-export type { Provider, ValidationResult, HandlerConfig, EndpointId } from "./types.js";
+export type {
+  Provider,
+  ValidationResult,
+  HandlerConfig,
+  EndpointId,
+} from "./types.js";
 export { ENDPOINT_IDS, ENDPOINT_LABELS } from "./types.js";
 
 // Provider implementations

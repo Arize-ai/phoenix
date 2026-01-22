@@ -1,10 +1,7 @@
 import type { Request, Response } from "express";
 import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 import type { ResponseCreateRequest } from "../types.js";
-import {
-  handleNonStreaming,
-  handleStreaming,
-} from "../handlers/responses.js";
+import { handleNonStreaming, handleStreaming } from "../handlers/responses.js";
 
 /**
  * OpenAI Responses API Provider
@@ -19,7 +16,11 @@ export const openaiResponsesProvider: Provider = {
     const body = req.body as ResponseCreateRequest;
 
     if (!body.model) {
-      return { valid: false, message: "Missing required parameter: model", field: "model" };
+      return {
+        valid: false,
+        message: "Missing required parameter: model",
+        field: "model",
+      };
     }
 
     return { valid: true };
@@ -59,6 +60,28 @@ export const openaiResponsesProvider: Provider = {
     };
   },
 
+  formatAuthenticationError(message = "Incorrect API key provided"): unknown {
+    return {
+      error: {
+        message,
+        type: "invalid_api_key",
+        code: "invalid_api_key",
+      },
+    };
+  },
+
+  formatPermissionDeniedError(
+    message = "You don't have access to this resource",
+  ): unknown {
+    return {
+      error: {
+        message,
+        type: "insufficient_quota",
+        code: "insufficient_quota",
+      },
+    };
+  },
+
   formatDisabledError(): unknown {
     return {
       error: {
@@ -83,7 +106,11 @@ export const openaiResponsesProvider: Provider = {
     return handleNonStreaming(body, serverConfig);
   },
 
-  async handleStreaming(req: Request, res: Response, config: HandlerConfig): Promise<void> {
+  async handleStreaming(
+    req: Request,
+    res: Response,
+    config: HandlerConfig,
+  ): Promise<void> {
     const body = req.body as ResponseCreateRequest;
     const serverConfig = {
       ...config,

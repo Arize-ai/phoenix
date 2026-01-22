@@ -9,7 +9,11 @@ export type {
 export { DEFAULT_RATE_LIMIT_CONFIG } from "./types.js";
 
 // Factory
-export { createRateLimiter, getStrategyDescription, getAvailableStrategies } from "./factory.js";
+export {
+  createRateLimiter,
+  getStrategyDescription,
+  getAvailableStrategies,
+} from "./factory.js";
 
 // Strategies (for direct use if needed)
 export { FixedWindowRateLimiter } from "./strategies/fixed-window.js";

@@ -12,7 +12,7 @@ A TypeScript mock server that simulates **OpenAI**, **Anthropic**, and **Google 
 - **Tool calls** - Generates fake tool call/use responses based on provided JSON Schema
 - **Rate limiting** - Configurable rate limiting with multiple modes
 - **Real-time Dashboard** - Monitor connections, adjust latency, toggle rate limiting on-the-fly
-- **Error Injection** - Simulate server errors, timeouts, and bad requests
+- **Error Injection** - Simulate server errors, auth errors, timeouts, and bad requests
 
 ## Quick Start
 
@@ -41,7 +41,7 @@ Access the real-time monitoring dashboard at `http://localhost:57593/dashboard`
 - **Request Rate Chart** - Live requests/sec graph
 - **Latency Controls** - Adjust streaming delays, jitter, chunk size
 - **Rate Limiting** - Toggle on/off, select strategy (fixed-window, token-bucket, etc.)
-- **Error Injection** - Set error rate and types (500, 400, timeout)
+- **Error Injection** - Set error rate and types (500, 401, 403, 400, timeout)
 - **Event Log** - Real-time stream of all events
 
 **API Endpoints:**

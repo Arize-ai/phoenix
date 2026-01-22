@@ -37,7 +37,10 @@ describe("Tool Calls", () => {
       parameters: {
         type: "object",
         properties: {
-          operation: { type: "string", enum: ["add", "subtract", "multiply", "divide"] },
+          operation: {
+            type: "string",
+            enum: ["add", "subtract", "multiply", "divide"],
+          },
           a: { type: "number" },
           b: { type: "number" },
         },
@@ -89,7 +92,9 @@ describe("Tool Calls", () => {
       expect(args).toHaveProperty("operation");
       expect(args).toHaveProperty("a");
       expect(args).toHaveProperty("b");
-      expect(["add", "subtract", "multiply", "divide"]).toContain(args.operation);
+      expect(["add", "subtract", "multiply", "divide"]).toContain(
+        args.operation,
+      );
       expect(typeof args.a).toBe("number");
       expect(typeof args.b).toBe("number");
     });
@@ -140,7 +145,12 @@ describe("Tool Calls", () => {
               website: { type: "string", format: "uri" },
               birthDate: { type: "string", format: "date" },
               age: { type: "integer", minimum: 18, maximum: 120 },
-              score: { type: "number", minimum: 0, maximum: 100, multipleOf: 0.5 },
+              score: {
+                type: "number",
+                minimum: 0,
+                maximum: 100,
+                multipleOf: 0.5,
+              },
               role: { type: "string", enum: ["admin", "user", "guest"] },
               tags: {
                 type: "array",
@@ -217,7 +227,11 @@ describe("Tool Calls", () => {
               recipient: {
                 oneOf: [
                   { type: "string", format: "email" },
-                  { type: "object", properties: { userId: { type: "integer" } }, required: ["userId"] },
+                  {
+                    type: "object",
+                    properties: { userId: { type: "integer" } },
+                    required: ["userId"],
+                  },
                 ],
               },
             },
@@ -240,7 +254,10 @@ describe("Tool Calls", () => {
       expect(args).toHaveProperty("recipient");
       const recipient = args.recipient;
       const isString = typeof recipient === "string";
-      const isUserIdObject = typeof recipient === "object" && recipient !== null && "userId" in recipient;
+      const isUserIdObject =
+        typeof recipient === "object" &&
+        recipient !== null &&
+        "userId" in recipient;
       expect(isString || isUserIdObject).toBe(true);
     });
   });

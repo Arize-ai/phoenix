@@ -41,7 +41,7 @@ interface StreamEvent {
  */
 export function handleNonStreaming(
   req: MessageCreateParams,
-  config: ServerConfig
+  config: ServerConfig,
 ): MockMessage {
   const id = generateAnthropicMessageId();
 
@@ -63,26 +63,31 @@ export function handleNonStreaming(
     if (toolUse) {
       // Anthropic often returns text before tool use
       const textContent = config.getDefaultResponse();
-      content = [
-        { type: "text", text: textContent } as TextBlock,
-        toolUse,
-      ];
+      content = [{ type: "text", text: textContent } as TextBlock, toolUse];
       stopReason = "tool_use";
     } else {
       // Fallback to text response if no valid tool use generated
-      content = [{ type: "text", text: config.getDefaultResponse() } as TextBlock];
+      content = [
+        { type: "text", text: config.getDefaultResponse() } as TextBlock,
+      ];
     }
   } else {
-    content = [{ type: "text", text: config.getDefaultResponse() } as TextBlock];
+    content = [
+      { type: "text", text: config.getDefaultResponse() } as TextBlock,
+    ];
   }
 
   const inputTokens = estimateTokens(
-    req.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join(" ")
+    req.messages
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
+      .join(" "),
   );
   const outputTokens = estimateTokens(
     content
-      .map((c) => (c.type === "text" ? (c as TextBlock).text : JSON.stringify(c)))
-      .join(" ")
+      .map((c) =>
+        c.type === "text" ? (c as TextBlock).text : JSON.stringify(c),
+      )
+      .join(" "),
   );
 
   return {
@@ -106,7 +111,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: MessageCreateParams,
   res: Response,
-  config: ServerConfig
+  config: ServerConfig,
 ): Promise<void> {
   const id = generateAnthropicMessageId();
 
@@ -132,7 +137,9 @@ export async function handleStreaming(
       Math.random() < config.toolCallProbability);
 
   const inputTokens = estimateTokens(
-    req.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join(" ")
+    req.messages
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
+      .join(" "),
   );
 
   // Initial delay (time to first token)
@@ -157,7 +164,7 @@ async function streamTextContent(
   id: string,
   inputTokens: number,
   config: ServerConfig,
-  sendEvent: (event: StreamEvent) => void
+  sendEvent: (event: StreamEvent) => void,
 ): Promise<void> {
   const content = config.getDefaultResponse();
   const outputTokens = estimateTokens(content);
@@ -242,7 +249,7 @@ async function streamWithToolUse(
   inputTokens: number,
   toolUse: ToolUseBlock,
   config: ServerConfig,
-  sendEvent: (event: StreamEvent) => void
+  sendEvent: (event: StreamEvent) => void,
 ): Promise<void> {
   const textContent = config.getDefaultResponse();
   const toolInputJson = JSON.stringify(toolUse.input);

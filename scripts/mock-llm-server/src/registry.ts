@@ -1,7 +1,10 @@
 import { EventEmitter } from "events";
 import type { Provider, EndpointId } from "./providers/types.js";
 import type { RateLimiter, RateLimitConfig } from "./rate-limiting/types.js";
-import { createRateLimiter, DEFAULT_RATE_LIMIT_CONFIG } from "./rate-limiting/index.js";
+import {
+  createRateLimiter,
+  DEFAULT_RATE_LIMIT_CONFIG,
+} from "./rate-limiting/index.js";
 
 /**
  * Sanitize an object to prevent prototype pollution attacks.
@@ -11,26 +14,28 @@ function sanitizeObject<T extends object>(obj: T): T {
   if (obj === null || typeof obj !== "object") {
     return obj;
   }
-  
+
   const dangerous = ["__proto__", "constructor", "prototype"];
   const sanitized = { ...obj } as T & Record<string, unknown>;
-  
+
   for (const key of dangerous) {
     if (key in sanitized) {
       delete sanitized[key];
     }
   }
-  
+
   return sanitized as T;
 }
 
 /**
  * Error types for injection
  */
-export type ErrorType = 
-  | "timeout" 
-  | "server_error" 
+export type ErrorType =
+  | "timeout"
+  | "server_error"
   | "bad_request"
+  | "authentication_error"
+  | "permission_denied"
   | "slow_response"
   | "connection_reset";
 
@@ -52,9 +57,9 @@ export interface EndpointConfig {
   errorTypes: ErrorType[];
 
   // Advanced failure modes
-  streamInterruptRate: number;      // Probability of interrupting a stream mid-response
-  loadDegradationEnabled: boolean;  // Enable latency increase under load
-  loadDegradationFactor: number;    // Max multiplier for latency (e.g., 3.0 = 3x slower at peak)
+  streamInterruptRate: number; // Probability of interrupting a stream mid-response
+  loadDegradationEnabled: boolean; // Enable latency increase under load
+  loadDegradationFactor: number; // Max multiplier for latency (e.g., 3.0 = 3x slower at peak)
 
   // Endpoint state
   enabled: boolean;
@@ -162,16 +167,27 @@ class EndpointRegistry extends EventEmitter {
   getEndpointConfig(endpointId: EndpointId): EndpointConfig {
     const overrides = this.config.endpoints[endpointId] || {};
     const merged: EndpointConfig = {
-      streamInitialDelayMs: overrides.streamInitialDelayMs ?? this.config.global.streamInitialDelayMs,
-      streamDelayMs: overrides.streamDelayMs ?? this.config.global.streamDelayMs,
-      streamJitterMs: overrides.streamJitterMs ?? this.config.global.streamJitterMs,
-      streamChunkSize: overrides.streamChunkSize ?? this.config.global.streamChunkSize,
-      toolCallProbability: overrides.toolCallProbability ?? this.config.global.toolCallProbability,
+      streamInitialDelayMs:
+        overrides.streamInitialDelayMs ??
+        this.config.global.streamInitialDelayMs,
+      streamDelayMs:
+        overrides.streamDelayMs ?? this.config.global.streamDelayMs,
+      streamJitterMs:
+        overrides.streamJitterMs ?? this.config.global.streamJitterMs,
+      streamChunkSize:
+        overrides.streamChunkSize ?? this.config.global.streamChunkSize,
+      toolCallProbability:
+        overrides.toolCallProbability ?? this.config.global.toolCallProbability,
       errorRate: overrides.errorRate ?? this.config.global.errorRate,
       errorTypes: overrides.errorTypes ?? this.config.global.errorTypes,
-      streamInterruptRate: overrides.streamInterruptRate ?? this.config.global.streamInterruptRate,
-      loadDegradationEnabled: overrides.loadDegradationEnabled ?? this.config.global.loadDegradationEnabled,
-      loadDegradationFactor: overrides.loadDegradationFactor ?? this.config.global.loadDegradationFactor,
+      streamInterruptRate:
+        overrides.streamInterruptRate ?? this.config.global.streamInterruptRate,
+      loadDegradationEnabled:
+        overrides.loadDegradationEnabled ??
+        this.config.global.loadDegradationEnabled,
+      loadDegradationFactor:
+        overrides.loadDegradationFactor ??
+        this.config.global.loadDegradationFactor,
       enabled: overrides.enabled ?? this.config.global.enabled,
       rateLimit: overrides.rateLimit
         ? { ...this.config.global.rateLimit, ...overrides.rateLimit }
@@ -200,7 +216,7 @@ class EndpointRegistry extends EventEmitter {
   updateGlobalConfig(updates: Partial<GlobalConfig>): void {
     // Sanitize input to prevent prototype pollution
     const sanitizedUpdates = sanitizeObject(updates);
-    
+
     // Handle nested rateLimit updates
     if (sanitizedUpdates.rateLimit) {
       this.config.global.rateLimit = {
@@ -229,7 +245,10 @@ class EndpointRegistry extends EventEmitter {
   /**
    * Update endpoint-specific config
    */
-  updateEndpointConfig(endpointId: EndpointId, updates: Partial<EndpointConfig>): void {
+  updateEndpointConfig(
+    endpointId: EndpointId,
+    updates: Partial<EndpointConfig>,
+  ): void {
     // Sanitize input to prevent prototype pollution
     const sanitizedUpdates = sanitizeObject(updates);
     const existing = this.config.endpoints[endpointId] || {};
@@ -274,7 +293,7 @@ class EndpointRegistry extends EventEmitter {
   reset(): void {
     // Use initial env config if we have it, otherwise fall back to hardcoded defaults
     const baseConfig = this.initialConfig || DEFAULT_GLOBAL_CONFIG;
-    
+
     this.config = {
       global: { ...baseConfig },
       endpoints: {},
@@ -321,7 +340,8 @@ class EndpointRegistry extends EventEmitter {
    */
   getRandomErrorType(endpointId: EndpointId): ErrorType {
     const config = this.getEndpointConfig(endpointId);
-    const types = config.errorTypes.length > 0 ? config.errorTypes : ["server_error"];
+    const types =
+      config.errorTypes.length > 0 ? config.errorTypes : ["server_error"];
     return types[Math.floor(Math.random() * types.length)] as ErrorType;
   }
 
@@ -330,7 +350,10 @@ class EndpointRegistry extends EventEmitter {
    */
   shouldInterruptStream(endpointId: EndpointId): boolean {
     const config = this.getEndpointConfig(endpointId);
-    return config.streamInterruptRate > 0 && Math.random() < config.streamInterruptRate;
+    return (
+      config.streamInterruptRate > 0 &&
+      Math.random() < config.streamInterruptRate
+    );
   }
 
   /**
@@ -349,7 +372,7 @@ class EndpointRegistry extends EventEmitter {
     const state = limiter?.getState();
     const currentLoad = state?.currentCount ?? 0;
     const maxLoad = 10; // Baseline for "high load"
-    
+
     const loadRatio = Math.min(1, currentLoad / maxLoad);
     return 1 + (config.loadDegradationFactor - 1) * loadRatio;
   }
@@ -405,14 +428,15 @@ class EndpointRegistry extends EventEmitter {
         maxRequests: envConfig.rateLimitRequests,
         windowMs: envConfig.rateLimitWindowMs,
         bucketCapacity: envConfig.rateLimitRequests,
-        refillRate: envConfig.rateLimitRequests / (envConfig.rateLimitWindowMs / 1000),
+        refillRate:
+          envConfig.rateLimitRequests / (envConfig.rateLimitWindowMs / 1000),
         failAfterN: envConfig.rateLimitAfterN,
         failProbability: envConfig.rateLimitRandomProbability,
       },
     };
 
     this.config.global = globalConfig;
-    
+
     // Save initial config for reset (preserves the dynamic getDefaultResponse function)
     this.initialConfig = { ...globalConfig };
 

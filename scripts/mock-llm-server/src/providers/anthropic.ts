@@ -22,12 +22,24 @@ export const anthropicProvider: Provider = {
       return { valid: false, message: "model: Field required", field: "model" };
     }
 
-    if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-      return { valid: false, message: "messages: Field required", field: "messages" };
+    if (
+      !body.messages ||
+      !Array.isArray(body.messages) ||
+      body.messages.length === 0
+    ) {
+      return {
+        valid: false,
+        message: "messages: Field required",
+        field: "messages",
+      };
     }
 
     if (!body.max_tokens || typeof body.max_tokens !== "number") {
-      return { valid: false, message: "max_tokens: Field required", field: "max_tokens" };
+      return {
+        valid: false,
+        message: "max_tokens: Field required",
+        field: "max_tokens",
+      };
     }
 
     return { valid: true };
@@ -67,6 +79,28 @@ export const anthropicProvider: Provider = {
     };
   },
 
+  formatAuthenticationError(message = "Invalid API Key"): unknown {
+    return {
+      type: "error",
+      error: {
+        type: "authentication_error",
+        message,
+      },
+    };
+  },
+
+  formatPermissionDeniedError(
+    message = "Your API key does not have permission to use this resource",
+  ): unknown {
+    return {
+      type: "error",
+      error: {
+        type: "permission_error",
+        message,
+      },
+    };
+  },
+
   formatDisabledError(): unknown {
     return {
       type: "error",
@@ -92,7 +126,11 @@ export const anthropicProvider: Provider = {
     return handleNonStreaming(body, serverConfig);
   },
 
-  async handleStreaming(req: Request, res: Response, config: HandlerConfig): Promise<void> {
+  async handleStreaming(
+    req: Request,
+    res: Response,
+    config: HandlerConfig,
+  ): Promise<void> {
     const body = req.body as MessageCreateParams;
     const serverConfig = {
       ...config,

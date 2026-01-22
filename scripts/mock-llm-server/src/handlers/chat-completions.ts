@@ -47,7 +47,7 @@ interface MockChatCompletion {
  */
 export function handleNonStreaming(
   req: ChatCompletionCreateParams,
-  config: ServerConfig
+  config: ServerConfig,
 ): MockChatCompletion {
   const id = generateCompletionId();
   const created = Math.floor(Date.now() / 1000);
@@ -79,7 +79,9 @@ export function handleNonStreaming(
   }
 
   const promptTokens = estimateTokens(
-    req.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join(" ")
+    req.messages
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
+      .join(" "),
   );
   const completionTokens = estimateTokens(content || "");
 
@@ -115,7 +117,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: ChatCompletionCreateParams,
   res: Response,
-  config: ServerConfig
+  config: ServerConfig,
 ): Promise<void> {
   const id = generateCompletionId();
   const created = Math.floor(Date.now() / 1000);
@@ -147,7 +149,9 @@ export async function handleStreaming(
   // Send usage in final chunk if requested
   if (req.stream_options?.include_usage) {
     const promptTokens = estimateTokens(
-      req.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join(" ")
+      req.messages
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join(" "),
     );
     const completionTokens = estimateTokens(config.getDefaultResponse());
 
@@ -177,7 +181,7 @@ async function streamTextContent(
   id: string,
   created: number,
   config: ServerConfig,
-  sendChunk: (chunk: ChatCompletionChunk) => void
+  sendChunk: (chunk: ChatCompletionChunk) => void,
 ): Promise<void> {
   const content = config.getDefaultResponse();
 
@@ -250,7 +254,7 @@ async function streamToolCall(
   id: string,
   created: number,
   config: ServerConfig,
-  sendChunk: (chunk: ChatCompletionChunk) => void
+  sendChunk: (chunk: ChatCompletionChunk) => void,
 ): Promise<void> {
   const toolCalls = generateToolCalls(req.tools!, 1);
   const toolCall = toolCalls[0];

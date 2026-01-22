@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { startServer, stopServer, getTestClient, resetRateLimit, getBaseUrl } from "./setup";
+import {
+  startServer,
+  stopServer,
+  getTestClient,
+  resetRateLimit,
+  getBaseUrl,
+} from "./setup";
 import { APIError } from "openai";
 
 describe("Rate Limiting", () => {
@@ -63,7 +69,9 @@ describe("Rate Limiting", () => {
       });
 
       expect(response.headers.get("x-ratelimit-limit-requests")).toBeTruthy();
-      expect(response.headers.get("x-ratelimit-remaining-requests")).toBeTruthy();
+      expect(
+        response.headers.get("x-ratelimit-remaining-requests"),
+      ).toBeTruthy();
     });
 
     it("should include retry-after and retry-after-ms headers on 429", async () => {
@@ -102,7 +110,10 @@ describe("Rate Limiting", () => {
       expect(response.headers.get("retry-after-ms")).toBeTruthy();
 
       // Verify retry-after-ms is a valid number
-      const retryAfterMs = parseInt(response.headers.get("retry-after-ms")!, 10);
+      const retryAfterMs = parseInt(
+        response.headers.get("retry-after-ms")!,
+        10,
+      );
       expect(retryAfterMs).toBeGreaterThan(0);
     });
 

@@ -1,9 +1,17 @@
-import { Router, type Request, type Response, type Router as RouterType } from "express";
+import {
+  Router,
+  type Request,
+  type Response,
+  type Router as RouterType,
+} from "express";
 import { metrics } from "../metrics.js";
 import { registry } from "../registry.js";
 import { detailedMetrics } from "../detailed-metrics.js";
 import { adminWebSocket } from "./websocket.js";
-import { getAvailableStrategies, getStrategyDescription } from "../rate-limiting/index.js";
+import {
+  getAvailableStrategies,
+  getStrategyDescription,
+} from "../rate-limiting/index.js";
 import { ENDPOINT_LABELS, ENDPOINT_IDS } from "../providers/types.js";
 import type { EndpointId } from "../providers/types.js";
 
@@ -80,7 +88,10 @@ router.patch("/config/global", (req: Request, res: Response) => {
  * GET /api/config/endpoints - List all endpoints with their config
  */
 router.get("/config/endpoints", (_req: Request, res: Response) => {
-  const endpoints: Record<string, { label: string; config: unknown; rateLimiterState: unknown }> = {};
+  const endpoints: Record<
+    string,
+    { label: string; config: unknown; rateLimiterState: unknown }
+  > = {};
 
   for (const id of ENDPOINT_IDS) {
     const rateLimiter = registry.getRateLimiter(id);
@@ -142,7 +153,11 @@ router.delete("/config/endpoints/:endpoint", (req: Request, res: Response) => {
  */
 router.post("/config/reset", (_req: Request, res: Response) => {
   registry.reset();
-  res.json({ status: "ok", message: "Configuration reset", config: registry.getFullConfig() });
+  res.json({
+    status: "ok",
+    message: "Configuration reset",
+    config: registry.getFullConfig(),
+  });
 });
 
 /**
@@ -195,7 +210,10 @@ router.get("/detailed-metrics", (_req: Request, res: Response) => {
  */
 router.get("/detailed-metrics/export/json", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Content-Disposition", "attachment; filename=detailed-metrics.json");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=detailed-metrics.json",
+  );
   res.send(detailedMetrics.exportJSON());
 });
 
@@ -204,7 +222,10 @@ router.get("/detailed-metrics/export/json", (_req: Request, res: Response) => {
  */
 router.get("/detailed-metrics/export/csv", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", "attachment; filename=detailed-metrics.csv");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=detailed-metrics.csv",
+  );
   res.send(detailedMetrics.exportCSV());
 });
 
@@ -221,11 +242,20 @@ router.post("/detailed-metrics/reset", (_req: Request, res: Response) => {
  */
 router.get("/failure-modes", (_req: Request, res: Response) => {
   res.json([
-    { id: "timeout", description: "Request hangs indefinitely (client times out)" },
+    {
+      id: "timeout",
+      description: "Request hangs indefinitely (client times out)",
+    },
     { id: "server_error", description: "Returns 500 Internal Server Error" },
     { id: "bad_request", description: "Returns 400 Bad Request" },
-    { id: "slow_response", description: "Adds 5-10 second delay before response" },
-    { id: "connection_reset", description: "Abruptly closes the connection (TCP RST)" },
+    {
+      id: "slow_response",
+      description: "Adds 5-10 second delay before response",
+    },
+    {
+      id: "connection_reset",
+      description: "Abruptly closes the connection (TCP RST)",
+    },
   ]);
 });
 

@@ -1,10 +1,5 @@
 import type { Response } from "express";
-import type {
-  FunctionDeclaration,
-  Tool,
-  Content,
-  Part,
-} from "@google/genai";
+import type { FunctionDeclaration, Tool, Content, Part } from "@google/genai";
 import type { ServerConfig, JSONSchema } from "../types.js";
 import { generateFakeData } from "../fake-data.js";
 import type { GenerateContentParameters } from "@google/genai";
@@ -32,7 +27,8 @@ interface MockGenerateContentResponse {
  * Generate a Gemini response ID
  */
 function generateResponseId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let id = "";
   for (let i = 0; i < 22; i++) {
     id += chars[Math.floor(Math.random() * chars.length)];
@@ -58,7 +54,7 @@ interface GeminiRequestBody {
  * Extract all function declarations from tools
  */
 function extractFunctionDeclarations(
-  body: GeminiRequestBody
+  body: GeminiRequestBody,
 ): FunctionDeclaration[] {
   const declarations: FunctionDeclaration[] = [];
   for (const tool of body.tools || []) {
@@ -82,7 +78,7 @@ function getToolConfig(body: GeminiRequestBody) {
 export function handleNonStreaming(
   model: string,
   request: GeminiRequestBody,
-  config: ServerConfig
+  config: ServerConfig,
 ): MockGenerateContentResponse {
   const responseId = generateResponseId();
   const functionDeclarations = extractFunctionDeclarations(request);
@@ -105,7 +101,7 @@ export function handleNonStreaming(
       toolConfig.allowedFunctionNames.length > 0
     ) {
       const allowedFunctions = functionDeclarations.filter((f) =>
-        toolConfig.allowedFunctionNames!.includes(f.name!)
+        toolConfig.allowedFunctionNames!.includes(f.name!),
       );
       functionToCall =
         allowedFunctions[Math.floor(Math.random() * allowedFunctions.length)];
@@ -116,8 +112,13 @@ export function handleNonStreaming(
         ];
     }
 
-    const schema = (functionToCall as { parametersJsonSchema?: JSONSchema }).parametersJsonSchema || functionToCall.parameters;
-    const args = generateFakeData(schema as JSONSchema) as Record<string, unknown>;
+    const schema =
+      (functionToCall as { parametersJsonSchema?: JSONSchema })
+        .parametersJsonSchema || functionToCall.parameters;
+    const args = generateFakeData(schema as JSONSchema) as Record<
+      string,
+      unknown
+    >;
 
     candidate = {
       content: {
@@ -151,8 +152,10 @@ export function handleNonStreaming(
   const promptTokens = estimateTokens(contentsText);
   const candidateTokens = estimateTokens(
     candidate.content?.parts
-      ?.map((p) => ("text" in p ? (p as { text: string }).text : JSON.stringify(p)))
-      .join(" ") || ""
+      ?.map((p) =>
+        "text" in p ? (p as { text: string }).text : JSON.stringify(p),
+      )
+      .join(" ") || "",
   );
 
   return {
@@ -179,10 +182,12 @@ function extractContentsText(contents: GeminiRequestBody["contents"]): string {
       .flatMap((c) => {
         if (typeof c === "string") return [c];
         const content = c as Content;
-        return content.parts?.map((p) => {
-          if (typeof p === "string") return p;
-          return "text" in p ? (p as { text: string }).text : "";
-        }) || [];
+        return (
+          content.parts?.map((p) => {
+            if (typeof p === "string") return p;
+            return "text" in p ? (p as { text: string }).text : "";
+          }) || []
+        );
       })
       .join(" ");
   }
@@ -196,7 +201,7 @@ export async function handleStreaming(
   model: string,
   request: GeminiRequestBody,
   res: Response,
-  config: ServerConfig
+  config: ServerConfig,
 ): Promise<void> {
   const responseId = generateResponseId();
   const functionDeclarations = extractFunctionDeclarations(request);
@@ -232,16 +237,10 @@ export async function handleStreaming(
       functionDeclarations,
       promptTokens,
       config,
-      sendChunk
+      sendChunk,
     );
   } else {
-    await streamTextContent(
-      model,
-      responseId,
-      promptTokens,
-      config,
-      sendChunk
-    );
+    await streamTextContent(model, responseId, promptTokens, config, sendChunk);
   }
 
   res.end();
@@ -252,7 +251,7 @@ async function streamTextContent(
   responseId: string,
   promptTokens: number,
   config: ServerConfig,
-  sendChunk: (chunk: MockGenerateContentResponse) => void
+  sendChunk: (chunk: MockGenerateContentResponse) => void,
 ): Promise<void> {
   const content = config.getDefaultResponse();
   let candidateTokens = 0;
@@ -261,7 +260,9 @@ async function streamTextContent(
   for (let i = 0; i < content.length; i += config.streamChunkSize) {
     const isLast = i + config.streamChunkSize >= content.length;
     const chunk = content.slice(i, i + config.streamChunkSize);
-    candidateTokens = estimateTokens(content.slice(0, i + config.streamChunkSize));
+    candidateTokens = estimateTokens(
+      content.slice(0, i + config.streamChunkSize),
+    );
 
     const response: MockGenerateContentResponse = {
       candidates: [
@@ -295,7 +296,7 @@ async function streamFunctionCall(
   functionDeclarations: FunctionDeclaration[],
   promptTokens: number,
   _config: ServerConfig,
-  sendChunk: (chunk: MockGenerateContentResponse) => void
+  sendChunk: (chunk: MockGenerateContentResponse) => void,
 ): Promise<void> {
   const toolConfig = getToolConfig(request);
 
@@ -306,7 +307,7 @@ async function streamFunctionCall(
     toolConfig.allowedFunctionNames.length > 0
   ) {
     const allowedFunctions = functionDeclarations.filter((f) =>
-      toolConfig.allowedFunctionNames!.includes(f.name!)
+      toolConfig.allowedFunctionNames!.includes(f.name!),
     );
     functionToCall =
       allowedFunctions[Math.floor(Math.random() * allowedFunctions.length)];
@@ -317,11 +318,16 @@ async function streamFunctionCall(
       ];
   }
 
-  const schema = (functionToCall as { parametersJsonSchema?: JSONSchema }).parametersJsonSchema || functionToCall.parameters;
-  const args = generateFakeData(schema as JSONSchema) as Record<string, unknown>;
+  const schema =
+    (functionToCall as { parametersJsonSchema?: JSONSchema })
+      .parametersJsonSchema || functionToCall.parameters;
+  const args = generateFakeData(schema as JSONSchema) as Record<
+    string,
+    unknown
+  >;
 
   const candidateTokens = estimateTokens(
-    (functionToCall.name || "") + JSON.stringify(args)
+    (functionToCall.name || "") + JSON.stringify(args),
   );
 
   // For function calls, we send a single chunk with the complete function call

@@ -82,16 +82,19 @@ export interface EndpointDetailedMetrics {
  */
 export interface DetailedMetricsSnapshot {
   timestamp: number;
-  endpoints: Record<EndpointId, {
-    timeSeries: TimeSeriesPoint[];
-    peaks: PeakMetrics;
-    latencyHistogram: LatencyBucket[];
-    errors: ErrorEntry[];
-    currentRPS: number;
-    currentConnections: number;
-    totalStreaming: number;
-    totalNonStreaming: number;
-  }>;
+  endpoints: Record<
+    EndpointId,
+    {
+      timeSeries: TimeSeriesPoint[];
+      peaks: PeakMetrics;
+      latencyHistogram: LatencyBucket[];
+      errors: ErrorEntry[];
+      currentRPS: number;
+      currentConnections: number;
+      totalStreaming: number;
+      totalNonStreaming: number;
+    }
+  >;
   global: {
     timeSeries: TimeSeriesPoint[];
     peaks: PeakMetrics;
@@ -124,7 +127,7 @@ const MAX_ERROR_TYPES = 100; // Limit error type tracking to prevent memory leak
 
 /**
  * Detailed Metrics Collector
- * 
+ *
  * Provides time-series data, peak tracking, and latency histograms
  * for performance analysis.
  */
@@ -132,7 +135,10 @@ class DetailedMetricsCollector extends EventEmitter {
   private metrics: Map<EndpointId, EndpointDetailedMetrics> = new Map();
   private globalMetrics: EndpointDetailedMetrics;
   private activeConnections: Map<EndpointId, number> = new Map();
-  private activeRequests: Map<string, { endpoint: EndpointId; startTime: number; streaming: boolean }> = new Map();
+  private activeRequests: Map<
+    string,
+    { endpoint: EndpointId; startTime: number; streaming: boolean }
+  > = new Map();
   private flushInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -220,11 +226,14 @@ class DetailedMetricsCollector extends EventEmitter {
     this.emit("tick", this.getSnapshot());
   }
 
-  private addTimeSeriesPoint(metrics: EndpointDetailedMetrics, endpointId: EndpointId | null): void {
+  private addTimeSeriesPoint(
+    metrics: EndpointDetailedMetrics,
+    endpointId: EndpointId | null,
+  ): void {
     const { currentSecond } = metrics;
     const latencies = currentSecond.latencies;
-    
-    const connections = endpointId 
+
+    const connections = endpointId
       ? this.activeConnections.get(endpointId) || 0
       : Array.from(this.activeConnections.values()).reduce((a, b) => a + b, 0);
 
@@ -236,16 +245,17 @@ class DetailedMetricsCollector extends EventEmitter {
       requestsCompleted: currentSecond.requestsCompleted,
       requestsFailed: currentSecond.requestsFailed,
       requestsRateLimited: currentSecond.requestsRateLimited,
-      avgLatencyMs: latencies.length > 0 
-        ? latencies.reduce((a, b) => a + b, 0) / latencies.length 
-        : 0,
+      avgLatencyMs:
+        latencies.length > 0
+          ? latencies.reduce((a, b) => a + b, 0) / latencies.length
+          : 0,
       p50LatencyMs: this.percentile(latencies, 50),
       p95LatencyMs: this.percentile(latencies, 95),
       p99LatencyMs: this.percentile(latencies, 99),
     };
 
     metrics.timeSeries.push(point);
-    
+
     // Keep only last N points
     if (metrics.timeSeries.length > TIME_SERIES_MAX_POINTS) {
       metrics.timeSeries.shift();
@@ -270,7 +280,10 @@ class DetailedMetricsCollector extends EventEmitter {
     return sorted[Math.max(0, index)];
   }
 
-  private updateLatencyHistogram(metrics: EndpointDetailedMetrics, latencyMs: number): void {
+  private updateLatencyHistogram(
+    metrics: EndpointDetailedMetrics,
+    latencyMs: number,
+  ): void {
     for (const bucket of metrics.latencyHistogram) {
       if (latencyMs >= bucket.min && latencyMs < bucket.max) {
         bucket.count++;
@@ -282,7 +295,11 @@ class DetailedMetricsCollector extends EventEmitter {
   /**
    * Record request start
    */
-  requestStart(endpoint: EndpointId, requestId: string, streaming: boolean = false): void {
+  requestStart(
+    endpoint: EndpointId,
+    requestId: string,
+    streaming: boolean = false,
+  ): void {
     // Guard against duplicate starts
     if (this.activeRequests.has(requestId)) {
       return;
@@ -293,14 +310,18 @@ class DetailedMetricsCollector extends EventEmitter {
       console.warn(`Unknown endpoint: ${endpoint}`);
       return;
     }
-    
+
     // Track active connection
     const current = this.activeConnections.get(endpoint) || 0;
     this.activeConnections.set(endpoint, current + 1);
-    
+
     // Track request with streaming flag
-    this.activeRequests.set(requestId, { endpoint, startTime: Date.now(), streaming });
-    
+    this.activeRequests.set(requestId, {
+      endpoint,
+      startTime: Date.now(),
+      streaming,
+    });
+
     // Update streaming/non-streaming counts
     if (streaming) {
       metrics.totalStreaming++;
@@ -309,12 +330,12 @@ class DetailedMetricsCollector extends EventEmitter {
       metrics.totalNonStreaming++;
       this.globalMetrics.totalNonStreaming++;
     }
-    
+
     // Update current second
     metrics.currentSecond.requestsStarted++;
     metrics.peaks.totalRequests++;
     metrics.peaks.totalConnections++;
-    
+
     this.globalMetrics.currentSecond.requestsStarted++;
     this.globalMetrics.peaks.totalRequests++;
     this.globalMetrics.peaks.totalConnections++;
@@ -343,7 +364,7 @@ class DetailedMetricsCollector extends EventEmitter {
     // Record latency
     metrics.currentSecond.latencies.push(latencyMs);
     metrics.currentSecond.requestsCompleted++;
-    
+
     this.globalMetrics.currentSecond.latencies.push(latencyMs);
     this.globalMetrics.currentSecond.requestsCompleted++;
 
@@ -385,11 +406,11 @@ class DetailedMetricsCollector extends EventEmitter {
     // Record error
     metrics.currentSecond.requestsFailed++;
     metrics.peaks.totalErrors++;
-    
+
     // Also record latency for failed requests
     metrics.currentSecond.latencies.push(latencyMs);
     this.updateLatencyHistogram(metrics, latencyMs);
-    
+
     this.globalMetrics.currentSecond.requestsFailed++;
     this.globalMetrics.peaks.totalErrors++;
     this.globalMetrics.currentSecond.latencies.push(latencyMs);
@@ -403,7 +424,11 @@ class DetailedMetricsCollector extends EventEmitter {
   /**
    * Record error type with bounded map size
    */
-  private recordErrorType(errors: Map<string, ErrorEntry>, errorType: string, now: number): void {
+  private recordErrorType(
+    errors: Map<string, ErrorEntry>,
+    errorType: string,
+    now: number,
+  ): void {
     const existing = errors.get(errorType);
     if (existing) {
       existing.count++;
@@ -433,10 +458,10 @@ class DetailedMetricsCollector extends EventEmitter {
   rateLimited(endpoint: EndpointId): void {
     const metrics = this.metrics.get(endpoint);
     if (!metrics) return;
-    
+
     metrics.currentSecond.requestsRateLimited++;
     metrics.peaks.totalRateLimited++;
-    
+
     this.globalMetrics.currentSecond.requestsRateLimited++;
     this.globalMetrics.peaks.totalRateLimited++;
   }
@@ -447,19 +472,30 @@ class DetailedMetricsCollector extends EventEmitter {
    */
   getSnapshot(): DetailedMetricsSnapshot {
     const now = Date.now();
-    const endpoints: Record<string, DetailedMetricsSnapshot["endpoints"][EndpointId]> = {};
+    const endpoints: Record<
+      string,
+      DetailedMetricsSnapshot["endpoints"][EndpointId]
+    > = {};
 
     for (const [endpointId, metrics] of this.metrics) {
       // Include current second data in RPS calculation
-      const currentSecondRPS = metrics.currentSecond.requestsCompleted + metrics.currentSecond.requestsFailed;
+      const currentSecondRPS =
+        metrics.currentSecond.requestsCompleted +
+        metrics.currentSecond.requestsFailed;
       const recentPoints = metrics.timeSeries.slice(-4); // Last 4 completed seconds
-      const historicalRPS = recentPoints.length > 0
-        ? recentPoints.reduce((sum, p) => sum + p.requestsCompleted + p.requestsFailed, 0) / recentPoints.length
-        : 0;
+      const historicalRPS =
+        recentPoints.length > 0
+          ? recentPoints.reduce(
+              (sum, p) => sum + p.requestsCompleted + p.requestsFailed,
+              0,
+            ) / recentPoints.length
+          : 0;
       // Weighted average: current second + historical
-      const currentRPS = recentPoints.length > 0
-        ? (currentSecondRPS + historicalRPS * recentPoints.length) / (recentPoints.length + 1)
-        : currentSecondRPS;
+      const currentRPS =
+        recentPoints.length > 0
+          ? (currentSecondRPS + historicalRPS * recentPoints.length) /
+            (recentPoints.length + 1)
+          : currentSecondRPS;
 
       endpoints[endpointId] = {
         timeSeries: metrics.timeSeries,
@@ -474,27 +510,45 @@ class DetailedMetricsCollector extends EventEmitter {
     }
 
     // Same for global metrics
-    const globalCurrentSecondRPS = this.globalMetrics.currentSecond.requestsCompleted + 
-                                    this.globalMetrics.currentSecond.requestsFailed;
+    const globalCurrentSecondRPS =
+      this.globalMetrics.currentSecond.requestsCompleted +
+      this.globalMetrics.currentSecond.requestsFailed;
     const globalRecentPoints = this.globalMetrics.timeSeries.slice(-4);
-    const globalHistoricalRPS = globalRecentPoints.length > 0
-      ? globalRecentPoints.reduce((sum, p) => sum + p.requestsCompleted + p.requestsFailed, 0) / globalRecentPoints.length
-      : 0;
-    const globalCurrentRPS = globalRecentPoints.length > 0
-      ? (globalCurrentSecondRPS + globalHistoricalRPS * globalRecentPoints.length) / (globalRecentPoints.length + 1)
-      : globalCurrentSecondRPS;
+    const globalHistoricalRPS =
+      globalRecentPoints.length > 0
+        ? globalRecentPoints.reduce(
+            (sum, p) => sum + p.requestsCompleted + p.requestsFailed,
+            0,
+          ) / globalRecentPoints.length
+        : 0;
+    const globalCurrentRPS =
+      globalRecentPoints.length > 0
+        ? (globalCurrentSecondRPS +
+            globalHistoricalRPS * globalRecentPoints.length) /
+          (globalRecentPoints.length + 1)
+        : globalCurrentSecondRPS;
 
     return {
       timestamp: now,
-      endpoints: endpoints as Record<EndpointId, DetailedMetricsSnapshot["endpoints"][EndpointId]>,
+      endpoints: endpoints as Record<
+        EndpointId,
+        DetailedMetricsSnapshot["endpoints"][EndpointId]
+      >,
       global: {
         timeSeries: this.globalMetrics.timeSeries,
         peaks: { ...this.globalMetrics.peaks },
-        latencyHistogram: this.globalMetrics.latencyHistogram.map((b) => ({ ...b })),
+        latencyHistogram: this.globalMetrics.latencyHistogram.map((b) => ({
+          ...b,
+        })),
         totalErrors: Array.from(this.globalMetrics.errors.values()),
         currentRPS: Math.round(globalCurrentRPS),
-        currentConnections: Array.from(this.activeConnections.values()).reduce((a, b) => a + b, 0),
-        testDurationSeconds: Math.floor((now - this.globalMetrics.peaks.startTime) / 1000),
+        currentConnections: Array.from(this.activeConnections.values()).reduce(
+          (a, b) => a + b,
+          0,
+        ),
+        testDurationSeconds: Math.floor(
+          (now - this.globalMetrics.peaks.startTime) / 1000,
+        ),
         totalStreaming: this.globalMetrics.totalStreaming,
         totalNonStreaming: this.globalMetrics.totalNonStreaming,
       },
@@ -517,7 +571,7 @@ class DetailedMetricsCollector extends EventEmitter {
       "active_connections",
       "cumulative_connections",
       "requests_started",
-      "requests_completed", 
+      "requests_completed",
       "requests_failed",
       "requests_rate_limited",
       "avg_latency_ms",
@@ -526,19 +580,21 @@ class DetailedMetricsCollector extends EventEmitter {
       "p99_latency_ms",
     ].join(",");
 
-    const rows = this.globalMetrics.timeSeries.map((p) => [
-      new Date(p.timestamp).toISOString(),
-      p.activeConnections,
-      p.cumulativeConnections,
-      p.requestsStarted,
-      p.requestsCompleted,
-      p.requestsFailed,
-      p.requestsRateLimited,
-      p.avgLatencyMs.toFixed(2),
-      p.p50LatencyMs?.toFixed(2) ?? "",
-      p.p95LatencyMs?.toFixed(2) ?? "",
-      p.p99LatencyMs?.toFixed(2) ?? "",
-    ].join(","));
+    const rows = this.globalMetrics.timeSeries.map((p) =>
+      [
+        new Date(p.timestamp).toISOString(),
+        p.activeConnections,
+        p.cumulativeConnections,
+        p.requestsStarted,
+        p.requestsCompleted,
+        p.requestsFailed,
+        p.requestsRateLimited,
+        p.avgLatencyMs.toFixed(2),
+        p.p50LatencyMs?.toFixed(2) ?? "",
+        p.p95LatencyMs?.toFixed(2) ?? "",
+        p.p99LatencyMs?.toFixed(2) ?? "",
+      ].join(","),
+    );
 
     return [headers, ...rows].join("\n");
   }

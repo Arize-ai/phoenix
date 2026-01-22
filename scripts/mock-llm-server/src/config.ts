@@ -66,7 +66,9 @@ function createResponseGenerator(): () => string {
     if (Math.random() < 0.5) {
       return generateLoremIpsum();
     }
-    return DYNAMIC_RESPONSES[Math.floor(Math.random() * DYNAMIC_RESPONSES.length)];
+    return DYNAMIC_RESPONSES[
+      Math.floor(Math.random() * DYNAMIC_RESPONSES.length)
+    ];
   };
 }
 
@@ -80,25 +82,31 @@ export function getConfig(): ServerConfig {
     // Rate limiting
     rateLimitEnabled: process.env.RATE_LIMIT_ENABLED === "true",
     rateLimitRequests: parseInt(process.env.RATE_LIMIT_REQUESTS || "10", 10),
-    rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000", 10),
+    rateLimitWindowMs: parseInt(
+      process.env.RATE_LIMIT_WINDOW_MS || "60000",
+      10,
+    ),
     rateLimitFailureMode: (process.env.RATE_LIMIT_MODE || "after_n") as
       | "always"
       | "random"
       | "after_n",
     rateLimitRandomProbability: parseFloat(
-      process.env.RATE_LIMIT_RANDOM_PROBABILITY || "0.3"
+      process.env.RATE_LIMIT_RANDOM_PROBABILITY || "0.3",
     ),
     rateLimitAfterN: parseInt(process.env.RATE_LIMIT_AFTER_N || "5", 10),
 
     // Streaming
-    streamInitialDelayMs: parseInt(process.env.STREAM_INITIAL_DELAY_MS || "300", 10),
+    streamInitialDelayMs: parseInt(
+      process.env.STREAM_INITIAL_DELAY_MS || "300",
+      10,
+    ),
     streamDelayMs: parseInt(process.env.STREAM_DELAY_MS || "50", 10),
     streamJitterMs: parseInt(process.env.STREAM_JITTER_MS || "30", 10),
     streamChunkSize: parseInt(process.env.STREAM_CHUNK_SIZE || "10", 10),
 
     // Tool calls
     toolCallProbability: parseFloat(
-      process.env.TOOL_CALL_PROBABILITY || "0.75"
+      process.env.TOOL_CALL_PROBABILITY || "0.75",
     ),
 
     // Response content
@@ -113,22 +121,30 @@ export function printConfig(config: ServerConfig): void {
   console.log("\n📋 Server Configuration:");
   console.log("━".repeat(50));
   console.log(`  Port: ${config.port}`);
-  console.log(`  Rate Limiting: ${config.rateLimitEnabled ? "Enabled" : "Disabled"}`);
+  console.log(
+    `  Rate Limiting: ${config.rateLimitEnabled ? "Enabled" : "Disabled"}`,
+  );
   if (config.rateLimitEnabled) {
     console.log(`    Mode: ${config.rateLimitFailureMode}`);
     console.log(`    Requests/Window: ${config.rateLimitRequests}`);
     console.log(`    Window: ${config.rateLimitWindowMs}ms`);
     if (config.rateLimitFailureMode === "random") {
-      console.log(`    Random Probability: ${config.rateLimitRandomProbability * 100}%`);
+      console.log(
+        `    Random Probability: ${config.rateLimitRandomProbability * 100}%`,
+      );
     }
     if (config.rateLimitFailureMode === "after_n") {
       console.log(`    Fail After: ${config.rateLimitAfterN} requests`);
     }
   }
   console.log(`  Stream Initial Delay: ${config.streamInitialDelayMs}ms`);
-  console.log(`  Stream Delay: ${config.streamDelayMs}ms (±${config.streamJitterMs}ms jitter)`);
+  console.log(
+    `  Stream Delay: ${config.streamDelayMs}ms (±${config.streamJitterMs}ms jitter)`,
+  );
   console.log(`  Stream Chunk Size: ${config.streamChunkSize} chars`);
   console.log(`  Tool Call Probability: ${config.toolCallProbability * 100}%`);
-  console.log(`  Response Mode: ${process.env.DEFAULT_RESPONSE ? "Static (from env)" : "Dynamic (random from pool)"}`);
+  console.log(
+    `  Response Mode: ${process.env.DEFAULT_RESPONSE ? "Static (from env)" : "Dynamic (random from pool)"}`,
+  );
   console.log("━".repeat(50));
 }

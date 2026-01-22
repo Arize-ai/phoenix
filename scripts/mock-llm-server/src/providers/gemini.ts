@@ -1,9 +1,6 @@
 import type { Request, Response } from "express";
 import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
-import {
-  handleNonStreaming,
-  handleStreaming,
-} from "../handlers/gemini.js";
+import { handleNonStreaming, handleStreaming } from "../handlers/gemini.js";
 
 /**
  * Google GenAI (Gemini) Generate Content API Provider (v1beta)
@@ -17,7 +14,11 @@ export const geminiGenerateProvider: Provider = {
   validateRequest(req: Request): ValidationResult {
     const body = req.body;
 
-    if (!body.contents || !Array.isArray(body.contents) || body.contents.length === 0) {
+    if (
+      !body.contents ||
+      !Array.isArray(body.contents) ||
+      body.contents.length === 0
+    ) {
       return {
         valid: false,
         message: "contents is required and must be a non-empty array",
@@ -62,6 +63,30 @@ export const geminiGenerateProvider: Provider = {
     };
   },
 
+  formatAuthenticationError(
+    message = "API key not valid. Please pass a valid API key.",
+  ): unknown {
+    return {
+      error: {
+        code: 401,
+        message,
+        status: "UNAUTHENTICATED",
+      },
+    };
+  },
+
+  formatPermissionDeniedError(
+    message = "Permission denied on resource",
+  ): unknown {
+    return {
+      error: {
+        code: 403,
+        message,
+        status: "PERMISSION_DENIED",
+      },
+    };
+  },
+
   formatDisabledError(): unknown {
     return {
       error: {
@@ -89,7 +114,9 @@ export const geminiGenerateProvider: Provider = {
   },
 
   async handleStreaming(): Promise<void> {
-    throw new Error("Streaming not supported on this endpoint. Use streamGenerateContent.");
+    throw new Error(
+      "Streaming not supported on this endpoint. Use streamGenerateContent.",
+    );
   },
 };
 
@@ -105,7 +132,11 @@ export const geminiStreamProvider: Provider = {
   validateRequest(req: Request): ValidationResult {
     const body = req.body;
 
-    if (!body.contents || !Array.isArray(body.contents) || body.contents.length === 0) {
+    if (
+      !body.contents ||
+      !Array.isArray(body.contents) ||
+      body.contents.length === 0
+    ) {
       return {
         valid: false,
         message: "contents is required and must be a non-empty array",
@@ -150,6 +181,30 @@ export const geminiStreamProvider: Provider = {
     };
   },
 
+  formatAuthenticationError(
+    message = "API key not valid. Please pass a valid API key.",
+  ): unknown {
+    return {
+      error: {
+        code: 401,
+        message,
+        status: "UNAUTHENTICATED",
+      },
+    };
+  },
+
+  formatPermissionDeniedError(
+    message = "Permission denied on resource",
+  ): unknown {
+    return {
+      error: {
+        code: 403,
+        message,
+        status: "PERMISSION_DENIED",
+      },
+    };
+  },
+
   formatDisabledError(): unknown {
     return {
       error: {
@@ -161,10 +216,16 @@ export const geminiStreamProvider: Provider = {
   },
 
   handleNonStreaming(): unknown {
-    throw new Error("Non-streaming not supported on this endpoint. Use generateContent.");
+    throw new Error(
+      "Non-streaming not supported on this endpoint. Use generateContent.",
+    );
   },
 
-  async handleStreaming(req: Request, res: Response, config: HandlerConfig): Promise<void> {
+  async handleStreaming(
+    req: Request,
+    res: Response,
+    config: HandlerConfig,
+  ): Promise<void> {
     const model = req.params.model;
     const body = req.body;
     const serverConfig = {
@@ -195,6 +256,9 @@ export const geminiGenerateV1Provider: Provider = {
   formatRateLimitError: geminiGenerateProvider.formatRateLimitError,
   formatValidationError: geminiGenerateProvider.formatValidationError,
   formatServerError: geminiGenerateProvider.formatServerError,
+  formatAuthenticationError: geminiGenerateProvider.formatAuthenticationError,
+  formatPermissionDeniedError:
+    geminiGenerateProvider.formatPermissionDeniedError,
   formatDisabledError: geminiGenerateProvider.formatDisabledError,
   handleNonStreaming: geminiGenerateProvider.handleNonStreaming,
   handleStreaming: geminiGenerateProvider.handleStreaming,
@@ -214,6 +278,8 @@ export const geminiStreamV1Provider: Provider = {
   formatRateLimitError: geminiStreamProvider.formatRateLimitError,
   formatValidationError: geminiStreamProvider.formatValidationError,
   formatServerError: geminiStreamProvider.formatServerError,
+  formatAuthenticationError: geminiStreamProvider.formatAuthenticationError,
+  formatPermissionDeniedError: geminiStreamProvider.formatPermissionDeniedError,
   formatDisabledError: geminiStreamProvider.formatDisabledError,
   handleNonStreaming: geminiStreamProvider.handleNonStreaming,
   handleStreaming: geminiStreamProvider.handleStreaming,

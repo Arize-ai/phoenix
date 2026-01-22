@@ -86,7 +86,7 @@ describe("Anthropic Messages API", () => {
           model: "",
           max_tokens: 1024,
           messages: [{ role: "user", content: "Hello!" }],
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -98,7 +98,7 @@ describe("Anthropic Messages API", () => {
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 1024,
           messages: [] as MessageParam[],
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -228,7 +228,9 @@ describe("Anthropic Messages API", () => {
       const response = await client.messages.create({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
-        messages: [{ role: "user", content: "What's the weather in San Francisco?" }],
+        messages: [
+          { role: "user", content: "What's the weather in San Francisco?" },
+        ],
         tools,
       });
 
@@ -267,12 +269,18 @@ describe("Anthropic Messages API", () => {
       const jsonChunks: string[] = [];
 
       for await (const event of stream) {
-        if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+        if (
+          event.type === "content_block_start" &&
+          event.content_block.type === "tool_use"
+        ) {
           hasToolUseStart = true;
           toolUseId = event.content_block.id;
           toolName = event.content_block.name;
         }
-        if (event.type === "content_block_delta" && event.delta.type === "input_json_delta") {
+        if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "input_json_delta"
+        ) {
           hasInputJsonDelta = true;
           jsonChunks.push(event.delta.partial_json);
         }

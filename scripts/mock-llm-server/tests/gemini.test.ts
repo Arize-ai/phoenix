@@ -80,7 +80,7 @@ describe("Google GenAI (Gemini) API", () => {
             "x-goog-api-key": "test-key",
           },
           body: JSON.stringify({}),
-        }
+        },
       );
 
       expect(response.status).toBe(400);

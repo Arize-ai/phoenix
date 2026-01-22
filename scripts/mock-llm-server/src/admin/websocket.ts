@@ -1,7 +1,10 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import { metrics, type ConnectionEvent } from "../metrics.js";
-import { detailedMetrics, type DetailedMetricsSnapshot } from "../detailed-metrics.js";
+import {
+  detailedMetrics,
+  type DetailedMetricsSnapshot,
+} from "../detailed-metrics.js";
 import { registry, type DynamicConfig } from "../registry.js";
 import type { EndpointId } from "../providers/types.js";
 
@@ -26,7 +29,10 @@ export class AdminWebSocketServer {
 
       // Send initial state
       this.send(ws, { type: "metrics", data: metrics.getSnapshot() });
-      this.send(ws, { type: "detailed_metrics", data: detailedMetrics.getSnapshot() });
+      this.send(ws, {
+        type: "detailed_metrics",
+        data: detailedMetrics.getSnapshot(),
+      });
       this.send(ws, { type: "config", data: registry.getFullConfig() });
 
       ws.on("message", (data) => {
@@ -71,13 +77,15 @@ export class AdminWebSocketServer {
         this.broadcast({ type: "metrics", data: metrics.getSnapshot() });
       }
     }, 100);
-
   }
 
   /**
    * Handle incoming WebSocket message
    */
-  private handleMessage(ws: WebSocket, message: { type: string; data?: unknown }): void {
+  private handleMessage(
+    ws: WebSocket,
+    message: { type: string; data?: unknown },
+  ): void {
     switch (message.type) {
       case "get_metrics":
         this.send(ws, { type: "metrics", data: metrics.getSnapshot() });
@@ -95,7 +103,10 @@ export class AdminWebSocketServer {
 
       case "update_endpoint_config":
         if (message.data && typeof message.data === "object") {
-          const { endpoint, config } = message.data as { endpoint: string; config: Record<string, unknown> };
+          const { endpoint, config } = message.data as {
+            endpoint: string;
+            config: Record<string, unknown>;
+          };
           if (endpoint && config) {
             registry.updateEndpointConfig(endpoint as EndpointId, config);
           }
@@ -116,15 +127,24 @@ export class AdminWebSocketServer {
 
       case "reset_detailed_metrics":
         detailedMetrics.reset();
-        this.send(ws, { type: "detailed_metrics", data: detailedMetrics.getSnapshot() });
+        this.send(ws, {
+          type: "detailed_metrics",
+          data: detailedMetrics.getSnapshot(),
+        });
         break;
 
       case "get_detailed_metrics":
-        this.send(ws, { type: "detailed_metrics", data: detailedMetrics.getSnapshot() });
+        this.send(ws, {
+          type: "detailed_metrics",
+          data: detailedMetrics.getSnapshot(),
+        });
         break;
 
       default:
-        this.send(ws, { type: "error", data: `Unknown message type: ${message.type}` });
+        this.send(ws, {
+          type: "error",
+          data: `Unknown message type: ${message.type}`,
+        });
     }
   }
 

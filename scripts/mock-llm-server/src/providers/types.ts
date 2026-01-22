@@ -103,6 +103,16 @@ export interface Provider {
   formatServerError(message?: string): unknown;
 
   /**
+   * Format an authentication error response (401) for this provider's API format
+   */
+  formatAuthenticationError(message?: string): unknown;
+
+  /**
+   * Format a permission denied error response (403) for this provider's API format
+   */
+  formatPermissionDeniedError(message?: string): unknown;
+
+  /**
    * Format a disabled endpoint error response
    */
   formatDisabledError(): unknown;
@@ -115,5 +125,9 @@ export interface Provider {
   /**
    * Handle streaming request
    */
-  handleStreaming(req: Request, res: Response, config: HandlerConfig): Promise<void>;
+  handleStreaming(
+    req: Request,
+    res: Response,
+    config: HandlerConfig,
+  ): Promise<void>;
 }

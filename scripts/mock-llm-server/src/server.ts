@@ -36,9 +36,13 @@ if (VERBOSE_LOGGING) {
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
-      if (!req.path.startsWith("/api") && !req.path.startsWith("/dashboard") && req.path !== "/ws") {
+      if (
+        !req.path.startsWith("/api") &&
+        !req.path.startsWith("/dashboard") &&
+        req.path !== "/ws"
+      ) {
         console.log(
-          `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`
+          `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`,
         );
       }
     });
@@ -55,20 +59,20 @@ const dashboardRateLimiter = (() => {
   const requests = new Map<string, number[]>();
   const windowMs = 60000; // 1 minute
   const maxRequests = 100; // 100 requests per minute per IP
-  
+
   return (req: Request, res: Response, next: () => void) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
     const timestamps = requests.get(ip) || [];
-    
+
     // Remove old timestamps outside the window
-    const validTimestamps = timestamps.filter(t => now - t < windowMs);
-    
+    const validTimestamps = timestamps.filter((t) => now - t < windowMs);
+
     if (validTimestamps.length >= maxRequests) {
       res.status(429).json({ error: "Too many requests" });
       return;
     }
-    
+
     validTimestamps.push(now);
     requests.set(ip, validTimestamps);
     next();
@@ -80,9 +84,13 @@ const dashboardPath = path.join(__dirname, "../dashboard/dist");
 app.use("/dashboard", dashboardRateLimiter, express.static(dashboardPath));
 
 // Serve index.html for all dashboard routes (SPA support)
-app.get("/dashboard/*", dashboardRateLimiter, (_req: Request, res: Response) => {
-  res.sendFile(path.join(dashboardPath, "index.html"));
-});
+app.get(
+  "/dashboard/*",
+  dashboardRateLimiter,
+  (_req: Request, res: Response) => {
+    res.sendFile(path.join(dashboardPath, "index.html"));
+  },
+);
 
 // Redirect root /dashboard to /dashboard/
 app.get("/dashboard", (_req: Request, res: Response) => {
@@ -101,10 +109,30 @@ app.get("/v1/models", (_req: Request, res: Response) => {
   res.json({
     object: "list",
     data: [
-      { id: "gpt-4o", object: "model", created: 1715367049, owned_by: "mock-server" },
-      { id: "gpt-4o-mini", object: "model", created: 1715367049, owned_by: "mock-server" },
-      { id: "gpt-4-turbo", object: "model", created: 1715367049, owned_by: "mock-server" },
-      { id: "gpt-3.5-turbo", object: "model", created: 1715367049, owned_by: "mock-server" },
+      {
+        id: "gpt-4o",
+        object: "model",
+        created: 1715367049,
+        owned_by: "mock-server",
+      },
+      {
+        id: "gpt-4o-mini",
+        object: "model",
+        created: 1715367049,
+        owned_by: "mock-server",
+      },
+      {
+        id: "gpt-4-turbo",
+        object: "model",
+        created: 1715367049,
+        owned_by: "mock-server",
+      },
+      {
+        id: "gpt-3.5-turbo",
+        object: "model",
+        created: 1715367049,
+        owned_by: "mock-server",
+      },
     ],
   });
 });
@@ -122,7 +150,7 @@ app.use("/api", adminRoutes);
 // Register all provider routes automatically
 for (const provider of ALL_PROVIDERS) {
   const handler = createEndpointHandler(provider);
-  
+
   if (provider.method === "POST") {
     app.post(provider.routePath, handler);
   } else if (provider.method === "GET") {
@@ -185,7 +213,9 @@ export function resetRateLimitState(): void {
 export { app };
 
 // Start server if run directly
-const isMain = process.argv[1]?.endsWith("server.ts") || process.argv[1]?.endsWith("server.js");
+const isMain =
+  process.argv[1]?.endsWith("server.ts") ||
+  process.argv[1]?.endsWith("server.js");
 if (isMain) {
   startServer();
 }

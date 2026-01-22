@@ -17,7 +17,9 @@ export function getBaseUrl(): string {
   return `http://localhost:${TEST_PORT}`;
 }
 
-export async function startServer(env: Record<string, string> = {}): Promise<void> {
+export async function startServer(
+  env: Record<string, string> = {},
+): Promise<void> {
   if (serverProcess) {
     await stopServer();
   }
@@ -86,9 +88,12 @@ export async function stopServer(): Promise<void> {
 }
 
 export async function resetRateLimit(): Promise<void> {
-  const response = await fetch(`http://localhost:${TEST_PORT}/api/rate-limit/reset`, {
-    method: "POST",
-  });
+  const response = await fetch(
+    `http://localhost:${TEST_PORT}/api/rate-limit/reset`,
+    {
+      method: "POST",
+    },
+  );
   if (!response.ok) {
     throw new Error("Failed to reset rate limit");
   }

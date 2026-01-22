@@ -1,4 +1,9 @@
-import type { RateLimiter, RateLimitResult, RateLimitConfig, RateLimiterState } from "../types.js";
+import type {
+  RateLimiter,
+  RateLimitResult,
+  RateLimitConfig,
+  RateLimiterState,
+} from "../types.js";
 
 /**
  * Token Bucket Rate Limiter
@@ -23,7 +28,10 @@ export class TokenBucketRateLimiter implements RateLimiter {
     const elapsed = (now - this.lastRefill) / 1000; // seconds
     const tokensToAdd = elapsed * this.config.refillRate;
 
-    this.tokens = Math.min(this.config.bucketCapacity, this.tokens + tokensToAdd);
+    this.tokens = Math.min(
+      this.config.bucketCapacity,
+      this.tokens + tokensToAdd,
+    );
     this.lastRefill = now;
   }
 
@@ -78,8 +86,14 @@ export class TokenBucketRateLimiter implements RateLimiter {
     this.config = { ...this.config, ...config };
 
     // If capacity increased, allow immediate use of new tokens
-    if (config.bucketCapacity !== undefined && config.bucketCapacity > oldCapacity) {
-      this.tokens = Math.min(config.bucketCapacity, this.tokens + (config.bucketCapacity - oldCapacity));
+    if (
+      config.bucketCapacity !== undefined &&
+      config.bucketCapacity > oldCapacity
+    ) {
+      this.tokens = Math.min(
+        config.bucketCapacity,
+        this.tokens + (config.bucketCapacity - oldCapacity),
+      );
     }
   }
 }

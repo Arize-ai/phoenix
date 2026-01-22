@@ -154,6 +154,8 @@ export type ErrorType =
   | "timeout"
   | "server_error"
   | "bad_request"
+  | "authentication_error"
+  | "permission_denied"
   | "slow_response"
   | "connection_reset";
 
@@ -235,6 +237,16 @@ export const ERROR_TYPES: {
     id: "bad_request",
     label: "Bad Request (400)",
     description: "Returns HTTP 400",
+  },
+  {
+    id: "authentication_error",
+    label: "Auth Error (401)",
+    description: "Invalid API key",
+  },
+  {
+    id: "permission_denied",
+    label: "Permission Denied (403)",
+    description: "Insufficient permissions",
   },
   {
     id: "timeout",

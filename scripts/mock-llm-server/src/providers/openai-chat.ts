@@ -22,8 +22,16 @@ export const openaiChatProvider: Provider = {
       return { valid: false, message: "model is required", field: "model" };
     }
 
-    if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-      return { valid: false, message: "messages is required and must be non-empty", field: "messages" };
+    if (
+      !body.messages ||
+      !Array.isArray(body.messages) ||
+      body.messages.length === 0
+    ) {
+      return {
+        valid: false,
+        message: "messages is required and must be non-empty",
+        field: "messages",
+      };
     }
 
     return { valid: true };
@@ -62,6 +70,28 @@ export const openaiChatProvider: Provider = {
     };
   },
 
+  formatAuthenticationError(message = "Incorrect API key provided"): unknown {
+    return {
+      error: {
+        message,
+        type: "invalid_api_key",
+        code: "invalid_api_key",
+      },
+    };
+  },
+
+  formatPermissionDeniedError(
+    message = "You don't have access to this resource",
+  ): unknown {
+    return {
+      error: {
+        message,
+        type: "insufficient_quota",
+        code: "insufficient_quota",
+      },
+    };
+  },
+
   formatDisabledError(): unknown {
     return {
       error: {
@@ -87,7 +117,11 @@ export const openaiChatProvider: Provider = {
     return handleNonStreaming(body, serverConfig);
   },
 
-  async handleStreaming(req: Request, res: Response, config: HandlerConfig): Promise<void> {
+  async handleStreaming(
+    req: Request,
+    res: Response,
+    config: HandlerConfig,
+  ): Promise<void> {
     const body = req.body as ChatCompletionCreateParams;
     const serverConfig = {
       ...config,

@@ -99,7 +99,11 @@ export interface ResponseCreateRequest {
   input?: string | ResponseInputItem[];
   instructions?: string;
   tools?: ResponseTool[];
-  tool_choice?: "auto" | "none" | "required" | { type: "function"; name: string };
+  tool_choice?:
+    | "auto"
+    | "none"
+    | "required"
+    | { type: "function"; name: string };
   stream?: boolean;
   stream_options?: { include_usage?: boolean };
   temperature?: number;

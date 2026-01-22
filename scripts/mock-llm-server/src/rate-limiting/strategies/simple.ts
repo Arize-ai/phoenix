@@ -1,4 +1,9 @@
-import type { RateLimiter, RateLimitResult, RateLimitConfig, RateLimiterState } from "../types.js";
+import type {
+  RateLimiter,
+  RateLimitResult,
+  RateLimitConfig,
+  RateLimiterState,
+} from "../types.js";
 
 /**
  * After-N Rate Limiter
@@ -23,7 +28,9 @@ export class AfterNRateLimiter implements RateLimiter {
 
     const headers: Record<string, string> = {
       "x-ratelimit-limit-requests": String(this.config.failAfterN),
-      "x-ratelimit-remaining-requests": String(Math.max(0, this.config.failAfterN - this.totalRequests)),
+      "x-ratelimit-remaining-requests": String(
+        Math.max(0, this.config.failAfterN - this.totalRequests),
+      ),
     };
 
     if (this.totalRequests > this.config.failAfterN) {

@@ -1,4 +1,9 @@
-import type { RateLimiter, RateLimitResult, RateLimitConfig, RateLimiterState } from "../types.js";
+import type {
+  RateLimiter,
+  RateLimitResult,
+  RateLimitConfig,
+  RateLimiterState,
+} from "../types.js";
 
 /**
  * Fixed Window Rate Limiter
@@ -30,7 +35,9 @@ export class FixedWindowRateLimiter implements RateLimiter {
 
     this.requestCount++;
     const remaining = Math.max(0, this.config.maxRequests - this.requestCount);
-    const resetInSeconds = Math.ceil((this.config.windowMs - (now - this.windowStart)) / 1000);
+    const resetInSeconds = Math.ceil(
+      (this.config.windowMs - (now - this.windowStart)) / 1000,
+    );
 
     const headers: Record<string, string> = {
       "x-ratelimit-limit-requests": String(this.config.maxRequests),

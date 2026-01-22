@@ -6,7 +6,13 @@ export type { EndpointId } from "./providers/types.js";
 
 // Event types
 export interface ConnectionEvent {
-  type: "connection_open" | "connection_close" | "request_start" | "request_end" | "error" | "rate_limited";
+  type:
+    | "connection_open"
+    | "connection_close"
+    | "request_start"
+    | "request_end"
+    | "error"
+    | "rate_limited";
   endpoint: EndpointId;
   timestamp: number;
   requestId?: string;
@@ -30,7 +36,10 @@ export interface EndpointMetrics {
 // Snapshot for dashboard
 export interface MetricsSnapshot {
   timestamp: number;
-  endpoints: Record<EndpointId, EndpointMetrics & { requestsPerSecond: number }>;
+  endpoints: Record<
+    EndpointId,
+    EndpointMetrics & { requestsPerSecond: number }
+  >;
   global: {
     totalActiveConnections: number;
     totalRequestsPerSecond: number;
@@ -41,7 +50,10 @@ export interface MetricsSnapshot {
 class MetricsCollector extends EventEmitter {
   private metrics: Map<EndpointId, EndpointMetrics> = new Map();
   private startTime: number = Date.now();
-  private activeRequests: Map<string, { endpoint: EndpointId; startTime: number; streaming: boolean }> = new Map();
+  private activeRequests: Map<
+    string,
+    { endpoint: EndpointId; startTime: number; streaming: boolean }
+  > = new Map();
 
   constructor() {
     super();
@@ -68,7 +80,9 @@ class MetricsCollector extends EventEmitter {
   private cleanupOldTimestamps(): void {
     const cutoff = Date.now() - 60000; // Keep last 60 seconds
     for (const metrics of this.metrics.values()) {
-      metrics.completedTimestamps = metrics.completedTimestamps.filter((t) => t > cutoff);
+      metrics.completedTimestamps = metrics.completedTimestamps.filter(
+        (t) => t > cutoff,
+      );
     }
   }
 
@@ -93,7 +107,11 @@ class MetricsCollector extends EventEmitter {
   /**
    * Called when a request starts
    */
-  requestStart(endpoint: EndpointId, requestId: string, streaming: boolean): void {
+  requestStart(
+    endpoint: EndpointId,
+    requestId: string,
+    streaming: boolean,
+  ): void {
     // Guard against duplicate starts
     if (this.activeRequests.has(requestId)) {
       return;
@@ -139,15 +157,18 @@ class MetricsCollector extends EventEmitter {
     metrics.totalCompleted++;
 
     if (request.streaming) {
-      metrics.activeStreamingConnections = Math.max(0, metrics.activeStreamingConnections - 1);
+      metrics.activeStreamingConnections = Math.max(
+        0,
+        metrics.activeStreamingConnections - 1,
+      );
     }
 
     const now = Date.now();
     const latency = now - request.startTime;
-    
+
     // Record completion timestamp for RPS (completed requests only)
     metrics.completedTimestamps.push(now);
-    
+
     // Record latency
     metrics.latencies.push(latency);
     // Keep last 1000 latencies for better percentile accuracy
@@ -183,7 +204,10 @@ class MetricsCollector extends EventEmitter {
     metrics.totalErrors++;
 
     if (request.streaming) {
-      metrics.activeStreamingConnections = Math.max(0, metrics.activeStreamingConnections - 1);
+      metrics.activeStreamingConnections = Math.max(
+        0,
+        metrics.activeStreamingConnections - 1,
+      );
     }
 
     // Record latency for failed requests too (important for accurate percentiles)
@@ -231,13 +255,18 @@ class MetricsCollector extends EventEmitter {
     const now = Date.now();
     const oneSecondAgo = now - 1000;
 
-    const endpoints: Record<string, EndpointMetrics & { requestsPerSecond: number }> = {};
+    const endpoints: Record<
+      string,
+      EndpointMetrics & { requestsPerSecond: number }
+    > = {};
     let totalActiveConnections = 0;
     let totalRequestsPerSecond = 0;
 
     for (const [endpoint, metrics] of this.metrics) {
       // RPS = completed requests in last second (actual throughput)
-      const rps = metrics.completedTimestamps.filter((t) => t > oneSecondAgo).length;
+      const rps = metrics.completedTimestamps.filter(
+        (t) => t > oneSecondAgo,
+      ).length;
       totalActiveConnections += metrics.activeConnections;
       totalRequestsPerSecond += rps;
 
@@ -249,7 +278,10 @@ class MetricsCollector extends EventEmitter {
 
     return {
       timestamp: now,
-      endpoints: endpoints as Record<EndpointId, EndpointMetrics & { requestsPerSecond: number }>,
+      endpoints: endpoints as Record<
+        EndpointId,
+        EndpointMetrics & { requestsPerSecond: number }
+      >,
       global: {
         totalActiveConnections,
         totalRequestsPerSecond,
@@ -261,7 +293,10 @@ class MetricsCollector extends EventEmitter {
   /**
    * Calculate percentile from latencies
    */
-  getLatencyPercentile(endpoint: EndpointId, percentile: number): number | null {
+  getLatencyPercentile(
+    endpoint: EndpointId,
+    percentile: number,
+  ): number | null {
     const metrics = this.metrics.get(endpoint);
     if (!metrics || metrics.latencies.length === 0) return null;
 

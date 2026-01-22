@@ -1,4 +1,9 @@
-import type { RateLimiter, RateLimitResult, RateLimitConfig, RateLimiterState } from "../types.js";
+import type {
+  RateLimiter,
+  RateLimitResult,
+  RateLimitConfig,
+  RateLimiterState,
+} from "../types.js";
 
 /**
  * Leaky Bucket Rate Limiter
