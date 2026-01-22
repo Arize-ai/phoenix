@@ -838,7 +838,9 @@ async def experiments_with_runs_and_annotations(
         examples = [
             models.DatasetExample(
                 dataset_id=dataset.id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             for _ in range(2)
         ]
@@ -1063,7 +1065,9 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
         examples = [
             models.DatasetExample(
                 dataset_id=dataset.id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             for _ in range(2)
         ]
@@ -1113,7 +1117,9 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=examples[0].id,
                 output={"output-key-test": "output-value"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
             ),
             models.ExperimentRun(
@@ -1122,7 +1128,9 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=examples[1].id,
                 output={"output-key": "output-value"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
             ),
         ]

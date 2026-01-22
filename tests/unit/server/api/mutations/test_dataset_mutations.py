@@ -686,7 +686,9 @@ async def dataset_with_a_single_version(
             insert(models.DatasetExample)
             .values(
                 dataset_id=dataset_id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             .returning(models.DatasetExample.id)
         )

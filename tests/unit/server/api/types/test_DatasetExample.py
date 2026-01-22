@@ -371,7 +371,9 @@ async def example_with_experiment_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=example_id,
                 output={"task_output": "experiment-1-run-1-output"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc),
             )
         )
@@ -397,7 +399,9 @@ async def example_with_experiment_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=example_id,
                 output={"task_output": {"output": "experiment-2-run-1-output"}},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc),
             )
         )

@@ -233,7 +233,9 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps[0] == Timestamp(year=2000, month=1, day=1, hour=1, tzinfo=timezone.utc)
+        assert actual_timestamps[0] == Timestamp(
+            year=2000, month=1, day=1, hour=1, tzinfo=timezone.utc
+        )
         assert actual_timestamps[-1] == Timestamp(year=2000, month=1, day=8, tzinfo=timezone.utc)
         for index in range(len(actual_timestamps) - 1):
             assert actual_timestamps[index + 1] - actual_timestamps[index] == timedelta(hours=1)
@@ -316,7 +318,9 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps == [Timestamp(year=2000, month=1, day=1, hour=2, tzinfo=timezone.utc)]
+        assert actual_timestamps == [
+            Timestamp(year=2000, month=1, day=1, hour=2, tzinfo=timezone.utc)
+        ]
 
 
 class TestDriftMetric:

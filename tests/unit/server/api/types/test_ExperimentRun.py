@@ -116,7 +116,9 @@ async def experiment_run_with_annotations(
             insert(models.DatasetExample)
             .values(
                 dataset_id=dataset_id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             .returning(models.DatasetExample.id)
         )
@@ -155,7 +157,9 @@ async def experiment_run_with_annotations(
                 dataset_example_id=example_id,
                 output={"run-1-output-key": "run-1-output-value"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
             )
         )
@@ -174,7 +178,9 @@ async def experiment_run_with_annotations(
                 trace_id=None,
                 error="annotation-1-error",
                 metadata_={"annotation-1-metadata-key": "annotation-1-metadata-value"},
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc),
             )
         )
@@ -192,7 +198,9 @@ async def experiment_run_with_annotations(
                 trace_id=None,
                 error="annotation-2-error",
                 metadata_={"annotation-2-metadata-key": "annotation-2-metadata-value"},
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
                 end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc),
             )
         )
