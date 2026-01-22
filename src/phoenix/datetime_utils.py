@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any, Iterator, Literal, Optional, cast
 
 import pandas as pd
-import pytz
 from pandas import Timestamp, to_datetime
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
@@ -46,7 +45,7 @@ def normalize_timestamps(
     if is_numeric_dtype(timestamps):
         return to_datetime(timestamps, unit="s", utc=True)
     if is_datetime64tz_dtype(timestamps):
-        return timestamps.dt.tz_convert(pytz.utc)
+        return timestamps.dt.tz_convert(timezone.utc)
     if is_datetime64_any_dtype(timestamps):
         return timestamps.dt.tz_localize(
             datetime.now().astimezone().tzinfo,

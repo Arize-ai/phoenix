@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from statistics import mean
 from typing import Any
 
 import pytest
-import pytz
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -670,7 +669,7 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
 
         example = models.DatasetExample(
             dataset_id=dataset.id,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(example)
         await session.flush()
@@ -839,7 +838,9 @@ async def experiments_with_runs_and_annotations(
         examples = [
             models.DatasetExample(
                 dataset_id=dataset.id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             for _ in range(2)
         ]
@@ -894,7 +895,7 @@ async def experiments_with_runs_and_annotations(
                     hour=0,
                     minute=0,
                     second=0,
-                    tzinfo=pytz.utc,
+                    tzinfo=timezone.utc,
                 ),
                 end_time=datetime(
                     year=2020,
@@ -903,7 +904,7 @@ async def experiments_with_runs_and_annotations(
                     hour=0,
                     minute=0,
                     second=repetition_number,
-                    tzinfo=pytz.utc,
+                    tzinfo=timezone.utc,
                 ),
             )
             for example in examples
@@ -925,7 +926,7 @@ async def experiments_with_runs_and_annotations(
                     hour=0,
                     minute=0,
                     second=0,
-                    tzinfo=pytz.utc,
+                    tzinfo=timezone.utc,
                 ),
                 end_time=datetime(
                     year=2020,
@@ -934,7 +935,7 @@ async def experiments_with_runs_and_annotations(
                     hour=0,
                     minute=0,
                     second=repetition_number,
-                    tzinfo=pytz.utc,
+                    tzinfo=timezone.utc,
                 ),
             )
             for example in examples
@@ -954,8 +955,8 @@ async def experiments_with_runs_and_annotations(
                 trace_id=None,
                 error=None,
                 metadata_={},
-                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
             )
             for run, score in zip(first_experiment_runs, [1, 1, 0, 0, 0, 0])
         ]
@@ -971,8 +972,8 @@ async def experiments_with_runs_and_annotations(
                     trace_id=None,
                     error=None,
                     metadata_={},
-                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
                 )
                 for run, score in zip(first_experiment_runs[:2], [0, 1])
             ]
@@ -987,8 +988,8 @@ async def experiments_with_runs_and_annotations(
                     trace_id=None,
                     error="failed",
                     metadata_={},
-                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
                 )
             ]
             + [
@@ -1002,8 +1003,8 @@ async def experiments_with_runs_and_annotations(
                     trace_id=None,
                     error=None,
                     metadata_={},
-                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                    end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
                 )
             ]
         )
@@ -1018,8 +1019,8 @@ async def experiments_with_runs_and_annotations(
                 trace_id=None,
                 error=None,
                 metadata_={},
-                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
             )
             for run, score in zip([second_experiment_runs[0], second_experiment_runs[2]], [1, 1])
         ]
@@ -1034,8 +1035,8 @@ async def experiments_with_runs_and_annotations(
                 trace_id=None,
                 error="failed",
                 metadata_={},
-                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                start_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+                end_time=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
             )
             for run in second_experiment_runs
         ]
@@ -1064,7 +1065,9 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
         examples = [
             models.DatasetExample(
                 dataset_id=dataset.id,
-                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
             )
             for _ in range(2)
         ]
@@ -1114,8 +1117,10 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=examples[0].id,
                 output={"output-key-test": "output-value"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
+                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
             ),
             models.ExperimentRun(
                 error=None,
@@ -1123,8 +1128,10 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
                 dataset_example_id=examples[1].id,
                 output={"output-key": "output-value"},
                 repetition_number=1,
-                start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+                start_time=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
+                end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
             ),
         ]
         session.add_all(experiment_runs)
