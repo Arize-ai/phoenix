@@ -1,7 +1,7 @@
 import { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
-import { useTheme } from "@phoenix/contexts";
+import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 import { Text } from "../content";
 import { CloseOutline, Icon } from "../icon";

@@ -13,10 +13,8 @@ import {
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
   TOOL_CHOICE_PARAM_NAME,
 } from "./constants";
-import {
-  areInvocationParamsEqual,
-  createToolForProvider,
-} from "./playgroundUtils";
+import { areInvocationParamsEqual } from "./invocationParameterUtils";
+import { createToolForProvider } from "./playgroundUtils";
 
 type PlaygroundChatTemplateFooterProps = {
   instanceId: number;

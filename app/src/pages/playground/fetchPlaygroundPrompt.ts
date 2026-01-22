@@ -12,11 +12,13 @@ import {
   TOOL_CHOICE_PARAM_NAME,
 } from "@phoenix/pages/playground/constants";
 import {
-  applyProviderInvocationParameterConstraints,
   areInvocationParamsEqual,
+  toCamelCase,
+} from "@phoenix/pages/playground/invocationParameterUtils";
+import {
+  applyProviderInvocationParameterConstraints,
   getChatRole,
   normalizeInvocationParameters,
-  toCamelCase,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {

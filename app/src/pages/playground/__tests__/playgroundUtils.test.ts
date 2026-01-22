@@ -25,6 +25,9 @@ import {
 } from "../constants";
 import {
   areInvocationParamsEqual,
+  mergeInvocationParametersWithDefaults,
+} from "../invocationParameterUtils";
+import {
   areRequiredInvocationParametersConfigured,
   extractVariablesFromInstances,
   getAzureConfigFromAttributes,
@@ -37,7 +40,6 @@ import {
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
-  mergeInvocationParametersWithDefaults,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";

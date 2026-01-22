@@ -6,8 +6,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
 import { useSize } from "@phoenix/contexts/SizeContext";
+
+import { Icon, Icons } from "../icon";
 
 import { useCredentialContext } from "./CredentialContext";
 

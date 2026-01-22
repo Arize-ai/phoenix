@@ -6,7 +6,7 @@ import {
   CredentialsProps,
   CredentialsState,
   CredentialsStore,
-} from "@phoenix/store";
+} from "@phoenix/store/credentialsStore";
 
 export const CredentialsContext = createContext<CredentialsStore | null>(null);
 

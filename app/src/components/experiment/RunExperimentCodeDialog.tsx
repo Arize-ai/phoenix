@@ -1,16 +1,6 @@
 import { useCallback } from "react";
 
-import {
-  Button,
-  ButtonProps,
-  Dialog,
-  DialogTrigger,
-  ExternalLink,
-  Icon,
-  Icons,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Dialog, ExternalLink, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
@@ -23,7 +13,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { ExperimentCodeModal } from "@phoenix/components/experiment/ExperimentCodeModal";
 import { BASE_URL } from "@phoenix/config";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -275,37 +264,5 @@ export function RunExperimentCodeDialogContent({
         </View>
       </DialogContent>
     </Dialog>
-  );
-}
-
-export type RunExperimentButtonProps = RunExperimentCodeDialogProps &
-  Pick<ButtonProps, "variant" | "size">;
-
-/**
- * A button that opens a dialog with code examples for running experiments
- * on a dataset via the Python or TypeScript SDK.
- */
-export function RunExperimentButton({
-  datasetName,
-  datasetId,
-  version,
-  variant = "default",
-  size = "S",
-}: RunExperimentButtonProps) {
-  return (
-    <DialogTrigger>
-      <Button
-        size={size}
-        variant={variant}
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-      >
-        Experiment
-      </Button>
-      <ExperimentCodeModal
-        datasetName={datasetName}
-        datasetId={datasetId}
-        version={version}
-      />
-    </DialogTrigger>
   );
 }
