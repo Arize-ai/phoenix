@@ -92,6 +92,8 @@ export interface DetailedMetricsSnapshot {
     errors: ErrorEntry[];
     currentRPS: number;
     currentConnections: number;
+    totalStreaming: number;
+    totalNonStreaming: number;
   }>;
   global: {
     timeSeries: TimeSeriesPoint[];
@@ -101,6 +103,8 @@ export interface DetailedMetricsSnapshot {
     currentRPS: number;
     currentConnections: number;
     testDurationSeconds: number;
+    totalStreaming: number;
+    totalNonStreaming: number;
   };
 }
 

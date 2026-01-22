@@ -1,11 +1,12 @@
-import type { MetricsSnapshot, EndpointId } from "../types";
+import type { MetricsSnapshot, DetailedMetricsSnapshot, EndpointId } from "../types";
 import { ENDPOINT_LABELS } from "../types";
 
 interface Props {
   metrics: MetricsSnapshot | null;
+  detailedMetrics?: DetailedMetricsSnapshot | null;
 }
 
-export function ConnectionMonitor({ metrics }: Props) {
+export function ConnectionMonitor({ metrics, detailedMetrics }: Props) {
   if (!metrics) {
     return (
       <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
@@ -26,9 +27,18 @@ export function ConnectionMonitor({ metrics }: Props) {
         <div className="text-gray-500 text-xs">No endpoint activity yet</div>
       ) : (
         <div className="space-y-0.5">
-          {activeEndpoints.map(([id, endpoint]) => (
-            <EndpointRow key={id} id={id} endpoint={endpoint} />
-          ))}
+          {activeEndpoints.map(([id, endpoint]) => {
+            const detailed = detailedMetrics?.endpoints[id];
+            return (
+              <EndpointRow 
+                key={id} 
+                id={id} 
+                endpoint={endpoint}
+                totalStreaming={detailed?.totalStreaming ?? 0}
+                totalNonStreaming={detailed?.totalNonStreaming ?? 0}
+              />
+            );
+          })}
           {inactiveCount > 0 && (
             <div className="text-gray-600 text-xs pt-1">+{inactiveCount} inactive</div>
           )}
@@ -38,7 +48,21 @@ export function ConnectionMonitor({ metrics }: Props) {
   );
 }
 
-function EndpointRow({ id, endpoint }: { id: EndpointId; endpoint: { activeConnections: number; activeStreamingConnections: number; totalRequests: number; totalErrors: number; totalRateLimited: number; requestsPerSecond: number; }; }) {
+interface EndpointRowProps {
+  id: EndpointId;
+  endpoint: {
+    activeConnections: number;
+    activeStreamingConnections: number;
+    totalRequests: number;
+    totalErrors: number;
+    totalRateLimited: number;
+    requestsPerSecond: number;
+  };
+  totalStreaming: number;
+  totalNonStreaming: number;
+}
+
+function EndpointRow({ id, endpoint, totalStreaming, totalNonStreaming }: EndpointRowProps) {
   const label = ENDPOINT_LABELS[id] || id;
   return (
     <div className="flex items-center justify-between py-0.5 text-xs">
@@ -49,7 +73,9 @@ function EndpointRow({ id, endpoint }: { id: EndpointId; endpoint: { activeConne
       <div className="flex items-center gap-2 font-mono text-gray-500">
         <span className={endpoint.activeConnections > 0 ? "text-green-400" : ""}>{endpoint.activeConnections}</span>
         <span>{endpoint.requestsPerSecond}/s</span>
-        <span>{endpoint.totalRequests}</span>
+        <span className="text-cyan-400" title="Streaming">{totalStreaming}</span>
+        <span className="text-gray-600">/</span>
+        <span className="text-orange-400" title="Non-streaming">{totalNonStreaming}</span>
         {endpoint.totalErrors > 0 && <span className="text-red-400">{endpoint.totalErrors}err</span>}
       </div>
     </div>

@@ -1,11 +1,13 @@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { DetailedMetricsSnapshot } from "../types";
+import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
 
 interface Props {
   detailedMetrics: DetailedMetricsSnapshot | null;
+  timeRange: TimeRange;
 }
 
-export function ConcurrentConnectionsChart({ detailedMetrics }: Props) {
+export function ConcurrentConnectionsChart({ detailedMetrics, timeRange }: Props) {
   if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
@@ -17,7 +19,12 @@ export function ConcurrentConnectionsChart({ detailedMetrics }: Props) {
     );
   }
 
-  const data = detailedMetrics.global.timeSeries.map((point) => ({
+  const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
+  const filteredSeries = detailedMetrics.global.timeSeries.filter(
+    (point) => point.timestamp >= cutoffTime
+  );
+
+  const data = filteredSeries.map((point) => ({
     time: new Date(point.timestamp).toLocaleTimeString(),
     concurrent: point.activeConnections,
   }));

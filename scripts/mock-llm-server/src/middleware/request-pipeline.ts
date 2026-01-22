@@ -68,7 +68,7 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
     // 6. Track metrics (both systems) - only if not already started by failure injection
     if (!failureResult.metricsStarted) {
       metrics.requestStart(provider.id, requestId, isStreaming);
-      detailedMetrics.requestStart(provider.id, requestId);
+      detailedMetrics.requestStart(provider.id, requestId, isStreaming);
     }
 
     // 7. Build handler config with load-based latency adjustment
@@ -135,9 +135,9 @@ async function handleFailureInjection(
   const errorTypes = config.errorTypes.length > 0 ? config.errorTypes : ["server_error"];
   const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
 
-  // Start tracking for injected failures
+  // Start tracking for injected failures (assume non-streaming since failure happens before we know)
   metrics.requestStart(endpointId as Parameters<typeof metrics.requestStart>[0], requestId, false);
-  detailedMetrics.requestStart(endpointId as Parameters<typeof detailedMetrics.requestStart>[0], requestId);
+  detailedMetrics.requestStart(endpointId as Parameters<typeof detailedMetrics.requestStart>[0], requestId, false);
 
   switch (errorType) {
     case "timeout":

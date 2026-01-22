@@ -63,6 +63,9 @@ export interface EndpointDetailedMetrics {
   peaks: PeakMetrics;
   latencyHistogram: LatencyBucket[];
   errors: Map<string, ErrorEntry>;
+  // Streaming vs non-streaming totals
+  totalStreaming: number;
+  totalNonStreaming: number;
   // Current second accumulator
   currentSecond: {
     timestamp: number;
@@ -86,6 +89,8 @@ export interface DetailedMetricsSnapshot {
     errors: ErrorEntry[];
     currentRPS: number;
     currentConnections: number;
+    totalStreaming: number;
+    totalNonStreaming: number;
   }>;
   global: {
     timeSeries: TimeSeriesPoint[];
@@ -95,6 +100,8 @@ export interface DetailedMetricsSnapshot {
     currentRPS: number;
     currentConnections: number;
     testDurationSeconds: number;
+    totalStreaming: number;
+    totalNonStreaming: number;
   };
 }
 
@@ -125,7 +132,7 @@ class DetailedMetricsCollector extends EventEmitter {
   private metrics: Map<EndpointId, EndpointDetailedMetrics> = new Map();
   private globalMetrics: EndpointDetailedMetrics;
   private activeConnections: Map<EndpointId, number> = new Map();
-  private activeRequests: Map<string, { endpoint: EndpointId; startTime: number }> = new Map();
+  private activeRequests: Map<string, { endpoint: EndpointId; startTime: number; streaming: boolean }> = new Map();
   private flushInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -153,6 +160,8 @@ class DetailedMetricsCollector extends EventEmitter {
       },
       latencyHistogram: LATENCY_BUCKETS.map((b) => ({ ...b, count: 0 })),
       errors: new Map(),
+      totalStreaming: 0,
+      totalNonStreaming: 0,
       currentSecond: {
         timestamp: Math.floor(Date.now() / 1000) * 1000,
         requestsStarted: 0,
@@ -273,7 +282,7 @@ class DetailedMetricsCollector extends EventEmitter {
   /**
    * Record request start
    */
-  requestStart(endpoint: EndpointId, requestId: string): void {
+  requestStart(endpoint: EndpointId, requestId: string, streaming: boolean = false): void {
     // Guard against duplicate starts
     if (this.activeRequests.has(requestId)) {
       return;
@@ -289,8 +298,17 @@ class DetailedMetricsCollector extends EventEmitter {
     const current = this.activeConnections.get(endpoint) || 0;
     this.activeConnections.set(endpoint, current + 1);
     
-    // Track request
-    this.activeRequests.set(requestId, { endpoint, startTime: Date.now() });
+    // Track request with streaming flag
+    this.activeRequests.set(requestId, { endpoint, startTime: Date.now(), streaming });
+    
+    // Update streaming/non-streaming counts
+    if (streaming) {
+      metrics.totalStreaming++;
+      this.globalMetrics.totalStreaming++;
+    } else {
+      metrics.totalNonStreaming++;
+      this.globalMetrics.totalNonStreaming++;
+    }
     
     // Update current second
     metrics.currentSecond.requestsStarted++;
@@ -450,6 +468,8 @@ class DetailedMetricsCollector extends EventEmitter {
         errors: Array.from(metrics.errors.values()),
         currentRPS: Math.round(currentRPS),
         currentConnections: this.activeConnections.get(endpointId) || 0,
+        totalStreaming: metrics.totalStreaming,
+        totalNonStreaming: metrics.totalNonStreaming,
       };
     }
 
@@ -475,6 +495,8 @@ class DetailedMetricsCollector extends EventEmitter {
         currentRPS: Math.round(globalCurrentRPS),
         currentConnections: Array.from(this.activeConnections.values()).reduce((a, b) => a + b, 0),
         testDurationSeconds: Math.floor((now - this.globalMetrics.peaks.startTime) / 1000),
+        totalStreaming: this.globalMetrics.totalStreaming,
+        totalNonStreaming: this.globalMetrics.totalNonStreaming,
       },
     };
   }

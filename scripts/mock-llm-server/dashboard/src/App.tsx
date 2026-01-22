@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { ConnectionMonitor } from "./components/ConnectionMonitor";
 import { ThroughputChart } from "./components/ThroughputChart";
@@ -7,8 +8,11 @@ import { LatencyControls } from "./components/LatencyControls";
 import { RateLimitPanel } from "./components/RateLimitPanel";
 import { FailureModes } from "./components/FailureModes";
 import { EventLog } from "./components/EventLog";
+import { TimeRangeSelector } from "./components/TimeRangeSelector";
+import type { TimeRange } from "./utils/timeRange";
 
 function App() {
+  const [timeRange, setTimeRange] = useState<TimeRange>("10m");
   const {
     connected,
     metrics,
@@ -48,6 +52,11 @@ function App() {
                 <Stat label="Active" value={detailedMetrics.global.currentConnections} color="blue" />
                 <Stat label="RPS" value={detailedMetrics.global.currentRPS} peak={detailedMetrics.global.peaks.maxRPS} color="green" />
                 <Stat label="Total" value={detailedMetrics.global.peaks.totalConnections} color="purple" />
+                <span className="flex items-center gap-1 text-gray-500">
+                  (<span className="text-cyan-400 font-mono">{detailedMetrics.global.totalStreaming}</span> stream
+                  <span className="text-gray-600">/</span>
+                  <span className="text-orange-400 font-mono">{detailedMetrics.global.totalNonStreaming}</span> sync)
+                </span>
                 <Stat 
                   label="Errors" 
                   value={detailedMetrics.global.peaks.totalErrors} 
@@ -69,15 +78,19 @@ function App() {
       {/* Main Content */}
       <main className="p-3">
         {/* Charts Row */}
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-500">Time Series</span>
+          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        </div>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <ThroughputChart detailedMetrics={detailedMetrics} />
-          <ConcurrentConnectionsChart detailedMetrics={detailedMetrics} />
-          <ConnectionsChart detailedMetrics={detailedMetrics} />
+          <ThroughputChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
+          <ConcurrentConnectionsChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
+          <ConnectionsChart detailedMetrics={detailedMetrics} timeRange={timeRange} />
         </div>
 
         {/* Controls Row */}
         <div className="grid grid-cols-4 gap-3 mb-3">
-          <ConnectionMonitor metrics={metrics} />
+          <ConnectionMonitor metrics={metrics} detailedMetrics={detailedMetrics} />
           <LatencyControls config={config} onUpdate={updateGlobalConfig} />
           <RateLimitPanel config={config} onUpdate={updateGlobalConfig} />
           <FailureModes config={config} onUpdate={updateGlobalConfig} />
