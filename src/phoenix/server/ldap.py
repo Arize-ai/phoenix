@@ -237,26 +237,6 @@ def canonicalize_dn(dn: str) -> str | None:
     return ",".join(canonical_parts)
 
 
-def is_ldap_user(auth_method: str | None) -> bool:
-    """Check if auth_method indicates an LDAP user.
-
-    Args:
-        auth_method: The authentication method to check (e.g., 'LOCAL', 'OAUTH2', 'LDAP')
-
-    Returns:
-        True if auth_method is 'LDAP', False otherwise
-
-    Example:
-        >>> is_ldap_user("LDAP")
-        True
-        >>> is_ldap_user("OAUTH2")
-        False
-        >>> is_ldap_user(None)
-        False
-    """
-    return auth_method == "LDAP"
-
-
 class LDAPUserInfo(NamedTuple):
     """Authenticated LDAP user information.
 

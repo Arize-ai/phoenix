@@ -44,7 +44,6 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.ldap import is_ldap_user
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
@@ -599,11 +598,6 @@ async def _sign_in_existing_oauth2_user(
     else:
         user = await session.scalar(stmt.where(func.lower(models.User.email) == email))
         if user is None or not isinstance(user, models.OAuth2User):
-            raise SignInNotAllowed("Sign in is not allowed.")
-        # Security: Prevent OIDC from hijacking LDAP users
-        # LDAP users have auth_method='LDAP'
-        # Use generic error message to avoid revealing auth method (username enumeration)
-        if is_ldap_user(user.auth_method):
             raise SignInNotAllowed("Sign in is not allowed.")
         # Case 1: Different OAuth2 client - update both client and user IDs
         if oauth2_client_id != user.oauth2_client_id:

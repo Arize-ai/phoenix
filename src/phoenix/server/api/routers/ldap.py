@@ -10,10 +10,7 @@ from sqlalchemy.orm import joinedload
 from phoenix.auth import sanitize_email
 from phoenix.config import LDAPConfig
 from phoenix.db import models
-from phoenix.server.ldap import (
-    LDAPUserInfo,
-    is_ldap_user,
-)
+from phoenix.server.ldap import LDAPUserInfo
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +149,7 @@ async def get_or_create_ldap_user(
         existing_user = await session.scalar(
             select(models.User).where(func.lower(models.User.email) == email.lower())
         )
-        if existing_user and not is_ldap_user(existing_user.auth_method):
+        if existing_user and existing_user.auth_method != "LDAP":
             logger.error(
                 "Email already exists with different auth method: %s", existing_user.auth_method
             )
