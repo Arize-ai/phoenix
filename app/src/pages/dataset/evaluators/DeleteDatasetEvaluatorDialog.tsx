@@ -2,6 +2,7 @@ import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   Flex,
@@ -20,7 +21,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/DeleteDatasetEvaluatorDialogMutation.graphql";
@@ -49,8 +50,8 @@ export function DeleteDatasetEvaluatorDialog({
   updateConnectionIds = [],
 }: DeleteDatasetEvaluatorDialogProps) {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const [deleteAssociatedPrompt, setDeleteAssociatedPrompt] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [commitDelete, isCommittingDelete] =
     useMutation<DeleteDatasetEvaluatorDialogMutation>(graphql`
@@ -65,6 +66,7 @@ export function DeleteDatasetEvaluatorDialog({
     `);
 
   const handleDelete = useCallback(() => {
+    setError(null);
     startTransition(() => {
       commitDelete({
         variables: {
@@ -85,10 +87,7 @@ export function DeleteDatasetEvaluatorDialog({
         },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Failed to delete evaluator",
-            message: formattedError?.[0] ?? error.message,
-          });
+          setError(formattedError?.[0] ?? error.message);
         },
       });
     });
@@ -98,15 +97,24 @@ export function DeleteDatasetEvaluatorDialog({
     deleteAssociatedPrompt,
     evaluatorName,
     evaluatorKind,
-    notifyError,
     notifySuccess,
     onDeleted,
     onOpenChange,
     updateConnectionIds,
   ]);
 
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setError(null);
+      }
+      onOpenChange?.(open);
+    },
+    [onOpenChange]
+  );
+
   return (
-    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Modal size="S">
         <Dialog>
           <DialogContent>
@@ -118,6 +126,7 @@ export function DeleteDatasetEvaluatorDialog({
             </DialogHeader>
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
+                {error && <Alert variant="danger">{error}</Alert>}
                 <Text color="danger">
                   {`Are you sure you want to delete evaluator "${evaluatorName}"? This action cannot be undone.`}
                 </Text>
@@ -139,7 +148,7 @@ export function DeleteDatasetEvaluatorDialog({
               borderTopWidth="thin"
             >
               <Flex direction="row" justifyContent="end" gap="size-100">
-                <Button size="S" onPress={() => onOpenChange?.(false)}>
+                <Button size="S" onPress={() => handleOpenChange(false)}>
                   Cancel
                 </Button>
                 <Button
