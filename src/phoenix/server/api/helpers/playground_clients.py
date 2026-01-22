@@ -403,35 +403,48 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     **invocation_parameters,
                 ),
             )
-            async for chunk in stream:
-                if (usage := chunk.usage) is not None:
-                    token_usage = usage
-                if not chunk.choices:
-                    # for Azure, initial chunk contains the content filter
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if tool_call.id is not None
-                                else tool_call_ids[tool_call_index]
-                            )
-                            tool_call_ids[tool_call_index] = tool_call_id
-                            if (function := tool_call.function) is not None:
-                                tool_call_chunk = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
+            try:
+                async for chunk in stream:
+                    if (usage := chunk.usage) is not None:
+                        token_usage = usage
+                    if not chunk.choices:
+                        # for Azure, initial chunk contains the content filter
+                        continue
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+                    if choice.finish_reason is None:
+                        if isinstance(chunk_content := delta.content, str):
+                            text_chunk = TextChunk(content=chunk_content)
+                            yield text_chunk
+                        if (tool_calls := delta.tool_calls) is not None:
+                            for tool_call_index, tool_call in enumerate(tool_calls):
+                                tool_call_id = (
+                                    tool_call.id
+                                    if tool_call.id is not None
+                                    else tool_call_ids[tool_call_index]
                                 )
-                                yield tool_call_chunk
+                                tool_call_ids[tool_call_index] = tool_call_id
+                                if (function := tool_call.function) is not None:
+                                    tool_call_chunk = ToolCallChunk(
+                                        id=tool_call_id,
+                                        function=FunctionCallChunk(
+                                            name=function.name or "",
+                                            arguments=function.arguments or "",
+                                        ),
+                                    )
+                                    yield tool_call_chunk
+            finally:
+                # Explicitly close the stream on cancellation or error
+                if hasattr(stream, "aclose"):
+                    try:
+                        await stream.aclose()
+                    except Exception:
+                        pass
+                elif hasattr(stream, "close"):
+                    try:
+                        stream.close()
+                    except Exception:
+                        pass
 
         if token_usage is not None:
             self._attributes.update(dict(self._llm_token_counts(token_usage)))

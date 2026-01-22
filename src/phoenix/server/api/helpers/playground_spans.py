@@ -111,21 +111,40 @@ class streaming_llm_span:
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> bool:
+        import asyncio
+
         self._end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         self._status_code = StatusCode.OK
+
         if exc_type is not None:
-            self._status_code = StatusCode.ERROR
-            self._status_message = str(exc_value)
-            self._events.append(
-                SpanException(
-                    timestamp=self._end_time,
-                    message=self._status_message,
-                    exception_type=type(exc_value).__name__,
-                    exception_escaped=False,
-                    exception_stacktrace=format_exc(),
+            if exc_type is asyncio.CancelledError:
+                self._status_code = (
+                    StatusCode.CANCELLED if hasattr(StatusCode, "CANCELLED") else StatusCode.ERROR
                 )
-            )
-            logger.exception(exc_value)
+                self._status_message = "Request was cancelled"
+                # Aggregate any partial chunks before letting cancellation propagate
+                if self._text_chunks or self._tool_call_chunks:
+                    self._attributes.update(
+                        chain(
+                            _output_value_and_mime_type(self._text_chunks, self._tool_call_chunks),
+                            _llm_output_messages(self._text_chunks, self._tool_call_chunks),
+                        )
+                    )
+                return False  # Let CancelledError propagate
+            else:
+                self._status_code = StatusCode.ERROR
+                self._status_message = str(exc_value)
+                self._events.append(
+                    SpanException(
+                        timestamp=self._end_time,
+                        message=self._status_message,
+                        exception_type=type(exc_value).__name__,
+                        exception_escaped=False,
+                        exception_stacktrace=format_exc(),
+                    )
+                )
+                logger.exception(exc_value)
+
         if self._text_chunks or self._tool_call_chunks:
             self._attributes.update(
                 chain(
