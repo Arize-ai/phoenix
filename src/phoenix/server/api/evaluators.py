@@ -7,8 +7,22 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
 
+import opentelemetry.sdk.trace as trace_sdk
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
+from openinference.instrumentation import (
+    Message,
+    get_input_attributes,
+    get_llm_input_message_attributes,
+    get_llm_model_name_attributes,
+    get_output_attributes,
+    get_span_kind_attributes,
+)
+from openinference.semconv.trace import SpanAttributes
+from opentelemetry.context import Context
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import Status, StatusCode, format_span_id, format_trace_id
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -60,6 +74,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
+from phoenix.trace.attributes import get_attribute_value, unflatten
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +126,134 @@ class LLMEvaluator:
         self._id = id
         self._llm_client = llm_client
         self._output_config = output_config
+        self._exporter = InMemorySpanExporter()
+        span_processor = SimpleSpanProcessor(self._exporter)
+        tracer_provider = trace_sdk.TracerProvider()
+        tracer_provider.add_span_processor(span_processor)
+        self._tracer = tracer_provider.get_tracer(__name__)
+        self._db_trace: Optional[models.Trace] = None
+        self._db_spans: list[models.Span] = []
+
+    @property
+    def db_trace(self) -> models.Trace:
+        if self._db_trace is None:
+            raise ValueError(
+                "evaluate method has yet to be called and hence no trace has been recorded"
+            )
+        return self._db_trace
+
+    @property
+    def db_spans(self) -> list[models.Span]:
+        if not self._db_spans:
+            raise ValueError(
+                "evaluate method has yet to be called and hence no spans have been recorded"
+            )
+        return self._db_spans
+
+    def _build_db_models(self) -> None:
+        finished_spans = self._exporter.get_finished_spans()
+        self._exporter.clear()
+
+        trace_ids = set(
+            [span.get_span_context().trace_id for span in finished_spans]  # type: ignore[no-untyped-call]
+        )
+        assert len(trace_ids) == 1
+        trace_id = format_trace_id(next(iter(trace_ids)))
+
+        start_time = min(
+            [
+                datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
+                for span in finished_spans
+                if span.start_time is not None
+            ]
+        )
+        end_time = max(
+            [
+                datetime.fromtimestamp(span.end_time / 1e9, tz=timezone.utc)
+                for span in finished_spans
+                if span.end_time is not None
+            ]
+        )
+
+        self._db_trace = models.Trace(
+            trace_id=trace_id,
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+        root_spans = [span for span in finished_spans if span.parent is None]
+        child_spans = [span for span in finished_spans if span.parent is not None]
+        sorted_spans = root_spans + child_spans
+
+        self._db_spans = []
+        for span in sorted_spans:
+            span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            span_id = format_span_id(span_context.span_id)
+
+            parent_id: Optional[str] = None
+            if span.parent is not None:
+                parent_id = format_span_id(span.parent.span_id)
+
+            assert span.start_time is not None
+            assert span.end_time is not None
+            start_time = datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
+            end_time = datetime.fromtimestamp(span.end_time / 1e9, tz=timezone.utc)
+
+            attributes = {}
+            if span.attributes:
+                attributes = unflatten(span.attributes.items())
+
+            span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
+
+            events = []
+            for event in span.events:
+                event_dict = {
+                    "name": event.name,
+                    "timestamp": datetime.fromtimestamp(
+                        event.timestamp / 1e9, tz=timezone.utc
+                    ).isoformat(),
+                    "attributes": dict(event.attributes) if event.attributes else {},
+                }
+                events.append(event_dict)
+
+            llm_token_count_prompt = None
+            llm_token_count_completion = None
+            if span_kind == "LLM":
+                llm_token_count_prompt = get_attribute_value(
+                    attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+                )
+                llm_token_count_completion = get_attribute_value(
+                    attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+                )
+
+            db_span = models.Span(
+                span_id=span_id,
+                parent_id=parent_id,
+                name=span.name,
+                span_kind=span_kind,
+                start_time=start_time,
+                end_time=end_time,
+                attributes=attributes,
+                events=events,
+                status_code=span.status.status_code.name,
+                status_message=span.status.description or "",
+                cumulative_error_count=sum(
+                    int(span.status.status_code.name == "ERROR") for span in finished_spans
+                ),
+                cumulative_llm_token_count_prompt=llm_token_count_prompt or 0,
+                cumulative_llm_token_count_completion=llm_token_count_completion or 0,
+                llm_token_count_prompt=llm_token_count_prompt,
+                llm_token_count_completion=llm_token_count_completion,
+            )
+            self._db_spans.append(db_span)
+
+    @property
+    def db_id(self) -> int:
+        if self._id is None:
+            raise ValueError(
+                "evaluator has not yet been persisted to the database and hence has no ID"
+            )
+        return self._id
 
     @property
     def name(self) -> str:
@@ -210,103 +353,152 @@ class LLMEvaluator:
         output_config: CategoricalAnnotationConfig,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        try:
-            template_variables = apply_input_mapping(
-                input_schema=self.input_schema,
-                input_mapping=input_mapping,
-                context=context,
-            )
-            template_variables = cast_template_variable_types(
-                template_variables=template_variables,
-                input_schema=self.input_schema,
-            )
-            validate_template_variables(
-                template_variables=template_variables,
-                input_schema=self.input_schema,
-            )
-            template_formatter = get_template_formatter(self._template_format)
-            messages: list[
-                tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
-            ] = []
-            for msg in self._template.messages:
-                role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
-                if isinstance(msg.content, str):
-                    formatted_content = template_formatter.format(msg.content, **template_variables)
-                else:
-                    text_parts = []
-                    for part in msg.content:
-                        if isinstance(part, TextContentPart):
-                            formatted_text = template_formatter.format(
-                                part.text, **template_variables
-                            )
-                            text_parts.append(formatted_text)
-                    formatted_content = "".join(text_parts)
-                messages.append((role, formatted_content, None, None))
+        with self._tracer.start_as_current_span(
+            f"Evaluation: {self._name}",
+            attributes={
+                **get_span_kind_attributes("evaluator"),
+                **get_input_attributes(context),
+            },
+            context=Context(),  # inject blank context to ensure the evaluator span is the root
+        ) as evaluator_span:
+            trace_id = format_trace_id(evaluator_span.get_span_context().trace_id)
 
-            denormalized_tools, denormalized_tool_choice = denormalize_tools(
-                self._tools, self._model_provider
-            )
-            invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-            invocation_parameters.update(denormalized_tool_choice)
-            tool_call_by_id: dict[ToolCallId, ToolCall] = {}
-
-            async for chunk in self._llm_client.chat_completion_create(
-                messages=messages,
-                tools=denormalized_tools,
-                **invocation_parameters,
-            ):
-                if isinstance(chunk, ToolCallChunk):
-                    if chunk.id not in tool_call_by_id:
-                        tool_call_by_id[chunk.id] = ToolCall(
-                            name=chunk.function.name,
-                            arguments=chunk.function.arguments,
+            try:
+                template_variables = apply_input_mapping(
+                    input_schema=self.input_schema,
+                    input_mapping=input_mapping,
+                    context=context,
+                )
+                template_variables = cast_template_variable_types(
+                    template_variables=template_variables,
+                    input_schema=self.input_schema,
+                )
+                validate_template_variables(
+                    template_variables=template_variables,
+                    input_schema=self.input_schema,
+                )
+                template_formatter = get_template_formatter(self._template_format)
+                messages: list[
+                    tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+                ] = []
+                for msg in self._template.messages:
+                    role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                    if isinstance(msg.content, str):
+                        formatted_content = template_formatter.format(
+                            msg.content, **template_variables
                         )
                     else:
-                        tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+                        text_parts = []
+                        for part in msg.content:
+                            if isinstance(part, TextContentPart):
+                                formatted_text = template_formatter.format(
+                                    part.text, **template_variables
+                                )
+                                text_parts.append(formatted_text)
+                        formatted_content = "".join(text_parts)
+                    messages.append((role, formatted_content, None, None))
 
-            if not tool_call_by_id:
-                raise ValueError("No tool calls received from LLM")
+                denormalized_tools, denormalized_tool_choice = denormalize_tools(
+                    self._tools, self._model_provider
+                )
+                invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
+                invocation_parameters.update(denormalized_tool_choice)
+                tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
-            tool_call = next(iter(tool_call_by_id.values()))
-            args = json.loads(tool_call["arguments"])
-            label = args.get("label")
-            if label is None:
-                raise ValueError("LLM response missing required 'label' field")
+                with self._tracer.start_as_current_span(
+                    self._llm_client.model_name,
+                    attributes={
+                        **get_span_kind_attributes("llm"),
+                        **get_llm_model_name_attributes(model_name=self._llm_client.model_name),
+                        **get_llm_input_message_attributes(
+                            [
+                                Message(role=role.value.lower(), content=content)
+                                for role, content, _, _ in messages
+                            ]
+                        ),
+                    },
+                ) as llm_span:
+                    try:
+                        async for chunk in self._llm_client.chat_completion_create(
+                            messages=messages,
+                            tools=denormalized_tools,
+                            **invocation_parameters,
+                        ):
+                            if isinstance(chunk, ToolCallChunk):
+                                if chunk.id not in tool_call_by_id:
+                                    tool_call_by_id[chunk.id] = ToolCall(
+                                        name=chunk.function.name,
+                                        arguments=chunk.function.arguments,
+                                    )
+                                else:
+                                    tool_call_by_id[chunk.id]["arguments"] += (
+                                        chunk.function.arguments
+                                    )
 
-            scores_by_label = {
-                config_value.label: config_value.score for config_value in output_config.values
-            }
-            score = scores_by_label.get(label)
-            explanation = args.get("explanation")
+                        llm_span.set_status(Status(StatusCode.OK))
+                    finally:
+                        llm_span.set_attributes(self._llm_client.attributes)
 
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=display_name,
-                annotator_kind="LLM",
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={},
-                error=None,
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        except Exception as e:
-            logger.exception(f"LLM evaluator '{self._name}' failed")
-            end_time = datetime.now(timezone.utc)
-            return EvaluationResult(
-                name=display_name,
-                annotator_kind="LLM",
-                label=None,
-                score=None,
-                explanation=None,
-                metadata={},
-                error=str(e),
-                trace_id=None,
-                start_time=start_time,
-                end_time=end_time,
-            )
+                if not tool_call_by_id:
+                    raise ValueError("No tool calls received from LLM")
+
+                tool_call = next(iter(tool_call_by_id.values()))
+                args = json.loads(tool_call["arguments"])
+                label = args.get("label")
+                if label is None:
+                    raise ValueError("LLM response missing required 'label' field")
+
+                scores_by_label = {
+                    config_value.label: config_value.score for config_value in output_config.values
+                }
+                score = scores_by_label.get(label)
+                explanation = args.get("explanation")
+
+                evaluator_span.set_attributes(
+                    get_output_attributes(
+                        {
+                            "label": label,
+                            "score": score,
+                            "explanation": explanation,
+                        }
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=display_name,
+                    annotator_kind="LLM",
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata={},
+                    error=None,
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            except Exception as e:
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                result = EvaluationResult(
+                    name=display_name,
+                    annotator_kind="LLM",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+        self._build_db_models()
+
+        return result
 
 
 BuiltInEvaluatorOutputConfig: TypeAlias = Union[

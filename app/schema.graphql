@@ -437,6 +437,7 @@ input ChatCompletionOverDatasetInput {
   Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
   """
   templateVariablesPath: String = "input"
+  tracingEnabled: Boolean! = true
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {

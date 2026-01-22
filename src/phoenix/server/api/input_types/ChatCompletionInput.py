@@ -58,3 +58,4 @@ class ChatCompletionOverDatasetInput:
         "{{query}} resolves to input.query. Empty string means full paths like "
         "{{input.query}} or {{reference.answer}} are required.",
     )
+    tracing_enabled: bool = True
