@@ -195,7 +195,9 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
                 propDef.enum && propDef.enum.length > 0
                   ? ` [${propDef.enum.join(", ")}]`
                   : "";
-              lines.push(`│    │    ${propName}: ${typeStr}${enumStr}${reqMarker}`);
+              lines.push(
+                `│    │    ${propName}: ${typeStr}${enumStr}${reqMarker}`
+              );
               if (propDef.description) {
                 lines.push(`│    │      └─ ${propDef.description}`);
               }
