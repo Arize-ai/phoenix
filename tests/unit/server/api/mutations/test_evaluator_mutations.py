@@ -2612,3 +2612,524 @@ async def llm_evaluator(
             sa.delete(models.PromptVersion).where(models.PromptVersion.prompt_id == prompt.id)
         )
         await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
+
+
+class TestDeleteDatasetEvaluators:
+    """Tests for the delete_dataset_evaluators mutation."""
+
+    _DELETE_MUTATION = """
+      mutation($input: DeleteDatasetEvaluatorsInput!) {
+        deleteDatasetEvaluators(input: $input) {
+          datasetEvaluatorIds
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_delete_builtin_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test deleting a built-in evaluator only removes the DatasetEvaluators row."""
+        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
+        builtin_evaluator_id = builtin_evaluator_ids[0]
+
+        # Create a builtin dataset evaluator
+        async with db() as session:
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                builtin_evaluator_id=builtin_evaluator_id,
+                evaluator_id=None,
+                display_name=IdentifierModel.model_validate("test-builtin-evaluator"),
+                input_mapping={},
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
+
+        # Delete the evaluator
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
+        )
+
+        # Verify success
+        assert not result.errors
+        assert result.data is not None
+        assert (
+            dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
+        )
+
+        # Verify the DatasetEvaluators row is deleted
+        async with db() as session:
+            deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert deleted_evaluator is None
+
+    async def test_delete_llm_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test deleting an LLM evaluator cascades to delete the Evaluator record."""
+        evaluator_name = IdentifierModel.model_validate(f"test-llm-evaluator-delete-{token_hex(4)}")
+
+        # Create an LLM evaluator with dataset relationship
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-{token_hex(4)}"),
+                description="test prompt",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type="CHAT",
+                        template_format="MUSTACHE",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Test: {{input}}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(),
+                        ),
+                        tools=None,
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="test llm evaluator for deletion",
+                kind="LLM",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
+                prompt=prompt,
+                dataset_evaluators=[
+                    models.DatasetEvaluators(
+                        dataset_id=empty_dataset.id,
+                        display_name=evaluator_name,
+                        description="test description",
+                        output_config_override=None,
+                        input_mapping={},
+                    )
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+            evaluator_id = llm_evaluator.id
+            dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
+
+        # Delete the dataset evaluator
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
+        )
+
+        # Verify success
+        assert not result.errors
+        assert result.data is not None
+        assert (
+            dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
+        )
+
+        # Verify both the DatasetEvaluators and Evaluator rows are deleted
+        async with db() as session:
+            deleted_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_id
+            )
+            assert deleted_dataset_evaluator is None
+
+            deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
+            assert deleted_evaluator is None
+
+    async def test_delete_multiple_evaluators_mixed(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test deleting a mix of built-in and LLM evaluators in a single call."""
+        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
+        builtin_evaluator_id = builtin_evaluator_ids[0]
+
+        # Create a builtin dataset evaluator
+        async with db() as session:
+            builtin_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                builtin_evaluator_id=builtin_evaluator_id,
+                evaluator_id=None,
+                display_name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
+                input_mapping={},
+            )
+            session.add(builtin_dataset_evaluator)
+            await session.flush()
+            builtin_de_id = builtin_dataset_evaluator.id
+            builtin_de_gid = str(GlobalID("DatasetEvaluator", str(builtin_de_id)))
+
+        # Create an LLM evaluator
+        evaluator_name = IdentifierModel.model_validate(f"test-llm-batch-delete-{token_hex(4)}")
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-batch-{token_hex(4)}"),
+                description="test prompt",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type="CHAT",
+                        template_format="MUSTACHE",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Test: {{input}}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(),
+                        ),
+                        tools=None,
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="test llm evaluator for batch deletion",
+                kind="LLM",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
+                prompt=prompt,
+                dataset_evaluators=[
+                    models.DatasetEvaluators(
+                        dataset_id=empty_dataset.id,
+                        display_name=evaluator_name,
+                        description="test description",
+                        output_config_override=None,
+                        input_mapping={},
+                    )
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+            llm_evaluator_id = llm_evaluator.id
+            llm_de_id = llm_evaluator.dataset_evaluators[0].id
+            llm_de_gid = str(GlobalID("DatasetEvaluator", str(llm_de_id)))
+
+        # Delete both evaluators in one call
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [builtin_de_gid, llm_de_gid]}},
+        )
+
+        # Verify success
+        assert not result.errors
+        assert result.data is not None
+        deleted_ids = result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
+        assert builtin_de_gid in deleted_ids
+        assert llm_de_gid in deleted_ids
+
+        # Verify all rows are deleted
+        async with db() as session:
+            # Builtin dataset evaluator should be deleted
+            deleted_builtin_de = await session.get(models.DatasetEvaluators, builtin_de_id)
+            assert deleted_builtin_de is None
+
+            # LLM dataset evaluator and its parent evaluator should be deleted
+            deleted_llm_de = await session.get(models.DatasetEvaluators, llm_de_id)
+            assert deleted_llm_de is None
+
+            deleted_llm_evaluator = await session.get(models.Evaluator, llm_evaluator_id)
+            assert deleted_llm_evaluator is None
+
+    async def test_delete_nonexistent_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test deleting a nonexistent evaluator returns empty result."""
+        nonexistent_gid = str(GlobalID("DatasetEvaluator", "999999"))
+
+        # Attempt to delete nonexistent evaluator
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [nonexistent_gid]}},
+        )
+
+        # Should succeed but return empty list since no evaluator was found
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == []
+
+    async def test_delete_invalid_id_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test deleting with invalid ID type returns error."""
+        invalid_gid = str(GlobalID("Dataset", "1"))  # Wrong type
+
+        # Attempt to delete with invalid type
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [invalid_gid]}},
+        )
+
+        # Should return error
+        assert result.errors is not None
+        assert "Invalid dataset evaluator id" in result.errors[0].message
+
+    async def test_delete_empty_list(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test deleting with empty list returns empty result."""
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": []}},
+        )
+
+        # Should succeed with empty result
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == []
+
+    async def test_delete_llm_evaluator_with_prompt_deletion(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test deleting an LLM evaluator with deleteAssociatedPrompt=True also deletes the prompt."""
+        evaluator_name = IdentifierModel.model_validate(f"test-llm-with-prompt-del-{token_hex(4)}")
+
+        # Create an LLM evaluator with prompt
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-to-delete-{token_hex(4)}"),
+                description="test prompt to be deleted",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type="CHAT",
+                        template_format="MUSTACHE",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Test: {{input}}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(),
+                        ),
+                        tools=None,
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="test llm evaluator for prompt deletion",
+                kind="LLM",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
+                prompt=prompt,
+                dataset_evaluators=[
+                    models.DatasetEvaluators(
+                        dataset_id=empty_dataset.id,
+                        display_name=evaluator_name,
+                        description="test description",
+                        output_config_override=None,
+                        input_mapping={},
+                    )
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+            prompt_id = prompt.id
+            evaluator_id = llm_evaluator.id
+            dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
+
+        # Delete with deleteAssociatedPrompt=True (default)
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorIds": [dataset_evaluator_gid],
+                    "deleteAssociatedPrompt": True,
+                }
+            },
+        )
+
+        # Verify success
+        assert not result.errors
+        assert result.data is not None
+        assert (
+            dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
+        )
+
+        # Verify the evaluator and prompt are both deleted
+        async with db() as session:
+            deleted_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_id
+            )
+            assert deleted_dataset_evaluator is None
+
+            deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
+            assert deleted_evaluator is None
+
+            deleted_prompt = await session.get(models.Prompt, prompt_id)
+            assert deleted_prompt is None
+
+    async def test_delete_llm_evaluator_without_prompt_deletion(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Test deleting an LLM evaluator with deleteAssociatedPrompt=False preserves the prompt."""
+        evaluator_name = IdentifierModel.model_validate(f"test-llm-keep-prompt-{token_hex(4)}")
+
+        # Create an LLM evaluator with prompt
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-to-keep-{token_hex(4)}"),
+                description="test prompt to be kept",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type="CHAT",
+                        template_format="MUSTACHE",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Test: {{input}}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(),
+                        ),
+                        tools=None,
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="test llm evaluator to keep prompt",
+                kind="LLM",
+                output_config=CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                ),
+                prompt=prompt,
+                dataset_evaluators=[
+                    models.DatasetEvaluators(
+                        dataset_id=empty_dataset.id,
+                        display_name=evaluator_name,
+                        description="test description",
+                        output_config_override=None,
+                        input_mapping={},
+                    )
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+            prompt_id = prompt.id
+            evaluator_id = llm_evaluator.id
+            dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
+
+        # Delete with deleteAssociatedPrompt=False
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorIds": [dataset_evaluator_gid],
+                    "deleteAssociatedPrompt": False,
+                }
+            },
+        )
+
+        # Verify success
+        assert not result.errors
+        assert result.data is not None
+        assert (
+            dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
+        )
+
+        # Verify the evaluator is deleted but prompt is preserved
+        async with db() as session:
+            deleted_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_id
+            )
+            assert deleted_dataset_evaluator is None
+
+            deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
+            assert deleted_evaluator is None
+
+            # Prompt should still exist
+            kept_prompt = await session.get(models.Prompt, prompt_id)
+            assert kept_prompt is not None
+
+        # Clean up the prompt
+        async with db() as session:
+            await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt_id))
