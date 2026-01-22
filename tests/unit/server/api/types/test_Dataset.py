@@ -1,9 +1,8 @@
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
-import pytz
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -895,13 +894,13 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                         ),
                     },
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=2, day=2, hour=0, minute=0, tzinfo=pytz.utc
+                            year=2020, month=2, day=2, hour=0, minute=0, tzinfo=timezone.utc
                         ),
                     },
                 ],
@@ -967,7 +966,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
         dataset_example = models.DatasetExample(
             id=1,
             dataset_id=1,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_example)
         await session.flush()
@@ -977,7 +976,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             dataset_id=1,
             description="version-1-description",
             metadata_={"version-1-metadata-key": "version-1-metadata-value"},
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_version_1)
         await session.flush()
@@ -1000,7 +999,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             description="version-2-description",
             metadata_={"version-2-metadata-key": "version-2-metadata-value"},
             created_at=datetime(
-                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
             ),  # same created_at as version 1
         )
         session.add(dataset_version_2)
@@ -1012,7 +1011,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             description="version-3-description",
             metadata_={"version-3-metadata-key": "version-3-metadata-value"},
             created_at=datetime(
-                year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc
+                year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc
             ),  # created one minute after version 2
         )
         session.add(dataset_version_3)
@@ -1052,7 +1051,7 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
         dataset_example = models.DatasetExample(
             id=1,
             dataset_id=1,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_example)
         await session.flush()

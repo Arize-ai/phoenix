@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pytest
-import pytz
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
 from strawberry.types.info import Info
@@ -161,7 +160,7 @@ class TestDriftMetricTimeSeries:
                         Timestamp(year=2000, month=1, day=3),
                         Timestamp(year=2000, month=1, day=4),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -178,7 +177,7 @@ class TestDriftMetricTimeSeries:
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         schema = Schema(
@@ -234,8 +233,8 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps[0] == Timestamp(year=2000, month=1, day=1, hour=1, tzinfo=pytz.utc)
-        assert actual_timestamps[-1] == Timestamp(year=2000, month=1, day=8, tzinfo=pytz.utc)
+        assert actual_timestamps[0] == Timestamp(year=2000, month=1, day=1, hour=1, tzinfo=timezone.utc)
+        assert actual_timestamps[-1] == Timestamp(year=2000, month=1, day=8, tzinfo=timezone.utc)
         for index in range(len(actual_timestamps) - 1):
             assert actual_timestamps[index + 1] - actual_timestamps[index] == timedelta(hours=1)
 
@@ -253,7 +252,7 @@ class TestDriftMetricTimeSeries:
                         Timestamp(year=2000, month=1, day=1, hour=1, minute=45),
                         Timestamp(year=2000, month=1, day=1, hour=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -270,7 +269,7 @@ class TestDriftMetricTimeSeries:
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         schema = Schema(
@@ -317,7 +316,7 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps == [Timestamp(year=2000, month=1, day=1, hour=2, tzinfo=pytz.utc)]
+        assert actual_timestamps == [Timestamp(year=2000, month=1, day=1, hour=2, tzinfo=timezone.utc)]
 
 
 class TestDriftMetric:
@@ -389,7 +388,7 @@ class TestDriftMetric:
                     np.array([3.0, 4.0]),
                 ],
                 "timestamp": [
-                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc),
+                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=timezone.utc),
                 ],
             }
         )
@@ -399,7 +398,7 @@ class TestDriftMetric:
                     np.array([3.0, 4.0]),
                 ],
                 "timestamp": [
-                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc),
+                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=timezone.utc),
                 ],
             }
         )
@@ -458,7 +457,7 @@ class TestDriftMetric:
                         ),
                         Timestamp(year=2000, month=1, day=1, hour=2, minute=0),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -475,7 +474,7 @@ class TestDriftMetric:
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
                         Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         schema = Schema(
@@ -518,7 +517,7 @@ class TestDriftMetric:
                         datetime(year=2000, month=1, day=2),
                         datetime(year=2000, month=1, day=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -535,7 +534,7 @@ class TestDriftMetric:
                         datetime(year=1999, month=1, day=1, hour=1, minute=1),
                         datetime(year=1999, month=1, day=1, hour=1, minute=3),
                     ]
-                ).dt.tz_localize(pytz.utc),
+                ).dt.tz_localize(timezone.utc),
             }
         )
         schema = Schema(

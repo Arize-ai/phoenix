@@ -1,10 +1,9 @@
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
-import pytz
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -1098,10 +1097,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1111,10 +1110,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1124,10 +1123,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1137,10 +1136,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1150,10 +1149,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1163,10 +1162,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 2,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1176,10 +1175,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1189,10 +1188,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 2,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1202,10 +1201,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1215,10 +1214,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },
@@ -1228,10 +1227,10 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                                 ),
                                 "error": None,
                             },

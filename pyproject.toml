@@ -24,7 +24,6 @@ dependencies = [
   "scikit-learn",
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
-  "pytz",
   "jinja2",
   "starlette",
   "uvicorn",
