@@ -6,8 +6,37 @@ Create Date: 2026-01-19 12:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
+
+import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
+
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
+)
 
 # revision identifiers, used by Alembic.
 revision: str = "f1a6b2f0c9d5"
@@ -18,19 +47,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     dialect = op.get_context().dialect.name
-    if dialect == "postgresql":
-        op.execute(
-            "CREATE INDEX IF NOT EXISTS ix_spans_session_id "
-            "ON spans ((CAST(attributes #>> '{session, id}' AS VARCHAR)))"
-        )
-    elif dialect == "sqlite":
-        op.execute(
-            "CREATE INDEX IF NOT EXISTS ix_spans_session_id "
-            "ON spans (json_extract(attributes, '$.\"session\".\"id\"'))"
-        )
-    else:
+    if dialect not in {"postgresql", "sqlite"}:
         # Unknown dialect; skip to avoid migration failure.
         return
+    op.create_index(
+        "ix_spans_session_id",
+        "spans",
+        [sa.column("attributes", JSON_)[["session", "id"]].as_string()],
+        unique=False,
+        if_not_exists=True,
+    )
 
 
 def downgrade() -> None:
