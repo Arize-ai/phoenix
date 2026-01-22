@@ -835,7 +835,7 @@ def _get_spans_dataframe(
     if df.empty:
         return df.drop("attributes", axis=1)
     df_attributes = pd.DataFrame.from_records(
-        df.attributes.map(_flatten_semantic_conventions),
+        df.attributes.map(_flatten_semantic_conventions).tolist(),
     ).set_axis(df.index, axis=0)
     df = pd.concat(
         [
