@@ -152,10 +152,57 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
   // Tools
   if (promptVersion.tools && promptVersion.tools.tools.length > 0) {
     lines.push(`│`);
-    lines.push(`│  Tools: ${promptVersion.tools.tools.length} defined`);
+    lines.push(`│  Tools:`);
+
+    // Tool choice
+    if (promptVersion.tools.tool_choice) {
+      const choice = promptVersion.tools.tool_choice;
+      if (choice.type === "specific_function") {
+        lines.push(`│    Tool Choice: ${choice.function_name} (required)`);
+      } else {
+        lines.push(`│    Tool Choice: ${choice.type}`);
+      }
+    }
+
     for (const tool of promptVersion.tools.tools) {
       if (tool.type === "function") {
-        lines.push(`│    - ${tool.function.name}`);
+        const fn = tool.function;
+        lines.push(`│`);
+        lines.push(`│    ┌─ ${fn.name}`);
+        if (fn.description) {
+          lines.push(`│    │  ${fn.description}`);
+        }
+        if (fn.parameters) {
+          lines.push(`│    │`);
+          lines.push(`│    │  Parameters:`);
+          const params = fn.parameters as {
+            type?: string;
+            properties?: Record<
+              string,
+              { type?: string; description?: string; enum?: string[] }
+            >;
+            required?: string[];
+          };
+          if (params.properties) {
+            const required = params.required || [];
+            for (const [propName, propDef] of Object.entries(
+              params.properties
+            )) {
+              const isRequired = required.includes(propName);
+              const reqMarker = isRequired ? " (required)" : "";
+              const typeStr = propDef.type || "any";
+              const enumStr =
+                propDef.enum && propDef.enum.length > 0
+                  ? ` [${propDef.enum.join(", ")}]`
+                  : "";
+              lines.push(`│    │    ${propName}: ${typeStr}${enumStr}${reqMarker}`);
+              if (propDef.description) {
+                lines.push(`│    │      └─ ${propDef.description}`);
+              }
+            }
+          }
+        }
+        lines.push(`│    └─`);
       }
     }
   }
