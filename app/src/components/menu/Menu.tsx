@@ -10,8 +10,12 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Icon, Icons, Popover, Text } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
+
+import { Heading, Text } from "../content";
+import { Icon, Icons } from "../icon";
+import { Flex } from "../layout";
+import { Popover } from "../overlay";
 
 const menuCSS = css`
   --menu-min-width: 250px;
