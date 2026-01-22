@@ -23,32 +23,7 @@ from phoenix.server.ldap import (
     _get_unique_id,
     _is_member_of,
     canonicalize_dn,
-    is_ldap_user,
 )
-
-
-class TestIsLdapUser:
-    """Test is_ldap_user utility function."""
-
-    def test_ldap_auth_method_detected(self) -> None:
-        """Test LDAP auth_method is correctly detected."""
-        assert is_ldap_user("LDAP") is True
-
-    def test_oauth_user_not_detected(self) -> None:
-        """Test OAuth2 auth_method is not detected as LDAP."""
-        assert is_ldap_user("OAUTH2") is False
-
-    def test_local_user_not_detected(self) -> None:
-        """Test LOCAL auth_method is not detected as LDAP."""
-        assert is_ldap_user("LOCAL") is False
-
-    def test_none_returns_false(self) -> None:
-        """Test None input returns False."""
-        assert is_ldap_user(None) is False
-
-    def test_empty_string_returns_false(self) -> None:
-        """Test empty string returns False."""
-        assert is_ldap_user("") is False
 
 
 class TestLDAPSecurityValidation:
