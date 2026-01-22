@@ -15,6 +15,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -22,6 +23,11 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function CreateBuiltInDatasetEvaluatorSlideover({
@@ -116,6 +122,24 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
             }
             ... on BuiltInEvaluator {
               inputSchema
+              outputConfig {
+                ... on AnnotationConfigBase {
+                  name
+                  annotationType
+                }
+                ... on CategoricalAnnotationConfig {
+                  optimizationDirection
+                  values {
+                    label
+                    score
+                  }
+                }
+                ... on ContinuousAnnotationConfig {
+                  optimizationDirection
+                  lowerBound
+                  upperBound
+                }
+              }
             }
           }
         }
@@ -167,6 +191,10 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           kind: evaluator.kind,
           isBuiltin: true,
         },
+        outputConfig: evaluator.outputConfig as Mutable<
+          | ContinuousEvaluatorAnnotationConfig
+          | ClassificationEvaluatorAnnotationConfig
+        >,
       } satisfies EvaluatorStoreProps;
     }
     return null;
@@ -182,16 +210,19 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, displayName },
+      outputConfig,
     } = store.getState();
+
+    const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+
     createDatasetBuiltInEvaluator({
       variables: {
         input: {
           datasetId,
           evaluatorId: evaluator.id,
           displayName,
-          // deep clone the input mapping to ensure relay doesn't mutate the original object
-          // TODO: remove this once we are using zustand
-          inputMapping: structuredClone(inputMapping),
+          inputMapping,
+          outputConfigOverride,
         },
         connectionIds: updateConnectionIds,
       },

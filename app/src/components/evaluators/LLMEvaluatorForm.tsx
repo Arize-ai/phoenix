@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Heading, Label, Switch, Text, View } from "@phoenix/components";
+import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorLLMChoice } from "@phoenix/components/evaluators/EvaluatorLLMChoice";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
@@ -13,12 +14,17 @@ export const LLMEvaluatorForm = () => {
   if (evaluatorKind !== "LLM") {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
   }
-  const { showPromptPreview, setShowPromptPreview } = useEvaluatorStore(
-    useShallow((state) => ({
-      showPromptPreview: state.showPromptPreview,
-      setShowPromptPreview: state.setShowPromptPreview,
-    }))
-  );
+  const { showPromptPreview, setShowPromptPreview, outputConfig } =
+    useEvaluatorStore(
+      useShallow((state) => ({
+        showPromptPreview: state.showPromptPreview,
+        setShowPromptPreview: state.setShowPromptPreview,
+        outputConfig: state.outputConfig,
+      }))
+    );
+  const isCategoricalAnnotationConfig = useMemo(() => {
+    return outputConfig && "values" in outputConfig;
+  }, [outputConfig]);
   return (
     <>
       <View marginBottom="size-200" flex="none">
@@ -58,7 +64,9 @@ export const LLMEvaluatorForm = () => {
           <Text color="text-500">
             Define the annotation that your evaluator will create.
           </Text>
-          <EvaluatorLLMChoice />
+          {isCategoricalAnnotationConfig ? (
+            <EvaluatorCategoricalChoiceConfig />
+          ) : null}
         </Flex>
       </View>
       <Flex direction="column" gap="size-100">
