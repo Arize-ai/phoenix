@@ -1,0 +1,21 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"You are an evaluator. Assess whether the output
+      correctly answers the input question.","role":"system"},{"content":"Input: What
+      is 2 + 2?\n\nOutput: 4\n\nIs this output correct?","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"temperature":0.0,"tool_choice":"required","tools":[{"function":{"name":"correctness_evaluator","description":"Evaluates
+      the correctness of the output","parameters":{"type":"object","properties":{"label":{"type":"string","enum":["correct","incorrect"],"description":"correctness"},"explanation":{"type":"string","description":"Brief
+      explanation for the label"}},"required":["label","explanation"]}},"type":"function"}]}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-01234*6789.
+        You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \   \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n
+        \   \"param\": null\n  },\n  \"status\": 401\n}"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+version: 1

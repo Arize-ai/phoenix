@@ -1,6 +1,11 @@
+import json
+from datetime import datetime
 from typing import Any, Optional
 
 import pytest
+from openai import AsyncOpenAI
+from openinference.semconv.trace import MessageAttributes, SpanAttributes
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -11,6 +16,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
+    LLMEvaluator,
     apply_input_mapping,
     cast_template_variable_types,
     json_diff_count,
@@ -21,6 +27,7 @@ from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_config,
 )
+from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptMessage,
@@ -40,6 +47,8 @@ from phoenix.server.api.helpers.prompts.models import (
     TextContentPart,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.trace.attributes import flatten
+from tests.unit.vcr import CustomVCR
 
 
 def validate_consistent_llm_evaluator_and_prompt_version(
@@ -1758,6 +1767,306 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] is None
 
 
+class TestLLMEvaluator:
+    @pytest.fixture
+    def openai_streaming_client(
+        self,
+        openai_api_key: str,
+    ) -> "OpenAIStreamingClient":
+        def create_openai_client() -> AsyncOpenAI:
+            return AsyncOpenAI()
+
+        return OpenAIStreamingClient(
+            client_factory=create_openai_client,
+            model_name="gpt-4o-mini",
+            provider="openai",
+        )
+
+    @pytest.fixture
+    def llm_evaluator_prompt_version(self) -> models.PromptVersion:
+        return models.PromptVersion(
+            prompt_id=1,
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat",
+                messages=[
+                    PromptMessage(
+                        role="system",
+                        content="You are an evaluator. Assess whether the output correctly answers the input question.",
+                    ),
+                    PromptMessage(
+                        role="user",
+                        content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                    ),
+                ],
+            ),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
+            ),
+            tools=PromptTools(
+                type="tools",
+                tools=[
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(
+                            name="correctness_evaluator",
+                            description="Evaluates the correctness of the output",
+                            parameters={
+                                "type": "object",
+                                "properties": {
+                                    "label": {
+                                        "type": "string",
+                                        "enum": ["correct", "incorrect"],
+                                        "description": "correctness",
+                                    },
+                                    "explanation": {
+                                        "type": "string",
+                                        "description": "Brief explanation for the label",
+                                    },
+                                },
+                                "required": ["label", "explanation"],
+                            },
+                        ),
+                    )
+                ],
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+            ),
+            response_format=None,
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            metadata_={},
+        )
+
+    @pytest.fixture
+    def llm_evaluator(
+        self,
+        llm_evaluator_prompt_version: models.PromptVersion,
+        output_config: CategoricalAnnotationConfig,
+        openai_streaming_client: "OpenAIStreamingClient",
+    ) -> LLMEvaluator:
+        template = llm_evaluator_prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = llm_evaluator_prompt_version.tools
+        assert tools is not None
+
+        return LLMEvaluator(
+            id=1,
+            name="correctness",
+            description="Evaluates correctness",
+            metadata={},
+            template=template,
+            template_format=llm_evaluator_prompt_version.template_format,
+            tools=tools,
+            invocation_parameters=llm_evaluator_prompt_version.invocation_parameters,
+            model_provider=llm_evaluator_prompt_version.model_provider,
+            llm_client=openai_streaming_client,
+            output_config=output_config,
+        )
+
+    @pytest.fixture
+    def input_mapping(self) -> EvaluatorInputMappingInput:
+        return EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={},
+        )
+
+    async def test_evaluate_returns_correct_result(
+        self,
+        llm_evaluator: LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
+        input_mapping: EvaluatorInputMappingInput,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        with custom_vcr.use_cassette():
+            evaluation_result = await llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                display_name="correctness",
+                output_config=output_config,
+            )
+
+        result = dict(evaluation_result)
+        assert result.pop("error") is None
+        assert result.pop("label") == "correct"
+        assert result.pop("score") == 1.0
+        assert result.pop("explanation") is not None
+        assert result.pop("annotator_kind") == "LLM"
+        assert result.pop("name") == "correctness"
+        trace_id = result.pop("trace_id")
+        assert isinstance(trace_id, str)
+        assert isinstance(result.pop("start_time"), datetime)
+        assert isinstance(result.pop("end_time"), datetime)
+        assert result.pop("metadata") == {}
+        assert not result
+
+        db_trace = llm_evaluator.db_trace
+        assert db_trace is not None
+        assert db_trace.trace_id == trace_id
+
+        db_spans = llm_evaluator.db_spans
+        assert len(db_spans) == 2
+
+        evaluator_span = None
+        llm_span = None
+        for span in db_spans:
+            if span.span_kind == "EVALUATOR":
+                evaluator_span = span
+            elif span.span_kind == "LLM":
+                llm_span = span
+
+        assert evaluator_span is not None
+        assert llm_span is not None
+        assert evaluator_span.parent_id is None
+        assert llm_span.parent_id == evaluator_span.span_id
+
+        # evaluator span
+        assert evaluator_span.name == "Evaluation: correctness"
+        assert evaluator_span.status_code == "OK"
+        assert not evaluator_span.events
+        attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
+        raw_input_value = attributes.pop(INPUT_VALUE)
+        assert raw_input_value is not None
+        input_value = json.loads(raw_input_value)
+        assert set(input_value.keys()) == {"input", "output"}
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+        raw_output_value = attributes.pop(OUTPUT_VALUE)
+        assert raw_output_value is not None
+        output_value = json.loads(raw_output_value)
+        assert set(output_value.keys()) == {"score", "label", "explanation"}
+        assert output_value["label"] == "correct"
+        assert output_value["score"] == 1.0
+        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+        assert not attributes
+
+        # llm span
+        assert llm_span.name == "gpt-4o-mini"
+        assert llm_span.status_code == "OK"
+        assert not llm_span.events
+        assert llm_span.llm_token_count_prompt is not None
+        assert llm_span.llm_token_count_prompt > 0
+        assert llm_span.llm_token_count_completion is not None
+        assert llm_span.llm_token_count_completion > 0
+        assert llm_span.cumulative_llm_token_count_prompt > 0
+        assert llm_span.cumulative_llm_token_count_completion > 0
+        attributes = dict(flatten(llm_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+        assert "evaluator" in attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}").lower()
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+        user_message = attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_CONTENT}")
+        assert "What is 2 + 2?" in user_message
+        assert "4" in user_message
+        # Check token count attributes exist and are integers
+        token_count_attribute_keys = [
+            key for key in attributes if key.startswith("llm.token_count.")
+        ]
+        for key in token_count_attribute_keys:
+            assert isinstance(attributes.pop(key), int)
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
+        assert not attributes
+
+    async def test_evaluate_with_invalid_api_key_returns_error(
+        self,
+        llm_evaluator: LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
+        input_mapping: EvaluatorInputMappingInput,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        with custom_vcr.use_cassette():
+            evaluation_result = await llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                display_name="correctness",
+                output_config=output_config,
+            )
+
+        result = dict(evaluation_result)
+        error = result.pop("error")
+        assert isinstance(error, str)
+        assert "401" in error
+        assert "invalid_api_key" in error
+        assert result.pop("label") is None
+        assert result.pop("score") is None
+        assert result.pop("explanation") is None
+        assert result.pop("annotator_kind") == "LLM"
+        assert result.pop("name") == "correctness"
+        trace_id = result.pop("trace_id")
+        assert isinstance(trace_id, str)
+        assert isinstance(result.pop("start_time"), datetime)
+        assert isinstance(result.pop("end_time"), datetime)
+        assert result.pop("metadata") == {}
+        assert not result
+
+        assert trace_id == llm_evaluator.db_trace.trace_id
+
+        db_spans = llm_evaluator.db_spans
+        assert len(db_spans) == 2
+
+        evaluator_span = None
+        llm_span = None
+        for span in db_spans:
+            if span.span_kind == "EVALUATOR":
+                evaluator_span = span
+            elif span.span_kind == "LLM":
+                llm_span = span
+
+        assert evaluator_span is not None
+        assert llm_span is not None
+        assert evaluator_span.parent_id is None
+        assert llm_span.parent_id == evaluator_span.span_id
+
+        # evaluator span
+        assert evaluator_span.name == "Evaluation: correctness"
+        assert evaluator_span.status_code == "ERROR"
+        assert "401" in evaluator_span.status_message
+        assert "invalid_api_key" in evaluator_span.status_message
+        assert len(evaluator_span.events) == 1
+        exception_event = evaluator_span.events[0]
+        assert exception_event["name"] == "exception"
+        assert exception_event["attributes"]["exception.type"] == "openai.AuthenticationError"
+        assert "401" in exception_event["attributes"]["exception.message"]
+        assert "invalid_api_key" in exception_event["attributes"]["exception.message"]
+        attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
+        raw_input_value = attributes.pop(INPUT_VALUE)
+        assert raw_input_value is not None
+        input_value = json.loads(raw_input_value)
+        assert set(input_value.keys()) == {"input", "output"}
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+        assert not attributes
+
+        # llm span
+        assert llm_span.name == "gpt-4o-mini"
+        assert llm_span.status_code == "ERROR"
+        assert len(llm_span.events) == 1
+        exception_event = llm_span.events[0]
+        assert exception_event["name"] == "exception"
+        assert exception_event["attributes"]["exception.type"] == "openai.AuthenticationError"
+        assert "401" in exception_event["attributes"]["exception.message"]
+        assert "invalid_api_key" in exception_event["attributes"]["exception.message"]
+        attributes = dict(flatten(llm_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+        assert "evaluator" in attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}").lower()
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+        user_message = attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_CONTENT}")
+        assert "What is 2 + 2?" in user_message
+        assert "4" in user_message
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
+        assert not attributes
+
+
 @pytest.fixture
 def output_config() -> CategoricalAnnotationConfig:
     return CategoricalAnnotationConfig(
@@ -1827,3 +2136,19 @@ def prompt_version() -> models.PromptVersion:
         model_name="gpt-4",
         metadata_={},
     )
+
+
+# message attributes
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+
+# span attributes
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE

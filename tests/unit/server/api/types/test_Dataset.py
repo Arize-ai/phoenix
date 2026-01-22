@@ -1007,6 +1007,9 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             display_name=Identifier(root="evaluator-1"),
             input_mapping={},
             output_config_override=None,
+            project=models.Project(
+                name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
+            ),
         )
         dataset_evaluator_2 = models.DatasetEvaluators(
             dataset_id=dataset.id,
@@ -1014,6 +1017,9 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             display_name=Identifier(root="evaluator-2"),
             input_mapping={},
             output_config_override=None,
+            project=models.Project(
+                name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"
+            ),
         )
         session.add_all([dataset_evaluator_1, dataset_evaluator_2])
 

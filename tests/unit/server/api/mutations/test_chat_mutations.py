@@ -1,6 +1,12 @@
+import json
 import re
 from typing import Awaitable, Callable
 
+from openinference.semconv.trace import (
+    MessageAttributes,
+    SpanAttributes,
+)
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 from vcr.request import Request
@@ -15,6 +21,7 @@ from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import flatten
 
 from ....graphql import AsyncGraphQLClient
 from ....vcr import CustomVCR
@@ -798,6 +805,89 @@ class TestChatCompletionMutationMixin:
             assert annotation.annotator_kind == "LLM"
             assert annotation.experiment_run_id is not None
 
+            evaluator_traces_result = await session.scalars(
+                select(models.Trace).where(
+                    models.Trace.project_rowid == dataset_evaluator.project_id,
+                )
+            )
+            evaluator_traces = evaluator_traces_result.all()
+            assert len(evaluator_traces) == 1
+            evaluator_trace = evaluator_traces[0]
+
+            evaluator_spans_result = await session.execute(
+                select(models.Span).where(
+                    models.Span.trace_rowid == evaluator_trace.id,
+                )
+            )
+            spans = evaluator_spans_result.scalars().all()
+            assert len(spans) == 2
+
+            evaluator_span = None
+            llm_span = None
+            for span in spans:
+                if span.span_kind == "EVALUATOR":
+                    evaluator_span = span
+                elif span.span_kind == "LLM":
+                    llm_span = span
+
+            assert evaluator_span is not None
+            assert evaluator_span.parent_id is None
+            assert llm_span is not None
+            assert llm_span.parent_id == evaluator_span.span_id
+
+            # evaluator span
+            assert evaluator_span.name == "Evaluation: correctness-evaluator"
+            assert evaluator_span.span_kind == "EVALUATOR"
+            attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
+            raw_input_value = attributes.pop(INPUT_VALUE)
+            assert raw_input_value is not None
+            input_value = json.loads(raw_input_value)
+            assert set(input_value.keys()) == {"input", "output", "reference"}
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            raw_output_value = attributes.pop(OUTPUT_VALUE)
+            assert raw_output_value is not None
+            output_value = json.loads(raw_output_value)
+            assert set(output_value.keys()) == {"score", "label", "explanation"}
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
+            assert not evaluator_span.events
+            assert evaluator_span.status_code == "OK"
+            assert not evaluator_span.status_message
+
+            # llm span
+            assert llm_span.name == "gpt-4"
+            assert llm_span.span_kind == "LLM"
+            assert llm_span.status_code == "OK"
+            assert not llm_span.status_message
+            assert llm_span.llm_token_count_prompt is not None
+            assert llm_span.llm_token_count_prompt > 0
+            assert llm_span.llm_token_count_completion is not None
+            assert llm_span.llm_token_count_completion > 0
+            assert llm_span.cumulative_llm_token_count_prompt > 0
+            assert llm_span.cumulative_llm_token_count_completion > 0
+            attributes = dict(flatten(llm_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
+            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+            assert attributes.pop(LLM_PROVIDER) == "openai"
+            assert attributes.pop(LLM_SYSTEM) == "openai"
+            assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+            assert (
+                "evaluator" in attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}").lower()
+            )
+            assert attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+            assert "Paris" in attributes.pop(f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_CONTENT}")
+            token_count_attribute_keys = [
+                attribute_key
+                for attribute_key in attributes
+                if attribute_key.startswith("llm.token_count.")
+            ]
+            for key in token_count_attribute_keys:
+                assert isinstance(attributes.pop(key), int)
+            assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+            assert attributes.pop(URL_PATH) == "chat/completions"
+            assert not attributes
+
     async def test_evaluator_over_dataset_not_run_when_task_errors(
         self,
         gql_client: AsyncGraphQLClient,
@@ -1138,3 +1228,19 @@ def _extract_city(body: str) -> str:
     if match := re.search(r"What country is (\w+) in\?", body):
         return match.group(1)
     raise ValueError(f"Could not extract city from body: {body}")
+
+
+# message attributes
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+
+# span attributes
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE

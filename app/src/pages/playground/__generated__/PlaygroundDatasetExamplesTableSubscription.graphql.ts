@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25c2be53268e99e7fc190a498d45934e>>
+ * @generated SignedSource<<253ca1d57f613a0140fc85baf6d4827e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,6 +33,7 @@ export type ChatCompletionOverDatasetInput = {
   templateFormat?: PromptTemplateFormat;
   templateVariablesPath?: string | null;
   tools?: ReadonlyArray<any> | null;
+  tracingEnabled?: boolean;
 };
 export type ChatCompletionMessageInput = {
   content?: any;

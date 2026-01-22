@@ -87,6 +87,16 @@ async def _generate_unique_evaluator_name(
     raise RuntimeError(f"Failed to generate unique evaluator name after {max_attempts} attempts")
 
 
+def _get_project_for_dataset_evaluator(
+    dataset_name: str,
+    dataset_evaluator_name: str,
+) -> models.Project:
+    return models.Project(
+        name=f"{dataset_name}/{dataset_evaluator_name}",
+        description=f"Traces for dataset evaluator: {dataset_evaluator_name}",
+    )
+
+
 async def _ensure_evaluator_prompt_label(
     session: AsyncSession,
     prompt_id: int,
@@ -326,20 +336,32 @@ class EvaluatorMutationMixin:
         try:
             async with info.context.db() as session:
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+
+                dataset_evaluators = []
+                if dataset_id is not None:
+                    dataset_name = await session.scalar(
+                        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+                    )
+                    if dataset_name is None:
+                        raise NotFound(f"Dataset with id {dataset_id} not found")
+                    dataset_evaluators = [
+                        models.DatasetEvaluators(
+                            dataset_id=dataset_id,
+                            display_name=display_name,
+                            input_mapping={},
+                            project=_get_project_for_dataset_evaluator(
+                                dataset_name=dataset_name,
+                                dataset_evaluator_name=str(display_name),
+                            ),
+                        )
+                    ]
+
                 code_evaluator = models.CodeEvaluator(
                     name=evaluator_name,
                     description=input.description or None,
                     kind="CODE",
                     user_id=user_id,
-                    dataset_evaluators=[
-                        models.DatasetEvaluators(
-                            dataset_id=dataset_id,
-                            display_name=display_name,
-                            input_mapping={},
-                        )
-                    ]
-                    if dataset_id is not None
-                    else [],
+                    dataset_evaluators=dataset_evaluators,
                 )
                 session.add(code_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
@@ -378,6 +400,13 @@ class EvaluatorMutationMixin:
         try:
             async with info.context.db() as session:
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_id} not found")
+
                 dataset_evaluator_record = models.DatasetEvaluators(
                     dataset_id=dataset_id,
                     display_name=display_name,
@@ -387,6 +416,10 @@ class EvaluatorMutationMixin:
                     if input.input_mapping is not None
                     else {"literal_mapping": {}, "path_mapping": {}},
                     user_id=user_id,
+                    project=_get_project_for_dataset_evaluator(
+                        dataset_name=dataset_name,
+                        dataset_evaluator_name=str(display_name),
+                    ),
                 )
 
                 # Handle prompt version ID if provided
@@ -841,6 +874,24 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+
+                dataset_evaluator = models.DatasetEvaluators(
+                    dataset_id=dataset_rowid,
+                    display_name=display_name,
+                    input_mapping=input_mapping.to_dict(),
+                    builtin_evaluator_id=built_in_evaluator_id,
+                    evaluator_id=None,
+                    project=_get_project_for_dataset_evaluator(
+                        dataset_name=dataset_name,
+                        dataset_evaluator_name=str(display_name),
+                    ),
+                )
+
                 session.add(dataset_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
