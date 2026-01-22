@@ -1,5 +1,12 @@
 # demo-document-relevancy-experiment
 
+## 1.0.8
+
+### Patch Changes
+
+- Updated dependencies [af4dc46]
+  - @arizeai/phoenix-client@5.8.0
+
 ## 1.0.7
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @arizeai/phoenix-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- af4dc46: Add prompt introspection commands to Phoenix CLI
+  - `px prompts`: List all available prompts with names and descriptions
+  - `px prompt <identifier>`: Show a specific prompt with support for `--tag` and `--version` options
+  - `--format text`: Output prompt content with XML-style role tags for piping to AI assistants like Claude Code
+  - Pretty print now includes full tool definitions with parameters, types, and descriptions
+  - Added `listPrompts` function to phoenix-client
+
+### Patch Changes
+
+- Updated dependencies [af4dc46]
+  - @arizeai/phoenix-client@5.8.0
+
 ## 0.3.1
 
 ### Patch Changes
