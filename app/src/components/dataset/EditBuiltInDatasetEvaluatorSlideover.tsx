@@ -14,6 +14,7 @@ import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from 
 import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -21,6 +22,11 @@ import {
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditBuiltInDatasetEvaluatorSlideoverProps = {
@@ -98,6 +104,23 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
               datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
                 id
                 ... on DatasetEvaluator {
+                  outputConfig {
+                    ... on AnnotationConfigBase {
+                      name
+                    }
+                    ... on CategoricalAnnotationConfig {
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
+                    }
+                    ... on ContinuousAnnotationConfig {
+                      optimizationDirection
+                      lowerBound
+                      upperBound
+                    }
+                  }
                   displayName
                   inputMapping {
                     literalMapping
@@ -110,6 +133,23 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     description
                     ... on BuiltInEvaluator {
                       inputSchema
+                      outputConfig {
+                        ... on AnnotationConfigBase {
+                          name
+                        }
+                        ... on CategoricalAnnotationConfig {
+                          optimizationDirection
+                          values {
+                            label
+                            score
+                          }
+                        }
+                        ... on ContinuousAnnotationConfig {
+                          optimizationDirection
+                          lowerBound
+                          upperBound
+                        }
+                      }
                     }
                   }
                 }
@@ -154,6 +194,11 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
   const evaluatorId = evaluator.id;
+  const evaluatorOutputConfig = (datasetEvaluator.outputConfig ??
+    evaluator.outputConfig) as Mutable<
+    | ContinuousEvaluatorAnnotationConfig
+    | ClassificationEvaluatorAnnotationConfig
+  >;
   const initialState = useMemo(() => {
     if (evaluatorKind === "CODE") {
       return {
@@ -177,6 +222,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           isBuiltin: true,
           inputMapping,
         },
+        outputConfig: evaluatorOutputConfig,
       } satisfies EvaluatorStoreProps;
     }
     return null;
@@ -189,6 +235,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     inputMapping,
     datasetEvaluatorId,
     evaluatorDescription,
+    evaluatorOutputConfig,
   ]);
 
   if (!initialState) {
@@ -201,13 +248,18 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, displayName },
+      outputConfig,
     } = store.getState();
+
+    const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+
     updateDatasetBuiltinEvaluator({
       variables: {
         input: {
           datasetEvaluatorId: datasetEvaluatorId,
           displayName,
           inputMapping,
+          outputConfigOverride,
         },
         connectionIds: updateConnectionIds ?? [],
       },
