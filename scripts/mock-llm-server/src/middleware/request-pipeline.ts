@@ -99,6 +99,11 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
       metrics.requestEnd(requestId);
       detailedMetrics.requestEnd(requestId);
     } catch (error) {
+      // If stream was interrupted, metrics already recorded - don't duplicate
+      if (error instanceof StreamInterruptedError) {
+        return;
+      }
+
       console.error(`Error handling ${provider.id} request:`, error);
       metrics.requestError(requestId, String(error));
       detailedMetrics.requestError(requestId, "handler_error");
@@ -175,6 +180,16 @@ async function handleFailureInjection(
 }
 
 /**
+ * Custom error to signal stream was interrupted (metrics already recorded)
+ */
+class StreamInterruptedError extends Error {
+  constructor() {
+    super("Stream interrupted");
+    this.name = "StreamInterruptedError";
+  }
+}
+
+/**
  * Handle streaming with potential mid-stream interruption
  */
 async function handleStreamingWithInterruption(
@@ -187,6 +202,7 @@ async function handleStreamingWithInterruption(
   // Start streaming normally
   const originalEnd = res.end.bind(res);
   let chunkCount = 0;
+  let interrupted = false;
   const interruptAfter = 3 + Math.floor(Math.random() * 5); // Interrupt after 3-8 chunks
 
   // Override res.write to count chunks and potentially interrupt
@@ -197,8 +213,9 @@ async function handleStreamingWithInterruption(
     callback?: (error: Error | null | undefined) => void
   ): boolean {
     chunkCount++;
-    if (chunkCount >= interruptAfter) {
-      // Interrupt the stream
+    if (chunkCount >= interruptAfter && !interrupted) {
+      // Interrupt the stream - record metrics once
+      interrupted = true;
       metrics.requestError(requestId, "stream_interrupted");
       detailedMetrics.requestError(requestId, "stream_interrupted");
       res.socket?.destroy();
@@ -215,7 +232,20 @@ async function handleStreamingWithInterruption(
 
   res.end = originalEnd;
 
-  await provider.handleStreaming(req, res, handlerConfig);
+  try {
+    await provider.handleStreaming(req, res, handlerConfig);
+  } catch {
+    // If we interrupted, the error is expected - don't re-throw
+    if (interrupted) {
+      throw new StreamInterruptedError();
+    }
+    throw new Error("Streaming handler failed");
+  }
+
+  // If we interrupted but no error was thrown, signal it
+  if (interrupted) {
+    throw new StreamInterruptedError();
+  }
 }
 
 /**
