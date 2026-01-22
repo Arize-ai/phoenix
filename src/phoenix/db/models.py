@@ -166,7 +166,7 @@ def render_values_w_union(
 
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
-AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2"]
+AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
@@ -1553,15 +1553,18 @@ class User(HasId):
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
     username: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
-    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
     profile_picture_url: Mapped[Optional[str]]
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
+    # OAuth2-specific fields (only used by OAuth2 users)
     oauth2_client_id: Mapped[Optional[str]]
     oauth2_user_id: Mapped[Optional[str]]
+    # LDAP-specific field (only used by LDAP users)
+    ldap_unique_id: Mapped[Optional[str]]
     auth_method: Mapped[AuthMethod] = mapped_column(
-        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2')", name="valid_auth_method")
+        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')", name="valid_auth_method")
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1583,20 +1586,64 @@ class User(HasId):
         "polymorphic_identity": None,  # Base class is abstract
     }
 
+    # Constraint summary (R = Required, N = Must be NULL, O = Optional):
+    #
+    # | Field            | LOCAL | OAUTH2 | LDAP |
+    # |------------------|-------|--------|------|
+    # | password         |   R   |   N    |  N   |
+    # | email            |   R   |   R    |  *   |
+    # | ldap_unique_id   |   N   |   N    |  *   |
+    # | oauth2_client_id |   N   |   O    |  N   |
+    # | oauth2_user_id   |   N   |   O    |  N   |
+    #
+    # *: LDAP users must have email OR ldap_unique_id (or both).
     __table_args__ = (
+        # LOCAL users: must have password, must NOT have oauth2/ldap fields
         CheckConstraint(
             "auth_method != 'LOCAL' "
             "OR (password_hash IS NOT NULL AND password_salt IS NOT NULL "
-            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL)",
+            "AND oauth2_client_id IS NULL AND oauth2_user_id IS NULL "
+            "AND ldap_unique_id IS NULL)",
             name="local_auth_has_password_no_oauth",
         ),
+        # OAUTH2/LDAP users: must NOT have password
         CheckConstraint(
             "auth_method = 'LOCAL' OR (password_hash IS NULL AND password_salt IS NULL)",
             name="non_local_auth_has_no_password",
         ),
-        UniqueConstraint(
+        # LDAP users: must NOT have oauth2 fields, must have at least one identifier
+        # (email or ldap_unique_id) to prevent orphan accounts that can't be found on login
+        CheckConstraint(
+            "auth_method != 'LDAP' OR ("
+            "oauth2_client_id IS NULL AND oauth2_user_id IS NULL AND "
+            "(email IS NOT NULL OR ldap_unique_id IS NOT NULL))",
+            name="ldap_auth_valid",
+        ),
+        # OAUTH2 users: must NOT have ldap_unique_id
+        CheckConstraint(
+            "auth_method != 'OAUTH2' OR ldap_unique_id IS NULL",
+            name="oauth2_auth_no_ldap_fields",
+        ),
+        # LOCAL and OAUTH2 users: must have email (only LDAP supports null email mode)
+        CheckConstraint(
+            "auth_method = 'LDAP' OR email IS NOT NULL",
+            name="non_ldap_auth_has_email",
+        ),
+        # Partial unique indexes for external auth providers
+        Index(
+            "ix_users_oauth2_unique",
             "oauth2_client_id",
             "oauth2_user_id",
+            unique=True,
+            postgresql_where=text("auth_method = 'OAUTH2'"),
+            sqlite_where=text("auth_method = 'OAUTH2'"),
+        ),
+        Index(
+            "ix_users_ldap_unique_id",
+            "ldap_unique_id",
+            unique=True,
+            postgresql_where=text("auth_method = 'LDAP' AND ldap_unique_id IS NOT NULL"),
+            sqlite_where=text("auth_method = 'LDAP' AND ldap_unique_id IS NOT NULL"),
         ),
         dict(sqlite_autoincrement=True),
     )
@@ -1655,38 +1702,42 @@ class OAuth2User(User):
         )
 
 
-def LDAPUser(
-    *,
-    email: str,
-    username: str,
-    unique_id: str | None = None,
-    user_role_id: int | None = None,
-) -> OAuth2User:
-    """Factory function to create an LDAP user stored as OAuth2User.
+class LDAPUser(User):
+    """User authenticated via LDAP.
 
-    This is a zero-migration approach: LDAP users are stored in the existing
-    OAuth2User table with a special Unicode marker in oauth2_client_id to
-    distinguish them from actual OAuth2 users. This avoids schema changes
-    while allowing LDAP authentication to coexist with OAuth2.
-
-    Args:
-        email: User's email address
-        username: User's display name
-        unique_id: User's LDAP unique ID (stored in oauth2_user_id)
-        user_role_id: Phoenix role ID (ADMIN, MEMBER, VIEWER)
-
-    Returns:
-        OAuth2User instance configured as an LDAP user
+    LDAP users are identified by auth_method='LDAP'. They use the dedicated
+    ldap_unique_id field (not oauth2_* fields) to store their LDAP unique
+    identifier (objectGUID, entryUUID, etc.).
     """
-    from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 
-    return OAuth2User(
-        email=email,
-        username=username,
-        oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-        oauth2_user_id=unique_id,
-        user_role_id=user_role_id,
-    )
+    __mapper_args__ = {
+        "polymorphic_identity": "LDAP",
+    }
+
+    def __init__(
+        self,
+        *,
+        email: Optional[str],
+        username: str,
+        ldap_unique_id: Optional[str] = None,
+        user_role_id: Optional[int] = None,
+    ) -> None:
+        """Create an LDAP user.
+
+        Args:
+            email: User's email address (can be None if LDAP directory has no email)
+            username: User's display name
+            ldap_unique_id: User's LDAP unique ID (objectGUID, entryUUID, etc.)
+            user_role_id: Phoenix role ID (ADMIN, MEMBER, VIEWER)
+        """
+        super().__init__(
+            email=email.strip() if email else None,
+            username=username.strip(),
+            user_role_id=user_role_id,
+            reset_password=False,
+            auth_method="LDAP",
+            ldap_unique_id=ldap_unique_id,
+        )
 
 
 class PasswordResetToken(HasId):
