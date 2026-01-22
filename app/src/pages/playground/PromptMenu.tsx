@@ -256,6 +256,7 @@ export function PromptSelector({
 
   const hasPrompts = prompts.length > 0;
 
+  const emptyText = hasPrompts ? "Select a prompt" : "No saved prompts";
   return (
     <MenuTrigger>
       <Button
@@ -278,8 +279,11 @@ export function PromptSelector({
         )}
       >
         <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
-          {selectedPrompt?.name ??
-            (hasPrompts ? "Select prompt" : "No saved prompts")}
+          {selectedPrompt?.name ?? (
+            <Text color="text-500" fontStyle="italic">
+              {emptyText}
+            </Text>
+          )}
         </Truncate>
         <SelectChevronUpDownIcon />
       </Button>
