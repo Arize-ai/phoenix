@@ -1,30 +1,44 @@
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import { Flex, Input, Label, TextField, Token } from "@phoenix/components";
-import { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import { OptimizationDirectionField } from "./OptimizationDirectionField";
 
 export type ReadOnlyCategoricalConfigProps = {
-  name: string;
-  optimizationDirection: EvaluatorOptimizationDirection;
-  onOptimizationDirectionChange?: (
-    value: EvaluatorOptimizationDirection
-  ) => void;
-  values: Array<{ label?: string | null; score?: number | null }>;
+  /**
+   * If true, the optimization direction field will be read-only.
+   * If false or omitted, it will be editable.
+   */
+  isReadOnly?: boolean;
 };
 
 /**
- * A read-only display component for categorical evaluator output configuration.
- * Displays name as a borderless disabled input and choices as score tokens,
- * but optimization direction can optionally be editable if `onOptimizationDirectionChange` is provided.
+ * A display component for categorical evaluator output configuration that pulls
+ * values from the EvaluatorStore.
+ * Displays name as a borderless disabled input and choices as score tokens.
+ * Optimization direction can be editable or read-only based on `isReadOnly` prop.
  */
 export const ReadOnlyCategoricalConfig = ({
-  name,
-  optimizationDirection,
-  onOptimizationDirectionChange,
-  values,
+  isReadOnly,
 }: ReadOnlyCategoricalConfigProps) => {
+  const outputConfig = useEvaluatorStore(
+    useShallow((state) => {
+      if (state.outputConfig && "values" in state.outputConfig) {
+        return state.outputConfig as ClassificationEvaluatorAnnotationConfig;
+      }
+      return null;
+    })
+  );
+
+  if (!outputConfig) {
+    return null;
+  }
+
+  const { name, values } = outputConfig;
+
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="row" gap="size-200" alignItems="last baseline">
@@ -54,10 +68,7 @@ export const ReadOnlyCategoricalConfig = ({
           })}
         </Flex>
       </Flex>
-      <OptimizationDirectionField
-        value={optimizationDirection}
-        onChange={onOptimizationDirectionChange}
-      />
+      <OptimizationDirectionField isReadOnly={isReadOnly} />
     </Flex>
   );
 };

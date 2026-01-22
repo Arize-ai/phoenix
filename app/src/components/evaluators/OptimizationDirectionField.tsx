@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import {
@@ -12,6 +13,7 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 export const optimizationDirectionOptions: {
@@ -33,35 +35,47 @@ const getOptimizationDirectionLabel = (
 };
 
 export type OptimizationDirectionFieldProps = {
-  value: EvaluatorOptimizationDirection;
-  onChange?: (value: EvaluatorOptimizationDirection) => void;
+  isReadOnly?: boolean;
   isDisabled?: boolean;
 };
 
 /**
- * A field component for optimization direction that can be editable or read-only.
+ * A field component for optimization direction that pulls values from the EvaluatorStore.
  *
- * - If `onChange` is provided, renders an editable `Select` dropdown
- * - If `onChange` is omitted, renders read-only `Text` with a friendly label
+ * - If `isReadOnly` is true, renders read-only `Text` with a friendly label
+ * - Otherwise, renders an editable `Select` dropdown
  */
 export const OptimizationDirectionField = ({
-  value,
-  onChange,
+  isReadOnly,
   isDisabled,
 }: OptimizationDirectionFieldProps) => {
-  if (!onChange) {
+  const { optimizationDirection, setOutputConfigOptimizationDirection } =
+    useEvaluatorStore(
+      useShallow((state) => ({
+        optimizationDirection:
+          state.outputConfig?.optimizationDirection ?? "NONE",
+        setOutputConfigOptimizationDirection:
+          state.setOutputConfigOptimizationDirection,
+      }))
+    );
+
+  if (isReadOnly) {
     return (
       <Flex direction="column" gap="size-50">
         <Label>Optimization direction</Label>
-        <Text>{getOptimizationDirectionLabel(value)}</Text>
+        <Text>{getOptimizationDirectionLabel(optimizationDirection)}</Text>
       </Flex>
     );
   }
 
   return (
     <Select
-      value={value}
-      onChange={(e) => onChange?.(e as EvaluatorOptimizationDirection)}
+      value={optimizationDirection}
+      onChange={(e) =>
+        setOutputConfigOptimizationDirection(
+          e as EvaluatorOptimizationDirection
+        )
+      }
       isDisabled={isDisabled}
       aria-label="Optimization direction"
       data-testid="optimization-direction-picker"

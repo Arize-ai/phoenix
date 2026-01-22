@@ -11,40 +11,22 @@ import { ReadOnlyContinuousConfig } from "./ReadOnlyContinuousConfig";
  */
 export const BuiltInEvaluatorOutputConfig = () => {
   const outputConfig = useEvaluatorStore((state) => state.outputConfig);
-  const setOutputConfigOptimizationDirection = useEvaluatorStore(
-    (state) => state.setOutputConfigOptimizationDirection
-  );
 
   if (!outputConfig) {
     return null;
   }
 
-  let Component;
-
-  if ("values" in outputConfig) {
-    Component = (
-      <ReadOnlyCategoricalConfig
-        name={outputConfig.name}
-        optimizationDirection={outputConfig.optimizationDirection}
-        onOptimizationDirectionChange={setOutputConfigOptimizationDirection}
-        values={outputConfig.values}
-      />
-    );
-  } else {
-    Component = (
-      <ReadOnlyContinuousConfig
-        name={outputConfig.name}
-        optimizationDirection={outputConfig.optimizationDirection}
-        onOptimizationDirectionChange={setOutputConfigOptimizationDirection}
-        lowerBound={outputConfig.lowerBound}
-        upperBound={outputConfig.upperBound}
-      />
-    );
-  }
+  const isCategorical = "values" in outputConfig;
 
   return (
     <Card title="Evaluator Annotation" backgroundColor="grey-100">
-      <View padding="size-200">{Component}</View>
+      <View padding="size-200">
+        {isCategorical ? (
+          <ReadOnlyCategoricalConfig />
+        ) : (
+          <ReadOnlyContinuousConfig />
+        )}
+      </View>
     </Card>
   );
 };

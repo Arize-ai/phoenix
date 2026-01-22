@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
 import {
@@ -7,32 +8,42 @@ import {
   NumberField,
   TextField,
 } from "@phoenix/components";
-import { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import { ContinuousEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import { OptimizationDirectionField } from "./OptimizationDirectionField";
 
 export type ReadOnlyContinuousConfigProps = {
-  name: string;
-  optimizationDirection: EvaluatorOptimizationDirection;
-  onOptimizationDirectionChange?: (
-    value: EvaluatorOptimizationDirection
-  ) => void;
-  lowerBound?: number | null;
-  upperBound?: number | null;
+  /**
+   * If true, the optimization direction field will be read-only.
+   * If false or omitted, it will be editable.
+   */
+  isReadOnly?: boolean;
 };
 
 /**
- * A read-only display component for continuous evaluator output configuration.
- * Displays name and bounds as borderless disabled inputs, but optimization direction can
- * optionally be editable if `onOptimizationDirectionChange` is provided.
+ * A display component for continuous evaluator output configuration that pulls
+ * values from the EvaluatorStore.
+ * Displays name and bounds as borderless disabled inputs.
+ * Optimization direction can be editable or read-only based on `isReadOnly` prop.
  */
 export const ReadOnlyContinuousConfig = ({
-  name,
-  optimizationDirection,
-  onOptimizationDirectionChange,
-  lowerBound,
-  upperBound,
+  isReadOnly,
 }: ReadOnlyContinuousConfigProps) => {
+  const outputConfig = useEvaluatorStore(
+    useShallow((state) => {
+      if (state.outputConfig && !("values" in state.outputConfig)) {
+        return state.outputConfig as ContinuousEvaluatorAnnotationConfig;
+      }
+      return null;
+    })
+  );
+
+  if (!outputConfig) {
+    return null;
+  }
+
+  const { name, lowerBound, upperBound } = outputConfig;
   const hasLowerBound = lowerBound != null;
   const hasUpperBound = upperBound != null;
   const hasBounds = hasLowerBound || hasUpperBound;
@@ -75,10 +86,7 @@ export const ReadOnlyContinuousConfig = ({
           </Flex>
         )}
       </Flex>
-      <OptimizationDirectionField
-        value={optimizationDirection}
-        onChange={onOptimizationDirectionChange}
-      />
+      <OptimizationDirectionField isReadOnly={isReadOnly} />
     </Flex>
   );
 };

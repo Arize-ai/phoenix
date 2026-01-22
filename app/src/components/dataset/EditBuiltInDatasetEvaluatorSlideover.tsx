@@ -104,6 +104,23 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
               datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
                 id
                 ... on DatasetEvaluator {
+                  outputConfig {
+                    ... on AnnotationConfigBase {
+                      name
+                    }
+                    ... on CategoricalAnnotationConfig {
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
+                    }
+                    ... on ContinuousAnnotationConfig {
+                      optimizationDirection
+                      lowerBound
+                      upperBound
+                    }
+                  }
                   displayName
                   inputMapping {
                     literalMapping
@@ -177,7 +194,8 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorName = evaluator.name;
   const evaluatorDescription = evaluator.description;
   const evaluatorId = evaluator.id;
-  const evaluatorOutputConfig = evaluator.outputConfig as Mutable<
+  const evaluatorOutputConfig = (datasetEvaluator.outputConfig ??
+    evaluator.outputConfig) as Mutable<
     | ContinuousEvaluatorAnnotationConfig
     | ClassificationEvaluatorAnnotationConfig
   >;
