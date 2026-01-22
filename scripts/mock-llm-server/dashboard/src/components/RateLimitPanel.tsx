@@ -1,5 +1,6 @@
 import type { DynamicConfig, GlobalConfig, RateLimitStrategy } from "../types";
 import { RATE_LIMIT_STRATEGIES } from "../types";
+import { Toggle } from "./Toggle";
 
 interface Props {
   config: DynamicConfig | null;
@@ -27,7 +28,7 @@ export function RateLimitPanel({ config, onUpdate }: Props) {
     <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-medium">Rate Limiting</h2>
-        <Toggle enabled={rateLimit.enabled} onChange={(enabled) => updateRateLimit({ enabled })} />
+        <Toggle enabled={rateLimit.enabled} onChange={(enabled) => updateRateLimit({ enabled })} color="yellow" />
       </div>
 
       {rateLimit.enabled && (
@@ -66,14 +67,6 @@ export function RateLimitPanel({ config, onUpdate }: Props) {
         </div>
       )}
     </div>
-  );
-}
-
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void; }) {
-  return (
-    <button onClick={() => onChange(!enabled)} className={`relative w-8 h-4 rounded-full transition-colors ${enabled ? "bg-yellow-500" : "bg-gray-600"}`}>
-      <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${enabled ? "translate-x-4" : "translate-x-0"}`} />
-    </button>
   );
 }
 

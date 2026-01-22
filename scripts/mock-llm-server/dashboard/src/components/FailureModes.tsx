@@ -1,5 +1,6 @@
 import type { DynamicConfig, GlobalConfig, ErrorType } from "../types";
 import { ERROR_TYPES } from "../types";
+import { Toggle } from "./Toggle";
 
 interface Props {
   config: DynamicConfig | null;
@@ -59,7 +60,7 @@ export function FailureModes({ config, onUpdate }: Props) {
         <div className="border-t border-gray-700 pt-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">Load Degradation</span>
-            <Toggle enabled={loadDegradationEnabled} onChange={(enabled) => onUpdate({ loadDegradationEnabled: enabled })} />
+            <Toggle enabled={loadDegradationEnabled} onChange={(enabled) => onUpdate({ loadDegradationEnabled: enabled })} color="purple" />
           </div>
           {loadDegradationEnabled && (
             <div className="mt-1">
@@ -84,10 +85,3 @@ function ErrorTypeButton({ label, active, onClick }: { label: string; active: bo
   );
 }
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void; }) {
-  return (
-    <button onClick={() => onChange(!enabled)} className={`relative w-8 h-4 rounded-full transition-colors ${enabled ? "bg-purple-500" : "bg-gray-600"}`}>
-      <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${enabled ? "translate-x-4" : "translate-x-0"}`} />
-    </button>
-  );
-}
