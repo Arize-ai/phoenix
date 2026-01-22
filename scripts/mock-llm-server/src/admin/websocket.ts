@@ -22,7 +22,6 @@ export class AdminWebSocketServer {
     this.wss = new WebSocketServer({ server, path: "/ws" });
 
     this.wss.on("connection", (ws) => {
-      console.log("📊 Dashboard client connected");
       this.clients.add(ws);
 
       // Send initial state
@@ -40,7 +39,6 @@ export class AdminWebSocketServer {
       });
 
       ws.on("close", () => {
-        console.log("📊 Dashboard client disconnected");
         this.clients.delete(ws);
       });
 
@@ -74,7 +72,6 @@ export class AdminWebSocketServer {
       }
     }, 100);
 
-    console.log("📊 Admin WebSocket server attached at /ws");
   }
 
   /**

@@ -4,7 +4,7 @@ import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { getConfig, printConfig } from "./config.js";
+import { getConfig } from "./config.js";
 import { registry } from "./registry.js";
 import { adminRoutes, adminWebSocket } from "./admin/index.js";
 import { createEndpointHandler } from "./middleware/index.js";
@@ -29,20 +29,22 @@ for (const provider of ALL_PROVIDERS) {
 // Middleware
 // =============================================================================
 
-// Logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    // Don't log admin/dashboard requests at info level
-    if (!req.path.startsWith("/api") && !req.path.startsWith("/dashboard") && req.path !== "/ws") {
-      console.log(
-        `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`
-      );
-    }
+// Logging middleware (disabled by default since dashboard shows all requests)
+const VERBOSE_LOGGING = process.env.VERBOSE === "true";
+if (VERBOSE_LOGGING) {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      if (!req.path.startsWith("/api") && !req.path.startsWith("/dashboard") && req.path !== "/ws") {
+        console.log(
+          `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`
+        );
+      }
+    });
+    next();
   });
-  next();
-});
+}
 
 // =============================================================================
 // Dashboard
@@ -126,8 +128,6 @@ for (const provider of ALL_PROVIDERS) {
   } else if (provider.method === "GET") {
     app.get(provider.routePath, handler);
   }
-  
-  console.log(`  Registered: ${provider.method} ${provider.routePath} (${provider.label})`);
 }
 
 // =============================================================================
@@ -144,20 +144,20 @@ export function startServer(): Promise<void> {
     adminWebSocket.attach(httpServer);
 
     httpServer.listen(envConfig.port, () => {
-      console.log("");
-      console.log("🚀 Mock LLM Server started");
-      console.log("");
-      printConfig(envConfig);
-      console.log("");
-      console.log(`  Server: http://localhost:${envConfig.port}`);
-      console.log("");
-      console.log("  📊 Dashboard: http://localhost:" + envConfig.port + "/dashboard");
-      console.log("  🔌 WebSocket: ws://localhost:" + envConfig.port + "/ws");
-      console.log("  📡 Admin API: http://localhost:" + envConfig.port + "/api");
-      console.log("");
-      console.log("  Rate Limiting Strategies:");
-      console.log("    fixed-window, sliding-window, token-bucket, leaky-bucket, after-n, random, always");
-      console.log("");
+      console.log(`
+🚀 Mock LLM Server running at http://localhost:${envConfig.port}
+
+   Dashboard: http://localhost:${envConfig.port}/dashboard
+
+   Endpoints:
+     POST /v1/chat/completions      (OpenAI)
+     POST /v1/responses             (OpenAI Responses API)
+     POST /v1/messages              (Anthropic)
+     POST /v1beta/models/*          (Gemini v1beta)
+     POST /v1/models/*              (Gemini v1)
+
+   Set VERBOSE=true for request logging
+`);
       resolve();
     });
   });
