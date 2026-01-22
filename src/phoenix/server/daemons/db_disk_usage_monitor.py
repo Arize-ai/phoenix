@@ -166,10 +166,12 @@ class DbDiskUsageMonitor(DaemonTask):
         if not admin_emails:
             return
 
-        # Validate email addresses
+        # Validate email addresses (filter out None values from LDAP users without email)
         valid_emails: list[str] = []
 
         for email in admin_emails:
+            if email is None:
+                continue
             try:
                 normalized_email = validate_email(email, check_deliverability=False).normalized
             except EmailNotValidError:

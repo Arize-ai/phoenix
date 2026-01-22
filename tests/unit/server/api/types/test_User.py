@@ -5,7 +5,6 @@ from secrets import token_hex
 from sqlalchemy import insert, select
 
 from phoenix.db import models
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -19,8 +18,7 @@ async def test_user_auth_method_resolver(
     Tests all authentication methods and verifies the resolver correctly:
     1. Returns LOCAL for local authentication users
     2. Returns OAUTH2 for OAuth2 users
-    3. Returns LDAP for LDAP users (stored as OAUTH2 with Unicode marker)
-    4. Correctly translates the database storage to semantic types
+    3. Returns LDAP for LDAP users
 
     This test uses real database records and GraphQL queries (no mocks).
     """
@@ -65,18 +63,19 @@ async def test_user_auth_method_resolver(
             )
         )
 
-        # Create LDAP user (stored as OAUTH2 with Unicode marker)
+        # Create LDAP user (auth_method='LDAP', oauth2_client_id=NULL)
         await session.execute(
             insert(models.User).values(
                 email=f"ldap_{token_hex(4)}@example.com",
                 username="ldap_user",
-                auth_method="OAUTH2",  # TODO: add LDAP in future db migration
+                auth_method="LDAP",
                 user_role_id=role_ids["ADMIN"],  # Assign ADMIN role
                 reset_password=False,
                 password_hash=None,
                 password_salt=None,
-                oauth2_client_id=LDAP_CLIENT_ID_MARKER,  # Unicode marker: "\ue000LDAP(stopgap)"
-                oauth2_user_id="ldap_username",
+                oauth2_client_id=None,  # LDAP users don't use oauth2 fields
+                oauth2_user_id=None,  # LDAP users don't use oauth2 fields
+                ldap_unique_id="ldap-unique-id",  # LDAP unique identifier
             )
         )
 
@@ -124,10 +123,10 @@ async def test_user_auth_method_resolver(
     assert user_data["oauth_user"][0] == "OAUTH2"
     assert user_data["oauth_user"][1] == "google"
 
-    # TEST 3: LDAP user - KEY: stored with auth_method='OAUTH2' but has Unicode marker
-    assert user_data["ldap_user"][0] == "OAUTH2"  # Stored as OAUTH2
-    assert user_data["ldap_user"][1] == LDAP_CLIENT_ID_MARKER
+    # TEST 3: LDAP user - stored with auth_method='LDAP' and oauth2_client_id=NULL
+    assert user_data["ldap_user"][0] == "LDAP"
+    assert user_data["ldap_user"][1] is None
 
-    # TEST 4: OAuth2 user (GitHub) - verify no collision with LDAP marker
+    # TEST 4: OAuth2 user (GitHub)
     assert user_data["github_user"][0] == "OAUTH2"
     assert user_data["github_user"][1] == "github"
