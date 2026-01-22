@@ -361,7 +361,7 @@ CREATE TABLE public.users (
     id serial NOT NULL,
     user_role_id INTEGER NOT NULL,
     username VARCHAR NOT NULL,
-    email VARCHAR NOT NULL,
+    email VARCHAR,
     profile_picture_url VARCHAR,
     password_hash BYTEA,
     password_salt BYTEA,
@@ -371,14 +371,17 @@ CREATE TABLE public.users (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     auth_method VARCHAR NOT NULL,
+    ldap_unique_id VARCHAR,
     CONSTRAINT pk_users PRIMARY KEY (id),
-    CONSTRAINT uq_users_oauth2_client_id_oauth2_user_id
-        UNIQUE (oauth2_client_id, oauth2_user_id),
-    CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL)))),
+    CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
+    CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
+    CHECK ((((auth_method)::text = 'LDAP'::text) OR (email IS NOT NULL))),
     CHECK ((((auth_method)::text = 'LOCAL'::text) OR ((password_hash IS NULL) AND (password_salt IS NULL)))),
+    CHECK ((((auth_method)::text <> 'OAUTH2'::text) OR (ldap_unique_id IS NULL))),
     CHECK (((auth_method)::text = ANY ((ARRAY[
             'LOCAL'::character varying,
-            'OAUTH2'::character varying
+            'OAUTH2'::character varying,
+            'LDAP'::character varying
         ])::text[]))),
     CONSTRAINT fk_users_user_role_id_user_roles FOREIGN KEY
         (user_role_id)
@@ -388,6 +391,10 @@ CREATE TABLE public.users (
 
 CREATE UNIQUE INDEX ix_users_email ON public.users
     USING btree (email);
+CREATE UNIQUE INDEX ix_users_ldap_unique_id ON public.users
+    USING btree (ldap_unique_id) WHERE (((auth_method)::text = 'LDAP'::text) AND (ldap_unique_id IS NOT NULL));
+CREATE UNIQUE INDEX ix_users_oauth2_unique ON public.users
+    USING btree (oauth2_client_id, oauth2_user_id) WHERE ((auth_method)::text = 'OAUTH2'::text);
 CREATE INDEX ix_users_user_role_id ON public.users
     USING btree (user_role_id);
 CREATE UNIQUE INDEX ix_users_username ON public.users
@@ -705,6 +712,7 @@ CREATE TABLE public.dataset_evaluators (
     description VARCHAR,
     output_config JSONB,
     input_mapping JSONB NOT NULL,
+    user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
@@ -718,7 +726,11 @@ CREATE TABLE public.dataset_evaluators (
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
         (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_evaluators_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_dataset_evaluators_builtin_evaluator_id ON public.dataset_evaluators
@@ -727,6 +739,8 @@ CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
     USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
+CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
+    USING btree (user_id);
 
 
 -- Table: experiments

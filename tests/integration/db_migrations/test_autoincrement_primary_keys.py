@@ -18,7 +18,6 @@ from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Callable, Type
 
-import pytest
 from alembic.config import Config
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -97,15 +96,6 @@ def _assert_autoincrement_preserved(
     )
 
 
-# TODO: Create a new migration to fix users table autoincrement:
-#   with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
-#       pass  # No-op to trigger table recreation with AUTOINCREMENT
-# Then remove this skip marker.
-@pytest.mark.skip(
-    reason="Migration 6a88424799fe (already released) has batch_alter_table without "
-    "sqlite_autoincrement=True, which broke autoincrement for users table. "
-    "Cannot fix without breaking existing deployments."
-)
 def test_users_autoincrement(
     _engine: Engine,
     _alembic_config: Config,
