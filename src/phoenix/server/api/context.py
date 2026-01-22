@@ -25,6 +25,7 @@ from phoenix.server.api.dataloaders import (
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
     DatasetExampleSplitsDataLoader,
+    DatasetsByEvaluatorDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -110,6 +111,7 @@ class DataLoaders:
     code_evaluator_fields: TableFieldsDataLoader
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
     dataset_evaluators: DatasetEvaluatorsDataLoader
+    datasets_by_evaluator: DatasetsByEvaluatorDataLoader
     dataset_example_fields: TableFieldsDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
