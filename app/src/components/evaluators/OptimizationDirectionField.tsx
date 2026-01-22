@@ -14,7 +14,7 @@ import {
 } from "@phoenix/components";
 import { EvaluatorOptimizationDirection } from "@phoenix/types";
 
-const optimizationDirectionOptions: {
+export const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;
   label: string;
 }[] = [

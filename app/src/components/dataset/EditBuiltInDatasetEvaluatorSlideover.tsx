@@ -24,6 +24,7 @@ import {
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
+  EvaluatorOptimizationDirection,
 } from "@phoenix/types";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -229,13 +230,36 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, displayName },
+      outputConfig,
     } = store.getState();
+
+    // Construct outputConfigOverride from the store's outputConfig
+    let outputConfigOverride: { categorical?: { optimizationDirection: EvaluatorOptimizationDirection } } | { continuous?: { optimizationDirection: EvaluatorOptimizationDirection } } | undefined;
+    if (outputConfig) {
+      if ("values" in outputConfig) {
+        // Categorical config
+        outputConfigOverride = {
+          categorical: {
+            optimizationDirection: outputConfig.optimizationDirection,
+          },
+        };
+      } else {
+        // Continuous config
+        outputConfigOverride = {
+          continuous: {
+            optimizationDirection: outputConfig.optimizationDirection,
+          },
+        };
+      }
+    }
+
     updateDatasetBuiltinEvaluator({
       variables: {
         input: {
           datasetEvaluatorId: datasetEvaluatorId,
           displayName,
           inputMapping,
+          outputConfigOverride,
         },
         connectionIds: updateConnectionIds ?? [],
       },

@@ -25,6 +25,7 @@ import {
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
+  EvaluatorOptimizationDirection,
 } from "@phoenix/types";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -129,6 +130,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                 ... on CategoricalAnnotationConfig {
                   optimizationDirection
                   values {
+                    label
                     score
                   }
                 }
@@ -208,7 +210,29 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, displayName },
+      outputConfig,
     } = store.getState();
+
+    // Construct outputConfigOverride from the store's outputConfig
+    let outputConfigOverride: { categorical?: { optimizationDirection: EvaluatorOptimizationDirection } } | { continuous?: { optimizationDirection: EvaluatorOptimizationDirection } } | undefined;
+    if (outputConfig) {
+      if ("values" in outputConfig) {
+        // Categorical config
+        outputConfigOverride = {
+          categorical: {
+            optimizationDirection: outputConfig.optimizationDirection,
+          },
+        };
+      } else {
+        // Continuous config
+        outputConfigOverride = {
+          continuous: {
+            optimizationDirection: outputConfig.optimizationDirection,
+          },
+        };
+      }
+    }
+
     createDatasetBuiltInEvaluator({
       variables: {
         input: {
@@ -218,6 +242,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           // deep clone the input mapping to ensure relay doesn't mutate the original object
           // TODO: remove this once we are using zustand
           inputMapping: structuredClone(inputMapping),
+          outputConfigOverride,
         },
         connectionIds: updateConnectionIds,
       },

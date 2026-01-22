@@ -27,18 +27,9 @@ import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { optimizationDirectionOptions } from "@phoenix/components/evaluators/OptimizationDirectionField";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
-const optimizationDirectionOptions: {
-  value: EvaluatorOptimizationDirection;
-  label: string;
-}[] = [
-  { value: "MAXIMIZE", label: "Maximize (higher is better)" },
-  { value: "MINIMIZE", label: "Minimize (lower is better)" },
-  { value: "NONE", label: "None" },
-];
 
 const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand

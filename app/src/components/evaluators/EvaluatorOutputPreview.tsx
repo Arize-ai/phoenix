@@ -82,7 +82,12 @@ export const EvaluatorOutputPreview = () => {
     let params:
       | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
       | { builtInEvaluatorId: string };
-    if (!state.evaluator.isBuiltin) {
+    if (state.evaluator.isBuiltin) {
+      invariant(state.evaluator.id, "evaluator id is required");
+      params = {
+        builtInEvaluatorId: state.evaluator.id,
+      };
+    } else {
       const outputConfig = state.outputConfig;
       invariant(outputConfig, "outputConfig is required");
       invariant(
@@ -105,11 +110,6 @@ export const EvaluatorOutputPreview = () => {
           outputConfig: payload.outputConfig,
           promptVersion: payload.promptVersion,
         },
-      };
-    } else {
-      invariant(state.evaluator.id, "evaluator id is required");
-      params = {
-        builtInEvaluatorId: state.evaluator.id,
       };
     }
 
