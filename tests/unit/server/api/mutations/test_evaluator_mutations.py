@@ -2320,6 +2320,10 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     description="test description",
                     output_config_override=None,
                     input_mapping={},
+                    project=models.Project(
+                        name=f"{empty_dataset.name}/{llm_evaluator_name}",
+                        description="Project for llm evaluator",
+                    ),
                 )
             ],
         )
@@ -2489,6 +2493,10 @@ async def code_evaluator(
                 input_mapping={},
             )
         ],
+        project=models.Project(
+            name=f"{empty_dataset.name}/{evaluator_name}",
+            description="Project for code evaluator",
+        ),
     )
     async with db() as session:
         session.add(evaluator)
@@ -2584,7 +2592,11 @@ async def llm_evaluator(
                 description="correctness description",
                 output_config_override=None,
                 input_mapping={},
-            )
+                project=models.Project(
+                    name=f"{empty_dataset.name}/{evaluator_name}",
+                    description="Project for evaluator",
+                ),
+            ),
         ],
     )
     async with db() as session:
@@ -2645,6 +2657,10 @@ class TestDeleteDatasetEvaluators:
                 evaluator_id=None,
                 display_name=IdentifierModel.model_validate("test-builtin-evaluator"),
                 input_mapping={},
+                project=models.Project(
+                    name=f"{empty_dataset.name}/test-builtin-evaluator",
+                    description="Project for builtin evaluator",
+                ),
             )
             session.add(dataset_evaluator)
             await session.flush()
@@ -2730,6 +2746,10 @@ class TestDeleteDatasetEvaluators:
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
+                        project=models.Project(
+                            name=f"{empty_dataset.name}/{evaluator_name}",
+                            description="Project for llm evaluator deletion",
+                        ),
                     )
                 ],
             )
@@ -2781,6 +2801,10 @@ class TestDeleteDatasetEvaluators:
                 evaluator_id=None,
                 display_name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
                 input_mapping={},
+                project=models.Project(
+                    name=f"{empty_dataset.name}/test-builtin-for-batch-delete",
+                    description="Project for builtin batch delete",
+                ),
             )
             session.add(builtin_dataset_evaluator)
             await session.flush()
@@ -2840,6 +2864,10 @@ class TestDeleteDatasetEvaluators:
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
+                        project=models.Project(
+                            name=f"{empty_dataset.name}/{evaluator_name}",
+                            description="Project for batch delete llm evaluator",
+                        ),
                     )
                 ],
             )
@@ -2986,6 +3014,10 @@ class TestDeleteDatasetEvaluators:
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
+                        project=models.Project(
+                            name=f"{empty_dataset.name}/{evaluator_name}",
+                            description="Project for llm evaluator with prompt deletion",
+                        ),
                     )
                 ],
             )
@@ -3088,6 +3120,10 @@ class TestDeleteDatasetEvaluators:
                         description="test description",
                         output_config_override=None,
                         input_mapping={},
+                        project=models.Project(
+                            name=f"{empty_dataset.name}/{evaluator_name}",
+                            description="Project for llm evaluator without prompt deletion",
+                        ),
                     )
                 ],
             )

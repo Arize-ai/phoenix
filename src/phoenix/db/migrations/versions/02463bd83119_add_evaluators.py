@@ -212,6 +212,12 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+        ),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
+            nullable=False,
             index=True,
         ),
         sa.Column(

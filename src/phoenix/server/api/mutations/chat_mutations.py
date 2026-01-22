@@ -201,6 +201,7 @@ def _to_annotation(eval_result: EvaluationResult) -> ExperimentRunAnnotation:
             "metadata": eval_result["metadata"],
             "start_time": eval_result["start_time"],
             "end_time": eval_result["end_time"],
+            "trace_id": eval_result["trace_id"],
         }
     )
 
@@ -461,12 +462,32 @@ class ChatCompletionMutationMixin:
                             display_name=str(evaluator_input.display_name),
                             description_override=None,
                         )
+
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             display_name=str(evaluator_input.display_name),
                             output_config=merged_output_config,
                         )
+
+                        if input.tracing_enabled:
+                            dataset_evaluator = await session.scalar(
+                                select(models.DatasetEvaluators).where(
+                                    models.DatasetEvaluators.evaluator_id == llm_evaluator.db_id
+                                )
+                            )
+                            assert dataset_evaluator is not None
+                            db_trace = llm_evaluator.db_trace
+                            db_trace.project_rowid = dataset_evaluator.project_id
+                            session.add(db_trace)
+                            await session.flush()
+                            for db_span in llm_evaluator.db_spans:
+                                db_span.trace_rowid = db_trace.id
+                                db_span.trace = db_trace
+                                session.add(db_span)
+                            await session.flush()
+                            eval_result["trace_id"] = db_trace.trace_id
+
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
                                 eval_result,
