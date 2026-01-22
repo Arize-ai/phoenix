@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Text, TextProps } from "@phoenix/components";
+import { Text, TextProps } from "./content";
 
 interface EmptyProps {
   message?: string;

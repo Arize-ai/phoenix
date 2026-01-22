@@ -2,7 +2,7 @@ import { startTransition, useCallback, useMemo } from "react";
 import { Input } from "react-aria-components";
 import debounce from "lodash/debounce";
 
-import { SearchField, SearchFieldProps, SearchIcon } from ".";
+import { SearchField, SearchFieldProps, SearchIcon } from "./SearchField";
 
 export interface DebouncedSearchProps
   extends Omit<SearchFieldProps, "value" | "onChange"> {

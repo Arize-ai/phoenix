@@ -1,5 +1,4 @@
-import { Flex } from "@phoenix/components";
-
+import { Flex } from "../layout";
 import { StylableProps } from "../types/style";
 
 import { Skeleton } from "./Skeleton";

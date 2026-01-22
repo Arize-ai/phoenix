@@ -25,7 +25,7 @@ import { paramsToIgnoreInInvocationParametersForm } from "../../../pages/playgro
 import {
   areInvocationParamsEqual,
   toCamelCase,
-} from "../../../pages/playground/playgroundUtils";
+} from "../../../pages/playground/invocationParameterUtils";
 
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 

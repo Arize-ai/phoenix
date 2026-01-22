@@ -11,9 +11,10 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
 
+import { Icon, Icons } from "../icon";
+import { Flex } from "../layout";
 import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";

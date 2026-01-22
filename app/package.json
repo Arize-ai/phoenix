@@ -116,6 +116,7 @@
     "typescript-eslint": "^8.46.3",
     "vite": "^6.4.1",
     "vite-plugin-react-fallback-throttle": "^0.1.1",
+    "vite-plugin-circular-dependency": "^0.5.0",
     "vite-plugin-relay": "^2.1.0",
     "vitest": "^4.0.10",
     "vitest-canvas-mock": "^0.3.3"
