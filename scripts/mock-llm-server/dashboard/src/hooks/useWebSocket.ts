@@ -6,8 +6,6 @@ import type {
   DynamicConfig,
   WebSocketMessage,
   GlobalConfig,
-  EndpointConfig,
-  EndpointId,
 } from "../types";
 
 interface UseWebSocketReturn {
@@ -17,9 +15,7 @@ interface UseWebSocketReturn {
   config: DynamicConfig | null;
   events: ConnectionEvent[];
   updateGlobalConfig: (updates: Partial<GlobalConfig>) => void;
-  updateEndpointConfig: (endpoint: EndpointId, updates: Partial<EndpointConfig>) => void;
   resetConfig: () => void;
-  resetMetrics: () => void;
   resetDetailedMetrics: () => void;
   resetRateLimiters: () => void;
 }
@@ -124,19 +120,8 @@ export function useWebSocket(): UseWebSocketReturn {
     [send]
   );
 
-  const updateEndpointConfig = useCallback(
-    (endpoint: EndpointId, updates: Partial<EndpointConfig>) => {
-      send({ type: "update_endpoint_config", data: { endpoint, config: updates } });
-    },
-    [send]
-  );
-
   const resetConfig = useCallback(() => {
     send({ type: "reset_config" });
-  }, [send]);
-
-  const resetMetrics = useCallback(() => {
-    send({ type: "reset_metrics" });
   }, [send]);
 
   const resetDetailedMetrics = useCallback(() => {
@@ -154,9 +139,7 @@ export function useWebSocket(): UseWebSocketReturn {
     config,
     events,
     updateGlobalConfig,
-    updateEndpointConfig,
     resetConfig,
-    resetMetrics,
     resetDetailedMetrics,
     resetRateLimiters,
   };
