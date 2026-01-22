@@ -178,6 +178,10 @@ class TestDatasetEvaluatorDescriptionFallback:
                 display_name=Identifier("eval_with_desc"),
                 description="Dataset evaluator override description",
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project=models.Project(
+                    name=f"{dataset.name}/eval_with_desc",
+                    description="Project for dataset evaluator with description",
+                ),
             )
             session.add(dataset_evaluator_with_desc)
             await session.flush()
@@ -188,6 +192,10 @@ class TestDatasetEvaluatorDescriptionFallback:
                 display_name=Identifier("eval_no_desc"),
                 description=None,
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project=models.Project(
+                    name=f"{dataset.name}/eval_no_desc",
+                    description="Project for dataset evaluator without description",
+                ),
             )
             session.add(dataset_evaluator_no_desc)
             await session.flush()
@@ -209,12 +217,21 @@ class TestDatasetEvaluatorDescriptionFallback:
             session.add(llm_evaluator_no_desc)
             await session.flush()
 
+            # Create project for dataset evaluator with both null descriptions
+            project_both_null = models.Project(
+                name=f"{dataset.name}/eval_both_null",
+                description="Project for dataset evaluator both null",
+            )
+            session.add(project_both_null)
+            await session.flush()
+
             dataset_evaluator_both_null = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=llm_evaluator_no_desc.id,
                 display_name=Identifier("eval_both_null"),
                 description=None,
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project_id=project_both_null.id,
             )
             session.add(dataset_evaluator_both_null)
             await session.flush()
@@ -391,6 +408,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         )
 
         async with db() as session:
+            project = models.Project(name=f"test-project-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+
             dataset = models.Dataset(
                 name=f"test-dataset-{token_hex(4)}",
                 metadata_={},
@@ -408,6 +429,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 builtin_evaluator_id=contains_evaluator_id,
                 display_name=Identifier("contains_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project_id=project.id,
             )
             session.add(dataset_eval_categorical_no_override)
             await session.flush()
@@ -426,6 +448,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                     ],
                 ),
                 description="Overridden description",
+                project_id=project.id,
             )
             session.add(dataset_eval_categorical_with_override)
             await session.flush()
@@ -435,6 +458,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 builtin_evaluator_id=levenshtein_evaluator_id,
                 display_name=Identifier("levenshtein_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project_id=project.id,
             )
             session.add(dataset_eval_continuous_no_override)
             await session.flush()
@@ -450,6 +474,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                     lower_bound=0.1,
                     upper_bound=0.9,
                 ),
+                project_id=project.id,
             )
             session.add(dataset_eval_continuous_with_override)
             await session.flush()

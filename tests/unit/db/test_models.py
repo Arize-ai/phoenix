@@ -872,6 +872,10 @@ class TestEvaluatorPolymorphism:
                         display_name=eval_1.name,
                         input_mapping={},
                         output_config_override=None,
+                        project=models.Project(
+                            name=f"{dataset.name}/{eval_1.name}",
+                            description="Project for evaluator 1",
+                        ),
                     ),
                     models.DatasetEvaluators(
                         dataset_id=dataset.id,
@@ -879,6 +883,10 @@ class TestEvaluatorPolymorphism:
                         display_name=eval_2.name,
                         input_mapping={},
                         output_config_override=None,
+                        project=models.Project(
+                            name=f"{dataset.name}/{eval_2.name}",
+                            description="Project for evaluator 2",
+                        ),
                     ),
                 ]
             )
@@ -1029,6 +1037,10 @@ class TestEvaluatorPolymorphism:
                 display_name=new_eval_name,
                 input_mapping={},
                 output_config_override=None,
+                project=models.Project(
+                    name=f"{new_eval_name}-project",
+                    description="Project for new evaluator",
+                ),
             )
             session.add(dataset_evaluator)
 

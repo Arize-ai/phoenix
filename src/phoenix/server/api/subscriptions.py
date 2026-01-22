@@ -809,12 +809,32 @@ class Subscription:
                                 display_name=str(evaluator_input.display_name),
                                 description_override=None,
                             )
+
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
                                 display_name=str(evaluator_input.display_name),
                                 output_config=merged_output_config,
                             )
+
+                            if input.tracing_enabled:
+                                dataset_evaluator = await session.scalar(
+                                    select(models.DatasetEvaluators).where(
+                                        models.DatasetEvaluators.evaluator_id == llm_evaluator.db_id
+                                    )
+                                )
+                                assert dataset_evaluator is not None
+                                db_trace = llm_evaluator.db_trace
+                                db_trace.project_rowid = dataset_evaluator.project_id
+                                session.add(db_trace)
+                                await session.flush()
+                                for db_span in llm_evaluator.db_spans:
+                                    db_span.trace_rowid = db_trace.id
+                                    db_span.trace = db_trace
+                                    session.add(db_span)
+                                await session.flush()
+                                result["trace_id"] = db_trace.trace_id
+
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(
                                     evaluator_name=str(evaluator_input.display_name),
