@@ -484,7 +484,7 @@ class LLMEvaluator:
 
                 end_time = datetime.now(timezone.utc)
                 result = EvaluationResult(
-                    name=display_name,
+                    name=name,
                     annotator_kind="LLM",
                     label=None,
                     score=None,
