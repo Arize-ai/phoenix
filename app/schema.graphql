@@ -922,6 +922,7 @@ type DatasetEvaluator implements Node {
   outputConfig: BuiltInEvaluatorOutputConfig
   inputMapping: EvaluatorInputMapping!
   user: User
+  project: Project!
 }
 
 enum DatasetEvaluatorColumn {

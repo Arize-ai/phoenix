@@ -10,6 +10,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
   query datasetEvaluatorDetailsLoaderQuery(
     $datasetId: ID!
     $datasetEvaluatorId: ID!
+    $timeRange: TimeRange
   ) {
     dataset: node(id: $datasetId) {
       id
@@ -23,6 +24,9 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             kind
             description
             isBuiltin
+          }
+          project {
+            ...DatasetEvaluatorTraces_project
           }
           ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
           ...LLMDatasetEvaluatorDetails_datasetEvaluator

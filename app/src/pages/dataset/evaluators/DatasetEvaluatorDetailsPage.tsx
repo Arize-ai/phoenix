@@ -24,6 +24,7 @@ import {
   datasetEvaluatorDetailsLoader,
   datasetEvaluatorDetailsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorTraces } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorTraces";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -118,9 +119,7 @@ function DatasetEvaluatorDetailsPageContent({
           )}
         </LazyTabPanel>
         <LazyTabPanel id="traces">
-          <View padding="size-200">
-            <Text>Evaluator traces will be displayed here.</Text>
-          </View>
+          <DatasetEvaluatorTraces projectRef={datasetEvaluator.project} />
         </LazyTabPanel>
       </Tabs>
     </main>
