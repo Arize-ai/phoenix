@@ -2093,7 +2093,7 @@ class TestLLMEvaluator:
         evaluation_result = await llm_evaluator.evaluate(
             context={"input": "What is 2 + 2?", "output": "4"},
             input_mapping=input_mapping,
-            display_name="correctness",
+            name="correctness",
             output_config=output_config,
         )
 
@@ -2361,7 +2361,7 @@ class TestLLMEvaluator:
         evaluation_result = await llm_evaluator.evaluate(
             context={"input": "What is 2 + 2?", "output": "4"},
             input_mapping=input_mapping,
-            display_name="correctness",
+            name="correctness",
             output_config=output_config,
         )
 
