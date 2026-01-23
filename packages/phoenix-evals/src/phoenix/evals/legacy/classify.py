@@ -232,7 +232,7 @@ def llm_classify(
     def _map_template(data: pd.Series[Any]) -> MultimodalPrompt:
         try:
             variables = {var: data[var] for var in eval_template.variables}
-            empty_keys = [k for k, v in variables.items() if v is None]
+            empty_keys = [k for k, v in variables.items() if pd.isna(v)]
             if empty_keys:
                 raise PhoenixTemplateMappingError(
                     f"Missing template variables: {', '.join(empty_keys)}"

@@ -901,7 +901,7 @@ def test_classify_exits_on_missing_input(
         respx_mock.route(matcher).mock(return_value=response)
 
     # remove an input to cause a template mapping exception
-    classification_dataframe["input"][2] = None
+    classification_dataframe.loc[2, "input"] = None
 
     classification_df = llm_classify(
         dataframe=classification_dataframe,
@@ -949,7 +949,7 @@ def test_classify_skips_missing_input_with_when_exit_on_error_false(
         respx_mock.route(matcher).mock(return_value=response)
 
     # remove an input to cause a template mapping exception
-    classification_dataframe["input"][2] = None
+    classification_dataframe.loc[2, "input"] = None
 
     classification_df = llm_classify(
         dataframe=classification_dataframe,
