@@ -581,47 +581,51 @@ class TestChatCompletionMutationMixin:
         }
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletion")
-            assert not result.errors
-            assert (data := result.data)
-            assert (field := data["chatCompletion"])
-            assert (repetitions := field["repetitions"])
-            assert len(repetitions) == 1
 
-            repetition = repetitions[0]
-            assert repetition["repetitionNumber"] == 1
-            assert not repetition["errorMessage"]
-            assert "4" in repetition["content"]
-            assert repetition["span"]["cumulativeTokenCountTotal"]
+        assert not result.errors
+        assert (data := result.data)
+        assert (field := data["chatCompletion"])
+        assert (repetitions := field["repetitions"])
+        assert len(repetitions) == 1
 
-            # Verify evaluations are returned
-            assert (evaluations := repetition["evaluations"])
-            assert len(evaluations) == 2
-            llm_eval = next(
-                eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "correctness"
-            )
-            assert llm_eval["annotation"]["annotatorKind"] == "LLM"
-            assert llm_eval["annotation"]["label"] == "correct"
-            builtin_eval = next(
-                eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "contains-four"
-            )
-            assert builtin_eval["annotation"]["annotatorKind"] == "CODE"
-            assert builtin_eval["annotation"]["label"] == "true"
+        repetition = repetitions[0]
+        assert repetition["repetitionNumber"] == 1
+        assert not repetition["errorMessage"]
+        assert "4" in repetition["content"]
+        assert repetition["span"]["cumulativeTokenCountTotal"]
+
+        # Verify evaluations are returned
+        assert (evaluations := repetition["evaluations"])
+        assert len(evaluations) == 2
+        llm_eval = next(
+            eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "correctness"
+        )
+        assert llm_eval["annotation"]["annotatorKind"] == "LLM"
+        assert llm_eval["annotation"]["label"] == "correct"
+        builtin_eval = next(
+            eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "contains-four"
+        )
+        assert builtin_eval["annotation"]["annotatorKind"] == "CODE"
+        assert builtin_eval["annotation"]["label"] == "true"
 
         # Verify span annotations were persisted in DB
         async with db() as session:
             span_annotations_result = await session.execute(select(models.SpanAnnotation))
             annotations = span_annotations_result.scalars().all()
-            assert len(annotations) == 2
 
-            llm_annotation = next(
-                annotation for annotation in annotations if annotation.name == "correctness"
-            )
-            assert llm_annotation.annotator_kind == "LLM"
-            assert llm_annotation.label == "correct"
+        assert len(annotations) == 2
 
-            builtin_annotation = next(a for a in annotations if a.name == "contains-four")
-            assert builtin_annotation.annotator_kind == "CODE"
-            assert builtin_annotation.label == "true"
+        llm_annotation = next(
+            annotation for annotation in annotations if annotation.name == "correctness"
+        )
+        assert llm_annotation.annotator_kind == "LLM"
+        assert llm_annotation.label == "correct"
+
+        builtin_annotation = next(
+            annotation for annotation in annotations if annotation.name == "contains-four"
+        )
+        assert builtin_annotation.annotator_kind == "CODE"
+        assert builtin_annotation.label == "true"
 
     async def test_evaluator_not_run_when_task_errors(
         self,
@@ -847,7 +851,9 @@ class TestChatCompletionMutationMixin:
                 eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "correctness"
             )
             assert llm_eval["annotation"]["annotatorKind"] == "LLM"
-            assert llm_eval["annotation"]["label"] == "incorrect"  # VCR cassette has "incorrect"
+            assert (
+                llm_eval["annotation"]["label"] == "incorrect"
+            )  # this is due a deficiency in our context object (https://github.com/Arize-ai/phoenix/issues/11068)
             builtin_eval = next(
                 eval_ for eval_ in evaluations if eval_["annotation"]["name"] == "exact-match"
             )
@@ -865,7 +871,9 @@ class TestChatCompletionMutationMixin:
             )
             assert llm_annotation_orm.annotator_kind == "LLM"
             assert llm_annotation_orm.experiment_run_id is not None
-            assert llm_annotation_orm.label == "incorrect"  # VCR cassette has "incorrect"
+            assert (
+                llm_annotation_orm.label == "incorrect"
+            )  # this is due a deficiency in our context object (https://github.com/Arize-ai/phoenix/issues/11068)
 
             builtin_annotation_orm = next(
                 annotation for annotation in annotations if annotation.name == "exact-match"
