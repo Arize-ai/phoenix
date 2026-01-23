@@ -419,17 +419,17 @@ class ChatCompletionMutationMixin:
                             if builtin_evaluator_cls is None:
                                 continue
                             builtin = builtin_evaluator_cls()
-                            display_name = str(evaluator.display_name)
+                            name = str(evaluator.name)
                             base_config = builtin_evaluator_cls.output_config()
                             merged_config = _merge_builtin_output_config(
                                 base_config=base_config,
                                 evaluator_input=evaluator,
-                                display_name=display_name,
+                                name=name,
                             )
                             eval_result: EvaluationResult = builtin.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
-                                display_name=display_name,
+                                name=name,
                                 output_config=merged_config,
                             )
                             if eval_result["error"] is None:
@@ -440,7 +440,7 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations[evaluation_key].append(
-                                _to_evaluation_result_union(eval_result, display_name)
+                                _to_evaluation_result_union(eval_result, name)
                             )
 
                     # Run LLM evaluators
@@ -459,14 +459,14 @@ class ChatCompletionMutationMixin:
                         merged_output_config = merge_categorical_output_config(
                             base=llm_evaluator.output_config,
                             override=output_config_override,
-                            display_name=str(evaluator_input.display_name),
+                            name=str(evaluator_input.name),
                             description_override=None,
                         )
 
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
-                            display_name=str(evaluator_input.display_name),
+                            name=str(evaluator_input.name),
                             output_config=merged_output_config,
                         )
 
@@ -496,9 +496,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations[evaluation_key].append(
-                            _to_evaluation_result_union(
-                                eval_result, str(evaluator_input.display_name)
-                            )
+                            _to_evaluation_result_union(eval_result, str(evaluator_input.name))
                         )
 
         for (revision, repetition_number), experiment_run, result in zip(
@@ -589,17 +587,17 @@ class ChatCompletionMutationMixin:
                             if builtin_evaluator_cls is None:
                                 continue
                             builtin = builtin_evaluator_cls()
-                            display_name = str(evaluator.display_name)
+                            name = str(evaluator.name)
                             base_config = builtin_evaluator_cls.output_config()
                             merged_config = _merge_builtin_output_config(
                                 base_config=base_config,
                                 evaluator_input=evaluator,
-                                display_name=display_name,
+                                name=name,
                             )
                             eval_result: EvaluationResult = builtin.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator.input_mapping,
-                                display_name=display_name,
+                                name=name,
                                 output_config=merged_config,
                             )
                             if eval_result["error"] is None:
@@ -610,7 +608,7 @@ class ChatCompletionMutationMixin:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluations_by_repetition[repetition_number].append(
-                                _to_evaluation_result_union(eval_result, display_name)
+                                _to_evaluation_result_union(eval_result, name)
                             )
 
                     # Run LLM evaluators
@@ -629,13 +627,13 @@ class ChatCompletionMutationMixin:
                         merged_output_config = merge_categorical_output_config(
                             base=llm_evaluator.output_config,
                             override=output_config_override,
-                            display_name=str(evaluator_input.display_name),
+                            name=str(evaluator_input.name),
                             description_override=None,
                         )
                         eval_result = await llm_evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
-                            display_name=str(evaluator_input.display_name),
+                            name=str(evaluator_input.name),
                             output_config=merged_output_config,
                         )
                         if eval_result["error"] is None:
@@ -646,9 +644,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations_by_repetition[repetition_number].append(
-                            _to_evaluation_result_union(
-                                eval_result, str(evaluator_input.display_name)
-                            )
+                            _to_evaluation_result_union(eval_result, str(evaluator_input.name))
                         )
 
         repetitions: list[ChatCompletionRepetition] = []
@@ -696,7 +692,7 @@ class ChatCompletionMutationMixin:
                 eval_result = builtin_evaluator.evaluate(
                     context=context,
                     input_mapping=input_mapping,
-                    display_name=builtin_evaluator.name,
+                    name=builtin_evaluator.name,
                     output_config=builtin_evaluator_cls.output_config(),
                 )
                 context_result = _to_evaluation_result_union(eval_result, builtin_evaluator.name)
@@ -786,7 +782,7 @@ class ChatCompletionMutationMixin:
                 eval_result = await evaluator.evaluate(
                     context=context,
                     input_mapping=input_mapping,
-                    display_name=inline_llm_evaluator.output_config.name,
+                    name=inline_llm_evaluator.output_config.name,
                     output_config=output_config,
                 )
                 context_result = _to_evaluation_result_union(
@@ -1093,7 +1089,7 @@ def _is_builtin_evaluator(evaluator_id: int) -> bool:
 def _merge_builtin_output_config(
     base_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
     evaluator_input: PlaygroundEvaluatorInput,
-    display_name: str,
+    name: str,
 ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
     """
     Merge the base output config from a builtin evaluator with any override from the input.
@@ -1146,14 +1142,14 @@ def _merge_builtin_output_config(
             override=override
             if isinstance(override, CategoricalAnnotationConfigOverride)
             else None,  # pyright: ignore[reportArgumentType]
-            display_name=display_name,
+            name=name,
             description_override=evaluator_input.description,
         )
     else:
         return merge_continuous_output_config(
             base=base_config,
             override=override if isinstance(override, ContinuousAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
-            display_name=display_name,
+            name=name,
             description_override=evaluator_input.description,
         )
 

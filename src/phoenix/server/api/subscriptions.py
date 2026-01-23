@@ -187,22 +187,22 @@ async def _stream_single_chat_completion(
                     if builtin_evaluator_cls is None:
                         continue
                     builtin = builtin_evaluator_cls()
-                    display_name = str(evaluator.display_name)
+                    name = str(evaluator.name)
                     base_config = builtin_evaluator_cls.output_config()
                     merged_config = _merge_builtin_output_config(
                         base_config=base_config,
                         evaluator_input=evaluator,
-                        display_name=display_name,
+                        name=name,
                     )
                     result: EvaluationResult = builtin.evaluate(
                         context=context_dict,
                         input_mapping=evaluator.input_mapping,
-                        display_name=display_name,
+                        name=name,
                         output_config=merged_config,
                     )
                     if result["error"] is not None:
                         yield EvaluationErrorChunk(
-                            evaluator_name=display_name,
+                            evaluator_name=name,
                             message=result["error"],
                             dataset_example_id=None,
                             repetition_number=repetition_number,
@@ -240,18 +240,18 @@ async def _stream_single_chat_completion(
                 merged_output_config = merge_categorical_output_config(
                     base=llm_evaluator.output_config,
                     override=output_config_override,
-                    display_name=str(evaluator_input.display_name),
+                    name=str(evaluator_input.name),
                     description_override=None,
                 )
                 result = await llm_evaluator.evaluate(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
-                    display_name=str(evaluator_input.display_name),
+                    name=str(evaluator_input.name),
                     output_config=merged_output_config,
                 )
                 if result["error"] is not None:
                     yield EvaluationErrorChunk(
-                        evaluator_name=str(evaluator_input.display_name),
+                        evaluator_name=str(evaluator_input.name),
                         message=result["error"],
                         dataset_example_id=None,
                         repetition_number=repetition_number,
@@ -328,7 +328,7 @@ def _is_builtin_evaluator(evaluator_id: int) -> bool:
 def _merge_builtin_output_config(
     base_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
     evaluator_input: PlaygroundEvaluatorInput,
-    display_name: str,
+    name: str,
 ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
     """
     Merge the base output config from a builtin evaluator with any override from the input.
@@ -383,14 +383,14 @@ def _merge_builtin_output_config(
             override=override
             if isinstance(override, CategoricalAnnotationConfigOverride)
             else None,  # pyright: ignore[reportArgumentType]
-            display_name=display_name,
+            name=name,
             description_override=evaluator_input.description,
         )
     else:
         return merge_continuous_output_config(
             base=base_config,
             override=override if isinstance(override, ContinuousAnnotationConfigOverride) else None,  # pyright: ignore[reportArgumentType]
-            display_name=display_name,
+            name=name,
             description_override=evaluator_input.description,
         )
 
@@ -755,22 +755,22 @@ class Subscription:
                                 if builtin_evaluator_cls is None:
                                     continue
                                 builtin = builtin_evaluator_cls()
-                                display_name = str(evaluator.display_name)
+                                name = str(evaluator.name)
                                 base_config = builtin_evaluator_cls.output_config()
                                 merged_config = _merge_builtin_output_config(
                                     base_config=base_config,
                                     evaluator_input=evaluator,
-                                    display_name=display_name,
+                                    name=name,
                                 )
                                 result: EvaluationResult = builtin.evaluate(
                                     context=context_dict,
                                     input_mapping=evaluator.input_mapping,
-                                    display_name=display_name,
+                                    name=name,
                                     output_config=merged_config,
                                 )
                                 if result["error"] is not None:
                                     yield EvaluationErrorChunk(
-                                        evaluator_name=display_name,
+                                        evaluator_name=name,
                                         message=result["error"],
                                         dataset_example_id=example_id,
                                         repetition_number=repetition_number,
@@ -806,14 +806,14 @@ class Subscription:
                             merged_output_config = merge_categorical_output_config(
                                 base=llm_evaluator.output_config,
                                 override=output_config_override,
-                                display_name=str(evaluator_input.display_name),
+                                name=str(evaluator_input.name),
                                 description_override=None,
                             )
 
                             result = await llm_evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
-                                display_name=str(evaluator_input.display_name),
+                                name=str(evaluator_input.name),
                                 output_config=merged_output_config,
                             )
 
@@ -837,7 +837,7 @@ class Subscription:
 
                             if result["error"] is not None:
                                 yield EvaluationErrorChunk(
-                                    evaluator_name=str(evaluator_input.display_name),
+                                    evaluator_name=str(evaluator_input.name),
                                     message=result["error"],
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,

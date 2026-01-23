@@ -2333,7 +2333,7 @@ class DatasetEvaluators(HasId):
         nullable=True,
         index=True,
     )
-    display_name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_config_override: Mapped[Optional[AnnotationConfigOverrideType]] = mapped_column(
         "output_config", _AnnotationConfigOverride, nullable=True
@@ -2366,7 +2366,7 @@ class DatasetEvaluators(HasId):
         ),
         UniqueConstraint(
             "dataset_id",
-            "display_name",
+            "name",
         ),
     )
 

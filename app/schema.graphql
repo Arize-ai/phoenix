@@ -653,7 +653,7 @@ input CreateCodeEvaluatorInput {
 input CreateDatasetBuiltinEvaluatorInput {
   datasetId: ID!
   evaluatorId: ID!
-  displayName: Identifier!
+  name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigOverride: AnnotationConfigOverrideInput = null
   description: String = null
@@ -901,7 +901,7 @@ type DatasetEdge {
 type DatasetEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  displayName: Identifier!
+  name: Identifier!
   updatedAt: DateTime!
   dataset: Dataset!
   evaluator: Evaluator!
@@ -912,7 +912,7 @@ type DatasetEvaluator implements Node {
 }
 
 enum DatasetEvaluatorColumn {
-  displayName
+  name
   kind
   createdAt
   updatedAt
@@ -943,7 +943,7 @@ input DatasetEvaluatorFilter {
 }
 
 enum DatasetEvaluatorFilterColumn {
-  display_name
+  name
 }
 
 type DatasetEvaluatorMutationPayload {
@@ -2643,7 +2643,7 @@ type PerformanceTimeSeries implements TimeSeries {
 
 input PlaygroundEvaluatorInput {
   id: ID!
-  displayName: Identifier!
+  name: Identifier!
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
   outputConfig: CategoricalAnnotationConfigOverrideInput = null
@@ -4012,7 +4012,7 @@ input UpdateAnnotationInput {
 
 input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
-  displayName: Identifier!
+  name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigOverride: AnnotationConfigOverrideInput
   description: String

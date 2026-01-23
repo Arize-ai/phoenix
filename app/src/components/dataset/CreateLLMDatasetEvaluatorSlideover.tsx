@@ -113,7 +113,7 @@ const CreateEvaluatorDialog = ({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
-              displayName
+              name
               ...PlaygroundDatasetSection_evaluator
               evaluator {
                 ... on LLMEvaluator {
@@ -133,12 +133,13 @@ const CreateEvaluatorDialog = ({
       _initialState?.outputConfig ??
       DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
     const defaultEvaluatorName =
-      _initialState?.name ?? DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.name;
+      _initialState?.name ??
+      DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
         ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-        name: defaultEvaluatorName,
+        globalName: defaultEvaluatorName,
         description:
           _initialState?.description ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.description,
@@ -158,7 +159,12 @@ const CreateEvaluatorDialog = ({
   const onSubmit = useCallback(
     (store: EvaluatorStoreInstance) => {
       const {
-        evaluator: { name, description, inputMapping, includeExplanation },
+        evaluator: {
+          globalName,
+          description,
+          inputMapping,
+          includeExplanation,
+        },
         dataset,
         outputConfig,
       } = store.getState();
@@ -171,7 +177,7 @@ const CreateEvaluatorDialog = ({
       const input = createLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
-        name,
+        name: globalName,
         description,
         outputConfig,
         datasetId: dataset.id,

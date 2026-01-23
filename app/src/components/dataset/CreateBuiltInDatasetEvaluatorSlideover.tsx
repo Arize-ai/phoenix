@@ -173,7 +173,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const initialState = useMemo(() => {
     invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "CODE") {
-      const displayName = formatDisplayName(evaluator.name) ?? "";
+      const name = formatDisplayName(evaluator.name) ?? "";
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
@@ -185,8 +185,8 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
         evaluator: {
           ...DEFAULT_CODE_EVALUATOR_STORE_VALUES.evaluator,
           id: evaluator.id,
-          name: evaluator.name,
-          displayName,
+          globalName: evaluator.name,
+          name,
           description: evaluator.description ?? "",
           kind: evaluator.kind,
           isBuiltin: true,
@@ -209,7 +209,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      evaluator: { inputMapping, displayName },
+      evaluator: { inputMapping, name },
       outputConfig,
     } = store.getState();
 
@@ -220,7 +220,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
         input: {
           datasetId,
           evaluatorId: evaluator.id,
-          displayName,
+          name,
           inputMapping,
           outputConfigOverride,
         },

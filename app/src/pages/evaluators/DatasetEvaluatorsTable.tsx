@@ -47,7 +47,7 @@ export const convertEvaluatorSortToTanstackSort = (
 };
 
 const EVALUATOR_SORT_COLUMNS: DatasetEvaluatorSort["col"][] = [
-  "displayName",
+  "name",
   "kind",
   "createdAt",
   "updatedAt",
@@ -96,7 +96,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
     graphql`
       fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
         id
-        displayName
+        name
         updatedAt
         user {
           username
@@ -194,7 +194,7 @@ export const DatasetEvaluatorsTable = ({
     const cols: ColumnDef<TableRow>[] = [
       {
         header: "name",
-        accessorKey: "displayName",
+        accessorKey: "name",
         cell: ({ getValue, row }) => {
           return (
             <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
@@ -262,7 +262,7 @@ export const DatasetEvaluatorsTable = ({
             datasetEvaluatorId={row.original.id}
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
-            evaluatorName={row.original.displayName}
+            evaluatorName={row.original.name}
             isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
@@ -297,7 +297,7 @@ export const DatasetEvaluatorsTable = ({
       ) {
         loadNext({
           sort: sort,
-          filter: filter ? { col: "display_name", value: filter } : null,
+          filter: filter ? { col: "name", value: filter } : null,
         });
       }
     }
@@ -309,7 +309,7 @@ export const DatasetEvaluatorsTable = ({
         sort: sort,
         filter: filter
           ? {
-              col: "display_name",
+              col: "name",
               value: filter,
             }
           : null,
