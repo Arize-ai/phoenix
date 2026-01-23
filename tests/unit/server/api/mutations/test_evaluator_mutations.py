@@ -2644,7 +2644,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting a built-in evaluator only removes the DatasetEvaluators row."""
+        """Test deleting a built-in evaluator removes the DatasetEvaluators row and project."""
         builtin_evaluator_ids = get_builtin_evaluator_ids()
         assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
         builtin_evaluator_id = builtin_evaluator_ids[0]
@@ -2665,6 +2665,7 @@ class TestDeleteDatasetEvaluators:
             session.add(dataset_evaluator)
             await session.flush()
             dataset_evaluator_id = dataset_evaluator.id
+            project_id = dataset_evaluator.project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete the evaluator
@@ -2680,10 +2681,13 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators row is deleted
+        # Verify the DatasetEvaluators row and associated project are deleted
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
+
+            deleted_project = await session.get(models.Project, project_id)
+            assert deleted_project is None
 
     async def test_delete_llm_evaluator(
         self,
@@ -2757,6 +2761,7 @@ class TestDeleteDatasetEvaluators:
             await session.flush()
             evaluator_id = llm_evaluator.id
             dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete the dataset evaluator
@@ -2772,7 +2777,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify both the DatasetEvaluators and Evaluator rows are deleted
+        # Verify the DatasetEvaluators, Evaluator, and Project rows are deleted
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -2781,6 +2786,9 @@ class TestDeleteDatasetEvaluators:
 
             deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
             assert deleted_evaluator is None
+
+            deleted_project = await session.get(models.Project, project_id)
+            assert deleted_project is None
 
     async def test_delete_multiple_evaluators_mixed(
         self,
@@ -2809,6 +2817,7 @@ class TestDeleteDatasetEvaluators:
             session.add(builtin_dataset_evaluator)
             await session.flush()
             builtin_de_id = builtin_dataset_evaluator.id
+            builtin_project_id = builtin_dataset_evaluator.project_id
             builtin_de_gid = str(GlobalID("DatasetEvaluator", str(builtin_de_id)))
 
         # Create an LLM evaluator
@@ -2875,6 +2884,7 @@ class TestDeleteDatasetEvaluators:
             await session.flush()
             llm_evaluator_id = llm_evaluator.id
             llm_de_id = llm_evaluator.dataset_evaluators[0].id
+            llm_project_id = llm_evaluator.dataset_evaluators[0].project_id
             llm_de_gid = str(GlobalID("DatasetEvaluator", str(llm_de_id)))
 
         # Delete both evaluators in one call
@@ -2890,11 +2900,15 @@ class TestDeleteDatasetEvaluators:
         assert builtin_de_gid in deleted_ids
         assert llm_de_gid in deleted_ids
 
-        # Verify all rows are deleted
+        # Verify all rows including projects are deleted
         async with db() as session:
             # Builtin dataset evaluator should be deleted
             deleted_builtin_de = await session.get(models.DatasetEvaluators, builtin_de_id)
             assert deleted_builtin_de is None
+
+            # Builtin project should be deleted
+            deleted_builtin_project = await session.get(models.Project, builtin_project_id)
+            assert deleted_builtin_project is None
 
             # LLM dataset evaluator and its parent evaluator should be deleted
             deleted_llm_de = await session.get(models.DatasetEvaluators, llm_de_id)
@@ -2902,6 +2916,10 @@ class TestDeleteDatasetEvaluators:
 
             deleted_llm_evaluator = await session.get(models.Evaluator, llm_evaluator_id)
             assert deleted_llm_evaluator is None
+
+            # LLM project should be deleted
+            deleted_llm_project = await session.get(models.Project, llm_project_id)
+            assert deleted_llm_project is None
 
     async def test_delete_nonexistent_evaluator(
         self,
@@ -3026,6 +3044,7 @@ class TestDeleteDatasetEvaluators:
             prompt_id = prompt.id
             evaluator_id = llm_evaluator.id
             dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete with deleteAssociatedPrompt=True (default)
@@ -3046,7 +3065,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator and prompt are both deleted
+        # Verify the evaluator, prompt, and project are all deleted
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3058,6 +3077,9 @@ class TestDeleteDatasetEvaluators:
 
             deleted_prompt = await session.get(models.Prompt, prompt_id)
             assert deleted_prompt is None
+
+            deleted_project = await session.get(models.Project, project_id)
+            assert deleted_project is None
 
     async def test_delete_llm_evaluator_without_prompt_deletion(
         self,
@@ -3132,6 +3154,7 @@ class TestDeleteDatasetEvaluators:
             prompt_id = prompt.id
             evaluator_id = llm_evaluator.id
             dataset_evaluator_id = llm_evaluator.dataset_evaluators[0].id
+            project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete with deleteAssociatedPrompt=False
@@ -3152,7 +3175,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator is deleted but prompt is preserved
+        # Verify the evaluator and project are deleted but prompt is preserved
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3161,6 +3184,10 @@ class TestDeleteDatasetEvaluators:
 
             deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
             assert deleted_evaluator is None
+
+            # Project should be deleted
+            deleted_project = await session.get(models.Project, project_id)
+            assert deleted_project is None
 
             # Prompt should still exist
             kept_prompt = await session.get(models.Prompt, prompt_id)
