@@ -13,7 +13,14 @@ from vcr.request import Request
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
+from phoenix.server.api.evaluators import (
+    TEMPLATE_FORMATTED_MESSAGES,
+    TEMPLATE_LITERAL_MAPPING,
+    TEMPLATE_MESSAGES,
+    TEMPLATE_PATH_MAPPING,
+    TEMPLATE_VARIABLES,
+    _generate_builtin_evaluator_id,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -820,20 +827,30 @@ class TestChatCompletionMutationMixin:
                 )
             )
             spans = evaluator_spans_result.scalars().all()
-            assert len(spans) == 2
+            assert len(spans) == 4
 
             evaluator_span = None
+            template_span = None
             llm_span = None
+            chain_span = None
             for span in spans:
                 if span.span_kind == "EVALUATOR":
                     evaluator_span = span
+                elif span.span_kind == "TEMPLATE":
+                    template_span = span
                 elif span.span_kind == "LLM":
                     llm_span = span
+                elif span.span_kind == "CHAIN":
+                    chain_span = span
 
             assert evaluator_span is not None
             assert evaluator_span.parent_id is None
+            assert template_span is not None
+            assert template_span.parent_id == evaluator_span.span_id
             assert llm_span is not None
             assert llm_span.parent_id == evaluator_span.span_id
+            assert chain_span is not None
+            assert chain_span.parent_id == evaluator_span.span_id
 
             # evaluator span
             assert evaluator_span.name == "Evaluation: correctness-evaluator"
@@ -854,6 +871,83 @@ class TestChatCompletionMutationMixin:
             assert not evaluator_span.events
             assert evaluator_span.status_code == "OK"
             assert not evaluator_span.status_message
+
+            # template span
+            assert template_span.name == "Apply template variables"
+            assert template_span.span_kind == "TEMPLATE"
+            assert template_span.status_code == "OK"
+            assert not template_span.status_message
+            assert not template_span.events
+            attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
+            assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+            assert (
+                attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
+                == "You are an evaluator that assesses the correctness of outputs."
+            )
+            assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+            assert (
+                attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
+                == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
+            )
+            assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {
+                "input": "$.input",
+                "output": "$.output",
+            }
+            assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
+            assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
+                "input": {"city": "Paris"},
+                "output": {
+                    "available_tools": [],
+                    "messages": [{"content": "France", "role": "assistant"}],
+                },
+                "reference": {"country": "France"},
+            }
+            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+            assert (
+                attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
+                == "You are an evaluator that assesses the correctness of outputs."
+            )
+            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}") == (
+                "Input: {'city': 'Paris'}\n\n"
+                "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}\n\n"
+                "Is this output correct?"
+            )
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {
+                "variables": {
+                    "input": {"city": "Paris"},
+                    "output": {
+                        "available_tools": [],
+                        "messages": [{"content": "France", "role": "assistant"}],
+                    },
+                    "reference": {"country": "France"},
+                },
+                "input_mapping": {
+                    "path_mapping": {"input": "$.input", "output": "$.output"},
+                    "literal_mapping": {},
+                },
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an evaluator that assesses the correctness of outputs.",
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            "Input: {'city': 'Paris'}\n\n"
+                            "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], "
+                            "'available_tools': []}\n\n"
+                            "Is this output correct?"
+                        ),
+                    },
+                ]
+            }
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
 
             # llm span
             assert llm_span.name == "gpt-4"
@@ -886,6 +980,35 @@ class TestChatCompletionMutationMixin:
                 assert isinstance(attributes.pop(key), int)
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
             assert attributes.pop(URL_PATH) == "chat/completions"
+            assert not attributes
+
+            # chain span
+            assert chain_span.name == "Parse eval result"
+            assert chain_span.span_kind == "CHAIN"
+            assert chain_span.status_code == "OK"
+            assert not chain_span.status_message
+            assert not chain_span.events
+            attributes = dict(flatten(chain_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+            input_value = json.loads(attributes.pop(INPUT_VALUE))
+            assert set(input_value.keys()) == {"tool_calls", "output_config"}
+            tool_calls = input_value["tool_calls"]
+            assert len(tool_calls) == 1
+            tool_call = next(iter(tool_calls.values()))
+            assert tool_call["name"] == "evaluate_correctness"
+            assert input_value["output_config"] == {
+                "values": [
+                    {"label": "correct", "score": 1.0},
+                    {"label": "incorrect", "score": 0.0},
+                ]
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "label": "incorrect",
+                "score": 0.0,
+                "explanation": None,
+            }
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
 
     async def test_evaluator_over_dataset_not_run_when_task_errors(
