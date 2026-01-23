@@ -1088,6 +1088,7 @@ class DocumentAnnotation(HasId):
             "span_rowid",
             "document_position",
             "identifier",
+            name="uq_document_annotations_name_span_rowid_document_pos_identifier",
         ),
     )
 
