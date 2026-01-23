@@ -110,8 +110,8 @@ export type CreateLLMEvaluatorArgs<RecordType extends Record<string, unknown>> =
 
 export interface CreateClassificationEvaluatorArgs<
   RecordType extends Record<string, unknown>,
->
-  extends CreateClassifierArgs, CreateLLMEvaluatorArgs<RecordType> {
+> extends CreateClassifierArgs,
+    CreateLLMEvaluatorArgs<RecordType> {
   /**
    * The prompt template to use for classification
    */
@@ -156,9 +156,8 @@ interface EvaluatorDescription {
  * The Base Evaluator interface
  * This is the interface that all evaluators must implement
  */
-export interface EvaluatorInterface<
-  ExampleType extends Record<string, unknown>,
-> extends EvaluatorDescription {
+export interface EvaluatorInterface<ExampleType extends Record<string, unknown>>
+  extends EvaluatorDescription {
   /**
    * The function that evaluates the example
    */

@@ -11,9 +11,9 @@ import { ObjectMapping } from "../types/data";
 /**
  * Base class for all evaluators
  */
-export abstract class EvaluatorBase<
-  RecordType extends Record<string, unknown>,
-> implements EvaluatorInterface<RecordType> {
+export abstract class EvaluatorBase<RecordType extends Record<string, unknown>>
+  implements EvaluatorInterface<RecordType>
+{
   readonly name: string;
   readonly kind: EvaluationKind;
   readonly optimizationDirection?: OptimizationDirection;
