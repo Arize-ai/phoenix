@@ -516,7 +516,6 @@ class ChatCompletionMutationMixin:
             results.extend(batch_results)
 
         # Run evaluations if evaluators are specified
-        # Note: No dataset_id here, so no project_id lookup and no evaluator tracing
         evaluations_by_repetition: dict[int, list[EvaluationResultUnion]] = {}
         if input.evaluators:
             async with info.context.db() as session:
