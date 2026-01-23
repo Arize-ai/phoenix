@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 27f5470: px auth status command added
+
 ## 0.4.0
 
 ### Minor Changes
