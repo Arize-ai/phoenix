@@ -80,7 +80,7 @@ def apply_overrides_to_annotation_config(
         return merge_categorical_annotation_config(
             base=annotation_config,
             override=categorical_override,
-            display_name=name_override,
+            name=name_override,
             description_override=description_override,
         )
     elif isinstance(annotation_config, ContinuousAnnotationConfig):
@@ -96,7 +96,7 @@ def apply_overrides_to_annotation_config(
         return merge_continuous_annotation_config(
             base=annotation_config,
             override=continuous_override,
-            display_name=name_override,
+            name=name_override,
             description_override=description_override,
         )
     assert_never(annotation_config)
@@ -105,7 +105,7 @@ def apply_overrides_to_annotation_config(
 def merge_categorical_annotation_config(
     base: CategoricalAnnotationConfig,
     override: Optional[CategoricalAnnotationConfigOverride],
-    display_name: str,
+    name: str,
     description_override: Optional[str],
 ) -> CategoricalAnnotationConfig:
     """
@@ -114,7 +114,7 @@ def merge_categorical_annotation_config(
     Args:
         base: The base CategoricalAnnotationConfig from the LLM evaluator
         override: Optional overrides from the dataset evaluator
-        display_name: The display name to use as the config name
+        name: The name to use as the config name
         description_override: Optional description override
 
     Returns:
@@ -135,7 +135,7 @@ def merge_categorical_annotation_config(
 
     return CategoricalAnnotationConfig(
         type=base.type,
-        name=display_name,
+        name=name,
         description=description,
         optimization_direction=optimization_direction,
         values=values,
@@ -145,7 +145,7 @@ def merge_categorical_annotation_config(
 def merge_continuous_annotation_config(
     base: ContinuousAnnotationConfig,
     override: Optional[ContinuousAnnotationConfigOverride],
-    display_name: str,
+    name: str,
     description_override: Optional[str],
 ) -> ContinuousAnnotationConfig:
     """
@@ -154,7 +154,7 @@ def merge_continuous_annotation_config(
     Args:
         base: The base ContinuousAnnotationConfig from the builtin evaluator
         override: Optional overrides from the dataset evaluator
-        display_name: The display name to use as the config name
+        name: The name to use as the config name
         description_override: Optional description override
 
     Returns:
@@ -178,7 +178,7 @@ def merge_continuous_annotation_config(
 
     return ContinuousAnnotationConfig(
         type=base.type,
-        name=display_name,
+        name=name,
         description=description,
         optimization_direction=optimization_direction,
         lower_bound=lower_bound,

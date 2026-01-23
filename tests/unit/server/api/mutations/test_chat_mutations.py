@@ -560,7 +560,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": llm_evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -570,7 +570,7 @@ class TestChatCompletionMutationMixin:
                     },
                     {
                         "id": builtin_evaluator_gid,
-                        "displayName": "contains-four",
+                        "name": "contains-four",
                         "inputMapping": {
                             "literalMapping": {"words": "4"},
                             "pathMapping": {"text": "$.output"},
@@ -807,7 +807,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": llm_evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -817,7 +817,7 @@ class TestChatCompletionMutationMixin:
                     },
                     {
                         "id": builtin_evaluator_gid,
-                        "displayName": "exact-match",
+                        "name": "exact-match",
                         "inputMapping": {
                             "literalMapping": {"expected": "France"},
                             "pathMapping": {"actual": "$.output.messages[0].content"},
@@ -1438,13 +1438,21 @@ class TestChatCompletionMutationMixin:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
+        assign_exact_match_builtin_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
         """Test that builtin evaluators use the name for annotations in dataset runs."""
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
+            single_example_dataset.id
+        )
         evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
+            GlobalID(
+                type_name=BuiltInEvaluator.__name__,
+                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
+            )
         )
         custom_name = "my-dataset-exact-match"
 
