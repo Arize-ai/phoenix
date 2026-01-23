@@ -892,7 +892,7 @@ class TestDatasetsEvaluatorsResolver:
                   edges {
                     node {
                       id
-                      displayName
+                      name
                       evaluator {
                         ... on LLMEvaluator {
                           name
@@ -1004,7 +1004,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         dataset_evaluator_1 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
-            display_name=Identifier(root="evaluator-1"),
+            name=Identifier(root="evaluator-1"),
             input_mapping={},
             output_config_override=None,
             project=models.Project(
@@ -1014,7 +1014,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         dataset_evaluator_2 = models.DatasetEvaluators(
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
-            display_name=Identifier(root="evaluator-2"),
+            name=Identifier(root="evaluator-2"),
             input_mapping={},
             output_config_override=None,
             project=models.Project(

@@ -69,9 +69,7 @@ function DatasetEvaluatorDetailsPageContent({
       >
         <Flex justifyContent="space-between" alignItems="center">
           <Flex direction="column" gap="size-50">
-            <Heading level={1}>
-              Evaluator: {datasetEvaluator.displayName}
-            </Heading>
+            <Heading level={1}>Evaluator: {datasetEvaluator.name}</Heading>
             <Text size="M">{evaluator.description}</Text>
           </Flex>
           <Button

@@ -616,12 +616,12 @@ class DatasetEvaluator(Node):
     db_record: strawberry.Private[Optional[models.DatasetEvaluators]] = None
 
     @strawberry.field
-    async def display_name(
+    async def name(
         self,
         info: Info[Context, None],
     ) -> Identifier:
         record = await self._get_record(info)
-        return record.display_name.root
+        return record.name.root
 
     @strawberry.field
     async def updated_at(
@@ -717,12 +717,12 @@ class DatasetEvaluator(Node):
                 effective_categorical_config = merge_categorical_output_config(
                     base=base_config,
                     override=categorical_override,
-                    display_name=record.display_name.root,
+                    name=record.name.root,
                     description_override=record.description,
                 )
                 return _to_gql_categorical_annotation_config(
                     config=effective_categorical_config,
-                    annotation_name=record.display_name.root,
+                    annotation_name=record.name.root,
                     id_prefix="DatasetEvaluator",
                     evaluator_id=self.id,
                 )
@@ -733,12 +733,12 @@ class DatasetEvaluator(Node):
                 effective_continuous_config = merge_continuous_output_config(
                     base=base_config,
                     override=continuous_override,
-                    display_name=record.display_name.root,
+                    name=record.name.root,
                     description_override=record.description,
                 )
                 return _to_gql_continuous_annotation_config(
                     config=effective_continuous_config,
-                    annotation_name=record.display_name.root,
+                    annotation_name=record.name.root,
                     id_prefix="DatasetEvaluator",
                     evaluator_id=self.id,
                 )
@@ -759,12 +759,12 @@ class DatasetEvaluator(Node):
         effective_llm_config = merge_categorical_output_config(
             base=llm_base_config,
             override=llm_categorical_override,
-            display_name=record.display_name.root,
+            name=record.name.root,
             description_override=record.description,
         )
         return _to_gql_categorical_annotation_config(
             config=effective_llm_config,
-            annotation_name=record.display_name.root,
+            annotation_name=record.name.root,
             id_prefix="DatasetEvaluator",
             evaluator_id=self.id,
         )

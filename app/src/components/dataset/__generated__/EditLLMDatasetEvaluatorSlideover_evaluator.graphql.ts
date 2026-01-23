@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b57f0b1f28793d188b8a2c25a79e683>>
+ * @generated SignedSource<<2caab054257ef8ce2bddaba4a41a26ba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,6 @@ export type EvaluatorKind = "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
-  readonly displayName: string;
   readonly evaluator: {
     readonly description: string | null;
     readonly kind: EvaluatorKind;
@@ -42,6 +41,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
+  readonly name: string;
   readonly outputConfig: {
     readonly lowerBound?: number | null;
     readonly name?: string;
@@ -158,13 +158,7 @@ return {
   "name": "EditLLMDatasetEvaluatorSlideover_evaluator",
   "selections": [
     (v0/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "displayName",
-      "storageKey": null
-    },
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -511,6 +505,6 @@ return {
 };
 })();
 
-(node as any).hash = "720e4f0218fd0a01e6ca784bec6780fc";
+(node as any).hash = "fecc4c65947c688f3e8bbf5bc1f5a262";
 
 export default node;

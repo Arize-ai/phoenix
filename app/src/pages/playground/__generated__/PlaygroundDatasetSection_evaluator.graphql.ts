@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6dd02fc19b1c5f0b8421d6380fbe1e70>>
+ * @generated SignedSource<<b119c5cd6a78da96464bdb8df72e9b76>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,6 @@ export type EvaluatorKind = "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetSection_evaluator$data = {
-  readonly displayName: string;
   readonly evaluator: {
     readonly id: string;
     readonly isBuiltin: boolean;
@@ -24,6 +23,7 @@ export type PlaygroundDatasetSection_evaluator$data = {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
+  readonly name: string;
   readonly outputConfig: {
     readonly lowerBound?: number | null;
     readonly name?: string;
@@ -46,6 +46,6 @@ const node: ReaderInlineDataFragment = {
   "name": "PlaygroundDatasetSection_evaluator"
 };
 
-(node as any).hash = "ae9959d81db35851d87bfc45cd971b6e";
+(node as any).hash = "7b1b29c602cc724819f57302e62ac962";
 
 export default node;

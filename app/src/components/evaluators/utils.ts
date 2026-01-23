@@ -115,7 +115,7 @@ const createPromptVersionInput = ({
 export const updateLLMEvaluatorPayload = ({
   playgroundStore,
   instanceId,
-  displayName: rawDisplayName,
+  name: rawName,
   description: rawDescription,
   outputConfig,
   datasetId,
@@ -127,27 +127,27 @@ export const updateLLMEvaluatorPayload = ({
   datasetId: string;
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
   instanceId: number;
-  displayName: string;
+  name: string;
   description: string;
   outputConfig: ClassificationEvaluatorAnnotationConfig;
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
-  const displayName = rawDisplayName.trim();
+  const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
   const { prunedPromptInput: promptVersion, promptVersionId } =
     createPromptVersionInput({
       playgroundStore,
       instanceId,
-      name: displayName,
+      name,
       description,
       outputConfig,
       includeExplanation,
     });
 
   return {
-    name: displayName,
+    name,
     description,
     datasetEvaluatorId,
     datasetId,

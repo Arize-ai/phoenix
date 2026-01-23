@@ -275,7 +275,7 @@ class CodeEvaluatorMutationPayload:
 class CreateDatasetBuiltinEvaluatorInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    display_name: Identifier
+    name: Identifier
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_config_override: Optional[AnnotationConfigOverrideInput] = None
     description: Optional[str] = None
@@ -284,7 +284,7 @@ class CreateDatasetBuiltinEvaluatorInput:
 @strawberry.input
 class UpdateDatasetBuiltinEvaluatorInput:
     dataset_evaluator_id: GlobalID
-    display_name: Identifier
+    name: Identifier
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_config_override: Optional[AnnotationConfigOverrideInput] = UNSET
     description: Optional[str] = UNSET
@@ -330,12 +330,12 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
         try:
-            display_name = IdentifierModel.model_validate(input.name)
+            validated_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
         try:
             async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                evaluator_name = await _generate_unique_evaluator_name(session, validated_name.root)
 
                 dataset_evaluators = []
                 if dataset_id is not None:
@@ -347,11 +347,11 @@ class EvaluatorMutationMixin:
                     dataset_evaluators = [
                         models.DatasetEvaluators(
                             dataset_id=dataset_id,
-                            display_name=display_name,
+                            name=evaluator_name,
                             input_mapping={},
                             project=_get_project_for_dataset_evaluator(
                                 dataset_name=dataset_name,
-                                dataset_evaluator_name=str(display_name),
+                                dataset_evaluator_name=str(evaluator_name),
                             ),
                         )
                     ]
@@ -368,7 +368,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(
-                f"An evaluator with display name '{input.name}' already exists for this dataset"
+                f"An evaluator with name '{input.name}' already exists for this dataset"
             )
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
@@ -393,7 +393,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         config = _to_pydantic_categorical_annotation_config(input.output_config)
         try:
-            display_name = IdentifierModel.model_validate(input.name)
+            validated_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
@@ -409,7 +409,7 @@ class EvaluatorMutationMixin:
 
                 dataset_evaluator_record = models.DatasetEvaluators(
                     dataset_id=dataset_id,
-                    display_name=display_name,
+                    name=validated_name,
                     description=input.description if input.description is not UNSET else None,
                     output_config_override=None,
                     input_mapping=input.input_mapping.to_dict()
@@ -418,7 +418,7 @@ class EvaluatorMutationMixin:
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
-                        dataset_evaluator_name=str(display_name),
+                        dataset_evaluator_name=str(evaluator_name),
                     ),
                 )
 
@@ -510,7 +510,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
             raise BadRequest(
-                f"An evaluator with display name '{input.name}' already exists for this dataset"
+                f"An evaluator with name '{input.name}' already exists for this dataset"
             )
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(
@@ -622,7 +622,7 @@ class EvaluatorMutationMixin:
                 # Use the newly created prompt_version for comparison (it will always be "new")
                 active_prompt_version = prompt_version
 
-            dataset_evaluator.display_name = evaluator_name
+            dataset_evaluator.name = evaluator_name
             dataset_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
@@ -853,7 +853,7 @@ class EvaluatorMutationMixin:
         if builtin_evaluator is None:
             raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
         try:
-            display_name = IdentifierModel.model_validate(input.display_name)
+            name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
@@ -866,7 +866,7 @@ class EvaluatorMutationMixin:
 
         dataset_evaluator = models.DatasetEvaluators(
             dataset_id=dataset_rowid,
-            display_name=display_name,
+            name=name,
             input_mapping=input_mapping.to_dict(),
             builtin_evaluator_id=built_in_evaluator_id,
             evaluator_id=None,
@@ -885,13 +885,13 @@ class EvaluatorMutationMixin:
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
-                    display_name=display_name,
+                    name=name,
                     input_mapping=input_mapping.to_dict(),
                     builtin_evaluator_id=built_in_evaluator_id,
                     evaluator_id=None,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
-                        dataset_evaluator_name=str(display_name),
+                        dataset_evaluator_name=str(name),
                     ),
                 )
 
@@ -900,7 +900,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset with id {input.dataset_id} not found")
             raise BadRequest(
-                f"DatasetEvaluator with display name {input.display_name} already exists"
+                f"DatasetEvaluator with name {input.name} already exists"
                 f"for dataset {input.dataset_id}"
             )
 
@@ -953,10 +953,10 @@ class EvaluatorMutationMixin:
                     )
 
                 try:
-                    display_name = IdentifierModel.model_validate(input.display_name)
+                    name = IdentifierModel.model_validate(input.name)
                 except ValidationError as error:
                     raise BadRequest(f"Invalid evaluator name: {error}")
-                dataset_evaluator.display_name = display_name
+                dataset_evaluator.name = name
                 dataset_evaluator.input_mapping = input_mapping.to_dict()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
                 dataset_evaluator.user_id = user_id
@@ -975,9 +975,7 @@ class EvaluatorMutationMixin:
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
-            raise BadRequest(
-                f"DatasetEvaluator with display name {input.display_name} already exists"
-            )
+            raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),

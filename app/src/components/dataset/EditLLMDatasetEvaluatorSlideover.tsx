@@ -154,7 +154,7 @@ const EditEvaluatorDialog = ({
       graphql`
         fragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {
           id
-          displayName
+          name
           inputMapping {
             literalMapping
             pathMapping
@@ -227,7 +227,7 @@ const EditEvaluatorDialog = ({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
-              displayName
+              name
               evaluator {
                 name
               }
@@ -251,12 +251,12 @@ const EditEvaluatorDialog = ({
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
         ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-        name:
+        globalName:
           datasetEvaluator.evaluator.name ??
+          DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName,
+        name:
+          datasetEvaluator.name ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.name,
-        displayName:
-          datasetEvaluator.displayName ??
-          DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.displayName,
         description:
           datasetEvaluator.evaluator.description ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.description,
@@ -282,12 +282,7 @@ const EditEvaluatorDialog = ({
   const onSubmit = useCallback(
     (store: EvaluatorStoreInstance) => {
       const {
-        evaluator: {
-          displayName,
-          description,
-          inputMapping,
-          includeExplanation,
-        },
+        evaluator: { name, description, inputMapping, includeExplanation },
         dataset,
         outputConfig,
       } = store.getState();
@@ -300,7 +295,7 @@ const EditEvaluatorDialog = ({
       const input = updateLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
-        displayName,
+        name,
         description,
         outputConfig,
         datasetId: dataset.id,

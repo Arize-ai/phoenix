@@ -12,7 +12,7 @@ export const CodeEvaluatorForm = () => {
     useShallow((state) => ({
       evaluatorKind: state.evaluator.kind,
       isBuiltin: state.evaluator.isBuiltin,
-      builtInEvaluatorName: state.evaluator.name,
+      builtInEvaluatorName: state.evaluator.globalName,
       evaluatorMappingSource: state.evaluatorMappingSource,
     }))
   );

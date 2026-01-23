@@ -22,8 +22,10 @@ export type EvaluatorStoreProps = {
   };
   evaluator: {
     id?: string;
+    /** The global/internal name of the base evaluator (e.g., "hallucination") */
+    globalName: string;
+    /** The user-facing name for this dataset evaluator instance */
     name: string;
-    displayName: string;
     inputMapping: EvaluatorInputMapping;
     kind: EvaluatorKind;
     description: string;
@@ -44,10 +46,10 @@ export type EvaluatorStoreProps = {
 };
 
 export type EvaluatorStoreActions = {
-  /** Sets the internal name (slug) of the evaluator. */
+  /** Sets the global/internal name of the base evaluator. */
+  setEvaluatorGlobalName: (globalName: string) => void;
+  /** Sets the user-facing name for this dataset evaluator instance. */
   setEvaluatorName: (name: string) => void;
-  /** Sets the user-facing display name of the evaluator. */
-  setEvaluatorDisplayName: (displayName: string) => void;
   /** Sets the description of the evaluator. */
   setEvaluatorDescription: (description: string) => void;
   /** Sets whether the evaluator should include an explanation in its output. */
@@ -150,8 +152,8 @@ export const EVALUATOR_MAPPING_SOURCE_DEFAULT_STRING = JSON.stringify(
  */
 export const DEFAULT_STORE_VALUES = {
   evaluator: {
+    globalName: "",
     name: "",
-    displayName: "",
     description: "",
     inputMapping: {
       literalMapping: {},
@@ -206,26 +208,26 @@ export const createEvaluatorStore = (
           props
         ) satisfies EvaluatorStoreProps;
         const actions = {
+          setEvaluatorGlobalName(globalName) {
+            set(
+              {
+                evaluator: { ...get().evaluator, globalName },
+                // synchronize the output config name with the evaluator name
+              },
+              undefined,
+              "setEvaluatorGlobalName"
+            );
+            get().setOutputConfigName(globalName);
+          },
           setEvaluatorName(name) {
             set(
               {
                 evaluator: { ...get().evaluator, name },
-                // synchronize the output config name with the evaluator name
               },
               undefined,
               "setEvaluatorName"
             );
             get().setOutputConfigName(name);
-          },
-          setEvaluatorDisplayName(displayName) {
-            set(
-              {
-                evaluator: { ...get().evaluator, displayName },
-              },
-              undefined,
-              "setEvaluatorDisplayName"
-            );
-            get().setOutputConfigName(displayName);
           },
           setEvaluatorDescription(description) {
             set(

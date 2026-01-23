@@ -921,7 +921,7 @@ async def assign_correctness_llm_evaluator_to_dataset(
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=correctness_llm_evaluator.id,
-                display_name=correctness_llm_evaluator.name,
+                name=correctness_llm_evaluator.name,
                 input_mapping={},
                 output_config_override=None,
                 project=models.Project(

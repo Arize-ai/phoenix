@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<456544a281a8b783d22d3df286199750>>
+ * @generated SignedSource<<711e25a00e3ed1f35e832420fa164dd0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,14 +44,14 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "name",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "updatedAt",
   "storageKey": null
 };
 return {
@@ -148,14 +148,8 @@ return {
                   "name": "DatasetEvaluatorsTable_row",
                   "selections": [
                     (v1/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "displayName",
-                      "storageKey": null
-                    },
                     (v2/*: any*/),
+                    (v3/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -190,7 +184,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v3/*: any*/),
+                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -212,7 +206,7 @@ return {
                           "name": "createdAt",
                           "storageKey": null
                         },
-                        (v2/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -232,7 +226,7 @@ return {
                               "plural": false,
                               "selections": [
                                 (v1/*: any*/),
-                                (v3/*: any*/)
+                                (v2/*: any*/)
                               ],
                               "storageKey": null
                             },
@@ -244,7 +238,7 @@ return {
                               "name": "promptVersionTag",
                               "plural": false,
                               "selections": [
-                                (v3/*: any*/)
+                                (v2/*: any*/)
                               ],
                               "storageKey": null
                             }
