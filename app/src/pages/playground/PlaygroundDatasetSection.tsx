@@ -169,31 +169,31 @@ export function PlaygroundDatasetSection({
       });
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
+  // We want to re-mount the context when the dataset or the splits change
+  const key = `${datasetId}-${splitIds?.join("-")}`;
   return (
-    <>
-      <Flex direction={"column"} height={"100%"}>
-        <PlaygroundExperimentToolbar
+    <Flex direction={"column"} height={"100%"}>
+      <PlaygroundExperimentToolbar
+        datasetId={datasetId}
+        datasetEvaluators={datasetEvaluators}
+        selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
+        onSelectionChange={setSelectedDatasetEvaluatorIds}
+        updateConnectionIds={
+          data.dataset.datasetEvaluators?.__id != null
+            ? [data.dataset.datasetEvaluators.__id]
+            : []
+        }
+        onEvaluatorCreated={onEvaluatorCreated}
+        query={data}
+      />
+      <PlaygroundDatasetExamplesTableProvider key={key}>
+        <PlaygroundDatasetExamplesTable
           datasetId={datasetId}
-          datasetEvaluators={datasetEvaluators}
-          selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
-          onSelectionChange={setSelectedDatasetEvaluatorIds}
-          updateConnectionIds={
-            data.dataset.datasetEvaluators?.__id != null
-              ? [data.dataset.datasetEvaluators.__id]
-              : []
-          }
-          onEvaluatorCreated={onEvaluatorCreated}
-          query={data}
+          splitIds={splitIds}
+          evaluatorMappings={selectedEvaluatorWithInputMapping}
+          evaluatorOutputConfigs={evaluatorOutputConfigs}
         />
-        <PlaygroundDatasetExamplesTableProvider>
-          <PlaygroundDatasetExamplesTable
-            datasetId={datasetId}
-            splitIds={splitIds}
-            evaluatorMappings={selectedEvaluatorWithInputMapping}
-            evaluatorOutputConfigs={evaluatorOutputConfigs}
-          />
-        </PlaygroundDatasetExamplesTableProvider>
-      </Flex>
-    </>
+      </PlaygroundDatasetExamplesTableProvider>
+    </Flex>
   );
 }
