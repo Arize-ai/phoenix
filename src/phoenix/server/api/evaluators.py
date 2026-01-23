@@ -444,7 +444,7 @@ BuiltInEvaluatorOutputConfig: TypeAlias = Union[
 ]
 
 
-class BuiltInEvaluator(BaseEvaluator):
+class BuiltInEvaluator(BaseEvaluator, ABC):
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}

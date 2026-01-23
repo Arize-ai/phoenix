@@ -7,6 +7,7 @@ import pytest
 from openai import AsyncOpenAI
 from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -22,13 +23,20 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_MESSAGES,
     TEMPLATE_PATH_MAPPING,
     TEMPLATE_VARIABLES,
+    BuiltInEvaluator,
     LLMEvaluator,
+    _generate_builtin_evaluator_id,
     apply_input_mapping,
     cast_template_variable_types,
+    get_evaluators,
     json_diff_count,
     levenshtein_distance,
     validate_template_variables,
 )
+from phoenix.server.api.evaluators import (
+    LLMEvaluator as LLMEvaluatorClass,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_config,
@@ -54,6 +62,8 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 from phoenix.tracers import Tracer
@@ -2560,43 +2570,16 @@ class TestLLMEvaluator:
 
 
 class TestGetEvaluators:
-    """Tests for the get_evaluators function."""
-
     async def test_returns_evaluators_in_input_order_with_interspersed_types(
         self,
         db: Any,
         correctness_llm_evaluator: models.LLMEvaluator,
         openai_api_key: str,
     ) -> None:
-        """
-        Test that get_evaluators returns evaluators in the same order as input node IDs,
-        even when LLM and built-in evaluators are interspersed.
-        """
-        from strawberry.relay import GlobalID
-
-        from phoenix.server.api.evaluators import (
-            BuiltInEvaluator,
-            _generate_builtin_evaluator_id,
-            get_evaluators,
-        )
-        from phoenix.server.api.evaluators import (
-            LLMEvaluator as LLMEvaluatorClass,
-        )
-        from phoenix.server.api.types.Evaluator import (
-            BuiltInEvaluator as BuiltInEvaluatorNode,
-        )
-        from phoenix.server.api.types.Evaluator import (
-            LLMEvaluator as LLMEvaluatorNode,
-        )
-
-        # Create node IDs for evaluators in a specific interspersed order:
-        # [LLM, BuiltIn(Contains), BuiltIn(ExactMatch), LLM would be here if we had another]
-        # Since we only have one LLM evaluator, we'll use: [BuiltIn, LLM, BuiltIn]
         contains_id = _generate_builtin_evaluator_id("Contains")
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         regex_id = _generate_builtin_evaluator_id("Regex")
 
-        # Order: Contains, LLM, ExactMatch, Regex
         input_node_ids = [
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
             GlobalID(
@@ -2614,22 +2597,13 @@ class TestGetEvaluators:
                 credentials=None,
             )
 
-        # Verify order matches input
         assert len(evaluators) == 4
-
-        # First should be Contains (BuiltIn)
         assert isinstance(evaluators[0], BuiltInEvaluator)
         assert evaluators[0].name == "Contains"
-
-        # Second should be LLM evaluator
         assert isinstance(evaluators[1], LLMEvaluatorClass)
         assert evaluators[1].name == correctness_llm_evaluator.name.root
-
-        # Third should be ExactMatch (BuiltIn)
         assert isinstance(evaluators[2], BuiltInEvaluator)
         assert evaluators[2].name == "ExactMatch"
-
-        # Fourth should be Regex (BuiltIn)
         assert isinstance(evaluators[3], BuiltInEvaluator)
         assert evaluators[3].name == "Regex"
 
@@ -2637,14 +2611,6 @@ class TestGetEvaluators:
         self,
         db: Any,
     ) -> None:
-        """Test that get_evaluators raises NotFound when an LLM evaluator is not found."""
-        from strawberry.relay import GlobalID
-
-        from phoenix.server.api.evaluators import get_evaluators
-        from phoenix.server.api.exceptions import NotFound
-        from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
-
-        # Use a non-existent LLM evaluator ID
         non_existent_id = 999999
         input_node_ids = [
             GlobalID(type_name=LLMEvaluatorNode.__name__, node_id=str(non_existent_id)),
@@ -2663,14 +2629,6 @@ class TestGetEvaluators:
         self,
         db: Any,
     ) -> None:
-        """Test that get_evaluators raises NotFound when a built-in evaluator is not found."""
-        from strawberry.relay import GlobalID
-
-        from phoenix.server.api.evaluators import get_evaluators
-        from phoenix.server.api.exceptions import NotFound
-        from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
-
-        # Use a non-existent built-in evaluator ID (positive number won't match any)
         non_existent_id = 12345
         input_node_ids = [
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(non_existent_id)),
@@ -2689,13 +2647,6 @@ class TestGetEvaluators:
         self,
         db: Any,
     ) -> None:
-        """Test that get_evaluators raises BadRequest for unknown evaluator types."""
-        from strawberry.relay import GlobalID
-
-        from phoenix.server.api.evaluators import get_evaluators
-        from phoenix.server.api.exceptions import BadRequest
-
-        # Use an unknown type name
         input_node_ids = [
             GlobalID(type_name="UnknownEvaluatorType", node_id="123"),
         ]
@@ -2713,9 +2664,6 @@ class TestGetEvaluators:
         self,
         db: Any,
     ) -> None:
-        """Test that get_evaluators returns an empty list when given no node IDs."""
-        from phoenix.server.api.evaluators import get_evaluators
-
         async with db() as session:
             evaluators = await get_evaluators(
                 evaluator_node_ids=[],
@@ -2730,22 +2678,9 @@ class TestGetEvaluators:
         self,
         db: Any,
     ) -> None:
-        """Test that order is preserved when only built-in evaluators are requested."""
-        from strawberry.relay import GlobalID
-
-        from phoenix.server.api.evaluators import (
-            BuiltInEvaluator,
-            _generate_builtin_evaluator_id,
-            get_evaluators,
-        )
-        from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
-
-        # Request built-in evaluators in a specific order
         levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
         json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
         contains_id = _generate_builtin_evaluator_id("Contains")
-
-        # Order: LevenshteinDistance, JSONDistance, Contains
         input_node_ids = [
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(levenshtein_id)),
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(json_distance_id)),
