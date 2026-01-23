@@ -5,7 +5,7 @@ import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
+from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -96,6 +96,9 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
+EvaluatorOutputConfig: TypeAlias = CategoricalAnnotationConfig | ContinuousAnnotationConfig
+
+
 class BaseEvaluator(ABC):
     @property
     @abstractmethod
@@ -116,7 +119,7 @@ class BaseEvaluator(ABC):
     @abstractmethod
     def output_config(
         self,
-    ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
+    ) -> EvaluatorOutputConfig:
         raise NotImplementedError
 
     @abstractmethod
@@ -126,7 +129,7 @@ class BaseEvaluator(ABC):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: Any,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         """
@@ -207,10 +210,18 @@ class LLMEvaluator(BaseEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: CategoricalAnnotationConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+
+        # LLMEvaluator only supports categorical output configs
+        if not isinstance(output_config, CategoricalAnnotationConfig):
+            raise ValueError(
+                f"LLMEvaluator only supports CategoricalAnnotationConfig, "
+                f"got {type(output_config).__name__}"
+            )
+
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
@@ -439,11 +450,6 @@ class LLMEvaluator(BaseEvaluator):
         return result
 
 
-BuiltInEvaluatorOutputConfig: TypeAlias = Union[
-    CategoricalAnnotationConfig, ContinuousAnnotationConfig
-]
-
-
 class BuiltInEvaluator(BaseEvaluator, ABC):
     name: str
     description: Optional[str] = None
@@ -451,7 +457,7 @@ class BuiltInEvaluator(BaseEvaluator, ABC):
 
     @property
     @abstractmethod
-    def output_config(self) -> BuiltInEvaluatorOutputConfig:
+    def output_config(self) -> EvaluatorOutputConfig:
         """Returns the base output config for this evaluator (before any overrides are applied)."""
         raise NotImplementedError
 
@@ -462,7 +468,7 @@ class BuiltInEvaluator(BaseEvaluator, ABC):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         raise NotImplementedError
@@ -470,7 +476,7 @@ class BuiltInEvaluator(BaseEvaluator, ABC):
     def _map_boolean_to_label_and_score(
         self,
         matched: bool,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
     ) -> tuple[Optional[str], Optional[float]]:
         """
         Map a boolean result to a label and score using the output config.
@@ -985,7 +991,7 @@ class ContainsEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1206,7 +1212,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1419,7 +1425,7 @@ class RegexEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1658,7 +1664,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
@@ -1887,7 +1893,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: BuiltInEvaluatorOutputConfig,
+        output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
