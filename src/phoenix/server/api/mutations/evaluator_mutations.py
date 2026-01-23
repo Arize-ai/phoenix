@@ -735,6 +735,8 @@ class EvaluatorMutationMixin:
 
         If delete_associated_prompt is True (default), the associated prompt for LLM evaluators
         will also be deleted.
+
+        The associated project for each dataset evaluator is also deleted automatically.
         """
         # Parse and validate all dataset_evaluator_ids
         dataset_evaluator_rowids: list[int] = []
@@ -764,22 +766,19 @@ class EvaluatorMutationMixin:
             result = await session.execute(stmt)
             dataset_evaluators = list(result.scalars().all())
 
-            # Separate built-in evaluators from custom evaluators
             builtin_dataset_evaluator_ids: list[int] = []
             custom_evaluator_ids: list[int] = []
+            project_ids_to_delete: list[int] = []
 
             for de in dataset_evaluators:
                 if de.builtin_evaluator_id is not None:
-                    # Built-in evaluator: delete only the DatasetEvaluators row
                     builtin_dataset_evaluator_ids.append(de.id)
                 elif de.evaluator_id is not None:
-                    # Custom evaluator: delete the Evaluator row (cascades to DatasetEvaluators)
                     custom_evaluator_ids.append(de.evaluator_id)
 
-                # Track the deleted IDs
+                project_ids_to_delete.append(de.project_id)
                 deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(de.id)))
 
-            # Collect prompt_ids from LLM evaluators before deletion (if we need to delete them)
             prompt_ids_to_delete: list[int] = []
             if input.delete_associated_prompt and custom_evaluator_ids:
                 llm_evaluator_stmt = select(models.LLMEvaluator).where(
@@ -803,13 +802,17 @@ class EvaluatorMutationMixin:
                 )
                 await session.execute(delete_custom_stmt)
 
-            # Delete associated prompts after evaluators are deleted
-            # (FK constraint requires evaluator to be deleted first)
             if prompt_ids_to_delete:
                 delete_prompts_stmt = delete(models.Prompt).where(
                     models.Prompt.id.in_(prompt_ids_to_delete)
                 )
                 await session.execute(delete_prompts_stmt)
+
+            if project_ids_to_delete:
+                delete_projects_stmt = delete(models.Project).where(
+                    models.Project.id.in_(project_ids_to_delete)
+                )
+                await session.execute(delete_projects_stmt)
 
         return DeleteDatasetEvaluatorsPayload(
             dataset_evaluator_ids=deleted_gids,
