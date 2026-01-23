@@ -7,9 +7,9 @@ import { createClassificationEvaluator } from "./createClassificationEvaluator";
 export interface FaithfulnessEvaluatorArgs<
   RecordType extends Record<string, unknown> = FaithfulnessEvaluationRecord,
 > extends Omit<
-    CreateClassificationEvaluatorArgs<RecordType>,
-    "promptTemplate" | "choices" | "optimizationDirection" | "name"
-  > {
+  CreateClassificationEvaluatorArgs<RecordType>,
+  "promptTemplate" | "choices" | "optimizationDirection" | "name"
+> {
   optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
   name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
   choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];

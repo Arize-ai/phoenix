@@ -8,12 +8,12 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import pytest
-import pytz
 from pandas import DataFrame, Series, Timestamp
 from pytest import LogCaptureFixture, raises
 
@@ -880,7 +880,7 @@ def random_uuids(num_records: int) -> list[str]:
                 }
             ),
             Schema(prediction_id_column_name="prediction_id"),
-            Timestamp(year=2022, month=1, day=1, hour=0, minute=0, second=0, tzinfo=pytz.utc),
+            Timestamp(year=2022, month=1, day=1, hour=0, minute=0, second=0, tzinfo=timezone.utc),
             DataFrame(
                 {
                     "prediction_id": [1, 2, 3],
@@ -896,7 +896,7 @@ def random_uuids(num_records: int) -> list[str]:
                             )
                         ]
                         * 3
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                 }
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
@@ -946,7 +946,7 @@ def random_uuids(num_records: int) -> list[str]:
                         ]
                     )
                     .dt.tz_localize(datetime.now().astimezone().tzinfo)
-                    .dt.tz_convert(pytz.utc),
+                    .dt.tz_convert(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -983,7 +983,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1018,7 +1018,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1056,7 +1056,7 @@ def random_uuids(num_records: int) -> list[str]:
                             ),
                         ]
                     )
-                    .dt.tz_localize(pytz.utc)
+                    .dt.tz_localize(timezone.utc)
                     .apply(lambda dt: float(dt.timestamp())),
                     "prediction_id": [1, 2, 3],
                 }
@@ -1092,7 +1092,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1129,7 +1129,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.timezone("US/Pacific")),
+                    ).dt.tz_localize(ZoneInfo("US/Pacific")),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1164,7 +1164,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1213,7 +1213,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1264,7 +1264,7 @@ def random_uuids(num_records: int) -> list[str]:
                         ]
                     )
                     .dt.tz_localize(datetime.now().astimezone().tzinfo)
-                    .dt.tz_convert(pytz.utc),
+                    .dt.tz_convert(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1313,7 +1313,7 @@ def random_uuids(num_records: int) -> list[str]:
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(timezone.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),

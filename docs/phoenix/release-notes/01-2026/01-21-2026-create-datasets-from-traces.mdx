@@ -1,0 +1,70 @@
+---
+title: "01.21.2026 Create Datasets from Traces with Span Associations"
+---
+
+<CardGroup cols={2}>
+  <Card title="Python Client Reference" icon="python" href="/docs/phoenix/sdk-api-reference/python/arizeai-phoenix-client">
+    Phoenix Client Documentation
+  </Card>
+  <Card title="Python Example" icon="github" href="https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-client/examples/datasets/create_dataset_from_spans_example.py">
+    View on GitHub
+  </Card>
+  <Card title="TypeScript Example" icon="github" href="https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-client/examples/create_dataset_from_spans.ts">
+    View on GitHub
+  </Card>
+</CardGroup>
+
+## Overview
+
+**Available in arize-phoenix-client 1.28.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+Creating datasets from traces has been available in the Phoenix UI. Now, the Phoenix client libraries enable programmatic dataset creation from production traces with bidirectional links between dataset examples and their source spans. Query spans using filters, transform the data, and create datasets that maintain connections to the original traces.
+
+```mermaid
+flowchart LR
+    A[Production Traces] -->|Query spans| B[Filtered Spans]
+    B -->|Transform data| C[Dataset Examples]
+    C -->|Create dataset| D[Dataset]
+    D -.->|Linked to source| A
+
+    style D fill:#e1f5ff
+    style A fill:#fff4e6
+```
+
+## How It Works
+
+The workflow involves three steps: query spans from traces using filters, transform the span data into dataset format, and create a dataset with span associations using the `span_id_key` parameter (Python) or `spanId` field (TypeScript).
+
+### Querying Spans
+
+Query spans by attributes such as model name or other span attributes.
+
+### Transforming Data
+
+Parse span attributes and extract the fields needed for your dataset examples. Span IDs must be preserved to maintain the link to source traces.
+
+### Linking to Source Spans
+
+**Python**: Use `span_id_key` to specify which column contains span IDs.
+
+**TypeScript**: Use `spanId` field in each example object.
+
+Phoenix validates that span IDs exist and creates bidirectional links visible in the UI.
+
+## Complete Examples
+
+See the full examples in the phoenix-client repositories:
+
+- **Python**: [`create_dataset_from_spans_example.py`](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-client/examples/datasets/create_dataset_from_spans_example.py)
+- **TypeScript**: [`create_dataset_from_spans.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-client/examples/create_dataset_from_spans.ts)
+
+## Requirements
+
+- Phoenix server running (local or hosted)
+- Existing traces with LLM spans
+- **Python**: `arize-phoenix-client` 1.28.0 or later
+- **TypeScript**: `@arizeai/phoenix-client` 2.0.0 or later
+
+## Feedback
+
+Share feedback or report issues on [GitHub](https://github.com/Arize-ai/phoenix).

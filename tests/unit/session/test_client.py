@@ -1,5 +1,5 @@
 import gzip
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -13,7 +13,6 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from pandas.testing import assert_frame_equal
-from pytz import UTC
 from respx import MockRouter
 from strawberry.relay import GlobalID
 
@@ -206,12 +205,12 @@ def test_get_dataset_versions(
             {
                 "version_id": "version-id-1",
                 "description": "description-1",
-                "created_at": datetime(2024, 7, 23, 17, 32, 6, 646881, tzinfo=UTC),
+                "created_at": datetime(2024, 7, 23, 17, 32, 6, 646881, tzinfo=timezone.utc),
             },
             {
                 "version_id": "version-id-2",
                 "description": "description-2",
-                "created_at": datetime(2024, 7, 23, 17, 32, 1, tzinfo=UTC),
+                "created_at": datetime(2024, 7, 23, 17, 32, 1, tzinfo=timezone.utc),
             },
         ],
         index="version_id",

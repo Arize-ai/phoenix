@@ -381,6 +381,16 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 },
                                 "description": "Split per example: string, string array, or null",
                             },
+                            "span_ids": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": "Span IDs to link examples back to spans",
+                            },
                         },
                     }
                 },
@@ -412,6 +422,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "items": {"type": "string"},
                                 "uniqueItems": True,
                                 "description": "Column names for auto-assigning examples to splits",
+                            },
+                            "span_id_key": {
+                                "type": "string",
+                                "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
                             },
                             "file": {"type": "string", "format": "binary"},
                         },
@@ -463,6 +477,7 @@ async def upload_dataset(
                     output_keys,
                     metadata_keys,
                     split_keys,
+                    span_id_key,
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
@@ -483,16 +498,28 @@ async def upload_dataset(
             if file_content_type is FileContentType.CSV:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
                 examples = await _process_csv(
-                    content, encoding, input_keys, output_keys, metadata_keys, split_keys
+                    content,
+                    encoding,
+                    input_keys,
+                    output_keys,
+                    metadata_keys,
+                    split_keys,
+                    span_id_key,
                 )
             elif file_content_type is FileContentType.PYARROW:
                 examples = await _process_pyarrow(
-                    content, input_keys, output_keys, metadata_keys, split_keys
+                    content, input_keys, output_keys, metadata_keys, split_keys, span_id_key
                 )
             elif file_content_type is FileContentType.JSONL:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
                 examples = await _process_jsonl(
-                    content, encoding, input_keys, output_keys, metadata_keys, split_keys
+                    content,
+                    encoding,
+                    input_keys,
+                    output_keys,
+                    metadata_keys,
+                    split_keys,
+                    span_id_key,
                 )
             else:
                 assert_never(file_content_type)
@@ -573,6 +600,7 @@ InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
 SplitKeys: TypeAlias = frozenset[str]
+SpanIdKey: TypeAlias = Optional[str]
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
@@ -604,6 +632,17 @@ def _process_json(
             raise ValueError(
                 f"splits must have same length as inputs ({len(splits)} != {len(inputs)})"
             )
+
+    # Validate span_ids format if provided
+    span_ids = data.get("span_ids")
+    if span_ids is not None:
+        if not isinstance(span_ids, list):
+            raise ValueError("span_ids must be a list")
+        if len(span_ids) != len(inputs):
+            raise ValueError(
+                f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
+            )
+
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
         # Extract split values, validating they're non-empty strings
@@ -633,11 +672,25 @@ def _process_json(
                     f"Split value must be a string, list of strings, or None, "
                     f"got {type(split_value).__name__}"
                 )
+
+        # Extract span_id for this example
+        span_id: Optional[str] = None
+        if span_ids:
+            span_id_value = span_ids[i]
+            if span_id_value is not None:
+                if not isinstance(span_id_value, str):
+                    raise ValueError(
+                        f"Span ID must be a string or None, got {type(span_id_value).__name__}"
+                    )
+                if span_id_value.strip():
+                    span_id = span_id_value.strip()
+
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
             splits=frozenset(split_set),
+            span_id=span_id,
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
@@ -651,6 +704,7 @@ async def _process_csv(
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -665,7 +719,11 @@ async def _process_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys, split_keys)
+    _check_keys_exist(
+        column_headers, input_keys, output_keys, metadata_keys, split_keys, span_id_key
+    )
+
+    rows = list(reader)
     return (
         ExampleContent(
             input={k: row.get(k) for k in input_keys},
@@ -674,8 +732,9 @@ async def _process_csv(
             splits=frozenset(
                 str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
             ),  # Only include non-empty, non-whitespace split values
+            span_id=_get_span_id(row, span_id_key),
         )
-        for row in iter(reader)
+        for row in rows
     )
 
 
@@ -685,13 +744,16 @@ async def _process_pyarrow(
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
 ) -> Awaitable[Examples]:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
         raise ValueError("File is not valid pyarrow") from e
     column_headers = frozenset(reader.schema.names)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys, split_keys)
+    _check_keys_exist(
+        column_headers, input_keys, output_keys, metadata_keys, split_keys, span_id_key
+    )
 
     def get_examples() -> Iterator[ExampleContent]:
         for row in reader.read_pandas().to_dict(orient="records"):
@@ -702,6 +764,7 @@ async def _process_pyarrow(
                 splits=frozenset(
                     str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                 ),  # Only include non-empty, non-whitespace split values
+                span_id=_get_span_id(row, span_id_key),
             )
 
     return run_in_threadpool(get_examples)
@@ -714,6 +777,7 @@ async def _process_jsonl(
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
 ) -> Examples:
     if encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -736,6 +800,7 @@ async def _process_jsonl(
             splits=frozenset(
                 str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
             ),  # Only include non-empty, non-whitespace split values
+            span_id=_get_span_id(obj, span_id_key),
         )
         examples.append(example)
     return iter(examples)
@@ -755,6 +820,7 @@ def _check_keys_exist(
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
+    span_id_key: SpanIdKey = None,
 ) -> None:
     for desc, keys in (
         ("input", input_keys),
@@ -764,6 +830,21 @@ def _check_keys_exist(
     ):
         if keys and (diff := keys.difference(column_headers)):
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
+    if span_id_key and span_id_key not in column_headers:
+        raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
+
+
+def _get_span_id(row: Mapping[str, Any], span_id_key: SpanIdKey) -> Optional[str]:
+    """Extract span_id from a row, returning None if not present or empty."""
+    if not span_id_key:
+        return None
+    value = row.get(span_id_key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    str_value = str(value)
+    if str_value.lower() == "nan" or not str_value.strip():
+        return None
+    return str_value
 
 
 async def _parse_form_data(
@@ -776,6 +857,7 @@ async def _parse_form_data(
     OutputKeys,
     MetadataKeys,
     SplitKeys,
+    SpanIdKey,
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
@@ -790,6 +872,7 @@ async def _parse_form_data(
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
+    span_id_key = cast(Optional[str], form.get("span_id_key")) or None
     return (
         action,
         name,
@@ -798,6 +881,7 @@ async def _parse_form_data(
         output_keys,
         metadata_keys,
         split_keys,
+        span_id_key,
         file,
     )
 

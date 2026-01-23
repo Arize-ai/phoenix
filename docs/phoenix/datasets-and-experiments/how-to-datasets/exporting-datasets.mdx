@@ -24,4 +24,23 @@ Fine-tuning improves on few-shot learning by training on many more examples than
 
 Evals provide a framework for evaluating large language models (LLMs) or systems built using LLMs. OpenAI Evals offer an existing registry of evals to test different dimensions of OpenAI models and the ability to write your own custom evals for use cases you care about. You can also use your data to build private evals. Phoenix can natively export the OpenAI Evals format as JSONL so you can use it with OpenAI Evals. See [https://github.com/openai/evals](https://github.com/openai/evals) for details.
 
+## Exporting via CLI
+
+The [Phoenix CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) (`@arizeai/phoenix-cli`) provides command-line access to datasets and experiments:
+
+```bash
+npx @arizeai/phoenix-cli dataset my-dataset --file dataset.json
+npx @arizeai/phoenix-cli experiments --dataset my-dataset ./experiments/
+```
+
+The CLI integrates with AI coding assistants like [Claude Code](https://claude.com/product/claude-code), [Cursor](https://cursor.sh), and [Windsurf](https://codeium.com/windsurf)—ask them to fetch and analyze your Phoenix data directly.
+
+<CardGroup cols={2}>
+  <Card title="Phoenix CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Complete CLI documentation with all commands and options
+  </Card>
+  <Card title="TypeScript Client" icon="code" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client">
+    Programmatic access via the TypeScript SDK
+  </Card>
+</CardGroup>
 
