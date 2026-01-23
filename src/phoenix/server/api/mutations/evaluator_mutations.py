@@ -335,7 +335,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
         try:
             async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                evaluator_name = await _generate_unique_evaluator_name(session, validated_name.root)
 
                 dataset_evaluators = []
                 if dataset_id is not None:
@@ -347,11 +347,11 @@ class EvaluatorMutationMixin:
                     dataset_evaluators = [
                         models.DatasetEvaluators(
                             dataset_id=dataset_id,
-                            display_name=display_name,
+                            name=evaluator_name,
                             input_mapping={},
                             project=_get_project_for_dataset_evaluator(
                                 dataset_name=dataset_name,
-                                dataset_evaluator_name=str(display_name),
+                                dataset_evaluator_name=str(evaluator_name),
                             ),
                         )
                     ]
@@ -418,7 +418,7 @@ class EvaluatorMutationMixin:
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
-                        dataset_evaluator_name=str(display_name),
+                        dataset_evaluator_name=str(evaluator_name),
                     ),
                 )
 
@@ -882,13 +882,13 @@ class EvaluatorMutationMixin:
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
-                    display_name=display_name,
+                    name=name,
                     input_mapping=input_mapping.to_dict(),
                     builtin_evaluator_id=built_in_evaluator_id,
                     evaluator_id=None,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
-                        dataset_evaluator_name=str(display_name),
+                        dataset_evaluator_name=str(name),
                     ),
                 )
 
