@@ -18,7 +18,7 @@ from openinference.instrumentation import (
     get_output_attributes,
     get_span_kind_attributes,
 )
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -364,39 +364,85 @@ class LLMEvaluator:
             trace_id = format_trace_id(evaluator_span.get_span_context().trace_id)
 
             try:
-                template_variables = apply_input_mapping(
-                    input_schema=self.input_schema,
-                    input_mapping=input_mapping,
-                    context=context,
-                )
-                template_variables = cast_template_variable_types(
-                    template_variables=template_variables,
-                    input_schema=self.input_schema,
-                )
-                validate_template_variables(
-                    template_variables=template_variables,
-                    input_schema=self.input_schema,
-                )
-                template_formatter = get_template_formatter(self._template_format)
-                messages: list[
-                    tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
-                ] = []
-                for msg in self._template.messages:
-                    role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
-                    if isinstance(msg.content, str):
-                        formatted_content = template_formatter.format(
-                            msg.content, **template_variables
+                with (
+                    self._tracer.start_as_current_span(
+                        "Apply template variables",
+                        attributes={
+                            SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",  # todo: use `get_openinference_span_kind_attributes` once the "TEMPLATE" type is added  # noqa: E501
+                            **_get_template_message_attributes(
+                                messages=_get_messages_from_template(self._template)
+                            ),
+                            **_get_template_path_mapping_attributes(
+                                path_mapping=input_mapping.path_mapping or {}
+                            ),
+                            **_get_template_literal_mapping_attributes(
+                                literal_mapping=input_mapping.literal_mapping or {}
+                            ),
+                            **_get_template_variables_attributes(variables=context),
+                            **get_input_attributes(
+                                {
+                                    "variables": context,
+                                    "input_mapping": {
+                                        "path_mapping": input_mapping.path_mapping or {},
+                                        "literal_mapping": input_mapping.literal_mapping or {},
+                                    },
+                                }
+                            ),
+                        },
+                    ) as template_span
+                ):
+                    template_variables = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    template_variables = cast_template_variable_types(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    template_formatter = get_template_formatter(self._template_format)
+                    messages: list[
+                        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+                    ] = []
+                    for msg in self._template.messages:
+                        role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                        if isinstance(msg.content, str):
+                            formatted_content = template_formatter.format(
+                                msg.content, **template_variables
+                            )
+                        else:
+                            text_parts = []
+                            for part in msg.content:
+                                if isinstance(part, TextContentPart):
+                                    formatted_text = template_formatter.format(
+                                        part.text, **template_variables
+                                    )
+                                    text_parts.append(formatted_text)
+                            formatted_content = "".join(text_parts)
+                        messages.append((role, formatted_content, None, None))
+
+                    formatted_messages = [
+                        Message(role=role.value.lower(), content=content)
+                        for role, content, _, _ in messages
+                    ]
+                    template_span.set_attributes(
+                        _get_template_formatted_message_attributes(messages=formatted_messages)
+                    )
+                    template_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "messages": [
+                                    {"role": msg["role"], "content": msg["content"]}
+                                    for msg in formatted_messages
+                                ]
+                            }
                         )
-                    else:
-                        text_parts = []
-                        for part in msg.content:
-                            if isinstance(part, TextContentPart):
-                                formatted_text = template_formatter.format(
-                                    part.text, **template_variables
-                                )
-                                text_parts.append(formatted_text)
-                        formatted_content = "".join(text_parts)
-                    messages.append((role, formatted_content, None, None))
+                    )
+                    template_span.set_status(Status(StatusCode.OK))
 
                 denormalized_tools, denormalized_tool_choice = denormalize_tools(
                     self._tools, self._model_provider
@@ -439,20 +485,52 @@ class LLMEvaluator:
                     finally:
                         llm_span.set_attributes(self._llm_client.attributes)
 
-                if not tool_call_by_id:
-                    raise ValueError("No tool calls received from LLM")
+                with self._tracer.start_as_current_span(
+                    "Parse eval result",
+                    attributes={
+                        **get_span_kind_attributes("chain"),
+                        **get_input_attributes(
+                            {
+                                "tool_calls": {
+                                    call_id: {"name": call["name"], "arguments": call["arguments"]}
+                                    for call_id, call in tool_call_by_id.items()
+                                },
+                                "output_config": {
+                                    "values": [
+                                        {"label": v.label, "score": v.score}
+                                        for v in output_config.values
+                                    ]
+                                },
+                            }
+                        ),
+                    },
+                ) as chain_span:
+                    if not tool_call_by_id:
+                        raise ValueError("No tool calls received from LLM")
 
-                tool_call = next(iter(tool_call_by_id.values()))
-                args = json.loads(tool_call["arguments"])
-                label = args.get("label")
-                if label is None:
-                    raise ValueError("LLM response missing required 'label' field")
+                    tool_call = next(iter(tool_call_by_id.values()))
+                    args = json.loads(tool_call["arguments"])
+                    label = args.get("label")
+                    if label is None:
+                        raise ValueError("LLM response missing required 'label' field")
 
-                scores_by_label = {
-                    config_value.label: config_value.score for config_value in output_config.values
-                }
-                score = scores_by_label.get(label)
-                explanation = args.get("explanation")
+                    scores_by_label = {
+                        config_value.label: config_value.score
+                        for config_value in output_config.values
+                    }
+                    score = scores_by_label.get(label)
+                    explanation = args.get("explanation")
+
+                    chain_span.set_attributes(
+                        get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
+                    )
+                    chain_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
                     get_output_attributes(
@@ -1505,3 +1583,58 @@ def merge_continuous_output_config(
         lower_bound=lower_bound,
         upper_bound=upper_bound,
     )
+
+
+# message attributes
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+
+# these constants will be added to openinference-semantic-conventions
+TEMPLATE_MESSAGES = "template.messages"
+TEMPLATE_FORMATTED_MESSAGES = "template.formatted_messages"
+TEMPLATE_PATH_MAPPING = "template.path_mapping"
+TEMPLATE_LITERAL_MAPPING = "template.literal_mapping"
+TEMPLATE_VARIABLES = "template.variables"
+
+
+def _get_messages_from_template(template: PromptChatTemplate) -> list[Message]:
+    messages: list[Message] = []
+    for msg in template.messages:
+        role = msg.role
+        if isinstance(msg.content, str):
+            content = msg.content
+        elif isinstance(msg.content, list):
+            raise NotImplementedError("Multipart content is not supported yet")
+        else:
+            assert_never(msg.content)
+        messages.append(Message(role=role, content=content))
+    return messages
+
+
+# the following helper functions will be refactored to `openinference-instrumentation`
+def _get_template_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
+    attributes: dict[str, Any] = {}
+    for idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
+        attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+    return attributes
+
+
+def _get_template_formatted_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
+    attributes: dict[str, Any] = {}
+    for idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
+        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+    return attributes
+
+
+def _get_template_path_mapping_attributes(*, path_mapping: dict[str, str]) -> dict[str, Any]:
+    return {TEMPLATE_PATH_MAPPING: json.dumps(path_mapping)}
+
+
+def _get_template_literal_mapping_attributes(*, literal_mapping: dict[str, str]) -> dict[str, Any]:
+    return {TEMPLATE_LITERAL_MAPPING: json.dumps(literal_mapping)}
+
+
+def _get_template_variables_attributes(*, variables: dict[str, Any]) -> dict[str, Any]:
+    return {TEMPLATE_VARIABLES: json.dumps(variables)}
