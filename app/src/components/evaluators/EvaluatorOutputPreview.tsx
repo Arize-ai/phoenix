@@ -97,7 +97,7 @@ export const EvaluatorOutputPreview = () => {
       const payload = createLLMEvaluatorPayload({
         playgroundStore,
         description: state.evaluator.description,
-        name: state.evaluator.displayName || state.evaluator.name,
+        name: state.evaluator.name || state.evaluator.globalName,
         includeExplanation: state.evaluator.includeExplanation,
         inputMapping: state.evaluator.inputMapping,
         outputConfig,

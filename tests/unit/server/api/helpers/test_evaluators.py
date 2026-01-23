@@ -1326,7 +1326,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1355,7 +1355,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1381,7 +1381,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="ExactMatch",
+            name="ExactMatch",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1409,7 +1409,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="ExactMatch",
+            name="ExactMatch",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1446,7 +1446,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="JSONDistance",
+            name="JSONDistance",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1471,7 +1471,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1497,7 +1497,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="LevenshteinDistance",
+            name="LevenshteinDistance",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1524,7 +1524,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Regex",
+            name="Regex",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1552,7 +1552,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1576,7 +1576,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1586,8 +1586,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
 class TestBuiltInEvaluatorOutputConfigUsage:
     """Tests for builtin evaluator output_config usage at execution time."""
 
-    def test_contains_evaluator_uses_display_name_from_output_config(self) -> None:
-        """Test that ContainsEvaluator uses the display_name in the result."""
+    def test_contains_evaluator_uses_name_from_output_config(self) -> None:
+        """Test that ContainsEvaluator uses the name in the result."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
@@ -1597,7 +1597,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="My Custom Contains",
+            name="My Custom Contains",
             output_config=output_config,
         )
         assert result["name"] == "My Custom Contains"
@@ -1614,7 +1614,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["label"] == "true"
@@ -1631,7 +1631,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Contains",
+            name="Contains",
             output_config=output_config,
         )
         assert result["label"] == "false"
@@ -1657,7 +1657,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Exact Match Custom",
+            name="Exact Match Custom",
             output_config=custom_config,
         )
         assert result["name"] == "Exact Match Custom"
@@ -1684,7 +1684,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Regex Custom",
+            name="Regex Custom",
             output_config=custom_config,
         )
         assert result["name"] == "Regex Custom"
@@ -1710,7 +1710,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result_match = evaluator.evaluate(
             context={"words": "hello", "text": "hello world"},
             input_mapping=input_mapping,
-            display_name="Contains Custom",
+            name="Contains Custom",
             output_config=custom_config,
         )
         assert result_match["label"] == "Pass"
@@ -1719,14 +1719,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result_no_match = evaluator.evaluate(
             context={"words": "goodbye", "text": "hello world"},
             input_mapping=input_mapping,
-            display_name="Contains Custom",
+            name="Contains Custom",
             output_config=custom_config,
         )
         assert result_no_match["label"] == "Fail"
         assert result_no_match["score"] == -50.0
 
-    def test_levenshtein_evaluator_uses_display_name(self) -> None:
-        """Test that LevenshteinDistanceEvaluator uses the display_name in the result."""
+    def test_levenshtein_evaluator_uses_name(self) -> None:
+        """Test that LevenshteinDistanceEvaluator uses the name in the result."""
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
@@ -1736,15 +1736,15 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="Edit Distance",
+            name="Edit Distance",
             output_config=output_config,
         )
         assert result["name"] == "Edit Distance"
         assert result["score"] == 1.0
         assert result["label"] is None
 
-    def test_json_distance_evaluator_uses_display_name(self) -> None:
-        """Test that JSONDistanceEvaluator uses the display_name in the result."""
+    def test_json_distance_evaluator_uses_name(self) -> None:
+        """Test that JSONDistanceEvaluator uses the name in the result."""
         import json
 
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
@@ -1759,7 +1759,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            display_name="JSON Diff",
+            name="JSON Diff",
             output_config=output_config,
         )
         assert result["name"] == "JSON Diff"
@@ -1883,7 +1883,7 @@ class TestLLMEvaluator:
             evaluation_result = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
                 input_mapping=input_mapping,
-                display_name="correctness",
+                name="correctness",
                 output_config=output_config,
             )
 
@@ -1983,7 +1983,7 @@ class TestLLMEvaluator:
             evaluation_result = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
                 input_mapping=input_mapping,
-                display_name="correctness",
+                name="correctness",
                 output_config=output_config,
             )
 

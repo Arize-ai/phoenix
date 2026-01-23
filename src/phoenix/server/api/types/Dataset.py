@@ -525,7 +525,7 @@ class Dataset(Node):
         )
         if filter:
             column = getattr(models.DatasetEvaluators, filter.col.value)
-            if filter.col.value == "display_name":
+            if filter.col.value == "name":
                 column = sqlalchemy_cast(column, String)
             stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if sort:
@@ -535,7 +535,7 @@ class Dataset(Node):
                 sort_col = getattr(models.DatasetEvaluators, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         else:
-            stmt = stmt.order_by(models.DatasetEvaluators.display_name.asc())
+            stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
 
         async with info.context.db() as session:
             result = await session.scalars(stmt)

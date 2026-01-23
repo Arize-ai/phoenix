@@ -16,7 +16,7 @@ export type EvaluatorItem = {
   id: string;
   kind: EvaluatorKind;
   isBuiltIn: boolean;
-  displayName: string;
+  name: string;
   alreadyAdded?: boolean;
   annotationName?: string;
 };
@@ -32,7 +32,7 @@ export function EvaluatorSelectMenuItem({
   isSelected,
   onEdit,
 }: EvaluatorMenuItemProps) {
-  const { displayName, alreadyAdded } = evaluator;
+  const { name, alreadyAdded } = evaluator;
 
   const [isHovered, setIsHovered] = useState(false);
   const showAlreadyAddedState = Boolean(
@@ -49,7 +49,7 @@ export function EvaluatorSelectMenuItem({
   return (
     <GridListItem
       id={evaluator.id}
-      textValue={displayName}
+      textValue={name}
       isDisabled={alreadyAdded}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -76,7 +76,7 @@ export function EvaluatorSelectMenuItem({
       }
     >
       <StableWidthText
-        primaryText={displayName}
+        primaryText={name}
         secondaryText="Already added"
         showSecondary={showAlreadyAddedState}
       />
