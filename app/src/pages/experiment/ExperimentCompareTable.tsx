@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { type AnnotationConfig } from "@phoenix/components/annotation";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -60,6 +61,7 @@ import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/Experi
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -233,6 +235,29 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   }
                 }
               }
+              datasetEvaluators(first: 100) {
+                edges {
+                  node {
+                    name
+                    outputConfig {
+                      ... on CategoricalAnnotationConfig {
+                        name
+                        optimizationDirection
+                        values {
+                          label
+                          score
+                        }
+                      }
+                      ... on ContinuousAnnotationConfig {
+                        name
+                        optimizationDirection
+                        lowerBound
+                        upperBound
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -249,6 +274,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }, {} as ExperimentInfoMap) || {}
     );
   }, [data]);
+
+  const annotationConfigs = useMemo(() => {
+    const evaluators =
+      data.dataset?.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
+    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+  }, [data.dataset?.datasetEvaluators?.edges]);
 
   const baseExperiment = experimentInfoById[baseExperimentId];
 
@@ -404,6 +435,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog={setDialog}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
+              annotationConfigs={annotationConfigs}
               height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
@@ -411,6 +443,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       })
     );
   }, [
+    annotationConfigs,
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
@@ -766,10 +799,12 @@ function ExperimentRunOutput(
     numRepetitions: number;
     setDialog: (dialog: ReactNode) => void;
     annotationSummaries: readonly AnnotationSummary[];
+    annotationConfigs: readonly AnnotationConfig[];
     height: number;
   }
 ) {
-  const { output, error, annotations, setDialog, height } = props;
+  const { output, error, annotations, setDialog, height, annotationConfigs } =
+    props;
 
   if (error) {
     return <RunError error={error} />;
@@ -788,6 +823,7 @@ function ExperimentRunOutput(
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         annotationSummaries={props.annotationSummaries}
+        annotationConfigs={annotationConfigs}
         numRepetitions={props.numRepetitions}
         onTraceClick={({ traceId, projectId, annotationName }) => {
           setDialog(
@@ -820,6 +856,7 @@ function ExperimentRunOutputCell({
   rowIndex,
   setSelectedExampleIndex,
   annotationSummaries,
+  annotationConfigs,
   height,
 }: {
   experimentRepetitionCount: number;
@@ -828,6 +865,7 @@ function ExperimentRunOutputCell({
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
+  annotationConfigs: readonly AnnotationConfig[];
   height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -919,6 +957,7 @@ function ExperimentRunOutputCell({
           numRepetitions={experimentRepetitionCount}
           setDialog={setDialog}
           annotationSummaries={annotationSummaries}
+          annotationConfigs={annotationConfigs}
           height={height}
         />
       ) : (
