@@ -353,7 +353,7 @@ const examplesByCategory = {
     },
     {
       input:
-        "User: Book flights for our team trip - we need NYC to Chicago, then Chicago to Denver, and finally Denver back to NYC",
+        "User: Book flights for our team of 5 - we need NYC to Chicago, then Chicago to Denver, and finally Denver back to NYC",
       available_tools: JSON.stringify([BOOK_FLIGHT_TOOL_JSON], null, 2),
       tool_selection: `[
         book_flight(origin="NYC", destination="ORD", date="2024-02-01", passengers=5),
@@ -750,10 +750,12 @@ async function main() {
       : "N/A";
   const f1Score =
     precision !== "N/A" && recall !== "N/A"
-      ? (
-          (2 * (parseFloat(precision) * parseFloat(recall))) /
-          (parseFloat(precision) + parseFloat(recall))
-        ).toFixed(1)
+      ? parseFloat(precision) + parseFloat(recall) > 0
+        ? (
+            (2 * (parseFloat(precision) * parseFloat(recall))) /
+            (parseFloat(precision) + parseFloat(recall))
+          ).toFixed(1)
+        : "0.0"
       : "N/A";
 
   console.log(`\nMetrics:`);
