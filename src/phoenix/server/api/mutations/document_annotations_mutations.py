@@ -60,20 +60,26 @@ class DocumentAnnotationMutationMixin:
 
             resolved_identifier = ""
             if isinstance(annotation_input.identifier, str):
-                resolved_identifier = annotation_input.identifier
+                resolved_identifier = annotation_input.identifier.strip()
             elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                 resolved_identifier = get_user_identifier(user_id)
 
+            metadata = annotation_input.metadata
+            if metadata is not None and not isinstance(metadata, dict):
+                raise BadRequest(f"metadata must be a dict for annotation at index {idx}")
+
+            label = annotation_input.label
+            explanation = annotation_input.explanation
             records.append(
                 {
                     "span_rowid": span_rowid,
                     "document_position": annotation_input.document_position,
-                    "name": annotation_input.name,
-                    "label": annotation_input.label,
+                    "name": annotation_input.name.strip(),
+                    "label": (label.strip() or None) if label else label,
                     "score": annotation_input.score,
-                    "explanation": annotation_input.explanation,
+                    "explanation": (explanation.strip() or None) if explanation else explanation,
                     "annotator_kind": annotation_input.annotator_kind.value,
-                    "metadata_": annotation_input.metadata,
+                    "metadata_": metadata,
                     "identifier": resolved_identifier,
                     "source": annotation_input.source.value,
                     "user_id": user_id,
@@ -206,12 +212,16 @@ class DocumentAnnotationMutationMixin:
                 if patch.annotator_kind:
                     document_annotation.annotator_kind = patch.annotator_kind.value
                 if patch.label is not UNSET:
-                    document_annotation.label = patch.label.strip() if patch.label else patch.label
+                    document_annotation.label = (
+                        (patch.label.strip() or None) if patch.label else patch.label
+                    )
                 if patch.score is not UNSET:
                     document_annotation.score = patch.score
                 if patch.explanation is not UNSET:
                     document_annotation.explanation = (
-                        patch.explanation.strip() if patch.explanation else patch.explanation
+                        (patch.explanation.strip() or None)
+                        if patch.explanation
+                        else patch.explanation
                     )
                 if patch.metadata is not UNSET:
                     if not isinstance(patch.metadata, dict):
