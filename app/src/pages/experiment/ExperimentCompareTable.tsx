@@ -279,7 +279,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     const evaluators =
       data.dataset?.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
     return datasetEvaluatorsToAnnotationConfigs(evaluators);
-  }, [data.dataset?.datasetEvaluators?.edges]);
+  }, [data]);
 
   const baseExperiment = experimentInfoById[baseExperimentId];
 

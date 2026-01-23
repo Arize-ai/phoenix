@@ -40,6 +40,7 @@ import {
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
+  AnnotationScoreText,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -219,13 +220,13 @@ export function ExperimentCompareDetails({
         )
       ) ?? []
     );
-  }, [data.dataset.experimentAnnotationSummaries, experimentRuns]);
+  }, [data, experimentRuns]);
 
   const annotationConfigs = useMemo(() => {
     const evaluators =
       data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
     return datasetEvaluatorsToAnnotationConfigs(evaluators);
-  }, [data.dataset.datasetEvaluators?.edges]);
+  }, [data]);
 
   const experimentsById = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -1264,20 +1265,14 @@ function ExperimentRunAnnotationButton({
         </Text>
       </Flex>
 
-      <Text
+      <AnnotationScoreText
         fontFamily="mono"
         justifySelf="start"
         maxWidth="100%"
-        color={
-          positiveOptimization === true
-            ? "success"
-            : positiveOptimization === false
-              ? "danger"
-              : undefined
-        }
+        positiveOptimization={positiveOptimization}
       >
         <Truncate maxWidth="100%">{labelValue}</Truncate>
-      </Text>
+      </AnnotationScoreText>
 
       <ProgressBar
         css={css`
