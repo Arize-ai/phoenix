@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8dc22fbee4b0bd084375585a463118ca>>
+ * @generated SignedSource<<b6a3ca52d3e952ae2f467aa7e748e81d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,8 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetEvaluatorColumn = "createdAt" | "displayName" | "kind" | "updatedAt";
-export type DatasetEvaluatorFilterColumn = "display_name";
+export type DatasetEvaluatorColumn = "createdAt" | "kind" | "name" | "updatedAt";
+export type DatasetEvaluatorFilterColumn = "name";
 export type SortDir = "asc" | "desc";
 export type DatasetEvaluatorFilter = {
   col: DatasetEvaluatorFilterColumn;
@@ -111,14 +111,14 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "name",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "updatedAt",
   "storageKey": null
 };
 return {
@@ -204,14 +204,8 @@ return {
                         "plural": false,
                         "selections": [
                           (v8/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "displayName",
-                            "storageKey": null
-                          },
                           (v9/*: any*/),
+                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -248,7 +242,7 @@ return {
                             "selections": [
                               (v7/*: any*/),
                               (v8/*: any*/),
-                              (v10/*: any*/),
+                              (v9/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -270,7 +264,7 @@ return {
                                 "name": "createdAt",
                                 "storageKey": null
                               },
-                              (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -290,7 +284,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v8/*: any*/),
-                                      (v10/*: any*/)
+                                      (v9/*: any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -302,7 +296,7 @@ return {
                                     "name": "promptVersionTag",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*: any*/),
+                                      (v9/*: any*/),
                                       (v8/*: any*/)
                                     ],
                                     "storageKey": null
@@ -390,12 +384,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e2c2b86577ac098a88cd08d6cd07e367",
+    "cacheID": "a13a41628dd3d6af04b3b85b29239b0d",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  displayName\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    description\n    createdAt\n    updatedAt\n    isBuiltin\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

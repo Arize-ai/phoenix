@@ -11,14 +11,14 @@ import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 /**
- * Whether to read and write to evaluator.displayName instead of evaluator.name.
+ * Whether to use the user-facing name (for dataset evaluators) vs the global name.
  *
- * Built-in evaluators and dataset evaluators should use displayName.
+ * Built-in evaluators and dataset evaluators should use the user-facing name.
  *
  * @param state - The current state of the evaluator store.
- * @returns True if the evaluator should use displayName, false otherwise.
+ * @returns True if the evaluator should use the user-facing name, false otherwise.
  */
-const shouldUseDisplayName = (state: EvaluatorStoreProps) => {
+const shouldUseSpecificName = (state: EvaluatorStoreProps) => {
   if (state.datasetEvaluator?.id || state.evaluator.isBuiltin) {
     return true;
   }
@@ -28,10 +28,10 @@ const shouldUseDisplayName = (state: EvaluatorStoreProps) => {
 const useEvaluatorNameInputForm = () => {
   const store = useEvaluatorStoreInstance();
   const name = useEvaluatorStore((state) => {
-    if (shouldUseDisplayName(state)) {
-      return state.evaluator.displayName;
+    if (shouldUseSpecificName(state)) {
+      return state.evaluator.name;
     }
-    return state.evaluator.name;
+    return state.evaluator.globalName;
   });
   const form = useForm({ defaultValues: { name }, mode: "onChange" });
   const subscribe = form.subscribe;
@@ -42,11 +42,11 @@ const useEvaluatorNameInputForm = () => {
         if (!isValid) {
           return;
         }
-        const { setEvaluatorName, setEvaluatorDisplayName } = store.getState();
-        if (shouldUseDisplayName(store.getState())) {
-          setEvaluatorDisplayName(name);
-        } else {
+        const { setEvaluatorName, setEvaluatorGlobalName } = store.getState();
+        if (shouldUseSpecificName(store.getState())) {
           setEvaluatorName(name);
+        } else {
+          setEvaluatorGlobalName(name);
         }
       },
     });

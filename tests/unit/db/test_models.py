@@ -869,7 +869,7 @@ class TestEvaluatorPolymorphism:
                     models.DatasetEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_1.id,
-                        display_name=eval_1.name,
+                        name=eval_1.name,
                         input_mapping={},
                         output_config_override=None,
                         project=models.Project(
@@ -880,7 +880,7 @@ class TestEvaluatorPolymorphism:
                     models.DatasetEvaluators(
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
-                        display_name=eval_2.name,
+                        name=eval_2.name,
                         input_mapping={},
                         output_config_override=None,
                         project=models.Project(
@@ -1034,7 +1034,7 @@ class TestEvaluatorPolymorphism:
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=new_eval_id,
-                display_name=new_eval_name,
+                name=new_eval_name,
                 input_mapping={},
                 output_config_override=None,
                 project=models.Project(

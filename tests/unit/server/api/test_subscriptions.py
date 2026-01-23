@@ -899,7 +899,7 @@ class TestChatCompletionSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -975,7 +975,7 @@ class TestChatCompletionSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -1016,18 +1016,18 @@ class TestChatCompletionSubscription:
         # Verify NO evaluation chunks were emitted
         assert len(evaluation_chunks) == 0
 
-    async def test_builtin_evaluator_uses_display_name(
+    async def test_builtin_evaluator_uses_name(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
-        """Test that builtin evaluators use display_name for annotation names."""
+        """Test that builtin evaluators use name for annotation names."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         evaluator_gid = str(
             GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
         )
-        custom_display_name = "my-custom-exact-match"
+        custom_name = "my-custom-exact-match"
         variables = {
             "input": {
                 "messages": [
@@ -1044,7 +1044,7 @@ class TestChatCompletionSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": custom_display_name,
+                        "name": custom_name,
                         "inputMapping": {
                             "literalMapping": {
                                 "expected": "hello",
@@ -1079,7 +1079,7 @@ class TestChatCompletionSubscription:
         assert len(evaluation_chunks) == 1
         eval_chunk = evaluation_chunks[0]
         eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation["name"] == custom_display_name
+        assert eval_annotation["name"] == custom_name
         assert eval_annotation["annotatorKind"] == "CODE"
 
 
@@ -1959,7 +1959,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -2136,7 +2136,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -2177,7 +2177,7 @@ class TestChatCompletionOverDatasetSubscription:
             annotations = result.scalars().all()
             assert len(annotations) == 0
 
-    async def test_builtin_evaluator_uses_display_name(
+    async def test_builtin_evaluator_uses_name(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
@@ -2185,12 +2185,12 @@ class TestChatCompletionOverDatasetSubscription:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that builtin evaluators use display_name for annotation names in dataset runs."""
+        """Test that builtin evaluators use name for annotation names in dataset runs."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         evaluator_gid = str(
             GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
         )
-        custom_display_name = "my-dataset-exact-match"
+        custom_name = "my-dataset-exact-match"
         dataset_gid = str(
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
         )
@@ -2211,7 +2211,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": custom_display_name,
+                        "name": custom_name,
                         "inputMapping": {
                             "literalMapping": {
                                 "expected": "test",
@@ -2243,17 +2243,17 @@ class TestChatCompletionOverDatasetSubscription:
         assert len(evaluation_chunks) == 1
         eval_chunk = evaluation_chunks[0]
         eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation["name"] == custom_display_name
+        assert eval_annotation["name"] == custom_name
         assert eval_annotation["annotatorKind"] == "CODE"
 
-        # Verify experiment run annotation was persisted with display_name
+        # Verify experiment run annotation was persisted with name
         async with db() as session:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == custom_display_name
+            assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
 
 

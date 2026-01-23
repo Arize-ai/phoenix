@@ -31,7 +31,7 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
                         and_(
                             models.DatasetEvaluators.dataset_id == dataset_id,
                             models.DatasetEvaluators.builtin_evaluator_id == evaluator_id,
-                            models.DatasetEvaluators.display_name == name_model,
+                            models.DatasetEvaluators.name == name_model,
                         )
                     )
                 else:
@@ -39,7 +39,7 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
                         and_(
                             models.DatasetEvaluators.dataset_id == dataset_id,
                             models.DatasetEvaluators.evaluator_id == evaluator_id,
-                            models.DatasetEvaluators.display_name == name_model,
+                            models.DatasetEvaluators.name == name_model,
                         )
                     )
             if conditions:
@@ -49,7 +49,7 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
                     junction_dataset_id = junction.dataset_id
                     junction_evaluator_id = junction.evaluator_id
                     junction_builtin_evaluator_id = junction.builtin_evaluator_id
-                    junction_name = junction.display_name.root
+                    junction_name = junction.name.root
                     if junction_evaluator_id is not None:
                         key = (junction_dataset_id, junction_evaluator_id, junction_name)
                         dataset_evaluators_by_key[key] = junction

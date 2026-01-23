@@ -549,7 +549,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -650,7 +650,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -762,7 +762,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -971,7 +971,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": "correctness",
+                        "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
                                 "input": "$.input",
@@ -1003,19 +1003,19 @@ class TestChatCompletionMutationMixin:
             annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 0  # verify no experiment run annotations were persisted
 
-    async def test_builtin_evaluator_uses_display_name_for_annotation(
+    async def test_builtin_evaluator_uses_name_for_annotation(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that builtin evaluators use the display_name for annotation names."""
+        """Test that builtin evaluators use the name for annotation names."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         evaluator_gid = str(
             GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
         )
-        custom_display_name = "my-custom-exact-match"
+        custom_name = "my-custom-exact-match"
         query = """
           mutation ChatCompletion($input: ChatCompletionInput!) {
             chatCompletion(input: $input) {
@@ -1059,7 +1059,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": custom_display_name,
+                        "name": custom_name,
                         "inputMapping": {
                             "literalMapping": {
                                 "expected": "hello",
@@ -1081,25 +1081,25 @@ class TestChatCompletionMutationMixin:
             repetition = repetitions[0]
             assert not repetition["errorMessage"]
 
-            # Verify evaluations use display_name, not builtin evaluator name
+            # Verify evaluations use name, not builtin evaluator name
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
             eval_result = evaluations[0]["annotation"]
-            assert eval_result["name"] == custom_display_name
+            assert eval_result["name"] == custom_name
             assert eval_result["annotatorKind"] == "CODE"
             assert eval_result["score"] == 1.0
 
-        # Verify span annotation was persisted with display_name
+        # Verify span annotation was persisted with name
         async with db() as session:
             span_annotations_result = await session.execute(select(models.SpanAnnotation))
             annotations = span_annotations_result.scalars().all()
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == custom_display_name
+            assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
 
-    async def test_builtin_evaluator_over_dataset_uses_display_name_for_annotation(
+    async def test_builtin_evaluator_over_dataset_uses_name_for_annotation(
         self,
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
@@ -1107,12 +1107,12 @@ class TestChatCompletionMutationMixin:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        """Test that builtin evaluators use the display_name for annotations in dataset runs."""
+        """Test that builtin evaluators use the name for annotations in dataset runs."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         evaluator_gid = str(
             GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
         )
-        custom_display_name = "my-dataset-exact-match"
+        custom_name = "my-dataset-exact-match"
 
         async with db() as session:
             version_id = await session.scalar(
@@ -1174,7 +1174,7 @@ class TestChatCompletionMutationMixin:
                 "evaluators": [
                     {
                         "id": evaluator_gid,
-                        "displayName": custom_display_name,
+                        "name": custom_name,
                         "inputMapping": {
                             "literalMapping": {
                                 "expected": "test",
@@ -1201,22 +1201,22 @@ class TestChatCompletionMutationMixin:
             repetition = example["repetition"]
             assert not repetition["errorMessage"]
 
-            # Verify evaluations use display_name, not builtin evaluator name
+            # Verify evaluations use name, not builtin evaluator name
             assert (evaluations := repetition["evaluations"])
             assert len(evaluations) == 1
             eval_result = evaluations[0]["annotation"]
-            assert eval_result["name"] == custom_display_name
+            assert eval_result["name"] == custom_name
             assert eval_result["annotatorKind"] == "CODE"
             assert eval_result["score"] == 1.0
 
-        # Verify experiment run annotation was persisted with display_name
+        # Verify experiment run annotation was persisted with name
         async with db() as session:
             run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = run_annotations_result.scalars().all()
             assert len(annotations) == 1
 
             annotation = annotations[0]
-            assert annotation.name == custom_display_name
+            assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
 
 

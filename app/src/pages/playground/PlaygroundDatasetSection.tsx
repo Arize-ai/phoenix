@@ -60,7 +60,7 @@ export function PlaygroundDatasetSection({
               fragment PlaygroundDatasetSection_evaluator on DatasetEvaluator
               @inline {
                 id
-                displayName
+                name
                 inputMapping {
                   literalMapping
                   pathMapping
@@ -95,7 +95,7 @@ export function PlaygroundDatasetSection({
           kind: evaluator.evaluator.kind,
           isBuiltIn: evaluator.evaluator.isBuiltin,
           isAssignedToDataset: true,
-          annotationName: evaluator.displayName,
+          annotationName: evaluator.name,
         };
       }) ?? [],
     [data.dataset.datasetEvaluators]
@@ -116,7 +116,7 @@ export function PlaygroundDatasetSection({
       .reduce(
         (acc, datasetEvaluator) => {
           acc[datasetEvaluator.evaluator.id] = {
-            displayName: datasetEvaluator.displayName,
+            name: datasetEvaluator.name,
             inputMapping:
               datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
           };
@@ -124,7 +124,7 @@ export function PlaygroundDatasetSection({
         },
         {} as Record<
           string,
-          { displayName: string; inputMapping: EvaluatorInputMappingInput }
+          { name: string; inputMapping: EvaluatorInputMappingInput }
         >
       );
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
@@ -138,14 +138,14 @@ export function PlaygroundDatasetSection({
         if (!outputConfig) {
           // TODO: all evaluators should have an output config eventually
           return {
-            name: datasetEvaluator.displayName,
+            name: datasetEvaluator.name,
             annotationType: "FREEFORM",
           } satisfies AnnotationConfig;
         }
         // Handle CategoricalAnnotationConfig from the union
         if ("values" in outputConfig && outputConfig.values) {
           return {
-            name: outputConfig.name ?? datasetEvaluator.displayName,
+            name: outputConfig.name ?? datasetEvaluator.name,
             optimizationDirection: outputConfig.optimizationDirection,
             values: outputConfig.values,
             annotationType: "CATEGORICAL",
@@ -154,7 +154,7 @@ export function PlaygroundDatasetSection({
         // Handle ContinuousAnnotationConfig from the union
         if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
           return {
-            name: outputConfig.name ?? datasetEvaluator.displayName,
+            name: outputConfig.name ?? datasetEvaluator.name,
             optimizationDirection: outputConfig.optimizationDirection,
             lowerBound: outputConfig.lowerBound,
             upperBound: outputConfig.upperBound,
@@ -163,7 +163,7 @@ export function PlaygroundDatasetSection({
         }
         // Fallback for freeform or unknown types
         return {
-          name: datasetEvaluator.displayName,
+          name: datasetEvaluator.name,
           annotationType: "FREEFORM",
         } satisfies AnnotationConfig;
       });

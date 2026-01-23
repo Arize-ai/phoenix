@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8da45505470cba5382fe512c6a6e7e7c>>
+ * @generated SignedSource<<b3c11556695b99aea3fdb873a1ff2749>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,7 +57,7 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "displayName",
+  "name": "name",
   "storageKey": null
 },
 v4 = {
@@ -103,21 +103,14 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*: any*/),
     (v7/*: any*/),
-    (v8/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -147,11 +140,11 @@ v9 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*: any*/),
     (v7/*: any*/),
-    (v8/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -170,21 +163,21 @@ v10 = {
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v13 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -209,7 +202,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v13 = {
   "kind": "ClientExtension",
   "selections": [
     {
@@ -221,7 +214,7 @@ v14 = {
     }
   ]
 },
-v15 = [
+v14 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -299,8 +292,8 @@ return {
                                 "name": "outputConfig",
                                 "plural": false,
                                 "selections": [
-                                  (v9/*: any*/),
-                                  (v10/*: any*/)
+                                  (v8/*: any*/),
+                                  (v9/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -308,16 +301,16 @@ return {
                             "args": null,
                             "argumentDefinitions": []
                           },
-                          (v11/*: any*/)
+                          (v10/*: any*/)
                         ],
                         "storageKey": null
                       },
-                      (v12/*: any*/)
+                      (v11/*: any*/)
                     ],
                     "storageKey": null
                   },
-                  (v13/*: any*/),
-                  (v14/*: any*/)
+                  (v12/*: any*/),
+                  (v13/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -351,13 +344,13 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v11/*: any*/),
+          (v10/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v15/*: any*/),
+                "args": (v14/*: any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "datasetEvaluators",
@@ -390,7 +383,7 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v11/*: any*/),
+                              (v10/*: any*/),
                               (v2/*: any*/),
                               (v5/*: any*/),
                               (v6/*: any*/)
@@ -405,9 +398,9 @@ return {
                             "name": "outputConfig",
                             "plural": false,
                             "selections": [
-                              (v11/*: any*/),
-                              (v9/*: any*/),
                               (v10/*: any*/),
+                              (v8/*: any*/),
+                              (v9/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -419,22 +412,22 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v11/*: any*/)
+                          (v10/*: any*/)
                         ],
                         "storageKey": null
                       },
-                      (v12/*: any*/)
+                      (v11/*: any*/)
                     ],
                     "storageKey": null
                   },
-                  (v13/*: any*/),
-                  (v14/*: any*/)
+                  (v12/*: any*/),
+                  (v13/*: any*/)
                 ],
                 "storageKey": "datasetEvaluators(first:100)"
               },
               {
                 "alias": null,
-                "args": (v15/*: any*/),
+                "args": (v14/*: any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "PlaygroundDatasetSection_datasetEvaluators",
@@ -458,7 +451,7 @@ return {
         "plural": true,
         "selections": [
           (v2/*: any*/),
-          (v7/*: any*/),
+          (v3/*: any*/),
           (v5/*: any*/)
         ],
         "storageKey": null
@@ -471,7 +464,7 @@ return {
         "name": "classificationEvaluatorConfigs",
         "plural": true,
         "selections": [
-          (v7/*: any*/),
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -486,7 +479,7 @@ return {
             "name": "choices",
             "storageKey": null
           },
-          (v8/*: any*/),
+          (v7/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -503,7 +496,7 @@ return {
                 "name": "content",
                 "plural": true,
                 "selections": [
-                  (v11/*: any*/),
+                  (v10/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -548,7 +541,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c88d11506a0b87bfe3e35625537d38c3",
+    "cacheID": "eaba3e3df1a4ff2264a5ad2180806f95",
     "id": null,
     "metadata": {
       "connection": [
@@ -565,7 +558,7 @@ return {
     },
     "name": "PlaygroundDatasetSectionQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n  ...PlaygroundEvaluatorSelect_query\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  displayName\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PlaygroundEvaluatorSelect_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query PlaygroundDatasetSectionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            ...PlaygroundDatasetSection_evaluator\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n  ...PlaygroundEvaluatorSelect_query\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PlaygroundEvaluatorSelect_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();

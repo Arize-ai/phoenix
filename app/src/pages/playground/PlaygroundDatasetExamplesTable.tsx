@@ -691,11 +691,11 @@ export function PlaygroundDatasetExamplesTable({
   splitIds?: string[];
   evaluatorOutputConfigs: AnnotationConfig[];
   /**
-   * Record of evaluator id to display name and input mappings
+   * Record of evaluator id to name and input mappings
    */
   evaluatorMappings: Record<
     string,
-    { displayName: string; inputMapping: EvaluatorInputMappingInput }
+    { name: string; inputMapping: EvaluatorInputMappingInput }
   >;
 }) {
   const environment = useRelayEnvironment();
