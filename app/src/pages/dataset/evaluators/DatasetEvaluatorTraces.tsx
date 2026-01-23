@@ -1,6 +1,5 @@
 import { graphql, useFragment } from "react-relay";
 
-import { View } from "@phoenix/components";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
@@ -27,9 +26,7 @@ export function DatasetEvaluatorTraces({
     <StreamStateProvider>
       <TracingProvider projectId={data.id} tableId="traces">
         <SpanFilterConditionProvider>
-          <View padding="size-200">
-            <TracesTable project={data} />
-          </View>
+          <TracesTable project={data} />
         </SpanFilterConditionProvider>
       </TracingProvider>
     </StreamStateProvider>
