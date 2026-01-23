@@ -70,13 +70,12 @@ def apply_overrides_to_annotation_config(
     if isinstance(annotation_config, CategoricalAnnotationConfig):
         categorical_override: CategoricalAnnotationConfigOverride | None = None
         if annotation_config_override is not None:
-            if isinstance(annotation_config_override, CategoricalAnnotationConfigOverride):
-                categorical_override = annotation_config_override
-            else:
+            if not isinstance(annotation_config_override, CategoricalAnnotationConfigOverride):
                 raise ValueError(
                     "Cannot apply a continuous annotation config override "
                     "to a categorical annotation config"
                 )
+            categorical_override = annotation_config_override
         return merge_categorical_annotation_config(
             base=annotation_config,
             override=categorical_override,
@@ -86,13 +85,12 @@ def apply_overrides_to_annotation_config(
     elif isinstance(annotation_config, ContinuousAnnotationConfig):
         continuous_override: ContinuousAnnotationConfigOverride | None = None
         if annotation_config_override is not None:
-            if isinstance(annotation_config_override, ContinuousAnnotationConfigOverride):
-                continuous_override = annotation_config_override
-            else:
+            if not isinstance(annotation_config_override, ContinuousAnnotationConfigOverride):
                 raise ValueError(
                     "Cannot apply a categorical annotation config override "
                     "to a continuous annotation config"
                 )
+            continuous_override = annotation_config_override
         return merge_continuous_annotation_config(
             base=annotation_config,
             override=continuous_override,
