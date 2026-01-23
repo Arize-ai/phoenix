@@ -238,6 +238,27 @@ class TestDocumentAnnotationMutations:
         )
         assert res.errors and "out of bounds" in res.errors[0].message
 
+        # Empty/whitespace-only name is rejected
+        res = await gql_client.execute(
+            CREATE_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": span_gid,
+                        "documentPosition": 0,
+                        "name": "   ",  # Whitespace-only name
+                        "label": "test",
+                        "score": 0.5,
+                        "annotatorKind": AnnotatorKind.LLM.name,
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+        )
+        assert res.errors and "name cannot be empty" in res.errors[0].message
+
         # === PATCH ===
 
         # Patch updates fields

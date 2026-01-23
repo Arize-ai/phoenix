@@ -68,16 +68,20 @@ class DocumentAnnotationMutationMixin:
             if metadata is not None and not isinstance(metadata, dict):
                 raise BadRequest(f"metadata must be a dict for annotation at index {idx}")
 
+            name = annotation_input.name.strip()
+            if not name:
+                raise BadRequest(f"name cannot be empty for annotation at index {idx}")
+
             label = annotation_input.label
             explanation = annotation_input.explanation
             records.append(
                 {
                     "span_rowid": span_rowid,
                     "document_position": annotation_input.document_position,
-                    "name": annotation_input.name.strip(),
-                    "label": (label.strip() or None) if label else label,
+                    "name": name,
+                    "label": (label.strip() or None) if label else None,
                     "score": annotation_input.score,
-                    "explanation": (explanation.strip() or None) if explanation else explanation,
+                    "explanation": (explanation.strip() or None) if explanation else None,
                     "annotator_kind": annotation_input.annotator_kind.value,
                     "metadata_": metadata,
                     "identifier": resolved_identifier,
@@ -213,15 +217,13 @@ class DocumentAnnotationMutationMixin:
                     document_annotation.annotator_kind = patch.annotator_kind.value
                 if patch.label is not UNSET:
                     document_annotation.label = (
-                        (patch.label.strip() or None) if patch.label else patch.label
+                        (patch.label.strip() or None) if patch.label else None
                     )
                 if patch.score is not UNSET:
                     document_annotation.score = patch.score
                 if patch.explanation is not UNSET:
                     document_annotation.explanation = (
-                        (patch.explanation.strip() or None)
-                        if patch.explanation
-                        else patch.explanation
+                        (patch.explanation.strip() or None) if patch.explanation else None
                     )
                 if patch.metadata is not UNSET:
                     if not isinstance(patch.metadata, dict):
