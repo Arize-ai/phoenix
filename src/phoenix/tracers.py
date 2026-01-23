@@ -18,6 +18,10 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     """
     An in-memory tracer that captures spans and persists them to the database.
 
+    Because cumulative counts are computed based on the spans in the buffer,
+    ensure that traces are not split across multiple calls to save_db_models.
+    It's recommended to use a separate tracer for distinct operations.
+
     Example usage:
         tracer = Tracer()
 
