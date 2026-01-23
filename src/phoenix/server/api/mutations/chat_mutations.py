@@ -423,7 +423,7 @@ class ChatCompletionMutationMixin:
                         merged_config = apply_overrides_to_annotation_config(
                             annotation_config=evaluator.output_config,
                             annotation_config_override=annotation_config_override,
-                            name_override=name,
+                            name=name,
                             description_override=(
                                 None
                                 if isinstance(evaluator, LLMEvaluator)
@@ -547,7 +547,7 @@ class ChatCompletionMutationMixin:
                         merged_config = apply_overrides_to_annotation_config(
                             annotation_config=evaluator.output_config,
                             annotation_config_override=annotation_config_override,
-                            name_override=name,
+                            name=name,
                             description_override=(
                                 None
                                 if isinstance(evaluator, LLMEvaluator)

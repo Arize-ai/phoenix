@@ -61,7 +61,7 @@ def apply_overrides_to_annotation_config(
     *,
     annotation_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
     annotation_config_override: AnnotationConfigOverrideType | None,
-    name_override: str,
+    name: str,
     description_override: str | None,
 ) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
     """
@@ -80,7 +80,7 @@ def apply_overrides_to_annotation_config(
         return merge_categorical_annotation_config(
             base=annotation_config,
             override=categorical_override,
-            name=name_override,
+            name=name,
             description_override=description_override,
         )
     elif isinstance(annotation_config, ContinuousAnnotationConfig):
@@ -96,7 +96,7 @@ def apply_overrides_to_annotation_config(
         return merge_continuous_annotation_config(
             base=annotation_config,
             override=continuous_override,
-            name=name_override,
+            name=name,
             description_override=description_override,
         )
     assert_never(annotation_config)
