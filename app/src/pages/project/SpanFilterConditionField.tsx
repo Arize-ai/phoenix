@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useParams } from "react-router";
 import {
   autocompletion,
   CompletionContext,
@@ -37,6 +36,7 @@ import {
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { useTheme } from "@phoenix/contexts";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import environment from "@phoenix/RelayEnvironment";
 
 import { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
@@ -288,23 +288,21 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
-  const { projectId } = useParams();
+  const projectId = useTracingContext((state) => state.projectId);
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    isConditionValid(deferredFilterCondition, projectId as string).then(
-      (result) => {
-        if (!result?.isValid) {
-          setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
-        } else {
-          setErrorMessage("");
-          startTransition(() => {
-            onValidCondition(deferredFilterCondition);
-          });
-        }
+    isConditionValid(deferredFilterCondition, projectId).then((result) => {
+      if (!result?.isValid) {
+        setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
+      } else {
+        setErrorMessage("");
+        startTransition(() => {
+          onValidCondition(deferredFilterCondition);
+        });
       }
-    );
+    });
   }, [onValidCondition, deferredFilterCondition, projectId]);
 
   const hasError = errorMessage !== "";
