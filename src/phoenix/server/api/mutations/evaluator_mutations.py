@@ -735,6 +735,8 @@ class EvaluatorMutationMixin:
 
         If delete_associated_prompt is True (default), the associated prompt for LLM evaluators
         will also be deleted.
+
+        The associated project for each dataset evaluator is also deleted automatically.
         """
         # Parse and validate all dataset_evaluator_ids
         dataset_evaluator_rowids: list[int] = []
