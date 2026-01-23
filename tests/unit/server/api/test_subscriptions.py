@@ -1727,8 +1727,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test that providing a single split ID filters examples correctly."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
@@ -1791,8 +1789,6 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has the correct split association in DB
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit).where(
@@ -1812,8 +1808,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test that providing multiple split IDs includes examples from all specified splits."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
@@ -1866,8 +1860,6 @@ class TestChatCompletionOverDatasetSubscription:
         experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit)
@@ -1888,8 +1880,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test backward compatibility: when no splits are specified, all examples are included."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
 
@@ -1940,8 +1930,6 @@ class TestChatCompletionOverDatasetSubscription:
         experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit).where(

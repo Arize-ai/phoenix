@@ -633,11 +633,7 @@ class Subscription:
                                 description_override=evaluator_input.description,
                             )
 
-                            tracer = (
-                                Tracer()
-                                if input.tracing_enabled and project_id is not None
-                                else None
-                            )
+                            tracer = Tracer() if input.tracing_enabled else None
 
                             result: EvaluationResult = await evaluator.evaluate(
                                 context=context_dict,
