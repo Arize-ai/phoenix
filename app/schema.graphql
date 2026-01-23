@@ -702,6 +702,19 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+input CreateDocumentAnnotationInput {
+  spanId: ID!
+  documentPosition: Int!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+  source: AnnotationSource!
+  identifier: String
+}
+
 input CreateGenerativeModelCustomProviderMutationInput {
   name: String!
   description: String
@@ -1425,6 +1438,11 @@ type DocumentAnnotation implements Node & Annotation {
 
   """The span associated with the annotation."""
   span: Span!
+}
+
+type DocumentAnnotationMutationPayload {
+  documentAnnotations: [DocumentAnnotation!]!
+  query: Query!
 }
 
 """
@@ -2420,6 +2438,9 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
+  patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
+  deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
