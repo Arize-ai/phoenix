@@ -26,6 +26,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             isBuiltin
           }
           project {
+            id
             ...DatasetEvaluatorTraces_project
           }
           ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
@@ -48,6 +49,7 @@ export async function datasetEvaluatorDetailsLoader(
 ): Promise<{
   queryRef: ReturnType<typeof loadQuery<datasetEvaluatorDetailsLoaderQuery>>;
   evaluatorDisplayName: string | null;
+  projectId: string | null;
 }> {
   const { datasetId, evaluatorId } = args.params;
   invariant(datasetId, "datasetId is required");
@@ -67,8 +69,11 @@ export async function datasetEvaluatorDetailsLoader(
 
   const evaluatorDisplayName = data?.dataset?.datasetEvaluator?.name ?? null;
 
+  const projectId = data?.dataset?.datasetEvaluator?.project?.id ?? null;
+
   return {
     queryRef,
     evaluatorDisplayName,
+    projectId,
   };
 }

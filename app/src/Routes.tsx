@@ -13,6 +13,10 @@ import {
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import {
+  EVALUATOR_DETAILS_ROUTE_ID,
+  EvaluatorTracePage,
+} from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
@@ -251,6 +255,7 @@ const router = createBrowserRouter(
                 />
               </Route>
               <Route
+                id={EVALUATOR_DETAILS_ROUTE_ID}
                 path="evaluators/:evaluatorId"
                 element={<DatasetEvaluatorDetailsPage />}
                 loader={datasetEvaluatorDetailsLoader}
@@ -258,7 +263,9 @@ const router = createBrowserRouter(
                   crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
                     data?.evaluatorDisplayName || "evaluator",
                 }}
-              />
+              >
+                <Route path=":traceId" element={<EvaluatorTracePage />} />
+              </Route>
               <Route
                 path="compare"
                 element={<ExperimentComparePage />}

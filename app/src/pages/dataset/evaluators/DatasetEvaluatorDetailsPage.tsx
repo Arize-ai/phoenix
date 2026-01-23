@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -122,6 +122,9 @@ function DatasetEvaluatorDetailsPageContent({
           <DatasetEvaluatorTraces projectRef={datasetEvaluator.project} />
         </LazyTabPanel>
       </Tabs>
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }
