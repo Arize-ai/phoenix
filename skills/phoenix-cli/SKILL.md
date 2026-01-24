@@ -240,6 +240,9 @@ Key span kinds: `LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`.
 
 Key attributes for LLM spans:
 - `llm.model_name`: Model used
+- `llm.provider`: Provider name (e.g., "openai")
 - `llm.token_count.prompt` / `llm.token_count.completion`: Token counts
-- `input.value` / `output.value`: Input and output text
+- `llm.input_messages.*`: Input messages (indexed, with role and content)
+- `llm.output_messages.*`: Output messages (indexed, with role and content)
+- `input.value` / `output.value`: Raw input/output as text
 - `exception.message`: Error message if failed
