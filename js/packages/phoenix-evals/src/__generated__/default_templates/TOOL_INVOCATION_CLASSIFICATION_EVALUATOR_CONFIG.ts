@@ -1,0 +1,32 @@
+// This file is generated. Do not edit by hand.
+
+import type { ClassificationEvaluatorConfig } from "../types";
+
+export const TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
+  name: "tool_invocation",
+  description: "For determining if a tool was invoked correctly with proper arguments, formatting, and safe content. Requires conversation context, available tool schemas, and the LLM's tool invocation(s).",
+  optimizationDirection: "MAXIMIZE",
+  template: [
+    {
+      role: "user",
+      content: `
+You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM invoked a tool (or tools) correctly with valid arguments and proper formatting.
+Your task: Determine whether the LLM's tool invocation(s) were correct or incorrect based on: - The full conversation context (including all previous turns, not just the most recent message) - The available tool schemas - The LLM's tool invocation(s) with arguments
+IMPORTANT - Tool Invocation vs. Tool Selection: - You are ONLY evaluating the tool invocation, not the tool selection. - If the tool selection is incorrect or not relevant to the user's query, but the tool invocation is correct, return "correct". - If the tool selection is correct but the tool invocation is incorrect, return "incorrect".
+IMPORTANT - Multi-Tool Invocations: - The LLM may invoke MULTIPLE tools in a single response. This is valid and expected for complex requests. - When multiple tools are invoked, evaluate EACH tool invocation independently. - Return "correct" only if ALL tool invocations are correct. - Return "incorrect" if ANY tool invocation has an error.
+IMPORTANT - Conversation Context: - Read the entire conversation history carefully, not just the final user message. - Argument values may need to be extracted from EARLIER turns in the conversation (e.g., user mentions a location, date, or quantity in a previous message). - The LLM should use context from the full conversation to populate argument values correctly.
+Criteria Return "correct" only when ALL of the following are true for EVERY tool invocation: - JSON is properly structured (if applicable). - All required fields/parameters are present. - No hallucinated or nonexistent fields (all fields exist in the tool schema). - Argument values match the user's intent from the conversation context (correct types, realistic values). - No unsafe content (e.g., PII like SSNs, credit card numbers, passwords) in arguments.
+Return "incorrect" if ANY of the following are true for ANY tool invocation: - The invocation contains hallucinated or nonexistent fields not in the schema. - Required fields/parameters are missing. - JSON is improperly formatted or malformed. - Argument values are incorrect, hallucinated, or do not match user intent from the conversation. - Arguments contain unsafe content (e.g., PII, sensitive data that should not be passed).
+Before providing your final judgment, explain your reasoning and consider: - How many tools were invoked? Evaluate each one. - Does each tool invocation match the schema for that tool? - Are all required parameters provided with appropriate values for each invocation? - Are there any extra fields that don't exist in the schema? - Looking at the FULL conversation: do the argument values accurately reflect what the user requested across all messages? - Is there any unsafe or sensitive content in any of the arguments? - Check that you are not evaluating the tool selection, only the tool invocation.
+<data> <context> {{input}} </context>
+<available_tools> {{availableTools}} </available_tools>
+<tool_invocation> {{toolSelection}} </tool_invocation> </data>
+Given the above data, is the tool invocation correct or incorrect?
+`,
+    },
+  ],
+  choices: {
+  "correct": 1,
+  "incorrect": 0
+},
+};
