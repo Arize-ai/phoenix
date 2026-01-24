@@ -37,7 +37,12 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import {
+  AnnotationColorSwatch,
+  type AnnotationConfig,
+  AnnotationScoreText,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
 import { useExperimentColors } from "@phoenix/components/experiment";
@@ -62,6 +67,7 @@ import {
 } from "@phoenix/contexts/ExperimentCompareContext";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { ExperimentCompareDetailsQuery } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
@@ -164,6 +170,29 @@ export function ExperimentCompareDetails({
               minScore
               maxScore
             }
+            datasetEvaluators(first: 100) {
+              edges {
+                node {
+                  name
+                  outputConfig {
+                    ... on CategoricalAnnotationConfig {
+                      name
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
+                    }
+                    ... on ContinuousAnnotationConfig {
+                      name
+                      optimizationDirection
+                      lowerBound
+                      upperBound
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -191,7 +220,13 @@ export function ExperimentCompareDetails({
         )
       ) ?? []
     );
-  }, [data.dataset.experimentAnnotationSummaries, experimentRuns]);
+  }, [data, experimentRuns]);
+
+  const annotationConfigs = useMemo(() => {
+    const evaluators =
+      data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
+    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+  }, [data]);
 
   const experimentsById = useMemo(() => {
     const experimentsById: Record<string, Experiment> = {};
@@ -292,6 +327,7 @@ export function ExperimentCompareDetails({
               experimentRepetitionsByExperimentId
             }
             annotationSummaries={annotationSummaries}
+            annotationConfigs={annotationConfigs}
             referenceOutput={referenceOutput}
             includeRepetitions={Object.values(experimentsById).some(
               (experiment) => experiment.repetitions > 1
@@ -1104,7 +1140,19 @@ export function ExperimentRunAnnotations({
 }: {
   experimentRun?: ExperimentRun;
 }) {
-  const { annotationSummaries } = useExperimentCompareDetailsContext();
+  const { annotationSummaries, annotationConfigs } =
+    useExperimentCompareDetailsContext();
+
+  const annotationConfigsByName = useMemo(() => {
+    return annotationConfigs.reduce(
+      (acc, config) => {
+        acc[config.name] = config;
+        return acc;
+      },
+      {} as Record<string, AnnotationConfig>
+    );
+  }, [annotationConfigs]);
+
   return (
     <ul
       css={css`
@@ -1119,6 +1167,8 @@ export function ExperimentRunAnnotations({
         const annotation = experimentRun?.annotations?.edges.find(
           (edge) => edge.annotation.name === annotationSummary.annotationName
         )?.annotation;
+        const annotationConfig =
+          annotationConfigsByName[annotationSummary.annotationName];
         return (
           <li
             key={annotationSummary.annotationName}
@@ -1132,6 +1182,7 @@ export function ExperimentRunAnnotations({
             <ExperimentRunAnnotation
               annotation={annotation ?? null}
               annotationSummary={annotationSummary}
+              annotationConfig={annotationConfig}
             />
           </li>
         );
@@ -1143,15 +1194,22 @@ export function ExperimentRunAnnotations({
 function ExperimentRunAnnotationButton({
   annotation,
   annotationSummary,
+  annotationConfig,
 }: {
   annotation: Annotation | null;
   annotationSummary: AnnotationSummaries[number];
+  annotationConfig?: AnnotationConfig;
 }) {
   const annotationColor = useWordColor(annotationSummary.annotationName);
   const labelValue =
     annotation?.score != null
       ? formatFloat(annotation?.score)
       : annotation?.label || "--";
+
+  const positiveOptimization = getPositiveOptimizationFromConfig({
+    config: annotationConfig,
+    score: annotation?.score,
+  });
 
   const WrapperElement = annotation
     ? AriaButton // using AriaButton to ensure the popover works
@@ -1207,9 +1265,14 @@ function ExperimentRunAnnotationButton({
         </Text>
       </Flex>
 
-      <Text fontFamily="mono" justifySelf="start" maxWidth="100%">
+      <AnnotationScoreText
+        fontFamily="mono"
+        justifySelf="start"
+        maxWidth="100%"
+        positiveOptimization={positiveOptimization}
+      >
         <Truncate maxWidth="100%">{labelValue}</Truncate>
-      </Text>
+      </AnnotationScoreText>
 
       <ProgressBar
         css={css`
@@ -1232,9 +1295,11 @@ function ExperimentRunAnnotationButton({
 function ExperimentRunAnnotation({
   annotation,
   annotationSummary,
+  annotationConfig,
 }: {
   annotation: Annotation | null;
   annotationSummary: AnnotationSummaries[number];
+  annotationConfig?: AnnotationConfig;
 }) {
   const { openTraceDialog } = useExperimentCompareDetailsContext();
   const traceId = annotation?.trace?.traceId;
@@ -1247,6 +1312,7 @@ function ExperimentRunAnnotation({
           <ExperimentRunAnnotationButton
             annotation={annotation}
             annotationSummary={annotationSummary}
+            annotationConfig={annotationConfig}
           />
           <Popover placement="top">
             <PopoverArrow />
@@ -1261,6 +1327,7 @@ function ExperimentRunAnnotation({
         <ExperimentRunAnnotationButton
           annotation={annotation}
           annotationSummary={annotationSummary}
+          annotationConfig={annotationConfig}
         />
       )}
       <TooltipTrigger>
