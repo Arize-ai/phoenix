@@ -16,7 +16,12 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import (
+    IsAdminIfAuthEnabled,
+    IsLocked,
+    IsNotReadOnly,
+    IsNotViewer,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
@@ -58,7 +63,8 @@ class ProjectTraceRetentionRuleInput:
                     isinstance(self.max_days, ProjectTraceRetentionRuleMaxDaysInput),
                     isinstance(self.max_count, ProjectTraceRetentionRuleMaxCountInput),
                     isinstance(
-                        self.max_days_or_count, ProjectTraceRetentionRuleMaxDaysOrCountInput
+                        self.max_days_or_count,
+                        ProjectTraceRetentionRuleMaxDaysOrCountInput,
                     ),
                 )
             )

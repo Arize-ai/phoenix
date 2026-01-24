@@ -86,7 +86,11 @@ def print_split_statistics(
 
     # Label distribution
     print("\n[bold]Label Distribution:")
-    for split_name, split_df in [("Train", train_df), ("Dev", dev_df), ("Test", test_df)]:
+    for split_name, split_df in [
+        ("Train", train_df),
+        ("Dev", dev_df),
+        ("Test", test_df),
+    ]:
         label_counts = get_label_counts(split_df)
         print(f"{split_name}:")
         for label, count in sorted(label_counts.items()):
@@ -103,7 +107,11 @@ def validate_splits(train_df: pd.DataFrame, dev_df: pd.DataFrame, test_df: pd.Da
     """Validate that the splits are reasonable."""
 
     # Check that all splits have both labels
-    for split_name, split_df in [("Train", train_df), ("Dev", dev_df), ("Test", test_df)]:
+    for split_name, split_df in [
+        ("Train", train_df),
+        ("Dev", dev_df),
+        ("Test", test_df),
+    ]:
         labels = set(split_df["ground_truth_label"])
         if len(labels) < 2:
             print(f"Warning: {split_name} set only has labels: {labels}")

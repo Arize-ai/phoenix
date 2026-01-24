@@ -11,7 +11,13 @@ from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 
-from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
+from ...._helpers import (
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+    _node,
+)
 
 
 class _Data(NamedTuple):
@@ -85,7 +91,10 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "1234"}, "output": {"value": "4321"}},
+                    attributes={
+                        "input": {"value": "1234"},
+                        "output": {"value": "4321"},
+                    },
                     cumulative_llm_token_count_prompt=3,
                     cumulative_llm_token_count_completion=4,
                 )

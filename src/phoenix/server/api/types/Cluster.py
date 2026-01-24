@@ -12,7 +12,10 @@ from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMet
 from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
 from phoenix.server.api.types.DatasetValues import DatasetValues
 from phoenix.server.api.types.Event import unpack_event_id
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.InferencesRole import (
+    AncillaryInferencesRole,
+    InferencesRole,
+)
 
 
 @strawberry.type

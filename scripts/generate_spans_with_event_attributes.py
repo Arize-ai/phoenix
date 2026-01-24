@@ -165,7 +165,12 @@ def create_span_with_exception_event() -> None:
         span.set_attribute("openinference.span.kind", "CHAIN")
 
         # Add exception event with attributes
-        error_types = ["TimeoutError", "ValueError", "ConnectionError", "RateLimitError"]
+        error_types = [
+            "TimeoutError",
+            "ValueError",
+            "ConnectionError",
+            "RateLimitError",
+        ]
         error_type = choice(error_types)
 
         line_num = randint(10, 100)

@@ -88,7 +88,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "created_at", sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
         ),
         sa.Column(
             "updated_at",

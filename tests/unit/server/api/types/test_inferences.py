@@ -83,7 +83,10 @@ class TestDatasetEvents:
             query=self._get_events_query("referenceInferences"),
             context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
-                "eventIds": ["1:InferencesRole.REFERENCE", "2:InferencesRole.REFERENCE"],
+                "eventIds": [
+                    "1:InferencesRole.REFERENCE",
+                    "2:InferencesRole.REFERENCE",
+                ],
                 "dimensions": [
                     {"name": "tag0", "type": "tag"},
                 ],
@@ -235,7 +238,11 @@ class TestDatasetEvents:
         return InternalInferences(
             dataframe=DataFrame(
                 {
-                    "prediction_id": ["primary_pred0", "primary_pred1", "primary_pred2"],
+                    "prediction_id": [
+                        "primary_pred0",
+                        "primary_pred1",
+                        "primary_pred2",
+                    ],
                     "prediction_label": ["class0", "class1", "class2"],
                     "prediction_score": [1.0, 2.0, 3.0],
                     "actual_label": ["class4", "class1", "class 2"],
@@ -263,7 +270,11 @@ class TestDatasetEvents:
         return InternalInferences(
             dataframe=DataFrame(
                 {
-                    "prediction_id": ["reference_pred0", "reference_pred1", "reference_pred2"],
+                    "prediction_id": [
+                        "reference_pred0",
+                        "reference_pred1",
+                        "reference_pred2",
+                    ],
                     "prediction_label": ["class0", "class1", "class2"],
                     "actual_score": [4.0, 3.0, 2.0],
                     "feature0": [9.0, 8.0, 7.0],

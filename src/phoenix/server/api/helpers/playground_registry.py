@@ -23,7 +23,8 @@ class SingletonMeta(type):
 class PlaygroundClientRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._registry: dict[
-            GenerativeProviderKey, dict[ModelName, Optional[type["PlaygroundStreamingClient[Any]"]]]
+            GenerativeProviderKey,
+            dict[ModelName, Optional[type["PlaygroundStreamingClient[Any]"]]],
         ] = {}
 
     def get_client(

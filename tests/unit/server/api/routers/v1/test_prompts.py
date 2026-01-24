@@ -259,7 +259,9 @@ class TestPrompts:
                             tools=[
                                 PromptToolFunction.model_validate(
                                     pydantic_function_tool(
-                                        _GetWeather, name=token_hex(8), description=token_hex(8)
+                                        _GetWeather,
+                                        name=token_hex(8),
+                                        description=token_hex(8),
                                     )
                                 )
                             ],

@@ -61,7 +61,9 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTools,
     TextContentPart,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
 from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
@@ -96,7 +98,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness", description=None
+            prompt_version,
+            output_config,
+            annotation_name="correctness",
+            description=None,
         )
 
     def test_both_descriptions_strings_do_not_raise(
@@ -108,7 +113,10 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         assert prompt_version.tools is not None
         prompt_version.tools.tools[0].function.description = description
         validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness", description=description
+            prompt_version,
+            output_config,
+            annotation_name="correctness",
+            description=description,
         )
 
     def test_string_evaluator_description_and_null_function_description_raises(
@@ -939,7 +947,10 @@ class TestApplyInputMapping:
         }
         # Simulates context from chat_completion_over_dataset
         context = {
-            "input": {"question": "What is the capital of France?", "category": "geography"},
+            "input": {
+                "question": "What is the capital of France?",
+                "category": "geography",
+            },
             "expected": {"answer": "Paris", "confidence": 0.99},
             "output": {"messages": [{"role": "assistant", "content": "Paris"}]},
         }
@@ -1338,7 +1349,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         context = {
             "input": [{"message": {"role": "user", "content": "Tell me about Paris"}}],
             "output": [
-                {"message": {"role": "assistant", "content": "Paris is the capital of France."}}
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "Paris is the capital of France.",
+                    }
+                }
             ],
         }
         input_mapping = EvaluatorInputMappingInput(
@@ -1364,7 +1380,10 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         output_config = evaluator.output_config
         # Context similar to subscriptions.py chat_completion_over_dataset context_dict
         context = {
-            "input": {"question": "What is the capital of France?", "topic": "geography"},
+            "input": {
+                "question": "What is the capital of France?",
+                "topic": "geography",
+            },
             "expected": {"answer": "Paris", "country": "France"},
             "output": {
                 "messages": [{"role": "assistant", "content": "The capital of France is Paris."}]
@@ -1625,7 +1644,9 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["name"] == "My Custom Contains"
         assert result["error"] is None
 
-    async def test_contains_evaluator_maps_true_to_label_from_output_config(self) -> None:
+    async def test_contains_evaluator_maps_true_to_label_from_output_config(
+        self,
+    ) -> None:
         """Test that ContainsEvaluator maps a true result to the correct label."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
@@ -1642,7 +1663,9 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "true"
         assert result["score"] == 1.0
 
-    async def test_contains_evaluator_maps_false_to_label_from_output_config(self) -> None:
+    async def test_contains_evaluator_maps_false_to_label_from_output_config(
+        self,
+    ) -> None:
         """Test that ContainsEvaluator maps a false result to the correct label."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
@@ -2283,7 +2306,10 @@ class TestLLMEvaluator:
 
         attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
-        assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
+        assert json.loads(attributes.pop(INPUT_VALUE)) == {
+            "input": "What is 2 + 2?",
+            "output": "4",
+        }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
@@ -2458,7 +2484,10 @@ class TestLLMEvaluator:
         assert not exception_event
         attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
-        assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
+        assert json.loads(attributes.pop(INPUT_VALUE)) == {
+            "input": "What is 2 + 2?",
+            "output": "4",
+        }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
@@ -2671,7 +2700,10 @@ class TestLLMEvaluator:
         assert not exception_event
         attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
-        assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
+        assert json.loads(attributes.pop(INPUT_VALUE)) == {
+            "input": "What is 2 + 2?",
+            "output": "4",
+        }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
@@ -2690,7 +2722,8 @@ class TestGetEvaluators:
         input_node_ids = [
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
             GlobalID(
-                type_name=LLMEvaluatorNode.__name__, node_id=str(correctness_llm_evaluator.id)
+                type_name=LLMEvaluatorNode.__name__,
+                node_id=str(correctness_llm_evaluator.id),
             ),
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(exact_match_id)),
             GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(regex_id)),

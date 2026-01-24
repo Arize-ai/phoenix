@@ -34,7 +34,10 @@ from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Cluster import to_gql_clusters
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.InferencesRole import (
+    AncillaryInferencesRole,
+    InferencesRole,
+)
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity

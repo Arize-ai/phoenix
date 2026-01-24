@@ -271,7 +271,8 @@ def downgrade() -> None:
         batch_op.create_index("ix_document_annotations_score", ["score"])
         batch_op.create_index("ix_document_annotations_label", ["label"])
         batch_op.drop_constraint(
-            "uq_document_annotations_name_span_rowid_document_pos_identifier", type_="unique"
+            "uq_document_annotations_name_span_rowid_document_pos_identifier",
+            type_="unique",
         )
         batch_op.create_unique_constraint(
             "uq_document_annotations_name_span_rowid_document_position",

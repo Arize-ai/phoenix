@@ -566,7 +566,8 @@ async def main():
     else:
         # Use local Phoenix
         tracer_provider = register(
-            endpoint="http://127.0.0.1:6006/v1/traces", project_name=PHOENIX_PROJECT_NAME
+            endpoint="http://127.0.0.1:6006/v1/traces",
+            project_name=PHOENIX_PROJECT_NAME,
         )
         phoenix_client = px.Client(endpoint="http://127.0.0.1:6006")
 
@@ -639,7 +640,8 @@ async def main():
     if retrieval_results and "retrieval_relevance" in retrieval_results:
         px.Client().log_evaluations(
             DocumentEvaluations(
-                eval_name="Retrieval Relevance", dataframe=retrieval_results["retrieval_relevance"]
+                eval_name="Retrieval Relevance",
+                dataframe=retrieval_results["retrieval_relevance"],
             )
         )
         print("✅ Logged retrieval relevance evaluations")

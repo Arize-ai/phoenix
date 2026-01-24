@@ -42,7 +42,10 @@ class AwsToolChoiceConversion:
                 choice_any["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_any
         if obj.type == "specific_function":
-            choice_tool: ToolChoiceToolParam = {"type": "tool", "name": obj.function_name}
+            choice_tool: ToolChoiceToolParam = {
+                "type": "tool",
+                "name": obj.function_name,
+            }
             if disable_parallel_tool_use is not None:
                 choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_tool

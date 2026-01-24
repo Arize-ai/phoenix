@@ -32,7 +32,9 @@ def get_example_ids(revisions: Sequence[Any]) -> set[int]:
     return {r.dataset_example_id for r in revisions}
 
 
-def create_id_subquery(*values: int) -> Union[Select[tuple[int]], CompoundSelect[tuple[int]]]:
+def create_id_subquery(
+    *values: int,
+) -> Union[Select[tuple[int]], CompoundSelect[tuple[int]]]:
     """Create a subquery with literal ID values for testing."""
     query = select(literal(values[0]))
     for value in values[1:]:
@@ -464,11 +466,13 @@ class TestGetDatasetExampleRevisions:
             split_assignments = [
                 # split_example1: train only
                 models.DatasetSplitDatasetExample(
-                    dataset_split_id=split_train.id, dataset_example_id=split_example1.id
+                    dataset_split_id=split_train.id,
+                    dataset_example_id=split_example1.id,
                 ),
                 # split_example2: train + validation
                 models.DatasetSplitDatasetExample(
-                    dataset_split_id=split_train.id, dataset_example_id=split_example2.id
+                    dataset_split_id=split_train.id,
+                    dataset_example_id=split_example2.id,
                 ),
                 models.DatasetSplitDatasetExample(
                     dataset_split_id=split_val.id, dataset_example_id=split_example2.id
@@ -481,11 +485,13 @@ class TestGetDatasetExampleRevisions:
                     dataset_split_id=split_test.id, dataset_example_id=split_example3.id
                 ),
                 models.DatasetSplitDatasetExample(
-                    dataset_split_id=split_extra.id, dataset_example_id=split_example3.id
+                    dataset_split_id=split_extra.id,
+                    dataset_example_id=split_example3.id,
                 ),
                 # split_example4: all four splits (maximum overlap for duplicate testing)
                 models.DatasetSplitDatasetExample(
-                    dataset_split_id=split_train.id, dataset_example_id=split_example4.id
+                    dataset_split_id=split_train.id,
+                    dataset_example_id=split_example4.id,
                 ),
                 models.DatasetSplitDatasetExample(
                     dataset_split_id=split_val.id, dataset_example_id=split_example4.id
@@ -494,7 +500,8 @@ class TestGetDatasetExampleRevisions:
                     dataset_split_id=split_test.id, dataset_example_id=split_example4.id
                 ),
                 models.DatasetSplitDatasetExample(
-                    dataset_split_id=split_extra.id, dataset_example_id=split_example4.id
+                    dataset_split_id=split_extra.id,
+                    dataset_example_id=split_example4.id,
                 ),
                 # split_example5: no splits (control for no-split tests)
             ]
@@ -1087,7 +1094,14 @@ class TestCreateExperimentExamplesSnapshotInsert:
             delete_example2 = models.DatasetExample(dataset_id=deleted_dataset.id)
             delete_example3 = models.DatasetExample(dataset_id=deleted_dataset.id)
             session.add_all(
-                [example1, example2, example3, delete_example1, delete_example2, delete_example3]
+                [
+                    example1,
+                    example2,
+                    example3,
+                    delete_example1,
+                    delete_example2,
+                    delete_example3,
+                ]
             )
             await session.flush()
 
@@ -1482,7 +1496,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
     @pytest.mark.parametrize(
         "experiment_key,expected_example_key,expected_revision_key",
         [
-            ("experiment2_id", "basic_example1_id", "basic1_v2_revision_id"),  # train split
+            (
+                "experiment2_id",
+                "basic_example1_id",
+                "basic1_v2_revision_id",
+            ),  # train split
             ("experiment3_id", "basic_example3_id", "revision3_2_id"),  # test split
         ],
     )

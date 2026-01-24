@@ -16,7 +16,11 @@ from openinference.semconv.trace import (
 from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
-from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR, TRACE_DATASETS_DIR
+from phoenix.config import (
+    GENERATED_INFERENCES_NAME_PREFIX,
+    INFERENCES_DIR,
+    TRACE_DATASETS_DIR,
+)
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.errors import InvalidParquetMetadataError

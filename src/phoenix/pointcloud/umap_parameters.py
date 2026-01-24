@@ -43,7 +43,9 @@ class UMAPParameters:
             )
 
 
-def get_umap_parameters(default_umap_parameters: Optional[Mapping[str, Any]]) -> UMAPParameters:
+def get_umap_parameters(
+    default_umap_parameters: Optional[Mapping[str, Any]],
+) -> UMAPParameters:
     if not default_umap_parameters:
         return UMAPParameters()
     return UMAPParameters(

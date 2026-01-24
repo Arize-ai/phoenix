@@ -278,7 +278,10 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
+                            "invocationParameters": {
+                                "max_tokens": 1024,
+                                "temperature": 0.4,
+                            },
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -739,7 +742,10 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
+                            "invocationParameters": {
+                                "max_tokens": 1024,
+                                "temperature": 0.4,
+                            },
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -862,7 +868,10 @@ class TestPromptMutations:
                     "templateFormat": "MUSTACHE",
                     "template": {
                         "messages": [
-                            {"role": "USER", "content": [{"text": {"text": "hello world"}}]}
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "hello world"}}],
+                            }
                         ]
                     },
                     "invocationParameters": {"temperature": 0.4},
@@ -1223,7 +1232,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1253,7 +1265,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1283,7 +1298,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1314,7 +1332,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1344,7 +1365,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1400,7 +1424,12 @@ class TestPromptMutations:
                         "description": "v1",
                         "templateFormat": "MUSTACHE",
                         "template": {
-                            "messages": [{"role": "USER", "content": [{"text": {"text": "test"}}]}]
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [{"text": {"text": "test"}}],
+                                }
+                            ]
                         },
                         "invocationParameters": {"temperature": 0.5},
                         "modelProvider": "OPENAI",
@@ -1456,7 +1485,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1487,7 +1519,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},
@@ -1518,7 +1553,10 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
-                                    {"role": "USER", "content": [{"text": {"text": "test"}}]}
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "test"}}],
+                                    }
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.5},

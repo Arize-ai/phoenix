@@ -188,7 +188,8 @@ async def _refresh_tokens(request: Request) -> Response:
     if (
         (access_token := request.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)) is not None
         and isinstance(
-            access_token_claims := await token_store.read(Token(access_token)), AccessTokenClaims
+            access_token_claims := await token_store.read(Token(access_token)),
+            AccessTokenClaims,
         )
         and (access_token_id := access_token_claims.token_id)
     ):
@@ -294,7 +295,8 @@ async def _ldap_login(request: Request) -> Response:
 
     if not authenticator:
         raise HTTPException(
-            status_code=503, detail="LDAP authentication is not configured on this server"
+            status_code=503,
+            detail="LDAP authentication is not configured on this server",
         )
 
     data = await request.json()

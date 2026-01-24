@@ -23,7 +23,10 @@ class DatasetExampleSplitsDataLoader(DataLoader[Key, Result]):
             splits: dict[ExampleID, list[models.DatasetSplit]] = {}
 
             async for example_id, split in await session.stream(
-                select(models.DatasetSplitDatasetExample.dataset_example_id, models.DatasetSplit)
+                select(
+                    models.DatasetSplitDatasetExample.dataset_example_id,
+                    models.DatasetSplit,
+                )
                 .select_from(models.DatasetSplit)
                 .join(
                     models.DatasetSplitDatasetExample,

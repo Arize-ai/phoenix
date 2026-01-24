@@ -4,7 +4,10 @@ Helper functions for prompt template formatting in GraphQL operations.
 
 from typing_extensions import assert_never
 
-from phoenix.server.api.helpers.prompts.models import PromptMessageRole, PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.models import (
+    PromptMessageRole,
+    PromptTemplateFormat,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -33,7 +36,9 @@ def get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFor
     assert_never(template_format)
 
 
-def convert_chat_role_to_prompt_role(role: ChatCompletionMessageRole) -> PromptMessageRole:
+def convert_chat_role_to_prompt_role(
+    role: ChatCompletionMessageRole,
+) -> PromptMessageRole:
     """
     Converts a ChatCompletionMessageRole to a PromptMessageRole.
 

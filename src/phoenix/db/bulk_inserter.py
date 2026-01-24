@@ -12,7 +12,10 @@ from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
-from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
+from phoenix.db.insertion.constants import (
+    DEFAULT_RETRY_ALLOWANCE,
+    DEFAULT_RETRY_DELAY_SEC,
+)
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,

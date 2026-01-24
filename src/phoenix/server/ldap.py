@@ -125,7 +125,11 @@ from ldap3 import (
     Server,
     Tls,
 )
-from ldap3.core.exceptions import LDAPException, LDAPInvalidCredentialsResult, LDAPInvalidDnError
+from ldap3.core.exceptions import (
+    LDAPException,
+    LDAPInvalidCredentialsResult,
+    LDAPInvalidDnError,
+)
 from ldap3.core.results import RESULT_SIZE_LIMIT_EXCEEDED
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn

@@ -11,7 +11,11 @@ from sqlalchemy import select
 import phoenix.trace.dsl.filter
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
+from phoenix.trace.dsl.filter import (
+    SpanFilter,
+    _apply_eval_aliasing,
+    _get_attribute_keys_list,
+)
 
 
 @pytest.mark.parametrize(

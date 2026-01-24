@@ -10,7 +10,9 @@ from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate as PromptChatTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
+from phoenix.server.api.helpers.prompts.models import (
+    PromptMessage as PromptMessageModel,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptMessageRole,
     PromptTemplateType,
@@ -76,7 +78,9 @@ class PromptChatTemplate:
     messages: list[PromptMessage]
 
 
-def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
+def to_gql_prompt_chat_template_from_orm(
+    orm_model: "ORMPromptVersion",
+) -> "PromptChatTemplate":
     template = PromptChatTemplateModel.model_validate(orm_model.template)
     messages: list[PromptMessage] = []
     for msg in template.messages:
@@ -128,12 +132,16 @@ class PromptStringTemplate:
     template: strawberry.auto
 
 
-def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
+def to_gql_prompt_string_template_from_orm(
+    orm_model: "ORMPromptVersion",
+) -> "PromptStringTemplate":
     model = PromptStringTemplateModel.model_validate(orm_model.template)
     return PromptStringTemplate(template=model.template)
 
 
-def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
+def to_gql_template_from_orm(
+    orm_prompt_version: "ORMPromptVersion",
+) -> "PromptTemplate":
     template_type = PromptTemplateType(orm_prompt_version.template_type)
     if template_type is PromptTemplateType.STRING:
         return to_gql_prompt_string_template_from_orm(orm_prompt_version)

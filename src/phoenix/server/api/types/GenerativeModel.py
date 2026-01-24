@@ -18,7 +18,9 @@ from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.ModelInterface import ModelInterface
 from phoenix.server.api.types.node import from_global_id
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TokenPrice import TokenKind, TokenPrice
 
@@ -129,7 +131,10 @@ class GenerativeModel(Node, ModelInterface):
         return val
 
     def add_cached_cost_summary(
-        self, project_id: Optional[int], time_range: TimeRange, cost_summary: SpanCostSummary
+        self,
+        project_id: Optional[int],
+        time_range: TimeRange,
+        cost_summary: SpanCostSummary,
     ) -> None:
         if self.cached_cost_summary is None:
             self.cached_cost_summary = {}

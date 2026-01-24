@@ -127,7 +127,10 @@ def generate_phoenix_labels(
     )
 
     test_results.rename(
-        columns={"label": "ground_truth_label", "explanation": "ground_truth_explanation"},
+        columns={
+            "label": "ground_truth_label",
+            "explanation": "ground_truth_explanation",
+        },
         inplace=True,
     )
 

@@ -33,7 +33,10 @@ class SpanCostDetailSummaryEntriesByTraceDataLoader(DataLoader[Key, Result]):
                 coalesce(func.sum(models.SpanCostDetail.tokens), 0).label("tokens"),
             )
             .select_from(models.SpanCostDetail)
-            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(
+                models.SpanCost,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
             .where(pk.in_(keys))
             .group_by(pk, models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )

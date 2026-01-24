@@ -17,7 +17,10 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
+from phoenix.server.api.input_types.AnnotationFilter import (
+    AnnotationFilter,
+    satisfies_filter,
+)
 from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
@@ -28,7 +31,9 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
 

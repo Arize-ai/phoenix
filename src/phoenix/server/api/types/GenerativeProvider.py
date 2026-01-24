@@ -110,7 +110,14 @@ class GenerativeProvider:
         GenerativeProviderKey.GOOGLE: ["gemini"],
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
-        GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
+        GenerativeProviderKey.OLLAMA: [
+            "llama",
+            "mistral",
+            "codellama",
+            "phi",
+            "qwen",
+            "gemma",
+        ],
         GenerativeProviderKey.AWS: ["nova", "titan"],
     }
 

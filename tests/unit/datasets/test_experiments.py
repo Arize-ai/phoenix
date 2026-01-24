@@ -301,7 +301,11 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
         return check_input and check_output and check_expected and check_metadata
 
     output = experiment_run.output
-    expected, metadata, input = example.output["output"], example.metadata, example.input["input"]
+    expected, metadata, input = (
+        example.output["output"],
+        example.metadata,
+        example.input["input"],
+    )
     kwargs = dict(output=output, expected=expected, metadata=metadata, input=input, extra="junk")
     evaluation = can_i_count_this_high.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With one argument, evaluates against output.result"

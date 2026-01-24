@@ -35,7 +35,12 @@ from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
+from phoenix.server.types import (
+    AccessTokenId,
+    ApiKeyId,
+    PasswordResetTokenId,
+    RefreshTokenId,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -306,7 +311,10 @@ class UserMutationMixin:
                         cast(
                             func.coalesce(
                                 func.max(
-                                    case((models.User.id == default_admin_user_id, 1), else_=0)
+                                    case(
+                                        (models.User.id == default_admin_user_id, 1),
+                                        else_=0,
+                                    )
                                 ),
                                 0,
                             ),

@@ -106,7 +106,9 @@ class TestTraceAnnotationMutations:
             "source": AnnotationSource.API.name,
         }
         result_create = await gql_client.execute(
-            self.QUERY, {"input": [create_input]}, operation_name="CreateTraceAnnotations"
+            self.QUERY,
+            {"input": [create_input]},
+            operation_name="CreateTraceAnnotations",
         )
         assert not result_create.errors
         assert result_create.data is not None
@@ -132,7 +134,9 @@ class TestTraceAnnotationMutations:
             "source": "APP",
         }
         res1 = await gql_client.execute(
-            self.QUERY, {"input": [base_with_id]}, operation_name="CreateTraceAnnotations"
+            self.QUERY,
+            {"input": [base_with_id]},
+            operation_name="CreateTraceAnnotations",
         )
         assert not res1.errors
         assert (data1 := res1.data)
@@ -147,7 +151,9 @@ class TestTraceAnnotationMutations:
             "metadata": {"k": "v2", "x": 1},
         }
         res2 = await gql_client.execute(
-            self.QUERY, {"input": [updated_with_id]}, operation_name="CreateTraceAnnotations"
+            self.QUERY,
+            {"input": [updated_with_id]},
+            operation_name="CreateTraceAnnotations",
         )
         assert not res2.errors
         assert (data2 := res2.data)
@@ -189,7 +195,9 @@ class TestTraceAnnotationMutations:
             "explanation": "Updated explanation",
         }
         res4 = await gql_client.execute(
-            self.QUERY, {"input": [updated_no_id]}, operation_name="CreateTraceAnnotations"
+            self.QUERY,
+            {"input": [updated_no_id]},
+            operation_name="CreateTraceAnnotations",
         )
         assert not res4.errors
         assert (data4 := res4.data)

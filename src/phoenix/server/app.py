@@ -44,7 +44,12 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
+from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
@@ -444,7 +449,9 @@ def _db(
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
+    async def factory(
+        lock: Optional[asyncio.Lock] = None,
+    ) -> AsyncIterator[AsyncSession]:
         async with contextlib.AsyncExitStack() as stack:
             if lock:
                 await stack.enter_async_context(lock)
@@ -1200,7 +1207,8 @@ def create_app(
             for config in oauth2_client_configs or []
         ]
         auto_login_idp_name = next(
-            (config.idp_name for config in (oauth2_client_configs or []) if config.auto_login), None
+            (config.idp_name for config in (oauth2_client_configs or []) if config.auto_login),
+            None,
         )
         app.mount(
             "/",

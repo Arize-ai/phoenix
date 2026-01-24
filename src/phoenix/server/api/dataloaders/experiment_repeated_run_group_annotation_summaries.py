@@ -47,7 +47,8 @@ class ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(DataLoader[Key, Re
             )
             .where(
                 tuple_(
-                    models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id
+                    models.ExperimentRun.experiment_id,
+                    models.ExperimentRun.dataset_example_id,
                 ).in_(set(keys))
             )
             .group_by(

@@ -92,7 +92,9 @@ def pull_npm_metrics() -> None:
             while current_date < end_date:
                 week_end = min(current_date + timedelta(days=6), end_date)
                 downloads = get_npm_downloads(
-                    package, current_date.strftime("%Y-%m-%d"), week_end.strftime("%Y-%m-%d")
+                    package,
+                    current_date.strftime("%Y-%m-%d"),
+                    week_end.strftime("%Y-%m-%d"),
                 )
                 f.write(f"{package},{current_date.strftime('%Y-%m-%d')},{downloads}\n")
                 current_date += timedelta(days=7)

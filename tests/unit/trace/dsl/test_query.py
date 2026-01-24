@@ -67,7 +67,12 @@ async def test_select_all(
                 ],
                 None,
             ],
-            "attributes.attributes": [None, None, "attributes", {"attributes": "attributes"}],
+            "attributes.attributes": [
+                None,
+                None,
+                "attributes",
+                {"attributes": "attributes"},
+            ],
             "events": [[], [], [], []],
         }
     ).set_index("context.span_id", drop=False)
@@ -907,12 +912,21 @@ async def test_filter_on_trace_id_multiple(
         ["evals['1'].label == '1'", ["456"]],
         ["evals['1'].label != '1'", ["567"]],
         ["evals['1'].label != '1' or evals['1'].label is None", ["234", "345", "567"]],
-        ["evals['0'].score is not None or evals['1'].label is not None", ["345", "456", "567"]],
+        [
+            "evals['0'].score is not None or evals['1'].label is not None",
+            ["345", "456", "567"],
+        ],
         ["evals['0'].score is None or evals['1'].label is None", ["234", "345", "567"]],
         ["evals['0'].score == 0 or evals['1'].label == '1'", ["345", "456"]],
         ["evals['0'].score != 0 or evals['1'].label != '1'", ["456", "567"]],
-        ["evals['0'].score is not None or evals['1'].label is None", ["234", "345", "456"]],
-        ["evals['0'].score is None or evals['1'].label is not None", ["234", "456", "567"]],
+        [
+            "evals['0'].score is not None or evals['1'].label is None",
+            ["234", "345", "456"],
+        ],
+        [
+            "evals['0'].score is None or evals['1'].label is not None",
+            ["234", "456", "567"],
+        ],
         ["evals['0'].score == 0 or evals['1'].label != '1'", ["345", "567"]],
         ["evals['0'].score != 0 or evals['1'].label == '1'", ["456"]],
         [

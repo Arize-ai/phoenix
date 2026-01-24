@@ -108,7 +108,10 @@ def run_judge_on_traces(
     )
 
     predictions.rename(
-        columns={"label": "llm_as_judge_label", "confidence": "llm_as_judge_confidence"},
+        columns={
+            "label": "llm_as_judge_label",
+            "confidence": "llm_as_judge_confidence",
+        },
         inplace=True,
     )
 
@@ -159,7 +162,10 @@ def save_final_results(
             "total_traces_evaluated": total_traces,
             "raw_observed_success_rate": raw_success_rate,
             "corrected_success_rate": theta_hat,
-            "confidence_interval_95": {"lower_bound": lower_bound, "upper_bound": upper_bound},
+            "confidence_interval_95": {
+                "lower_bound": lower_bound,
+                "upper_bound": upper_bound,
+            },
             "interpretation": {
                 "description": "Corrected success rate accounts for judge errors (TPR/TNR)",
                 "raw_vs_corrected": f"""Raw rate: {raw_success_rate:.3f}

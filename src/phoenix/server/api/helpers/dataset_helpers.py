@@ -221,7 +221,9 @@ def _get_message(message: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _parse_retrieval_documents(retrieval_documents: Any) -> Optional[list[dict[str, Any]]]:
+def _parse_retrieval_documents(
+    retrieval_documents: Any,
+) -> Optional[list[dict[str, Any]]]:
     """
     Safely un-nests a list of retrieval documents.
 

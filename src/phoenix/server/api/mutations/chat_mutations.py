@@ -16,7 +16,9 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
+from opentelemetry.sdk.trace.id_generator import (
+    RandomIdGenerator as DefaultOTelIDGenerator,
+)
 from opentelemetry.trace import StatusCode
 from pydantic import ValidationError
 from sqlalchemy import insert, select
@@ -55,7 +57,9 @@ from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_ou
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
-from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
+from phoenix.server.api.helpers.message_helpers import (
+    extract_and_convert_example_messages,
+)
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -100,9 +104,14 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+)
 from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -229,7 +238,8 @@ class ChatCompletionMutationMixin:
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
-                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+                global_id=input.dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
             )
             if input.dataset_version_id
             else None

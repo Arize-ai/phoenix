@@ -275,10 +275,22 @@ class TestJsonSerialization:
             "neg_inf_value": float("-inf"),
             # Complex nested structures combining ALL types
             "complex_nested": {
-                "numpy_arrays": [np.array([5, 6]), {"nested_array": np.array([[7, 8], [9, 10]])}],
+                "numpy_arrays": [
+                    np.array([5, 6]),
+                    {"nested_array": np.array([[7, 8], [9, 10]])},
+                ],
                 "enums_datetimes": [Status.PENDING, test_datetime, Priority.LOW],
-                "nan_inf_mixed": [1, float("nan"), {"inf_nested": float("inf")}, [float("-inf")]],
-                "regular_python": {"normal": [1, 2, 3], "string": "test", "bool": False},
+                "nan_inf_mixed": [
+                    1,
+                    float("nan"),
+                    {"inf_nested": float("inf")},
+                    [float("-inf")],
+                ],
+                "regular_python": {
+                    "normal": [1, 2, 3],
+                    "string": "test",
+                    "bool": False,
+                },
                 # Deep NaN/Inf nesting (consolidated edge cases)
                 "deep_nan_structure": {
                     "level1": [float("nan"), {"level2": [float("inf"), float("-inf")]}],
@@ -328,7 +340,11 @@ class TestJsonSerialization:
                 "numpy_arrays": [[5, 6], {"nested_array": [[7, 8], [9, 10]]}],
                 "enums_datetimes": ["pending", test_datetime.isoformat(), 1],
                 "nan_inf_mixed": [1, None, {"inf_nested": None}, [None]],
-                "regular_python": {"normal": [1, 2, 3], "string": "test", "bool": False},
+                "regular_python": {
+                    "normal": [1, 2, 3],
+                    "string": "test",
+                    "bool": False,
+                },
                 # Deep NaN/Inf → null conversions
                 "deep_nan_structure": {
                     "level1": [None, {"level2": [None, None]}],
@@ -348,7 +364,11 @@ class TestJsonSerialization:
 
         EVENT_NAME = "Comprehensive Serialization Test"
         EVENT_TS = "2022-04-29T18:52:58.114561Z"
-        test_event = {"name": EVENT_NAME, "timestamp": EVENT_TS, "attributes": comprehensive_attrs}
+        test_event = {
+            "name": EVENT_NAME,
+            "timestamp": EVENT_TS,
+            "attributes": comprehensive_attrs,
+        }
         expected_event = {**test_event, "attributes": expected_converted}
 
         # === SINGLE EFFICIENT DATABASE SETUP ===
@@ -505,7 +525,12 @@ class TestJsonSerialization:
             # Create NaN/Inf-only payload for raw JSON insertion (json.dumps can handle NaN/Inf)
             raw_attrs_with_nan = {
                 "a": float("nan"),
-                "b": [1, float("nan"), {"c": float("nan"), "ci": float("inf")}, [float("-inf")]],
+                "b": [
+                    1,
+                    float("nan"),
+                    {"c": float("nan"), "ci": float("inf")},
+                    [float("-inf")],
+                ],
                 "d": {
                     "e": float("nan"),
                     "f": [float("nan"), {"g": float("nan"), "gi": float("inf")}],
@@ -606,7 +631,9 @@ class TestJsonSerialization:
                 ).first()
                 raw_events_result = _decode_if_sqlite([raw_events_result], db.dialect)[0]
                 assert not DeepDiff(
-                    [raw_events_result], [[raw_event_with_nan]], ignore_nan_inequality=True
+                    [raw_events_result],
+                    [[raw_event_with_nan]],
+                    ignore_nan_inequality=True,
                 )
 
                 # Check all metadata tables have raw NaN/Inf
@@ -1215,7 +1242,11 @@ class TestPromptVersion:
                 id="metadata-differs",
             ),
             pytest.param(
-                {"description": "Different", "model_name": "gpt-3.5-turbo", "metadata_": {}},
+                {
+                    "description": "Different",
+                    "model_name": "gpt-3.5-turbo",
+                    "metadata_": {},
+                },
                 id="multiple-fields-differ",
             ),
         ],

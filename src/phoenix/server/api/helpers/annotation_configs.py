@@ -10,7 +10,9 @@ from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig,
     ContinuousAnnotationConfigOverride,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    PlaygroundEvaluatorInput,
+)
 
 
 def get_annotation_config_override(

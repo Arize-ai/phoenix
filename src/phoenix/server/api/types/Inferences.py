@@ -10,7 +10,12 @@ from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..input_types.DimensionInput import DimensionInput
 from .Dimension import Dimension, to_gql_dimension
-from .Event import Event, create_event, create_event_id, parse_event_ids_by_inferences_role
+from .Event import (
+    Event,
+    create_event,
+    create_event_id,
+    parse_event_ids_by_inferences_role,
+)
 from .InferencesRole import AncillaryInferencesRole, InferencesRole
 
 

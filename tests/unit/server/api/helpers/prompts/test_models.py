@@ -604,7 +604,12 @@ async def test_google_tools_are_round_tripped_without_data_loss(
             id="mode-NONE-uppercase",
         ),
         pytest.param(
-            {"function_calling_config": {"mode": "any", "allowed_function_names": ["get_weather"]}},
+            {
+                "function_calling_config": {
+                    "mode": "any",
+                    "allowed_function_names": ["get_weather"],
+                }
+            },
             {
                 "tool_config": {
                     "function_calling_config": {
@@ -616,7 +621,12 @@ async def test_google_tools_are_round_tripped_without_data_loss(
             id="specific-function-name-lowercase",
         ),
         pytest.param(
-            {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["get_weather"]}},
+            {
+                "function_calling_config": {
+                    "mode": "ANY",
+                    "allowed_function_names": ["get_weather"],
+                }
+            },
             {
                 "tool_config": {
                     "function_calling_config": {

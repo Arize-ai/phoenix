@@ -54,7 +54,11 @@ class FreeformAnnotationConfig(Node, AnnotationConfigBase):
 
 
 AnnotationConfig: TypeAlias = Annotated[
-    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
+    Union[
+        CategoricalAnnotationConfig,
+        ContinuousAnnotationConfig,
+        FreeformAnnotationConfig,
+    ],
     strawberry.union("AnnotationConfig"),
 ]
 
@@ -110,7 +114,9 @@ def _to_gql_freeform_annotation_config(
     )
 
 
-def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> AnnotationConfig:
+def to_gql_annotation_config(
+    annotation_config: models.AnnotationConfig,
+) -> AnnotationConfig:
     """
     Convert an SQLAlchemy AnnotationConfig instance to one of the GraphQL types.
     """

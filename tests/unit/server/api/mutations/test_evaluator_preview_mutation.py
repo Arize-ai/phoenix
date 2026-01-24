@@ -84,7 +84,10 @@ class TestEvaluatorPreviewMutation:
                     evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
                     context={"output": "The quick brown fox"},
                     inputMapping=dict(
-                        literalMapping={"words": "elephant,giraffe", "case_sensitive": False},
+                        literalMapping={
+                            "words": "elephant,giraffe",
+                            "case_sensitive": False,
+                        },
                         pathMapping={"text": "$.output"},
                     ),
                 )

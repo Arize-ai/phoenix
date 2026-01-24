@@ -123,7 +123,8 @@ class PromptMutationMixin:
         async with info.context.db() as session:
             if prompt_version.custom_provider_id is not None:
                 custom_provider = await session.get(
-                    models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
+                    models.GenerativeModelCustomProvider,
+                    prompt_version.custom_provider_id,
                 )
                 if custom_provider is None:
                     raise NotFound(

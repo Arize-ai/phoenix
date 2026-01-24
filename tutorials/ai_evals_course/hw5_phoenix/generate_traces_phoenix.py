@@ -400,7 +400,10 @@ def generate_single_trace_with_spans(failure: int) -> None:
         # 5. GenWebArgs
         search_query = gen_web_args(recipes_str, failure)
         messages.append(
-            {"role": "assistant", "content": f"Generated web search query: {search_query}"}
+            {
+                "role": "assistant",
+                "content": f"Generated web search query: {search_query}",
+            }
         )
 
         # 6. GetWebInfo

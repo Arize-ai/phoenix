@@ -89,7 +89,8 @@ def inferences_with_embedding_vector() -> Inferences:
 
 
 def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
-    inferences_with_embedding_vector: Inferences, inferences_with_large_embedding_vector: Inferences
+    inferences_with_embedding_vector: Inferences,
+    inferences_with_large_embedding_vector: Inferences,
 ) -> None:
     with pytest.raises(ValueError):
         _ = _get_embedding_dimensions(
@@ -138,7 +139,9 @@ def test_valid_model_embeddings_one_inferences_missing_embeddings_feature(
     ]
 
 
-def test_valid_model_with_nan_embeddings(inferences_with_embedding_vector: Inferences) -> None:
+def test_valid_model_with_nan_embeddings(
+    inferences_with_embedding_vector: Inferences,
+) -> None:
     inferences_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
     embedding_dimensions = _get_embedding_dimensions(
         inferences_with_embedding_vector,

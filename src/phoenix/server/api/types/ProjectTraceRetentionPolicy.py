@@ -9,10 +9,18 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.types.trace_retention import MaxCountRule, MaxDaysOrCountRule, MaxDaysRule
+from phoenix.db.types.trace_retention import (
+    MaxCountRule,
+    MaxDaysOrCountRule,
+    MaxDaysRule,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CronExpression import CronExpression
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.Project import Project
 
 
@@ -31,7 +39,11 @@ class TraceRetentionRuleMaxDaysOrCount(TraceRetentionRuleMaxDays, TraceRetention
 
 
 TraceRetentionRule: TypeAlias = Annotated[
-    Union[TraceRetentionRuleMaxDays, TraceRetentionRuleMaxCount, TraceRetentionRuleMaxDaysOrCount],
+    Union[
+        TraceRetentionRuleMaxDays,
+        TraceRetentionRuleMaxCount,
+        TraceRetentionRuleMaxDaysOrCount,
+    ],
     strawberry.union("TraceRetentionRule"),
 ]
 

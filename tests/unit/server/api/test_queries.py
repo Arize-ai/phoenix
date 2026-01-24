@@ -1331,10 +1331,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1344,10 +1354,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1357,10 +1377,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1370,10 +1400,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1383,10 +1423,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1396,10 +1446,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 2,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1409,10 +1469,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1422,10 +1492,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 2,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1435,10 +1515,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1448,10 +1538,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },
@@ -1461,10 +1561,20 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                                 "trace_id": None,
                                 "repetition_number": 1,
                                 "start_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "end_time": datetime(
-                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                                    year=2020,
+                                    month=1,
+                                    day=1,
+                                    hour=0,
+                                    minute=0,
+                                    tzinfo=timezone.utc,
                                 ),
                                 "error": None,
                             },

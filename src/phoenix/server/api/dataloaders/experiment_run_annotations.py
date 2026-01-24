@@ -26,11 +26,16 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
         async with self._db() as session:
             async for run_id, annotation in await session.stream(
                 select(
-                    OrmExperimentRunAnnotation.experiment_run_id, OrmExperimentRunAnnotation
+                    OrmExperimentRunAnnotation.experiment_run_id,
+                    OrmExperimentRunAnnotation,
                 ).where(OrmExperimentRunAnnotation.experiment_run_id.in_(run_ids))
             ):
                 annotations[run_id].append(annotation)
         return [
-            sorted(annotations[run_id], key=lambda annotation: annotation.name, reverse=True)
+            sorted(
+                annotations[run_id],
+                key=lambda annotation: annotation.name,
+                reverse=True,
+            )
             for run_id in keys
         ]

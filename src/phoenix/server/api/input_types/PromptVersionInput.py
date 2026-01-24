@@ -24,7 +24,9 @@ from phoenix.server.api.helpers.prompts.models import (
     normalize_tools,
     validate_invocation_parameters,
 )
-from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -162,7 +164,9 @@ def to_pydantic_prompt_chat_template_v1(
     )
 
 
-def to_pydantic_prompt_message(prompt_message_input: PromptMessageInput) -> PromptMessage:
+def to_pydantic_prompt_message(
+    prompt_message_input: PromptMessageInput,
+) -> PromptMessage:
     content = [
         to_pydantic_content_part(content_part) for content_part in prompt_message_input.content
     ]

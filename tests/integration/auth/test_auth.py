@@ -97,8 +97,14 @@ class TestOriginAndReferer:
             [dict(referer="http://localhost/xyz"), _OK],
             [dict(origin="http://xyz.com"), _EXPECTATION_401],
             [dict(referer="http://xyz.com/xyz"), _EXPECTATION_401],
-            [dict(origin="http://xyz.com", referer="http://localhost/xyz"), _EXPECTATION_401],
-            [dict(origin="http://localhost", referer="http://xyz.com/xyz"), _EXPECTATION_401],
+            [
+                dict(origin="http://xyz.com", referer="http://localhost/xyz"),
+                _EXPECTATION_401,
+            ],
+            [
+                dict(origin="http://localhost", referer="http://xyz.com/xyz"),
+                _EXPECTATION_401,
+            ],
         ],
     )
     def test_csrf_origin_validation(
@@ -854,7 +860,10 @@ class TestDeleteUsers:
         "role_or_user,expectation",
         [
             (_MEMBER, _DENIED),
-            (_ADMIN, pytest.raises(Exception, match="Cannot delete the default admin user")),
+            (
+                _ADMIN,
+                pytest.raises(Exception, match="Cannot delete the default admin user"),
+            ),
             (_DEFAULT_ADMIN, pytest.raises(Exception)),
         ],
     )
@@ -1864,7 +1873,11 @@ class TestApiAccessViaCookiesOrApiKeys:
                     )
 
             # Test 3: Write operations - viewers blocked, admins/members have access
-            for expected_status_code, method, endpoint in _VIEWER_BLOCKED_WRITE_OPERATIONS:
+            for (
+                expected_status_code,
+                method,
+                endpoint,
+            ) in _VIEWER_BLOCKED_WRITE_OPERATIONS:
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 if is_viewer:

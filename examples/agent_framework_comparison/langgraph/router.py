@@ -58,7 +58,12 @@ def run_agent(query):
     app = create_agent_graph()
 
     final_state = app.invoke(
-        {"messages": [HumanMessage(content=query), SystemMessage(content=SYSTEM_PROMPT)]},
+        {
+            "messages": [
+                HumanMessage(content=query),
+                SystemMessage(content=SYSTEM_PROMPT),
+            ]
+        },
         config={"configurable": {"thread_id": 42}},
     )
     return final_state["messages"][-1].content

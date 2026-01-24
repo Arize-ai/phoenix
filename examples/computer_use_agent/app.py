@@ -104,7 +104,8 @@ with gr.Blocks() as demo:
             with gr.Row():
                 with gr.Accordion("Configurations ⚙️", open=True) as config_accordion:
                     phoenix_input = gr.Textbox(
-                        label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+                        label="Phoenix API Key (Only required for Phoenix Cloud)",
+                        type="password",
                     )
                     project_input = gr.Textbox(label="Project Name", value="Computer Use Agent")
 
@@ -128,7 +129,14 @@ with gr.Blocks() as demo:
             submit_button.click(
                 fn=chat_with_agent,
                 inputs=[agent, tracer, user_input, session_id, chat_display, history],
-                outputs=[agent, user_input, chat_display, session_id, chat_history, history],
+                outputs=[
+                    agent,
+                    user_input,
+                    chat_display,
+                    session_id,
+                    chat_history,
+                    history,
+                ],
             )
 
 if __name__ == "__main__":

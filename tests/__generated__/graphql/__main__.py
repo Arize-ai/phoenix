@@ -112,7 +112,10 @@ if __name__ == "__main__":
         aliases["JSON"] = ast.Subscript(
             value=ast.Name(id="dict", ctx=ast.Load()),
             slice=ast.Tuple(
-                elts=[ast.Name(id="str", ctx=ast.Load()), ast.Name(id="Any", ctx=ast.Load())],
+                elts=[
+                    ast.Name(id="str", ctx=ast.Load()),
+                    ast.Name(id="Any", ctx=ast.Load()),
+                ],
                 ctx=ast.Load(),
             ),
             ctx=ast.Load(),

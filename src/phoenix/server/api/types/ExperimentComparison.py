@@ -2,7 +2,9 @@ import strawberry
 from strawberry.relay import Node, NodeID
 
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.ExperimentRepeatedRunGroup import ExperimentRepeatedRunGroup
+from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
+    ExperimentRepeatedRunGroup,
+)
 
 
 @strawberry.type

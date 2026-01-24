@@ -410,7 +410,8 @@ class SpanEvent(V1RoutesBaseModel):
 
 class Span(V1RoutesBaseModel):
     id: str = Field(
-        default="", description="Span Global ID, distinct from the OpenTelemetry span ID"
+        default="",
+        description="Span Global ID, distinct from the OpenTelemetry span ID",
     )
     name: str = Field(description="Name of the span operation")
     context: SpanContext = Field(description="Span context containing trace_id and span_id")
@@ -692,7 +693,8 @@ async def span_search_otlpv1(
                 attributes=attributes_kv,
                 events=events,
                 status=OtlpStatus(
-                    code=status_code_enum.to_int(), message=span_orm.status_message or None
+                    code=status_code_enum.to_int(),
+                    message=span_orm.status_message or None,
                 ),
             )
         )
@@ -1077,7 +1079,9 @@ async def create_spans(
             if event.timestamp:
                 internal_events.append(
                     InternalSpanEvent(
-                        name=event.name, timestamp=event.timestamp, attributes=event.attributes
+                        name=event.name,
+                        timestamp=event.timestamp,
+                        attributes=event.attributes,
                     )
                 )
 

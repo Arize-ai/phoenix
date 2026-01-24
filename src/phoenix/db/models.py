@@ -45,7 +45,15 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
+from sqlalchemy.sql import (
+    Values,
+    column,
+    compiler,
+    expression,
+    literal,
+    roles,
+    union_all,
+)
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
@@ -70,7 +78,10 @@ from phoenix.db.types.token_price_customization import (
     TokenPriceCustomization,
     TokenPriceCustomizationParser,
 )
-from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
+from phoenix.db.types.trace_retention import (
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
@@ -854,7 +865,8 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         # We don't know why sqlite returns a slightly different value.
         # postgresql is correct because it matches the value computed by Python.
         func.round(
-            (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000, 1
+            (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000,
+            1,
         ),
         **kw,
     )
@@ -883,11 +895,17 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
         # PostgreSQL's jsonb_array_length throws "cannot get array length of a scalar"
         # for non-array values, so check the type first
         num_retrieval_docs = sql.case(
-            (func.jsonb_typeof(retrieval_docs) == "array", func.jsonb_array_length(retrieval_docs)),
+            (
+                func.jsonb_typeof(retrieval_docs) == "array",
+                func.jsonb_array_length(retrieval_docs),
+            ),
             else_=0,
         )
         num_reranker_docs = sql.case(
-            (func.jsonb_typeof(reranker_docs) == "array", func.jsonb_array_length(reranker_docs)),
+            (
+                func.jsonb_typeof(reranker_docs) == "array",
+                func.jsonb_array_length(reranker_docs),
+            ),
             else_=0,
         )
 
@@ -1148,7 +1166,10 @@ class Dataset(HasId):
         "DatasetsDatasetLabel", back_populates="dataset"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
-        "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+        "DatasetEvaluators",
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+        uselist=True,
     )
 
     @hybrid_property
@@ -1982,7 +2003,8 @@ class PromptVersion(HasId):
     template_format: Mapped[PromptTemplateFormat] = mapped_column(
         _TemplateFormat,
         CheckConstraint(
-            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')",
+            name="template_format",
         ),
         nullable=False,
     )
@@ -2079,7 +2101,9 @@ class ProjectAnnotationConfig(HasId):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     annotation_config_id: Mapped[int] = mapped_column(
-        ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)

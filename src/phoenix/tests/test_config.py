@@ -10,8 +10,14 @@ from phoenix.config import get_env_collector_endpoint
 @pytest.mark.parametrize(
     "env,expected",
     [
-        ({"PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006"}, "http://localhost:6006"),
-        ({"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:6006"}, "http://localhost:6006"),
+        (
+            {"PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006"},
+            "http://localhost:6006",
+        ),
+        (
+            {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:6006"},
+            "http://localhost:6006",
+        ),
         (
             {
                 "PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006",

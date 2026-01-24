@@ -660,10 +660,30 @@ class TestDatasetExperimentsResolver:
         )
         assert not response.errors
         edges = [
-            {"node": {"sequenceNumber": 4, "id": str(GlobalID(Experiment.__name__, str(11)))}},
-            {"node": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(8)))}},
-            {"node": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}},
-            {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
+            {
+                "node": {
+                    "sequenceNumber": 4,
+                    "id": str(GlobalID(Experiment.__name__, str(11))),
+                }
+            },
+            {
+                "node": {
+                    "sequenceNumber": 3,
+                    "id": str(GlobalID(Experiment.__name__, str(8))),
+                }
+            },
+            {
+                "node": {
+                    "sequenceNumber": 2,
+                    "id": str(GlobalID(Experiment.__name__, str(5))),
+                }
+            },
+            {
+                "node": {
+                    "sequenceNumber": 1,
+                    "id": str(GlobalID(Experiment.__name__, str(2))),
+                }
+            },
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
 
@@ -1008,7 +1028,8 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             input_mapping={},
             output_config_override=None,
             project=models.Project(
-                name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
+                name=f"{dataset.name}/evaluator-1",
+                description="Project for evaluator-1",
             ),
         )
         dataset_evaluator_2 = models.DatasetEvaluators(
@@ -1018,7 +1039,8 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             input_mapping={},
             output_config_override=None,
             project=models.Project(
-                name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"
+                name=f"{dataset.name}/evaluator-2",
+                description="Project for evaluator-2",
             ),
         )
         session.add_all([dataset_evaluator_1, dataset_evaluator_2])
@@ -1056,13 +1078,23 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                            year=2020,
+                            month=1,
+                            day=1,
+                            hour=0,
+                            minute=0,
+                            tzinfo=timezone.utc,
                         ),
                     },
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=2, day=2, hour=0, minute=0, tzinfo=timezone.utc
+                            year=2020,
+                            month=2,
+                            day=2,
+                            hour=0,
+                            minute=0,
+                            tzinfo=timezone.utc,
                         ),
                     },
                 ],

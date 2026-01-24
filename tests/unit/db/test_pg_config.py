@@ -100,7 +100,14 @@ class TestPgConfig:
         # Verify SSL configuration
         if driver == "psycopg":
             expected = {}
-            if dsn_key in ["verify-full", "verify-ca", "require", "prefer", "disable", "allow"]:
+            if dsn_key in [
+                "verify-full",
+                "verify-ca",
+                "require",
+                "prefer",
+                "disable",
+                "allow",
+            ]:
                 expected["sslmode"] = dsn_key
             if dsn_key in ["verify-full", "verify-ca"]:
                 expected["sslrootcert"] = str(_tls_certs_server.cert.resolve())

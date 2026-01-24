@@ -56,7 +56,10 @@ from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REG
 from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
+from phoenix.server.api.input_types.Coordinates import (
+    InputCoordinate2D,
+    InputCoordinate3D,
+)
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -65,14 +68,21 @@ from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput i
     GenerativeModelCustomerProviderConfigInput,
 )
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
-from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.AnnotationConfig import (
+    AnnotationConfig,
+    to_gql_annotation_config,
+)
+from phoenix.server.api.types.ClassificationEvaluatorConfig import (
+    ClassificationEvaluatorConfig,
+)
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -107,9 +117,15 @@ from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
-from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import (
+    GenerativeProvider,
+    GenerativeProviderKey,
+)
 from phoenix.server.api.types.InferenceModel import InferenceModel
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.InferencesRole import (
+    AncillaryInferencesRole,
+    InferencesRole,
+)
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -124,7 +140,9 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
-from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
+    ProjectTraceRetentionPolicy,
+)
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
@@ -656,7 +674,8 @@ class Query:
         async with info.context.db() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
-            data=[Dataset(id=dataset.id, db_record=dataset) for dataset in datasets], args=args
+            data=[Dataset(id=dataset.id, db_record=dataset) for dataset in datasets],
+            args=args,
         )
 
     @strawberry.field
@@ -710,7 +729,8 @@ class Query:
                     .where(models.Experiment.id.in_(experiment_rowids))
                     .options(
                         load_only(
-                            models.Experiment.dataset_id, models.Experiment.dataset_version_id
+                            models.Experiment.dataset_id,
+                            models.Experiment.dataset_version_id,
                         )
                     )
                 )
@@ -1380,8 +1400,14 @@ class Query:
                 # Use case to pick the value based on kind
                 # this special case can be removed if we add updated_at to the base table
                 sort_col = case(
-                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
-                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    (
+                        PolymorphicEvaluator.kind == "LLM",
+                        models.LLMEvaluator.updated_at,
+                    ),
+                    (
+                        PolymorphicEvaluator.kind == "CODE",
+                        models.CodeEvaluator.updated_at,
+                    ),
                     else_=None,
                 )
             else:

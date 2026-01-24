@@ -190,7 +190,10 @@ async def test_add_span_to_dataset(
                                 "revision": {
                                     "input": {
                                         "messages": [
-                                            {"content": "user-message-content", "role": "user"}
+                                            {
+                                                "content": "user-message-content",
+                                                "role": "user",
+                                            }
                                         ]
                                     },
                                     "metadata": {
@@ -486,7 +489,9 @@ async def test_delete_a_dataset(
     assert not dataset
 
 
-async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClient) -> None:
+async def test_deleting_a_nonexistent_dataset_fails(
+    gql_client: AsyncGraphQLClient,
+) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
@@ -558,8 +563,14 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
-                    "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
-                    "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
+                    "input": {
+                        "value": "chain-span-input-value",
+                        "mime_type": "text/plain",
+                    },
+                    "output": {
+                        "value": "chain-span-output-value",
+                        "mime_type": "text/plain",
+                    },
                 },
                 events=[],
                 status_code="OK",
@@ -589,7 +600,12 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
                     },
                     "retrieval": {
                         "documents": [
-                            {"document": {"content": "retrieved-document-content", "score": 1}},
+                            {
+                                "document": {
+                                    "content": "retrieved-document-content",
+                                    "score": 1,
+                                }
+                            },
                         ],
                     },
                 },
@@ -617,7 +633,12 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
                 attributes={
                     "llm": {
                         "input_messages": [
-                            {"message": {"role": "user", "content": "user-message-content"}}
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "user-message-content",
+                                }
+                            }
                         ],
                         "output_messages": [
                             {

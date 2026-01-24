@@ -58,7 +58,11 @@ def coerce_otlp_span_attributes(
     decoded_attributes: Iterable[tuple[str, Any]],
 ) -> Iterator[tuple[str, Any]]:
     for key, value in decoded_attributes:
-        if key in (LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_COMPLETION, LLM_TOKEN_COUNT_TOTAL):
+        if key in (
+            LLM_TOKEN_COUNT_PROMPT,
+            LLM_TOKEN_COUNT_COMPLETION,
+            LLM_TOKEN_COUNT_TOTAL,
+        ):
             try:
                 value = int(value)
             except BaseException:

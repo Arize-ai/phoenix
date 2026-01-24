@@ -36,7 +36,8 @@ class AgentFlow(Workflow):
                 FunctionTool(
                     skill_map.get_function_callable_by_name(func),
                     metadata=ToolMetadata(
-                        name=func, description=skill_map.get_function_description_by_name(func)
+                        name=func,
+                        description=skill_map.get_function_description_by_name(func),
                     ),
                 )
             )

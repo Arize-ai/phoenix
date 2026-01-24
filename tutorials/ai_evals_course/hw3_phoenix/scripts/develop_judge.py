@@ -133,7 +133,8 @@ MAKE SURE TO RETURN YOUR EVALUATION IN THE FOLLOWING JSON FORMAT:
 def generate_eval_prompt(input, metadata, expected, base_prompt):
     formatted_prompt = base_prompt.replace("{attributes.query}", str(input.get("attributes.query")))
     formatted_prompt = formatted_prompt.replace(
-        "{attributes.dietary_restriction}", str(metadata.get("attributes.dietary_restriction"))
+        "{attributes.dietary_restriction}",
+        str(metadata.get("attributes.dietary_restriction")),
     )
     formatted_prompt = formatted_prompt.replace(
         "{attributes.output.value}", str(expected.get("attributes.output.value"))

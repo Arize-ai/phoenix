@@ -77,7 +77,8 @@ class _ExperimentTestHelper:
         return cast(
             v1.Experiment,
             self.post_json(
-                f"v1/datasets/{dataset_id}/experiments", json={"repetitions": repetitions}
+                f"v1/datasets/{dataset_id}/experiments",
+                json={"repetitions": repetitions},
             ),
         )
 
@@ -115,7 +116,10 @@ class _ExperimentTestHelper:
 
     def get_runs(self, experiment_id: str) -> list[v1.ExperimentRun]:
         """Get all runs for an experiment."""
-        return cast(list[v1.ExperimentRun], self.get_data(f"v1/experiments/{experiment_id}/runs"))
+        return cast(
+            list[v1.ExperimentRun],
+            self.get_data(f"v1/experiments/{experiment_id}/runs"),
+        )
 
     def create_evaluation(
         self,
@@ -353,7 +357,9 @@ def _setup_experiment_test(_app: _AppInfo) -> Iterator[_SetupExperimentTest]:
     """Fixture that returns a factory function for creating test helpers with automatic cleanup."""
     helpers: list[_ExperimentTestHelper] = []
 
-    def _setup(is_async: bool) -> tuple[Union[AsyncClient, SyncClient], _ExperimentTestHelper]:
+    def _setup(
+        is_async: bool,
+    ) -> tuple[Union[AsyncClient, SyncClient], _ExperimentTestHelper]:
         Client = AsyncClient if is_async else SyncClient
         client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
         helper = _ExperimentTestHelper(_app)
@@ -1374,8 +1380,16 @@ class TestExperimentsIntegration:
                     {"answer": "Paris", "explanation": "Capital city of France"},
                 ],
                 metadata=[
-                    {"difficulty": "easy", "category": "arithmetic", "source": "textbook"},
-                    {"difficulty": "medium", "category": "geography", "source": "atlas"},
+                    {
+                        "difficulty": "easy",
+                        "category": "arithmetic",
+                        "source": "textbook",
+                    },
+                    {
+                        "difficulty": "medium",
+                        "category": "geography",
+                        "source": "atlas",
+                    },
                 ],
             )
         )
@@ -1923,7 +1937,10 @@ class TestResumeOperations:
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_resume_incomplete_runs_comprehensive(
-        self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
     ) -> None:
         """
         Comprehensive test for resuming incomplete runs.
@@ -2044,7 +2061,10 @@ class TestResumeOperations:
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_early_exit_when_complete(
-        self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
     ) -> None:
         """
         Test early exit optimization when all runs/evaluations are complete.
@@ -2118,7 +2138,10 @@ class TestResumeOperations:
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_error_scenarios(
-        self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
     ) -> None:
         """
         Comprehensive error handling test covering multiple error scenarios.
@@ -2141,7 +2164,8 @@ class TestResumeOperations:
         )
         exp = helper.create_experiment(dataset_id, repetitions=1)
         helper.create_runs(
-            exp["id"], [(examples[i]["id"], 1, None, "Original error") for i in range(3)]
+            exp["id"],
+            [(examples[i]["id"], 1, None, "Original error") for i in range(3)],
         )
 
         def failing_task(input: dict[str, Any]) -> str:
@@ -2222,7 +2246,10 @@ class TestResumeOperations:
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_resume_experiment_with_evaluators(
-        self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
     ) -> None:
         """
         Test resume_experiment with evaluators integration.
@@ -2284,7 +2311,10 @@ class TestResumeOperations:
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_resume_evaluation_comprehensive(
-        self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
     ) -> None:
         """
         Comprehensive test for resume_evaluation covering all scenarios.

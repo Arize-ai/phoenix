@@ -521,7 +521,10 @@ class BuiltInEvaluator(Evaluator, Node):
             raise NotFound(f"Built-in evaluator not found: {self.id}")
         base_config = evaluator_class().output_config
         return _to_gql_builtin_output_config(
-            base_config, evaluator_class.name, id_prefix="Evaluator", evaluator_id=self.id
+            base_config,
+            evaluator_class.name,
+            id_prefix="Evaluator",
+            evaluator_id=self.id,
         )
 
     @strawberry.field

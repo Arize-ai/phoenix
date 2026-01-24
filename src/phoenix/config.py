@@ -2070,7 +2070,8 @@ class LDAPConfig:
 
         # Parse and validate search filters
         user_search_filter = getenv(
-            ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(&(objectClass=user)(sAMAccountName=%s))"
+            ENV_PHOENIX_LDAP_USER_SEARCH_FILTER,
+            "(&(objectClass=user)(sAMAccountName=%s))",
         )
         if "%s" not in user_search_filter:
             raise ValueError(

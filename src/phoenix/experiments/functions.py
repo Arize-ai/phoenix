@@ -60,7 +60,11 @@ from phoenix.experiments.types import (
     _asdict,
     _replace,
 )
-from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url, get_func_name
+from phoenix.experiments.utils import (
+    get_dataset_experiments_url,
+    get_experiment_url,
+    get_func_name,
+)
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify

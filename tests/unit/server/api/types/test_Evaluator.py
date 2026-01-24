@@ -61,7 +61,9 @@ class TestEvaluatorFields:
             await session.flush()
 
             tag = models.PromptVersionTag(
-                name=Identifier(token_hex(4)), prompt_id=prompt.id, prompt_version_id=v1.id
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                prompt_version_id=v1.id,
             )
             session.add(tag)
             await session.flush()
@@ -259,7 +261,8 @@ class TestDatasetEvaluatorDescriptionFallback:
             variables={
                 "id": str(
                     GlobalID(
-                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_with_desc"])
+                        DatasetEvaluator.__name__,
+                        str(_test_data["dataset_evaluator_with_desc"]),
                     )
                 )
             },
@@ -280,7 +283,8 @@ class TestDatasetEvaluatorDescriptionFallback:
             variables={
                 "id": str(
                     GlobalID(
-                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_no_desc"])
+                        DatasetEvaluator.__name__,
+                        str(_test_data["dataset_evaluator_no_desc"]),
                     )
                 )
             },
@@ -301,7 +305,8 @@ class TestDatasetEvaluatorDescriptionFallback:
             variables={
                 "id": str(
                     GlobalID(
-                        DatasetEvaluator.__name__, str(_test_data["dataset_evaluator_both_null"])
+                        DatasetEvaluator.__name__,
+                        str(_test_data["dataset_evaluator_both_null"]),
                     )
                 )
             },
@@ -317,7 +322,10 @@ class TestBuiltInEvaluatorOutputConfig:
         self, gql_client: AsyncGraphQLClient
     ) -> None:
         """Test that Contains evaluator returns a CategoricalAnnotationConfig."""
-        from phoenix.server.api.evaluators import ContainsEvaluator, _generate_builtin_evaluator_id
+        from phoenix.server.api.evaluators import (
+            ContainsEvaluator,
+            _generate_builtin_evaluator_id,
+        )
         from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 
         evaluator_id = _generate_builtin_evaluator_id(ContainsEvaluator.name)
@@ -510,7 +518,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             }""",
             variables={
                 "id": str(
-                    GlobalID(DatasetEvaluator.__name__, str(_test_data["categorical_no_override"]))
+                    GlobalID(
+                        DatasetEvaluator.__name__,
+                        str(_test_data["categorical_no_override"]),
+                    )
                 )
             },
         )
@@ -549,7 +560,8 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             variables={
                 "id": str(
                     GlobalID(
-                        DatasetEvaluator.__name__, str(_test_data["categorical_with_override"])
+                        DatasetEvaluator.__name__,
+                        str(_test_data["categorical_with_override"]),
                     )
                 )
             },
@@ -589,7 +601,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             }""",
             variables={
                 "id": str(
-                    GlobalID(DatasetEvaluator.__name__, str(_test_data["continuous_no_override"]))
+                    GlobalID(
+                        DatasetEvaluator.__name__,
+                        str(_test_data["continuous_no_override"]),
+                    )
                 )
             },
         )
@@ -626,7 +641,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             }""",
             variables={
                 "id": str(
-                    GlobalID(DatasetEvaluator.__name__, str(_test_data["continuous_with_override"]))
+                    GlobalID(
+                        DatasetEvaluator.__name__,
+                        str(_test_data["continuous_with_override"]),
+                    )
                 )
             },
         )
@@ -665,7 +683,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             }""",
             variables={
                 "id": str(
-                    GlobalID(DatasetEvaluator.__name__, str(_test_data["categorical_no_override"]))
+                    GlobalID(
+                        DatasetEvaluator.__name__,
+                        str(_test_data["categorical_no_override"]),
+                    )
                 )
             },
         )

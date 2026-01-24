@@ -215,11 +215,23 @@ def get_timestamp_range(
             next_month = t.month % 12 + 1
             next_year = t.year + (t.month // 12)
             t = t.replace(
-                year=next_year, month=next_month, day=1, hour=0, minute=0, second=0, microsecond=0
+                year=next_year,
+                month=next_month,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
             )
         elif stride == "year":
             t = t.replace(
-                year=t.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+                year=t.year + 1,
+                month=1,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
             )
         else:
             assert_never(stride)

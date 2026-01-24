@@ -30,7 +30,10 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
             )
             .select_from(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
+            .group_by(
+                models.ExperimentRun.dataset_example_id,
+                models.ExperimentRun.experiment_id,
+            )
             .subquery()
         )
         query = select(

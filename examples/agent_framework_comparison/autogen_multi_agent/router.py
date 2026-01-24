@@ -3,7 +3,13 @@ import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
-from autogen import AssistantAgent, GroupChat, GroupChatManager, UserProxyAgent, register_function
+from autogen import (
+    AssistantAgent,
+    GroupChat,
+    GroupChatManager,
+    UserProxyAgent,
+    register_function,
+)
 from calculator import calculator
 from db.database import get_schema, get_table
 from dotenv import load_dotenv

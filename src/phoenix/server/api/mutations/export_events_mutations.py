@@ -11,9 +11,15 @@ import phoenix.core.model_schema as ms
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.types.Event import parse_event_ids_by_inferences_role, unpack_event_id
+from phoenix.server.api.types.Event import (
+    parse_event_ids_by_inferences_role,
+    unpack_event_id,
+)
 from phoenix.server.api.types.ExportedFile import ExportedFile
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.InferencesRole import (
+    AncillaryInferencesRole,
+    InferencesRole,
+)
 
 
 @strawberry.type

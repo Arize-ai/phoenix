@@ -787,7 +787,12 @@ async def _email_and_username_exist(
                     ),
                     Boolean,
                 ).label("username_exists"),
-            ).where(or_(func.lower(models.User.email) == email, models.User.username == username))
+            ).where(
+                or_(
+                    func.lower(models.User.email) == email,
+                    models.User.username == username,
+                )
+            )
         )
     ).all()
     return email_exists, username_exists
@@ -911,7 +916,9 @@ def _with_random_suffix(string: str) -> str:
     return f"{string}-{randrange(10_000, 100_000)}"
 
 
-def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2StatePayload]:
+def _is_oauth2_state_payload(
+    maybe_state_payload: Any,
+) -> TypeGuard[_OAuth2StatePayload]:
     """
     Determines whether the given object is an OAuth2 state payload.
     """

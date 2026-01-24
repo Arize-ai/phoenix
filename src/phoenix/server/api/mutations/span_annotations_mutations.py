@@ -23,7 +23,10 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
+from phoenix.server.dml_event import (
+    SpanAnnotationDeleteEvent,
+    SpanAnnotationInsertEvent,
+)
 
 
 @strawberry.type
@@ -323,7 +326,8 @@ class SpanAnnotationMutationMixin:
 
         deleted_annotations_gql = [
             SpanAnnotation(
-                id=deleted_annotations_by_id[id].id, db_record=deleted_annotations_by_id[id]
+                id=deleted_annotations_by_id[id].id,
+                db_record=deleted_annotations_by_id[id],
             )
             for id in span_annotation_ids
         ]

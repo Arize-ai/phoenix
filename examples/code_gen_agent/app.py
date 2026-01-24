@@ -69,9 +69,18 @@ def chat_with_agent(
             span.set_output(conversation_history["messages"][-1].content)
             span.set_status(Status(StatusCode.OK))
             user_chat_history.append(
-                {"role": "assistant", "content": conversation_history["messages"][-1].content}
+                {
+                    "role": "assistant",
+                    "content": conversation_history["messages"][-1].content,
+                }
             )
-            return copilot_agent, "", user_chat_history, user_session_id, conversation_history
+            return (
+                copilot_agent,
+                "",
+                user_chat_history,
+                user_session_id,
+                conversation_history,
+            )
 
 
 with gr.Blocks() as demo:
@@ -90,7 +99,8 @@ with gr.Blocks() as demo:
                 "### Status: <span style='color: red;'> Not Connected</span>"
             )
             phoenix_input = gr.Textbox(
-                label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+                label="Phoenix API Key (Only required for Phoenix Cloud)",
+                type="password",
             )
             project_input = gr.Textbox(label="Project Name", value="Copilot Agent")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
@@ -99,8 +109,21 @@ with gr.Blocks() as demo:
 
             set_button.click(
                 fn=initialize_agent,
-                inputs=[phoenix_input, project_input, openai_input, session_id, phoenix_endpoint],
-                outputs=[agent, agent_llm, tracer, openai_tool_model, session_id, output_message],
+                inputs=[
+                    phoenix_input,
+                    project_input,
+                    openai_input,
+                    session_id,
+                    phoenix_endpoint,
+                ],
+                outputs=[
+                    agent,
+                    agent_llm,
+                    tracer,
+                    openai_tool_model,
+                    session_id,
+                    output_message,
+                ],
             )
 
         with gr.Column(scale=4):

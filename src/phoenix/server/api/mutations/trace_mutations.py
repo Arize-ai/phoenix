@@ -39,7 +39,10 @@ class TraceMutationMixin:
                     .where(models.Trace.id.in_(trace_rowids))
                     .returning(models.Trace)
                     .options(
-                        load_only(models.Trace.project_rowid, models.Trace.project_session_rowid)
+                        load_only(
+                            models.Trace.project_rowid,
+                            models.Trace.project_session_rowid,
+                        )
                     )
                 )
             ).all()

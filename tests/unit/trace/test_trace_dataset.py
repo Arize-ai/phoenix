@@ -117,7 +117,10 @@ def test_trace_dataset_construction_from_spans() -> None:
                 "status_code": SpanStatusCode.OK.value,
                 "status_message": "",
                 "attributes.attribute-0": "attribute-value-0",
-                "attributes.attribute-1": ["list-attribute-value-0", "list-attribute-value-1"],
+                "attributes.attribute-1": [
+                    "list-attribute-value-0",
+                    "list-attribute-value-1",
+                ],
                 "context.trace_id": str(UUID(int=0)),
                 "context.span_id": str(UUID(int=0)),
                 "events": [
@@ -354,7 +357,11 @@ def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:
     schema = pyarrow.schema([pyarrow.field("field", pyarrow.float16())]).with_metadata(
         {
             b"arize": json.dumps(
-                {"dataset_id": "not-a-valid-uuid", "dataset_name": "dataset-name", "eval_ids": []}
+                {
+                    "dataset_id": "not-a-valid-uuid",
+                    "dataset_name": "dataset-name",
+                    "eval_ids": [],
+                }
             ).encode()
         }
     )

@@ -18,7 +18,9 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.Trace import Trace
 
@@ -203,10 +205,16 @@ class ExperimentRun(Node):
                 coalesce(func.sum(models.SpanCostDetail.tokens), 0).label("tokens"),
             )
             .select_from(models.SpanCostDetail)
-            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(
+                models.SpanCost,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
             .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRun.trace_id == models.Trace.trace_id,
+            )
             .where(models.ExperimentRun.id == self.id)
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )

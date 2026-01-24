@@ -138,7 +138,12 @@ def test_iterable_column_names() -> None:
     [
         (PREDICTION_ID, prediction_id, "Prediction ID", pd.Series("ABCD")),
         (PREDICTION_LABEL, prediction_label, "Prediction Label", pd.Series(["10101"])),
-        (PREDICTION_SCORE, prediction_score, "Prediction Score", pd.Series([0.2, 0.3, 0.1])),
+        (
+            PREDICTION_SCORE,
+            prediction_score,
+            "Prediction Score",
+            pd.Series([0.2, 0.3, 0.1]),
+        ),
         (ACTUAL_LABEL, actual_label, "Actual Label", pd.Series([False, True])),
         (ACTUAL_SCORE, actual_score, "Actual Score", pd.Series([0.1, np.nan, 0.2])),
         (
@@ -214,9 +219,17 @@ def test_singular_dimensional_role_one_df(
         (Schema(features=pd.Index(range(3))), (pd.DataFrame(),), "012"),  # type: ignore[arg-type]
         (Schema(features=list("ABC")), (pd.DataFrame(),), "ABC"),
         (Schema(features=list("ABC")), (pd.DataFrame({"D": []}),), "ABCD"),
-        (Schema(features=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABCD"),
+        (
+            Schema(features=list("ABC")),
+            (pd.DataFrame(), pd.DataFrame({"D": []})),
+            "ABCD",
+        ),
         (Schema(features=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABCDE"),
-        (Schema(features=list("ABC")), (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})), "ABCDE"),
+        (
+            Schema(features=list("ABC")),
+            (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})),
+            "ABCDE",
+        ),
         (Schema(features=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
         (
             Schema(features=["A", Embedding(*"BC")]),
@@ -261,7 +274,11 @@ def test_feature_names(
         (Schema(tags=list("ABC")), (pd.DataFrame({"D": []}),), "ABC"),
         (Schema(tags=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABC"),
         (Schema(tags=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABC"),
-        (Schema(tags=list("ABC")), (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})), "ABC"),
+        (
+            Schema(tags=list("ABC")),
+            (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})),
+            "ABC",
+        ),
         (Schema(tags=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
         (
             Schema(tags=["A", Embedding(*"BC")]),

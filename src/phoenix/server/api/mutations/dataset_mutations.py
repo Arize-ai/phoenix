@@ -17,7 +17,10 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
+from phoenix.db.helpers import (
+    get_eval_trace_ids_for_datasets,
+    get_project_names_for_datasets,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -25,10 +28,14 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
+from phoenix.server.api.input_types.AddExamplesToDatasetInput import (
+    AddExamplesToDatasetInput,
+)
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
-from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
+from phoenix.server.api.input_types.DeleteDatasetExamplesInput import (
+    DeleteDatasetExamplesInput,
+)
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     DatasetExamplePatch,
@@ -498,7 +505,8 @@ class DatasetMutationMixin:
                 await session.scalars(
                     select(models.Dataset)
                     .join(
-                        models.DatasetExample, models.Dataset.id == models.DatasetExample.dataset_id
+                        models.DatasetExample,
+                        models.Dataset.id == models.DatasetExample.dataset_id,
                     )
                     .where(models.DatasetExample.id.in_(example_db_ids))
                     .distinct()

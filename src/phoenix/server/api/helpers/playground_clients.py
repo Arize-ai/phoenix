@@ -28,8 +28,6 @@ import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
-    OpenInferenceLLMProviderValues,
-    OpenInferenceLLMSystemValues,
     SpanAttributes,
 )
 from pydantic import ValidationError
@@ -51,8 +49,13 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
-from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.helpers.playground_registry import (
+    PROVIDER_DEFAULT,
+    register_llm_client,
+)
+from phoenix.server.api.input_types.GenerativeCredentialInput import (
+    GenerativeCredentialInput,
+)
 from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
     GenerativeModelCustomProviderInput,
@@ -91,8 +94,10 @@ if TYPE_CHECKING:
     from google.generativeai.types import ContentType
     from openai import AsyncOpenAI
     from openai.types import CompletionUsage
-    from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
-    from opentelemetry.util.types import AttributeValue
+    from openai.types.chat import (
+        ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
+    )
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
 # TypeVar for generic client type
@@ -215,7 +220,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         model_name: str,
         provider: str,
     ) -> None:
-        self._attributes: dict[str, AttributeValue] = {LLM_PROVIDER: provider}
         self.provider = provider
         self.model_name = model_name
         self._client_factory = client_factory
@@ -234,9 +238,15 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # a yield statement is needed to satisfy the type-checker
@@ -278,7 +288,11 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
 
     @property
     def attributes(self) -> dict[str, Any]:
-        return self._attributes
+        """
+        Temporary property for backward compatibility.
+        Returns empty dict since we're migrating to tracer-based approach.
+        """
+        return {}
 
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
@@ -298,7 +312,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             provider=provider,
             model_name=model_name,
         )
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        # TODO(refactor): Remove after tracer implementation
+        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
 
     @classmethod
@@ -371,9 +386,15 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -390,7 +411,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            # TODO(refactor): Remove after tracer implementation
+            # client._client = _HttpxClient(client._client, self._attributes)
             throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
             stream = cast(
                 AsyncIterable[chat.ChatCompletionChunk],
@@ -434,7 +456,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                                 yield tool_call_chunk
 
         if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            # TODO(refactor): Remove after tracer implementation
+            # self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            pass
 
     def to_openai_chat_completion_param(
         self,
@@ -517,7 +541,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 hasattr(prompt_details, "cached_tokens")
                 and prompt_details.cached_tokens is not None
             ):
-                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
+                yield (
+                    LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+                    prompt_details.cached_tokens,
+                )
             if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
                 yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
 
@@ -538,7 +565,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 hasattr(completion_details, "audio_tokens")
                 and completion_details.audio_tokens is not None
             ):
-                yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
+                yield (
+                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
+                    completion_details.audio_tokens,
+                )
 
 
 @register_llm_client(
@@ -639,7 +669,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_SYSTEM] = "aws"
+        # TODO(refactor): Remove after tracer implementation
+        # self._attributes[LLM_SYSTEM] = "aws"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -679,9 +710,15 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
@@ -690,7 +727,12 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     async def _handle_converse_api(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
@@ -817,34 +859,41 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         del active_tool_calls[stop_index]
 
                 elif "metadata" in event:
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
-                            .get("usage", {})
-                            .get("inputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
-                            .get("usage", {})
-                            .get("outputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
-                            .get("usage", {})
-                            .get("totalTokens", 0)
-                        }
-                    )
+                    # TODO(refactor): Remove after tracer implementation
+                    # self._attributes.update(
+                    #     {
+                    #         LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
+                    #         .get("usage", {})
+                    #         .get("inputTokens", 0)
+                    #     }
+                    # )
+                    #
+                    # self._attributes.update(
+                    #     {
+                    #         LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
+                    #         .get("usage", {})
+                    #         .get("outputTokens", 0)
+                    #     }
+                    # )
+                    #
+                    # self._attributes.update(
+                    #     {
+                    #         LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
+                    #         .get("usage", {})
+                    #         .get("totalTokens", 0)
+                    #     }
+                    # )
+                    pass
 
     async def _handle_invoke_api(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
@@ -948,26 +997,33 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                             del active_tool_calls[index]
 
                     elif chunk_data.get("type") == "message_stop":
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("outputTokenCount", 0)
-                            }
-                        )
-
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("inputTokenCount", 0)
-                            }
-                        )
+                        # TODO(refactor): Remove after tracer implementation
+                        # self._attributes.update(
+                        #     {
+                        #         LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
+                        #             "amazon-bedrock-invocationMetrics", {}
+                        #         ).get("outputTokenCount", 0)
+                        #     }
+                        # )
+                        #
+                        # self._attributes.update(
+                        #     {
+                        #         LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
+                        #             "amazon-bedrock-invocationMetrics", {}
+                        #         ).get("inputTokenCount", 0)
+                        #     }
+                        # )
+                        pass
 
     def _build_bedrock_messages(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
     ) -> tuple[list[dict[str, Any]], str]:
         bedrock_messages = []
@@ -994,7 +1050,12 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     def _extract_system_prompt(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
     ) -> str:
         """Extract system prompt from messages."""
@@ -1007,7 +1068,12 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     def _build_converse_messages(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
     ) -> list[dict[str, Any]]:
         """Convert messages to Converse API format."""
@@ -1222,8 +1288,9 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         provider: str = "azure",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        # TODO(refactor): Remove after tracer implementation
+        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
+        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
 @register_llm_client(
@@ -1238,9 +1305,15 @@ class AzureOpenAIReasoningNonStreamingClient(
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -1255,7 +1328,8 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            # TODO(refactor): Remove after tracer implementation
+            # client._client = _HttpxClient(client._client, self._attributes)
             throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
             response = cast(
                 chat.ChatCompletion,
@@ -1269,7 +1343,9 @@ class AzureOpenAIReasoningNonStreamingClient(
             )
 
         if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+            # TODO(refactor): Remove after tracer implementation
+            # self._attributes.update(dict(self._llm_token_counts(response.usage)))
+            pass
 
         choice = response.choices[0]
         if choice.message.content:
@@ -1365,8 +1441,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         import anthropic
 
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
+        # TODO(refactor): Remove after tracer implementation
+        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
+        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
 
     @classmethod
@@ -1413,9 +1490,15 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
@@ -1432,7 +1515,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            # TODO(refactor): Remove after tracer implementation
+            # client._client = _HttpxClient(client._client, self._attributes)
             throttled_stream = self.rate_limiter._alimit(client.messages.stream)
             async with await throttled_stream(**anthropic_params) as stream:
                 async for event in stream:
@@ -1453,7 +1537,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
                                     cache_creation_tokens
                                 )
-                        self._attributes.update(token_counts)
+                        # TODO(refactor): Remove after tracer implementation
+                        # self._attributes.update(token_counts)
                     elif isinstance(event, anthropic_streaming.TextEvent):
                         yield TextChunk(content=event.text)
                     elif isinstance(event, anthropic_streaming.MessageStopEvent):
@@ -1466,7 +1551,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
                                     cache_read_tokens
                                 )
-                        self._attributes.update(output_token_counts)
+                        # TODO(refactor): Remove after tracer implementation
+                        # self._attributes.update(output_token_counts)
                     elif (
                         isinstance(event, anthropic_streaming.ContentBlockStopEvent)
                         and event.content_block.type == "tool_use"
@@ -1606,8 +1692,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         provider: str = "google",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
+        # TODO(refactor): Remove after tracer implementation
+        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
+        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1665,9 +1752,15 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from google.genai import types
@@ -1692,13 +1785,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 config=config,
             )
             async for event in stream:
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                    }
-                )
+                # TODO(refactor): Remove after tracer implementation
+                # self._attributes.update(
+                #     {
+                #         LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                #         LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                #         LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                #     }
+                # )
 
                 if event.candidates:
                     candidate = event.candidates[0]
@@ -1809,9 +1903,15 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
     async def chat_completion_create(
         self,
         messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+            tuple[
+                ChatCompletionMessageRole,
+                str,
+                Optional[str],
+                Optional[list[JSONScalarType]],
+            ]
         ],
         tools: list[JSONScalarType],
+        tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
@@ -2059,7 +2159,10 @@ async def _get_builtin_provider_client(
             client_factory = create_azure_client
         else:
             try:
-                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+                from azure.identity.aio import (
+                    DefaultAzureCredential,
+                    get_bearer_token_provider,
+                )
             except ImportError:
                 raise BadRequest(
                     "Provide an API key for Azure OpenAI models or install azure-identity"
@@ -2181,7 +2284,11 @@ async def _get_builtin_provider_client(
         # Fall back to database secrets for missing credentials
         if not aws_access_key_id or not aws_secret_access_key:
             secrets = await _resolve_secrets(
-                session, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
+                session,
+                decrypt,
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN",
             )
             aws_access_key_id = aws_access_key_id or secrets.get("AWS_ACCESS_KEY_ID")
             aws_secret_access_key = aws_secret_access_key or secrets.get("AWS_SECRET_ACCESS_KEY")

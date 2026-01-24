@@ -15,7 +15,9 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroupAnnotationSummary import
     ExperimentRepeatedRunGroupAnnotationSummary,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 ExperimentRowId: TypeAlias = int
@@ -98,9 +100,15 @@ class ExperimentRepeatedRunGroup(Node):
                 func.sum(models.SpanCostDetail.tokens).label("tokens"),
             )
             .select_from(models.SpanCostDetail)
-            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(
+                models.SpanCost,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
             .join(models.Trace, models.SpanCost.trace_rowid == models.Trace.id)
-            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRun.trace_id == models.Trace.trace_id,
+            )
             .where(models.ExperimentRun.experiment_id == experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)

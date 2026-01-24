@@ -5,7 +5,16 @@ from typing import Callable, Mapping, cast
 import strawberry
 
 from phoenix.metrics import Metric
-from phoenix.metrics.metrics import Cardinality, Count, Max, Mean, Min, PercentEmpty, Quantile, Sum
+from phoenix.metrics.metrics import (
+    Cardinality,
+    Count,
+    Max,
+    Mean,
+    Min,
+    PercentEmpty,
+    Quantile,
+    Sum,
+)
 
 
 @strawberry.enum

@@ -231,7 +231,8 @@ class TestChatCompletionMutationMixin:
             }
         }
         custom_vcr.register_matcher(
-            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            _request_bodies_contain_same_city.__name__,
+            _request_bodies_contain_same_city,
         )  # a custom request matcher is needed since the requests are concurrent
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
@@ -315,7 +316,8 @@ class TestChatCompletionMutationMixin:
         }
 
         custom_vcr.register_matcher(
-            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            _request_bodies_contain_same_city.__name__,
+            _request_bodies_contain_same_city,
         )
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
@@ -392,7 +394,8 @@ class TestChatCompletionMutationMixin:
         }
 
         custom_vcr.register_matcher(
-            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            _request_bodies_contain_same_city.__name__,
+            _request_bodies_contain_same_city,
         )
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
@@ -468,7 +471,8 @@ class TestChatCompletionMutationMixin:
         }
 
         custom_vcr.register_matcher(
-            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            _request_bodies_contain_same_city.__name__,
+            _request_bodies_contain_same_city,
         )
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
@@ -508,7 +512,10 @@ class TestChatCompletionMutationMixin:
         db: DbSessionFactory,
     ) -> None:
         llm_evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+            GlobalID(
+                type_name=LLMEvaluator.__name__,
+                node_id=str(correctness_llm_evaluator.id),
+            )
         )
         contains_id = _generate_builtin_evaluator_id("Contains")
         builtin_evaluator_gid = str(
@@ -637,7 +644,10 @@ class TestChatCompletionMutationMixin:
     ) -> None:
         """Test that evaluators are not run when the chat completion errors out."""
         evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+            GlobalID(
+                type_name=LLMEvaluator.__name__,
+                node_id=str(correctness_llm_evaluator.id),
+            )
         )
         query = """
           mutation ChatCompletion($input: ChatCompletionInput!) {
@@ -735,7 +745,8 @@ class TestChatCompletionMutationMixin:
         )
         llm_evaluator_gid = str(
             GlobalID(
-                type_name=LLMEvaluator.__name__, node_id=str(llm_dataset_evaluator.evaluator_id)
+                type_name=LLMEvaluator.__name__,
+                node_id=str(llm_dataset_evaluator.evaluator_id),
             )
         )
         builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
@@ -1278,7 +1289,10 @@ class TestChatCompletionMutationMixin:
                 "explanation": "expected matches actual",
             }
             assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "label": "true",
+                "score": 1.0,
+            }
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
 
@@ -1297,7 +1311,10 @@ class TestChatCompletionMutationMixin:
             single_example_dataset.id
         )
         evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+            GlobalID(
+                type_name=LLMEvaluator.__name__,
+                node_id=str(dataset_evaluator.evaluator_id),
+            )
         )
 
         async with db() as session:
@@ -1589,7 +1606,8 @@ class TestChatCompletionMutationMixin:
         }
 
         custom_vcr.register_matcher(
-            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            _request_bodies_contain_same_city.__name__,
+            _request_bodies_contain_same_city,
         )
         with custom_vcr.use_cassette():
             result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")

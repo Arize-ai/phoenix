@@ -37,7 +37,10 @@ class TestDatasetIntegration:
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
-                inputs=[{"text": "What is 2+2?"}, {"text": "What is the capital of France?"}],
+                inputs=[
+                    {"text": "What is 2+2?"},
+                    {"text": "What is the capital of France?"},
+                ],
                 outputs=[{"answer": "4"}, {"answer": "Paris"}],
                 metadata=[{"category": "math"}, {"category": "geography"}],
                 dataset_description="A test dataset for integration testing",
@@ -255,7 +258,11 @@ Capital of Germany?,Berlin,geography,validation
         df = pd.DataFrame(
             {
                 "prompt": ["Write a poem", "Tell a joke", "Explain gravity"],
-                "response": ["Roses are red...", "Why did the chicken...", "Gravity is a force..."],
+                "response": [
+                    "Roses are red...",
+                    "Why did the chicken...",
+                    "Gravity is a force...",
+                ],
                 "rating": [5, 4, 5],
             }
         )
@@ -392,7 +399,11 @@ Capital of Germany?,Berlin,geography,validation
                 name=splits_name,
                 examples=[
                     {"input": {"q": "Q1"}, "output": {"a": "A1"}, "splits": "train"},
-                    {"input": {"q": "Q2"}, "output": {"a": "A2"}, "splits": ["test", "hard"]},
+                    {
+                        "input": {"q": "Q2"},
+                        "output": {"a": "A2"},
+                        "splits": ["test", "hard"],
+                    },
                     {"input": {"q": "Q3"}, "output": {"a": "A3"}, "splits": None},
                 ],
             )
@@ -422,7 +433,11 @@ Capital of Germany?,Berlin,geography,validation
                 dataset=splits_dataset.id,
                 examples=[
                     {"input": {"q": "Q4"}, "output": {"a": "A4"}, "splits": "train"},
-                    {"input": {"q": "Q5"}, "output": {"a": "A5"}, "splits": ["test", "new_split"]},
+                    {
+                        "input": {"q": "Q5"},
+                        "output": {"a": "A5"},
+                        "splits": ["test", "new_split"],
+                    },
                 ],
             )
         )
@@ -738,7 +753,11 @@ Capital of Germany?,Berlin,geography,validation
                         "confidence": 0.9,
                         "sources": ["textbook", "paper"],
                     },
-                    {"answer": "Interconnected nodes", "confidence": 0.85, "sources": ["lecture"]},
+                    {
+                        "answer": "Interconnected nodes",
+                        "confidence": 0.85,
+                        "sources": ["lecture"],
+                    },
                     {
                         "answer": "Model memorizes training data",
                         "confidence": 0.95,
@@ -747,7 +766,11 @@ Capital of Germany?,Berlin,geography,validation
                 ],
                 metadata=[
                     {"topic": "basics", "reviewed": True, "tags": ["ml", "ai"]},
-                    {"topic": "deep-learning", "reviewed": False, "tags": ["neural", "networks"]},
+                    {
+                        "topic": "deep-learning",
+                        "reviewed": False,
+                        "tags": ["neural", "networks"],
+                    },
                     {
                         "topic": "training",
                         "reviewed": True,

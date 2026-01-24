@@ -47,7 +47,8 @@ def generate_eval_prompt(input, metadata, base_prompt):
     """Generate evaluation prompt for a single example."""
     formatted_prompt = base_prompt.replace("{attributes.query}", str(input.get("attributes.query")))
     formatted_prompt = formatted_prompt.replace(
-        "{attributes.dietary_restriction}", str(metadata.get("attributes.dietary_restriction"))
+        "{attributes.dietary_restriction}",
+        str(metadata.get("attributes.dietary_restriction")),
     )
     formatted_prompt = formatted_prompt.replace(
         "{attributes.output.value}", str(metadata.get("attributes.output.value"))

@@ -366,10 +366,14 @@ class TestTraceRetentionRule:
         "rule_data,expected_type",
         [
             pytest.param(
-                {"type": "max_days", "max_days": 30}, MaxDaysRule, id="max_days_serialization"
+                {"type": "max_days", "max_days": 30},
+                MaxDaysRule,
+                id="max_days_serialization",
             ),
             pytest.param(
-                {"type": "max_count", "max_count": 100}, MaxCountRule, id="max_count_serialization"
+                {"type": "max_count", "max_count": 100},
+                MaxCountRule,
+                id="max_count_serialization",
             ),
             pytest.param(
                 {"type": "max_days_or_count", "max_days": 30, "max_count": 100},

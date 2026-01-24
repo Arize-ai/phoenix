@@ -28,7 +28,10 @@ from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+)
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -169,7 +172,8 @@ class Dataset(Node):
             for split_id in split_ids:
                 try:
                     split_rowid = from_global_id_with_expected_type(
-                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                        global_id=split_id,
+                        expected_type_name=models.DatasetSplit.__name__,
                     )
                     split_rowids.append(split_rowid)
                 except Exception:
@@ -258,7 +262,8 @@ class Dataset(Node):
             for split_id in split_ids:
                 try:
                     split_rowid = from_global_id_with_expected_type(
-                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
+                        global_id=split_id,
+                        expected_type_name=models.DatasetSplit.__name__,
                     )
                     split_rowids.append(split_rowid)
                 except Exception:

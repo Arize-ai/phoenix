@@ -20,7 +20,11 @@ from ..interceptor import GqlValueMediator
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
-from .InferencesRole import STR_TO_INFEREENCES_ROLE, AncillaryInferencesRole, InferencesRole
+from .InferencesRole import (
+    STR_TO_INFEREENCES_ROLE,
+    AncillaryInferencesRole,
+    InferencesRole,
+)
 from .PromptResponse import PromptResponse
 
 

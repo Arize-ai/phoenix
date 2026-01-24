@@ -70,7 +70,9 @@ def generate_trace_with_id(args: tuple):
 
 
 def generate_multiple_traces_per_query(
-    queries: List[Dict[str, Any]], traces_per_query: int = 40, max_workers: int = MAX_WORKERS
+    queries: List[Dict[str, Any]],
+    traces_per_query: int = 40,
+    max_workers: int = MAX_WORKERS,
 ) -> List[Dict[str, Any]]:
     """Generate multiple traces for each query using parallel processing."""
 

@@ -194,7 +194,11 @@ class TestGetAggregatedTokens:
                         }
                     }
                 },
-                (30, 0, 30),  # prompt_tokens calculated as total - completion (30 - 0 = 30)
+                (
+                    30,
+                    0,
+                    30,
+                ),  # prompt_tokens calculated as total - completion (30 - 0 = 30)
                 id="missing_prompt_and_completion",
             ),
             pytest.param(

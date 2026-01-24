@@ -114,7 +114,8 @@ class DatasetLabelMutationMixin:
             dataset_label=DatasetLabel(id=dataset_label_orm.id, db_record=dataset_label_orm),
             datasets=[
                 Dataset(
-                    id=datasets_by_id[dataset_rowid].id, db_record=datasets_by_id[dataset_rowid]
+                    id=datasets_by_id[dataset_rowid].id,
+                    db_record=datasets_by_id[dataset_rowid],
                 )
                 for dataset_rowid in dataset_rowids
             ],

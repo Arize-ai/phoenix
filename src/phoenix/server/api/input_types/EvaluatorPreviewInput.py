@@ -8,8 +8,12 @@ from strawberry.scalars import JSON
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     CategoricalAnnotationConfigInput,
 )
-from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.GenerativeCredentialInput import (
+    GenerativeCredentialInput,
+)
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 
 

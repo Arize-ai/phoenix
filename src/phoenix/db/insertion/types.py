@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Insert
 
 from phoenix.db import models
-from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
+from phoenix.db.insertion.constants import (
+    DEFAULT_RETRY_ALLOWANCE,
+    DEFAULT_RETRY_DELAY_SEC,
+)
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory

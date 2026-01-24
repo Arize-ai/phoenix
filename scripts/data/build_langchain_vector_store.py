@@ -112,7 +112,9 @@ if __name__ == "__main__":
     embedding_model = OpenAIEmbeddings(model=embedding_model_name)
     shutil.rmtree(args.persist_path, ignore_errors=True)
     vector_store = Chroma.from_documents(
-        chunked_langchain_documents, embedding=embedding_model, persist_directory=args.persist_path
+        chunked_langchain_documents,
+        embedding=embedding_model,
+        persist_directory=args.persist_path,
     )
     read_vector_store = Chroma(
         persist_directory=args.persist_path, embedding_function=embedding_model

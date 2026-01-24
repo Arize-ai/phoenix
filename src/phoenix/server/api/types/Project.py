@@ -14,7 +14,11 @@ from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
+from phoenix.datetime_utils import (
+    get_timestamp_range,
+    normalize_datetime,
+    right_open_time_range,
+)
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
@@ -26,7 +30,10 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
+from phoenix.server.api.types.AnnotationConfig import (
+    AnnotationConfig,
+    to_gql_annotation_config,
+)
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
@@ -53,7 +60,9 @@ from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
 if TYPE_CHECKING:
-    from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+    from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
+        ProjectTraceRetentionPolicy,
+    )
 
 
 @strawberry.type
@@ -499,7 +508,10 @@ class Project(Node):
                         value=record[1],
                     )
                 cursors_and_nodes.append(
-                    (cursor, ProjectSession(id=project_session.id, db_record=project_session))
+                    (
+                        cursor,
+                        ProjectSession(id=project_session.id, db_record=project_session),
+                    )
                 )
             has_next_page = True
             try:
@@ -805,9 +817,13 @@ class Project(Node):
 
         data = {}
         async with info.context.db() as session:
-            async for t, total_count, ok_count, error_count, unset_count in await session.stream(
-                stmt
-            ):
+            async for (
+                t,
+                total_count,
+                ok_count,
+                error_count,
+                unset_count,
+            ) in await session.stream(stmt):
                 timestamp = _as_datetime(t)
                 data[timestamp] = SpanCountTimeSeriesDataPoint(
                     timestamp=timestamp,

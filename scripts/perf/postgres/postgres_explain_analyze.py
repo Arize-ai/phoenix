@@ -175,7 +175,8 @@ class QueryResult:
             median_time = statistics.median(self.execution_times_ms)
             # Find the plan with execution time closest to median
             closest_plan = min(
-                self.execution_plans, key=lambda x: abs(x.execution_time_ms - median_time)
+                self.execution_plans,
+                key=lambda x: abs(x.execution_time_ms - median_time),
             )
             return closest_plan.plan
         except statistics.StatisticsError:
@@ -568,7 +569,14 @@ class PostgresQueryAnalyzer:
 
     def _print_table_header(self, col_widths: ColumnWidths) -> None:
         """Print the table header and separator line."""
-        columns = ["Query #", "Median (ms)", "Ratio", "P90 (ms)", "N Runs", "Rows Returned"]
+        columns = [
+            "Query #",
+            "Median (ms)",
+            "Ratio",
+            "P90 (ms)",
+            "N Runs",
+            "Rows Returned",
+        ]
         header = "| " + " | ".join(col.ljust(col_widths.get_width(col)) for col in columns) + " |"
         separator = (
             "|"
@@ -674,10 +682,15 @@ def parse_args() -> AnalyzerConfig:
     parser.add_argument("--user", default=DEFAULT_DB_USER, help="PostgreSQL username")
     parser.add_argument("--password", default=DEFAULT_DB_PASSWORD, help="PostgreSQL password")
     parser.add_argument(
-        "--runs", type=int, default=DEFAULT_RUNS, help="Number of runs per query for averaging"
+        "--runs",
+        type=int,
+        default=DEFAULT_RUNS,
+        help="Number of runs per query for averaging",
     )
     parser.add_argument(
-        "--file", default=str(default_query_file), help="Path to file containing SQL queries"
+        "--file",
+        default=str(default_query_file),
+        help="Path to file containing SQL queries",
     )
 
     args = parser.parse_args()

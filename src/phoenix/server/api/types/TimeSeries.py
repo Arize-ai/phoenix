@@ -9,7 +9,14 @@ import strawberry
 from strawberry import UNSET
 
 from phoenix.core import model_schema
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dimension, Inferences
+from phoenix.core.model_schema import (
+    CONTINUOUS,
+    PRIMARY,
+    REFERENCE,
+    Column,
+    Dimension,
+    Inferences,
+)
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries

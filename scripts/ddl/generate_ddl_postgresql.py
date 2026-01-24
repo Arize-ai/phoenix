@@ -114,7 +114,10 @@ class PostgreSQLDDLExtractor:
         return self
 
     def __exit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
     ) -> None:
         """Context manager exit."""
         self.close()
@@ -140,7 +143,10 @@ class PostgreSQLDDLExtractor:
             self.conn.close()
 
     def _execute_query(
-        self, query: sql.SQL | sql.Composed, params: tuple[Any, ...], operation_name: str
+        self,
+        query: sql.SQL | sql.Composed,
+        params: tuple[Any, ...],
+        operation_name: str,
     ) -> list[dict[str, Any]]:
         """Execute database query with standardized error handling.
 
@@ -201,7 +207,8 @@ class PostgreSQLDDLExtractor:
                 table_ddls.append(ddl_info)
             except Exception as e:
                 print(
-                    f"Warning: Failed to extract DDL for table {table_name}: {e}", file=sys.stderr
+                    f"Warning: Failed to extract DDL for table {table_name}: {e}",
+                    file=sys.stderr,
                 )
 
         # Sort tables based on foreign key dependencies (topological sort)
@@ -357,7 +364,9 @@ class PostgreSQLDDLExtractor:
             ORDER BY tc.constraint_type, tc.constraint_name
         """)
         return self._execute_query(
-            query, (schema, table_name), f"getting constraints for {schema}.{table_name}"
+            query,
+            (schema, table_name),
+            f"getting constraints for {schema}.{table_name}",
         )
 
     def _get_foreign_keys(self, schema: str, table_name: str) -> list[dict[str, Any]]:
@@ -388,7 +397,9 @@ class PostgreSQLDDLExtractor:
             ORDER BY tc.constraint_name
         """)
         return self._execute_query(
-            query, (schema, table_name), f"getting foreign keys for {schema}.{table_name}"
+            query,
+            (schema, table_name),
+            f"getting foreign keys for {schema}.{table_name}",
         )
 
     def _get_indexes(self, schema: str, table_name: str) -> list[dict[str, Any]]:
@@ -1134,7 +1145,8 @@ def validate_schema_syntax(schema_file: Path) -> bool:
 
     if validation_errors:
         print(
-            f"\n❌ Schema validation failed with {len(validation_errors)} errors", file=sys.stderr
+            f"\n❌ Schema validation failed with {len(validation_errors)} errors",
+            file=sys.stderr,
         )
         return False
     else:
@@ -1266,7 +1278,10 @@ def main() -> int:
 
     # Validate external mode arguments (when using external)
     if args.external and not all([args.host, args.user, args.database]):
-        print("Error: External mode requires --host, --user, and --database", file=sys.stderr)
+        print(
+            "Error: External mode requires --host, --user, and --database",
+            file=sys.stderr,
+        )
         return 1
 
     try:

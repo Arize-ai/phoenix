@@ -16,8 +16,12 @@ import phoenix
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
-sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-client", "src", "phoenix"))
-sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
+sys.path.insert(
+    0, os.path.join(BASE_DIR, "packages", "phoenix-client", "src", "phoenix")
+)
+sys.path.insert(
+    0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix")
+)
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-otel", "src", "phoenix"))
 
 
@@ -113,7 +117,9 @@ myst_substitutions = {"rtd": "[Read the Docs](https://readthedocs.org/)"}
 
 # Autodoc
 # autodoc_class_signature = 'separated'  # Separate the signature from the class title
-autoclass_content = "class"  # Only include the class docstring, not the __init__ method docstring
+autoclass_content = (
+    "class"  # Only include the class docstring, not the __init__ method docstring
+)
 autodoc_typehints = "none"
 add_function_parentheses = False
 add_module_names = False

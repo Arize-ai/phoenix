@@ -16,11 +16,19 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.ProjectSessionAnnotation import (
     ProjectSessionAnnotation as SessionAnnotationNodeType,
 )
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation as TraceAnnotationNodeType
+from phoenix.server.api.types.SpanAnnotation import (
+    SpanAnnotation as SpanAnnotationNodeType,
+)
+from phoenix.server.api.types.TraceAnnotation import (
+    TraceAnnotation as TraceAnnotationNodeType,
+)
 from phoenix.server.api.types.User import User as UserNodeType
 
-from .utils import PaginatedResponseBody, _get_project_by_identifier, add_errors_to_responses
+from .utils import (
+    PaginatedResponseBody,
+    _get_project_by_identifier,
+    add_errors_to_responses,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +234,8 @@ async def list_span_annotations(
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
-        default=None, description="Optional list of annotation names to exclude from results."
+        default=None,
+        description="Optional list of annotation names to exclude from results.",
     ),
     cursor: Optional[str] = Query(default=None, description="A cursor for pagination"),
     limit: int = Query(
@@ -268,7 +277,10 @@ async def list_span_annotations(
             select(models.Span.span_id, models.SpanAnnotation)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .join(models.Project, models.Trace.project_rowid == models.Project.id)
-            .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
+            .join(
+                models.SpanAnnotation,
+                models.SpanAnnotation.span_rowid == models.Span.id,
+            )
             .where(*where_conditions)
             .order_by(models.SpanAnnotation.id.desc())
             .limit(limit + 1)
@@ -371,7 +383,8 @@ async def list_trace_annotations(
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
-        default=None, description="Optional list of annotation names to exclude from results."
+        default=None,
+        description="Optional list of annotation names to exclude from results.",
     ),
     cursor: Optional[str] = Query(default=None, description="A cursor for pagination"),
     limit: int = Query(
@@ -412,7 +425,10 @@ async def list_trace_annotations(
         stmt = (
             select(models.Trace.trace_id, models.TraceAnnotation)
             .join(models.Project, models.Trace.project_rowid == models.Project.id)
-            .join(models.TraceAnnotation, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .join(
+                models.TraceAnnotation,
+                models.TraceAnnotation.trace_rowid == models.Trace.id,
+            )
             .where(*where_conditions)
             .order_by(models.TraceAnnotation.id.desc())
             .limit(limit + 1)
@@ -511,7 +527,8 @@ async def list_session_annotations(
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
-        default=None, description="Optional list of annotation names to exclude from results."
+        default=None,
+        description="Optional list of annotation names to exclude from results.",
     ),
     cursor: Optional[str] = Query(default=None, description="A cursor for pagination"),
     limit: int = Query(

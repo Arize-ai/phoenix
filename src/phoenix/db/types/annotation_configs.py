@@ -122,7 +122,11 @@ class FreeformAnnotationConfig(_BaseAnnotationConfig):
 
 
 AnnotationConfigType: TypeAlias = Annotated[
-    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
+    Union[
+        CategoricalAnnotationConfig,
+        ContinuousAnnotationConfig,
+        FreeformAnnotationConfig,
+    ],
     Field(..., discriminator="type"),
 ]
 

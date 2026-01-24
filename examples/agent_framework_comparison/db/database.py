@@ -27,7 +27,12 @@ def save_df_to_db(df):
     # Unnest the nested types and convert to string since sqlite3 doesn't support nested types
     df = df.map(handle_nested_types)
     df = df.map(str)
-    df.to_sql(name=TABLE_NAME, con=sqlite3.connect(DATABASE_NAME), if_exists="replace", index=False)
+    df.to_sql(
+        name=TABLE_NAME,
+        con=sqlite3.connect(DATABASE_NAME),
+        if_exists="replace",
+        index=False,
+    )
 
 
 def run_query(sql_query):
@@ -66,7 +71,13 @@ def get_schema():
     columns = cursor.fetchall()
 
     schema = [
-        {"name": col[1], "type": col[2], "notnull": col[3], "default_value": col[4], "pk": col[5]}
+        {
+            "name": col[1],
+            "type": col[2],
+            "notnull": col[3],
+            "default_value": col[4],
+            "pk": col[5],
+        }
         for col in columns
     ]
 

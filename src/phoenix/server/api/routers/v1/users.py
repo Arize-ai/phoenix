@@ -96,7 +96,8 @@ class GetUserResponseBody(ResponseBody[User]):
 
 class CreateUserRequestBody(V1RoutesBaseModel):
     user: Annotated[
-        Union[LocalUserData, OAuth2UserData, LDAPUserData], Field(..., discriminator="auth_method")
+        Union[LocalUserData, OAuth2UserData, LDAPUserData],
+        Field(..., discriminator="auth_method"),
     ]
     send_welcome_email: bool = True
 

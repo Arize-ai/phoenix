@@ -31,7 +31,10 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
                 ).label("average_repetition_error_rate"),
             )
             .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-            .group_by(models.ExperimentRun.dataset_example_id, models.ExperimentRun.experiment_id)
+            .group_by(
+                models.ExperimentRun.dataset_example_id,
+                models.ExperimentRun.experiment_id,
+            )
             .subquery()
             .alias("average_repetition_error_rates")
         )

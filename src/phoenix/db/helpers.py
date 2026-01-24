@@ -58,7 +58,9 @@ def get_project_names_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[s
     )
 
 
-def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
+def get_eval_trace_ids_for_experiments(
+    *experiment_ids: int,
+) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
@@ -67,7 +69,9 @@ def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Opt
     )
 
 
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
+def get_project_names_for_experiments(
+    *experiment_ids: int,
+) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.Experiment.project_name))
         .where(models.Experiment.id.in_(set(experiment_ids)))
@@ -437,13 +441,31 @@ def _date_trunc_for_sqlite(
         dow = func.strftime("%w", offset_source)
         t = func.datetime(
             case(
-                (dow == "0", func.date(offset_source, "-6 days")),  # Sunday -> go back 6 days
+                (
+                    dow == "0",
+                    func.date(offset_source, "-6 days"),
+                ),  # Sunday -> go back 6 days
                 (dow == "1", func.date(offset_source, "+0 days")),  # Monday -> stay
-                (dow == "2", func.date(offset_source, "-1 days")),  # Tuesday -> go back 1 day
-                (dow == "3", func.date(offset_source, "-2 days")),  # Wednesday -> go back 2 days
-                (dow == "4", func.date(offset_source, "-3 days")),  # Thursday -> go back 3 days
-                (dow == "5", func.date(offset_source, "-4 days")),  # Friday -> go back 4 days
-                (dow == "6", func.date(offset_source, "-5 days")),  # Saturday -> go back 5 days
+                (
+                    dow == "2",
+                    func.date(offset_source, "-1 days"),
+                ),  # Tuesday -> go back 1 day
+                (
+                    dow == "3",
+                    func.date(offset_source, "-2 days"),
+                ),  # Wednesday -> go back 2 days
+                (
+                    dow == "4",
+                    func.date(offset_source, "-3 days"),
+                ),  # Thursday -> go back 3 days
+                (
+                    dow == "5",
+                    func.date(offset_source, "-4 days"),
+                ),  # Friday -> go back 4 days
+                (
+                    dow == "6",
+                    func.date(offset_source, "-5 days"),
+                ),  # Saturday -> go back 5 days
             ),
             "00:00:00",
         )

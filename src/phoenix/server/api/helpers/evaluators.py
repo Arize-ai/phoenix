@@ -35,7 +35,8 @@ def validate_evaluator_prompt_and_config(
     if len(prompt_tools.tools) != 1:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED)
     if not isinstance(
-        prompt_tools.tool_choice, (PromptToolChoiceOneOrMore, PromptToolChoiceSpecificFunctionTool)
+        prompt_tools.tool_choice,
+        (PromptToolChoiceOneOrMore, PromptToolChoiceSpecificFunctionTool),
     ):
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED)
     if isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):

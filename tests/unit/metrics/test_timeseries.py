@@ -8,7 +8,13 @@ import pandas as pd
 
 from phoenix.core.model_schema import Column
 from phoenix.metrics import Metric
-from phoenix.metrics.metrics import CountNotNull, EuclideanDistance, Mean, VectorMean, VectorSum
+from phoenix.metrics.metrics import (
+    CountNotNull,
+    EuclideanDistance,
+    Mean,
+    VectorMean,
+    VectorSum,
+)
 from phoenix.metrics.timeseries import timeseries
 
 

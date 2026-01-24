@@ -640,7 +640,10 @@ class TestRoleMapping:
             attr_email="mail",
             group_role_mappings=(
                 {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
-                {"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"},
+                {
+                    "group_dn": "cn=members,ou=groups,dc=example,dc=com",
+                    "role": "MEMBER",
+                },
                 {"group_dn": "*", "role": "VIEWER"},  # Wildcard default
             ),
         )
@@ -683,13 +686,19 @@ class TestRoleMapping:
             user_search_filter="(uid=%s)",
             attr_email="mail",
             group_role_mappings=(
-                {"group_dn": "cn=members,ou=groups,dc=example,dc=com", "role": "MEMBER"},
+                {
+                    "group_dn": "cn=members,ou=groups,dc=example,dc=com",
+                    "role": "MEMBER",
+                },
                 {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
             ),
         )
         authenticator = LDAPAuthenticator(config)
         # User is in both groups - MEMBER wins because it's first in config
-        groups = ["cn=admins,ou=groups,dc=example,dc=com", "cn=members,ou=groups,dc=example,dc=com"]
+        groups = [
+            "cn=admins,ou=groups,dc=example,dc=com",
+            "cn=members,ou=groups,dc=example,dc=com",
+        ]
         role = authenticator.map_groups_to_role(groups)
         assert role == "MEMBER"
 

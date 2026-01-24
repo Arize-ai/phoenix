@@ -395,7 +395,9 @@ def _reserve_note_annotation_name(data: AnnotationConfigData) -> str:
     return name
 
 
-def _to_db_annotation_config(input_config: AnnotationConfigData) -> AnnotationConfigType:
+def _to_db_annotation_config(
+    input_config: AnnotationConfigData,
+) -> AnnotationConfigType:
     if isinstance(input_config, ContinuousAnnotationConfigData):
         return _to_db_continuous_annotation_config(input_config)
     if isinstance(input_config, CategoricalAnnotationConfigData):

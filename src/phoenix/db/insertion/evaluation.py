@@ -54,7 +54,13 @@ async def insert_evaluation(
         span_id = evaluation.subject_id.document_retrieval_id.span_id
         document_position = evaluation.subject_id.document_retrieval_id.document_position
         return await _insert_document_evaluation(
-            session, span_id, document_position, evaluation_name, label, score, explanation
+            session,
+            span_id,
+            document_position,
+            evaluation_name,
+            label,
+            score,
+            explanation,
         )
     else:
         assert_never(evaluation_kind)

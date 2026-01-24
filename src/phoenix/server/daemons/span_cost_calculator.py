@@ -9,7 +9,9 @@ from typing import Any, Mapping, NamedTuple, Optional
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
+from phoenix.server.cost_tracking.cost_details_calculator import (
+    SpanCostDetailsCalculator,
+)
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DaemonTask, DbSessionFactory
 

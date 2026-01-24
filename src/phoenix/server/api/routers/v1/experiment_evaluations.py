@@ -37,7 +37,8 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     start_time: datetime = Field(description="The start time of the evaluation in ISO format")
     end_time: datetime = Field(description="The end time of the evaluation in ISO format")
     result: Optional[ExperimentEvaluationResult] = Field(
-        None, description="The result of the evaluation. Either result or error must be provided."
+        None,
+        description="The result of the evaluation. Either result or error must be provided.",
     )
     error: Optional[str] = Field(
         None,

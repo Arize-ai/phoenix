@@ -4,7 +4,14 @@ from alembic.config import Config
 from sqlalchemy import Engine
 from typing_extensions import assert_never
 
-from . import _DBBackend, _down, _get_table_schema_info, _TableSchemaInfo, _up, _verify_clean_state
+from . import (
+    _DBBackend,
+    _down,
+    _get_table_schema_info,
+    _TableSchemaInfo,
+    _up,
+    _verify_clean_state,
+)
 
 _DOWN = "8a3764fe7f1a"
 _UP = "6a88424799fe"

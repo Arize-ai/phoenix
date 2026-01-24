@@ -6,7 +6,11 @@ from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict, should_calculate_span_cost
+from phoenix.db.insertion.helpers import (
+    OnConflict,
+    insert_on_conflict,
+    should_calculate_span_cost,
+)
 from phoenix.server.types import DbSessionFactory
 
 

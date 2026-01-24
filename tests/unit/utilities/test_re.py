@@ -18,7 +18,10 @@ from phoenix.utilities.re import parse_env_headers
         # different header values
         pytest.param("name=", [("name", "")], False, id="different header values 1"),
         pytest.param(
-            "name===value=", [("name", "==value=")], False, id="different header values 2"
+            "name===value=",
+            [("name", "==value=")],
+            False,
+            id="different header values 2",
         ),
         # url-encoded headers
         pytest.param(
@@ -29,7 +32,10 @@ from phoenix.utilities.re import parse_env_headers
         ),
         pytest.param("key%21=value", [("key!", "value")], False, id="url-encoded headers 2"),
         pytest.param(
-            "%20key%20=%20value%20", [("key", "value")], False, id="url-encoded headers 3"
+            "%20key%20=%20value%20",
+            [("key", "value")],
+            False,
+            id="url-encoded headers 3",
         ),
         # header name case normalization
         pytest.param("Key=Value", [("key", "Value")], False, id="header name case normalization"),
@@ -56,7 +62,10 @@ from phoenix.utilities.re import parse_env_headers
     ],
 )
 def test_get_env_client_headers(
-    headers: str, expected: list[tuple[str, str]], warn: bool, caplog: pytest.LogCaptureFixture
+    headers: str,
+    expected: list[tuple[str, str]],
+    warn: bool,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     if warn:
         with caplog.at_level(level="WARNING"):

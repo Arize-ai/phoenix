@@ -135,7 +135,8 @@ class TestCursor:
         self,
     ) -> None:
         original = Cursor(
-            rowid=10, sort_column=CursorSortColumn(type=CursorSortColumnDataType.INT, value=11)
+            rowid=10,
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.INT, value=11),
         )
         cursor_string = str(original)
         deserialized = Cursor.from_string(cursor_string)
@@ -149,7 +150,8 @@ class TestCursor:
         self,
     ) -> None:
         original = Cursor(
-            rowid=10, sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=11.5)
+            rowid=10,
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=11.5),
         )
         cursor_string = str(original)
         deserialized = Cursor.from_string(cursor_string)

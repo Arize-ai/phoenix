@@ -145,7 +145,10 @@ def _gen_attributes(
 ) -> Iterator[Tuple[str, types.AttributeValue]]:
     yield SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind
     yield SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
-    yield SpanAttributes.INPUT_VALUE, fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1))
+    yield (
+        SpanAttributes.INPUT_VALUE,
+        fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
+    )
     yield SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
     yield (
         SpanAttributes.OUTPUT_VALUE,

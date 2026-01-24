@@ -36,7 +36,9 @@ class ExperimentRunSort:
 
 
 def get_experiment_run_cursor(
-    run: models.ExperimentRun, annotation_score: Optional[float], sort: Optional[ExperimentRunSort]
+    run: models.ExperimentRun,
+    annotation_score: Optional[float],
+    sort: Optional[ExperimentRunSort],
 ) -> Cursor:
     sort_column: Optional[CursorSortColumn] = None
     if sort:
@@ -76,7 +78,9 @@ def add_order_by_and_page_start_to_query(
         assert annotation_name is not None
         mean_annotation_scores = _get_mean_annotation_scores_subquery(annotation_name)
     order_by_columns = _get_order_by_columns(
-        sort=sort, experiment_rowid=experiment_rowid, mean_annotation_scores=mean_annotation_scores
+        sort=sort,
+        experiment_rowid=experiment_rowid,
+        mean_annotation_scores=mean_annotation_scores,
     )
     query = query.order_by(*order_by_columns)
     if after_experiment_run_rowid is not None:
@@ -111,9 +115,15 @@ def _get_order_by_columns(
         assert metric is not None
         if metric is ExperimentRunMetric.latencyMs:
             if sort_direction is SortDir.asc:
-                return (models.ExperimentRun.latency_ms.asc(), models.ExperimentRun.id.asc())
+                return (
+                    models.ExperimentRun.latency_ms.asc(),
+                    models.ExperimentRun.id.asc(),
+                )
             else:
-                return (models.ExperimentRun.latency_ms.desc(), models.ExperimentRun.id.desc())
+                return (
+                    models.ExperimentRun.latency_ms.desc(),
+                    models.ExperimentRun.id.desc(),
+                )
         else:
             assert_never(metric)
     elif sort.col.annotation_name:

@@ -7,7 +7,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -30,13 +34,19 @@ async def test_experiment_resolver_returns_sequence_number(
         query=query,
         variables={
             "experimentId": str(
-                GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
+                GlobalID(
+                    type_name=Experiment.__name__,
+                    node_id=str(interlaced_experiments[5]),
+                )
             ),
         },
     )
     assert not response.errors
     assert response.data == {
-        "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
+        "experiment": {
+            "sequenceNumber": 2,
+            "id": str(GlobalID(Experiment.__name__, str(6))),
+        },
     }
 
 

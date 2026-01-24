@@ -48,8 +48,14 @@ async def project_with_a_single_trace_and_span(
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
-                    "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
-                    "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
+                    "input": {
+                        "value": "chain-span-input-value",
+                        "mime_type": "text/plain",
+                    },
+                    "output": {
+                        "value": "chain-span-output-value",
+                        "mime_type": "text/plain",
+                    },
                 },
                 events=[],
                 status_code="OK",

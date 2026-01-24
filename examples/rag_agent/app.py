@@ -114,7 +114,8 @@ with gr.Blocks() as demo:
             gr.Markdown("### Configuration Panel ⚙️")
 
             phoenix_input = gr.Textbox(
-                label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+                label="Phoenix API Key (Only required for Phoenix Cloud)",
+                type="password",
             )
             project_input = gr.Textbox(label="Project Name", value="Agentic Rag Demo")
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
@@ -158,7 +159,14 @@ with gr.Blocks() as demo:
                     chat_display,
                     history,
                 ],
-                outputs=[agent, user_input, chat_display, session_id, chat_history, history],
+                outputs=[
+                    agent,
+                    user_input,
+                    chat_display,
+                    session_id,
+                    chat_history,
+                    history,
+                ],
             )
 
 if __name__ == "__main__":

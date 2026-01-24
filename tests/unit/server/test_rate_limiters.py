@@ -6,7 +6,11 @@ from unittest import mock
 
 import pytest
 
-from phoenix.server.rate_limiters import ServerRateLimiter, TokenBucket, UnavailableTokensError
+from phoenix.server.rate_limiters import (
+    ServerRateLimiter,
+    TokenBucket,
+    UnavailableTokensError,
+)
 
 
 @contextmanager

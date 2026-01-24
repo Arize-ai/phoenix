@@ -19,7 +19,12 @@ from phoenix.db.types.model_provider import (
     GoogleGenAICustomProviderConfig,
     OpenAICustomProviderConfig,
 )
-from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import (
+    IsAdminIfAuthEnabled,
+    IsLocked,
+    IsNotReadOnly,
+    IsNotViewer,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (

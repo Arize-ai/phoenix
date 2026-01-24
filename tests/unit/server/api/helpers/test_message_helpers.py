@@ -73,7 +73,12 @@ class TestConvertOpenaiMessageToInternal:
             ),
             pytest.param(
                 {"role": "system", "content": "You are a helpful assistant."},
-                (ChatCompletionMessageRole.SYSTEM, "You are a helpful assistant.", None, None),
+                (
+                    ChatCompletionMessageRole.SYSTEM,
+                    "You are a helpful assistant.",
+                    None,
+                    None,
+                ),
                 id="simple-system-message",
             ),
             pytest.param(
@@ -93,12 +98,22 @@ class TestConvertOpenaiMessageToInternal:
             ),
             pytest.param(
                 {"role": "unknown_role", "content": "Unknown role defaults to user"},
-                (ChatCompletionMessageRole.USER, "Unknown role defaults to user", None, None),
+                (
+                    ChatCompletionMessageRole.USER,
+                    "Unknown role defaults to user",
+                    None,
+                    None,
+                ),
                 id="unknown-role-defaults-to-user",
             ),
             pytest.param(
                 {"content": "Missing role defaults to user"},
-                (ChatCompletionMessageRole.USER, "Missing role defaults to user", None, None),
+                (
+                    ChatCompletionMessageRole.USER,
+                    "Missing role defaults to user",
+                    None,
+                    None,
+                ),
                 id="missing-role-defaults-to-user",
             ),
         ],
@@ -172,7 +187,10 @@ class TestConvertOpenaiMessageToInternal:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": "Text content"},
-                        {"type": "image_url", "image_url": {"url": "http://example.com/image.png"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "http://example.com/image.png"},
+                        },
                     ],
                 },
                 "Text content",
@@ -182,7 +200,10 @@ class TestConvertOpenaiMessageToInternal:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "image_url", "image_url": {"url": "http://example.com/image.png"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "http://example.com/image.png"},
+                        },
                     ],
                 },
                 "",
@@ -304,7 +325,12 @@ class TestExtractAndConvertExampleMessages:
         }
         result = extract_and_convert_example_messages(data, "input.messages")
         assert len(result) == 2
-        assert result[0] == (ChatCompletionMessageRole.SYSTEM, "You are helpful.", None, None)
+        assert result[0] == (
+            ChatCompletionMessageRole.SYSTEM,
+            "You are helpful.",
+            None,
+            None,
+        )
         assert result[1] == (ChatCompletionMessageRole.USER, "What is 2+2?", None, None)
 
     def test_openai_fine_tuning_format(self) -> None:
@@ -409,7 +435,10 @@ class TestExtractAndConvertExampleMessages:
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "Can you help me with the weather?"},
-                {"role": "assistant", "content": "Of course! Which city would you like?"},
+                {
+                    "role": "assistant",
+                    "content": "Of course! Which city would you like?",
+                },
                 {"role": "user", "content": "San Francisco"},
                 {
                     "role": "assistant",

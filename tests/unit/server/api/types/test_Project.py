@@ -19,12 +19,23 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
-from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
+from ...._helpers import (
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+    _gid,
+    _node,
+)
 
 fake = Faker()
 
@@ -1482,7 +1493,11 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                                         "query_str": "Does Arize support batch models?",
                                     },
                                 },
-                                "token_count": {"prompt": 374.0, "total": 382.0, "completion": 8.0},
+                                "token_count": {
+                                    "prompt": 374.0,
+                                    "total": 382.0,
+                                    "completion": 8.0,
+                                },
                             },
                             "output": {"value": "Yes, Arize supports batch models."},
                             "openinference": {"span": {"kind": "LLM"}},
@@ -4180,7 +4195,10 @@ async def test_cost_summary_returns_expected_results(
         session1 = await _add_project_session(session, project)
         trace1 = await _add_trace(session, project, session1)
         llm_span_costing_100_dollars = await _add_span(
-            session, trace1, span_kind="LLM", attributes={"input": {"value": "llm query"}}
+            session,
+            trace1,
+            span_kind="LLM",
+            attributes={"input": {"value": "llm query"}},
         )
         model = await _add_generative_model(session, "test-model")
         await _add_span_cost(session, llm_span_costing_100_dollars, trace1, model, total_cost=100.0)
@@ -4188,7 +4206,10 @@ async def test_cost_summary_returns_expected_results(
         session2 = await _add_project_session(session, project)
         trace2 = await _add_trace(session, project, session2)
         chain_span_costing_50_dollars = await _add_span(
-            session, trace2, span_kind="CHAIN", attributes={"input": {"value": "chain query"}}
+            session,
+            trace2,
+            span_kind="CHAIN",
+            attributes={"input": {"value": "chain query"}},
         )
         await _add_span_cost(session, chain_span_costing_50_dollars, trace2, model, total_cost=50.0)
 
@@ -4225,14 +4246,16 @@ async def test_cost_summary_returns_expected_results(
     assert response_no_filter.data["node"]["costSummary"]["total"]["cost"] == 150.0
 
     response_llm_span_filter = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterCondition": 'span_kind == "LLM"'}
+        query=query,
+        variables={"projectId": project_gid, "filterCondition": 'span_kind == "LLM"'},
     )
     assert not response_llm_span_filter.errors
     assert response_llm_span_filter.data is not None
     assert response_llm_span_filter.data["node"]["costSummary"]["total"]["cost"] == 100.0
 
     response_chain_session_filter = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "sessionFilterCondition": "chain query"}
+        query=query,
+        variables={"projectId": project_gid, "sessionFilterCondition": "chain query"},
     )
     assert not response_chain_session_filter.errors
     assert response_chain_session_filter.data is not None
@@ -4300,14 +4323,16 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
 
     response_llm_span_filter = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterCondition": "span_kind == 'LLM'"}
+        query=query,
+        variables={"projectId": project_gid, "filterCondition": "span_kind == 'LLM'"},
     )
     assert not response_llm_span_filter.errors
     assert response_llm_span_filter.data is not None
     assert response_llm_span_filter.data["project"]["latencyMsQuantile"] == 200.0
 
     response_chain_span_filter = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterCondition": "span_kind == 'CHAIN'"}
+        query=query,
+        variables={"projectId": project_gid, "filterCondition": "span_kind == 'CHAIN'"},
     )
     assert not response_chain_span_filter.errors
     assert response_chain_span_filter.data is not None
@@ -4315,7 +4340,10 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 
     response_llm_session_filter = await gql_client.execute(
         query=query,
-        variables={"projectId": project_gid, "sessionFilterCondition": "llm span input"},
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "llm span input",
+        },
     )
     assert not response_llm_session_filter.errors
     assert response_llm_session_filter.data is not None
@@ -4323,7 +4351,10 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 
     response_chain_session_filter = await gql_client.execute(
         query=query,
-        variables={"projectId": project_gid, "sessionFilterCondition": "chain span input"},
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "chain span input",
+        },
     )
     assert not response_chain_session_filter.errors
     assert response_chain_session_filter.data is not None
@@ -4383,7 +4414,8 @@ async def test_span_annotation_summary_with_session_filter_returns_expected_resu
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
     response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "sessionFilterCondition": "priority"}
+        query=query,
+        variables={"projectId": project_gid, "sessionFilterCondition": "priority"},
     )
 
     assert not response.errors
@@ -4649,7 +4681,10 @@ async def test_pagination_spans_by_annotation_score(
         variables={
             "projectId": project_gid,
             "first": 2,
-            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+            "sort": {
+                "evalResultKey": {"name": "Quality", "attr": "score"},
+                "dir": "desc",
+            },
         },
     )
 
@@ -4682,7 +4717,10 @@ async def test_pagination_spans_by_annotation_score(
             "projectId": project_gid,
             "first": 2,
             "after": page_info["endCursor"],
-            "sort": {"evalResultKey": {"name": "Quality", "attr": "score"}, "dir": "desc"},
+            "sort": {
+                "evalResultKey": {"name": "Quality", "attr": "score"},
+                "dir": "desc",
+            },
         },
     )
 

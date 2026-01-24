@@ -10,7 +10,9 @@ from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.trace_retention import MaxDaysRule
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
+    ProjectTraceRetentionPolicy,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 

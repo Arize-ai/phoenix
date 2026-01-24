@@ -5,7 +5,12 @@ from fastapi import HTTPException, Request
 
 from phoenix.server.authorization import require_admin
 from phoenix.server.bearer_auth import PhoenixSystemUser, PhoenixUser
-from phoenix.server.types import AccessTokenId, UserClaimSet, UserId, UserTokenAttributes
+from phoenix.server.types import (
+    AccessTokenId,
+    UserClaimSet,
+    UserId,
+    UserTokenAttributes,
+)
 
 
 def test_require_admin_allows_admin() -> None:

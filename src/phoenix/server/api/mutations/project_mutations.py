@@ -16,7 +16,11 @@ from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project, to_gql_project
-from phoenix.server.dml_event import ProjectDeleteEvent, ProjectInsertEvent, SpanDeleteEvent
+from phoenix.server.dml_event import (
+    ProjectDeleteEvent,
+    ProjectInsertEvent,
+    SpanDeleteEvent,
+)
 
 
 @strawberry.type

@@ -194,7 +194,9 @@ def get_attribute_value(
     return attributes.get(sub_keys[-1])
 
 
-def load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[str, Any]]:
+def load_json_strings(
+    key_values: Iterable[tuple[str, Any]],
+) -> Iterator[tuple[str, Any]]:
     for key, value in key_values:
         if key.endswith(JSON_STRING_ATTRIBUTES):
             try:

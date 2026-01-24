@@ -384,7 +384,9 @@ class DeploymentValidators:
 
     @staticmethod
     def has_additional_env_from_secret(
-        env_name: str, secret_name: Optional[str] = None, secret_key: Optional[str] = None
+        env_name: str,
+        secret_name: Optional[str] = None,
+        secret_key: Optional[str] = None,
     ) -> Validator:
         """Validate that an additional environment variable from secret is present."""
 
@@ -2286,7 +2288,8 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "--set auth.oauth2.enabled=true --set auth.oauth2.providers.okta.client_id=okta-id --set auth.oauth2.providers.okta.client_secret=okta-secret --set auth.oauth2.providers.okta.oidc_config_url=https://okta.example.com/.well-known/openid-configuration --set auth.oauth2.providers.okta.token_endpoint_auth_method=client_secret_post",
             all_of(
                 ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD", "client_secret_post"
+                    "PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD",
+                    "client_secret_post",
                 ),
                 OAuth2Validators.provider_token_endpoint_auth_method("okta", "client_secret_post"),
             ),
@@ -2321,13 +2324,16 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "--set auth.oauth2.enabled=true --set auth.oauth2.providers.keycloak.client_id=keycloak-id --set auth.oauth2.providers.keycloak.client_secret=keycloak-secret --set auth.oauth2.providers.keycloak.oidc_config_url=https://keycloak.example.com/realms/phoenix/.well-known/openid-configuration --set auth.oauth2.providers.keycloak.groups_attribute_path='resource_access.phoenix.roles' --set auth.oauth2.providers.keycloak.allowed_groups={admin,developer,viewer}",
             all_of(
                 ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_OAUTH2_KEYCLOAK_GROUPS_ATTRIBUTE_PATH", "resource_access.phoenix.roles"
+                    "PHOENIX_OAUTH2_KEYCLOAK_GROUPS_ATTRIBUTE_PATH",
+                    "resource_access.phoenix.roles",
                 ),
                 ConfigMapValidators.configmap_has_key(
                     "PHOENIX_OAUTH2_KEYCLOAK_ALLOWED_GROUPS", "admin,developer,viewer"
                 ),
                 OAuth2Validators.provider_groups_config(
-                    "keycloak", "resource_access.phoenix.roles", ["admin", "developer", "viewer"]
+                    "keycloak",
+                    "resource_access.phoenix.roles",
+                    ["admin", "developer", "viewer"],
                 ),
             ),
         ),
@@ -2418,7 +2424,8 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "--set auth.enableAuth=true --set auth.admins='John Doe=john@example.com;Jane Smith=jane@example.com'",
             all_of(
                 ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_ADMINS", "John Doe=john@example.com;Jane Smith=jane@example.com"
+                    "PHOENIX_ADMINS",
+                    "John Doe=john@example.com;Jane Smith=jane@example.com",
                 ),
                 AuthValidators.admins_configured(
                     "John Doe=john@example.com;Jane Smith=jane@example.com"
@@ -2430,7 +2437,8 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "--set auth.oauth2.enabled=true --set auth.oauth2.providers.keycloak.client_id=keycloak-id --set auth.oauth2.providers.keycloak.client_secret=keycloak-secret --set auth.oauth2.providers.keycloak.oidc_config_url=https://keycloak.example.com/.well-known/openid-configuration --set auth.oauth2.providers.keycloak.role_attribute_path='resource_access.phoenix.role' --set-string auth.oauth2.providers.keycloak.role_mapping=admin:ADMIN",
             all_of(
                 ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH", "resource_access.phoenix.role"
+                    "PHOENIX_OAUTH2_KEYCLOAK_ROLE_ATTRIBUTE_PATH",
+                    "resource_access.phoenix.role",
                 ),
                 ConfigMapValidators.configmap_has_key(
                     "PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING", "admin:ADMIN"
@@ -2731,7 +2739,9 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             ServiceValidators.service_type("LoadBalancer"),
         ),
         TestCase(
-            "Custom server ports", "--set server.port=8080 --set service.port=80", has_service
+            "Custom server ports",
+            "--set server.port=8080 --set service.port=80",
+            has_service,
         ),
         TestCase(
             "Service with custom annotations",
@@ -3067,7 +3077,8 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 InstrumentationValidators.otlp_endpoint(grpc_endpoint="http://jaeger:4317"),
                 DeploymentValidators.resource_limits("2000m", "4Gi"),
                 ServerConfigValidators.server_paths(
-                    "/observability/phoenix", "https://tools.company.com/observability/phoenix"
+                    "/observability/phoenix",
+                    "https://tools.company.com/observability/phoenix",
                 ),
             ),
         ),

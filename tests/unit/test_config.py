@@ -891,7 +891,12 @@ class TestOAuth2ClientConfigFromEnv:
         ],
     )
     def test_required_field_validation(
-        self, monkeypatch: MonkeyPatch, field: str, env_suffix: str, value: str, error_match: str
+        self,
+        monkeypatch: MonkeyPatch,
+        field: str,
+        env_suffix: str,
+        value: str,
+        error_match: str,
     ) -> None:
         """Test that required fields reject empty/whitespace values."""
         # Set all required fields first
@@ -1266,7 +1271,8 @@ class TestOAuth2ClientConfigFromEnv:
         )
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
         monkeypatch.setenv(
-            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER"
+            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING",
+            "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER",
         )
 
         config = OAuth2ClientConfig.from_env("test")
@@ -1288,7 +1294,11 @@ class TestOAuth2ClientConfigFromEnv:
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "owner:admin,dev:member,view:viewer")
 
         config = OAuth2ClientConfig.from_env("test")
-        assert config.role_mapping == {"owner": "ADMIN", "dev": "MEMBER", "view": "VIEWER"}
+        assert config.role_mapping == {
+            "owner": "ADMIN",
+            "dev": "MEMBER",
+            "view": "VIEWER",
+        }
 
     def test_role_mapping_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
         """Test that whitespace around role mappings is handled correctly."""
@@ -1427,7 +1437,8 @@ class TestOAuth2ClientConfigFromEnv:
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
 
         with pytest.raises(
-            ValueError, match="ROLE_MAPPING is set but ROLE_ATTRIBUTE_PATH is not configured"
+            ValueError,
+            match="ROLE_MAPPING is set but ROLE_ATTRIBUTE_PATH is not configured",
         ):
             OAuth2ClientConfig.from_env("test")
 
@@ -1821,7 +1832,10 @@ class TestLDAPConfigFromEnv:
                     "group_search_base_dns": (),
                     "group_search_filter": None,
                     "group_role_mappings": (
-                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                        {
+                            "group_dn": "cn=admins,ou=groups,dc=example,dc=com",
+                            "role": "ADMIN",
+                        },
                     ),
                 },
                 id="minimal_active_directory",
@@ -1919,7 +1933,10 @@ class TestLDAPConfigFromEnv:
                 {
                     # Should be canonicalized: lowercase, stripped, normalized
                     "group_role_mappings": (
-                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                        {
+                            "group_dn": "cn=admins,ou=groups,dc=example,dc=com",
+                            "role": "ADMIN",
+                        },
                     ),
                 },
                 id="group_dn_canonicalized_and_role_uppercase",

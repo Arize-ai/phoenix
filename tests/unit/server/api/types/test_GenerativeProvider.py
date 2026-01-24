@@ -3,7 +3,10 @@ from typing import cast
 import pytest
 from openinference.semconv.trace import OpenInferenceLLMProviderValues
 
-from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import (
+    GenerativeProvider,
+    GenerativeProviderKey,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 
 

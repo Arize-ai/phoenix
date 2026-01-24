@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from starlette.middleware.gzip import GZipMiddleware as _GZipMiddleware
 
-from phoenix.server.middleware.gzip import GZipMiddleware, _is_multipart, _remove_accept_encoding
+from phoenix.server.middleware.gzip import (
+    GZipMiddleware,
+    _is_multipart,
+    _remove_accept_encoding,
+)
 
 
 @pytest.fixture
@@ -43,10 +47,17 @@ def middleware() -> GZipMiddleware:
         pytest.param([(b"accept", b"")], False, id="empty_value"),
         pytest.param([(b"accept", b"multipart/mixed; boundary=123")], True, id="with_parameters"),
         pytest.param(
-            [(b"accept", b"multipart/mixed, application/json")], True, id="mixed_content_types"
+            [(b"accept", b"multipart/mixed, application/json")],
+            True,
+            id="mixed_content_types",
         ),
         pytest.param(
-            [(b"accept", b"multipart/mixed; boundary=123, application/json; charset=utf-8")],
+            [
+                (
+                    b"accept",
+                    b"multipart/mixed; boundary=123, application/json; charset=utf-8",
+                )
+            ],
             True,
             id="multiple_values_with_parameters",
         ),

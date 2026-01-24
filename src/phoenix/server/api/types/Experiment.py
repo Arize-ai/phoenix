@@ -19,7 +19,9 @@ from phoenix.server.api.input_types.ExperimentRunSort import (
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
+from phoenix.server.api.types.ExperimentAnnotationSummary import (
+    ExperimentAnnotationSummary,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -28,7 +30,9 @@ from phoenix.server.api.types.pagination import (
     connection_from_cursors_and_nodes,
     connection_from_list,
 )
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 
 _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE = 50
@@ -328,10 +332,16 @@ class Experiment(Node):
                 func.sum(models.SpanCostDetail.tokens).label("tokens"),
             )
             .select_from(models.SpanCostDetail)
-            .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+            .join(
+                models.SpanCost,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
             .join(models.Span, models.SpanCost.span_rowid == models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.ExperimentRun, models.ExperimentRun.trace_id == models.Trace.trace_id)
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRun.trace_id == models.Trace.trace_id,
+            )
             .where(models.ExperimentRun.experiment_id == self.id)
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )
@@ -355,7 +365,8 @@ class Experiment(Node):
         """Returns the dataset splits associated with this experiment."""
         splits = await info.context.data_loaders.experiment_dataset_splits.load(self.id)
         return connection_from_list(
-            [DatasetSplit(id=split.id, db_record=split) for split in splits], ConnectionArgs()
+            [DatasetSplit(id=split.id, db_record=split) for split in splits],
+            ConnectionArgs(),
         )
 
 

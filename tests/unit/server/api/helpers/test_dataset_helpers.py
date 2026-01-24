@@ -105,7 +105,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                             f"{LLM_INPUT_MESSAGES}.4.{MESSAGE_TOOL_CALLS}.1.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
                             json.dumps({"a": 363, "b": 42}),
                         ),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -116,14 +119,27 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                     {"content": "user-message", "role": "user"},
                     {
                         "role": "assistant",
-                        "function_call": {"name": "add", "arguments": '{"a": 363, "b": 42}'},
+                        "function_call": {
+                            "name": "add",
+                            "arguments": '{"a": 363, "b": 42}',
+                        },
                     },
                     {"content": "user-message", "role": "user"},
                     {
                         "role": "assistant",
                         "tool_calls": [
-                            {"function": {"name": "multiply", "arguments": '{"a": 121, "b": 3}'}},
-                            {"function": {"name": "add", "arguments": '{"a": 363, "b": 42}'}},
+                            {
+                                "function": {
+                                    "name": "multiply",
+                                    "arguments": '{"a": 121, "b": 3}',
+                                }
+                            },
+                            {
+                                "function": {
+                                    "name": "add",
+                                    "arguments": '{"a": 363, "b": 42}',
+                                }
+                            },
                         ],
                     },
                 ],
@@ -142,7 +158,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (OUTPUT_MIME_TYPE, TEXT),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -161,7 +180,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (INPUT_MIME_TYPE, TEXT),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -182,7 +204,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                             LLM_PROMPT_TEMPLATE_VARIABLES,
                             json.dumps({"variable_name": "variable-value"}),
                         ),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -202,7 +227,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (INPUT_MIME_TYPE, JSON),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -219,7 +247,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (INPUT_MIME_TYPE, TEXT),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -236,7 +267,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                         (INPUT_MIME_TYPE, JSON),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -269,7 +303,10 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                         ),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "assistant-message",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -314,13 +351,19 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 span_kind=RETRIEVER,
                 attributes=unflatten(
                     (
-                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (
+                            INPUT_VALUE,
+                            json.dumps({"retriever-input": "retriever-input"}),
+                        ),
                         (INPUT_MIME_TYPE, JSON),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
                         (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_ID}", "1"),
                         (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_SCORE}", 0.5),
-                        (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_CONTENT}", "document-content"),
+                        (
+                            f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_CONTENT}",
+                            "document-content",
+                        ),
                     )
                 ),
             ),
@@ -332,7 +375,10 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 span_kind=RETRIEVER,
                 attributes=unflatten(
                     (
-                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (
+                            INPUT_VALUE,
+                            json.dumps({"retriever-input": "retriever-input"}),
+                        ),
                         (INPUT_MIME_TYPE, JSON),
                         (OUTPUT_VALUE, "plain-text-output"),
                         (OUTPUT_MIME_TYPE, TEXT),
@@ -347,9 +393,15 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 span_kind=RETRIEVER,
                 attributes=unflatten(
                     (
-                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (
+                            INPUT_VALUE,
+                            json.dumps({"retriever-input": "retriever-input"}),
+                        ),
                         (INPUT_MIME_TYPE, JSON),
-                        (OUTPUT_VALUE, json.dumps({"retriever_output": "retriever-output"})),
+                        (
+                            OUTPUT_VALUE,
+                            json.dumps({"retriever_output": "retriever-output"}),
+                        ),
                         (OUTPUT_MIME_TYPE, JSON),
                     )
                 ),
@@ -392,7 +444,10 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 span_kind=LLM,
                 attributes=unflatten(
                     (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "No tools here.",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -415,7 +470,10 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                 span_kind=LLM,
                 attributes=unflatten(
                     (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I can help with weather."),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "I can help with weather.",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                         (
                             f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
@@ -461,7 +519,10 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                 span_kind=LLM,
                 attributes=unflatten(
                     (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I have multiple tools."),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "I have multiple tools.",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                         (
                             f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
@@ -495,11 +556,17 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                 "available_tools": [
                     {
                         "type": "function",
-                        "function": {"name": "get_weather", "parameters": {"type": "object"}},
+                        "function": {
+                            "name": "get_weather",
+                            "parameters": {"type": "object"},
+                        },
                     },
                     {
                         "type": "function",
-                        "function": {"name": "send_email", "parameters": {"type": "object"}},
+                        "function": {
+                            "name": "send_email",
+                            "parameters": {"type": "object"},
+                        },
                     },
                 ],
             },
@@ -510,7 +577,10 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                 span_kind=LLM,
                 attributes=unflatten(
                     (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}",
+                            "No tools here.",
+                        ),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
                 ),
@@ -548,7 +618,10 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
                 "available_tools": [
                     {
                         "type": "function",
-                        "function": {"name": "calculator", "parameters": {"type": "object"}},
+                        "function": {
+                            "name": "calculator",
+                            "parameters": {"type": "object"},
+                        },
                     }
                 ],
             },

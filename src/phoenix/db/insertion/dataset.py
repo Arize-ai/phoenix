@@ -12,7 +12,11 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import (
+    DataManipulationEvent,
+    OnConflict,
+    insert_on_conflict,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -27,7 +27,10 @@ class SpanCostDetailSummaryEntriesBySpanDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             async for span_cost_detail in await session.stream_scalars(
                 select(models.SpanCostDetail)
-                .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)
+                .join(
+                    models.SpanCost,
+                    models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+                )
                 .where(models.SpanCost.span_rowid.in_(keys))
                 .options(contains_eager(models.SpanCostDetail.span_cost))
             ):

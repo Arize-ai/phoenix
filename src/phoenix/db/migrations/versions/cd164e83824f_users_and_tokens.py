@@ -101,7 +101,12 @@ def upgrade() -> None:
     op.create_table(
         "refresh_tokens",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            index=True,
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -114,7 +119,12 @@ def upgrade() -> None:
     op.create_table(
         "access_tokens",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            index=True,
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -134,7 +144,12 @@ def upgrade() -> None:
     op.create_table(
         "api_keys",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            index=True,
+        ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(

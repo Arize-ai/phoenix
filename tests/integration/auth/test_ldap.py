@@ -191,7 +191,9 @@ class TestLDAPAuthentication:
         viewer_user = _verify_user_created(_app, viewer)
 
         _delete_users(
-            _app, _app.admin_secret, users=[admin_user.gid, member_user.gid, viewer_user.gid]
+            _app,
+            _app.admin_secret,
+            users=[admin_user.gid, member_user.gid, viewer_user.gid],
         )
 
     async def test_invalid_credentials_rejected(
@@ -437,7 +439,11 @@ class TestLDAPUserIdentificationStrategies:
                         }) { user { id } }
                     }
                 """,
-                "variables": {"email": email_v1, "username": username, "role": "MEMBER"},
+                "variables": {
+                    "email": email_v1,
+                    "username": username,
+                    "role": "MEMBER",
+                },
             },
         )
         assert response.status_code == 200
@@ -725,7 +731,9 @@ class TestLDAPConfiguration:
         _verify_ldap_login_success(status, access_token, refresh_token)
 
         _delete_users(
-            _app_ldap_no_sign_up, _app_ldap_no_sign_up.admin_secret, users=[created_user_gid]
+            _app_ldap_no_sign_up,
+            _app_ldap_no_sign_up.admin_secret,
+            users=[created_user_gid],
         )
 
 
@@ -862,7 +870,9 @@ class TestLDAPPosixMemberUidGroupSearch:
             "This indicates GROUP_SEARCH_FILTER_USER_ATTR is not working correctly."
         )
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid,
+            _app_ldap_posix_memberuid.admin_secret,
+            users=[user.gid],
         )
 
     def test_memberuid_member_role(
@@ -889,7 +899,9 @@ class TestLDAPPosixMemberUidGroupSearch:
         assert user is not None
         assert user.role == UserRoleInput.MEMBER
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid,
+            _app_ldap_posix_memberuid.admin_secret,
+            users=[user.gid],
         )
 
     def test_memberuid_wildcard_when_no_groups(
@@ -916,7 +928,9 @@ class TestLDAPPosixMemberUidGroupSearch:
         assert user is not None
         assert user.role == UserRoleInput.VIEWER  # Wildcard
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid,
+            _app_ldap_posix_memberuid.admin_secret,
+            users=[user.gid],
         )
 
 

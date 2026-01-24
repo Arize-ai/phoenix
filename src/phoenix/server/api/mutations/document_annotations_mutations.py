@@ -22,7 +22,10 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.DocumentAnnotation import DocumentAnnotation
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import DocumentAnnotationDeleteEvent, DocumentAnnotationInsertEvent
+from phoenix.server.dml_event import (
+    DocumentAnnotationDeleteEvent,
+    DocumentAnnotationInsertEvent,
+)
 
 
 @strawberry.type

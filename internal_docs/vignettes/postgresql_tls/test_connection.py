@@ -396,7 +396,9 @@ async def test_connection_psycopg(config: Optional[DatabaseConfig] = None) -> No
         raise
 
 
-async def test_connection_sqlalchemy_asyncpg(config: Optional[DatabaseConfig] = None) -> None:
+async def test_connection_sqlalchemy_asyncpg(
+    config: Optional[DatabaseConfig] = None,
+) -> None:
     """Test SSL/TLS connection using SQLAlchemy with asyncpg and configuration.
 
     Args:
@@ -433,7 +435,9 @@ async def test_connection_sqlalchemy_asyncpg(config: Optional[DatabaseConfig] = 
         raise
 
 
-async def test_connection_sqlalchemy_psycopg(config: Optional[DatabaseConfig] = None) -> None:
+async def test_connection_sqlalchemy_psycopg(
+    config: Optional[DatabaseConfig] = None,
+) -> None:
     """Test SSL/TLS connection using SQLAlchemy with psycopg and configuration.
 
     Args:

@@ -428,11 +428,17 @@ async def test_get_dataset_jsonl_openai_evals(
     json_lines = io.StringIO(response.text).readlines()
     assert len(json_lines) == 2
     assert json.loads(json_lines[0]) == {
-        "messages": [{"role": "system", "content": "x"}, {"role": "user", "content": "y"}],
+        "messages": [
+            {"role": "system", "content": "x"},
+            {"role": "user", "content": "y"},
+        ],
         "ideal": "z",
     }
     assert json.loads(json_lines[1]) == {
-        "messages": [{"role": "system", "content": "xx"}, {"role": "user", "content": "yy"}],
+        "messages": [
+            {"role": "system", "content": "xx"},
+            {"role": "user", "content": "yy"},
+        ],
         "ideal": "zz",
     }
 
@@ -986,12 +992,23 @@ async def test_post_dataset_upload_json_with_splits(
             "action": "create",
             "name": name,
             "inputs": [{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}, {"q": "Q4"}, {"q": "Q5"}],
-            "outputs": [{"a": "A1"}, {"a": "A2"}, {"a": "A3"}, {"a": "A4"}, {"a": "A5"}],
+            "outputs": [
+                {"a": "A1"},
+                {"a": "A2"},
+                {"a": "A3"},
+                {"a": "A4"},
+                {"a": "A5"},
+            ],
             "splits": [
                 "train",  # Single string
                 ["test", "hard"],  # List of strings
                 None,  # No splits
-                ["validate", None, "medium", ""],  # List with nulls/empty (should filter)
+                [
+                    "validate",
+                    None,
+                    "medium",
+                    "",
+                ],  # List with nulls/empty (should filter)
                 "   ",  # Whitespace-only (should filter)
             ],
         },
@@ -1005,7 +1022,13 @@ async def test_post_dataset_upload_json_with_splits(
         splits = list(
             await session.scalars(select(models.DatasetSplit).order_by(models.DatasetSplit.name))
         )
-        assert set(s.name for s in splits) == {"train", "test", "hard", "validate", "medium"}
+        assert set(s.name for s in splits) == {
+            "train",
+            "test",
+            "hard",
+            "validate",
+            "medium",
+        }
 
         dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
         examples = list(
@@ -1029,7 +1052,10 @@ async def test_post_dataset_upload_json_with_splits(
         assert await get_example_splits(examples[0].id) == {"train"}
         assert await get_example_splits(examples[1].id) == {"test", "hard"}
         assert await get_example_splits(examples[2].id) == set()  # None -> no splits
-        assert await get_example_splits(examples[3].id) == {"validate", "medium"}  # nulls filtered
+        assert await get_example_splits(examples[3].id) == {
+            "validate",
+            "medium",
+        }  # nulls filtered
         assert await get_example_splits(examples[4].id) == set()  # Whitespace-only -> no splits
 
 

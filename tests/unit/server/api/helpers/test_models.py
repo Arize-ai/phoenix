@@ -142,7 +142,13 @@ from phoenix.server.api.helpers.prompts.models import (
                                 "description": "The maximum number of products to return, use 5 by default if nothing is specified by the user",
                             },
                         },
-                        "required": ["categories", "colors", "keywords", "price_range", "limit"],
+                        "required": [
+                            "categories",
+                            "colors",
+                            "keywords",
+                            "price_range",
+                            "limit",
+                        ],
                         "additionalProperties": False,
                     },
                 },
@@ -574,12 +580,18 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "r": {"type": "number", "description": "red value [0.0, 1.0]"},
+                                    "r": {
+                                        "type": "number",
+                                        "description": "red value [0.0, 1.0]",
+                                    },
                                     "g": {
                                         "type": "number",
                                         "description": "green value [0.0, 1.0]",
                                     },
-                                    "b": {"type": "number", "description": "blue value [0.0, 1.0]"},
+                                    "b": {
+                                        "type": "number",
+                                        "description": "blue value [0.0, 1.0]",
+                                    },
                                     "name": {
                                         "type": "string",
                                         "description": 'Human-readable color name in snake_case, e.g., "olive_green" or "turquoise"',
@@ -638,7 +650,10 @@ def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without
     "params,expectation",
     [
         pytest.param(
-            {"max_tokens": 1025, "thinking": {"type": "enabled", "budget_tokens": 1024}},
+            {
+                "max_tokens": 1025,
+                "thinking": {"type": "enabled", "budget_tokens": 1024},
+            },
             nullcontext(),
             id="max-tokens-gt-budget-tokens-gt-1024",
         ),
@@ -648,17 +663,26 @@ def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without
             id="disabled",
         ),
         pytest.param(
-            {"max_tokens": 1025, "thinking": {"type": "enabled", "budget_tokens": 1023}},
+            {
+                "max_tokens": 1025,
+                "thinking": {"type": "enabled", "budget_tokens": 1023},
+            },
             pytest.raises(ValueError),
             id="budget-tokens-lt-1024",
         ),
         pytest.param(
-            {"max_tokens": 1024, "thinking": {"type": "enabled", "budget_tokens": 1024}},
+            {
+                "max_tokens": 1024,
+                "thinking": {"type": "enabled", "budget_tokens": 1024},
+            },
             pytest.raises(ValueError),
             id="budget-tokens-eq-max-tokens",
         ),
         pytest.param(
-            {"max_tokens": 1024, "thinking": {"type": "enabled", "budget_tokens": 1025}},
+            {
+                "max_tokens": 1024,
+                "thinking": {"type": "enabled", "budget_tokens": 1025},
+            },
             pytest.raises(ValueError),
             id="budget-tokens-gt-max-tokens",
         ),

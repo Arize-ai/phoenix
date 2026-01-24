@@ -6,7 +6,11 @@ from typing import Any, Optional
 
 from .inferences.fixtures import ExampleInferences, load_example
 from .inferences.inferences import Inferences
-from .inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
+from .inferences.schema import (
+    EmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
+    Schema,
+)
 from .session.client import Client
 from .session.evaluation import log_evaluations
 from .session.session import (

@@ -31,8 +31,12 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
-from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag as PromptVersionTagNodeType
+from phoenix.server.api.types.PromptVersion import (
+    PromptVersion as PromptVersionNodeType,
+)
+from phoenix.server.api.types.PromptVersionTag import (
+    PromptVersionTag as PromptVersionTagNodeType,
+)
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 
@@ -195,7 +199,9 @@ async def list_prompt_versions(
         description="Cursor for pagination (base64-encoded promptVersion ID)",
     ),
     limit: int = Query(
-        default=100, description="The max number of prompt versions to return at a time.", gt=0
+        default=100,
+        description="The max number of prompt versions to return at a time.",
+        gt=0,
     ),
 ) -> GetPromptVersionsResponseBody:
     """

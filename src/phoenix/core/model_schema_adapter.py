@@ -10,7 +10,10 @@ from typing_extensions import TypeAlias, TypeGuard
 from phoenix.core.model import _get_embedding_dimensions
 from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
 from phoenix.inferences.inferences import Inferences
-from phoenix.inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames
+from phoenix.inferences.schema import (
+    EmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
+)
 from phoenix.inferences.schema import Schema as InferencesSchema
 
 InferencesName: TypeAlias = str

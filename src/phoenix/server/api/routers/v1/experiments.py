@@ -100,7 +100,8 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
         description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     )
     repetitions: int = Field(
-        default=1, description="Number of times the experiment should be repeated for each example"
+        default=1,
+        description="Number of times the experiment should be repeated for each example",
     )
 
 
@@ -452,7 +453,9 @@ async def get_incomplete_runs(
     experiment_id: str,
     cursor: Optional[str] = Query(default=None, description="Cursor for pagination"),
     limit: int = Query(
-        default=50, description="Maximum number of examples with incomplete runs to return", gt=0
+        default=50,
+        description="Maximum number of examples with incomplete runs to return",
+        gt=0,
     ),
 ) -> GetIncompleteExperimentRunsResponseBody:
     """
@@ -593,7 +596,9 @@ async def list_experiments(
         description="Cursor for pagination (base64-encoded experiment ID)",
     ),
     limit: int = Query(
-        default=50, description="The max number of experiments to return at a time.", gt=0
+        default=50,
+        description="The max number of experiments to return at a time.",
+        gt=0,
     ),
 ) -> ListExperimentsResponseBody:
     try:
@@ -644,7 +649,8 @@ async def list_experiments(
         # Create subqueries for counts
         example_count_subq = (
             select(
-                models.ExperimentDatasetExample.experiment_id, func.count().label("example_count")
+                models.ExperimentDatasetExample.experiment_id,
+                func.count().label("example_count"),
             )
             .where(models.ExperimentDatasetExample.experiment_id.in_(experiment_ids))
             .group_by(models.ExperimentDatasetExample.experiment_id)
@@ -688,7 +694,11 @@ async def list_experiments(
         )
 
         counts_by_experiment = {
-            row.experiment_id: (row.example_count, row.successful_run_count, row.failed_run_count)
+            row.experiment_id: (
+                row.example_count,
+                row.successful_run_count,
+                row.failed_run_count,
+            )
             for row in counts_result
         }
 

@@ -999,7 +999,10 @@ class TestClientForSpanDocumentAnnotations:
         span_ids = [span_id1, span_id2]
         span_gids = [span_gid1, span_gid2]
         annotation_names = [token_hex(8), token_hex(8)]
-        identifiers = ["", ""]  # Use empty identifiers since non-empty ones are not supported
+        identifiers = [
+            "",
+            "",
+        ]  # Use empty identifiers since non-empty ones are not supported
         existing_gids: list[Optional[str]] = [None, None]
 
         # Test create then update
@@ -1286,7 +1289,9 @@ class TestClientForSpanDocumentAnnotations:
             }
 
             response = await client.post(
-                f"v1/document_annotations?sync={sync}", json=non_empty_request_body, headers=headers
+                f"v1/document_annotations?sync={sync}",
+                json=non_empty_request_body,
+                headers=headers,
             )
             assert response.status_code == 422, (
                 "Non-empty identifier should be rejected with HTTP 422"
@@ -2233,7 +2238,11 @@ class TestClientForSessionAnnotations:
                 label="extremely_helpful",  # Changed
                 score=1.0,  # Changed
                 explanation="This session was extremely helpful after review",  # Changed
-                metadata={"model_name": "gpt-4", "version": "2024-02", "reviewed": True},  # Changed
+                metadata={
+                    "model_name": "gpt-4",
+                    "version": "2024-02",
+                    "reviewed": True,
+                },  # Changed
                 identifier="test-id-123",  # Same identifier - should update
                 sync=sync,
             ),
@@ -3531,7 +3540,13 @@ class TestSendingAnnotationsBeforeSpan:
         # Check updated trace annotations
         anno = await _get(
             query_fn=get_trace_anno,
-            args=((new_trace_anno_label, new_trace_anno_score, new_trace_anno_explanation),),
+            args=(
+                (
+                    new_trace_anno_label,
+                    new_trace_anno_score,
+                    new_trace_anno_explanation,
+                ),
+            ),
             error_msg="Updated trace annotation should be present",
         )
         assert anno["name"] == trace_annotation_name
@@ -3546,7 +3561,13 @@ class TestSendingAnnotationsBeforeSpan:
         # Check updated session annotations
         anno = await _get(
             query_fn=get_session_anno,
-            args=((new_session_anno_label, new_session_anno_score, new_session_anno_explanation),),
+            args=(
+                (
+                    new_session_anno_label,
+                    new_session_anno_score,
+                    new_session_anno_explanation,
+                ),
+            ),
             error_msg="Updated session annotation should be present",
         )
         assert anno["name"] == session_annotation_name
@@ -3565,7 +3586,11 @@ class TestSendingAnnotationsBeforeSpan:
         anno = await _get(
             query_fn=get_document_anno,
             args=(
-                (new_document_anno_label, new_document_anno_score, new_document_anno_explanation),
+                (
+                    new_document_anno_label,
+                    new_document_anno_score,
+                    new_document_anno_explanation,
+                ),
             ),
             error_msg="Updated document annotation should be present",
         )
@@ -3585,7 +3610,13 @@ class TestSendingAnnotationsBeforeSpan:
         # Check updated trace evaluations
         anno = await _get(
             query_fn=get_trace_anno,
-            args=((new_trace_eval_label, new_trace_eval_score, new_trace_eval_explanation),),
+            args=(
+                (
+                    new_trace_eval_label,
+                    new_trace_eval_score,
+                    new_trace_eval_explanation,
+                ),
+            ),
             error_msg="Updated trace evaluation should be present",
         )
         assert anno["name"] == trace_eval_name

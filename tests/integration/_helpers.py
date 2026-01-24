@@ -54,7 +54,11 @@ from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export import (
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
@@ -928,7 +932,10 @@ def _create_user(
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
     return _User(
-        _GqlId(user["id"]), role, profile, profile_picture_url=user.get("profilePictureUrl")
+        _GqlId(user["id"]),
+        role,
+        profile,
+        profile_picture_url=user.get("profilePictureUrl"),
     )
 
 
@@ -1592,7 +1599,10 @@ class _OIDCServer:
                 # PKCE flow
                 if not pkce_valid:
                     return JSONResponse(
-                        {"error": "invalid_grant", "error_description": "PKCE validation failed"},
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "PKCE validation failed",
+                        },
                         status_code=400,
                     )
                 # For confidential clients with PKCE, also check client_secret if provided
@@ -1753,7 +1763,10 @@ class _OIDCServer:
             """
             if not self._current_session:
                 return JSONResponse(
-                    {"error": "invalid_token", "error_description": "No active session"},
+                    {
+                        "error": "invalid_token",
+                        "error_description": "No active session",
+                    },
                     status_code=401,
                 )
 

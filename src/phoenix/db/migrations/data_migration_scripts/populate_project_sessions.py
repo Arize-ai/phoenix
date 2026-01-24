@@ -35,7 +35,10 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
-from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, get_env_database_connection_str
+from phoenix.config import (
+    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
+    get_env_database_connection_str,
+)
 from phoenix.db.engines import set_postgresql_search_path
 
 

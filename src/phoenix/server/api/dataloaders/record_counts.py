@@ -65,7 +65,12 @@ class RecordCountCache(
         (kind, interval, filter_condition, session_filter_condition), project_rowid = _cache_key_fn(
             key
         )
-        return project_rowid, (interval, filter_condition, session_filter_condition, kind)
+        return project_rowid, (
+            interval,
+            filter_condition,
+            session_filter_condition,
+            kind,
+        )
 
 
 class RecordCountDataLoader(DataLoader[Key, Result]):

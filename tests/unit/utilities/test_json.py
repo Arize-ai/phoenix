@@ -11,7 +11,11 @@ class TestDataFrameJSONRoundtrip:
     def test_roundtrip(self) -> None:
         t = datetime.now(timezone.utc)
         keys = [("한", 3, t), (2, "\"\n'", t), ("\\n\r\n\r\n", 1, t)]
-        data = [([np.nan, {}], '{"1": {}}'), ({"2": [{}, []]}, {}), ([[{"3\r\n": []}, []]], None)]
+        data = [
+            ([np.nan, {}], '{"1": {}}'),
+            ({"2": [{}, []]}, {}),
+            ([[{"3\r\n": []}, []]], None),
+        ]
         index = pd.MultiIndex.from_tuples(keys, names=(None, "a", "index"))
         columns = ["a", "index"]
         df1 = pd.DataFrame(data, columns=columns, index=index)
@@ -113,7 +117,14 @@ class TestDataFrameJSONRoundtrip:
 
     def test_can_handle_complex_types(self) -> None:
         expected = pd.DataFrame(
-            {"a": [0, [{}, [[1, {}, []], {"2\r": [None]}]], [np.nan], {"3\n": [{}, [{}]]}]}
+            {
+                "a": [
+                    0,
+                    [{}, [[1, {}, []], {"2\r": [None]}]],
+                    [np.nan],
+                    {"3\n": [{}, [{}]]},
+                ]
+            }
         )
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)

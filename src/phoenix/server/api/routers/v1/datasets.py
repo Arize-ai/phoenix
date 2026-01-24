@@ -30,7 +30,10 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
+from phoenix.db.helpers import (
+    get_eval_trace_ids_for_datasets,
+    get_project_names_for_datasets,
+)
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -39,9 +42,13 @@ from phoenix.db.insertion.dataset import (
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
-from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
+from phoenix.server.api.types.DatasetExample import (
+    DatasetExample as DatasetExampleNodeType,
+)
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
-from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
+from phoenix.server.api.types.DatasetVersion import (
+    DatasetVersion as DatasetVersionNodeType,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.authorization import is_not_locked
@@ -273,7 +280,9 @@ async def list_dataset_versions(
         description="Cursor for pagination",
     ),
     limit: int = Query(
-        default=10, description="The max number of dataset versions to return at a time", gt=0
+        default=10,
+        description="The max number of dataset versions to return at a time",
+        gt=0,
     ),
 ) -> ListDatasetVersionsResponseBody:
     if id:
@@ -508,7 +517,12 @@ async def upload_dataset(
                 )
             elif file_content_type is FileContentType.PYARROW:
                 examples = await _process_pyarrow(
-                    content, input_keys, output_keys, metadata_keys, split_keys, span_id_key
+                    content,
+                    input_keys,
+                    output_keys,
+                    metadata_keys,
+                    split_keys,
+                    span_id_key,
                 )
             elif file_content_type is FileContentType.JSONL:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
@@ -617,7 +631,11 @@ def _process_json(
         raise ValueError("input is required")
     if not isinstance(inputs, list) or not _is_all_dict(inputs):
         raise ValueError("Input should be a list containing only dictionary objects")
-    outputs, metadata, splits = data.get("outputs"), data.get("metadata"), data.get("splits")
+    outputs, metadata, splits = (
+        data.get("outputs"),
+        data.get("metadata"),
+        data.get("splits"),
+    )
     for k, v in {"outputs": outputs, "metadata": metadata}.items():
         if v and not (isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)):
             raise ValueError(
@@ -1197,7 +1215,9 @@ def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
     return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
-def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_ft(
+    examples: list[models.DatasetExampleRevision],
+) -> bytes:
     records = io.BytesIO()
     for ex in examples:
         input_messages = ex.input.get("messages", [])
@@ -1221,7 +1241,9 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
     return records.read()
 
 
-def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_evals(
+    examples: list[models.DatasetExampleRevision],
+) -> bytes:
     records = io.BytesIO()
     for ex in examples:
         records.write(

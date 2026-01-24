@@ -12,19 +12,30 @@ from strawberry.relay import Connection, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
+from phoenix.server.api.input_types.AnnotationFilter import (
+    AnnotationFilter,
+    satisfies_filter,
+)
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
-    from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
+    from phoenix.server.api.types.ProjectSessionAnnotation import (
+        ProjectSessionAnnotation,
+    )
     from phoenix.server.api.types.Trace import Trace
 
 

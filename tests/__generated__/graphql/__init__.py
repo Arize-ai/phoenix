@@ -69,7 +69,16 @@ class ModelInterface(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: str
     providerKey: Optional[
-        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+        Literal[
+            "ANTHROPIC",
+            "AWS",
+            "AZURE_OPENAI",
+            "DEEPSEEK",
+            "GOOGLE",
+            "OLLAMA",
+            "OPENAI",
+            "XAI",
+        ]
     ] = None
 
 
@@ -103,7 +112,9 @@ class AnnotationConfigEdge(BaseModel):
     model_config = ConfigDict(frozen=True)
     cursor: str = Field(...)
     node: Union[
-        "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ] = Field(...)
 
 
@@ -289,7 +300,9 @@ class CostBreakdown(BaseModel):
 class CreateAnnotationConfigPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: Union[
-        "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ]
 
 
@@ -484,7 +497,9 @@ class DeleteAnnotationConfigsPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfigs: list[
         Union[
-            "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+            "CategoricalAnnotationConfig",
+            "ContinuousAnnotationConfig",
+            "FreeformAnnotationConfig",
         ]
     ]
 
@@ -871,7 +886,16 @@ class GenerativeModel(ModelInterface, Node):
     namePattern: str
     provider: Optional[str] = None
     providerKey: Optional[
-        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+        Literal[
+            "ANTHROPIC",
+            "AWS",
+            "AZURE_OPENAI",
+            "DEEPSEEK",
+            "GOOGLE",
+            "OLLAMA",
+            "OPENAI",
+            "XAI",
+        ]
     ] = None
     startTime: Optional[str] = None
     tokenPrices: list[TokenPrice]
@@ -885,7 +909,14 @@ class GenerativeProvider(BaseModel):
     dependencies: list[str]
     dependenciesInstalled: bool
     key: Literal[
-        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC",
+        "AWS",
+        "AZURE_OPENAI",
+        "DEEPSEEK",
+        "GOOGLE",
+        "OLLAMA",
+        "OPENAI",
+        "XAI",
     ]
     name: str
 
@@ -1021,7 +1052,14 @@ class PlaygroundModel(ModelInterface):
     model_config = ConfigDict(frozen=True)
     name: str
     providerKey: Literal[
-        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC",
+        "AWS",
+        "AZURE_OPENAI",
+        "DEEPSEEK",
+        "GOOGLE",
+        "OLLAMA",
+        "OPENAI",
+        "XAI",
     ]
 
 
@@ -1271,7 +1309,14 @@ class PromptVersion(Node):
     metadata: dict[str, Any]
     modelName: str
     modelProvider: Literal[
-        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC",
+        "AWS",
+        "AZURE_OPENAI",
+        "DEEPSEEK",
+        "GOOGLE",
+        "OLLAMA",
+        "OPENAI",
+        "XAI",
     ]
     previousVersion: Optional[PromptVersion] = None
     responseFormat: Optional[ResponseFormat] = None
@@ -1840,7 +1885,9 @@ class UnsetDatasetLabelsMutationPayload(BaseModel):
 class UpdateAnnotationConfigPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationConfig: Union[
-        "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ]
 
 
@@ -2012,7 +2059,14 @@ class ChatPromptVersionInput(BaseModel):
     invocationParameters: dict[str, Any]
     modelName: str
     modelProvider: Literal[
-        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC",
+        "AWS",
+        "AZURE_OPENAI",
+        "DEEPSEEK",
+        "GOOGLE",
+        "OLLAMA",
+        "OPENAI",
+        "XAI",
     ]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
@@ -2370,7 +2424,14 @@ class GenerativeModelInput(BaseModel):
     endpoint: Optional[str] = None
     name: str
     providerKey: Literal[
-        "ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"
+        "ANTHROPIC",
+        "AWS",
+        "AZURE_OPENAI",
+        "DEEPSEEK",
+        "GOOGLE",
+        "OLLAMA",
+        "OPENAI",
+        "XAI",
     ]
     region: Optional[str] = None
 
@@ -2423,7 +2484,16 @@ class ModelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     modelName: Optional[str] = None
     providerKey: Optional[
-        Literal["ANTHROPIC", "AWS", "AZURE_OPENAI", "DEEPSEEK", "GOOGLE", "OLLAMA", "OPENAI", "XAI"]
+        Literal[
+            "ANTHROPIC",
+            "AWS",
+            "AZURE_OPENAI",
+            "DEEPSEEK",
+            "GOOGLE",
+            "OLLAMA",
+            "OPENAI",
+            "XAI",
+        ]
     ] = None
 
 

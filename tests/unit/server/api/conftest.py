@@ -1129,7 +1129,9 @@ class ExperimentsWithIncompleteRuns(NamedTuple):
 
 
 @pytest.fixture
-async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsWithIncompleteRuns:
+async def experiments_with_incomplete_runs(
+    db: DbSessionFactory,
+) -> ExperimentsWithIncompleteRuns:
     """
     Comprehensive fixture for testing experiments across multiple dataset versions.
     Tests versioning, deletions, patches, and various run completion states.
@@ -1527,7 +1529,13 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
         example_id_map = {i: example.id for i, example in enumerate(examples_v1)}
 
         # Examples active in v2 (ex2 deleted)
-        examples_v2_active = [examples_v1[0], examples_v1[1], examples_v1[3], examples_v1[4], ex5]
+        examples_v2_active = [
+            examples_v1[0],
+            examples_v1[1],
+            examples_v1[3],
+            examples_v1[4],
+            ex5,
+        ]
 
     return ExperimentsWithIncompleteRuns(
         dataset=dataset,

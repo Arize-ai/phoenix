@@ -7,7 +7,10 @@ from typing import Any, Mapping, Optional
 
 import pytest
 from faker import Faker
-from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
+from openinference.semconv.trace import (
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
+)
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
@@ -491,8 +494,14 @@ async def project_with_a_single_trace_and_span(
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
-                    "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
-                    "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
+                    "input": {
+                        "value": "chain-span-input-value",
+                        "mime_type": "text/plain",
+                    },
+                    "output": {
+                        "value": "chain-span-output-value",
+                        "mime_type": "text/plain",
+                    },
                 },
                 events=[],
                 status_code="OK",
@@ -562,8 +571,14 @@ async def simple_dataset(
             "Hallucination",  # Check the Hallucination summary
             0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
             [
-                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
-                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+                {
+                    "label": "factual",
+                    "fraction": 0.75,
+                },  # 3 out of 4 annotations with labels
+                {
+                    "label": "hallucinated",
+                    "fraction": 0.25,
+                },  # 1 out of 4 annotations with labels
             ],
             id="no-filter",
         ),
@@ -574,8 +589,14 @@ async def simple_dataset(
             "Hallucination",  # Check the Hallucination summary
             0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
             [
-                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
-                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+                {
+                    "label": "factual",
+                    "fraction": 0.75,
+                },  # 3 out of 4 annotations with labels
+                {
+                    "label": "hallucinated",
+                    "fraction": 0.25,
+                },  # 1 out of 4 annotations with labels
             ],
             id="filter-by-name-include",
         ),
@@ -586,8 +607,14 @@ async def simple_dataset(
             "Hallucination",  # Check the Hallucination summary
             0.55,  # Mean score: (0.0 + 1.0 + 0.5 + 0.7) / 4 = 0.55
             [
-                {"label": "factual", "fraction": 0.75},  # 3 out of 4 annotations with labels
-                {"label": "hallucinated", "fraction": 0.25},  # 1 out of 4 annotations with labels
+                {
+                    "label": "factual",
+                    "fraction": 0.75,
+                },  # 3 out of 4 annotations with labels
+                {
+                    "label": "hallucinated",
+                    "fraction": 0.25,
+                },  # 1 out of 4 annotations with labels
             ],
             id="filter-by-name-exclude",
         ),
@@ -598,9 +625,18 @@ async def simple_dataset(
             "Relevance",  # Check the Relevance summary
             0.8,  # Mean score: (0.8 + 0.7 + 0.9) / 3 = 0.8
             [
-                {"label": "high", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
-                {"label": "low", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
-                {"label": "medium", "fraction": 1 / 3},  # 1 out of 3 annotations with labels
+                {
+                    "label": "high",
+                    "fraction": 1 / 3,
+                },  # 1 out of 3 annotations with labels
+                {
+                    "label": "low",
+                    "fraction": 1 / 3,
+                },  # 1 out of 3 annotations with labels
+                {
+                    "label": "medium",
+                    "fraction": 1 / 3,
+                },  # 1 out of 3 annotations with labels
             ],
             id="check-relevance-summary",
         ),

@@ -316,7 +316,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
         elif method.type == "azure_ad_token_provider":
             try:
-                from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
+                from azure.identity.aio import (
+                    ClientSecretCredential,
+                    get_bearer_token_provider,
+                )
             except ImportError:
                 raise ImportError(
                     "Azure identity package not installed. Run: pip install azure-identity"
@@ -346,7 +349,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
         elif method.type == "default_credentials":
             # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
             try:
-                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+                from azure.identity.aio import (
+                    DefaultAzureCredential,
+                    get_bearer_token_provider,
+                )
             except ImportError:
                 raise ImportError(
                     "Azure identity package not installed. Run: pip install azure-identity"

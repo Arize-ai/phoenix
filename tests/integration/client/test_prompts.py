@@ -135,7 +135,8 @@ class TestTools:
         api_key = _app.admin_secret
         expected: Mapping[str, ChatCompletionToolParam] = {
             t.__name__: cast(
-                ChatCompletionToolParam, json.loads(json.dumps(pydantic_function_tool(t)))
+                ChatCompletionToolParam,
+                json.loads(json.dumps(pydantic_function_tool(t))),
             )
             for t in types_
         }
@@ -345,7 +346,8 @@ class TestMetadata:
                 name=prompt_name,
                 version=PromptVersion.from_openai(
                     CompletionCreateParamsBase(
-                        model=token_hex(8), messages=[{"role": "user", "content": "hello"}]
+                        model=token_hex(8),
+                        messages=[{"role": "user", "content": "hello"}],
                     )
                 ),
                 prompt_description=prompt_description,
@@ -836,7 +838,10 @@ class TestClient:
                         {
                             "name": "print_all_characteristics",
                             "description": "Prints all characteristics which are provided.",
-                            "input_schema": {"type": "object", "additionalProperties": True},
+                            "input_schema": {
+                                "type": "object",
+                                "additionalProperties": True,
+                            },
                         }
                     ],
                     tool_choice={"type": "tool", "name": "print_all_characteristics"},
@@ -1372,7 +1377,11 @@ class TestPromptFiltering:
             _app.admin_secret,
             query=create_label_mutation,
             variables={
-                "input": {"name": label1_name, "description": "Test label 1", "color": "#FF0000"}
+                "input": {
+                    "name": label1_name,
+                    "description": "Test label 1",
+                    "color": "#FF0000",
+                }
             },
         )
         label1_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
@@ -1383,7 +1392,11 @@ class TestPromptFiltering:
             _app.admin_secret,
             query=create_label_mutation,
             variables={
-                "input": {"name": label2_name, "description": "Test label 2", "color": "#00FF00"}
+                "input": {
+                    "name": label2_name,
+                    "description": "Test label 2",
+                    "color": "#00FF00",
+                }
             },
         )
         label2_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
@@ -1412,7 +1425,12 @@ class TestPromptFiltering:
             _app,
             _app.admin_secret,
             query=set_labels_mutation,
-            variables={"input": {"promptId": prompt2_id, "promptLabelIds": [label1_id, label2_id]}},
+            variables={
+                "input": {
+                    "promptId": prompt2_id,
+                    "promptLabelIds": [label1_id, label2_id],
+                }
+            },
         )
 
         # Assign label2 to prompt3
@@ -1525,7 +1543,11 @@ class TestPromptFiltering:
             _app.admin_secret,
             query=create_label_mutation,
             variables={
-                "input": {"name": test_label_name, "description": "Test label", "color": "#FF0000"}
+                "input": {
+                    "name": test_label_name,
+                    "description": "Test label",
+                    "color": "#FF0000",
+                }
             },
         )
         test_label_id = response["data"]["createPromptLabel"]["promptLabels"][0]["id"]
@@ -1568,7 +1590,12 @@ class TestPromptFiltering:
             _app,
             _app.admin_secret,
             query=set_labels_mutation,
-            variables={"input": {"promptId": test_another_id, "promptLabelIds": [test_label_id]}},
+            variables={
+                "input": {
+                    "promptId": test_another_id,
+                    "promptLabelIds": [test_label_id],
+                }
+            },
         )
 
         # Assign other label to another_prompt
@@ -1577,7 +1604,10 @@ class TestPromptFiltering:
             _app.admin_secret,
             query=set_labels_mutation,
             variables={
-                "input": {"promptId": another_prompt_id, "promptLabelIds": [other_label_id]}
+                "input": {
+                    "promptId": another_prompt_id,
+                    "promptLabelIds": [other_label_id],
+                }
             },
         )
 
@@ -1603,7 +1633,10 @@ class TestPromptFiltering:
             _app,
             _app.admin_secret,
             query=query,
-            variables={"filter": {"col": "name", "value": "test"}, "labelIds": [test_label_id]},
+            variables={
+                "filter": {"col": "name", "value": "test"},
+                "labelIds": [test_label_id],
+            },
         )
 
         results = response["data"]["prompts"]["edges"]
@@ -1619,7 +1652,10 @@ class TestPromptFiltering:
             _app,
             _app.admin_secret,
             query=query,
-            variables={"filter": {"col": "name", "value": "another"}, "labelIds": [other_label_id]},
+            variables={
+                "filter": {"col": "name", "value": "another"},
+                "labelIds": [other_label_id],
+            },
         )
 
         results = response["data"]["prompts"]["edges"]

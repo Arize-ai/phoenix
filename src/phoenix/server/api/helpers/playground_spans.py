@@ -25,7 +25,9 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
+from opentelemetry.sdk.trace.id_generator import (
+    RandomIdGenerator as DefaultOTelIDGenerator,
+)
 from opentelemetry.trace import StatusCode
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import Self, TypeAlias, assert_never
@@ -349,7 +351,12 @@ def _output_value_and_mime_type(
 
 def llm_input_messages(
     messages: Iterable[
-        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        tuple[
+            ChatCompletionMessageRole,
+            str,
+            Optional[str],
+            Optional[list[JSONScalarType]],
+        ]
     ],
 ) -> Iterator[tuple[str, Any]]:
     for i, (role, content, tool_call_id, tool_calls) in enumerate(messages):

@@ -24,7 +24,9 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from llama_index.core.indices.query.query_transform import HyDEQueryTransform
-from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
+from llama_index.core.indices.query.query_transform.base import (
+    StepDecomposeQueryTransform,
+)
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.query_engine import MultiStepQueryEngine, TransformQueryEngine
 from llama_index.legacy import (
@@ -424,7 +426,11 @@ def df_evals(
     )
 
     df = df.rename(
-        columns={"query": "input", "response": "output", "retrieved_context_list": "reference"}
+        columns={
+            "query": "input",
+            "response": "output",
+            "retrieved_context_list": "reference",
+        }
     )
     # Q&A Eval: Did the LLM get the answer right? Checking the LLM
     Q_and_A_classifications = llm_classify(

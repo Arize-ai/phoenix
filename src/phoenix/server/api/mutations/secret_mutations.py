@@ -22,7 +22,12 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import (
+    IsAdminIfAuthEnabled,
+    IsLocked,
+    IsNotReadOnly,
+    IsNotViewer,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.queries import Query

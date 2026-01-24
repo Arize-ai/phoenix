@@ -57,7 +57,8 @@ async def annotate_span_documents(
     request: Request,
     request_body: AnnotateSpanDocumentsRequestBody,
     sync: bool = Query(
-        default=False, description="If set to true, the annotations are inserted synchronously."
+        default=False,
+        description="If set to true, the annotations are inserted synchronously.",
     ),
 ) -> AnnotateSpanDocumentsResponseBody:
     if not request_body.data:

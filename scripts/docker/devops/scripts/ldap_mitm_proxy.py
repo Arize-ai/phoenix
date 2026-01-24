@@ -454,12 +454,24 @@ class LDAPMITMProxy:
 
             c2s_thread = threading.Thread(
                 target=self._forward_and_inspect,
-                args=(client_socket, server_socket, conn_id, "client→server", stop_event),
+                args=(
+                    client_socket,
+                    server_socket,
+                    conn_id,
+                    "client→server",
+                    stop_event,
+                ),
                 daemon=True,
             )
             s2c_thread = threading.Thread(
                 target=self._forward_and_inspect,
-                args=(server_socket, client_socket, conn_id, "server→client", stop_event),
+                args=(
+                    server_socket,
+                    client_socket,
+                    conn_id,
+                    "server→client",
+                    stop_event,
+                ),
                 daemon=True,
             )
 

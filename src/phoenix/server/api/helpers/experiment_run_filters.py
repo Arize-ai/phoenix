@@ -69,7 +69,10 @@ def update_examples_query_with_filter_condition(
         experiment_run_annotations_aliases = transformer.get_experiment_run_annotations_aliases(
             experiment_id
         )
-        for eval_name, experiment_run_annotations in experiment_run_annotations_aliases.items():
+        for (
+            eval_name,
+            experiment_run_annotations,
+        ) in experiment_run_annotations_aliases.items():
             query = query.join(
                 experiment_run_annotations,
                 onclause=(

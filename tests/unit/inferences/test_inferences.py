@@ -317,10 +317,20 @@ class TestParseDataFrameAndSchema:
             input_dataframe=input_dataframe,
             input_schema=input_schema,
             expected_parsed_dataframe=input_dataframe[
-                ["prediction_id", "timestamp", "feature0", "feature1", "feature2", "tag0", "tag1"]
+                [
+                    "prediction_id",
+                    "timestamp",
+                    "feature0",
+                    "feature1",
+                    "feature2",
+                    "tag0",
+                    "tag1",
+                ]
             ],
             expected_parsed_schema=replace(
-                input_schema, prediction_label_column_name=None, excluded_column_names=None
+                input_schema,
+                prediction_label_column_name=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=True,
             caplog=caplog,
@@ -643,7 +653,9 @@ class TestParseDataFrameAndSchema:
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
                 "timestamp": np.full(
-                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                    shape=self.num_records,
+                    fill_value=pd.Timestamp.utcnow(),
+                    dtype=pd.Timestamp,
                 ),
                 "prediction_id": random_uuids(self.num_records),
             }
@@ -668,7 +680,9 @@ class TestParseDataFrameAndSchema:
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
                 "timestamp": np.full(
-                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                    shape=self.num_records,
+                    fill_value=pd.Timestamp.utcnow(),
+                    dtype=pd.Timestamp,
                 ),
                 "prediction_id": range(self.num_records),
             }
@@ -694,7 +708,9 @@ class TestParseDataFrameAndSchema:
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
                 "timestamp": np.full(
-                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                    shape=self.num_records,
+                    fill_value=pd.Timestamp.utcnow(),
+                    dtype=pd.Timestamp,
                 ),
             }
         )
@@ -734,7 +750,9 @@ class TestDataset:
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self._NUM_RECORDS),
                 "timestamp": np.full(
-                    shape=self._NUM_RECORDS, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                    shape=self._NUM_RECORDS,
+                    fill_value=pd.Timestamp.utcnow(),
+                    dtype=pd.Timestamp,
                 ),
                 "prediction_id": random_uuids(self.num_records),
             }
@@ -763,7 +781,9 @@ class TestDataset:
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
                 "prediction_id": np.full(
-                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                    shape=self.num_records,
+                    fill_value=pd.Timestamp.utcnow(),
+                    dtype=pd.Timestamp,
                 ),
             }
         )
@@ -880,7 +900,15 @@ def random_uuids(num_records: int) -> list[str]:
                 }
             ),
             Schema(prediction_id_column_name="prediction_id"),
-            Timestamp(year=2022, month=1, day=1, hour=0, minute=0, second=0, tzinfo=timezone.utc),
+            Timestamp(
+                year=2022,
+                month=1,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                tzinfo=timezone.utc,
+            ),
             DataFrame(
                 {
                     "prediction_id": [1, 2, 3],
@@ -899,7 +927,10 @@ def random_uuids(num_records: int) -> list[str]:
                     ).dt.tz_localize(timezone.utc),
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="missing_timestamp_updates_schema_and_adds_default_timestamp_column_to_dataframe",
         ),
         pytest.param(
@@ -913,7 +944,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -950,7 +984,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="tz_naive_timestamps_localized_to_local_time_zone_converted_to_utc",
         ),
         pytest.param(
@@ -987,7 +1024,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1022,7 +1062,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="utc_timestamps_remain_unchanged",
         ),
         pytest.param(
@@ -1061,7 +1104,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1096,7 +1142,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="unix_timestamps_converted_to_utc_timestamps",
         ),
         pytest.param(
@@ -1133,7 +1182,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1168,7 +1220,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="us_pacific_timestamps_converted_to_utc",
         ),
         pytest.param(
@@ -1182,7 +1237,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1217,7 +1275,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="iso8601_utc_tz_aware_strings_converted_to_utc_timestamps",
         ),
         pytest.param(
@@ -1231,7 +1292,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1268,7 +1332,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="iso8601_tz_naive_strings_localized_to_localTZ_converted_to_utc_timestamps",
         ),
         pytest.param(
@@ -1282,7 +1349,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             None,
             DataFrame(
                 {
@@ -1317,7 +1387,10 @@ def random_uuids(num_records: int) -> list[str]:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            Schema(
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
+            ),
             id="iso8601_us_pacific_strings_converted_to_utc_timestamps",
         ),
     ],
@@ -1330,7 +1403,9 @@ def test_normalize_timestamps_produces_expected_output_for_valid_input(
     expected_schema: Schema,
 ) -> None:
     output_dataframe, output_schema = _normalize_timestamps(
-        dataframe=input_dataframe, schema=input_schema, default_timestamp=default_timestamp
+        dataframe=input_dataframe,
+        schema=input_schema,
+        default_timestamp=default_timestamp,
     )
     assert output_schema == expected_schema
     assert output_dataframe.equals(expected_dataframe)
@@ -1350,7 +1425,8 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
                 }
             ),
             schema=Schema(
-                timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"
+                timestamp_column_name="timestamp",
+                prediction_id_column_name="prediction_id",
             ),
             default_timestamp=Timestamp.utcnow(),
         )

@@ -72,7 +72,10 @@ if __name__ == "__main__":
         help="If this flag is set, the index will be loaded from GCS.",
     )
     parser.add_argument(
-        "--query-path", type=str, required=True, help="Path to CSV file containing queries."
+        "--query-path",
+        type=str,
+        required=True,
+        help="Path to CSV file containing queries.",
     )
     parser.add_argument(
         "--output-path", type=str, required=True, help="Path to output Parquet file."
@@ -118,7 +121,10 @@ if __name__ == "__main__":
         ":feature.[str].retrieved_document_ids:prompt"
     ].tolist()
     document_id_to_text = dict(
-        zip(document_dataframe["id"].to_list(), document_dataframe["node_text"].to_list())
+        zip(
+            document_dataframe["id"].to_list(),
+            document_dataframe["node_text"].to_list(),
+        )
     )
     first_document_texts, second_document_texts = [
         [

@@ -88,7 +88,11 @@ class TestOAuth2ClientJMESPathValidation:
     def test_helpful_error_message_on_invalid_jmespath(self) -> None:
         """Test that error message includes helpful hints about quoting special characters."""
         config = OAuth2ClientConfig(
-            **{**_OAUTH2_CONFIG_DEFAULTS, "idp_name": "auth0", "idp_display_name": "Auth0"},
+            **{
+                **_OAUTH2_CONFIG_DEFAULTS,
+                "idp_name": "auth0",
+                "idp_display_name": "Auth0",
+            },
             groups_attribute_path="https://myapp.com/groups",  # Invalid - needs quotes
             allowed_groups=["admin"],
             role_attribute_path=None,
@@ -323,7 +327,11 @@ class TestOAuth2ClientAccessValidation:
             pytest.param(
                 "groups",
                 ["admin", "users"],
-                {"sub": "user123", "email": "user@example.com", "groups": ["users", "developers"]},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": ["users", "developers"],
+                },
                 id="single_matching_group",
             ),
             pytest.param(
@@ -339,13 +347,20 @@ class TestOAuth2ClientAccessValidation:
             pytest.param(
                 "groups",
                 ["1", "True"],
-                {"sub": "user123", "email": "user@example.com", "groups": [1, True, "other"]},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": [1, True, "other"],
+                },
                 id="type_normalization",
             ),
         ],
     )
     def test_access_granted(
-        self, groups_attribute_path: str, allowed_groups: list[str], user_claims: dict[str, Any]
+        self,
+        groups_attribute_path: str,
+        allowed_groups: list[str],
+        user_claims: dict[str, Any],
     ) -> None:
         """Test that access is granted when user belongs to at least one allowed group."""
         client = OAuth2Client(
@@ -363,7 +378,11 @@ class TestOAuth2ClientAccessValidation:
             pytest.param(
                 "groups",
                 ["admin", "powerusers"],
-                {"sub": "user123", "email": "user@example.com", "groups": ["guest", "readonly"]},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": ["guest", "readonly"],
+                },
                 id="no_matching_groups",
             ),
             pytest.param(
@@ -390,7 +409,10 @@ class TestOAuth2ClientAccessValidation:
                 {
                     "sub": "user123",
                     "email": "support@example.com",
-                    "teams": [{"id": "3", "name": "support"}, {"id": "4", "name": "sales"}],
+                    "teams": [
+                        {"id": "3", "name": "support"},
+                        {"id": "4", "name": "sales"},
+                    ],
                 },
                 id="array_projection_no_match",
             ),
@@ -403,7 +425,10 @@ class TestOAuth2ClientAccessValidation:
         ],
     )
     def test_access_denied(
-        self, groups_attribute_path: str, allowed_groups: list[str], user_claims: dict[str, Any]
+        self,
+        groups_attribute_path: str,
+        allowed_groups: list[str],
+        user_claims: dict[str, Any],
     ) -> None:
         """Test that access is denied when user doesn't meet group requirements."""
         client = OAuth2Client(
@@ -465,7 +490,11 @@ class TestOAuth2ClientAccessValidation:
             OAuth2Client(
                 **_OAUTH2_CLIENT_DEFAULTS,
                 groups_attribute_path="groups",
-                allowed_groups=["", "  ", ""],  # All empty/whitespace - will be filtered out
+                allowed_groups=[
+                    "",
+                    "  ",
+                    "",
+                ],  # All empty/whitespace - will be filtered out
             )
 
     def test_empty_string_groups_attribute_path_normalized(self) -> None:
@@ -570,13 +599,21 @@ class TestOAuth2ClientAccessValidation:
             pytest.param(
                 "groups",
                 ["admin"],
-                {"sub": "user123", "email": "user@example.com", "groups": ["admin", None, "user"]},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": ["admin", None, "user"],
+                },
                 id="null_values_in_array",
             ),
             pytest.param(
                 "groups",
                 ["管理者"],
-                {"sub": "user123", "email": "user@example.com", "groups": ["管理者", "ユーザー"]},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": ["管理者", "ユーザー"],
+                },
                 id="unicode_group_names",
             ),
             pytest.param(
@@ -618,7 +655,10 @@ class TestOAuth2ClientAccessValidation:
         user_claims = {
             "sub": "user123",
             "email": "user@example.com",
-            "groups": ["", "guest"],  # Empty string preserved but shouldn't match 'admin'
+            "groups": [
+                "",
+                "guest",
+            ],  # Empty string preserved but shouldn't match 'admin'
         }
 
         with pytest.raises(PermissionError, match="Access denied"):
@@ -643,7 +683,11 @@ class TestOAuth2ClientAccessValidation:
                 id="boolean_instead_of_array",
             ),
             pytest.param(
-                {"sub": "user123", "email": "user@example.com", "groups": {"admin": True}},
+                {
+                    "sub": "user123",
+                    "email": "user@example.com",
+                    "groups": {"admin": True},
+                },
                 False,
                 id="dict_instead_of_array",
             ),
@@ -969,7 +1013,10 @@ class TestOAuth2ClientRoleMapping:
         )
 
         # User in system_admin group - JMESPath evaluates to 'SYSTEM'
-        claims_system = {"email": "admin@example.com", "groups": ["system_admin", "users"]}
+        claims_system = {
+            "email": "admin@example.com",
+            "groups": ["system_admin", "users"],
+        }
         result = client_non_strict.extract_and_map_role(claims_system)
         assert result == "VIEWER", (
             f"SECURITY: JMESPath returning 'SYSTEM' should default to 'VIEWER' in non-strict mode, "
@@ -1087,7 +1134,9 @@ class TestHasSufficientClaimsWithRoles:
         }
         assert client.has_sufficient_claims(claims) is True
 
-    def test_insufficient_when_role_missing_but_non_strict_even_with_groups(self) -> None:
+    def test_insufficient_when_role_missing_but_non_strict_even_with_groups(
+        self,
+    ) -> None:
         """Test that claims are insufficient when role is missing in non-strict mode.
 
         UserInfo might contain a mappable role that upgrades from default VIEWER.

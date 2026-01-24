@@ -24,7 +24,10 @@ class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
             async for span_rowid, dataset_example in await session.stream(
                 select(models.Span.id, models.DatasetExample)
                 .select_from(models.Span)
-                .join(models.DatasetExample, models.DatasetExample.span_rowid == models.Span.id)
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.span_rowid == models.Span.id,
+                )
                 .where(models.Span.id.in_(span_rowids))
             ):
                 dataset_examples[span_rowid].append(dataset_example)

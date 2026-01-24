@@ -42,7 +42,11 @@ async def test_token_counts(
         + span_df.loc[:, "completion"].to_list()
         + (span_df.loc[:, "prompt"] + span_df.loc[:, "completion"]).to_list()
     )
-    kinds: list[Literal["prompt", "completion", "total"]] = ["prompt", "completion", "total"]
+    kinds: list[Literal["prompt", "completion", "total"]] = [
+        "prompt",
+        "completion",
+        "total",
+    ]
     keys: list[Key] = [
         (
             kind,

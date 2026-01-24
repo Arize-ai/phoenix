@@ -11,7 +11,17 @@ from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
+from sqlalchemy import (
+    JSON,
+    Column,
+    Label,
+    Select,
+    SQLColumnExpression,
+    and_,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -480,7 +490,11 @@ class SpanQuery(_HasTmpSuffix):
     def with_index(self, key: str = "context.span_id") -> "SpanQuery":
         _index = Projection(key=key)
         return (
-            replace(self, _index=_index, _explode=replace(self._explode, primary_index_key=key))
+            replace(
+                self,
+                _index=_index,
+                _explode=replace(self._explode, primary_index_key=key),
+            )
             if self._explode
             else replace(self, _index=_index)
         )

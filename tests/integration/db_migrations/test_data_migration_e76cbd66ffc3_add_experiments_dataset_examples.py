@@ -288,7 +288,11 @@ def _verify_post_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> 
 
         table = metadata.tables["experiments_dataset_examples"]
         columns = {col.name for col in table.columns}
-        expected_columns = {"experiment_id", "dataset_example_id", "dataset_example_revision_id"}
+        expected_columns = {
+            "experiment_id",
+            "dataset_example_id",
+            "dataset_example_revision_id",
+        }
         assert columns == expected_columns, f"Expected columns {expected_columns}, got {columns}"
 
         # Verify primary key constraint

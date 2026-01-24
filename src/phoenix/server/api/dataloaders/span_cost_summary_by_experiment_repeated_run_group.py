@@ -36,10 +36,14 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
             .join(models.SpanCost, models.SpanCost.trace_rowid == models.Trace.id)
             .where(
                 tuple_(
-                    models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id
+                    models.ExperimentRun.experiment_id,
+                    models.ExperimentRun.dataset_example_id,
                 ).in_(set(keys))
             )
-            .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
+            .group_by(
+                models.ExperimentRun.experiment_id,
+                models.ExperimentRun.dataset_example_id,
+            )
         )
 
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)

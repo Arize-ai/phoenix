@@ -16,7 +16,9 @@ class SQLQueryInput(BaseModel):
     ]
 
 
-def run_sql_query(input: Annotated[SQLQueryInput, "Input to the SQL query executor."]) -> str:
+def run_sql_query(
+    input: Annotated[SQLQueryInput, "Input to the SQL query executor."],
+) -> str:
     def _sanitize_query(query):
         query = query.strip()
         if query.startswith("```") and query.endswith("```"):

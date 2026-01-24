@@ -5,7 +5,14 @@ from alembic.config import Config
 from sqlalchemy import Engine
 from typing_extensions import assert_never, override
 
-from . import _DBBackend, _down, _get_table_schema_info, _TableSchemaInfo, _up, _verify_clean_state
+from . import (
+    _DBBackend,
+    _down,
+    _get_table_schema_info,
+    _TableSchemaInfo,
+    _up,
+    _verify_clean_state,
+)
 
 _DOWN = "6a88424799fe"
 _UP = "a20694b15f82"

@@ -110,7 +110,9 @@ postgresql_connection = factories.postgresql("postgresql_proc")
 
 
 @pytest.fixture(scope="function")
-async def postgresql_url(postgresql_connection: "Connection[Any]") -> AsyncIterator[URL]:
+async def postgresql_url(
+    postgresql_connection: "Connection[Any]",
+) -> AsyncIterator[URL]:
     connection = postgresql_connection
     user = connection.info.user
     password = connection.info.password

@@ -451,7 +451,11 @@ class _FilterTranslator(_ProjectionTranslator):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
-        left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        left, op, right = (
+            self.visit(node.left),
+            node.ops[0],
+            self.visit(node.comparators[0]),
+        )
         if _is_subscript(left, "attributes"):
             left = _cast_as("String", left)
         if _is_subscript(right, "attributes"):
@@ -469,7 +473,9 @@ class _FilterTranslator(_ProjectionTranslator):
                 )
                 if isinstance(op, ast.NotIn):
                     call = ast.Call(
-                        func=ast.Name(id="not_", ctx=ast.Load()), args=[call], keywords=[]
+                        func=ast.Name(id="not_", ctx=ast.Load()),
+                        args=[call],
+                        keywords=[],
                     )
                 return call
             elif isinstance(right, (ast.List, ast.Tuple)):
@@ -533,7 +539,11 @@ class _FilterTranslator(_ProjectionTranslator):
         source_segment = ast.unparse(node)
         if len(node.args) != 1:
             raise SyntaxError(f"invalid expression: {source_segment}")
-        if not isinstance(node.func, ast.Name) or node.func.id not in ("str", "float", "int"):
+        if not isinstance(node.func, ast.Name) or node.func.id not in (
+            "str",
+            "float",
+            "int",
+        ):
             raise SyntaxError(f"invalid expression: {ast.unparse(node.func)}")
         arg = self.visit(node.args[0])
         if node.func.id in ("float", "int") and not _is_float(arg):

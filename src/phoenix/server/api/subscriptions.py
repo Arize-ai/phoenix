@@ -394,7 +394,8 @@ class Subscription:
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(
-                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+                global_id=input.dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
             )
             if input.dataset_version_id
             else None
@@ -560,13 +561,15 @@ class Subscription:
                     del in_progress[idx]  # removes timed-out stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
-                            message="Playground task timed out", dataset_example_id=example_id
+                            message="Playground task timed out",
+                            dataset_example_id=example_id,
                         )
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
-                            message="An unexpected error occurred", dataset_example_id=example_id
+                            message="An unexpected error occurred",
+                            dataset_example_id=example_id,
                         )
                     logger.exception(error)
                 else:

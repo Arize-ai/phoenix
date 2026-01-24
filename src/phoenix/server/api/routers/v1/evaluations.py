@@ -276,7 +276,9 @@ def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnot
     )
 
 
-def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
+def _trace_annotation_factory(
+    trace_id: str,
+) -> Callable[..., Precursors.TraceAnnotation]:
     return lambda **kwargs: Precursors.TraceAnnotation(
         datetime.now(timezone.utc),
         trace_id=str(trace_id),

@@ -7,7 +7,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def graceful_fallback(
-    fallback_method: Callable[..., Any], exceptions: Optional[Iterable[type[BaseException]]] = None
+    fallback_method: Callable[..., Any],
+    exceptions: Optional[Iterable[type[BaseException]]] = None,
 ) -> Callable[[F], F]:
     """
     Decorator that reroutes failing functions to a specified fallback method.

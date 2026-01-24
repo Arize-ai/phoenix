@@ -10,7 +10,9 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
-from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
+from phoenix.server.api.input_types.CreateTraceAnnotationInput import (
+    CreateTraceAnnotationInput,
+)
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.queries import Query
@@ -18,7 +20,10 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotationInsertEvent
+from phoenix.server.dml_event import (
+    TraceAnnotationDeleteEvent,
+    TraceAnnotationInsertEvent,
+)
 
 
 @strawberry.type
@@ -112,7 +117,8 @@ class TraceAnnotationMutationMixin:
 
         returned_annotations = [
             TraceAnnotation(
-                id=processed_annotations_map[i].id, db_record=processed_annotations_map[i]
+                id=processed_annotations_map[i].id,
+                db_record=processed_annotations_map[i],
             )
             for i in sorted(processed_annotations_map.keys())
         ]
@@ -248,7 +254,8 @@ class TraceAnnotationMutationMixin:
 
         deleted_gql_annotations = [
             TraceAnnotation(
-                id=deleted_annotations_by_id[id].id, db_record=deleted_annotations_by_id[id]
+                id=deleted_annotations_by_id[id].id,
+                db_record=deleted_annotations_by_id[id],
             )
             for id in trace_annotation_ids
         ]

@@ -714,10 +714,22 @@ class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
             .replace(' "..."\n', " ...\n")
             + ","
             for alias, value, comment in (
-                ("expected", self.expected, f"alias for the example.{_blue('output')} dict"),
-                ("reference", self.reference, f"alias for the example.{_blue('output')} dict"),
+                (
+                    "expected",
+                    self.expected,
+                    f"alias for the example.{_blue('output')} dict",
+                ),
+                (
+                    "reference",
+                    self.reference,
+                    f"alias for the example.{_blue('output')} dict",
+                ),
                 ("input", self.input, f"alias for the example.{_blue('input')} dict"),
-                ("metadata", self.metadata, f"alias for the example.{_blue('metadata')} dict"),
+                (
+                    "metadata",
+                    self.metadata,
+                    f"alias for the example.{_blue('metadata')} dict",
+                ),
             )
             if value
         ]

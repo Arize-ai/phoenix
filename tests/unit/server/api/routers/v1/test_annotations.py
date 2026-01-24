@@ -132,7 +132,8 @@ async def test_list_span_annotations_default_behavior(
     project_with_spans_and_annotations: Any,
 ) -> None:
     response = await httpx_client.get(
-        "v1/projects/test-project/span_annotations", params={"span_ids": ["span1", "span2"]}
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["span1", "span2"]},
     )
 
     assert response.status_code == 200
@@ -282,7 +283,10 @@ async def test_list_span_annotations_empty_result_when_all_excluded(
 
     response = await httpx_client.get(
         "v1/projects/filtered-project/span_annotations",
-        params={"span_ids": ["filtered-span"], "exclude_annotation_names": ["test-annotation"]},
+        params={
+            "span_ids": ["filtered-span"],
+            "exclude_annotation_names": ["test-annotation"],
+        },
     )
 
     assert response.status_code == 200

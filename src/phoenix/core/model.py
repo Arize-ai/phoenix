@@ -49,7 +49,10 @@ def _get_embedding_dimensions(
         embedding_dimensions.append(EmbeddingDimension(name=embedding_feature))
         if reference_inferences is not None:
             _check_embedding_vector_lengths_match_across_inference_sets(
-                embedding_feature, embedding_column_names, primary_inferences, reference_inferences
+                embedding_feature,
+                embedding_column_names,
+                primary_inferences,
+                reference_inferences,
             )
 
     return embedding_dimensions

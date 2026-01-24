@@ -151,7 +151,8 @@ async def get_or_create_ldap_user(
         )
         if existing_user and existing_user.auth_method != "LDAP":
             logger.error(
-                "Email already exists with different auth method: %s", existing_user.auth_method
+                "Email already exists with different auth method: %s",
+                existing_user.auth_method,
             )
             raise HTTPException(
                 status_code=401,

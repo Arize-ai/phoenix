@@ -7,7 +7,10 @@ EmbeddingFeatures = dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str
 SchemaFieldValue = Union[Optional[str], Optional[list[str]], Optional[EmbeddingFeatures]]
 
-MULTI_COLUMN_SCHEMA_FIELD_NAMES: tuple[str, ...] = ("feature_column_names", "tag_column_names")
+MULTI_COLUMN_SCHEMA_FIELD_NAMES: tuple[str, ...] = (
+    "feature_column_names",
+    "tag_column_names",
+)
 SINGLE_COLUMN_SCHEMA_FIELD_NAMES: tuple[str, ...] = (
     "prediction_id_column_name",
     "timestamp_column_name",

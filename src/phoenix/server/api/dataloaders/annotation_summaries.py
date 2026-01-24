@@ -47,11 +47,24 @@ DEFAULT_VALUE: Result = None
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, session_filter_condition, eval_name = key
+    (
+        kind,
+        project_rowid,
+        time_range,
+        filter_condition,
+        session_filter_condition,
+        eval_name,
+    ) = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, project_rowid, interval, filter_condition, session_filter_condition), eval_name
+    return (
+        kind,
+        project_rowid,
+        interval,
+        filter_condition,
+        session_filter_condition,
+    ), eval_name
 
 
 _Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
@@ -130,9 +143,13 @@ def _get_stmt(
     segment: Segment,
     *annotation_names: Param,
 ) -> Select[Any]:
-    kind, project_rowid, (start_time, end_time), filter_condition, session_filter_condition = (
-        segment
-    )
+    (
+        kind,
+        project_rowid,
+        (start_time, end_time),
+        filter_condition,
+        session_filter_condition,
+    ) = segment
 
     annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
     entity_model: Union[Type[models.Span], Type[models.Trace]]
@@ -166,7 +183,8 @@ def _get_stmt(
     if kind == "span":
         entity_count_query = entity_count_query.join(cast(Type[models.Span], entity_model))
         entity_count_query = entity_count_query.join_from(
-            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
+            cast(Type[models.Span], entity_model),
+            cast(Type[models.Trace], entity_join_model),
         )
         entity_count_query = entity_count_query.where(models.Trace.project_rowid == project_rowid)
     elif kind == "trace":
@@ -215,7 +233,8 @@ def _get_stmt(
     if kind == "span":
         base_stmt = base_stmt.join(cast(Type[models.Span], entity_model))
         base_stmt = base_stmt.join_from(
-            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
+            cast(Type[models.Span], entity_model),
+            cast(Type[models.Trace], entity_join_model),
         )
         base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
         if filter_condition:
@@ -359,7 +378,10 @@ def _get_stmt(
             label_entity_metrics.c.total_score_sum.label("score_sum"),
             label_entity_metrics.c.entities_with_label.label("record_count"),
         )
-        .join(entity_count_subquery, label_entity_metrics.c.name == entity_count_subquery.c.name)
+        .join(
+            entity_count_subquery,
+            label_entity_metrics.c.name == entity_count_subquery.c.name,
+        )
         .join(
             overall_score_aggregates,
             label_entity_metrics.c.name == overall_score_aggregates.c.name,

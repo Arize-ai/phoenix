@@ -12,7 +12,9 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionRule,
 )
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
+    ProjectTraceRetentionPolicy,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 

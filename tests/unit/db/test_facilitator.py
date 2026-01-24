@@ -158,7 +158,8 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
         monkeypatch.setenv(
-            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS,
+            '[{"group_dn": "*", "role": "MEMBER"}]',
         )
 
         # Initialize enums and create admin
@@ -203,7 +204,8 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
         monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
         monkeypatch.setenv(
-            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS,
+            '[{"group_dn": "*", "role": "MEMBER"}]',
         )
 
         # Initialize enums and create admin

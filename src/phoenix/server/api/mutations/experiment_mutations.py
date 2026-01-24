@@ -6,7 +6,10 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
+from phoenix.db.helpers import (
+    get_eval_trace_ids_for_experiments,
+    get_project_names_for_experiments,
+)
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import CustomGraphQLError

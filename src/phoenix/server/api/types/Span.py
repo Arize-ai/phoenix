@@ -40,10 +40,16 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
-from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
+from phoenix.server.api.types.SpanCostDetailSummaryEntry import (
+    SpanCostDetailSummaryEntry,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.trace.attributes import get_attribute_value
@@ -561,7 +567,8 @@ class Span(Node):
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc
         annotations.sort(
-            key=lambda annotation: getattr(annotation, sort_key), reverse=sort_descending
+            key=lambda annotation: getattr(annotation, sort_key),
+            reverse=sort_descending,
         )
         return [
             SpanAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
@@ -771,7 +778,9 @@ class Span(Node):
         info: Info[Context, None],
     ) -> list[InvocationParameter]:
         from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
-        from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+        from phoenix.server.api.helpers.playground_registry import (
+            PLAYGROUND_CLIENT_REGISTRY,
+        )
 
         db_span: models.Span = await info.context.data_loaders.span_by_id.load(self.id)
         attributes = db_span.attributes

@@ -58,7 +58,10 @@ def test_data_migration_for_project_sessions(
     gen_user_id = rand_id_gen()
 
     def rand_session_attr() -> dict[str, Any]:
-        return {"session": {"id": next(gen_session_id)}, "user": {"id": next(gen_user_id)}}
+        return {
+            "session": {"id": next(gen_session_id)},
+            "user": {"id": next(gen_user_id)},
+        }
 
     num_project_sessions = 7
     num_projects = 5

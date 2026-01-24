@@ -1076,7 +1076,8 @@ class TestClientForSpanCreation:
 
             # Set parent relationship
             test_spans[1] = cast(
-                v1.Span, {**test_spans[1], "parent_id": test_spans[0]["context"]["span_id"]}
+                v1.Span,
+                {**test_spans[1], "parent_id": test_spans[0]["context"]["span_id"]},
             )
 
             project_name = _existing_project.name
@@ -1288,11 +1289,20 @@ class TestClientForSpanCreation:
             # List attributes with complex objects
             "attributes.llm.input_messages": [
                 [
-                    {"message.content": "You are a helpful assistant", "message.role": "system"},
-                    {"message.content": "What is the capital of France?", "message.role": "user"},
+                    {
+                        "message.content": "You are a helpful assistant",
+                        "message.role": "system",
+                    },
+                    {
+                        "message.content": "What is the capital of France?",
+                        "message.role": "user",
+                    },
                 ],
                 [
-                    {"message.content": "You are a helpful assistant", "message.role": "system"},
+                    {
+                        "message.content": "You are a helpful assistant",
+                        "message.role": "system",
+                    },
                     {
                         "message.content": "Explain the concept of machine learning",
                         "message.role": "user",
@@ -1319,8 +1329,14 @@ class TestClientForSpanCreation:
             ],
             # Nested object attributes
             "attributes.url": [
-                {"full": "https://api.openai.com/v1/chat/completions", "path": "chat/completions"},
-                {"full": "https://api.openai.com/v1/chat/completions", "path": "chat/completions"},
+                {
+                    "full": "https://api.openai.com/v1/chat/completions",
+                    "path": "chat/completions",
+                },
+                {
+                    "full": "https://api.openai.com/v1/chat/completions",
+                    "path": "chat/completions",
+                },
             ],
             "attributes.llm.prompt_template.variables": [
                 {"question": "What is the capital of France?"},
@@ -1451,10 +1467,12 @@ class TestClientForSpanCreation:
 
             # Verify list attributes with complex objects using order-independent comparison
             assert compare_nested_objects(
-                row["attributes.llm.input_messages"], orig_row["attributes.llm.input_messages"]
+                row["attributes.llm.input_messages"],
+                orig_row["attributes.llm.input_messages"],
             )
             assert compare_nested_objects(
-                row["attributes.llm.output_messages"], orig_row["attributes.llm.output_messages"]
+                row["attributes.llm.output_messages"],
+                orig_row["attributes.llm.output_messages"],
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
@@ -1664,7 +1682,10 @@ class TestClientForSpanCreation:
 
         # Now query for the attributes using the Global ID
         attr_result, _ = _gql(
-            _app, _app.admin_secret, query=gql_query, variables={"spanId": span_global_id}
+            _app,
+            _app.admin_secret,
+            query=gql_query,
+            variables={"spanId": span_global_id},
         )
         assert not attr_result.get("errors"), f"GraphQL errors: {attr_result.get('errors')}"
 

@@ -3,7 +3,12 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
-from tools import code_analysis, execute_code, generate_code, generate_merge_request_description
+from tools import (
+    code_analysis,
+    execute_code,
+    generate_code,
+    generate_merge_request_description,
+)
 
 from phoenix.otel import register
 
@@ -45,7 +50,12 @@ def user_input(state):
 
 
 def initialize_llm(model, api_key):
-    tools = [code_analysis, execute_code, generate_code, generate_merge_request_description]
+    tools = [
+        code_analysis,
+        execute_code,
+        generate_code,
+        generate_merge_request_description,
+    ]
     open_ai_llm = ChatOpenAI(model=model, api_key=api_key).bind_tools(tools, tool_choice="auto")
     return open_ai_llm
 

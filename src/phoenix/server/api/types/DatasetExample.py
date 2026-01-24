@@ -94,7 +94,10 @@ class DatasetExample(Node):
         )
         query = (
             select(models.ExperimentRun)
-            .join(models.Experiment, models.Experiment.id == models.ExperimentRun.experiment_id)
+            .join(
+                models.Experiment,
+                models.Experiment.id == models.ExperimentRun.experiment_id,
+            )
             .where(models.ExperimentRun.dataset_example_id == self.id)
             .order_by(
                 models.ExperimentRun.experiment_id.asc(),

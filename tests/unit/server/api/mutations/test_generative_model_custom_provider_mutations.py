@@ -553,7 +553,11 @@ class TestGenerativeModelCustomProviderMutations:
         missing_config_result = await gql_client.execute(
             query=self.QUERY,
             variables={
-                "input": {"name": "test-provider", "provider": "openai", "clientConfig": {}}
+                "input": {
+                    "name": "test-provider",
+                    "provider": "openai",
+                    "clientConfig": {},
+                }
             },
             operation_name="CreateGenerativeModelCustomProviderMutation",
         )

@@ -29,7 +29,9 @@ from phoenix.server.api.helpers.prompts.models import (
     get_raw_invocation_parameters,
     normalize_tools,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -117,7 +119,12 @@ class TestDatasetLLMEvaluatorMutations:
                 description="prompt version",
                 templateFormat="MUSTACHE",
                 template=dict(
-                    messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
+                    messages=[
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="Eval {{input}}"))],
+                        )
+                    ]
                 ),
                 invocationParameters=dict(
                     temperature=0.0,
@@ -482,7 +489,10 @@ class TestDatasetLLMEvaluatorMutations:
                 templateFormat="MUSTACHE",
                 template=dict(
                     messages=[
-                        dict(role="USER", content=[dict(text=dict(text="Updated: {{input}}"))])
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="Updated: {{input}}"))],
+                        )
                     ]
                 ),
                 invocationParameters=dict(
@@ -589,7 +599,12 @@ class TestDatasetLLMEvaluatorMutations:
                 description=None,
                 templateFormat="MUSTACHE",
                 template=dict(
-                    messages=[dict(role="USER", content=[dict(text=dict(text="New: {{input}}"))])]
+                    messages=[
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="New: {{input}}"))],
+                        )
+                    ]
                 ),
                 invocationParameters=dict(
                     temperature=0.0,
@@ -753,7 +768,10 @@ class TestDatasetLLMEvaluatorMutations:
                 templateFormat="MUSTACHE",
                 template=dict(
                     messages=[
-                        dict(role="USER", content=[dict(text=dict(text="Original: {{input}}"))])
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="Original: {{input}}"))],
+                        )
                     ]
                 ),
                 invocationParameters=dict(
@@ -860,7 +878,9 @@ class TestDatasetLLMEvaluatorMutations:
                                     type="object",
                                     properties=dict(
                                         label=dict(
-                                            type="string", enum=["a", "b"], description="out"
+                                            type="string",
+                                            enum=["a", "b"],
+                                            description="out",
                                         )
                                     ),
                                     required=["label"],
@@ -922,7 +942,12 @@ class TestDatasetLLMEvaluatorMutations:
                 description=None,
                 templateFormat="MUSTACHE",
                 template=dict(
-                    messages=[dict(role="USER", content=[dict(text=dict(text="Test: {{input}}"))])]
+                    messages=[
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="Test: {{input}}"))],
+                        )
+                    ]
                 ),
                 invocationParameters=dict(
                     temperature=0.0,
@@ -990,7 +1015,12 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(
-                    messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
+                    messages=[
+                        dict(
+                            role="USER",
+                            content=[dict(text=dict(text="Eval {{input}}"))],
+                        )
+                    ]
                 ),
                 invocationParameters=dict(
                     temperature=0.0,

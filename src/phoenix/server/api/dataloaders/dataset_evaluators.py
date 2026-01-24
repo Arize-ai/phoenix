@@ -51,10 +51,18 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
                     junction_builtin_evaluator_id = junction.builtin_evaluator_id
                     junction_name = junction.name.root
                     if junction_evaluator_id is not None:
-                        key = (junction_dataset_id, junction_evaluator_id, junction_name)
+                        key = (
+                            junction_dataset_id,
+                            junction_evaluator_id,
+                            junction_name,
+                        )
                         dataset_evaluators_by_key[key] = junction
                     elif junction_builtin_evaluator_id is not None:
-                        key = (junction_dataset_id, junction_builtin_evaluator_id, junction_name)
+                        key = (
+                            junction_dataset_id,
+                            junction_builtin_evaluator_id,
+                            junction_name,
+                        )
                         dataset_evaluators_by_key[key] = junction
 
             return [dataset_evaluators_by_key.get(key) for key in keys]

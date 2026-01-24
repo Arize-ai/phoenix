@@ -286,7 +286,9 @@ async def get_incomplete_evaluations(
     evaluation_name: list[str] = Query(default=[], description="Evaluation names to check"),
     cursor: Optional[str] = Query(default=None, description="Cursor for pagination"),
     limit: int = Query(
-        default=50, description="Maximum number of runs with incomplete evaluations to return", gt=0
+        default=50,
+        description="Maximum number of runs with incomplete evaluations to return",
+        gt=0,
     ),
 ) -> GetIncompleteEvaluationsResponseBody:
     """

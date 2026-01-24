@@ -186,7 +186,11 @@ def main() -> None:
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
     parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
     parser.add_argument(
-        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
+        "--umap_params",
+        type=str,
+        required=False,
+        default=DEFAULT_UMAP_PARAMS_STR,
+        help=SUPPRESS,
     )
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)

@@ -144,7 +144,11 @@ EXPECTED_USER_ROLES: list[tuple[str, str, str]] = [
     ("bob", "Bob Johnson", "MEMBER"),  # in members
     ("charlie", "Charlie Brown", "VIEWER"),  # in viewers
     ("nogroups", "nogroups", "VIEWER"),  # no groups, no displayName - falls back to uid
-    ("multigroup", "Multi Group User", "ADMIN"),  # in admins+members+viewers - first match
+    (
+        "multigroup",
+        "Multi Group User",
+        "ADMIN",
+    ),  # in admins+members+viewers - first match
     ("nodisplay", "nodisplay", "VIEWER"),  # no displayName - falls back to uid
     ("special(user)", "Special (User)", "VIEWER"),  # in viewers
     ("josé", "José García", "MEMBER"),  # in members

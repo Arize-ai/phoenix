@@ -41,7 +41,12 @@ Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, SessionFilterCon
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
 Key: TypeAlias = tuple[
-    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, SessionFilterCondition, Probability
+    Kind,
+    ProjectRowId,
+    Optional[TimeRange],
+    FilterCondition,
+    SessionFilterCondition,
+    Probability,
 ]
 Result: TypeAlias = Optional[QuantileValue]
 ResultPosition: TypeAlias = int
@@ -51,7 +56,14 @@ FloatCol: TypeAlias = SQLColumnExpression[Float[float]]
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, session_filter_condition, probability = key
+    (
+        kind,
+        project_rowid,
+        time_range,
+        filter_condition,
+        session_filter_condition,
+        probability,
+    ) = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )

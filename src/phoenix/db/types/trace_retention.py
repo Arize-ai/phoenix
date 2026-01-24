@@ -122,7 +122,8 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
     root: Annotated[
-        Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule], Field(discriminator="type")
+        Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule],
+        Field(discriminator="type"),
     ]
 
     def __bool__(self) -> bool:

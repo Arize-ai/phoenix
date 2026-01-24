@@ -404,7 +404,8 @@ async def test_experiment_runs_pagination(
 
     # Test: Invalid cursor
     response = await httpx_client.get(
-        f"v1/experiments/{experiment['id']}/runs", params={"limit": 2, "cursor": "invalid-cursor"}
+        f"v1/experiments/{experiment['id']}/runs",
+        params={"limit": 2, "cursor": "invalid-cursor"},
     )
     assert response.status_code == 422
 
@@ -543,7 +544,12 @@ class TestExperimentCounts:
         # Add a successful run for the first example
         example_gid_0 = GlobalID("DatasetExample", str(examples[0].id))
         await self._create_run(
-            httpx_client, exp_v2_incremental_gid, example_gid_0, 1, "test-trace-1", "success output"
+            httpx_client,
+            exp_v2_incremental_gid,
+            example_gid_0,
+            1,
+            "test-trace-1",
+            "success output",
         )
 
         # Verify count increased after successful run
@@ -577,7 +583,12 @@ class TestExperimentCounts:
 
         # Add another successful run
         await self._create_run(
-            httpx_client, exp_v2_incremental_gid, example_gid_0, 3, "test-trace-3", "success output"
+            httpx_client,
+            exp_v2_incremental_gid,
+            example_gid_0,
+            3,
+            "test-trace-3",
+            "success output",
         )
 
         # Verify count increased again

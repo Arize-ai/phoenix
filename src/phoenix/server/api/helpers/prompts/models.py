@@ -6,10 +6,16 @@ from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_neve
 
 from phoenix.db.types.db_helper_types import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
+from phoenix.server.api.helpers.prompts.conversions.anthropic import (
+    AnthropicToolChoiceConversion,
+)
 from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion
-from phoenix.server.api.helpers.prompts.conversions.google import GoogleToolChoiceConversion
-from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
+from phoenix.server.api.helpers.prompts.conversions.google import (
+    GoogleToolChoiceConversion,
+)
+from phoenix.server.api.helpers.prompts.conversions.openai import (
+    OpenAIToolChoiceConversion,
+)
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 

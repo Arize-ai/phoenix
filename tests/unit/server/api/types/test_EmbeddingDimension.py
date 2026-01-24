@@ -61,7 +61,8 @@ class TestDriftMetricTimeSeries:
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
+                start=datetime(year=2000, month=1, day=1),
+                end=datetime(year=2000, month=1, day=2),
             ),
             info=info_mock_factory(model),
             granularity=Granularity(
@@ -358,7 +359,8 @@ class TestDriftMetric:
         ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
+                start=datetime(year=2000, month=1, day=1),
+                end=datetime(year=2000, month=1, day=2),
             ),
             info=info_mock_factory(model),
         )

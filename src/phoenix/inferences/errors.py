@@ -143,7 +143,10 @@ class EmbeddingVectorSizeMismatch(ValidationError):
     vector lengths"""
 
     def __init__(
-        self, embedding_feature_name: str, vector_column_name: str, vector_lengths: list[int]
+        self,
+        embedding_feature_name: str,
+        vector_column_name: str,
+        vector_lengths: list[int],
     ) -> None:
         self.embedding_feature_name = embedding_feature_name
         self.vector_column_name = vector_column_name

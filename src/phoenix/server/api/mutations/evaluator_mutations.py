@@ -30,7 +30,10 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_id, get_builtin_evaluator_ids
+from phoenix.server.api.evaluators import (
+    get_builtin_evaluator_by_id,
+    get_builtin_evaluator_ids,
+)
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -39,7 +42,9 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigOverrideInput,
     CategoricalAnnotationConfigInput,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.mutations.annotation_config_mutations import (
     _to_pydantic_categorical_annotation_config,
@@ -53,7 +58,10 @@ from phoenix.server.api.types.Evaluator import (
     LLMEvaluator,
 )
 from phoenix.server.api.types.Identifier import Identifier
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.node import (
+    from_global_id,
+    from_global_id_with_expected_type,
+)
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
@@ -166,7 +174,10 @@ def _validate_and_convert_builtin_override(
     base_config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
     evaluator_name: str,
 ) -> Optional[
-    Union[CategoricalAnnotationConfigOverrideModel, ContinuousAnnotationConfigOverrideModel]
+    Union[
+        CategoricalAnnotationConfigOverrideModel,
+        ContinuousAnnotationConfigOverrideModel,
+    ]
 ]:
     """
     Validate that the override input type matches the base config type from the registry.
@@ -174,7 +185,10 @@ def _validate_and_convert_builtin_override(
     """
     import strawberry
 
-    from phoenix.db.types.annotation_configs import AnnotationType, CategoricalAnnotationValue
+    from phoenix.db.types.annotation_configs import (
+        AnnotationType,
+        CategoricalAnnotationValue,
+    )
 
     if override_input is None:
         return None
@@ -428,7 +442,8 @@ class EvaluatorMutationMixin:
 
                 if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
                     prompt_version_id = from_global_id_with_expected_type(
-                        global_id=input.prompt_version_id, expected_type_name=PromptVersion.__name__
+                        global_id=input.prompt_version_id,
+                        expected_type_name=PromptVersion.__name__,
                     )
                     existing_prompt_version = await session.get(
                         models.PromptVersion, prompt_version_id
@@ -568,7 +583,8 @@ class EvaluatorMutationMixin:
             new_prompt: Optional[models.Prompt] = None
             if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
                 provided_prompt_version_id = from_global_id_with_expected_type(
-                    global_id=input.prompt_version_id, expected_type_name=PromptVersion.__name__
+                    global_id=input.prompt_version_id,
+                    expected_type_name=PromptVersion.__name__,
                 )
                 provided_prompt_version = await session.get(
                     models.PromptVersion, provided_prompt_version_id

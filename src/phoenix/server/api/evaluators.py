@@ -279,7 +279,12 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     template_formatter = get_template_formatter(self._template_format)
                     messages: list[
-                        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
+                        tuple[
+                            ChatCompletionMessageRole,
+                            str,
+                            Optional[str],
+                            Optional[list[str]],
+                        ]
                     ] = []
                     for msg in self._template.messages:
                         role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
@@ -365,7 +370,10 @@ class LLMEvaluator(BaseEvaluator):
                         **get_input_attributes(
                             {
                                 "tool_calls": {
-                                    call_id: {"name": call["name"], "arguments": call["arguments"]}
+                                    call_id: {
+                                        "name": call["name"],
+                                        "arguments": call["arguments"],
+                                    }
                                     for call_id, call in tool_call_by_id.items()
                                 },
                                 "output_config": {
@@ -684,7 +692,9 @@ async def get_evaluators(
     Returns a list of BaseEvaluator instances in the same order as the input node IDs.
     This ordering guarantee is important for correlating evaluators with their inputs.
     """
-    from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+    from phoenix.server.api.types.Evaluator import (
+        BuiltInEvaluator as BuiltInEvaluatorNode,
+    )
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
     if not evaluator_node_ids:
@@ -1575,7 +1585,11 @@ class RegexEvaluator(BuiltInEvaluator):
                     label=label,
                     score=score,
                     explanation=explanation,
-                    metadata={"pattern": pattern, "text": text, "full_match": full_match},
+                    metadata={
+                        "pattern": pattern,
+                        "text": text,
+                        "full_match": full_match,
+                    },
                     error=error,
                     trace_id=trace_id,
                     start_time=start_time,

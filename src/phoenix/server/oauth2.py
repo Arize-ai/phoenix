@@ -6,7 +6,9 @@ import jmespath
 from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
-from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
+from authlib.integrations.httpx_client import (
+    AsyncOAuth2Client as AsyncHttpxOAuth2Client,
+)
 
 from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
 

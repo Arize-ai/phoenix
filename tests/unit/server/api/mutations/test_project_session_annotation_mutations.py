@@ -300,7 +300,10 @@ class TestProjectSessionAnnotationMutations:
         assert created_code_annotation["label"] == "CODE_GENERATED"
         assert created_code_annotation["score"] == 0.92
         assert created_code_annotation["source"] == "APP"
-        assert created_code_annotation["metadata"] == {"system": "automated", "version": "1.0"}
+        assert created_code_annotation["metadata"] == {
+            "system": "automated",
+            "version": "1.0",
+        }
 
         # A6. Create with only score (no label/explanation)
         score_only_create_input = {
@@ -966,7 +969,9 @@ class TestProjectSessionAnnotationMutations:
             }
         }
         invalid_foreign_key_response = await gql_client.execute(
-            self.QUERY, invalid_foreign_key_input, operation_name="CreateProjectSessionAnnotations"
+            self.QUERY,
+            invalid_foreign_key_input,
+            operation_name="CreateProjectSessionAnnotations",
         )
         assert invalid_foreign_key_response.errors
         # Verify error message is meaningful and not an unexpected system error
@@ -988,7 +993,9 @@ class TestProjectSessionAnnotationMutations:
             }
         }
         wrong_gid_type_response = await gql_client.execute(
-            self.QUERY, wrong_gid_type_input, operation_name="CreateProjectSessionAnnotations"
+            self.QUERY,
+            wrong_gid_type_input,
+            operation_name="CreateProjectSessionAnnotations",
         )
         assert wrong_gid_type_response.errors
         # Verify error message is meaningful and not an unexpected system error

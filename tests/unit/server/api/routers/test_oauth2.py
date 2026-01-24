@@ -52,14 +52,20 @@ class TestSignInExistingOAuth2User:
                 )
 
         async def sign_in(
-            email: str, uid: str, role: Optional[AssignableUserRoleName], pic: Optional[str] = None
+            email: str,
+            uid: str,
+            role: Optional[AssignableUserRoleName],
+            pic: Optional[str] = None,
         ) -> models.User:
             async with db() as session:
                 return await _sign_in_existing_oauth2_user(
                     session,
                     oauth2_client_id=client_id,
                     user_info=UserInfo(
-                        idp_user_id=uid, email=email, username=None, profile_picture_url=pic
+                        idp_user_id=uid,
+                        email=email,
+                        username=None,
+                        profile_picture_url=pic,
                     ),
                     role_name=role,
                 )
@@ -73,7 +79,10 @@ class TestSignInExistingOAuth2User:
                     session,
                     oauth2_client_id=client_id,
                     user_info=UserInfo(
-                        idp_user_id="uid1", email=e1, username=None, profile_picture_url=None
+                        idp_user_id="uid1",
+                        email=e1,
+                        username=None,
+                        profile_picture_url=None,
                     ),
                     role_name="VIEWER",
                 )
@@ -102,7 +111,10 @@ class TestSignInExistingOAuth2User:
                     session,
                     oauth2_client_id=client_id,
                     user_info=UserInfo(
-                        idp_user_id="uid_wrong", email=e2, username=None, profile_picture_url=None
+                        idp_user_id="uid_wrong",
+                        email=e2,
+                        username=None,
+                        profile_picture_url=None,
                     ),
                     role_name="VIEWER",
                 )
@@ -127,7 +139,12 @@ class TestSignInExistingOAuth2User:
 
         # Test 10-13: Role updates when mapping configured
         for idx, (initial, target) in enumerate(
-            [("VIEWER", "ADMIN"), ("ADMIN", "VIEWER"), ("MEMBER", "ADMIN"), ("VIEWER", "VIEWER")]
+            [
+                ("VIEWER", "ADMIN"),
+                ("ADMIN", "VIEWER"),
+                ("MEMBER", "ADMIN"),
+                ("VIEWER", "VIEWER"),
+            ]
         ):
             e = f"{token_hex(8)}@example.com"
             uid = f"uid5_{idx}"
@@ -266,7 +283,10 @@ class TestParseUserInfo:
         assert result.idp_user_id == "f:1234abcd-56ef-78gh-90ij-klmnopqrstuv:john"
         assert result.email == "john@keycloak.local"
         assert result.username == "John Keycloak"
-        assert result.claims["resource_access"]["phoenix"]["roles"] == ["admin", "developer"]
+        assert result.claims["resource_access"]["phoenix"]["roles"] == [
+            "admin",
+            "developer",
+        ]
 
     def test_aws_cognito_id_token(self) -> None:
         """Test parsing an AWS Cognito ID token."""
@@ -305,7 +325,10 @@ class TestParseUserInfo:
         assert result.idp_user_id == "1234567"
         assert result.email == "developer@gitlab.com"
         assert result.username == "GitLab Developer"
-        assert result.claims["groups_direct"] == ["engineering/platform", "engineering/backend"]
+        assert result.claims["groups_direct"] == [
+            "engineering/platform",
+            "engineering/backend",
+        ]
 
     def test_integer_sub_claim(self) -> None:
         """Test that integer sub claims are converted to strings (pragmatic compatibility)."""
