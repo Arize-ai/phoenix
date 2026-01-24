@@ -362,15 +362,15 @@
               {
                 "group": " ",
                 "pages": [
-                  "docs/phoenix/integrations",
-                  "docs/phoenix/integrations/phoenix-mcp-server"
+                  "docs/phoenix/integrations"
                 ]
               },
               {
                 "group": "Developer Tools",
                 "icon": "code",
                 "pages": [
-                  "docs/phoenix/integrations/developer-tools/coding-agents"
+                  "docs/phoenix/integrations/developer-tools/coding-agents",
+                  "docs/phoenix/integrations/phoenix-mcp-server"
                 ]
               },
               {
@@ -485,33 +485,6 @@
                     "pages": [
                       "docs/phoenix/integrations/typescript/vercel",
                       "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "Java",
-                "icon": "java",
-                "pages": [
-                  {
-                    "group": "LangChain4j",
-                    "pages": [
-                      "docs/phoenix/integrations/java/langchain4j",
-                      "docs/phoenix/integrations/java/langchain4j/langchain4j-tracing"
-                    ]
-                  },
-                  {
-                    "group": "Spring AI",
-                    "pages": [
-                      "docs/phoenix/integrations/java/springai",
-                      "docs/phoenix/integrations/java/springai/springai-tracing"
-                    ]
-                  },
-                  {
-                    "group": "Arconia",
-                    "pages": [
-                      "docs/phoenix/integrations/java/arconia",
-                      "docs/phoenix/integrations/java/arconia/arconia-tracing"
                     ]
                   }
                 ]
@@ -646,6 +619,33 @@
                 ]
               },
               {
+                "group": "Java",
+                "icon": "java",
+                "pages": [
+                  {
+                    "group": "LangChain4j",
+                    "pages": [
+                      "docs/phoenix/integrations/java/langchain4j",
+                      "docs/phoenix/integrations/java/langchain4j/langchain4j-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Spring AI",
+                    "pages": [
+                      "docs/phoenix/integrations/java/springai",
+                      "docs/phoenix/integrations/java/springai/springai-tracing"
+                    ]
+                  },
+                  {
+                    "group": "Arconia",
+                    "pages": [
+                      "docs/phoenix/integrations/java/arconia",
+                      "docs/phoenix/integrations/java/arconia/arconia-tracing"
+                    ]
+                  }
+                ]
+              },
+              {
                 "group": "Platform",
                 "icon": "computer",
                 "pages": [
@@ -699,6 +699,150 @@
                   "docs/phoenix/integrations/vector-databases/weaviate",
                   "docs/phoenix/integrations/vector-databases/zilliz-milvus",
                   "docs/phoenix/integrations/vector-databases/couchbase"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "SDK & API Reference",
+            "icon": "rectangle-terminal",
+            "groups": [
+              {
+                "group": "Python",
+                "icon": "python",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference",
+                  "docs/phoenix/sdk-api-reference/python/reference",
+                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-client",
+                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-evals",
+                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-otel"
+                ]
+              },
+              {
+                "group": "TypeScript",
+                "icon": "js",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/reference",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
+                  "docs/phoenix/sdk-api-reference/typescript/mcp-server",
+                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
+                ]
+              },
+              {
+                "group": "Rest API",
+                "icon": "network-wired",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/rest-api/overview",
+                  {
+                    "group": "API Reference",
+                    "pages": [
+                      {
+                        "group": "Annotation Configs",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
+                        ]
+                      },
+                      {
+                        "group": "Annotations",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
+                        ]
+                      },
+                      {
+                        "group": "Datasets",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file"
+                        ]
+                      },
+                      {
+                        "group": "Experiments",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-run-for-an-experiment",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run"
+                        ]
+                      },
+                      {
+                        "group": "Traces",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
+                        ]
+                      },
+                      {
+                        "group": "Spans",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
+                        ]
+                      },
+                      {
+                        "group": "Prompts",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-version-tags",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version"
+                        ]
+                      },
+                      {
+                        "group": "Projects",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/update-a-project-by-id-or-name",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/delete-a-project-by-id-or-name"
+                        ]
+                      },
+                      {
+                        "group": "Users",
+                        "pages": [
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user",
+                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "OpenInference SDK",
+                "icon": "puzzle",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python",
+                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java",
+                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript"
                 ]
               }
             ]
@@ -876,150 +1020,6 @@
                 "pages": [
                   "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
                   "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "SDK & API Reference",
-            "icon": "rectangle-terminal",
-            "groups": [
-              {
-                "group": "Python",
-                "icon": "python",
-                "pages": [
-                  "docs/phoenix/sdk-api-reference",
-                  "docs/phoenix/sdk-api-reference/python/reference",
-                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-client",
-                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-evals",
-                  "docs/phoenix/sdk-api-reference/python/arize-phoenix-otel"
-                ]
-              },
-              {
-                "group": "TypeScript",
-                "icon": "js",
-                "pages": [
-                  "docs/phoenix/sdk-api-reference/typescript/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/reference",
-                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
-                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
-                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
-                  "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
-                  "docs/phoenix/sdk-api-reference/typescript/mcp-server",
-                  "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
-                ]
-              },
-              {
-                "group": "Rest API",
-                "icon": "network-wired",
-                "pages": [
-                  "docs/phoenix/sdk-api-reference/rest-api/overview",
-                  {
-                    "group": "API Reference",
-                    "pages": [
-                      {
-                        "group": "Annotation Configs",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
-                        ]
-                      },
-                      {
-                        "group": "Annotations",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
-                        ]
-                      },
-                      {
-                        "group": "Datasets",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file"
-                        ]
-                      },
-                      {
-                        "group": "Experiments",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-run-for-an-experiment",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run"
-                        ]
-                      },
-                      {
-                        "group": "Traces",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
-                        ]
-                      },
-                      {
-                        "group": "Spans",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
-                        ]
-                      },
-                      {
-                        "group": "Prompts",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-version-tags",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version"
-                        ]
-                      },
-                      {
-                        "group": "Projects",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/update-a-project-by-id-or-name",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/delete-a-project-by-id-or-name"
-                        ]
-                      },
-                      {
-                        "group": "Users",
-                        "pages": [
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user",
-                          "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id"
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "OpenInference SDK",
-                "icon": "puzzle",
-                "pages": [
-                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python",
-                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java",
-                  "docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript"
                 ]
               }
             ]
@@ -1245,12 +1245,14 @@
         {
           "anchor": "Community",
           "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
-          "icon": "users"
+          "icon": "users",
+          "excludedTabs": ["Integrations"]
         },
         {
           "anchor": "Blog",
           "href": "https://arize.com/blog/?cat=phoenix",
-          "icon": "newspaper"
+          "icon": "newspaper",
+          "excludedTabs": ["Integrations"]
         }
       ]
     }
