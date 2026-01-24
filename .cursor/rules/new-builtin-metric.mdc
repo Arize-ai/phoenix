@@ -19,9 +19,16 @@ Create a new file in `prompts/classification_evaluator_configs/` named `{METRIC_
 **Required fields:**
 
 ```yaml
+# yaml-language-server: $schema=../schemas/classification_evaluator.schema.json
 name: metric_name # lowercase, snake_case
 description: Brief description of what this metric evaluates
 optimization_direction: maximize # or minimize or neutral
+specification:
+  use_cases: [chat, rag, agent, code, general] # applicable use cases
+  measures: correctness # what aspect: correctness, grounding, safety, quality, tool_use
+  requires: [input, output] # required data fields
+  level: [span] # evaluation granularity: document, span, trace, session
+  span_kind: [llm] # applicable span types (if level includes span): llm, tool, retriever, any
 messages:
   - role: user
     content: >-
@@ -31,6 +38,13 @@ choices:
   correct: 1.0 # Map label to score
   incorrect: 0.0 # Adjust labels as needed
 ```
+
+**Specification fields:**
+- `use_cases`: Application types (`chat`, `rag`, `agent`, `code`, `general`)
+- `measures`: What aspect is evaluated (`correctness`, `grounding`, `safety`, `quality`, `tool_use`)
+- `requires`: Required data fields (`input`, `output`, `context`, `reference`, `tools`, `tool_calls`, `messages`)
+- `level`: Evaluation granularity (`document`, `span`, `trace`, `session`)
+- `span_kind`: Applicable span types when level=span (`llm`, `tool`, `retriever`, `any`) - omit if level is `document`
 
 **Template placeholders:** Use `{{variable_name}}` syntax (Mustache format). IMPORTANT: If the user does not specify what input data is provided, ask follow-up questions so you know exactly what placeholders are needed in the prompt template and what they should be called.
 
@@ -327,7 +341,8 @@ pnpm tsx src/{metric_name}_benchmark.ts
 
 ## Checklist
 
-- [ ] YAML config created with clear criteria
+- [ ] YAML config created with clear criteria and specification section
+- [ ] Specification includes: use_cases, measures, requires, level, span_kind (if applicable)
 - [ ] `tox -e compile_prompts` run successfully
 - [ ] Python evaluator class with docstrings and examples
 - [ ] TypeScript evaluator wrapper with types
