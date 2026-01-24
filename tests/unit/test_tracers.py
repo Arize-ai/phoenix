@@ -1,4 +1,5 @@
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 
 import pytest
 from openinference.semconv.trace import SpanAttributes
@@ -22,6 +23,34 @@ class TestTracer:
     def tracer(self) -> Tracer:
         return Tracer()
 
+    @pytest.fixture
+    async def generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
+        model = models.GenerativeModel(
+            name="gpt-4o-mini",
+            provider="openai",
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            name_pattern=re.compile("gpt-4o-mini.*"),
+            is_built_in=True,
+            token_prices=[
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=0.15 / 1_000_000,  # $0.15 per million tokens
+                    customization=None,
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=0.60 / 1_000_000,  # $0.60 per million tokens
+                    customization=None,
+                ),
+            ],
+        )
+        async with db() as session:
+            session.add(model)
+
+        return model
+
     @pytest.mark.asyncio
     async def test_save_db_models_persists_nested_spans(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
@@ -41,7 +70,7 @@ class TestTracer:
             parent_span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces, returned_spans = await tracer.save_db_models(
+            returned_traces, returned_spans, _ = await tracer.save_db_models(
                 session=session, project_id=project.id
             )
             fetched_traces = (await session.execute(select(models.Trace))).scalars().all()
@@ -143,7 +172,7 @@ class TestTracer:
             span2.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces, returned_spans = await tracer.save_db_models(
+            returned_traces, returned_spans, _ = await tracer.save_db_models(
                 session=session, project_id=project.id
             )
             fetched_traces = (await session.execute(select(models.Trace))).scalars().all()
@@ -236,7 +265,9 @@ class TestTracer:
                 raise ValueError("Test error message")
 
         async with db() as session:
-            _, returned_spans = await tracer.save_db_models(session=session, project_id=project.id)
+            _, returned_spans, _ = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
             db_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_spans) == 1
@@ -301,7 +332,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans = await tracer.save_db_models(session=session, project_id=project.id)
+            _, returned_spans, _ = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_spans) == 1
@@ -332,7 +365,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans = await tracer.save_db_models(session=session, project_id=project.id)
+            _, returned_spans, _ = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_spans) == 1
@@ -405,7 +440,9 @@ class TestTracer:
             parent.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans = await tracer.save_db_models(session=session, project_id=project.id)
+            _, returned_spans, _ = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_spans) == 4
@@ -449,7 +486,175 @@ class TestTracer:
         assert grandchild_span.llm_token_count_prompt == 200
         assert grandchild_span.llm_token_count_completion == 75
 
+    @pytest.mark.asyncio
+    async def test_save_db_models_calculates_costs_for_llm_spans(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
+        generative_model: models.GenerativeModel,
+    ) -> None:
+        prompt_tokens = 1000
+        completion_tokens = 500
 
-OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+        with tracer.start_as_current_span(
+            "llm_call",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "LLM",
+                LLM_MODEL_NAME: "gpt-4o-mini",
+                LLM_PROVIDER: "openai",
+                LLM_TOKEN_COUNT_PROMPT: prompt_tokens,
+                LLM_TOKEN_COUNT_COMPLETION: completion_tokens,
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        async with db() as session:
+            _, db_spans, span_costs = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
+
+        assert len(db_spans) == 1
+        assert len(span_costs) == 1
+
+        db_span = db_spans[0]
+        span_cost = span_costs[0]
+
+        # Verify span costs
+        assert span_cost.span_rowid == db_span.id
+        assert span_cost.trace_rowid == db_span.trace_rowid
+        assert span_cost.model_id == generative_model.id
+        assert span_cost.span_start_time == db_span.start_time
+        prompt_token_prices = next(p for p in generative_model.token_prices if p.is_prompt)
+        completion_token_prices = next(p for p in generative_model.token_prices if not p.is_prompt)
+        prompt_base_rate = prompt_token_prices.base_rate
+        completion_base_rate = completion_token_prices.base_rate
+        expected_prompt_cost = prompt_tokens * prompt_base_rate
+        expected_completion_cost = completion_tokens * completion_base_rate
+        expected_total_cost = expected_prompt_cost + expected_completion_cost
+        assert expected_prompt_cost == pytest.approx(0.00015)  # (1000 * $0.15/1M) = $0.00015
+        assert expected_completion_cost == pytest.approx(0.0003)  # (500 * $0.60/1M) = $0.0003
+        assert expected_total_cost == pytest.approx(0.00045)  # $0.00015 + $0.0003 = $0.00045
+        assert span_cost.total_cost == pytest.approx(expected_total_cost)
+        assert span_cost.total_tokens == prompt_tokens + completion_tokens
+        assert span_cost.prompt_tokens == prompt_tokens
+        assert span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
+        assert span_cost.completion_tokens == completion_tokens
+        assert span_cost.completion_cost == pytest.approx(expected_completion_cost)
+
+        # Verify span cost details
+        assert len(span_cost.span_cost_details) == 2
+        input_detail = next(d for d in span_cost.span_cost_details if d.is_prompt)
+        output_detail = next(d for d in span_cost.span_cost_details if not d.is_prompt)
+
+        assert input_detail.span_cost_id == span_cost.id
+        assert input_detail.token_type == "input"
+        assert input_detail.is_prompt is True
+        assert input_detail.tokens == prompt_tokens
+        assert input_detail.cost == pytest.approx(expected_prompt_cost)
+        assert input_detail.cost_per_token == prompt_base_rate
+
+        assert output_detail.span_cost_id == span_cost.id
+        assert output_detail.token_type == "output"
+        assert output_detail.is_prompt is False
+        assert output_detail.tokens == completion_tokens
+        assert output_detail.cost == pytest.approx(expected_completion_cost)
+        assert output_detail.cost_per_token == completion_base_rate
+
+    @pytest.mark.asyncio
+    async def test_save_db_models_skips_costs_for_non_llm_spans(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
+        generative_model: models.GenerativeModel,
+    ) -> None:
+        with tracer.start_as_current_span(
+            "chain_call",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "CHAIN",
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        async with db() as session:
+            _, db_spans, span_costs = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
+            fetched_span_costs = (await session.execute(select(models.SpanCost))).scalars().all()
+            fetched_span_cost_details = (
+                (await session.execute(select(models.SpanCostDetail))).scalars().all()
+            )
+
+        assert len(db_spans) == 1
+        assert len(span_costs) == 0
+        assert len(fetched_span_costs) == 0
+        assert len(fetched_span_cost_details) == 0
+
+    @pytest.mark.asyncio
+    async def test_save_db_models_handles_missing_pricing_model(
+        self, db: DbSessionFactory, project: models.Project, tracer: Tracer
+    ) -> None:
+        prompt_tokens = 100
+        completion_tokens = 50
+
+        with tracer.start_as_current_span(
+            "llm_call",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "LLM",
+                LLM_MODEL_NAME: "unknown-model",
+                LLM_TOKEN_COUNT_PROMPT: prompt_tokens,
+                LLM_TOKEN_COUNT_COMPLETION: completion_tokens,
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        async with db() as session:
+            _, db_spans, span_costs = await tracer.save_db_models(
+                session=session, project_id=project.id
+            )
+
+        assert len(db_spans) == 1
+        assert len(span_costs) == 1
+
+        db_span = db_spans[0]
+        span_cost = span_costs[0]
+
+        # Verify span costs
+        assert span_cost.span_rowid == db_span.id
+        assert span_cost.trace_rowid == db_span.trace_rowid
+        assert span_cost.model_id is None  # no pricing model found
+        assert span_cost.span_start_time == db_span.start_time
+        assert span_cost.total_cost is None  # no pricing model found
+        assert span_cost.total_tokens == prompt_tokens + completion_tokens
+        assert span_cost.prompt_tokens == prompt_tokens
+        assert span_cost.prompt_cost is None  # no pricing model found
+        assert span_cost.completion_tokens == completion_tokens
+        assert span_cost.completion_cost is None  # no pricing model found
+
+        # Verify span cost details
+        assert len(span_cost.span_cost_details) == 2
+        input_detail = next(d for d in span_cost.span_cost_details if d.is_prompt)
+        output_detail = next(d for d in span_cost.span_cost_details if not d.is_prompt)
+
+        assert input_detail.span_cost_id == span_cost.id
+        assert input_detail.token_type == "input"
+        assert input_detail.is_prompt is True
+        assert input_detail.tokens == prompt_tokens
+        assert input_detail.cost is None  # no pricing model found
+        assert input_detail.cost_per_token is None  # no pricing model found
+
+        assert output_detail.span_cost_id == span_cost.id
+        assert output_detail.token_type == "output"
+        assert output_detail.is_prompt is False
+        assert output_detail.tokens == completion_tokens
+        assert output_detail.cost is None  # no pricing model found
+        assert output_detail.cost_per_token is None  # no pricing model found
+
+
+# span attributes
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND

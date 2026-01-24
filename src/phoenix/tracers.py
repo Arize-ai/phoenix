@@ -1,17 +1,26 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+import sqlalchemy as sa
 import wrapt
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
+from phoenix.db.insertion.helpers import should_calculate_span_cost
+from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
+from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.trace.attributes import get_attribute_value, unflatten
+
+logger = logging.getLogger(__name__)
 
 
 class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
@@ -32,7 +41,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
         # Persist traces and spans to database
         async with db_session() as session:
-            traces, spans = await tracer.save_db_models(session=session, project_id=123)
+            traces, spans, costs = await tracer.save_db_models(session=session, project_id=123)
     """
 
     def __init__(self) -> None:
@@ -45,7 +54,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
     async def save_db_models(
         self, *, session: AsyncSession, project_id: int
-    ) -> tuple[list[models.Trace], list[models.Span]]:
+    ) -> tuple[list[models.Trace], list[models.Span], list[models.SpanCost]]:
         """
         Persists captured traces and spans to the database.
 
@@ -61,12 +70,36 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             A tuple containing:
                 - A list of persisted models.Trace instances
                 - A list of persisted models.Span instances
+                - A list of persisted models.SpanCost instances
 
             Returns empty lists if no spans have been captured.
         """
         finished_spans = self._self_exporter.get_finished_spans()
         if not finished_spans:
-            return [], []
+            return [], [], []
+
+        # Query GenerativeModel + TokenPrice for cost calculation
+        min_span_start_time = min(
+            datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
+            for span in finished_spans
+            if span.start_time is not None
+        )
+
+        generative_models_query = (
+            select(models.GenerativeModel)
+            .options(joinedload(models.GenerativeModel.token_prices))
+            .where(
+                sa.and_(
+                    sa.or_(
+                        models.GenerativeModel.start_time.is_(None),
+                        models.GenerativeModel.start_time <= min_span_start_time,
+                    ),
+                    models.GenerativeModel.deleted_at.is_(None),
+                )
+            )
+        )
+        generative_models = (await session.scalars(generative_models_query)).unique().all()
+        cost_model_lookup = CostModelLookup(generative_models)
 
         db_traces, db_spans = _convert_otel_spans_to_db_traces_and_spans(
             otel_spans=finished_spans, project_id=project_id
@@ -74,7 +107,17 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         session.add_all(db_traces)
         session.add_all(db_spans)
         await session.flush()
-        return db_traces, db_spans
+
+        # Calculate and persist costs for LLM spans
+        span_costs = _calculate_span_costs(
+            db_spans=db_spans,
+            cost_model_lookup=cost_model_lookup,
+        )
+
+        if span_costs:
+            session.add_all(span_costs)
+
+        return db_traces, db_spans, span_costs
 
     def clear(self) -> None:
         """
@@ -253,3 +296,55 @@ def _compute_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeC
                     count.completion_tokens += child_counts.completion_tokens
 
     return [counts_by_span_id[span.span_id] for span in spans]
+
+
+def _calculate_span_costs(
+    *,
+    db_spans: Sequence[models.Span],
+    cost_model_lookup: CostModelLookup,
+) -> list[models.SpanCost]:
+    """
+    Calculate SpanCost and SpanCostDetail for LLM spans with token counts.
+
+    Args:
+        db_spans: Database span models with attributes and token counts
+        cost_model_lookup: Lookup service for finding GenerativeModel pricing
+
+    Returns:
+        List of SpanCost models with associated SpanCostDetail entries
+    """
+    span_costs: list[models.SpanCost] = []
+
+    for db_span in db_spans:
+        if not should_calculate_span_cost(db_span.attributes):
+            continue
+
+        try:
+            cost_model = cost_model_lookup.find_model(
+                start_time=db_span.start_time,
+                attributes=db_span.attributes,
+            )
+
+            calculator = SpanCostDetailsCalculator(cost_model.token_prices if cost_model else [])
+            details = calculator.calculate_details(db_span.attributes)
+
+            if not details:
+                continue
+
+            span_cost = models.SpanCost(
+                span_rowid=db_span.id,
+                trace_rowid=db_span.trace_rowid,
+                span_start_time=db_span.start_time,
+                model_id=cost_model.id if cost_model else None,
+            )
+
+            for detail in details:
+                span_cost.append_detail(detail)
+
+            span_costs.append(span_cost)
+
+        except Exception:
+            logger.exception(f"Failed to calculate cost for span {db_span.span_id}")
+            continue
+
+    return span_costs

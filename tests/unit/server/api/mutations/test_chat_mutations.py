@@ -1053,6 +1053,58 @@ class TestChatCompletionMutationMixin:
             assert attributes.pop(URL_PATH) == "chat/completions"
             assert not attributes
 
+            # span costs for llm span
+            span_costs_result = await session.execute(
+                select(models.SpanCost).where(models.SpanCost.span_rowid == llm_llm_span.id)
+            )
+            span_costs = span_costs_result.scalars().all()
+            assert len(span_costs) == 1
+            span_cost = span_costs[0]
+            assert span_cost.span_rowid == llm_llm_span.id
+            assert span_cost.trace_rowid == llm_llm_span.trace_rowid
+            assert span_cost.model_id is not None
+            assert span_cost.span_start_time == llm_llm_span.start_time
+            assert span_cost.total_cost is not None
+            assert span_cost.total_cost > 0
+            assert span_cost.total_tokens == (
+                llm_llm_span.llm_token_count_prompt + llm_llm_span.llm_token_count_completion
+            )
+            assert span_cost.prompt_tokens == llm_llm_span.llm_token_count_prompt
+            assert span_cost.prompt_cost is not None
+            assert span_cost.prompt_cost > 0
+            assert span_cost.completion_tokens == llm_llm_span.llm_token_count_completion
+            assert span_cost.completion_cost is not None
+            assert span_cost.completion_cost > 0
+
+            # span cost details for llm span
+            span_cost_details_result = await session.execute(
+                select(models.SpanCostDetail).where(
+                    models.SpanCostDetail.span_cost_id == span_cost.id
+                )
+            )
+            span_cost_details = span_cost_details_result.scalars().all()
+            assert len(span_cost_details) >= 2
+            input_detail = next(
+                d for d in span_cost_details if d.is_prompt and d.token_type == "input"
+            )
+            output_detail = next(
+                d for d in span_cost_details if not d.is_prompt and d.token_type == "output"
+            )
+            assert input_detail.span_cost_id == span_cost.id
+            assert input_detail.token_type == "input"
+            assert input_detail.is_prompt is True
+            assert input_detail.tokens == llm_llm_span.llm_token_count_prompt
+            assert input_detail.cost is not None
+            assert input_detail.cost > 0
+            assert input_detail.cost_per_token is not None
+            assert output_detail.span_cost_id == span_cost.id
+            assert output_detail.token_type == "output"
+            assert output_detail.is_prompt is False
+            assert output_detail.tokens == llm_llm_span.llm_token_count_completion
+            assert output_detail.cost is not None
+            assert output_detail.cost > 0
+            assert output_detail.cost_per_token is not None
+
             # chain span
             assert llm_parse_span.name == "Parse eval result"
             assert llm_parse_span.span_kind == "CHAIN"
