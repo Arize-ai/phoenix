@@ -10,7 +10,7 @@ from ..llm.prompts import PromptTemplate
 
 class ToolInvocationEvaluator(ClassificationEvaluator):
     """
-    A specialized evaluator for determining if a tool was invoked correctly with proper
+    Determines if a tool was invoked correctly with proper
     arguments, formatting, and safe content.
 
     Args:
