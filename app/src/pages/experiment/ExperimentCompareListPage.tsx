@@ -42,7 +42,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import {
+  AnnotationColorSwatch,
+  type AnnotationConfig,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -60,6 +64,7 @@ import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/Experi
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
   costFormatter,
   floatFormatter,
@@ -186,6 +191,29 @@ export function ExperimentCompareListPage({
                   }
                 }
               }
+              datasetEvaluators(first: 100) {
+                edges {
+                  node {
+                    name
+                    outputConfig {
+                      ... on CategoricalAnnotationConfig {
+                        name
+                        optimizationDirection
+                        values {
+                          label
+                          score
+                        }
+                      }
+                      ... on ContinuousAnnotationConfig {
+                        name
+                        optimizationDirection
+                        lowerBound
+                        upperBound
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -307,6 +335,24 @@ export function ExperimentCompareListPage({
         )
     );
   }, [aggregateData?.dataset]);
+
+  const annotationConfigs = useMemo(() => {
+    const evaluators =
+      aggregateData?.dataset.datasetEvaluators?.edges.map(
+        (edge) => edge.node
+      ) ?? [];
+    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+  }, [aggregateData?.dataset.datasetEvaluators?.edges]);
+
+  const annotationConfigsByName = useMemo(() => {
+    return annotationConfigs.reduce(
+      (acc, config) => {
+        acc[config.name] = config;
+        return acc;
+      },
+      {} as Record<string, AnnotationConfig>
+    );
+  }, [annotationConfigs]);
 
   const datasetId = aggregateData?.dataset.id;
   const baseExperiment = experiments[0];
@@ -980,6 +1026,8 @@ export function ExperimentCompareListPage({
                 baseExperimentRunAnnotation,
                 compareExperimentRunAnnotations,
               } = getValue();
+              const annotationConfig =
+                annotationConfigsByName[annotationSummary.annotationName];
               const baseExperimentRunAnnotationValue = getAnnotationValue(
                 baseExperimentRunAnnotation
               );
@@ -987,6 +1035,11 @@ export function ExperimentCompareListPage({
                 typeof baseExperimentRunAnnotationValue === "number"
                   ? numberFormatter(baseExperimentRunAnnotationValue)
                   : baseExperimentRunAnnotationValue;
+              const basePositiveOptimization =
+                getPositiveOptimizationFromConfig({
+                  config: annotationConfig,
+                  score: baseExperimentRunAnnotation?.score,
+                });
 
               return (
                 <ul
@@ -996,31 +1049,15 @@ export function ExperimentCompareListPage({
                     gap: var(--ac-global-dimension-size-25);
                   `}
                 >
-                  <li
-                    css={css`
-                      --mod-barloader-fill-color: ${baseExperimentColor};
-                    `}
-                  >
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <Text size="S" fontFamily="mono">
-                        {baseExperimentRunAnnotationValueFormatted}
-                      </Text>
-                    </Flex>
-                    {typeof baseExperimentRunAnnotationValue === "number" ? (
-                      <ProgressBar
-                        width="100%"
-                        height="var(--ac-global-dimension-size-25)"
-                        value={calculateAnnotationScorePercentile(
-                          baseExperimentRunAnnotationValue,
-                          annotationSummary.minScore,
-                          annotationSummary.maxScore
-                        )}
-                        aria-label={`${annotationSummary.annotationName} score`}
-                      />
-                    ) : (
-                      <ProgressBarPlaceholder />
-                    )}
-                  </li>
+                  <AnnotationValueItem
+                    value={baseExperimentRunAnnotationValueFormatted}
+                    numericValue={baseExperimentRunAnnotationValue}
+                    positiveOptimization={basePositiveOptimization}
+                    barColor={baseExperimentColor}
+                    minScore={annotationSummary.minScore}
+                    maxScore={annotationSummary.maxScore}
+                    annotationName={annotationSummary.annotationName}
+                  />
                   {compareExperimentRunAnnotations.map(
                     (
                       annotation: CompareExperimentRunAnnotation | undefined,
@@ -1033,37 +1070,22 @@ export function ExperimentCompareListPage({
                           ? numberFormatter(compareAnnotationValue)
                           : compareAnnotationValue;
                       const color = getExperimentColor(index);
+                      const positiveOptimization =
+                        getPositiveOptimizationFromConfig({
+                          config: annotationConfig,
+                          score: annotation?.score,
+                        });
                       return (
-                        <li
+                        <AnnotationValueItem
                           key={index}
-                          css={css`
-                            --mod-barloader-fill-color: ${color};
-                          `}
-                        >
-                          <Flex
-                            direction="row"
-                            gap="size-100"
-                            alignItems="center"
-                          >
-                            <Text size="S" fontFamily="mono">
-                              {compareAnnotationValueFormatted}
-                            </Text>
-                          </Flex>
-                          {typeof compareAnnotationValue === "number" ? (
-                            <ProgressBar
-                              width="100%"
-                              height="var(--ac-global-dimension-size-25)"
-                              value={calculateAnnotationScorePercentile(
-                                compareAnnotationValue,
-                                annotationSummary.minScore,
-                                annotationSummary.maxScore
-                              )}
-                              aria-label={`${annotationSummary.annotationName} score`}
-                            />
-                          ) : (
-                            <ProgressBarPlaceholder />
-                          )}
-                        </li>
+                          value={compareAnnotationValueFormatted}
+                          numericValue={compareAnnotationValue}
+                          positiveOptimization={positiveOptimization}
+                          barColor={color}
+                          minScore={annotationSummary.minScore}
+                          maxScore={annotationSummary.maxScore}
+                          annotationName={annotationSummary.annotationName}
+                        />
                       );
                     }
                   )}
@@ -1086,6 +1108,7 @@ export function ExperimentCompareListPage({
     ];
     return columns;
   }, [
+    annotationConfigsByName,
     annotationSummaries,
     baseExperimentColor,
     columnHelper,
@@ -1329,6 +1352,80 @@ export function ExperimentCompareListPage({
         </Modal>
       </ModalOverlay>
     </View>
+  );
+}
+
+/**
+ * A single annotation value item with optimization direction coloring
+ */
+function AnnotationValueItem({
+  value,
+  numericValue,
+  positiveOptimization,
+  barColor,
+  minScore,
+  maxScore,
+  annotationName,
+}: {
+  value: string | number;
+  numericValue: string | number;
+  positiveOptimization: boolean | null;
+  barColor: string;
+  minScore: number | null;
+  maxScore: number | null;
+  annotationName: string;
+}) {
+  const bgColor =
+    positiveOptimization === true
+      ? "var(--ac-global-color-success-100)"
+      : positiveOptimization === false
+        ? "var(--ac-global-color-danger-100)"
+        : undefined;
+  const textColor =
+    positiveOptimization === true
+      ? "success"
+      : positiveOptimization === false
+        ? "danger"
+        : undefined;
+  const optimizedBarColor =
+    positiveOptimization === true
+      ? "var(--ac-global-color-success-500)"
+      : positiveOptimization === false
+        ? "var(--ac-global-color-danger-500)"
+        : barColor;
+
+  return (
+    <li
+      css={css`
+        --mod-barloader-fill-color: ${optimizedBarColor};
+        ${bgColor ? `background-color: ${bgColor};` : ""}
+        padding: var(--ac-global-dimension-size-25)
+          var(--ac-global-dimension-size-50);
+        border-radius: var(--ac-global-rounding-small);
+        margin: calc(-1 * var(--ac-global-dimension-size-25))
+          calc(-1 * var(--ac-global-dimension-size-50));
+      `}
+    >
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Text size="S" fontFamily="mono" color={textColor}>
+          {value}
+        </Text>
+      </Flex>
+      {typeof numericValue === "number" ? (
+        <ProgressBar
+          width="100%"
+          height="var(--ac-global-dimension-size-25)"
+          value={calculateAnnotationScorePercentile(
+            numericValue,
+            minScore,
+            maxScore
+          )}
+          aria-label={`${annotationName} score`}
+        />
+      ) : (
+        <ProgressBarPlaceholder />
+      )}
+    </li>
   );
 }
 
