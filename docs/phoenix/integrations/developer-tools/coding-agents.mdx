@@ -1,0 +1,91 @@
+---
+title: "Coding Agents"
+description: Integrate Phoenix with AI coding assistants like Claude Code, Cursor, and Windsurf for debugging LLM applications.
+---
+
+Phoenix provides tools for AI coding assistants to debug and analyze your LLM applications directly from the terminal.
+
+## Installation
+
+### Phoenix CLI
+
+Install the CLI globally:
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+### Phoenix Skill
+
+Add the Phoenix debugging skill to your AI coding agent using [add-skill](https://github.com/vercel-labs/add-skill):
+
+```bash
+npx add-skill Arize-ai/phoenix --skill phoenix-cli
+```
+
+This installs the skill to your project's skills directory (`.cursor/skills/`, `.claude/skills/`, or `.github/skills/`).
+
+#### add-skill Options
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Install to user directory instead of project |
+| `-a, --agent <agents...>` | Target specific agents (e.g., `claude-code`, `cursor`) |
+| `-s, --skill <skills...>` | Install specific skills by name |
+| `-l, --list` | List available skills without installing |
+| `-y, --yes` | Skip all confirmation prompts |
+
+**Examples:**
+
+```bash
+# Install globally for all projects
+npx add-skill Arize-ai/phoenix --skill phoenix-cli -g
+
+# Install to specific agents
+npx add-skill Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
+
+# Non-interactive installation (CI/CD friendly)
+npx add-skill Arize-ai/phoenix --skill phoenix-cli -g -y
+```
+
+**Supported agents:** Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/add-skill#available-agents).
+
+## Configuration
+
+Set environment variables to connect to your Phoenix instance:
+
+```bash
+export PHOENIX_HOST=http://localhost:6006    # Your Phoenix endpoint
+export PHOENIX_PROJECT=my-project            # Project name
+export PHOENIX_API_KEY=your-api-key          # API key (if auth enabled)
+```
+
+## Using the Skill
+
+The skill teaches your AI assistant how to:
+
+- Debug failed LLM applications using trace data
+- Analyze performance issues and token usage
+- Review experiment results and datasets
+
+### Example
+
+After installing, ask your AI assistant:
+
+```
+Debug my agent - it's failing on tool calls. Fetch recent traces and identify the issue.
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full CLI command reference
+  </Card>
+  <Card title="Retrieve Traces via CLI" icon="download" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli">
+    Detailed guide for fetching traces
+  </Card>
+  <Card title="MCP Servers" icon="plug" href="/docs/phoenix/integrations/phoenix-mcp-server">
+    Connect AI assistants to Phoenix via MCP
+  </Card>
+</CardGroup>
