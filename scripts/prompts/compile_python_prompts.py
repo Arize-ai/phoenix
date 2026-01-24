@@ -18,11 +18,23 @@ class PromptMessage(BaseModel):
     content: str
 
 
+# Specification metadata class copied into the compiled module.
+class EvaluatorSpecification(BaseModel):
+    use_cases: list[Literal["chat", "rag", "agent", "code", "general"]]
+    measures: Literal["correctness", "grounding", "safety", "quality", "tool_use"]
+    requires: list[
+        Literal["input", "output", "context", "reference", "tools", "tool_calls", "messages"]
+    ]
+    level: list[Literal["document", "span", "trace", "session"]]
+    span_kind: list[Literal["llm", "tool", "retriever", "any"]] | None = None
+
+
 # Base classification evaluator config class copied into the compiled module.
 class ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
     optimization_direction: Literal["minimize", "maximize"]
+    specification: EvaluatorSpecification
     messages: list[PromptMessage]
     choices: dict[str, float]
 
@@ -37,6 +49,10 @@ from pydantic import BaseModel
 
 {{ prompt_message_source }}
 
+
+{{ evaluator_specification_source }}
+
+
 {{ classification_evaluator_config_source }}
 """
 
@@ -44,7 +60,7 @@ CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 {{ classification_evaluator_config_name }} = {{ classification_evaluator_config_definition }}
 """
@@ -52,13 +68,14 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 INIT_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 {% for name in prompt_names -%}
 from ._{{ name.lower() }} import {{ name }}
 {% endfor %}
 
 __all__ = [
     "ClassificationEvaluatorConfig",
+    "EvaluatorSpecification",
     "PromptMessage",
     {{ prompt_names|map('tojson')|join(', ') }}
 ]
@@ -71,11 +88,13 @@ def get_models_file_contents() -> str:
     """
     template = Template(MODELS_TEMPLATE)
     prompt_message_source = inspect.getsource(PromptMessage).strip()
+    evaluator_specification_source = inspect.getsource(EvaluatorSpecification).strip()
     classification_evaluator_config_source = inspect.getsource(
         ClassificationEvaluatorConfig
     ).strip()
     content = template.render(
         prompt_message_source=prompt_message_source,
+        evaluator_specification_source=evaluator_specification_source,
         classification_evaluator_config_source=classification_evaluator_config_source,
     )
     return content
