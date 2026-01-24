@@ -28,6 +28,9 @@ import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
+    MessageAttributes,
+    OpenInferenceLLMProviderValues,
+    OpenInferenceSpanKindValues,
     SpanAttributes,
 )
 from pydantic import ValidationError
@@ -98,6 +101,7 @@ if TYPE_CHECKING:
         ChatCompletionMessageParam,
         ChatCompletionMessageToolCallParam,
     )
+    from opentelemetry.trace import Tracer as OTelTracer
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
 # TypeVar for generic client type
@@ -106,6 +110,56 @@ ClientT = TypeVar("ClientT")
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
+
+
+def _build_llm_span_attributes(
+    *,
+    model_name: str,
+    provider: str,
+    messages: list[
+        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+    ],
+    tools: list[JSONScalarType],
+    invocation_parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """Build initial attributes for LLM span using OpenInference conventions."""
+
+    attrs = {
+        SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.LLM.value,
+        SpanAttributes.LLM_MODEL_NAME: model_name,
+    }
+
+    # Add provider if it maps to OpenInference enum
+    try:
+        if provider == "openai":
+            attrs[SpanAttributes.LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
+        elif provider == "anthropic":
+            attrs[SpanAttributes.LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
+        elif provider == "google":
+            attrs[SpanAttributes.LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
+        elif provider == "azure":
+            attrs[SpanAttributes.LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
+    except Exception:
+        pass
+
+    # Add invocation parameters
+    for key, value in invocation_parameters.items():
+        attrs[f"{SpanAttributes.LLM_INVOCATION_PARAMETERS}.{key}"] = value
+
+    # Add input messages (simplified for now)
+    for i, (role, content, tool_call_id, tool_calls) in enumerate(messages):
+        attrs[f"{SpanAttributes.LLM_INPUT_MESSAGES}.{i}.{MessageAttributes.MESSAGE_ROLE}"] = (
+            role.value.lower()
+        )
+        attrs[f"{SpanAttributes.LLM_INPUT_MESSAGES}.{i}.{MessageAttributes.MESSAGE_CONTENT}"] = (
+            content
+        )
+
+    # Add tools
+    if tools:
+        attrs[SpanAttributes.LLM_TOOLS] = safe_json_dumps(tools)
+
+    return attrs
 
 
 class Dependency:
@@ -312,8 +366,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             provider=provider,
             model_name=model_name,
         )
-        # TODO(refactor): Remove after tracer implementation
-        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
 
     @classmethod
@@ -399,6 +451,18 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
         from openai.types import chat
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial span attributes
+        initial_attrs = _build_llm_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -406,59 +470,75 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             openai_message = self.to_openai_chat_completion_param(*message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
+
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = {}
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            # TODO(refactor): Remove after tracer implementation
-            # client._client = _HttpxClient(client._client, self._attributes)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            stream = cast(
-                AsyncIterable[chat.ChatCompletionChunk],
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=True,
-                    stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
-            async for chunk in stream:
-                if (usage := chunk.usage) is not None:
-                    token_usage = usage
-                if not chunk.choices:
-                    # for Azure, initial chunk contains the content filter
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if tool_call.id is not None
-                                else tool_call_ids[tool_call_index]
-                            )
-                            tool_call_ids[tool_call_index] = tool_call_id
-                            if (function := tool_call.function) is not None:
-                                tool_call_chunk = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+                stream = cast(
+                    AsyncIterable[chat.ChatCompletionChunk],
+                    await throttled_create(
+                        messages=openai_messages,
+                        model=self.model_name,
+                        stream=True,
+                        stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
+                        tools=tools or omit,
+                        **invocation_parameters,
+                    ),
+                )
+                async for chunk in stream:
+                    if (usage := chunk.usage) is not None:
+                        token_usage = usage
+                    if not chunk.choices:
+                        # for Azure, initial chunk contains the content filter
+                        continue
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+                    if choice.finish_reason is None:
+                        if isinstance(chunk_content := delta.content, str):
+                            accumulated_text.append(chunk_content)
+                            yield TextChunk(content=chunk_content)
+                        if (tool_calls := delta.tool_calls) is not None:
+                            for tool_call_index, tool_call in enumerate(tool_calls):
+                                tool_call_id = (
+                                    tool_call.id
+                                    if tool_call.id is not None
+                                    else tool_call_ids[tool_call_index]
                                 )
-                                yield tool_call_chunk
+                                tool_call_ids[tool_call_index] = tool_call_id
+                                if (function := tool_call.function) is not None:
+                                    tool_call_chunk = ToolCallChunk(
+                                        id=tool_call_id,
+                                        function=FunctionCallChunk(
+                                            name=function.name or "",
+                                            arguments=function.arguments or "",
+                                        ),
+                                    )
+                                    if tool_call_id not in accumulated_tool_calls:
+                                        accumulated_tool_calls[tool_call_id] = []
+                                    accumulated_tool_calls[tool_call_id].append(tool_call_chunk)
+                                    yield tool_call_chunk
 
-        if token_usage is not None:
-            # TODO(refactor): Remove after tracer implementation
-            # self._attributes.update(dict(self._llm_token_counts(token_usage)))
-            pass
+            # Set output attributes
+            if accumulated_text:
+                full_text = "".join(accumulated_text)
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                    "assistant",
+                )
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                    full_text,
+                )
+
+            # Set token counts
+            if token_usage is not None:
+                for key, value in self._llm_token_counts(token_usage):
+                    span.set_attribute(key, value)
 
     def to_openai_chat_completion_param(
         self,
@@ -1288,9 +1368,6 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         provider: str = "azure",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        # TODO(refactor): Remove after tracer implementation
-        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
 @register_llm_client(
