@@ -194,6 +194,7 @@ const Template: Story = (args) => {
           mockExperimentRepetitionsByExperimentId
         }
         annotationSummaries={annotationSummaries}
+        annotationConfigs={[]}
         includeRepetitions={false}
         openTraceDialog={() => {}}
         referenceOutput=""

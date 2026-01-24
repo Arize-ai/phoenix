@@ -386,6 +386,7 @@ const Template: Story = (args) => {
           args.experimentRepetitionsByExperimentId
         }
         annotationSummaries={args.annotationSummaries}
+        annotationConfigs={[]}
         referenceOutput={args.referenceOutput}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}

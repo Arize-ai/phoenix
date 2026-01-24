@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6603562d4cd50ef2f201437fd3bcf7df>>
+ * @generated SignedSource<<ddfee7516680426f99684aa637cb1e6f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareTable_comparisons$data = {
   readonly compareExperiments: {
@@ -68,6 +69,23 @@ export type ExperimentCompareTable_comparisons$data = {
     }>;
   };
   readonly dataset: {
+    readonly datasetEvaluators?: {
+      readonly edges: ReadonlyArray<{
+        readonly node: {
+          readonly name: string;
+          readonly outputConfig: {
+            readonly lowerBound?: number | null;
+            readonly name?: string;
+            readonly optimizationDirection?: OptimizationDirection;
+            readonly upperBound?: number | null;
+            readonly values?: ReadonlyArray<{
+              readonly label: string;
+              readonly score: number | null;
+            }>;
+          } | null;
+        };
+      }>;
+    };
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
@@ -163,7 +181,28 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "metadata",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -439,20 +478,8 @@ return {
                                   "selections": [
                                     (v1/*: any*/),
                                     (v5/*: any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "score",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "label",
-                                      "storageKey": null
-                                    },
+                                    (v6/*: any*/),
+                                    (v7/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -467,7 +494,7 @@ return {
                                       "name": "explanation",
                                       "storageKey": null
                                     },
-                                    (v6/*: any*/),
+                                    (v8/*: any*/),
                                     (v2/*: any*/)
                                   ],
                                   "storageKey": null
@@ -600,7 +627,7 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
-                        (v6/*: any*/),
+                        (v8/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -673,6 +700,102 @@ return {
                 }
               ],
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": [
+                {
+                  "kind": "Literal",
+                  "name": "first",
+                  "value": 100
+                }
+              ],
+              "concreteType": "DatasetEvaluatorConnection",
+              "kind": "LinkedField",
+              "name": "datasetEvaluators",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DatasetEvaluatorEdge",
+                  "kind": "LinkedField",
+                  "name": "edges",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetEvaluator",
+                      "kind": "LinkedField",
+                      "name": "node",
+                      "plural": false,
+                      "selections": [
+                        (v5/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "outputConfig",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v5/*: any*/),
+                                (v9/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "CategoricalAnnotationValue",
+                                  "kind": "LinkedField",
+                                  "name": "values",
+                                  "plural": true,
+                                  "selections": [
+                                    (v7/*: any*/),
+                                    (v6/*: any*/)
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "CategoricalAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v5/*: any*/),
+                                (v9/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "lowerBound",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "upperBound",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "ContinuousAnnotationConfig",
+                              "abstractKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": "datasetEvaluators(first:100)"
             }
           ],
           "type": "Dataset",
@@ -687,6 +810,6 @@ return {
 };
 })();
 
-(node as any).hash = "bef4b265b59d70ee5cfd9ed06f535497";
+(node as any).hash = "9eb023304dc20884e0ea1d2260bbe8e2";
 
 export default node;
