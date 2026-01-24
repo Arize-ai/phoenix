@@ -1053,9 +1053,9 @@ class TestChatCompletionMutationMixin:
             assert attributes.pop(URL_PATH) == "chat/completions"
             assert not attributes
 
-            # span costs for llm span
+            # span costs for evaluator trace
             span_costs_result = await session.execute(
-                select(models.SpanCost).where(models.SpanCost.span_rowid == llm_llm_span.id)
+                select(models.SpanCost).where(models.SpanCost.trace_rowid == llm_evaluator_trace.id)
             )
             span_costs = span_costs_result.scalars().all()
             assert len(span_costs) == 1
@@ -1076,7 +1076,7 @@ class TestChatCompletionMutationMixin:
             assert span_cost.completion_cost is not None
             assert span_cost.completion_cost > 0
 
-            # span cost details for llm span
+            # span cost details for evaluator trace
             span_cost_details_result = await session.execute(
                 select(models.SpanCostDetail).where(
                     models.SpanCostDetail.span_cost_id == span_cost.id
