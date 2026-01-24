@@ -17,9 +17,7 @@ from typing import (
 )
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry.trace import StatusCode
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -59,9 +57,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_spans import (
     get_db_experiment_run,
-    get_db_span,
-    get_db_trace,
-    streaming_llm_span,
 )
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
@@ -90,7 +85,7 @@ from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.tracers import Tracer
+from phoenix.tracers import Tracer, _convert_otel_spans_to_db_traces_and_spans
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -131,7 +126,6 @@ async def _stream_single_chat_completion(
         )
         for message in input.messages
     ]
-    attributes = None
     if template_options := input.template:
         messages = list(
             _formatted_messages(
@@ -140,37 +134,36 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-        attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes=attributes,
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    if span.status_message is not None:
+
+    tracer = Tracer()
+    db_span: Optional[models.Span] = None
+
+    try:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], tracer=tracer, **invocation_parameters
+        ):
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message,
+            message=str(error),
             repetition_number=repetition_number,
         )
+        logger.exception(error)
 
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    await results.put((db_span, repetition_number))
+    # Persist spans to database
+    async with info.context.db() as session:
+        db_traces, db_spans = await tracer.save_db_models(session=session, project_id=project_id)
 
-    if input.evaluators and span.status_code is StatusCode.OK:
+        if db_spans:
+            db_span = db_spans[0]  # The LLM span
+            await results.put((db_span, repetition_number))
+
+    if input.evaluators and db_span and db_span.status_code == "OK":
         context_dict: dict[str, Any] = {
-            "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
-            "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
+            "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+            "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
         }
         for evaluator, evaluator_input in zip(evaluators, input.evaluators):
             name = str(evaluator_input.name)
@@ -756,37 +749,101 @@ async def _stream_chat_completion_over_dataset_example(
             )
         )
         return
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)},
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.dataset_example_id = example_id
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    db_run = get_db_experiment_run(
-        db_span,
-        db_trace,
-        experiment_id=experiment_id,
-        example_id=revision.dataset_example_id,
-        repetition_number=repetition_number,
-    )
-    await results.put((example_id, db_span, db_run))
-    if span.status_message is not None:
+
+    tracer = Tracer()
+
+    try:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], tracer=tracer, **invocation_parameters
+        ):
+            chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
+        # Create an experiment run with error information
+        end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+        await results.put(
+            (
+                example_id,
+                None,
+                models.ExperimentRun(
+                    experiment_id=experiment_id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=None,
+                    output={},
+                    repetition_number=repetition_number,
+                    start_time=format_start_time,
+                    end_time=end_time,
+                    error=str(error),
+                    trace=None,
+                ),
+            )
+        )
         yield ChatCompletionSubscriptionError(
-            message=span.status_message,
+            message=str(error),
             dataset_example_id=example_id,
             repetition_number=repetition_number,
+        )
+        logger.exception(error)
+        return
+
+    # Convert OTel spans to DB models (without persisting yet - that happens in batch later)
+    finished_spans = tracer._self_exporter.get_finished_spans()
+    if finished_spans:
+        db_traces, db_spans = _convert_otel_spans_to_db_traces_and_spans(
+            otel_spans=finished_spans, project_id=project_id
+        )
+        db_span = db_spans[0] if db_spans else None  # The LLM span
+        db_trace = db_traces[0] if db_traces else None
+
+        if db_span and db_trace:
+            db_run = get_db_experiment_run(
+                db_span,
+                db_trace,
+                experiment_id=experiment_id,
+                example_id=revision.dataset_example_id,
+                repetition_number=repetition_number,
+            )
+            await results.put((example_id, db_span, db_run))
+        else:
+            # No span was created (shouldn't happen, but handle gracefully)
+            end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+            await results.put(
+                (
+                    example_id,
+                    None,
+                    models.ExperimentRun(
+                        experiment_id=experiment_id,
+                        dataset_example_id=revision.dataset_example_id,
+                        trace_id=None,
+                        output={},
+                        repetition_number=repetition_number,
+                        start_time=format_start_time,
+                        end_time=end_time,
+                        error="No span was created",
+                        trace=None,
+                    ),
+                )
+            )
+    else:
+        # No spans captured (shouldn't happen, but handle gracefully)
+        end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+        await results.put(
+            (
+                example_id,
+                None,
+                models.ExperimentRun(
+                    experiment_id=experiment_id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=None,
+                    output={},
+                    repetition_number=repetition_number,
+                    start_time=format_start_time,
+                    end_time=end_time,
+                    error="No spans captured",
+                    trace=None,
+                ),
+            )
         )
 
 
