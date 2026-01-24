@@ -356,183 +356,6 @@
             ]
           },
           {
-            "tab": "Self-Hosting",
-            "icon": "server",
-            "groups": [
-              {
-                "group": " ",
-                "pages": [
-                  "docs/phoenix/self-hosting",
-                  "docs/phoenix/self-hosting/architecture",
-                  "docs/phoenix/self-hosting/license",
-                  {
-                    "group": "Configuration",
-                    "pages": [
-                      "docs/phoenix/self-hosting/configuration",
-                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "Deployment Options",
-                "icon": "rocket-launch",
-                "pages": [
-                  "docs/phoenix/self-hosting/deployment-options/terminal",
-                  "docs/phoenix/self-hosting/deployment-options/docker",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
-                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
-                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-                  "docs/phoenix/self-hosting/deployment-options/railway"
-                ]
-              },
-              {
-                "group": "Features",
-                "icon": "layer-group",
-                "pages": [
-                  "docs/phoenix/self-hosting/features/provisioning",
-                  "docs/phoenix/self-hosting/features/authentication",
-                  "docs/phoenix/self-hosting/features/email",
-                  "docs/phoenix/self-hosting/features/management",
-                  "docs/phoenix/settings/data-retention"
-                ]
-              },
-              {
-                "group": "Upgrade",
-                "icon": "angles-up",
-                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
-              },
-              {
-                "group": "Security",
-                "icon": "user-shield",
-                "pages": [
-                  "docs/phoenix/settings/access-control-rbac",
-                  "docs/phoenix/self-hosting/security/privacy"
-                ]
-              },
-              {
-                "group": "Misc",
-                "icon": "boxes-stacked",
-                "pages": [
-                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Phoenix Cloud",
-            "icon": "cloud",
-            "groups": [
-              {
-                "group": "Phoenix Cloud",
-                "pages": ["docs/phoenix/phoenix-cloud"]
-              }
-            ]
-          },
-          {
-            "tab": "Cookbooks",
-            "icon": "user-chef",
-            "groups": [
-              {
-                "group": " ",
-                "pages": [
-                  "docs/phoenix/cookbook",
-                  {
-                    "group": "Agent Workflow Patterns",
-                    "pages": [
-                      "docs/phoenix/cookbook/agent-workflow-patterns",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/autogen",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/crewai",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/openai-agents",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/langgraph",
-                      "docs/phoenix/cookbook/agent-workflow-patterns/smolagents"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "AI Engineering Workflows",
-                "icon": "gear",
-                "pages": [
-                  "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
-                  "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
-                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
-                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-                  "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
-                  "docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
-                ]
-              },
-              {
-                "group": "Tracing",
-                "icon": "telescope",
-                "pages": [
-                  "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
-                  "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
-                  "docs/phoenix/cookbook/tracing/structured-data-extraction",
-                  "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
-                  "docs/phoenix/cookbook/tracing/cookbooks"
-                ]
-              },
-              {
-                "group": "Human-in-the-Loop Workflows (Annotations)",
-                "icon": "user-plus",
-                "pages": [
-                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
-                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
-                ]
-              },
-              {
-                "group": "Prompt Engineering",
-                "icon": "wand-magic-sparkles",
-                "pages": [
-                  "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
-                  "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
-                  "docs/phoenix/cookbook/prompt-engineering/few-shot-prompting",
-                  "docs/phoenix/cookbook/prompt-engineering/react-prompting",
-                  "docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting",
-                  "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
-                  "docs/phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization"
-                ]
-              },
-              {
-                "group": "Evaluation",
-                "icon": "clipboard-check",
-                "pages": [
-                  "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
-                  "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
-                  "docs/phoenix/cookbook/evaluation/evaluate-rag",
-                  "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
-                  "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
-                  "docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
-                  "docs/phoenix/cookbook/evaluation/cookbooks"
-                ]
-              },
-              {
-                "group": "Datasets & Experiments",
-                "icon": "flask",
-                "pages": [
-                  "docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
-                  "docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
-                  "docs/phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
-                  "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
-                  "docs/phoenix/cookbook/datasets-and-experiments/summarization",
-                  "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
-                  "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
-                ]
-              },
-              {
-                "group": "Retrieval & Inferences",
-                "icon": "magnifying-glass",
-                "pages": [
-                  "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
-                  "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
-                ]
-              }
-            ]
-          },
-          {
             "tab": "Integrations",
             "icon": "puzzle-piece",
             "groups": [
@@ -541,6 +364,13 @@
                 "pages": [
                   "docs/phoenix/integrations",
                   "docs/phoenix/integrations/phoenix-mcp-server"
+                ]
+              },
+              {
+                "group": "Developer Tools",
+                "icon": "code",
+                "pages": [
+                  "docs/phoenix/integrations/developer-tools/coding-agents"
                 ]
               },
               {
@@ -869,6 +699,183 @@
                   "docs/phoenix/integrations/vector-databases/weaviate",
                   "docs/phoenix/integrations/vector-databases/zilliz-milvus",
                   "docs/phoenix/integrations/vector-databases/couchbase"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Self-Hosting",
+            "icon": "server",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "docs/phoenix/self-hosting",
+                  "docs/phoenix/self-hosting/architecture",
+                  "docs/phoenix/self-hosting/license",
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "docs/phoenix/self-hosting/configuration",
+                      "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deployment Options",
+                "icon": "rocket-launch",
+                "pages": [
+                  "docs/phoenix/self-hosting/deployment-options/terminal",
+                  "docs/phoenix/self-hosting/deployment-options/docker",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes",
+                  "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
+                  "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
+                  "docs/phoenix/self-hosting/deployment-options/railway"
+                ]
+              },
+              {
+                "group": "Features",
+                "icon": "layer-group",
+                "pages": [
+                  "docs/phoenix/self-hosting/features/provisioning",
+                  "docs/phoenix/self-hosting/features/authentication",
+                  "docs/phoenix/self-hosting/features/email",
+                  "docs/phoenix/self-hosting/features/management",
+                  "docs/phoenix/settings/data-retention"
+                ]
+              },
+              {
+                "group": "Upgrade",
+                "icon": "angles-up",
+                "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
+              },
+              {
+                "group": "Security",
+                "icon": "user-shield",
+                "pages": [
+                  "docs/phoenix/settings/access-control-rbac",
+                  "docs/phoenix/self-hosting/security/privacy"
+                ]
+              },
+              {
+                "group": "Misc",
+                "icon": "boxes-stacked",
+                "pages": [
+                  "docs/phoenix/self-hosting/misc/frequently-asked-questions"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Phoenix Cloud",
+            "icon": "cloud",
+            "groups": [
+              {
+                "group": "Phoenix Cloud",
+                "pages": ["docs/phoenix/phoenix-cloud"]
+              }
+            ]
+          },
+          {
+            "tab": "Cookbooks",
+            "icon": "user-chef",
+            "groups": [
+              {
+                "group": " ",
+                "pages": [
+                  "docs/phoenix/cookbook",
+                  {
+                    "group": "Agent Workflow Patterns",
+                    "pages": [
+                      "docs/phoenix/cookbook/agent-workflow-patterns",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/autogen",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/crewai",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/openai-agents",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/langgraph",
+                      "docs/phoenix/cookbook/agent-workflow-patterns/smolagents"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "AI Engineering Workflows",
+                "icon": "gear",
+                "pages": [
+                  "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
+                  "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
+                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
+                  "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
+                  "docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
+                ]
+              },
+              {
+                "group": "Tracing",
+                "icon": "telescope",
+                "pages": [
+                  "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
+                  "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
+                  "docs/phoenix/cookbook/tracing/structured-data-extraction",
+                  "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
+                  "docs/phoenix/cookbook/tracing/cookbooks"
+                ]
+              },
+              {
+                "group": "Human-in-the-Loop Workflows (Annotations)",
+                "icon": "user-plus",
+                "pages": [
+                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
+                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
+                  "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+                ]
+              },
+              {
+                "group": "Prompt Engineering",
+                "icon": "wand-magic-sparkles",
+                "pages": [
+                  "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
+                  "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
+                  "docs/phoenix/cookbook/prompt-engineering/few-shot-prompting",
+                  "docs/phoenix/cookbook/prompt-engineering/react-prompting",
+                  "docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting",
+                  "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
+                  "docs/phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization"
+                ]
+              },
+              {
+                "group": "Evaluation",
+                "icon": "clipboard-check",
+                "pages": [
+                  "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
+                  "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
+                  "docs/phoenix/cookbook/evaluation/evaluate-rag",
+                  "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
+                  "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
+                  "docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
+                  "docs/phoenix/cookbook/evaluation/cookbooks"
+                ]
+              },
+              {
+                "group": "Datasets & Experiments",
+                "icon": "flask",
+                "pages": [
+                  "docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
+                  "docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
+                  "docs/phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
+                  "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
+                  "docs/phoenix/cookbook/datasets-and-experiments/summarization",
+                  "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
+                  "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
+                ]
+              },
+              {
+                "group": "Retrieval & Inferences",
+                "icon": "magnifying-glass",
+                "pages": [
+                  "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
+                  "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
                 ]
               }
             ]

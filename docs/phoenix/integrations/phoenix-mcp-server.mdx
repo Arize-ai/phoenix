@@ -1,17 +1,72 @@
 ---
-title: "Phoenix MCP Server"
-description: Phoenix MCP Server is an implementation of the Model Context Protocol for the Arize Phoenix platform. It provides a unified interface to Phoenix's capabilities.
+title: "MCP Servers"
+description: Connect AI assistants to Phoenix documentation and platform capabilities via the Model Context Protocol (MCP).
 ---
 
-Phoenix MCP Server supports:
+Phoenix provides two MCP servers for AI assistants:
+
+- **Phoenix Docs MCP** - Search Phoenix documentation in real-time
+- **Phoenix MCP Server** - Manage prompts, datasets, and experiments
+
+---
+
+## Phoenix Docs MCP
+
+The Phoenix Docs MCP server allows AI assistants to search and retrieve Phoenix documentation in real-time.
+
+**Server URL:**
+
+```
+https://arizeai-433a7140.mintlify.app/mcp
+```
+
+### Connect with Claude Code
+
+```bash
+# Project scope (current directory only)
+claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+```
+
+<Note>
+To add the MCP server globally and access it in all projects, add the `--scope user` flag:
+
+```bash
+claude mcp add --transport http phoenix-docs --scope user https://arizeai-433a7140.mintlify.app/mcp
+```
+</Note>
+
+### Connect with Cursor or VS Code
+
+Add the following to your MCP settings configuration file:
+
+```json
+{
+    "mcpServers": {
+        "phoenix-docs": {
+            "url": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+    }
+}
+```
+
+### Connect with Claude Desktop
+
+1. Open Claude Desktop
+2. Go to Settings > Connectors
+3. Add the MCP server URL: `https://arizeai-433a7140.mintlify.app/mcp`
+
+---
+
+## Phoenix MCP Server
+
+The Phoenix MCP Server (`@arizeai/phoenix-mcp`) connects AI assistants directly to your Phoenix instance for managing:
 
 * **Prompts Management**: Create, list, update, and iterate on prompts
-
-* **Datasets**: Explore datasets, and synthesize new examples
-
+* **Datasets**: Explore datasets and synthesize new examples
 * **Experiments**: Pull experiment results and visualize them with the help of an LLM
 
-## Connecting the Phoenix MCP Server
+### Connecting the Phoenix MCP Server
+
 <Tabs>
   <Tab title="Connect via Cursor">
     #### Via Cursor Deeplink:
@@ -141,7 +196,7 @@ Phoenix MCP Server supports:
 
 </Tabs>
 
-## Using the Phoenix MCP Server
+### Using the Phoenix MCP Server
 
 The MCP server can be used to interact with Prompts, Experiments, and Datasets. It can be used to retrieve information about each item, and can create and update Prompts.
 
@@ -157,12 +212,9 @@ Some good questions to try:
 
 5. `Visualize the results of my jailbreak dataset experiments in Phoenix`
 
-## Hoping to see additional functionality?
+### Hoping to see additional functionality?
 
 `@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
 
 <Card horizontal icon="github" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp" title="Not found
 " />
-
-
-
