@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "description", "messages", "choices", "specification"],
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "optimization_direction": {
+      "type": "string",
+      "enum": ["maximize", "minimize"]
+    },
+    "specification": {
+      "type": "object",
+      "required": ["use_cases", "measures", "requires", "level"],
+      "properties": {
+        "use_cases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["chat", "rag", "agent", "code", "general"]
+          },
+          "minItems": 1
+        },
+        "measures": {
+          "type": "string",
+          "enum": ["correctness", "grounding", "safety", "quality", "tool_use"]
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["input", "output", "context", "reference", "tools", "tool_calls", "messages"]
+          },
+          "minItems": 1
+        },
+        "level": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["document", "span", "trace", "session"]
+          },
+          "minItems": 1
+        },
+        "span_kind": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["llm", "tool", "retriever", "any"]
+          }
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      }
+    },
+    "choices": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    }
+  }
+}
