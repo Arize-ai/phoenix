@@ -5,7 +5,7 @@ Compiles YAML prompts into Python code.
 import argparse
 import inspect
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import yaml
 from jinja2 import Template
@@ -26,7 +26,7 @@ class EvaluatorSpecification(BaseModel):
         Literal["input", "output", "context", "reference", "tools", "tool_calls", "messages"]
     ]
     level: list[Literal["document", "span", "trace", "session"]]
-    span_kind: list[Literal["llm", "tool", "retriever", "any"]] | None = None
+    span_kind: Optional[list[Literal["llm", "tool", "retriever", "any"]]] = None
 
 
 # Base classification evaluator config class copied into the compiled module.
@@ -42,7 +42,7 @@ class ClassificationEvaluatorConfig(BaseModel):
 MODELS_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
