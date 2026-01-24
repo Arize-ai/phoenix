@@ -749,8 +749,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        # TODO(refactor): Remove after tracer implementation
-        # self._attributes[LLM_SYSTEM] = "aws"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -801,8 +799,24 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         tracer: "OTelTracer | None" = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
-            yield chunk
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial span attributes
+        initial_attrs = _build_llm_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
+
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async for chunk in self._handle_converse_api(
+                messages, tools, invocation_parameters, span
+            ):
+                yield chunk
 
     async def _handle_converse_api(
         self,
@@ -816,6 +830,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
+        span: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         Handle the converse API.
@@ -867,6 +882,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         "name": invocation_parameters["tool_choice"]["name"],
                     }
 
+        # Accumulate chunks
+        accumulated_text: list[str] = []
+
         # Make the streaming API call using async context manager
         async with self._client_factory() as client:
             response = await client.converse_stream(**converse_params)
@@ -913,6 +931,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
                     # Handle text delta
                     if "text" in delta:
+                        accumulated_text.append(delta["text"])
                         yield TextChunk(content=delta["text"])
 
                     # Handle tool use delta
@@ -939,31 +958,26 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         del active_tool_calls[stop_index]
 
                 elif "metadata" in event:
-                    # TODO(refactor): Remove after tracer implementation
-                    # self._attributes.update(
-                    #     {
-                    #         LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
-                    #         .get("usage", {})
-                    #         .get("inputTokens", 0)
-                    #     }
-                    # )
-                    #
-                    # self._attributes.update(
-                    #     {
-                    #         LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
-                    #         .get("usage", {})
-                    #         .get("outputTokens", 0)
-                    #     }
-                    # )
-                    #
-                    # self._attributes.update(
-                    #     {
-                    #         LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
-                    #         .get("usage", {})
-                    #         .get("totalTokens", 0)
-                    #     }
-                    # )
-                    pass
+                    metadata = event.get("metadata", {})
+                    usage = metadata.get("usage", {})
+                    if input_tokens := usage.get("inputTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_PROMPT, input_tokens)
+                    if output_tokens := usage.get("outputTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, output_tokens)
+                    if total_tokens := usage.get("totalTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_TOTAL, total_tokens)
+
+        # Set output attributes
+        if accumulated_text:
+            full_text = "".join(accumulated_text)
+            span.set_attribute(
+                f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                "assistant",
+            )
+            span.set_attribute(
+                f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                full_text,
+            )
 
     async def _handle_invoke_api(
         self,
@@ -977,6 +991,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
+        span: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         if "anthropic" not in self.model_name:
             raise ValueError("Invoke API is only supported for Anthropic models")
@@ -1001,6 +1016,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             bedrock_params["temperature"] = invocation_parameters["temperature"]
         if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
             bedrock_params["top_p"] = invocation_parameters["top_p"]
+
+        # Accumulate chunks
+        accumulated_text: list[str] = []
 
         # Use async context manager for client creation
         async with self._client_factory() as client:
@@ -1030,6 +1048,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         index = chunk_data.get("index", 0)
 
                         if delta.get("type") == "text_delta" and "text" in delta:
+                            accumulated_text.append(delta["text"])
                             yield TextChunk(content=delta["text"])
 
                         elif delta.get("type") == "input_json_delta":
@@ -1065,7 +1084,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                                 id=content_block.get("id"),
                                 function=FunctionCallChunk(
                                     name=content_block.get("name"),
-                                    arguments="",  # Start with empty, will be filled by deltas
+                                    arguments="",
                                 ),
                             )
 
@@ -1077,23 +1096,25 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                             del active_tool_calls[index]
 
                     elif chunk_data.get("type") == "message_stop":
-                        # TODO(refactor): Remove after tracer implementation
-                        # self._attributes.update(
-                        #     {
-                        #         LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                        #             "amazon-bedrock-invocationMetrics", {}
-                        #         ).get("outputTokenCount", 0)
-                        #     }
-                        # )
-                        #
-                        # self._attributes.update(
-                        #     {
-                        #         LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                        #             "amazon-bedrock-invocationMetrics", {}
-                        #         ).get("inputTokenCount", 0)
-                        #     }
-                        # )
-                        pass
+                        metrics = chunk_data.get("amazon-bedrock-invocationMetrics", {})
+                        if input_tokens := metrics.get("inputTokenCount"):
+                            span.set_attribute(LLM_TOKEN_COUNT_PROMPT, input_tokens)
+                        if output_tokens := metrics.get("outputTokenCount"):
+                            span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, output_tokens)
+                        if input_tokens and output_tokens:
+                            span.set_attribute(LLM_TOKEN_COUNT_TOTAL, input_tokens + output_tokens)
+
+        # Set output attributes
+        if accumulated_text:
+            full_text = "".join(accumulated_text)
+            span.set_attribute(
+                f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                "assistant",
+            )
+            span.set_attribute(
+                f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                full_text,
+            )
 
     def _build_bedrock_messages(
         self,
@@ -1395,6 +1416,18 @@ class AzureOpenAIReasoningNonStreamingClient(
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
         from openai.types import chat
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial span attributes
+        initial_attrs = _build_llm_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1403,45 +1436,52 @@ class AzureOpenAIReasoningNonStreamingClient(
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            # TODO(refactor): Remove after tracer implementation
-            # client._client = _HttpxClient(client._client, self._attributes)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            response = cast(
-                chat.ChatCompletion,
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=False,
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+                response = cast(
+                    chat.ChatCompletion,
+                    await throttled_create(
+                        messages=openai_messages,
+                        model=self.model_name,
+                        stream=False,
+                        tools=tools or omit,
+                        **invocation_parameters,
+                    ),
+                )
 
-        if response.usage is not None:
-            # TODO(refactor): Remove after tracer implementation
-            # self._attributes.update(dict(self._llm_token_counts(response.usage)))
-            pass
+            # Set token counts
+            if response.usage is not None:
+                for key, value in self._llm_token_counts(response.usage):
+                    span.set_attribute(key, value)
 
-        choice = response.choices[0]
-        if choice.message.content:
-            yield TextChunk(content=choice.message.content)
+            # Set output attributes
+            choice = response.choices[0]
+            if choice.message.content:
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                    "assistant",
+                )
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                    choice.message.content,
+                )
+                yield TextChunk(content=choice.message.content)
 
-        if choice.message.tool_calls:
-            for tool_call in choice.message.tool_calls:
-                if tool_call.type == "function":
-                    yield ToolCallChunk(
-                        id=tool_call.id,
-                        function=FunctionCallChunk(
-                            name=tool_call.function.name,
-                            arguments=tool_call.function.arguments,
-                        ),
-                    )
-                elif tool_call.type == "custom":
-                    raise NotImplementedError("custom tool calls are not supported")
-                else:
-                    assert_never(tool_call.type)
+            if choice.message.tool_calls:
+                for tool_call in choice.message.tool_calls:
+                    if tool_call.type == "function":
+                        yield ToolCallChunk(
+                            id=tool_call.id,
+                            function=FunctionCallChunk(
+                                name=tool_call.function.name,
+                                arguments=tool_call.function.arguments,
+                            ),
+                        )
+                    elif tool_call.type == "custom":
+                        raise NotImplementedError("custom tool calls are not supported")
+                    else:
+                        assert_never(tool_call.type)
 
     def to_openai_chat_completion_param(
         self,
@@ -1518,9 +1558,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         import anthropic
 
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        # TODO(refactor): Remove after tracer implementation
-        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
 
     @classmethod
@@ -1580,6 +1617,18 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial span attributes
+        initial_attrs = _build_llm_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
@@ -1590,80 +1639,101 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             **invocation_parameters,
         }
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            # TODO(refactor): Remove after tracer implementation
-            # client._client = _HttpxClient(client._client, self._attributes)
-            throttled_stream = self.rate_limiter._alimit(client.messages.stream)
-            async with await throttled_stream(**anthropic_params) as stream:
-                async for event in stream:
-                    if isinstance(event, anthropic_types.RawMessageStartEvent):
-                        usage = event.message.usage
+        # Accumulate chunks
+        accumulated_text: list[str] = []
+        token_counts: dict[str, Any] = {}
 
-                        token_counts: dict[str, Any] = {}
-                        if prompt_tokens := (
-                            (usage.input_tokens or 0)
-                            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-                            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
-                        ):
-                            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                        if cache_creation_tokens := getattr(
-                            usage, "cache_creation_input_tokens", None
-                        ):
-                            if cache_creation_tokens is not None:
-                                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                                    cache_creation_tokens
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                throttled_stream = self.rate_limiter._alimit(client.messages.stream)
+                async with await throttled_stream(**anthropic_params) as stream:
+                    async for event in stream:
+                        if isinstance(event, anthropic_types.RawMessageStartEvent):
+                            usage = event.message.usage
+
+                            if prompt_tokens := (
+                                (usage.input_tokens or 0)
+                                + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                                + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                            ):
+                                token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+                            if cache_creation_tokens := getattr(
+                                usage, "cache_creation_input_tokens", None
+                            ):
+                                if cache_creation_tokens is not None:
+                                    token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
+                                        cache_creation_tokens
+                                    )
+                        elif isinstance(event, anthropic_streaming.TextEvent):
+                            accumulated_text.append(event.text)
+                            yield TextChunk(content=event.text)
+                        elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                            usage = event.message.usage
+                            if usage.output_tokens:
+                                token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                            if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                                if cache_read_tokens is not None:
+                                    token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                        cache_read_tokens
+                                    )
+                            if (
+                                LLM_TOKEN_COUNT_PROMPT in token_counts
+                                and LLM_TOKEN_COUNT_COMPLETION in token_counts
+                            ):
+                                token_counts[LLM_TOKEN_COUNT_TOTAL] = (
+                                    token_counts[LLM_TOKEN_COUNT_PROMPT]
+                                    + token_counts[LLM_TOKEN_COUNT_COMPLETION]
                                 )
-                        # TODO(refactor): Remove after tracer implementation
-                        # self._attributes.update(token_counts)
-                    elif isinstance(event, anthropic_streaming.TextEvent):
-                        yield TextChunk(content=event.text)
-                    elif isinstance(event, anthropic_streaming.MessageStopEvent):
-                        usage = event.message.usage
-                        output_token_counts: dict[str, Any] = {}
-                        if usage.output_tokens:
-                            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                            if cache_read_tokens is not None:
-                                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                                    cache_read_tokens
-                                )
-                        # TODO(refactor): Remove after tracer implementation
-                        # self._attributes.update(output_token_counts)
-                    elif (
-                        isinstance(event, anthropic_streaming.ContentBlockStopEvent)
-                        and event.content_block.type == "tool_use"
-                    ):
-                        tool_call_chunk = ToolCallChunk(
-                            id=event.content_block.id,
-                            function=FunctionCallChunk(
-                                name=event.content_block.name,
-                                arguments=json.dumps(event.content_block.input),
+                        elif (
+                            isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                            and event.content_block.type == "tool_use"
+                        ):
+                            tool_call_chunk = ToolCallChunk(
+                                id=event.content_block.id,
+                                function=FunctionCallChunk(
+                                    name=event.content_block.name,
+                                    arguments=json.dumps(event.content_block.input),
+                                ),
+                            )
+                            yield tool_call_chunk
+                        elif isinstance(
+                            event,
+                            (
+                                anthropic_types.RawContentBlockStartEvent,
+                                anthropic_types.RawContentBlockDeltaEvent,
+                                anthropic_types.RawMessageDeltaEvent,
+                                anthropic_streaming.ContentBlockStopEvent,
+                                anthropic_streaming.InputJsonEvent,
                             ),
-                        )
-                        yield tool_call_chunk
-                    elif isinstance(
-                        event,
-                        (
-                            anthropic_types.RawContentBlockStartEvent,
-                            anthropic_types.RawContentBlockDeltaEvent,
-                            anthropic_types.RawMessageDeltaEvent,
-                            anthropic_streaming.ContentBlockStopEvent,
-                            anthropic_streaming.InputJsonEvent,
-                        ),
-                    ):
-                        # event types emitted by the stream that don't contain useful information
-                        pass
-                    elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
-                        pass
-                    elif isinstance(event, anthropic_streaming._types.SignatureEvent):
-                        pass
-                    else:
-                        assert_never(event)
+                        ):
+                            # Event types emitted by the stream without useful information
+                            pass
+                        elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                            raise NotImplementedError
+                        elif isinstance(event, anthropic_streaming._types.CitationEvent):
+                            raise NotImplementedError
+                        elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                            pass
+                        elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                            pass
+                        else:
+                            assert_never(event)
+
+            # Set output attributes
+            if accumulated_text:
+                full_text = "".join(accumulated_text)
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                    "assistant",
+                )
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                    full_text,
+                )
+
+            # Set token counts
+            for key, value in token_counts.items():
+                span.set_attribute(key, value)
 
     def _build_anthropic_messages(
         self,
@@ -1769,9 +1839,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         provider: str = "google",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        # TODO(refactor): Remove after tracer implementation
-        # self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        # self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1841,6 +1908,18 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from google.genai import types
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial span attributes
+        initial_attrs = _build_llm_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
         contents, system_prompt = self._build_google_messages(messages)
 
@@ -1855,36 +1934,58 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
         config = types.GenerateContentConfig.model_validate(config_dict)
 
-        async with self._client_factory() as client:
-            stream = await client.models.generate_content_stream(
-                model=f"models/{self.model_name}",
-                contents=contents,
-                config=config,
-            )
-            async for event in stream:
-                # TODO(refactor): Remove after tracer implementation
-                # self._attributes.update(
-                #     {
-                #         LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                #         LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                #         LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                #     }
-                # )
+        # Accumulate chunks
+        accumulated_text: list[str] = []
+        token_counts: dict[str, Any] = {}
 
-                if event.candidates:
-                    candidate = event.candidates[0]
-                    if candidate.content and candidate.content.parts:
-                        for part in candidate.content.parts:
-                            if function_call := part.function_call:
-                                yield ToolCallChunk(
-                                    id=function_call.id or "",
-                                    function=FunctionCallChunk(
-                                        name=function_call.name or "",
-                                        arguments=json.dumps(function_call.args or {}),
-                                    ),
-                                )
-                            elif text := part.text:
-                                yield TextChunk(content=text)
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                stream = await client.models.generate_content_stream(
+                    model=f"models/{self.model_name}",
+                    contents=contents,
+                    config=config,
+                )
+                async for event in stream:
+                    if event.usage_metadata:
+                        token_counts[LLM_TOKEN_COUNT_PROMPT] = (
+                            event.usage_metadata.prompt_token_count
+                        )
+                        token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
+                            event.usage_metadata.candidates_token_count
+                        )
+                        token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
+
+                    if event.candidates:
+                        candidate = event.candidates[0]
+                        if candidate.content and candidate.content.parts:
+                            for part in candidate.content.parts:
+                                if function_call := part.function_call:
+                                    yield ToolCallChunk(
+                                        id=function_call.id or "",
+                                        function=FunctionCallChunk(
+                                            name=function_call.name or "",
+                                            arguments=json.dumps(function_call.args or {}),
+                                        ),
+                                    )
+                                elif text := part.text:
+                                    accumulated_text.append(text)
+                                    yield TextChunk(content=text)
+
+            # Set output attributes
+            if accumulated_text:
+                full_text = "".join(accumulated_text)
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_ROLE}",
+                    "assistant",
+                )
+                span.set_attribute(
+                    f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENT}",
+                    full_text,
+                )
+
+            # Set token counts
+            for key, value in token_counts.items():
+                span.set_attribute(key, value)
 
     def _build_google_messages(
         self,
@@ -2335,8 +2436,11 @@ async def _get_builtin_provider_client(
 
         # Create factory that returns fresh Google GenAI async client (native async context manager)
         # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
-        def create_google_client() -> "GoogleAsyncClient":
-            return GoogleGenAIClient(api_key=api_key).aio
+        def create_google_client() -> AbstractAsyncContextManager["GoogleAsyncClient"]:
+            return cast(
+                AbstractAsyncContextManager["GoogleAsyncClient"],
+                GoogleGenAIClient(api_key=api_key).aio,
+            )
 
         client_factory = create_google_client
         return GoogleStreamingClient(
