@@ -61,7 +61,7 @@ Evaluation granularity:
 
 Applicable span types when `level` includes `span`:
 
-- `llm` - LLM inference spans
+- `llm` - LLM inference spans (also applies to agent spans)
 - `tool` - Tool execution spans
 - `retriever` - Retrieval spans
 - `any` - Applicable to any span type
