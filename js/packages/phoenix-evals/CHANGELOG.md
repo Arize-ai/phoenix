@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 0.8.0
+
+### Minor Changes
+
+- d1c89bf: Add createToolInvocationEvaluator for evaluating LLM tool invocations
+
 ## 0.7.0
 
 ### Minor Changes
