@@ -1,6 +1,13 @@
+# yaml-language-server: $schema=../schemas/classification_evaluator.schema.json
 name: correctness
 description: Assess factual accuracy and completeness of model outputs.
 optimization_direction: maximize
+specification:
+  use_cases: [general]
+  measures: correctness
+  requires: [input, output]
+  level: [span, trace, session]
+  span_kind: [any]
 messages:
   - role: user
     content: >-

@@ -1,6 +1,13 @@
+# yaml-language-server: $schema=../schemas/classification_evaluator.schema.json
 name: faithfulness
 description: A specialized evaluator for detecting faithfulness in grounded LLM responses.
 optimization_direction: maximize
+specification:
+  use_cases: [rag, chat, agent]
+  measures: grounding
+  requires: [input, output, context]
+  level: [span]
+  span_kind: [llm]
 messages:
   - role: user
     content: >-
