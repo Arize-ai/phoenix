@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="hallucination",
     description="A specialized evaluator for detecting hallucinations in grounded LLM responses.",
     optimization_direction="minimize",
+    specification=EvaluatorSpecification(
+        use_cases=["rag", "chat", "agent"],
+        measures="grounding",
+        requires=["input", "output", "context"],
+        level=["span"],
+        span_kind=["llm"],
+    ),
     messages=[
         PromptMessage(
             role="user",

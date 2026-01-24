@@ -12,13 +12,14 @@ from ._faithfulness_classification_evaluator_config import (
 from ._hallucination_classification_evaluator_config import (
     HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 from ._tool_selection_classification_evaluator_config import (
     TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 
 __all__ = [
     "ClassificationEvaluatorConfig",
+    "EvaluatorSpecification",
     "PromptMessage",
     "CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
