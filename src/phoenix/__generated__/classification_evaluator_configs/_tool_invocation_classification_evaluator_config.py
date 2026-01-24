@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="tool_invocation",
     description="For determining if a tool was invoked correctly with proper arguments, formatting, and safe content. Requires conversation context, available tool schemas, and the LLM's tool invocation(s).",
     optimization_direction="maximize",
+    specification=EvaluatorSpecification(
+        use_cases=["agent"],
+        measures="tool_use",
+        requires=["input", "tools", "tool_calls"],
+        level=["span"],
+        span_kind=["tool"],
+    ),
     messages=[
         PromptMessage(
             role="user",
