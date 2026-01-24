@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["name", "description", "messages", "choices", "specification"],
+  "required": ["name", "description", "optimization_direction", "messages", "choices", "specification"],
   "properties": {
     "name": { "type": "string" },
     "description": { "type": "string" },
