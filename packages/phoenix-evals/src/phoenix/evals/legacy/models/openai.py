@@ -3,25 +3,25 @@ import logging
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
-TYPE_CHECKING,
-Any,
-Callable,
-Dict,
-List,
-Mapping,
-Optional,
-Tuple,
-Union,
-get_args,
-get_origin,
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
 )
 from urllib.parse import urlparse
 
 from typing_extensions import assert_never, override
 
 from phoenix.evals.legacy.exceptions import (
-PhoenixContextLimitExceeded,
-PhoenixUnsupportedAudioFormat,
+    PhoenixContextLimitExceeded,
+    PhoenixUnsupportedAudioFormat,
 )
 from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.legacy.models.rate_limiters import RateLimiter
@@ -116,7 +116,7 @@ class OpenAIModel(BaseModel):
             limit errors. Defaults to 10.
         timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 120.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
-            <https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning>
+            https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
         azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
             Azure portal. Defaults to None.
         azure_deployment (str, optional): The deployment to use for azure openai. Defaults to None.
@@ -142,7 +142,7 @@ class OpenAIModel(BaseModel):
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(
                 model="gpt-35-turbo-16k",
-                azure_endpoint="<https://your-endpoint.azure.com/>",
+                azure_endpoint="https://your-endpoint.azure.com/",
                 api_version="2023-09-15-preview",
             )
     """
@@ -403,7 +403,7 @@ class OpenAIModel(BaseModel):
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
-                        kwargs["prompt"] = "\\n\\n".join(
+                        kwargs["prompt"] = "\n\n".join(
                             (message.get("content") or "")
                             for message in (kwargs.pop("messages", None) or ())
                         )
@@ -513,7 +513,7 @@ class OpenAIModel(BaseModel):
             self._is_azure
             and self.api_version
             # The first api version supporting function calling is 2023-07-01-preview.
-            # See <https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895> # noqa E501
+            # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
             and self.api_version[:10] < "2023-07-01"
         ):
             return False
