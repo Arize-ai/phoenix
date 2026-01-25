@@ -22,7 +22,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     An in-memory tracer that captures spans and persists them to the database.
 
     Because cumulative counts are computed based on the spans in the buffer,
-    ensure that traces are not split across multiple calls to save_db_models.
+    ensure that traces are not split across multiple calls to save_db_traces.
     It's recommended to use a separate tracer for distinct operations.
 
     Example usage:
@@ -35,7 +35,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
         # Persist traces, spans, span costs, and span cost details to database
         async with db_session() as session:
-            traces = await tracer.save_db_models(session=session, project_id=123)
+            traces = await tracer.save_db_traces(session=session, project_id=123)
 
         # Access spans, span_costs, and span cost details via SQLAlchemy relationships
         db_spans = db_traces[0].spans
@@ -52,7 +52,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
-    async def save_db_models(self, *, session: AsyncSession, project_id: int) -> list[models.Trace]:
+    async def save_db_traces(self, *, session: AsyncSession, project_id: int) -> list[models.Trace]:
         """
         Persists captured traces and spans to the database.
 

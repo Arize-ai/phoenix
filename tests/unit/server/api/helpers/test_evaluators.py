@@ -1984,7 +1984,7 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
@@ -2246,7 +2246,7 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
         assert len(db_traces) == 1
         db_trace = db_traces[0]
         db_spans = db_trace.spans
@@ -2356,7 +2356,7 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
@@ -2537,7 +2537,7 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]

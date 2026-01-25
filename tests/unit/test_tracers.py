@@ -73,7 +73,7 @@ class TestTracer:
         return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.mark.asyncio
-    async def test_save_db_models_persists_nested_spans(
+    async def test_save_db_traces_persists_nested_spans(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         with tracer.start_as_current_span(
@@ -91,7 +91,7 @@ class TestTracer:
             parent_span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_traces = (
                 (
                     await session.execute(
@@ -182,7 +182,7 @@ class TestTracer:
         }
 
     @pytest.mark.asyncio
-    async def test_save_db_models_handles_multiple_traces(
+    async def test_save_db_traces_handles_multiple_traces(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         with tracer.start_as_current_span(
@@ -198,7 +198,7 @@ class TestTracer:
             span2.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_traces = (
                 (
                     await session.execute(
@@ -253,7 +253,7 @@ class TestTracer:
         assert span2_fetched.status_code == "OK"
 
     @pytest.mark.asyncio
-    async def test_save_db_models_does_not_clear_buffer(
+    async def test_save_db_traces_does_not_clear_buffer(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         with tracer.start_as_current_span(
@@ -265,7 +265,7 @@ class TestTracer:
         assert len(tracer._self_exporter.get_finished_spans()) == 1
 
         async with db() as session:
-            await tracer.save_db_models(session=session, project_id=project.id)
+            await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(tracer._self_exporter.get_finished_spans()) == 1  # buffer should not be cleared
 
@@ -289,7 +289,7 @@ class TestTracer:
         assert len(tracer._self_exporter.get_finished_spans()) == 0
 
     @pytest.mark.asyncio
-    async def test_save_db_models_persists_events_and_exceptions(
+    async def test_save_db_traces_persists_events_and_exceptions(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         with pytest.raises(ValueError, match="Test error message"):
@@ -300,7 +300,7 @@ class TestTracer:
                 raise ValueError("Test error message")
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             db_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -349,7 +349,7 @@ class TestTracer:
         assert not event
 
     @pytest.mark.asyncio
-    async def test_save_db_models_populates_llm_token_count_fields(
+    async def test_save_db_traces_populates_llm_token_count_fields(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         prompt_tokens = 150
@@ -366,7 +366,7 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -386,7 +386,7 @@ class TestTracer:
         assert fetched_span.cumulative_llm_token_count_total == prompt_tokens + completion_tokens
 
     @pytest.mark.asyncio
-    async def test_save_db_models_handles_llm_spans_without_token_counts(
+    async def test_save_db_traces_handles_llm_spans_without_token_counts(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         with tracer.start_as_current_span(
@@ -398,7 +398,7 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -413,7 +413,7 @@ class TestTracer:
         assert fetched_span.cumulative_llm_token_count_total == 0
 
     @pytest.mark.asyncio
-    async def test_save_db_models_correctly_computes_cumulative_counts(
+    async def test_save_db_traces_correctly_computes_cumulative_counts(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         # Create a hierarchy:
@@ -472,7 +472,7 @@ class TestTracer:
             parent.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -518,7 +518,7 @@ class TestTracer:
         assert grandchild_span.llm_token_count_completion == 75
 
     @pytest.mark.asyncio
-    async def test_save_db_models_calculates_costs_for_llm_spans(
+    async def test_save_db_traces_calculates_costs_for_llm_spans(
         self,
         db: DbSessionFactory,
         project: models.Project,
@@ -541,7 +541,7 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_traces: list[models.Trace] = (
                 (
                     await session.scalars(
@@ -634,7 +634,7 @@ class TestTracer:
         assert returned_output_detail.cost_per_token == completion_base_rate
 
     @pytest.mark.asyncio
-    async def test_save_db_models_skips_costs_for_non_llm_spans(
+    async def test_save_db_traces_skips_costs_for_non_llm_spans(
         self,
         db: DbSessionFactory,
         project: models.Project,
@@ -650,7 +650,7 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_traces = (
                 (
                     await session.execute(
@@ -687,7 +687,7 @@ class TestTracer:
         assert fetched_span_cost is None
 
     @pytest.mark.asyncio
-    async def test_save_db_models_handles_missing_pricing_model(
+    async def test_save_db_traces_handles_missing_pricing_model(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
         prompt_tokens = 100
@@ -705,7 +705,7 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
             fetched_traces = (
                 (
                     await session.execute(
