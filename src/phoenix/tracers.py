@@ -1,9 +1,7 @@
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
-import sqlalchemy as sa
 import wrapt
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -19,8 +17,6 @@ from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.trace.attributes import get_attribute_value, unflatten
-
-logger = logging.getLogger(__name__)
 
 
 class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
@@ -78,45 +74,18 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         if not finished_spans:
             return [], [], []
 
-        # Query GenerativeModel + TokenPrice for cost calculation
-        min_span_start_time = min(
-            datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
-            for span in finished_spans
-            if span.start_time is not None
-        )
-
-        generative_models_query = (
-            select(models.GenerativeModel)
-            .options(joinedload(models.GenerativeModel.token_prices))
-            .where(
-                sa.and_(
-                    sa.or_(
-                        models.GenerativeModel.start_time.is_(None),
-                        models.GenerativeModel.start_time <= min_span_start_time,
-                    ),
-                    models.GenerativeModel.deleted_at.is_(None),
-                )
-            )
-        )
-        generative_models = (await session.scalars(generative_models_query)).unique().all()
-        cost_model_lookup = CostModelLookup(generative_models)
-
         db_traces, db_spans = _convert_otel_spans_to_db_traces_and_spans(
             otel_spans=finished_spans, project_id=project_id
         )
-        session.add_all(db_traces)
-        session.add_all(db_spans)
-        await session.flush()
-
-        # Calculate and persist costs for LLM spans
+        cost_model_lookup = await _get_cost_model_lookup(session)
         span_costs = _calculate_span_costs(
             db_spans=db_spans,
             cost_model_lookup=cost_model_lookup,
         )
-
-        if span_costs:
-            session.add_all(span_costs)
-
+        session.add_all(db_traces)
+        session.add_all(db_spans)
+        session.add_all(span_costs)
+        await session.flush()
         return db_traces, db_spans, span_costs
 
     def clear(self) -> None:
@@ -319,32 +288,46 @@ def _calculate_span_costs(
         if not should_calculate_span_cost(db_span.attributes):
             continue
 
-        try:
-            cost_model = cost_model_lookup.find_model(
-                start_time=db_span.start_time,
-                attributes=db_span.attributes,
-            )
+        cost_model = cost_model_lookup.find_model(
+            start_time=db_span.start_time,
+            attributes=db_span.attributes,
+        )
 
-            calculator = SpanCostDetailsCalculator(cost_model.token_prices if cost_model else [])
-            details = calculator.calculate_details(db_span.attributes)
+        calculator = SpanCostDetailsCalculator(cost_model.token_prices if cost_model else [])
+        details = calculator.calculate_details(db_span.attributes)
 
-            if not details:
-                continue
-
-            span_cost = models.SpanCost(
-                span_rowid=db_span.id,
-                trace_rowid=db_span.trace_rowid,
-                span_start_time=db_span.start_time,
-                model_id=cost_model.id if cost_model else None,
-            )
-
-            for detail in details:
-                span_cost.append_detail(detail)
-
-            span_costs.append(span_cost)
-
-        except Exception:
-            logger.exception(f"Failed to calculate cost for span {db_span.span_id}")
+        if not details:
             continue
 
+        span_cost = models.SpanCost(
+            span=db_span,
+            trace=db_span.trace,
+            span_start_time=db_span.start_time,
+            model_id=cost_model.id if cost_model else None,
+        )
+
+        for detail in details:
+            span_cost.append_detail(detail)
+
+        span_costs.append(span_cost)
+
     return span_costs
+
+
+async def _get_cost_model_lookup(session: AsyncSession) -> CostModelLookup:
+    """
+    Query generative models and build a CostModelLookup for cost calculation.
+
+    Args:
+        session: An async SQLAlchemy session for database operations.
+
+    Returns:
+        A CostModelLookup instance for finding pricing models.
+    """
+    generative_models_query = (
+        select(models.GenerativeModel)
+        .options(joinedload(models.GenerativeModel.token_prices))
+        .where(models.GenerativeModel.deleted_at.is_(None))
+    )
+    generative_models = (await session.scalars(generative_models_query)).unique().all()
+    return CostModelLookup(generative_models)
