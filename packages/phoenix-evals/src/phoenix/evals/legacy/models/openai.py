@@ -3,25 +3,25 @@ import logging
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-    get_args,
-    get_origin,
+TYPE_CHECKING,
+Any,
+Callable,
+Dict,
+List,
+Mapping,
+Optional,
+Tuple,
+Union,
+get_args,
+get_origin,
 )
 from urllib.parse import urlparse
 
 from typing_extensions import assert_never, override
 
 from phoenix.evals.legacy.exceptions import (
-    PhoenixContextLimitExceeded,
-    PhoenixUnsupportedAudioFormat,
+PhoenixContextLimitExceeded,
+PhoenixUnsupportedAudioFormat,
 )
 from phoenix.evals.legacy.models.base import BaseModel, ExtraInfo, Usage
 from phoenix.evals.legacy.models.rate_limiters import RateLimiter
@@ -60,19 +60,24 @@ class AzureOptions:
     azure_ad_token: Optional[str]
     azure_ad_token_provider: Optional[Callable[[], str]]
 
-
 def _model_supports_temperature(model: str) -> bool:
     """OpenAI reasoning models do not support temperature."""
-    if model.startswith("o1") or model.startswith("o3"):
+    if model.startswith("o1") or model.startswith("o3") or model.startswith("gpt-5"):
         return False
     return True
 
+def _model_supports_sampling_params(model: str) -> bool:
+    """Check if model supports sampling params like top_p, frequency_penalty, presence_penalty."""
+    if model.startswith("o1") or model.startswith("o3") or model.startswith("gpt-5"):
+        return False
+    return True
 
 @dataclass
 class OpenAIModel(BaseModel):
     """
     An interface for using OpenAI models.
 
+    ```
     This class wraps the OpenAI SDK library for use with Phoenix LLM evaluations. Calls to the
     OpenAI API are dynamically throttled when encountering rate limit errors. Requires the
     `openai` package to be installed.
@@ -111,7 +116,7 @@ class OpenAIModel(BaseModel):
             limit errors. Defaults to 10.
         timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 120.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
-            https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
+            <https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning>
         azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
             Azure portal. Defaults to None.
         azure_deployment (str, optional): The deployment to use for azure openai. Defaults to None.
@@ -137,7 +142,7 @@ class OpenAIModel(BaseModel):
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(
                 model="gpt-35-turbo-16k",
-                azure_endpoint="https://your-endpoint.azure.com/",
+                azure_endpoint="<https://your-endpoint.azure.com/>",
                 api_version="2023-09-15-preview",
             )
     """
@@ -156,6 +161,12 @@ class OpenAIModel(BaseModel):
     request_timeout: Optional[Union[float, Tuple[float, float]]] = 30
     initial_rate_limit: int = 10
     timeout: int = 120
+
+    # GPT-5 specific parameters
+    reasoning_effort: Optional[str] = field(default="medium")
+    """Controls reasoning depth for GPT-5 models: 'none', 'low', 'medium', 'high', 'xhigh'"""
+    verbosity: Optional[str] = field(default="medium")
+    """Controls output length for GPT-5 models: 'low', 'medium', 'high'"""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -392,7 +403,7 @@ class OpenAIModel(BaseModel):
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
-                        kwargs["prompt"] = "\n\n".join(
+                        kwargs["prompt"] = "\\n\\n".join(
                             (message.get("content") or "")
                             for message in (kwargs.pop("messages", None) or ())
                         )
@@ -414,7 +425,7 @@ class OpenAIModel(BaseModel):
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
-                        kwargs["prompt"] = "\n\n".join(
+                        kwargs["prompt"] = "\\n\\n".join(
                             (message.get("content") or "")
                             for message in (kwargs.pop("messages", None) or ())
                         )
@@ -432,6 +443,8 @@ class OpenAIModel(BaseModel):
 
     def _system_role(self) -> str:
         # OpenAI uses different semantics for "system" roles for different models
+        if self.model.startswith("gpt-5"):
+            return "developer"  # GPT-5 uses "developer" role instead of "system"
         if "gpt" in self.model:
             return "system"
         if "o1-mini" in self.model:
@@ -464,19 +477,34 @@ class OpenAIModel(BaseModel):
         # token param str depends on provider and model
         token_param_str = _get_token_param_str(self._is_azure, self.model)
         params = {
-            "frequency_penalty": self.frequency_penalty,
-            "presence_penalty": self.presence_penalty,
-            "top_p": self.top_p,
             "n": self.n,
             "timeout": self.request_timeout,
             token_param_str: self.max_tokens,
         }
+        # Add sampling params only for models that support them
+        if _model_supports_sampling_params(self.model):
+            params.update(
+                {
+                    "frequency_penalty": self.frequency_penalty,
+                    "presence_penalty": self.presence_penalty,
+                    "top_p": self.top_p,
+                }
+            )
         if _model_supports_temperature(self.model):
             params.update(
                 {
                     "temperature": self.temperature,
                 }
             )
+        # Add GPT-5 specific parameters via extra_body (SDK doesn't support them as top-level yet)
+        if self.model.startswith("gpt-5"):
+            extra_body = {}
+            if self.reasoning_effort:
+                extra_body["reasoning_effort"] = self.reasoning_effort
+            if self.verbosity:
+                extra_body["verbosity"] = self.verbosity
+            if extra_body:
+                params["extra_body"] = extra_body
         return params
 
     @property
@@ -485,7 +513,7 @@ class OpenAIModel(BaseModel):
             self._is_azure
             and self.api_version
             # The first api version supporting function calling is 2023-07-01-preview.
-            # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
+            # See <https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895> # noqa E501
             and self.api_version[:10] < "2023-07-01"
         ):
             return False
@@ -543,14 +571,12 @@ def _is_url(url: str) -> bool:
     parsed_url = urlparse(url)
     return bool(parsed_url.scheme and parsed_url.netloc)
 
-
 def _is_base64(s: str) -> bool:
     try:
         base64.b64decode(s, validate=True)
         return True
     except Exception:
         return False
-
 
 def _get_token_param_str(is_azure: bool, model: str) -> str:
     """
