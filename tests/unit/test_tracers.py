@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 from datetime import datetime, timezone
 
 import pytest
@@ -542,7 +543,7 @@ class TestTracer:
 
         async with db() as session:
             returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
-            fetched_traces: list[models.Trace] = (
+            fetched_traces: Sequence[models.Trace] = (
                 (
                     await session.scalars(
                         select(models.Trace).options(
