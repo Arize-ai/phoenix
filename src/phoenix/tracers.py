@@ -1,6 +1,7 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from typing import Sequence
 
 import wrapt
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -32,9 +33,14 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             with tracer.start_as_current_span("child-operation") as child:
                 pass
 
-        # Persist traces and spans to database
+        # Persist traces, spans, span costs, and span cost details to database
         async with db_session() as session:
-            traces, spans, costs = await tracer.save_db_models(session=session, project_id=123)
+            traces = await tracer.save_db_models(session=session, project_id=123)
+
+        # Access spans, span_costs, and span cost details via SQLAlchemy relationships
+        db_spans = db_traces[0].spans
+        db_span_costs = db_traces[0].span_costs
+        db_span_cost_details = db_span_costs[0].span_cost_details
     """
 
     def __init__(self, *, span_cost_calculator: SpanCostCalculator) -> None:
@@ -46,9 +52,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
-    async def save_db_models(
-        self, *, session: AsyncSession, project_id: int
-    ) -> tuple[list[models.Trace], list[models.Span], list[models.SpanCost]]:
+    async def save_db_models(self, *, session: AsyncSession, project_id: int) -> list[models.Trace]:
         """
         Persists captured traces and spans to the database.
 
@@ -56,34 +60,60 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         converts them into database models, and persists them to the database.
         The buffer is not cleared; call clear() explicitly if needed.
 
+        Related models are accessible via SQLAlchemy relationships:
+            - trace.spans: list of Span instances
+            - trace.span_costs: list of SpanCost instances
+            - span.span_cost: optional SpanCost instance
+            - span_cost.span_cost_details: list of SpanCostDetail instances
+
         Args:
             session: An async SQLAlchemy session for database operations.
             project_id: The project ID to associate the traces with.
 
         Returns:
-            A tuple containing:
-                - A list of persisted models.Trace instances
-                - A list of persisted models.Span instances
-                - A list of persisted models.SpanCost instances
-
-            Returns empty lists if no spans have been captured.
+            A list of persisted models.Trace instances, or an empty list if no
+            spans have been captured.
         """
-        finished_spans = self._self_exporter.get_finished_spans()
-        if not finished_spans:
-            return [], [], []
+        otel_spans = self._self_exporter.get_finished_spans()
+        if not otel_spans:
+            return []
 
-        db_traces, db_spans = _convert_otel_spans_to_db_traces_and_spans(
-            otel_spans=finished_spans, project_id=project_id
-        )
-        span_costs = _calculate_span_costs(
-            db_spans=db_spans,
-            span_cost_calculator=self._self_span_cost_calculator,
-        )
+        db_spans_by_trace_id: defaultdict[int, list[models.Span]] = defaultdict(list)
+        db_span_costs_by_trace_id: defaultdict[int, list[models.SpanCost]] = defaultdict(list)
+
+        for otel_span in otel_spans:
+            trace_id = otel_span.get_span_context().trace_id  # type: ignore[no-untyped-call]
+            db_span = _get_db_span(otel_span=otel_span)
+            db_span_cost = _get_db_span_cost(
+                db_span=db_span,
+                span_cost_calculator=self._self_span_cost_calculator,
+            )
+            db_span.span_cost = db_span_cost  # explicitly set relationship to avoid lazy load
+            db_spans_by_trace_id[trace_id].append(db_span)
+            if db_span_cost:
+                db_span_costs_by_trace_id[trace_id].append(db_span_cost)
+
+        db_traces = []
+        for trace_id in db_spans_by_trace_id:
+            db_spans = db_spans_by_trace_id[trace_id]
+            db_span_costs = db_span_costs_by_trace_id[trace_id]
+            for db_span, count in zip(db_spans, _get_cumulative_counts(db_spans)):
+                db_span.cumulative_error_count = count.errors
+                db_span.cumulative_llm_token_count_prompt = count.prompt_tokens
+                db_span.cumulative_llm_token_count_completion = count.completion_tokens
+            db_trace = _get_db_trace(
+                project_id=project_id,
+                trace_id=trace_id,
+                spans=db_spans,
+            )
+            db_trace.spans = db_spans  # explicitly set relationship to avoid lazy load
+            db_trace.span_costs = db_span_costs  # explicitly set relationship to avoid lazy load
+            db_traces.append(db_trace)
+
         session.add_all(db_traces)
-        session.add_all(db_spans)
-        session.add_all(span_costs)
         await session.flush()
-        return db_traces, db_spans, span_costs
+
+        return db_traces
 
     def clear(self) -> None:
         """
@@ -92,125 +122,99 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         self._self_exporter.clear()
 
 
-def _convert_otel_spans_to_db_traces_and_spans(
-    *, otel_spans: Sequence[ReadableSpan], project_id: int
-) -> tuple[list[models.Trace], list[models.Span]]:
-    """
-    Convert OpenTelemetry spans to Phoenix database models.
+def _get_db_trace(
+    *,
+    project_id: int,
+    trace_id: int,
+    spans: Sequence[models.Span],
+) -> models.Trace:
+    start_time = min(s.start_time for s in spans)
+    end_time = max(s.end_time for s in spans)
 
-    Args:
-        otel_spans: Sequence of ReadableSpan objects to convert.
-        project_id: The project ID to associate with the traces.
+    return models.Trace(
+        project_rowid=project_id,
+        trace_id=format_trace_id(trace_id),
+        start_time=start_time,
+        end_time=end_time,
+    )
 
-    Returns:
-        A tuple containing:
-            - A list of models.Trace instances
-            - A list of models.Span instances (linked to their traces via the trace relationship)
-    """
-    if not otel_spans:
-        return [], []
 
-    otel_spans_by_trace_id_int: dict[int, list[ReadableSpan]] = {}
-    for otel_span in otel_spans:
-        trace_id_int = otel_span.get_span_context().trace_id  # type: ignore[no-untyped-call]
-        if trace_id_int not in otel_spans_by_trace_id_int:
-            otel_spans_by_trace_id_int[trace_id_int] = []
-        otel_spans_by_trace_id_int[trace_id_int].append(otel_span)
+def _get_db_span(
+    *,
+    otel_span: ReadableSpan,
+) -> models.Span:
+    span_id = format_span_id(otel_span.get_span_context().span_id)  # type: ignore[no-untyped-call]
+    parent_id: str | None = None
+    if otel_span.parent is not None:
+        parent_id = format_span_id(otel_span.parent.span_id)
 
-    db_traces: list[models.Trace] = []
-    db_spans: list[models.Span] = []
+    assert otel_span.start_time is not None
+    assert otel_span.end_time is not None
+    start_time = datetime.fromtimestamp(otel_span.start_time / 1e9, tz=timezone.utc)
+    end_time = datetime.fromtimestamp(otel_span.end_time / 1e9, tz=timezone.utc)
 
-    for trace_id_int, trace_otel_spans in otel_spans_by_trace_id_int.items():
-        trace_id = format_trace_id(trace_id_int)
-        start_time = min(
-            datetime.fromtimestamp(span.start_time / 1e9, tz=timezone.utc)
-            for span in trace_otel_spans
-            if span.start_time is not None
+    attributes = {}
+    if otel_span.attributes:
+        attributes = unflatten(otel_span.attributes.items())
+
+    span_kind_attribute_value = get_attribute_value(
+        attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND
+    )
+    if isinstance(span_kind_attribute_value, str):
+        span_kind = span_kind_attribute_value
+    else:
+        span_kind = OpenInferenceSpanKindValues.UNKNOWN.value
+
+    events = []
+    for event in otel_span.events:
+        event_dict = {
+            "name": event.name,
+            "timestamp": datetime.fromtimestamp(event.timestamp / 1e9, tz=timezone.utc).isoformat(),
+            "attributes": dict(event.attributes) if event.attributes else {},
+        }
+        events.append(event_dict)
+
+    llm_token_count_prompt = None
+    llm_token_count_completion = None
+    if span_kind == OpenInferenceSpanKindValues.LLM.value:
+        llm_token_count_prompt = get_attribute_value(
+            attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
         )
-        end_time = max(
-            datetime.fromtimestamp(span.end_time / 1e9, tz=timezone.utc)
-            for span in trace_otel_spans
-            if span.end_time is not None
+        llm_token_count_completion = get_attribute_value(
+            attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
         )
-        db_trace = models.Trace(
-            project_rowid=project_id,
-            trace_id=trace_id,
-            start_time=start_time,
-            end_time=end_time,
-        )
-        db_traces.append(db_trace)
 
-        for otel_span in trace_otel_spans:
-            span_id = format_span_id(otel_span.get_span_context().span_id)  # type: ignore[no-untyped-call]
-            parent_id: Optional[str] = None
-            if otel_span.parent is not None:
-                parent_id = format_span_id(otel_span.parent.span_id)
+    return models.Span(
+        span_id=span_id,
+        parent_id=parent_id,
+        name=otel_span.name,
+        span_kind=span_kind,
+        start_time=start_time,
+        end_time=end_time,
+        attributes=attributes,
+        events=events,
+        status_code=otel_span.status.status_code.name,
+        status_message=otel_span.status.description or "",
+        cumulative_error_count=0,  # cannot be computed until all spans are collected
+        cumulative_llm_token_count_prompt=0,  # cannot be computed until all spans are collected
+        cumulative_llm_token_count_completion=0,  # cannot be computed until all spans are collected
+        llm_token_count_prompt=llm_token_count_prompt,
+        llm_token_count_completion=llm_token_count_completion,
+    )
 
-            assert otel_span.start_time is not None
-            assert otel_span.end_time is not None
-            span_start_time = datetime.fromtimestamp(otel_span.start_time / 1e9, tz=timezone.utc)
-            span_end_time = datetime.fromtimestamp(otel_span.end_time / 1e9, tz=timezone.utc)
 
-            attributes = {}
-            if otel_span.attributes:
-                attributes = unflatten(otel_span.attributes.items())
+def _get_db_span_cost(
+    *,
+    db_span: models.Span,
+    span_cost_calculator: SpanCostCalculator,
+) -> models.SpanCost | None:
+    if not should_calculate_span_cost(db_span.attributes):
+        return None
 
-            span_kind_attribute_value = get_attribute_value(
-                attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND
-            )
-            if isinstance(span_kind_attribute_value, str):
-                span_kind = span_kind_attribute_value
-            else:
-                span_kind = OpenInferenceSpanKindValues.UNKNOWN.value
-
-            events = []
-            for event in otel_span.events:
-                event_dict = {
-                    "name": event.name,
-                    "timestamp": datetime.fromtimestamp(
-                        event.timestamp / 1e9, tz=timezone.utc
-                    ).isoformat(),
-                    "attributes": dict(event.attributes) if event.attributes else {},
-                }
-                events.append(event_dict)
-
-            llm_token_count_prompt = None
-            llm_token_count_completion = None
-            if span_kind == OpenInferenceSpanKindValues.LLM.value:
-                llm_token_count_prompt = get_attribute_value(
-                    attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-                )
-                llm_token_count_completion = get_attribute_value(
-                    attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-                )
-
-            db_span = models.Span(
-                trace=db_trace,
-                span_id=span_id,
-                parent_id=parent_id,
-                name=otel_span.name,
-                span_kind=span_kind,
-                start_time=span_start_time,
-                end_time=span_end_time,
-                attributes=attributes,
-                events=events,
-                status_code=otel_span.status.status_code.name,
-                status_message=otel_span.status.description or "",
-                cumulative_error_count=0,  # computed below
-                cumulative_llm_token_count_prompt=0,  # computed below
-                cumulative_llm_token_count_completion=0,  # computed below
-                llm_token_count_prompt=llm_token_count_prompt,
-                llm_token_count_completion=llm_token_count_completion,
-            )
-            db_spans.append(db_span)
-
-    counts = _compute_cumulative_counts(db_spans)
-    for span, count in zip(db_spans, counts):
-        span.cumulative_error_count = count.errors
-        span.cumulative_llm_token_count_prompt = count.prompt_tokens
-        span.cumulative_llm_token_count_completion = count.completion_tokens
-
-    return db_traces, db_spans
+    return span_cost_calculator.calculate_cost(
+        start_time=db_span.start_time,
+        attributes=db_span.attributes,
+    )
 
 
 @dataclass
@@ -220,7 +224,7 @@ class CumulativeCount:
     completion_tokens: int
 
 
-def _compute_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
+def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
     """
     Computes cumulative counts.
 
@@ -262,39 +266,3 @@ def _compute_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeC
                     count.completion_tokens += child_counts.completion_tokens
 
     return [counts_by_span_id[span.span_id] for span in spans]
-
-
-def _calculate_span_costs(
-    *,
-    db_spans: Sequence[models.Span],
-    span_cost_calculator: SpanCostCalculator,
-) -> list[models.SpanCost]:
-    """
-    Calculate SpanCost and SpanCostDetail for LLM spans with token counts.
-
-    Args:
-        db_spans: Database span models with attributes and token counts
-        span_cost_calculator: Calculator service for computing span costs
-
-    Returns:
-        List of SpanCost models with associated SpanCostDetail entries
-    """
-    span_costs: list[models.SpanCost] = []
-
-    for db_span in db_spans:
-        if not should_calculate_span_cost(db_span.attributes):
-            continue
-
-        span_cost = span_cost_calculator.calculate_cost(
-            start_time=db_span.start_time,
-            attributes=db_span.attributes,
-        )
-
-        if not span_cost:
-            continue
-
-        span_cost.span = db_span
-        span_cost.trace = db_span.trace
-        span_costs.append(span_cost)
-
-    return span_costs

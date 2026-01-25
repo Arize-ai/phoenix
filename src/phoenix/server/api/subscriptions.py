@@ -648,7 +648,7 @@ class Subscription:
                             )
 
                             if tracer is not None:
-                                traces, _, _ = await tracer.save_db_models(
+                                traces = await tracer.save_db_models(
                                     session=session, project_id=project_id
                                 )
                                 result["trace_id"] = traces[0].trace_id

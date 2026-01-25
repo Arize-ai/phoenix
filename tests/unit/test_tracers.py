@@ -5,6 +5,7 @@ import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -90,24 +91,29 @@ class TestTracer:
             parent_span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            fetched_traces = (
+                (
+                    await session.execute(
+                        select(models.Trace).options(joinedload(models.Trace.spans))
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
             )
-            fetched_traces = (await session.execute(select(models.Trace))).scalars().all()
-            fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_traces) == 1
         assert len(fetched_traces) == 1
-        assert len(returned_spans) == 2
-        assert len(fetched_spans) == 2
 
-        # returned and fetched traces match
         returned_trace = returned_traces[0]
         fetched_trace = fetched_traces[0]
         assert returned_trace == fetched_trace
         assert returned_trace.project_rowid == project.id
-
-        # returned and fetched spans match
+        returned_spans = returned_trace.spans
+        fetched_spans = fetched_trace.spans
+        assert len(returned_spans) == 2
+        assert len(fetched_spans) == 2
         parent_returned_span = next(s for s in returned_spans if s.name == "parent")
         child_returned_span = next(s for s in returned_spans if s.name == "child")
         parent_db_span = next(s for s in fetched_spans if s.name == "parent")
@@ -192,14 +198,23 @@ class TestTracer:
             span2.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            fetched_traces = (
+                (
+                    await session.execute(
+                        select(models.Trace).options(joinedload(models.Trace.spans))
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
             )
-            fetched_traces = (await session.execute(select(models.Trace))).scalars().all()
-            fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         assert len(returned_traces) == 2
         assert len(fetched_traces) == 2
+
+        returned_spans = [span for trace in returned_traces for span in trace.spans]
+        fetched_spans = [span for trace in fetched_traces for span in trace.spans]
         assert len(returned_spans) == 2
         assert len(fetched_spans) == 2
 
@@ -285,11 +300,10 @@ class TestTracer:
                 raise ValueError("Test error message")
 
         async with db() as session:
-            _, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
             db_spans = (await session.execute(select(models.Span))).scalars().all()
 
+        returned_spans = returned_traces[0].spans
         assert len(returned_spans) == 1
         assert len(db_spans) == 1
         returned_span = returned_spans[0]
@@ -352,11 +366,10 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
+        returned_spans = returned_traces[0].spans
         assert len(returned_spans) == 1
         assert len(fetched_spans) == 1
 
@@ -385,11 +398,10 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
+        returned_spans = returned_traces[0].spans
         assert len(returned_spans) == 1
         fetched_span = fetched_spans[0]
 
@@ -460,11 +472,10 @@ class TestTracer:
             parent.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, returned_spans, _ = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
+        returned_spans = returned_traces[0].spans
         assert len(returned_spans) == 4
         assert len(fetched_spans) == 4
 
@@ -530,21 +541,61 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, db_spans, span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            fetched_traces: list[models.Trace] = (
+                (
+                    await session.scalars(
+                        select(models.Trace).options(
+                            joinedload(models.Trace.spans)
+                            .joinedload(models.Span.span_cost)
+                            .joinedload(models.SpanCost.span_cost_details)
+                        )
+                    )
+                )
+                .unique()
+                .all()
             )
 
-        assert len(db_spans) == 1
-        assert len(span_costs) == 1
-
-        db_span = db_spans[0]
-        span_cost = span_costs[0]
+        # Ensure:
+        # (1) orm relationships are properly set
+        # (2) returned and fetched orms match
+        assert len(returned_traces) == 1
+        assert len(fetched_traces) == 1
+        returned_trace = returned_traces[0]
+        fetched_trace = fetched_traces[0]
+        assert returned_trace == fetched_trace
+        returned_spans = returned_trace.spans
+        fetched_spans = fetched_trace.spans
+        assert len(returned_spans) == 1
+        assert len(fetched_spans) == 1
+        returned_span = returned_spans[0]
+        fetched_span = fetched_spans[0]
+        assert returned_span == fetched_span
+        returned_span_cost = returned_span.span_cost
+        fetched_span_cost = fetched_span.span_cost
+        assert returned_span_cost is not None
+        assert fetched_span_cost is not None
+        assert returned_span_cost == fetched_span_cost
+        returned_span_cost_details = returned_span_cost.span_cost_details
+        fetched_span_cost_details = fetched_span_cost.span_cost_details
+        assert len(returned_span_cost_details) == 2
+        assert len(fetched_span_cost_details) == 2
+        returned_input_detail = next(d for d in returned_span_cost_details if d.is_prompt)
+        returned_output_detail = next(d for d in returned_span_cost_details if not d.is_prompt)
+        fetched_input_detail = next(d for d in fetched_span_cost_details if d.is_prompt)
+        fetched_output_detail = next(d for d in fetched_span_cost_details if not d.is_prompt)
+        assert returned_input_detail is not None
+        assert fetched_input_detail is not None
+        assert returned_output_detail is not None
+        assert fetched_output_detail is not None
+        assert returned_input_detail == fetched_input_detail
+        assert returned_output_detail == fetched_output_detail
 
         # Verify span costs
-        assert span_cost.span_rowid == db_span.id
-        assert span_cost.trace_rowid == db_span.trace_rowid
-        assert span_cost.model_id == gpt_4o_mini_generative_model.id
-        assert span_cost.span_start_time == db_span.start_time
+        assert returned_span_cost.span_rowid == returned_span.id
+        assert returned_span_cost.trace_rowid == returned_span.trace_rowid
+        assert returned_span_cost.model_id == gpt_4o_mini_generative_model.id
+        assert returned_span_cost.span_start_time == returned_span.start_time
         prompt_token_prices = next(
             p for p in gpt_4o_mini_generative_model.token_prices if p.is_prompt
         )
@@ -559,31 +610,28 @@ class TestTracer:
         assert expected_prompt_cost == pytest.approx(0.00015)  # (1000 * $0.15/1M) = $0.00015
         assert expected_completion_cost == pytest.approx(0.0003)  # (500 * $0.60/1M) = $0.0003
         assert expected_total_cost == pytest.approx(0.00045)  # $0.00015 + $0.0003 = $0.00045
-        assert span_cost.total_cost == pytest.approx(expected_total_cost)
-        assert span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert span_cost.prompt_tokens == prompt_tokens
-        assert span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
-        assert span_cost.completion_tokens == completion_tokens
-        assert span_cost.completion_cost == pytest.approx(expected_completion_cost)
+        assert returned_span_cost.total_cost == pytest.approx(expected_total_cost)
+        assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
+        assert returned_span_cost.prompt_tokens == prompt_tokens
+        assert returned_span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
+        assert returned_span_cost.completion_tokens == completion_tokens
+        assert returned_span_cost.completion_cost == pytest.approx(expected_completion_cost)
 
         # Verify span cost details
-        assert len(span_cost.span_cost_details) == 2
-        input_detail = next(d for d in span_cost.span_cost_details if d.is_prompt)
-        output_detail = next(d for d in span_cost.span_cost_details if not d.is_prompt)
 
-        assert input_detail.span_cost_id == span_cost.id
-        assert input_detail.token_type == "input"
-        assert input_detail.is_prompt is True
-        assert input_detail.tokens == prompt_tokens
-        assert input_detail.cost == pytest.approx(expected_prompt_cost)
-        assert input_detail.cost_per_token == prompt_base_rate
+        assert returned_input_detail.span_cost_id == returned_span_cost.id
+        assert returned_input_detail.token_type == "input"
+        assert returned_input_detail.is_prompt is True
+        assert returned_input_detail.tokens == prompt_tokens
+        assert returned_input_detail.cost == pytest.approx(expected_prompt_cost)
+        assert returned_input_detail.cost_per_token == prompt_base_rate
 
-        assert output_detail.span_cost_id == span_cost.id
-        assert output_detail.token_type == "output"
-        assert output_detail.is_prompt is False
-        assert output_detail.tokens == completion_tokens
-        assert output_detail.cost == pytest.approx(expected_completion_cost)
-        assert output_detail.cost_per_token == completion_base_rate
+        assert returned_output_detail.span_cost_id == returned_span_cost.id
+        assert returned_output_detail.token_type == "output"
+        assert returned_output_detail.is_prompt is False
+        assert returned_output_detail.tokens == completion_tokens
+        assert returned_output_detail.cost == pytest.approx(expected_completion_cost)
+        assert returned_output_detail.cost_per_token == completion_base_rate
 
     @pytest.mark.asyncio
     async def test_save_db_models_skips_costs_for_non_llm_spans(
@@ -602,18 +650,41 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, db_spans, span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
-            fetched_span_costs = (await session.execute(select(models.SpanCost))).scalars().all()
-            fetched_span_cost_details = (
-                (await session.execute(select(models.SpanCostDetail))).scalars().all()
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            fetched_traces = (
+                (
+                    await session.execute(
+                        select(models.Trace).options(
+                            joinedload(models.Trace.spans)
+                            .joinedload(models.Span.span_cost)
+                            .joinedload(models.SpanCost.span_cost_details)
+                        )
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
             )
 
-        assert len(db_spans) == 1
-        assert len(span_costs) == 0
-        assert len(fetched_span_costs) == 0
-        assert len(fetched_span_cost_details) == 0
+        # Ensure:
+        # (1) orm relationships are properly set
+        # (2) returned and fetched orms match
+        assert len(returned_traces) == 1
+        assert len(fetched_traces) == 1
+        returned_trace = returned_traces[0]
+        fetched_trace = fetched_traces[0]
+        assert returned_trace == fetched_trace
+        returned_spans = returned_trace.spans
+        fetched_spans = fetched_trace.spans
+        assert len(returned_spans) == 1
+        assert len(fetched_spans) == 1
+        returned_span = returned_spans[0]
+        fetched_span = fetched_spans[0]
+        assert returned_span == fetched_span
+        returned_span_cost = returned_span.span_cost
+        fetched_span_cost = fetched_span.span_cost
+        assert returned_span_cost is None
+        assert fetched_span_cost is None
 
     @pytest.mark.asyncio
     async def test_save_db_models_handles_missing_pricing_model(
@@ -634,46 +705,83 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            _, db_spans, span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
+            returned_traces = await tracer.save_db_models(session=session, project_id=project.id)
+            fetched_traces = (
+                (
+                    await session.execute(
+                        select(models.Trace).options(
+                            joinedload(models.Trace.spans)
+                            .joinedload(models.Span.span_cost)
+                            .joinedload(models.SpanCost.span_cost_details)
+                        )
+                    )
+                )
+                .scalars()
+                .unique()
+                .all()
             )
 
-        assert len(db_spans) == 1
-        assert len(span_costs) == 1
-
-        db_span = db_spans[0]
-        span_cost = span_costs[0]
+        # Ensure:
+        # (1) orm relationships are properly set
+        # (2) returned and fetched orms match
+        assert len(returned_traces) == 1
+        assert len(fetched_traces) == 1
+        returned_trace = returned_traces[0]
+        fetched_trace = fetched_traces[0]
+        assert returned_trace == fetched_trace
+        returned_spans = returned_trace.spans
+        fetched_spans = fetched_trace.spans
+        assert len(returned_spans) == 1
+        assert len(fetched_spans) == 1
+        returned_span = returned_spans[0]
+        fetched_span = fetched_spans[0]
+        assert returned_span == fetched_span
+        returned_span_cost = returned_span.span_cost
+        fetched_span_cost = fetched_span.span_cost
+        assert returned_span_cost is not None
+        assert fetched_span_cost is not None
+        assert returned_span_cost == fetched_span_cost
+        returned_span_cost_details = returned_span_cost.span_cost_details
+        fetched_span_cost_details = fetched_span_cost.span_cost_details
+        assert len(returned_span_cost_details) == 2
+        assert len(fetched_span_cost_details) == 2
+        returned_input_detail = next(d for d in returned_span_cost_details if d.is_prompt)
+        returned_output_detail = next(d for d in returned_span_cost_details if not d.is_prompt)
+        fetched_input_detail = next(d for d in fetched_span_cost_details if d.is_prompt)
+        fetched_output_detail = next(d for d in fetched_span_cost_details if not d.is_prompt)
+        assert returned_input_detail is not None
+        assert fetched_input_detail is not None
+        assert returned_output_detail is not None
+        assert fetched_output_detail is not None
+        assert returned_input_detail == fetched_input_detail
+        assert returned_output_detail == fetched_output_detail
 
         # Verify span costs
-        assert span_cost.span_rowid == db_span.id
-        assert span_cost.trace_rowid == db_span.trace_rowid
-        assert span_cost.model_id is None  # no pricing model found
-        assert span_cost.span_start_time == db_span.start_time
-        assert span_cost.total_cost is None  # no pricing model found
-        assert span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert span_cost.prompt_tokens == prompt_tokens
-        assert span_cost.prompt_cost is None  # no pricing model found
-        assert span_cost.completion_tokens == completion_tokens
-        assert span_cost.completion_cost is None  # no pricing model found
+        assert returned_span_cost.span_rowid == returned_span.id
+        assert returned_span_cost.trace_rowid == returned_span.trace_rowid
+        assert returned_span_cost.model_id is None  # no pricing model found
+        assert returned_span_cost.span_start_time == returned_span.start_time
+        assert returned_span_cost.total_cost is None  # no pricing model found
+        assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
+        assert returned_span_cost.prompt_tokens == prompt_tokens
+        assert returned_span_cost.prompt_cost is None  # no pricing model found
+        assert returned_span_cost.completion_tokens == completion_tokens
+        assert returned_span_cost.completion_cost is None  # no pricing model found
 
         # Verify span cost details
-        assert len(span_cost.span_cost_details) == 2
-        input_detail = next(d for d in span_cost.span_cost_details if d.is_prompt)
-        output_detail = next(d for d in span_cost.span_cost_details if not d.is_prompt)
+        assert returned_input_detail.span_cost_id == returned_span_cost.id
+        assert returned_input_detail.token_type == "input"
+        assert returned_input_detail.is_prompt is True
+        assert returned_input_detail.tokens == prompt_tokens
+        assert returned_input_detail.cost is None  # no pricing model found
+        assert returned_input_detail.cost_per_token is None  # no pricing model found
 
-        assert input_detail.span_cost_id == span_cost.id
-        assert input_detail.token_type == "input"
-        assert input_detail.is_prompt is True
-        assert input_detail.tokens == prompt_tokens
-        assert input_detail.cost is None  # no pricing model found
-        assert input_detail.cost_per_token is None  # no pricing model found
-
-        assert output_detail.span_cost_id == span_cost.id
-        assert output_detail.token_type == "output"
-        assert output_detail.is_prompt is False
-        assert output_detail.tokens == completion_tokens
-        assert output_detail.cost is None  # no pricing model found
-        assert output_detail.cost_per_token is None  # no pricing model found
+        assert returned_output_detail.span_cost_id == returned_span_cost.id
+        assert returned_output_detail.token_type == "output"
+        assert returned_output_detail.is_prompt is False
+        assert returned_output_detail.tokens == completion_tokens
+        assert returned_output_detail.cost is None  # no pricing model found
+        assert returned_output_detail.cost_per_token is None  # no pricing model found
 
 
 # span attributes

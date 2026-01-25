@@ -1984,14 +1984,13 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces, db_spans, span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
         assert db_trace.trace_id == trace_id
-
+        db_spans = db_trace.spans
+        span_costs = db_trace.span_costs
         assert len(db_spans) == 4
 
         evaluator_span = None
@@ -2247,11 +2246,11 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            db_traces, db_spans, db_span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
-
+            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
         assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
         assert len(db_spans) == 2  # Only EVALUATOR and TEMPLATE (no LLM or CHAIN)
         assert len(db_span_costs) == 0  # no span costs since there's no LLM span
 
@@ -2357,12 +2356,12 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces, db_spans, span_costs = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
         assert trace_id == db_trace.trace_id
 
         assert len(db_spans) == 3  # EVALUATOR, TEMPLATE, LLM (no CHAIN due to error)
@@ -2384,7 +2383,7 @@ class TestLLMEvaluator:
         assert evaluator_span.parent_id is None
         assert template_span.parent_id == evaluator_span.span_id
 
-        assert len(span_costs) == 0  # LLM span has no token counts due to API error
+        assert len(db_span_costs) == 0  # LLM span has no token counts due to API error
         assert llm_span.parent_id == evaluator_span.span_id
 
         # template span
@@ -2538,8 +2537,11 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            _, db_spans, _ = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_models(session=session, project_id=project.id)
 
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
         assert len(db_spans) == 4  # All spans created
 
         evaluator_span = None
