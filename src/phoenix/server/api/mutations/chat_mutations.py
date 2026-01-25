@@ -431,7 +431,9 @@ class ChatCompletionMutationMixin:
                             ),
                         )
 
-                        tracer = Tracer() if input.tracing_enabled else None
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
                         eval_result: EvaluationResult = await evaluator.evaluate(
                             context=context_dict,
@@ -442,7 +444,7 @@ class ChatCompletionMutationMixin:
                         )
 
                         if tracer is not None:
-                            traces, _ = await tracer.save_db_models(
+                            traces = await tracer.save_db_traces(
                                 session=session, project_id=project_id
                             )
                             eval_result["trace_id"] = traces[0].trace_id

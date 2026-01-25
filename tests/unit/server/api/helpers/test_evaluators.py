@@ -1,6 +1,7 @@
 import json
+import re
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import pytest
@@ -64,6 +65,8 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInp
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
 from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 from phoenix.tracers import Tracer
@@ -1795,8 +1798,54 @@ class TestLLMEvaluator:
         return project
 
     @pytest.fixture
-    def tracer(self) -> Tracer:
-        return Tracer()
+    async def gpt_4o_mini_generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
+        model = models.GenerativeModel(
+            name="gpt-4o-mini",
+            provider="openai",
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            name_pattern=re.compile("gpt-4o-mini"),
+            is_built_in=True,
+            token_prices=[
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=0.15 / 1_000_000,  # $0.15 per million tokens
+                    customization=None,
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=0.60 / 1_000_000,  # $0.60 per million tokens
+                    customization=None,
+                ),
+            ],
+        )
+        async with db() as session:
+            session.add(model)
+
+        return model
+
+    @pytest.fixture
+    async def generative_model_store(
+        self,
+        db: DbSessionFactory,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
+    ) -> GenerativeModelStore:
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        return store
+
+    @pytest.fixture
+    def span_cost_calculator(
+        self,
+        db: DbSessionFactory,
+        generative_model_store: GenerativeModelStore,
+    ) -> SpanCostCalculator:
+        return SpanCostCalculator(db=db, model_store=generative_model_store)
+
+    @pytest.fixture
+    def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
+        return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.fixture
     def openai_streaming_client(
@@ -1909,6 +1958,7 @@ class TestLLMEvaluator:
         output_config: CategoricalAnnotationConfig,
         input_mapping: EvaluatorInputMappingInput,
         custom_vcr: CustomVCR,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         with custom_vcr.use_cassette():
             evaluation_result = await llm_evaluator.evaluate(
@@ -1934,14 +1984,13 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces, db_spans = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
         assert db_trace.trace_id == trace_id
-
+        db_spans = db_trace.spans
+        span_costs = db_trace.span_costs
         assert len(db_spans) == 4
 
         evaluator_span = None
@@ -2110,6 +2159,55 @@ class TestLLMEvaluator:
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
+        # Verify span costs for LLM span
+        assert len(span_costs) == 1
+        span_cost = span_costs[0]
+
+        assert span_cost.span_rowid == llm_span.id
+        assert span_cost.trace_rowid == llm_span.trace_rowid
+        assert span_cost.model_id == gpt_4o_mini_generative_model.id
+        assert span_cost.span_start_time == llm_span.start_time
+        prompt_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if p.is_prompt
+        )
+        completion_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if not p.is_prompt
+        )
+        prompt_base_rate = prompt_token_prices.base_rate
+        completion_base_rate = completion_token_prices.base_rate
+        expected_prompt_cost = llm_span.llm_token_count_prompt * prompt_base_rate
+        expected_completion_cost = llm_span.llm_token_count_completion * completion_base_rate
+        expected_total_cost = expected_prompt_cost + expected_completion_cost
+        assert span_cost.total_cost == pytest.approx(expected_total_cost)
+        assert span_cost.total_tokens == llm_span.llm_token_count_total
+        assert span_cost.prompt_tokens == llm_span.llm_token_count_prompt
+        assert span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
+        assert span_cost.completion_tokens == llm_span.llm_token_count_completion
+        assert span_cost.completion_cost == pytest.approx(expected_completion_cost)
+
+        # Verify span cost details
+        assert len(span_cost.span_cost_details) >= 2
+        input_detail = next(
+            d for d in span_cost.span_cost_details if d.is_prompt and d.token_type == "input"
+        )
+        output_detail = next(
+            d for d in span_cost.span_cost_details if not d.is_prompt and d.token_type == "output"
+        )
+
+        assert input_detail.span_cost_id == span_cost.id
+        assert input_detail.token_type == "input"
+        assert input_detail.is_prompt is True
+        assert input_detail.tokens == llm_span.llm_token_count_prompt
+        assert input_detail.cost == pytest.approx(expected_prompt_cost)
+        assert input_detail.cost_per_token == prompt_base_rate
+
+        assert output_detail.span_cost_id == span_cost.id
+        assert output_detail.token_type == "output"
+        assert output_detail.is_prompt is False
+        assert output_detail.tokens == llm_span.llm_token_count_completion
+        assert output_detail.cost == pytest.approx(expected_completion_cost)
+        assert output_detail.cost_per_token == completion_base_rate
+
     async def test_evaluate_with_invalid_jsonpath_records_error_on_template_span(
         self,
         db: DbSessionFactory,
@@ -2148,9 +2246,13 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            _, db_spans = await tracer.save_db_models(session=session, project_id=project.id)
-
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
         assert len(db_spans) == 2  # Only EVALUATOR and TEMPLATE (no LLM or CHAIN)
+        assert len(db_span_costs) == 0  # no span costs since there's no LLM span
 
         evaluator_span = None
         template_span = None
@@ -2254,12 +2356,12 @@ class TestLLMEvaluator:
         assert not result
 
         async with db() as session:
-            db_traces, db_spans = await tracer.save_db_models(
-                session=session, project_id=project.id
-            )
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
         assert len(db_traces) == 1
         db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
         assert trace_id == db_trace.trace_id
 
         assert len(db_spans) == 3  # EVALUATOR, TEMPLATE, LLM (no CHAIN due to error)
@@ -2280,6 +2382,8 @@ class TestLLMEvaluator:
         assert llm_span is not None
         assert evaluator_span.parent_id is None
         assert template_span.parent_id == evaluator_span.span_id
+
+        assert len(db_span_costs) == 0  # LLM span has no token counts due to API error
         assert llm_span.parent_id == evaluator_span.span_id
 
         # template span
@@ -2433,8 +2537,11 @@ class TestLLMEvaluator:
 
         # Check spans
         async with db() as session:
-            _, db_spans = await tracer.save_db_models(session=session, project_id=project.id)
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
         assert len(db_spans) == 4  # All spans created
 
         evaluator_span = None
