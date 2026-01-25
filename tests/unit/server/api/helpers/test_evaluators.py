@@ -65,6 +65,8 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInp
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
 from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 from phoenix.tracers import Tracer
@@ -1796,10 +1798,6 @@ class TestLLMEvaluator:
         return project
 
     @pytest.fixture
-    def tracer(self) -> Tracer:
-        return Tracer()
-
-    @pytest.fixture
     async def gpt_4o_mini_generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="gpt-4o-mini",
@@ -1826,6 +1824,28 @@ class TestLLMEvaluator:
             session.add(model)
 
         return model
+
+    @pytest.fixture
+    async def generative_model_store(
+        self,
+        db: DbSessionFactory,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
+    ) -> GenerativeModelStore:
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        return store
+
+    @pytest.fixture
+    def span_cost_calculator(
+        self,
+        db: DbSessionFactory,
+        generative_model_store: GenerativeModelStore,
+    ) -> SpanCostCalculator:
+        return SpanCostCalculator(db=db, model_store=generative_model_store)
+
+    @pytest.fixture
+    def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
+        return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.fixture
     def openai_streaming_client(

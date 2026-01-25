@@ -8,14 +8,11 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
-from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
-from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.trace.attributes import get_attribute_value, unflatten
 
 
@@ -28,7 +25,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     It's recommended to use a separate tracer for distinct operations.
 
     Example usage:
-        tracer = Tracer()
+        tracer = Tracer(span_cost_calculator=span_cost_calculator)
 
         with tracer.start_as_current_span("operation") as span:
             span.set_attribute("key", "value")
@@ -40,7 +37,8 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             traces, spans, costs = await tracer.save_db_models(session=session, project_id=123)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, span_cost_calculator: SpanCostCalculator) -> None:
+        self._self_span_cost_calculator = span_cost_calculator
         self._self_exporter = InMemorySpanExporter()
         span_processor = SimpleSpanProcessor(self._self_exporter)
         provider = TracerProvider()
@@ -77,10 +75,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         db_traces, db_spans = _convert_otel_spans_to_db_traces_and_spans(
             otel_spans=finished_spans, project_id=project_id
         )
-        cost_model_lookup = await _get_cost_model_lookup(session)
         span_costs = _calculate_span_costs(
             db_spans=db_spans,
-            cost_model_lookup=cost_model_lookup,
+            span_cost_calculator=self._self_span_cost_calculator,
         )
         session.add_all(db_traces)
         session.add_all(db_spans)
@@ -270,14 +267,14 @@ def _compute_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeC
 def _calculate_span_costs(
     *,
     db_spans: Sequence[models.Span],
-    cost_model_lookup: CostModelLookup,
+    span_cost_calculator: SpanCostCalculator,
 ) -> list[models.SpanCost]:
     """
     Calculate SpanCost and SpanCostDetail for LLM spans with token counts.
 
     Args:
         db_spans: Database span models with attributes and token counts
-        cost_model_lookup: Lookup service for finding GenerativeModel pricing
+        span_cost_calculator: Calculator service for computing span costs
 
     Returns:
         List of SpanCost models with associated SpanCostDetail entries
@@ -288,46 +285,16 @@ def _calculate_span_costs(
         if not should_calculate_span_cost(db_span.attributes):
             continue
 
-        cost_model = cost_model_lookup.find_model(
+        span_cost = span_cost_calculator.calculate_cost(
             start_time=db_span.start_time,
             attributes=db_span.attributes,
         )
 
-        calculator = SpanCostDetailsCalculator(cost_model.token_prices if cost_model else [])
-        details = calculator.calculate_details(db_span.attributes)
-
-        if not details:
+        if not span_cost:
             continue
 
-        span_cost = models.SpanCost(
-            span=db_span,
-            trace=db_span.trace,
-            span_start_time=db_span.start_time,
-            model_id=cost_model.id if cost_model else None,
-        )
-
-        for detail in details:
-            span_cost.append_detail(detail)
-
+        span_cost.span = db_span
+        span_cost.trace = db_span.trace
         span_costs.append(span_cost)
 
     return span_costs
-
-
-async def _get_cost_model_lookup(session: AsyncSession) -> CostModelLookup:
-    """
-    Query generative models and build a CostModelLookup for cost calculation.
-
-    Args:
-        session: An async SQLAlchemy session for database operations.
-
-    Returns:
-        A CostModelLookup instance for finding pricing models.
-    """
-    generative_models_query = (
-        select(models.GenerativeModel)
-        .options(joinedload(models.GenerativeModel.token_prices))
-        .where(models.GenerativeModel.deleted_at.is_(None))
-    )
-    generative_models = (await session.scalars(generative_models_query)).unique().all()
-    return CostModelLookup(generative_models)

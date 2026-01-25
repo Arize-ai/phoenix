@@ -633,7 +633,11 @@ class Subscription:
                                 description_override=evaluator_input.description,
                             )
 
-                            tracer = Tracer() if input.tracing_enabled else None
+                            tracer: Tracer | None = None
+                            if input.tracing_enabled:
+                                tracer = Tracer(
+                                    span_cost_calculator=info.context.span_cost_calculator
+                                )
 
                             result: EvaluationResult = await evaluator.evaluate(
                                 context=context_dict,

@@ -7,6 +7,8 @@ from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
 
@@ -20,11 +22,7 @@ class TestTracer:
         return project
 
     @pytest.fixture
-    def tracer(self) -> Tracer:
-        return Tracer()
-
-    @pytest.fixture
-    async def generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
+    async def gpt_4o_mini_generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
         model = models.GenerativeModel(
             name="gpt-4o-mini",
             provider="openai",
@@ -50,6 +48,28 @@ class TestTracer:
             session.add(model)
 
         return model
+
+    @pytest.fixture
+    async def generative_model_store(
+        self,
+        db: DbSessionFactory,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
+    ) -> GenerativeModelStore:
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        return store
+
+    @pytest.fixture
+    def span_cost_calculator(
+        self,
+        db: DbSessionFactory,
+        generative_model_store: GenerativeModelStore,
+    ) -> SpanCostCalculator:
+        return SpanCostCalculator(db=db, model_store=generative_model_store)
+
+    @pytest.fixture
+    def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
+        return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.mark.asyncio
     async def test_save_db_models_persists_nested_spans(
@@ -492,7 +512,7 @@ class TestTracer:
         db: DbSessionFactory,
         project: models.Project,
         tracer: Tracer,
-        generative_model: models.GenerativeModel,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         prompt_tokens = 1000
         completion_tokens = 500
@@ -523,10 +543,14 @@ class TestTracer:
         # Verify span costs
         assert span_cost.span_rowid == db_span.id
         assert span_cost.trace_rowid == db_span.trace_rowid
-        assert span_cost.model_id == generative_model.id
+        assert span_cost.model_id == gpt_4o_mini_generative_model.id
         assert span_cost.span_start_time == db_span.start_time
-        prompt_token_prices = next(p for p in generative_model.token_prices if p.is_prompt)
-        completion_token_prices = next(p for p in generative_model.token_prices if not p.is_prompt)
+        prompt_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if p.is_prompt
+        )
+        completion_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if not p.is_prompt
+        )
         prompt_base_rate = prompt_token_prices.base_rate
         completion_base_rate = completion_token_prices.base_rate
         expected_prompt_cost = prompt_tokens * prompt_base_rate
@@ -567,7 +591,7 @@ class TestTracer:
         db: DbSessionFactory,
         project: models.Project,
         tracer: Tracer,
-        generative_model: models.GenerativeModel,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         with tracer.start_as_current_span(
             "chain_call",
