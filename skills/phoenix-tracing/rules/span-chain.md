@@ -6,13 +6,14 @@ CHAIN spans represent orchestration layers in your application (LangChain chains
 
 ## Required Attributes
 
-| Attribute | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `openinference.span.kind` | String | Must be "CHAIN" | Yes |
+| Attribute                 | Type   | Description     | Required |
+| ------------------------- | ------ | --------------- | -------- |
+| `openinference.span.kind` | String | Must be "CHAIN" | Yes      |
 
 ## Common Attributes
 
 CHAIN spans typically use [Universal Attributes](fundamentals-universal-attributes.md):
+
 - `input.value` - Input to the chain (user query, request payload)
 - `output.value` - Output from the chain (final response)
 - `input.mime_type` / `output.mime_type` - Format indicators
@@ -27,9 +28,7 @@ CHAIN spans typically use [Universal Attributes](fundamentals-universal-attribut
   "output.value": "{\"answer\": \"The capital of France is Paris.\", \"sources\": [\"doc_123\"]}",
   "output.mime_type": "application/json",
   "session.id": "session_abc123",
-  "user.id": "user_xyz789",
-  "metadata.chain_name": "qa_chain",
-  "metadata.version": "v2.1"
+  "user.id": "user_xyz789"
 }
 ```
 
@@ -39,8 +38,6 @@ CHAIN spans typically use [Universal Attributes](fundamentals-universal-attribut
 {
   "openinference.span.kind": "CHAIN",
   "input.value": "Summarize this document: ...",
-  "output.value": "This document discusses...",
-  "metadata.chain_type": "summarization",
-  "metadata.parent_chain": "main_qa_chain"
+  "output.value": "This document discusses..."
 }
 ```
