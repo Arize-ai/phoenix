@@ -4,10 +4,10 @@
 
 ## Metadata
 
-| Attribute | Value |
-|-----------|-------|
-| Priority | Critical - required for all tracing |
-| Setup Time | <5 min |
+| Attribute  | Value                               |
+| ---------- | ----------------------------------- |
+| Priority   | Critical - required for all tracing |
+| Setup Time | <5 min                              |
 
 ## Quick Start (3 lines)
 
@@ -50,6 +50,7 @@ tracer_provider = register(
 ```
 
 **Parameters:**
+
 - `project_name`: Project name (overrides `PHOENIX_PROJECT_NAME`)
 - `endpoint`: Phoenix URL (overrides `PHOENIX_COLLECTOR_ENDPOINT`)
 - `auto_instrument`: Enable auto-instrumentation (default: False)
@@ -97,11 +98,13 @@ export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Send 512 spans/batch
 ## Troubleshooting
 
 **No traces:**
+
 - Verify `PHOENIX_COLLECTOR_ENDPOINT` matches Phoenix server
 - Set `PHOENIX_API_KEY` for Phoenix Cloud
 - Confirm instrumentors installed
 
 **Missing attributes:**
+
 - Check span kind (see rules/ directory)
 - Verify attribute names (see rules/ directory)
 
