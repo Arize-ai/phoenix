@@ -9,15 +9,15 @@ This guide teaches you how to manually instrument your LLM applications using Op
 ## Overview
 
 **When to use manual instrumentation:**
+
 - Custom LLM workflows not covered by auto-instrumentation
 - Adding spans to business logic (chains, agents, tools)
 - Fine-grained control over span attributes
-- Instrumenting internal functions
 
 **When to use auto-instrumentation:**
+
 - Standard frameworks (LangChain, LlamaIndex, OpenAI SDK)
 - Quick setup without custom code
-- auto-instrumentation-python.md
 
 ---
 
@@ -41,6 +41,7 @@ tracer_provider = register(project_name="my-app")
 ### Approach 1: Decorators (Recommended)
 
 **Pros:**
+
 - ✅ Automatic input/output capture
 - ✅ Clean, declarative syntax
 - ✅ Error handling built-in
@@ -52,6 +53,7 @@ tracer_provider = register(project_name="my-app")
 ### Approach 2: Context Managers
 
 **Pros:**
+
 - ✅ Fine-grained control (partial function instrumentation)
 - ✅ Dynamic span attributes
 - ✅ Custom span logic
@@ -64,17 +66,17 @@ tracer_provider = register(project_name="my-app")
 
 OpenInference defines 9 span kinds, each representing a different operation type:
 
-| Span Kind | Use Case | Example |
-|-----------|----------|---------|
-| `CHAIN` | Orchestration, workflows, pipelines | RAG pipeline, multi-step workflow |
-| `LLM` | LLM API calls | OpenAI completion, Anthropic message |
-| `RETRIEVER` | Document/context retrieval | Vector search, database query |
-| `TOOL` | External API calls, function calls | Calculator, weather API, database write |
-| `AGENT` | Multi-step reasoning | ReAct agent, planning agent |
-| `EMBEDDING` | Generating embeddings | OpenAI embeddings, sentence-transformers |
-| `RERANKER` | Re-ranking retrieved documents | Cross-encoder reranking |
-| `GUARDRAIL` | Safety checks, content moderation | PII detection, toxicity filtering |
-| `EVALUATOR` | LLM evaluation | Correctness eval, hallucination check |
+| Span Kind   | Use Case                            | Example                                  |
+| ----------- | ----------------------------------- | ---------------------------------------- |
+| `CHAIN`     | Orchestration, workflows, pipelines | RAG pipeline, multi-step workflow        |
+| `LLM`       | LLM API calls                       | OpenAI completion, Anthropic message     |
+| `RETRIEVER` | Document/context retrieval          | Vector search, database query            |
+| `TOOL`      | External API calls, function calls  | Calculator, weather API, database write  |
+| `AGENT`     | Multi-step reasoning                | ReAct agent, planning agent              |
+| `EMBEDDING` | Generating embeddings               | OpenAI embeddings, sentence-transformers |
+| `RERANKER`  | Re-ranking retrieved documents      | Cross-encoder reranking                  |
+| `GUARDRAIL` | Safety checks, content moderation   | PII detection, toxicity filtering        |
+| `EVALUATOR` | LLM evaluation                      | Correctness eval, hallucination check    |
 
 **Cross-reference:** See `span-*.md` for detailed attribute schemas per span kind.
 
@@ -84,7 +86,7 @@ OpenInference defines 9 span kinds, each representing a different operation type
 
 **Use for:** Workflows, pipelines, orchestration logic
 
-### 5.1 Decorators
+### Decorators
 
 ```python
 from phoenix.otel import register
@@ -117,7 +119,7 @@ def my_workflow(user_query: str) -> str:
 
 ---
 
-### 5.2 Context Managers
+### Context Managers
 
 ```python
 from opentelemetry.trace import Status, StatusCode
@@ -142,7 +144,7 @@ with tracer.start_as_current_span(
 
 **Use for:** Vector search, database queries, document retrieval
 
-### 6.1 Decorators
+### Decorators
 
 ```python
 @tracer.retriever
@@ -162,13 +164,14 @@ docs = retrieve_documents("What is Phoenix?")
 ```
 
 **What gets captured:**
+
 - `input.value`: Query string
 - `output.value`: Retrieved documents
 - `retrieval.documents`: Array of document objects (content, score)
 
 ---
 
-### 6.2 Context Managers (Advanced)
+### Context Managers (Advanced)
 
 ```python
 import json
@@ -203,7 +206,7 @@ with tracer.start_as_current_span(
 
 **Use for:** External API calls, calculator, database writes, any function execution
 
-### 7.1 Decorators
+### Decorators
 
 ```python
 @tracer.tool
@@ -218,6 +221,7 @@ weather = get_weather("San Francisco")
 ```
 
 **What gets captured:**
+
 - `tool.name`: Function name (e.g., "get_weather")
 - `tool.description`: Function docstring
 - `tool.parameters`: Function arguments
@@ -226,7 +230,7 @@ weather = get_weather("San Francisco")
 
 ---
 
-### 7.2 Custom Tool Attributes
+### Custom Tool Attributes
 
 ```python
 @tracer.tool(
@@ -249,7 +253,7 @@ weather = get_weather("San Francisco", units="celsius")
 
 **Use for:** Agents that use tools, multi-step reasoning, planning
 
-### 8.1 Decorators
+### Decorators
 
 ```python
 @tracer.agent
@@ -271,6 +275,7 @@ result = react_agent("What's the weather in Paris?")
 ```
 
 **What gets captured:**
+
 - Agent spans automatically create a parent span for the entire agent execution
 - Child spans (LLM, tool calls) are nested under the agent span
 
@@ -280,7 +285,7 @@ result = react_agent("What's the weather in Paris?")
 
 **Note:** Auto-instrumentation is recommended for LLM calls. Manual instrumentation is only needed for custom LLM clients or advanced use cases.
 
-### 9.1 Decorators (Simple)
+### Decorators (Simple)
 
 ```python
 @tracer.llm
@@ -296,7 +301,7 @@ output = call_llm("Hello, world!")
 
 ---
 
-### 9.2 Context Managers (Advanced)
+### Context Managers (Advanced)
 
 ```python
 from opentelemetry.trace import Status, StatusCode
@@ -328,7 +333,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 
 **Use for:** Generating embeddings
 
-### 10.1 Decorators
+### Decorators
 
 ```python
 @tracer.embedding
@@ -343,6 +348,7 @@ vectors = generate_embeddings(["Hello", "World"])
 ```
 
 **What gets captured:**
+
 - `embedding.model_name`: Model name
 - `embedding.embeddings`: List of embedding objects (text, vector)
 - `input.value`: Input texts
@@ -355,7 +361,7 @@ vectors = generate_embeddings(["Hello", "World"])
 
 **Use for:** Re-ranking retrieved documents
 
-### 11.1 Decorators
+### Decorators
 
 ```python
 @tracer.reranker
@@ -382,7 +388,7 @@ ranked_docs = rerank_documents("What is Phoenix?", retrieved_docs)
 
 **Use for:** Safety checks, content moderation, PII detection
 
-### 12.1 Decorators
+### Decorators
 
 ```python
 @tracer.guardrail
@@ -404,7 +410,7 @@ result = check_toxicity(user_input)
 
 **Use for:** LLM evaluation, correctness checks, hallucination detection
 
-### 13.1 Decorators
+### Decorators
 
 ```python
 @tracer.evaluator
@@ -429,25 +435,26 @@ eval_result = evaluate_correctness(question, answer, reference)
 
 ## Choosing the Right Span Kind
 
-| If you're instrumenting... | Use span kind... | Example |
-|----------------------------|------------------|---------|
-| Multi-step workflow | `CHAIN` | RAG pipeline, agent loop |
-| Database/vector search | `RETRIEVER` | Pinecone query, Weaviate search |
-| External API call | `TOOL` | Weather API, calculator |
-| Agent reasoning | `AGENT` | ReAct, planning agent |
-| LLM API call | `LLM` | OpenAI, Anthropic |
-| Embedding generation | `EMBEDDING` | OpenAI embeddings |
-| Document re-ranking | `RERANKER` | Cross-encoder reranking |
-| Content moderation | `GUARDRAIL` | Toxicity check, PII detection |
-| LLM evaluation | `EVALUATOR` | Correctness eval, hallucination check |
+| If you're instrumenting... | Use span kind... | Example                               |
+| -------------------------- | ---------------- | ------------------------------------- |
+| Multi-step workflow        | `CHAIN`          | RAG pipeline, agent loop              |
+| Database/vector search     | `RETRIEVER`      | Pinecone query, Weaviate search       |
+| External API call          | `TOOL`           | Weather API, calculator               |
+| Agent reasoning            | `AGENT`          | ReAct, planning agent                 |
+| LLM API call               | `LLM`            | OpenAI, Anthropic                     |
+| Embedding generation       | `EMBEDDING`      | OpenAI embeddings                     |
+| Document re-ranking        | `RERANKER`       | Cross-encoder reranking               |
+| Content moderation         | `GUARDRAIL`      | Toxicity check, PII detection         |
+| LLM evaluation             | `EVALUATOR`      | Correctness eval, hallucination check |
 
 ---
 
 ## Best Practices
 
-### 15.1 Use Descriptive Span Names
+### Use Descriptive Span Names
 
 **Bad:**
+
 ```python
 @tracer.chain(name="process")
 def process(input: str) -> str:
@@ -455,6 +462,7 @@ def process(input: str) -> str:
 ```
 
 **Good:**
+
 ```python
 @tracer.chain(name="rag_pipeline")
 def process(input: str) -> str:
@@ -463,7 +471,7 @@ def process(input: str) -> str:
 
 ---
 
-### 15.2 Capture Input and Output
+### Capture Input and Output
 
 **Decorators do this automatically:**
 
@@ -485,7 +493,7 @@ with tracer.start_as_current_span("my-span", openinference_span_kind="chain") as
 
 ---
 
-### 15.3 Handle Errors
+### Handle Errors
 
 ```python
 with tracer.start_as_current_span("operation") as span:
@@ -500,7 +508,7 @@ with tracer.start_as_current_span("operation") as span:
 
 ---
 
-### 15.4 Nest Spans for Context
+### Nest Spans for Context
 
 ```python
 @tracer.chain

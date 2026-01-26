@@ -61,7 +61,7 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 
 **Simplest method: Download all spans from a project.**
 
-### 3.1 Basic Usage
+### Basic Usage
 
 ```python
 from phoenix.client import Client
@@ -87,7 +87,7 @@ df = client.get_spans_dataframe(project_name="my-chatbot")
 
 ---
 
-### 3.2 Filter by Span Kind
+### Filter by Span Kind
 
 ```python
 # Get all LLM spans
@@ -99,7 +99,7 @@ df = client.get_spans_dataframe("span_kind == 'RETRIEVER'")
 
 ---
 
-### 3.3 Time Range Filtering
+### Time Range Filtering
 
 ```python
 from datetime import datetime, timedelta
@@ -128,7 +128,7 @@ df = client.get_spans_dataframe(start_time=start_time, end_time=end_time)
 
 **Use the Query DSL for fine-grained filtering and attribute selection.**
 
-### 4.1 Basic Query
+### Basic Query
 
 ```python
 from phoenix.client import Client
@@ -152,7 +152,7 @@ df = client.query_spans(query)
 
 ---
 
-### 4.2 Rename Columns
+### Rename Columns
 
 ```python
 query = SpanQuery().where(
@@ -170,7 +170,7 @@ df = client.query_spans(query)
 
 ---
 
-### 4.3 Complex Filters
+### Complex Filters
 
 **Filter by multiple conditions:**
 
@@ -217,7 +217,7 @@ df = client.query_spans(query)
 
 ---
 
-### 4.4 Filter by Evaluation Results
+### Filter by Evaluation Results
 
 **Find spans with specific evaluation labels:**
 
@@ -254,7 +254,7 @@ df = client.query_spans(query)
 
 **Extract documents from retriever spans for RAG evaluation.**
 
-### 5.1 Explode Documents
+### Explode Documents
 
 ```python
 from phoenix.trace.dsl import SpanQuery
@@ -284,7 +284,7 @@ df = client.query_spans(query)
 
 ---
 
-### 5.2 Concatenate Documents
+### Concatenate Documents
 
 ```python
 query = SpanQuery().where(
@@ -322,7 +322,7 @@ query = SpanQuery().concat(
 
 **Phoenix provides helpers for common query patterns.**
 
-### 6.1 Tool Calls (Agent Evaluation)
+### Tool Calls (Agent Evaluation)
 
 ```python
 from phoenix.trace.dsl.helpers import get_called_tools
@@ -339,7 +339,7 @@ tools_df = get_called_tools(client)
 
 ---
 
-### 6.2 Retrieved Documents (RAG Evaluation)
+### Retrieved Documents (RAG Evaluation)
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -354,7 +354,7 @@ retrieved_docs_df = get_retrieved_documents(client)
 
 ---
 
-### 6.3 Q&A on Retrieved Data
+### Q&A on Retrieved Data
 
 ```python
 from phoenix.session.evaluation import get_qa_with_reference
@@ -375,7 +375,7 @@ qa_df = get_qa_with_reference(client)
 
 ## Advanced Querying
 
-### 7.1 Joining Parent and Child Spans
+### Joining Parent and Child Spans
 
 ```python
 import pandas as pd
@@ -410,7 +410,7 @@ result_df = pd.concat([parent_df, child_df], axis=1, join="inner")
 
 ---
 
-### 7.2 Filtering in UI
+### Filtering in UI
 
 **Phoenix UI search bar uses the same Query DSL:**
 
@@ -426,7 +426,7 @@ metadata['experiment_id'] == 'exp_123'
 
 ## Project and Time Range
 
-### 8.1 Query Specific Project
+### Query Specific Project
 
 ```python
 # All query methods accept project_name parameter
@@ -440,7 +440,7 @@ df = client.query_spans(query, project_name="my-chatbot")
 
 ---
 
-### 8.2 Time Range
+### Time Range
 
 ```python
 from datetime import datetime, timedelta
@@ -457,7 +457,7 @@ df = client.query_spans(query, start_time=start_time, end_time=end_time)
 
 **Export all traces to a Parquet file for backup or offline analysis.**
 
-### 9.1 Basic Save
+### Basic Save
 
 ```python
 from phoenix.client import Client
@@ -477,7 +477,7 @@ trace_dataset.save()
 
 ---
 
-### 9.2 Custom Directory
+### Custom Directory
 
 ```python
 import os
@@ -498,7 +498,7 @@ trace_id = client.get_trace_dataset().save(directory=directory)
 
 ---
 
-### 9.3 Load Saved Traces
+### Load Saved Traces
 
 ```python
 import pandas as pd
@@ -511,7 +511,7 @@ df = pd.read_parquet("/my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55a
 
 ## Example Workflows
 
-### 10.1 Export LLM Spans for Evaluation
+### Export LLM Spans for Evaluation
 
 ```python
 from phoenix.client import Client
@@ -536,7 +536,7 @@ df.to_csv("llm_spans_for_eval.csv", index=False)
 
 ---
 
-### 10.2 Analyze Token Usage by Model
+### Analyze Token Usage by Model
 
 ```python
 query = SpanQuery().where(
@@ -563,7 +563,7 @@ claude-3         42000
 
 ---
 
-### 10.3 Export RAG Data for Evaluation
+### Export RAG Data for Evaluation
 
 ```python
 from phoenix.session.evaluation import get_qa_with_reference
@@ -590,7 +590,7 @@ eval_results = run_evals(
 
 ---
 
-### 10.4 Find Slow LLM Calls
+### Find Slow LLM Calls
 
 ```python
 from datetime import datetime, timedelta
@@ -645,7 +645,7 @@ incorrect_spans = df[df["eval_correctness_label"] == "incorrect"]
 
 ## Best Practices
 
-### 12.1 Use Filters to Reduce Data
+### Use Filters to Reduce Data
 
 **Don't:**
 ```python
@@ -662,7 +662,7 @@ df = client.get_spans_dataframe("span_kind == 'LLM'")  # Filters at source
 
 ---
 
-### 12.2 Use Time Ranges for Large Projects
+### Use Time Ranges for Large Projects
 
 ```python
 from datetime import datetime, timedelta
@@ -676,7 +676,7 @@ df = client.query_spans(query, start_time=start_time)
 
 ---
 
-### 12.3 Test Queries in UI First
+### Test Queries in UI First
 
 1. Go to Phoenix UI → Project → Search bar
 2. Enter query: `span_kind == 'LLM' and llm.token_count.total > 1000`
@@ -689,7 +689,7 @@ df = client.query_spans(query, start_time=start_time)
 
 ## Troubleshooting
 
-### 13.1 Empty DataFrame
+### Empty DataFrame
 
 **Possible causes:**
 1. No spans match filter
@@ -712,7 +712,7 @@ print(df.head())
 
 ---
 
-### 13.2 Missing Columns
+### Missing Columns
 
 **Possible causes:**
 1. Attribute not set on spans
@@ -730,7 +730,7 @@ print(df["attributes"].iloc[0])
 
 ---
 
-### 13.3 Authentication Errors
+### Authentication Errors
 
 **Error:** `401 Unauthorized`
 

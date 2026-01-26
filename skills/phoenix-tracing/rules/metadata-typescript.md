@@ -28,7 +28,7 @@ This guide teaches you how to add custom metadata to traces for richer observabi
 
 ## Universal Attributes (Work on Any Span)
 
-### 2.1 TypeScript: `setAttribute` Context
+### TypeScript: `setAttribute` Context
 
 ```typescript
 import { context } from "@opentelemetry/api";
@@ -65,7 +65,7 @@ await context.with(ctx, async () => {
 
 ---
 
-### 2.2 Example: User Tracking
+### Example: User Tracking
 
 ```typescript
 import { context, trace } from "@opentelemetry/api";
@@ -91,7 +91,7 @@ await handleUserRequest("user_123", "What is Phoenix?");
 
 **Recommended on all spans** to understand what data flowed through each operation.
 
-### 3.1 Automatic Capture (Decorators)
+### Automatic Capture (Decorators)
 
 ```typescript
 import { traceChain } from "@arizeai/openinference-core";
@@ -107,7 +107,7 @@ const process = traceChain(
 
 ---
 
-### 3.2 Manual Capture (Context Managers)
+### Manual Capture (Context Managers)
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -132,7 +132,7 @@ await withSpan(
 
 ---
 
-### 3.3 Complex Input/Output (JSON)
+### Complex Input/Output (JSON)
 
 ```typescript
 const inputData = { query: "Hello", filters: ["recent", "relevant"] };
@@ -154,7 +154,7 @@ span?.setAttributes({
 
 **Use case:** Track which prompt template was used and with what variables.
 
-### 4.1 TypeScript: Prompt Template Attributes
+### TypeScript: Prompt Template Attributes
 
 ```typescript
 const template = "You are a helpful assistant. Answer this question: {question}";
@@ -184,7 +184,7 @@ const response = await llm.generate(prompt);
 
 **Use `metadata.*` for arbitrary key-value pairs.**
 
-### 5.1 TypeScript: Custom Metadata
+### TypeScript: Custom Metadata
 
 ```typescript
 span?.setAttributes({
@@ -205,7 +205,7 @@ span?.setAttributes({
 
 ---
 
-### 5.2 Filtering by Metadata in Phoenix UI
+### Filtering by Metadata in Phoenix UI
 
 **Query DSL:**
 
@@ -234,7 +234,7 @@ const df = await client.querySpans(query);
 
 ## Span-Specific Attributes
 
-### 6.1 LLM Spans
+### LLM Spans
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -267,7 +267,7 @@ await withSpan(
 
 ---
 
-### 6.2 Retriever Spans
+### Retriever Spans
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -298,7 +298,7 @@ await withSpan(
 
 ---
 
-### 6.3 Tool Spans
+### Tool Spans
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -328,7 +328,7 @@ await withSpan(
 
 ## Common Metadata Patterns
 
-### 7.1 A/B Testing
+### A/B Testing
 
 ```typescript
 import { trace } from "@opentelemetry/api";
@@ -351,7 +351,7 @@ async function runExperiment(query: string, variant: string) {
 
 ---
 
-### 7.2 Feature Flags
+### Feature Flags
 
 ```typescript
 const span = trace.getActiveSpan();
@@ -368,7 +368,7 @@ const result = await myApp.run(query);
 
 ---
 
-### 7.3 Model Versioning
+### Model Versioning
 
 ```typescript
 const span = trace.getActiveSpan();
@@ -385,7 +385,7 @@ const result = await myApp.run(query);
 
 ---
 
-### 7.4 Environment Context
+### Environment Context
 
 ```typescript
 const span = trace.getActiveSpan();
@@ -403,7 +403,7 @@ const result = await myApp.run(query);
 
 ---
 
-### 7.5 Request Tracking
+### Request Tracking
 
 ```typescript
 import { randomUUID } from "crypto";
@@ -429,7 +429,7 @@ const result = await handleRequest(request);
 
 **Use case:** Add metadata to a single span, not all spans in a context.
 
-### 8.1 TypeScript: Span Attributes
+### TypeScript: Span Attributes
 
 ```typescript
 import { withSpan } from "@arizeai/openinference-core";
@@ -475,7 +475,7 @@ span?.setAttribute("metadata.config", JSON.stringify({ key: "value" }));
 
 ## Best Practices
 
-### 10.1 Use Descriptive Attribute Names
+### Use Descriptive Attribute Names
 
 **Bad:**
 ```typescript
@@ -491,7 +491,7 @@ span?.setAttribute("metadata.feature_flag_enabled", true);
 
 ---
 
-### 10.2 Use Standard Attributes When Available
+### Use Standard Attributes When Available
 
 **Bad:**
 ```typescript
@@ -514,7 +514,7 @@ span?.setAttribute("user.id", "user_123");
 
 ---
 
-### 10.3 Avoid PII in Metadata (Unless Masked)
+### Avoid PII in Metadata (Unless Masked)
 
 **Bad:**
 ```typescript
@@ -532,7 +532,7 @@ span?.setAttribute("metadata.user_tier", "premium");  // Non-sensitive
 
 ---
 
-### 10.4 Use Metadata for Filtering and Analysis
+### Use Metadata for Filtering and Analysis
 
 **Phoenix UI supports filtering by metadata:**
 
@@ -558,7 +558,7 @@ const df = await client.querySpans(query);
 
 ## Complete Example
 
-### 11.1 TypeScript: Enriched RAG Pipeline
+### TypeScript: Enriched RAG Pipeline
 
 ```typescript
 import { register } from "@arizeai/openinference-instrumentation-openai";
