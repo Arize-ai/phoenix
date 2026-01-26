@@ -18,6 +18,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Link, Text, Token } from "@phoenix/components";
+import { formatBuiltinEvaluatorDisplayName } from "@phoenix/components/evaluators/utils";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -101,7 +102,14 @@ const EmptyState = ({
   onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
 }) => {
-  const codeEvaluators = builtInEvaluators.builtInEvaluators;
+  const codeEvaluators = useMemo(
+    () =>
+      builtInEvaluators.builtInEvaluators.map((evaluator) => ({
+        ...evaluator,
+        name: formatBuiltinEvaluatorDisplayName(evaluator.name),
+      })),
+    [builtInEvaluators.builtInEvaluators]
+  );
   const llmEvaluatorTemplates =
     builtInEvaluators.classificationEvaluatorConfigs;
 
