@@ -10,7 +10,7 @@ metadata:
 
 # Phoenix Tracing
 
-Comprehensive guide for instrumenting LLM applications with OpenInference tracing in Phoenix. Contains 37 rule files covering setup, instrumentation, span types, and production deployment.
+Comprehensive guide for instrumenting LLM applications with OpenInference tracing in Phoenix. Contains 36 rule files covering setup, instrumentation, span types, and production deployment.
 
 ## When to Apply
 
@@ -82,7 +82,6 @@ Reference these guidelines when:
 
 - `annotations-overview` - Feedback concepts
 - `annotations-python` / `annotations-typescript` - Add feedback to spans
-- `annotations-rest-api` - REST API for annotations
 
 ### Reference Files
 
