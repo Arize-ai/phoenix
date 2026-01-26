@@ -26,7 +26,7 @@ This guide teaches you how to add custom metadata to traces for richer observabi
 
 ## Universal Attributes (Work on Any Span)
 
-### 2.1 `using_attributes` Context Manager
+### `using_attributes` Context Manager
 
 ```python
 from openinference.instrumentation import using_attributes
@@ -53,7 +53,7 @@ with using_attributes(
 
 ---
 
-### 2.2 Example: User Tracking
+### Example: User Tracking
 
 ```python
 from openinference.instrumentation import using_attributes
@@ -75,7 +75,7 @@ handle_user_request("user_123", "What is Phoenix?")
 
 **Recommended on all spans** to understand what data flowed through each operation.
 
-### 3.1 Automatic Capture (Decorators)
+### Automatic Capture (Decorators)
 
 ```python
 @tracer.chain
@@ -88,7 +88,7 @@ def process(query: str) -> str:
 
 ---
 
-### 3.2 Manual Capture (Context Managers)
+### Manual Capture (Context Managers)
 
 ```python
 with tracer.start_as_current_span("operation", openinference_span_kind="chain") as span:
@@ -101,7 +101,7 @@ with tracer.start_as_current_span("operation", openinference_span_kind="chain") 
 
 ---
 
-### 3.3 Complex Input/Output (JSON)
+### Complex Input/Output (JSON)
 
 ```python
 import json
@@ -122,7 +122,7 @@ with tracer.start_as_current_span("operation") as span:
 
 **Use case:** Track which prompt template was used and with what variables.
 
-### 4.1 Prompt Template Attributes
+### Prompt Template Attributes
 
 ```python
 import json
@@ -154,7 +154,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 
 **Use `metadata.*` for arbitrary key-value pairs.**
 
-### 5.1 Custom Metadata
+### Custom Metadata
 
 ```python
 from openinference.instrumentation import using_attributes
@@ -181,7 +181,7 @@ with using_attributes(
 
 ---
 
-### 5.2 Filtering by Metadata in Phoenix UI
+### Filtering by Metadata in Phoenix UI
 
 **Query DSL:**
 
@@ -214,7 +214,7 @@ df = client.query_spans(query)
 
 ## Span-Specific Attributes
 
-### 6.1 LLM Spans
+### LLM Spans
 
 ```python
 with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as span:
@@ -234,7 +234,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 
 ---
 
-### 6.2 Retriever Spans
+### Retriever Spans
 
 ```python
 import json
@@ -261,7 +261,7 @@ with tracer.start_as_current_span("vector_search", openinference_span_kind="retr
 
 ---
 
-### 6.3 Tool Spans
+### Tool Spans
 
 ```python
 with tracer.start_as_current_span("tool_call", openinference_span_kind="tool") as span:
@@ -280,7 +280,7 @@ with tracer.start_as_current_span("tool_call", openinference_span_kind="tool") a
 
 ## Common Metadata Patterns
 
-### 7.1 A/B Testing
+### A/B Testing
 
 ```python
 from openinference.instrumentation import using_attributes
@@ -299,7 +299,7 @@ with using_attributes(
 
 ---
 
-### 7.2 Feature Flags
+### Feature Flags
 
 ```python
 with using_attributes(
@@ -315,7 +315,7 @@ with using_attributes(
 
 ---
 
-### 7.3 Model Versioning
+### Model Versioning
 
 ```python
 with using_attributes(
@@ -331,7 +331,7 @@ with using_attributes(
 
 ---
 
-### 7.4 Environment Context
+### Environment Context
 
 ```python
 import os
@@ -350,7 +350,7 @@ with using_attributes(
 
 ---
 
-### 7.5 Request Tracking
+### Request Tracking
 
 ```python
 import uuid
@@ -376,7 +376,7 @@ with using_attributes(
 
 **Use case:** Add metadata to a single span, not all spans in a context.
 
-### 8.1 Span Attributes
+### Span Attributes
 
 ```python
 with tracer.start_as_current_span("operation") as span:
@@ -413,7 +413,7 @@ span.set_attribute("metadata.config", json.dumps({"key": "value"}))
 
 ## Best Practices
 
-### 10.1 Use Descriptive Attribute Names
+### Use Descriptive Attribute Names
 
 **Bad:**
 
@@ -431,7 +431,7 @@ span.set_attribute("metadata.feature_flag_enabled", True)
 
 ---
 
-### 10.2 Use Standard Attributes When Available
+### Use Standard Attributes When Available
 
 **Bad:**
 
@@ -457,7 +457,7 @@ with using_attributes(user_id="user_123"):
 
 ---
 
-### 10.3 Avoid PII in Metadata (Unless Masked)
+### Avoid PII in Metadata (Unless Masked)
 
 **Bad:**
 
@@ -477,7 +477,7 @@ span.set_attribute("metadata.user_tier", "premium")  # Non-sensitive
 
 ---
 
-### 10.4 Use Metadata for Filtering and Analysis
+### Use Metadata for Filtering and Analysis
 
 **Phoenix UI supports filtering by metadata:**
 
@@ -506,7 +506,7 @@ df = client.query_spans(query)
 
 ## Complete Example
 
-### 11.1 Enriched RAG Pipeline
+### Enriched RAG Pipeline
 
 ```python
 import json
