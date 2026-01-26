@@ -2,13 +2,13 @@
 
 **CRITICAL: Configure batching, data masking, and span filtering for production deployment.**
 
-## 1. Batch Processing
+## Batch Processing
 
 **Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
 
 ---
 
-## 2. Data Masking (PII Protection)
+## Data Masking (PII Protection)
 
 **Environment variables:**
 
@@ -41,7 +41,7 @@ const instrumentation = new OpenAIInstrumentation({ traceConfig });
 
 ---
 
-## 3. Span Filtering
+## Span Filtering
 
 **Suppress specific code blocks:**
 
@@ -63,7 +63,7 @@ export OTEL_TRACES_SAMPLER_ARG="0.1"  # Sample 10%
 
 ---
 
-## 4. Error Handling
+## Error Handling
 
 ```typescript
 import { SpanStatusCode } from "@opentelemetry/api";
@@ -80,7 +80,7 @@ try {
 
 ---
 
-## 5. Production Checklist
+## Production Checklist
 
 - [ ] Batch processing enabled
 - [ ] Data masking configured (`HIDE_INPUTS`/`HIDE_OUTPUTS` if PII)

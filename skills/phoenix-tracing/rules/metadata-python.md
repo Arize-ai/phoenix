@@ -6,27 +6,25 @@ This guide teaches you how to add custom metadata to traces for richer observabi
 
 ---
 
-## 1. Overview
+## Overview
 
 **What is metadata?**
+
 - Custom attributes added to spans
 - Key-value pairs (e.g., `user_id="user_123"`, `environment="production"`)
 - Enriches traces with application-specific context
 
 **When to add metadata:**
+
 - User identification (`user.id`, `user.email`)
 - Environment context (`environment`, `version`, `region`)
 - Business logic (`experiment_id`, `model_version`, `feature_flag`)
 - Debugging (`debug_mode`, `request_id`)
 - A/B testing (`variant`, `experiment_name`)
 
-**Metadata namespace:**
-- Standard attributes: `user.id`, `session.id`, `input.value`, `output.value`
-- Custom attributes: `metadata.*` (e.g., `metadata.experiment_id`)
-
 ---
 
-## 2. Universal Attributes (Work on Any Span)
+## Universal Attributes (Work on Any Span)
 
 ### 2.1 `using_attributes` Context Manager
 
@@ -42,11 +40,13 @@ with using_attributes(
 ```
 
 **What gets captured:**
+
 - `user.id` = "user_123"
 - `metadata.environment` = "production"
 - `metadata.version` = "v2.1"
 
 **Applies to:**
+
 - All spans created within the context
 - Auto-instrumented spans (LLM, retriever, tool)
 - Manually instrumented spans
@@ -71,7 +71,7 @@ handle_user_request("user_123", "What is Phoenix?")
 
 ---
 
-## 3. Input and Output Values
+## Input and Output Values
 
 **Recommended on all spans** to understand what data flowed through each operation.
 
@@ -118,7 +118,7 @@ with tracer.start_as_current_span("operation") as span:
 
 ---
 
-## 4. Prompt Templates
+## Prompt Templates
 
 **Use case:** Track which prompt template was used and with what variables.
 
@@ -140,6 +140,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 ```
 
 **What gets captured:**
+
 - `llm.prompt_template.template`: Template string
 - `llm.prompt_template.variables`: Template variables (JSON)
 
@@ -149,7 +150,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 
 ---
 
-## 5. Custom Metadata Namespace
+## Custom Metadata Namespace
 
 **Use `metadata.*` for arbitrary key-value pairs.**
 
@@ -172,6 +173,7 @@ with using_attributes(
 ```
 
 **What gets captured:**
+
 - `metadata.experiment_id` = "exp_123"
 - `metadata.model_version` = "gpt-4-1106-preview"
 - `metadata.feature_flag_enabled` = True
@@ -210,7 +212,7 @@ df = client.query_spans(query)
 
 ---
 
-## 6. Span-Specific Attributes
+## Span-Specific Attributes
 
 ### 6.1 LLM Spans
 
@@ -276,7 +278,7 @@ with tracer.start_as_current_span("tool_call", openinference_span_kind="tool") a
 
 ---
 
-## 7. Common Metadata Patterns
+## Common Metadata Patterns
 
 ### 7.1 A/B Testing
 
@@ -370,7 +372,7 @@ with using_attributes(
 
 ---
 
-## 8. Adding Metadata to Specific Spans
+## Adding Metadata to Specific Spans
 
 **Use case:** Add metadata to a single span, not all spans in a context.
 
@@ -387,9 +389,10 @@ with tracer.start_as_current_span("operation") as span:
 
 ---
 
-## 9. Attribute Data Types
+## Attribute Data Types
 
 **Supported types:**
+
 - `string`: `"hello"`
 - `number`: `123`, `45.6`
 - `boolean`: `true`, `false`
@@ -397,6 +400,7 @@ with tracer.start_as_current_span("operation") as span:
 - `null`: Not supported (use empty string or omit)
 
 **Complex types (use JSON):**
+
 - `dict`: Serialize with `json.dumps()`
 
 **Example:**
@@ -407,17 +411,19 @@ span.set_attribute("metadata.config", json.dumps({"key": "value"}))
 
 ---
 
-## 10. Best Practices
+## Best Practices
 
 ### 10.1 Use Descriptive Attribute Names
 
 **Bad:**
+
 ```python
 span.set_attribute("metadata.val", "123")
 span.set_attribute("metadata.x", True)
 ```
 
 **Good:**
+
 ```python
 span.set_attribute("metadata.experiment_id", "exp_123")
 span.set_attribute("metadata.feature_flag_enabled", True)
@@ -428,17 +434,20 @@ span.set_attribute("metadata.feature_flag_enabled", True)
 ### 10.2 Use Standard Attributes When Available
 
 **Bad:**
+
 ```python
 span.set_attribute("metadata.user", "user_123")
 ```
 
 **Good:**
+
 ```python
 with using_attributes(user_id="user_123"):
     # Uses standard `user.id` attribute
 ```
 
 **Standard attributes:**
+
 - `user.id`, `user.email`
 - `session.id`
 - `input.value`, `output.value`
@@ -451,12 +460,14 @@ with using_attributes(user_id="user_123"):
 ### 10.3 Avoid PII in Metadata (Unless Masked)
 
 **Bad:**
+
 ```python
 span.set_attribute("metadata.email", "alice@example.com")  # PII
 span.set_attribute("metadata.ssn", "123-45-6789")  # Sensitive
 ```
 
 **Good:**
+
 ```python
 span.set_attribute("user.id", "user_123")  # No PII
 span.set_attribute("metadata.user_tier", "premium")  # Non-sensitive
@@ -493,7 +504,7 @@ df = client.query_spans(query)
 
 ---
 
-## 11. Complete Example
+## Complete Example
 
 ### 11.1 Enriched RAG Pipeline
 
@@ -542,6 +553,7 @@ result = rag_pipeline(
 ```
 
 **Phoenix UI:** All spans have:
+
 - `user.id` = "user_123"
 - `metadata.experiment_id` = "exp_rag_v2"
 - `metadata.model_version` = "gpt-4-1106-preview"
@@ -549,18 +561,3 @@ result = rag_pipeline(
 - LLM span has prompt template and variables
 
 ---
-
-## 12. Next Steps
-
-**Organize traces:**
-- Projects and sessions
-
-**Export data:**
-- Query by metadata
-
-**Production deployment:**
-- Data masking for sensitive metadata
-
-**Attribute reference:**
-- `fundamentals-universal-attributes.md` - Standard attributes
-- attribute files - Attribute schemas by category

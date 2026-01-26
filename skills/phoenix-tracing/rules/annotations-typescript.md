@@ -9,24 +9,6 @@ const client = createClient();  // Default: http://localhost:6006
 // const client = createClient({ baseUrl: "http://phoenix.example.com:6006" });
 ```
 
-## Function Reference
-
-| Function | Purpose | Return Type |
-|----------|---------|-------------|
-| `addSpanAnnotation({ client?, spanAnnotation, sync? })` | Single span annotation | `Promise<{ id: string } \| null>` |
-| `logSpanAnnotations({ client?, spanAnnotations, sync? })` | Batch span annotations | `Promise<{ id: string }[] \| null>` |
-| `addDocumentAnnotation({ client?, documentAnnotation, sync? })` | Single document annotation | `Promise<{ id: string } \| null>` |
-| `logDocumentAnnotations({ client?, documentAnnotations, sync? })` | Batch document annotations | `Promise<{ id: string }[] \| null>` |
-| `addTraceAnnotation({ client?, traceAnnotation, sync? })` | Single trace annotation | `Promise<{ id: string } \| null>` |
-| `logTraceAnnotations({ client?, traceAnnotations, sync? })` | Batch trace annotations | `Promise<{ id: string }[] \| null>` |
-| `addSessionAnnotation({ client?, sessionAnnotation, sync? })` | Single session annotation | `Promise<{ id: string } \| null>` |
-| `logSessionAnnotations({ client?, sessionAnnotations, sync? })` | Batch session annotations | `Promise<{ id: string }[] \| null>` |
-
-**Common Parameters:**
-- `annotatorKind`: "HUMAN" (default), "LLM", or "CODE"
-- `identifier`: Optional, enables upsert by (name, entity_id, identifier). Not supported for document annotations.
-- `sync`: boolean (default false) - If true, waits for DB insert and returns IDs
-
 ## Type Definitions
 
 ```typescript
@@ -309,11 +291,3 @@ try {
   console.error("Failed:", error);
 }
 ```
-
-## Related Documentation
-
-- Concepts and types
-- Python patterns
-- Direct HTTP API usage
-- Automated evaluation
-- Querying annotations

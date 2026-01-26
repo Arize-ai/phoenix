@@ -65,9 +65,3 @@ These attributes can be used on **any span kind** to provide additional context,
   "tag.tags.1": "high_priority"
 }
 ```
-
-## Related Documentation
-
-- The only required attribute for spans
-- How nested data like metadata is stored
-- [Attribute Conventions](rules/) - Detailed documentation for namespace-specific attributes

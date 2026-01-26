@@ -6,7 +6,7 @@ This guide teaches you how to manually instrument your LLM applications using Op
 
 ---
 
-## 1. Overview
+## Overview
 
 **When to use manual instrumentation:**
 - Custom LLM workflows not covered by auto-instrumentation
@@ -21,7 +21,7 @@ This guide teaches you how to manually instrument your LLM applications using Op
 
 ---
 
-## 2. Setup
+## Setup
 
 ```bash
 pip install arize-phoenix-otel
@@ -36,7 +36,7 @@ tracer_provider = register(project_name="my-app")
 
 ---
 
-## 3. Two Approaches to Manual Instrumentation
+## Two Approaches to Manual Instrumentation
 
 ### Approach 1: Decorators (Recommended)
 
@@ -60,7 +60,7 @@ tracer_provider = register(project_name="my-app")
 
 ---
 
-## 4. Span Kinds Reference
+## Span Kinds Reference
 
 OpenInference defines 9 span kinds, each representing a different operation type:
 
@@ -80,7 +80,7 @@ OpenInference defines 9 span kinds, each representing a different operation type
 
 ---
 
-## 5. CHAIN Spans (Orchestration)
+## CHAIN Spans (Orchestration)
 
 **Use for:** Workflows, pipelines, orchestration logic
 
@@ -138,7 +138,7 @@ with tracer.start_as_current_span(
 
 ---
 
-## 6. RETRIEVER Spans (Document Retrieval)
+## RETRIEVER Spans (Document Retrieval)
 
 **Use for:** Vector search, database queries, document retrieval
 
@@ -199,7 +199,7 @@ with tracer.start_as_current_span(
 
 ---
 
-## 7. TOOL Spans (Function Calls)
+## TOOL Spans (Function Calls)
 
 **Use for:** External API calls, calculator, database writes, any function execution
 
@@ -245,7 +245,7 @@ weather = get_weather("San Francisco", units="celsius")
 
 ---
 
-## 8. AGENT Spans (Multi-Step Reasoning)
+## AGENT Spans (Multi-Step Reasoning)
 
 **Use for:** Agents that use tools, multi-step reasoning, planning
 
@@ -276,7 +276,7 @@ result = react_agent("What's the weather in Paris?")
 
 ---
 
-## 9. LLM Spans (Manual)
+## LLM Spans (Manual)
 
 **Note:** Auto-instrumentation is recommended for LLM calls. Manual instrumentation is only needed for custom LLM clients or advanced use cases.
 
@@ -324,7 +324,7 @@ with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as 
 
 ---
 
-## 10. EMBEDDING Spans
+## EMBEDDING Spans
 
 **Use for:** Generating embeddings
 
@@ -351,7 +351,7 @@ vectors = generate_embeddings(["Hello", "World"])
 
 ---
 
-## 11. RERANKER Spans
+## RERANKER Spans
 
 **Use for:** Re-ranking retrieved documents
 
@@ -378,7 +378,7 @@ ranked_docs = rerank_documents("What is Phoenix?", retrieved_docs)
 
 ---
 
-## 12. GUARDRAIL Spans
+## GUARDRAIL Spans
 
 **Use for:** Safety checks, content moderation, PII detection
 
@@ -400,7 +400,7 @@ result = check_toxicity(user_input)
 
 ---
 
-## 13. EVALUATOR Spans
+## EVALUATOR Spans
 
 **Use for:** LLM evaluation, correctness checks, hallucination detection
 
@@ -427,7 +427,7 @@ eval_result = evaluate_correctness(question, answer, reference)
 
 ---
 
-## 14. Choosing the Right Span Kind
+## Choosing the Right Span Kind
 
 | If you're instrumenting... | Use span kind... | Example |
 |----------------------------|------------------|---------|
@@ -443,7 +443,7 @@ eval_result = evaluate_correctness(question, answer, reference)
 
 ---
 
-## 15. Best Practices
+## Best Practices
 
 ### 15.1 Use Descriptive Span Names
 
@@ -516,20 +516,3 @@ def rag_pipeline(query: str) -> str:
 Phoenix UI will show the nested structure.
 
 ---
-
-## 16. Next Steps
-
-**Enrich traces:**
-- Add custom attributes
-
-**Organize traces:**
-- Projects and sessions
-
-**Production deployment:**
-- Batch processing, masking, filtering
-
-**Export data:**
-- Query and export spans
-
-**Attribute reference:**
-- span kind files - Full attribute schemas per span kind

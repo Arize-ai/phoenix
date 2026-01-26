@@ -62,9 +62,3 @@ There are exactly **9 valid span kinds** in OpenInference:
 | `AGENT` | Autonomous reasoning | ReAct agents, planning loops |
 | `GUARDRAIL` | Safety/policy checks | Content moderation, PII detection |
 | `EVALUATOR` | Quality assessment | Answer relevance, faithfulness scoring |
-
-## Related Documentation
-
-- Fundamental concepts of traces and spans
-- Attributes that work on any span kind
-- [Span Kinds Reference](rules/) - Detailed documentation for each span kind

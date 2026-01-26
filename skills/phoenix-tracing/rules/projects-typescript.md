@@ -52,13 +52,3 @@ register({ projectName: "chatbot-claude" });
 register({ projectName: "my-app-v1" });
 register({ projectName: "my-app-v2" });
 ```
-
-## Phoenix UI
-
-**Project List:** Home page shows all projects with trace counts
-**Project Detail:** Click project → View all traces, filter, export
-
-## Next Steps
-
-- Track conversations within a project
-- Enrich traces

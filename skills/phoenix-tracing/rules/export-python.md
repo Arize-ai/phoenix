@@ -6,7 +6,7 @@ This guide teaches you how to extract spans for analysis, evaluation, and debugg
 
 ---
 
-## 1. Overview
+## Overview
 
 **Why export trace data?**
 - Run LLM evaluations on production traces
@@ -26,7 +26,7 @@ This guide teaches you how to extract spans for analysis, evaluation, and debugg
 
 ---
 
-## 2. Connect to Phoenix
+## Connect to Phoenix
 
 **Python setup:**
 
@@ -57,7 +57,7 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 
 ---
 
-## 3. Get All Spans as DataFrame
+## Get All Spans as DataFrame
 
 **Simplest method: Download all spans from a project.**
 
@@ -124,7 +124,7 @@ df = client.get_spans_dataframe(start_time=start_time, end_time=end_time)
 
 ---
 
-## 4. Span Queries (Advanced Filtering)
+## Span Queries (Advanced Filtering)
 
 **Use the Query DSL for fine-grained filtering and attribute selection.**
 
@@ -250,7 +250,7 @@ df = client.query_spans(query)
 
 ---
 
-## 5. Querying Retrieved Documents
+## Querying Retrieved Documents
 
 **Extract documents from retriever spans for RAG evaluation.**
 
@@ -318,7 +318,7 @@ query = SpanQuery().concat(
 
 ---
 
-## 6. Pre-Defined Queries (Helper Functions)
+## Pre-Defined Queries (Helper Functions)
 
 **Phoenix provides helpers for common query patterns.**
 
@@ -373,7 +373,7 @@ qa_df = get_qa_with_reference(client)
 
 ---
 
-## 7. Advanced Querying
+## Advanced Querying
 
 ### 7.1 Joining Parent and Child Spans
 
@@ -424,7 +424,7 @@ metadata['experiment_id'] == 'exp_123'
 
 ---
 
-## 8. Project and Time Range
+## Project and Time Range
 
 ### 8.1 Query Specific Project
 
@@ -453,7 +453,7 @@ df = client.query_spans(query, start_time=start_time, end_time=end_time)
 
 ---
 
-## 9. Save All Traces (Backup)
+## Save All Traces (Backup)
 
 **Export all traces to a Parquet file for backup or offline analysis.**
 
@@ -509,7 +509,7 @@ df = pd.read_parquet("/my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55a
 
 ---
 
-## 10. Example Workflows
+## Example Workflows
 
 ### 10.1 Export LLM Spans for Evaluation
 
@@ -616,7 +616,7 @@ print(slow_calls)
 
 ---
 
-## 11. Exporting Spans with Annotations
+## Exporting Spans with Annotations
 
 **Include evaluation results (annotations) in exported data.**
 
@@ -643,7 +643,7 @@ incorrect_spans = df[df["eval_correctness_label"] == "incorrect"]
 
 ---
 
-## 12. Best Practices
+## Best Practices
 
 ### 12.1 Use Filters to Reduce Data
 
@@ -687,7 +687,7 @@ df = client.query_spans(query, start_time=start_time)
 
 ---
 
-## 13. Troubleshooting
+## Troubleshooting
 
 ### 13.1 Empty DataFrame
 
@@ -746,23 +746,3 @@ client = Client()
 ```
 
 ---
-
-## 14. Next Steps
-
-**Run evaluations:**
-- Use exported data with [Phoenix Evals](https://docs.arize.com/phoenix/evaluation)
-
-**Analyze in notebooks:**
-- Load exported CSVs/Parquets into pandas, matplotlib, seaborn
-
-**Build dashboards:**
-- Export to BI tools (Tableau, Looker, etc.)
-
-**Automate exports:**
-- Schedule queries with cron/Airflow
-- Export to data warehouse (Snowflake, BigQuery)
-
-**Attribute reference:**
-- `fundamentals-universal-attributes.md` - Standard attributes
-- span kind files - Span-kind-specific attributes
-- `analytics-query-dsl.md` - Query DSL reference

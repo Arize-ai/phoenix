@@ -9,25 +9,6 @@ client = Client()  # Default: http://localhost:6006
 # client = Client(endpoint="http://phoenix.example.com:6006")
 ```
 
-## Method Reference
-
-| Method | Purpose | Key Parameters |
-|--------|---------|----------------|
-| `client.spans.add_span_annotation()` | Single span annotation | span_id, annotation_name, annotator_kind, label, score, explanation, metadata, identifier, sync |
-| `client.spans.log_span_annotations()` | Batch span annotations | span_annotations: Iterable[SpanAnnotationData], sync |
-| `client.spans.log_span_annotations_dataframe()` | Span annotations from DataFrame | dataframe, annotator_kind, annotation_name, sync |
-| `client.spans.add_document_annotation()` | Single document annotation | span_id, document_position, annotation_name, annotator_kind, label, score, explanation, metadata, sync |
-| `client.spans.log_document_annotations()` | Batch document annotations | document_annotations: list[SpanDocumentAnnotationData], sync |
-| `client.traces.add_trace_annotation()` | Single trace annotation | trace_id, annotation_name, annotator_kind, label, score, explanation, metadata, identifier, sync |
-| `client.traces.log_trace_annotations()` | Batch trace annotations | trace_annotations: Iterable[TraceAnnotationData], sync |
-| `client.sessions.add_session_annotation()` | Single session annotation | session_id, annotation_name, annotator_kind, label, score, explanation, metadata, identifier, sync |
-| `client.sessions.log_session_annotations()` | Batch session annotations | session_annotations: Iterable[SessionAnnotationData], sync |
-
-**Common Parameters:**
-- `annotator_kind`: "HUMAN" (default), "LLM", or "CODE"
-- `identifier`: Optional, enables upsert by (name, entity_id, identifier). Not supported for document annotations.
-- `sync`: bool (default False) - If True, waits for DB insert and returns IDs
-
 ## Span Annotations
 
 ```python
@@ -261,11 +242,3 @@ async def annotate():
             sync=True
         )
 ```
-
-## Related Documentation
-
-- Concepts and types
-- TypeScript/JavaScript patterns
-- Direct HTTP API usage
-- Automated evaluation
-- Querying annotations
