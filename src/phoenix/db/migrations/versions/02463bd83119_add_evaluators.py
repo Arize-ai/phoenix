@@ -242,9 +242,34 @@ def upgrade() -> None:
             "name",
         ),
     )
+    # Builtin evaluators table for visibility (no FK constraint from dataset_evaluators)
+    # This table reflects the in-memory builtin evaluator registry in the database.
+    # Data is populated/synced on application startup, not in this migration.
+    op.create_table(
+        "builtin_evaluators",
+        sa.Column("id", _Integer, nullable=False),  # Negative CRC32 IDs
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("description", sa.String(), nullable=True),
+        sa.Column("input_schema", JSON_, nullable=False),
+        sa.Column("output_config_type", sa.String(), nullable=False),
+        sa.Column("output_config", JSON_, nullable=False),
+        sa.Column(
+            "synced_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name"),
+        sa.CheckConstraint(
+            "output_config_type IN ('CATEGORICAL', 'CONTINUOUS')",
+            name="valid_builtin_evaluator_output_config_type",
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("builtin_evaluators")
     op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
