@@ -6,15 +6,6 @@
 
 **Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
 
-Configure via OpenTelemetry environment variables if needed:
-```bash
-export OTEL_BSP_SCHEDULE_DELAY=5000           # Batch interval
-export OTEL_BSP_MAX_QUEUE_SIZE=2048           # Queue size
-export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Batch size
-```
-
-See [OpenTelemetry docs](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for details.
-
 ---
 
 ## 2. Data Masking (PII Protection)
