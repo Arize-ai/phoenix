@@ -15,15 +15,22 @@ Install the CLI globally:
 npm install -g @arizeai/phoenix-cli
 ```
 
-### Phoenix Skill
+### Phoenix Skills
 
-Add the Phoenix debugging skill to your AI coding agent using [add-skill](https://github.com/vercel-labs/add-skill):
+Add Phoenix skills to your AI coding agent using [add-skill](https://github.com/vercel-labs/add-skill):
 
 ```bash
 npx add-skill Arize-ai/phoenix --skill phoenix-cli
 ```
 
 This installs the skill to your project's skills directory (`.cursor/skills/`, `.claude/skills/`, or `.github/skills/`).
+
+#### Available Skills
+
+| Skill | Description | Recommended |
+|-------|-------------|-------------|
+| `phoenix-cli` | Debug and analyze LLM applications using Phoenix CLI tools. Teaches agents to fetch traces, analyze performance, and review experiments. | Yes |
+| `phoenix-tracing` | OpenInference semantic conventions and instrumentation. Teaches agents proper span types, attributes, and production deployment patterns. | Optional |
 
 #### add-skill Options
 
@@ -38,8 +45,11 @@ This installs the skill to your project's skills directory (`.cursor/skills/`, `
 **Examples:**
 
 ```bash
-# Install globally for all projects
+# Install the CLI skill globally for all projects
 npx add-skill Arize-ai/phoenix --skill phoenix-cli -g
+
+# Install both skills for comprehensive Phoenix support
+npx add-skill Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 
 # Install to specific agents
 npx add-skill Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
@@ -60,20 +70,35 @@ export PHOENIX_PROJECT=my-project            # Project name
 export PHOENIX_API_KEY=your-api-key          # API key (if auth enabled)
 ```
 
-## Using the Skill
+## Using the Skills
 
-The skill teaches your AI assistant how to:
+### phoenix-cli
+
+The CLI skill teaches your AI assistant how to:
 
 - Debug failed LLM applications using trace data
 - Analyze performance issues and token usage
 - Review experiment results and datasets
 
-### Example
-
-After installing, ask your AI assistant:
+**Example prompt:**
 
 ```
 Debug my agent - it's failing on tool calls. Fetch recent traces and identify the issue.
+```
+
+### phoenix-tracing (Optional)
+
+The tracing skill teaches your AI assistant how to:
+
+- Instrument LLM applications with OpenInference tracing
+- Create custom spans with proper attributes (LLM, RETRIEVER, TOOL, AGENT, etc.)
+- Follow semantic conventions for consistent observability
+- Configure production deployment patterns (batching, PII masking)
+
+**Example prompt:**
+
+```
+Add Phoenix tracing to my RAG pipeline. Create spans for the retriever and LLM calls.
 ```
 
 ## Related
