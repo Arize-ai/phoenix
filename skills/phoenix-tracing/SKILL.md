@@ -113,7 +113,7 @@ Reference these guidelines when:
 
 1. `setup-{lang}` → Install and configure
 2. `instrumentation-auto-{lang}` → Enable auto-instrumentation
-3. Check Phoenix UI for traces
+3. Check Phoenix for traces
 
 **Custom Spans:**
 
