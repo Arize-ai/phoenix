@@ -133,7 +133,13 @@ Check the output of `tox list` to find commands for type-checks, linters, format
 
 ## Installing Pre-Commit Hooks
 
-We recommend to install project pre-commit hooks with
+First, install `pre-commit` globally. It is recommended to accomplish this using `uv`.
+
+```bash
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Then install the project pre-commit hooks with
 
 ```bash
 pre-commit install
