@@ -3,7 +3,7 @@ name: phoenix-tracing
 description: OpenInference semantic conventions and instrumentation for Phoenix AI observability. Use when implementing LLM tracing, creating custom spans, or deploying to production.
 license: Apache-2.0
 metadata:
-  author: Phoenix Team
+  author: oss@arize.com
   version: "1.0.0"
   languages: Python, TypeScript
 ---
