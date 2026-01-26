@@ -857,7 +857,7 @@ class EvaluatorMutationMixin:
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
-        base_config = builtin_evaluator.output_config()
+        base_config = builtin_evaluator().output_config
         output_config_override = _validate_and_convert_builtin_override(
             override_input=input.output_config_override,
             base_config=base_config,
@@ -962,7 +962,7 @@ class EvaluatorMutationMixin:
                 dataset_evaluator.user_id = user_id
 
                 if input.output_config_override is not UNSET:
-                    base_config = builtin_evaluator.output_config()
+                    base_config = builtin_evaluator().output_config
                     output_config_override = _validate_and_convert_builtin_override(
                         override_input=input.output_config_override,
                         base_config=base_config,

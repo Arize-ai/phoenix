@@ -25,6 +25,10 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.annotation_configs import (
+    merge_categorical_annotation_config,
+    merge_continuous_annotation_config,
+)
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
@@ -515,7 +519,7 @@ class BuiltInEvaluator(Evaluator, Node):
         evaluator_class = get_builtin_evaluator_by_id(self.id)
         if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        base_config = evaluator_class.output_config()
+        base_config = evaluator_class().output_config
         return _to_gql_builtin_output_config(
             base_config, evaluator_class.name, id_prefix="Evaluator", evaluator_id=self.id
         )
@@ -697,10 +701,6 @@ class DatasetEvaluator(Node):
         Otherwise, returns the base config from the evaluator.
         Works for both builtin evaluators and LLM evaluators.
         """
-        from phoenix.server.api.evaluators import (
-            merge_categorical_output_config,
-            merge_continuous_output_config,
-        )
 
         record = await self._get_record(info)
 
@@ -708,13 +708,13 @@ class DatasetEvaluator(Node):
             evaluator_class = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
             if evaluator_class is None:
                 return None
-            base_config = evaluator_class.output_config()
+            base_config = evaluator_class().output_config
             override = record.output_config_override
             if isinstance(base_config, CategoricalAnnotationConfigModel):
                 categorical_override = (
                     override if isinstance(override, CategoricalAnnotationConfigOverride) else None
                 )
-                effective_categorical_config = merge_categorical_output_config(
+                effective_categorical_config = merge_categorical_annotation_config(
                     base=base_config,
                     override=categorical_override,
                     name=record.name.root,
@@ -730,7 +730,7 @@ class DatasetEvaluator(Node):
                 continuous_override = (
                     override if isinstance(override, ContinuousAnnotationConfigOverride) else None
                 )
-                effective_continuous_config = merge_continuous_output_config(
+                effective_continuous_config = merge_continuous_annotation_config(
                     base=base_config,
                     override=continuous_override,
                     name=record.name.root,
@@ -756,7 +756,7 @@ class DatasetEvaluator(Node):
         llm_categorical_override = (
             llm_override if isinstance(llm_override, CategoricalAnnotationConfigOverride) else None
         )
-        effective_llm_config = merge_categorical_output_config(
+        effective_llm_config = merge_categorical_annotation_config(
             base=llm_base_config,
             override=llm_categorical_override,
             name=record.name.root,
