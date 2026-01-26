@@ -1,12 +1,14 @@
 import json
+import re
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import pytest
 from openai import AsyncOpenAI
 from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -22,13 +24,20 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_MESSAGES,
     TEMPLATE_PATH_MAPPING,
     TEMPLATE_VARIABLES,
+    BuiltInEvaluator,
     LLMEvaluator,
+    _generate_builtin_evaluator_id,
     apply_input_mapping,
     cast_template_variable_types,
+    get_evaluators,
     json_diff_count,
     levenshtein_distance,
     validate_template_variables,
 )
+from phoenix.server.api.evaluators import (
+    LLMEvaluator as LLMEvaluatorClass,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_config,
@@ -54,7 +63,13 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
+from phoenix.tracers import Tracer
 from tests.unit.vcr import CustomVCR
 
 
@@ -1313,12 +1328,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
     objects/dicts (not stringified JSON), allowing deep path access via JSONPath.
     """
 
-    def test_contains_evaluator_with_deep_path_into_output_messages(self) -> None:
+    async def test_contains_evaluator_with_deep_path_into_output_messages(self) -> None:
         """Test ContainsEvaluator with path mapping into nested message structures."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         # Context similar to subscriptions.py chat_completion context_dict
         context = {
             "input": [{"message": {"role": "user", "content": "Tell me about Paris"}}],
@@ -1330,7 +1345,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[0].message.content"},
             literal_mapping={"words": "France,capital"},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1341,12 +1356,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "found" in result["explanation"]
 
-    def test_contains_evaluator_with_dataset_context_structure(self) -> None:
+    async def test_contains_evaluator_with_dataset_context_structure(self) -> None:
         """Test ContainsEvaluator with dataset experiment context structure."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         # Context similar to subscriptions.py chat_completion_over_dataset context_dict
         context = {
             "input": {"question": "What is the capital of France?", "topic": "geography"},
@@ -1359,7 +1374,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.messages[0].content"},
             literal_mapping={"words": "Paris"},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1368,12 +1383,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["error"] is None
         assert result["score"] == 1.0
 
-    def test_exact_match_evaluator_with_nested_paths(self) -> None:
+    async def test_exact_match_evaluator_with_nested_paths(self) -> None:
         """Test ExactMatchEvaluator extracting values from nested structures."""
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "Paris"}},
@@ -1385,7 +1400,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="ExactMatch",
@@ -1396,12 +1411,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "matches" in result["explanation"]
 
-    def test_exact_match_evaluator_mismatch_with_nested_paths(self) -> None:
+    async def test_exact_match_evaluator_mismatch_with_nested_paths(self) -> None:
         """Test ExactMatchEvaluator with mismatched values from nested paths."""
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "London"}},
@@ -1413,7 +1428,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="ExactMatch",
@@ -1424,7 +1439,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "does not match" in result["explanation"]
 
-    def test_json_distance_evaluator_with_json_string_values(self) -> None:
+    async def test_json_distance_evaluator_with_json_string_values(self) -> None:
         """Test JSONDistanceEvaluator with JSON string values in context.
 
         Note: JSONDistanceEvaluator expects valid JSON strings, not Python objects.
@@ -1437,7 +1452,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
 
         evaluator = JSONDistanceEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         # Provide JSON strings directly in context
         context = {
             "expected_json": json.dumps({"items": [1, 2, 3]}),
@@ -1450,7 +1465,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="JSONDistance",
@@ -1460,12 +1475,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         # Distance is 1 because one element differs
         assert result["score"] == 1.0
 
-    def test_contains_evaluator_with_context_fallback(self) -> None:
+    async def test_contains_evaluator_with_context_fallback(self) -> None:
         """Test evaluator using context fallback when no path mapping provided."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         # Direct context values (fallback behavior)
         context = {
             "words": "hello,world",
@@ -1475,7 +1490,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={},
             literal_mapping={},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1484,12 +1499,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["error"] is None
         assert result["score"] == 1.0
 
-    def test_levenshtein_evaluator_with_message_content_paths(self) -> None:
+    async def test_levenshtein_evaluator_with_message_content_paths(self) -> None:
         """Test LevenshteinDistanceEvaluator with LLM message structures."""
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "expected": [{"message": {"content": "Hello"}}],
             "output": [{"message": {"content": "Hallo"}}],
@@ -1501,7 +1516,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="LevenshteinDistance",
@@ -1511,12 +1526,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         # Distance between "Hello" and "Hallo" is 1
         assert result["score"] == 1.0
 
-    def test_regex_evaluator_with_deep_path_extraction(self) -> None:
+    async def test_regex_evaluator_with_deep_path_extraction(self) -> None:
         """Test RegexEvaluator extracting text from nested structures."""
         from phoenix.server.api.evaluators import RegexEvaluator
 
         evaluator = RegexEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "output": {
                 "response": {
@@ -1528,7 +1543,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.response.content"},
             literal_mapping={"pattern": r"\d+"},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Regex",
@@ -1539,12 +1554,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "matched" in result["explanation"]
 
-    def test_evaluator_handles_list_values_from_context(self) -> None:
+    async def test_evaluator_handles_list_values_from_context(self) -> None:
         """Test that evaluators can handle list values extracted from context."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "output": [
                 {"message": {"content": "First response"}},
@@ -1556,7 +1571,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[*].message.content"},
             literal_mapping={"words": "keyword"},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1566,12 +1581,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         # The list gets stringified and searched
         assert result["score"] == 1.0
 
-    def test_evaluator_handles_dict_values_cast_to_string(self) -> None:
+    async def test_evaluator_handles_dict_values_cast_to_string(self) -> None:
         """Test that dict values are properly cast to strings for evaluators expecting string input."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "output": {"nested": {"value": "contains target word"}},
         }
@@ -1580,7 +1595,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.nested"},
             literal_mapping={"words": "target"},
         )
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1593,15 +1608,15 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
 class TestBuiltInEvaluatorOutputConfigUsage:
     """Tests for builtin evaluator output_config usage at execution time."""
 
-    def test_contains_evaluator_uses_name_from_output_config(self) -> None:
+    async def test_contains_evaluator_uses_name_from_output_config(self) -> None:
         """Test that ContainsEvaluator uses the name in the result."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="My Custom Contains",
@@ -1610,15 +1625,15 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["name"] == "My Custom Contains"
         assert result["error"] is None
 
-    def test_contains_evaluator_maps_true_to_label_from_output_config(self) -> None:
+    async def test_contains_evaluator_maps_true_to_label_from_output_config(self) -> None:
         """Test that ContainsEvaluator maps a true result to the correct label."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1627,15 +1642,15 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "true"
         assert result["score"] == 1.0
 
-    def test_contains_evaluator_maps_false_to_label_from_output_config(self) -> None:
+    async def test_contains_evaluator_maps_false_to_label_from_output_config(self) -> None:
         """Test that ContainsEvaluator maps a false result to the correct label."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {"words": "hello", "text": "goodbye world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Contains",
@@ -1644,7 +1659,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "false"
         assert result["score"] == 0.0
 
-    def test_exact_match_evaluator_uses_custom_output_config(self) -> None:
+    async def test_exact_match_evaluator_uses_custom_output_config(self) -> None:
         """Test that ExactMatchEvaluator uses a custom output config."""
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
@@ -1661,7 +1676,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         context = {"expected": "Paris", "actual": "Paris"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Exact Match Custom",
@@ -1671,7 +1686,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "match"
         assert result["score"] == 1.0
 
-    def test_regex_evaluator_uses_custom_output_config(self) -> None:
+    async def test_regex_evaluator_uses_custom_output_config(self) -> None:
         """Test that RegexEvaluator uses a custom output config."""
         from phoenix.server.api.evaluators import RegexEvaluator
 
@@ -1688,7 +1703,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         context = {"pattern": r"\d+", "text": "The answer is 42"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Regex Custom",
@@ -1698,7 +1713,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["label"] == "pattern_found"
         assert result["score"] == 1.0
 
-    def test_contains_evaluator_uses_custom_scores(self) -> None:
+    async def test_contains_evaluator_uses_custom_scores(self) -> None:
         """Test that ContainsEvaluator correctly uses custom scores from output config."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
@@ -1714,7 +1729,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
 
-        result_match = evaluator.evaluate(
+        result_match = await evaluator.evaluate(
             context={"words": "hello", "text": "hello world"},
             input_mapping=input_mapping,
             name="Contains Custom",
@@ -1723,7 +1738,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result_match["label"] == "Pass"
         assert result_match["score"] == 100.0
 
-        result_no_match = evaluator.evaluate(
+        result_no_match = await evaluator.evaluate(
             context={"words": "goodbye", "text": "hello world"},
             input_mapping=input_mapping,
             name="Contains Custom",
@@ -1732,15 +1747,15 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result_no_match["label"] == "Fail"
         assert result_no_match["score"] == -50.0
 
-    def test_levenshtein_evaluator_uses_name(self) -> None:
+    async def test_levenshtein_evaluator_uses_name(self) -> None:
         """Test that LevenshteinDistanceEvaluator uses the name in the result."""
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {"expected": "hello", "actual": "hallo"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="Edit Distance",
@@ -1750,20 +1765,20 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["score"] == 1.0
         assert result["label"] is None
 
-    def test_json_distance_evaluator_uses_name(self) -> None:
+    async def test_json_distance_evaluator_uses_name(self) -> None:
         """Test that JSONDistanceEvaluator uses the name in the result."""
         import json
 
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
 
         evaluator = JSONDistanceEvaluator()
-        output_config = evaluator.output_config()
+        output_config = evaluator.output_config
         context = {
             "expected": json.dumps({"a": 1}),
             "actual": json.dumps({"a": 1}),
         }
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = evaluator.evaluate(
+        result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
             name="JSON Diff",
@@ -1775,6 +1790,63 @@ class TestBuiltInEvaluatorOutputConfigUsage:
 
 
 class TestLLMEvaluator:
+    @pytest.fixture
+    async def project(self, db: DbSessionFactory) -> models.Project:
+        project = models.Project(name="test-project")
+        async with db() as session:
+            session.add(project)
+        return project
+
+    @pytest.fixture
+    async def gpt_4o_mini_generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
+        model = models.GenerativeModel(
+            name="gpt-4o-mini",
+            provider="openai",
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            name_pattern=re.compile("gpt-4o-mini"),
+            is_built_in=True,
+            token_prices=[
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=0.15 / 1_000_000,  # $0.15 per million tokens
+                    customization=None,
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=0.60 / 1_000_000,  # $0.60 per million tokens
+                    customization=None,
+                ),
+            ],
+        )
+        async with db() as session:
+            session.add(model)
+
+        return model
+
+    @pytest.fixture
+    async def generative_model_store(
+        self,
+        db: DbSessionFactory,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
+    ) -> GenerativeModelStore:
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        return store
+
+    @pytest.fixture
+    def span_cost_calculator(
+        self,
+        db: DbSessionFactory,
+        generative_model_store: GenerativeModelStore,
+    ) -> SpanCostCalculator:
+        return SpanCostCalculator(db=db, model_store=generative_model_store)
+
+    @pytest.fixture
+    def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
+        return Tracer(span_cost_calculator=span_cost_calculator)
+
     @pytest.fixture
     def openai_streaming_client(
         self,
@@ -1859,10 +1931,8 @@ class TestLLMEvaluator:
         assert tools is not None
 
         return LLMEvaluator(
-            id=1,
             name="correctness",
             description="Evaluates correctness",
-            metadata={},
             template=template,
             template_format=llm_evaluator_prompt_version.template_format,
             tools=tools,
@@ -1881,10 +1951,14 @@ class TestLLMEvaluator:
 
     async def test_evaluate_returns_correct_result(
         self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
         input_mapping: EvaluatorInputMappingInput,
         custom_vcr: CustomVCR,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         with custom_vcr.use_cassette():
             evaluation_result = await llm_evaluator.evaluate(
@@ -1892,6 +1966,7 @@ class TestLLMEvaluator:
                 input_mapping=input_mapping,
                 name="correctness",
                 output_config=output_config,
+                tracer=tracer,
             )
 
         result = dict(evaluation_result)
@@ -1908,11 +1983,14 @@ class TestLLMEvaluator:
         assert result.pop("metadata") == {}
         assert not result
 
-        db_trace = llm_evaluator.db_trace
-        assert db_trace is not None
-        assert db_trace.trace_id == trace_id
+        async with db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
-        db_spans = llm_evaluator.db_spans
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        assert db_trace.trace_id == trace_id
+        db_spans = db_trace.spans
+        span_costs = db_trace.span_costs
         assert len(db_spans) == 4
 
         evaluator_span = None
@@ -2081,8 +2159,60 @@ class TestLLMEvaluator:
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
+        # Verify span costs for LLM span
+        assert len(span_costs) == 1
+        span_cost = span_costs[0]
+
+        assert span_cost.span_rowid == llm_span.id
+        assert span_cost.trace_rowid == llm_span.trace_rowid
+        assert span_cost.model_id == gpt_4o_mini_generative_model.id
+        assert span_cost.span_start_time == llm_span.start_time
+        prompt_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if p.is_prompt
+        )
+        completion_token_prices = next(
+            p for p in gpt_4o_mini_generative_model.token_prices if not p.is_prompt
+        )
+        prompt_base_rate = prompt_token_prices.base_rate
+        completion_base_rate = completion_token_prices.base_rate
+        expected_prompt_cost = llm_span.llm_token_count_prompt * prompt_base_rate
+        expected_completion_cost = llm_span.llm_token_count_completion * completion_base_rate
+        expected_total_cost = expected_prompt_cost + expected_completion_cost
+        assert span_cost.total_cost == pytest.approx(expected_total_cost)
+        assert span_cost.total_tokens == llm_span.llm_token_count_total
+        assert span_cost.prompt_tokens == llm_span.llm_token_count_prompt
+        assert span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
+        assert span_cost.completion_tokens == llm_span.llm_token_count_completion
+        assert span_cost.completion_cost == pytest.approx(expected_completion_cost)
+
+        # Verify span cost details
+        assert len(span_cost.span_cost_details) >= 2
+        input_detail = next(
+            d for d in span_cost.span_cost_details if d.is_prompt and d.token_type == "input"
+        )
+        output_detail = next(
+            d for d in span_cost.span_cost_details if not d.is_prompt and d.token_type == "output"
+        )
+
+        assert input_detail.span_cost_id == span_cost.id
+        assert input_detail.token_type == "input"
+        assert input_detail.is_prompt is True
+        assert input_detail.tokens == llm_span.llm_token_count_prompt
+        assert input_detail.cost == pytest.approx(expected_prompt_cost)
+        assert input_detail.cost_per_token == prompt_base_rate
+
+        assert output_detail.span_cost_id == span_cost.id
+        assert output_detail.token_type == "output"
+        assert output_detail.is_prompt is False
+        assert output_detail.tokens == llm_span.llm_token_count_completion
+        assert output_detail.cost == pytest.approx(expected_completion_cost)
+        assert output_detail.cost_per_token == completion_base_rate
+
     async def test_evaluate_with_invalid_jsonpath_records_error_on_template_span(
         self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
     ) -> None:
@@ -2095,6 +2225,7 @@ class TestLLMEvaluator:
             input_mapping=input_mapping,
             name="correctness",
             output_config=output_config,
+            tracer=tracer,
         )
 
         result = dict(evaluation_result)
@@ -2114,8 +2245,14 @@ class TestLLMEvaluator:
         assert not result
 
         # Check spans
-        db_spans = llm_evaluator.db_spans
+        async with db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
         assert len(db_spans) == 2  # Only EVALUATOR and TEMPLATE (no LLM or CHAIN)
+        assert len(db_span_costs) == 0  # no span costs since there's no LLM span
 
         evaluator_span = None
         template_span = None
@@ -2184,6 +2321,9 @@ class TestLLMEvaluator:
 
     async def test_evaluate_with_invalid_api_key_returns_error(
         self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
         input_mapping: EvaluatorInputMappingInput,
@@ -2195,6 +2335,7 @@ class TestLLMEvaluator:
                 input_mapping=input_mapping,
                 name="correctness",
                 output_config=output_config,
+                tracer=tracer,
             )
 
         result = dict(evaluation_result)
@@ -2214,9 +2355,15 @@ class TestLLMEvaluator:
         assert result.pop("metadata") == {}
         assert not result
 
-        assert trace_id == llm_evaluator.db_trace.trace_id
+        async with db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
 
-        db_spans = llm_evaluator.db_spans
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
+        db_span_costs = db_trace.span_costs
+        assert trace_id == db_trace.trace_id
+
         assert len(db_spans) == 3  # EVALUATOR, TEMPLATE, LLM (no CHAIN due to error)
 
         evaluator_span = None
@@ -2235,6 +2382,8 @@ class TestLLMEvaluator:
         assert llm_span is not None
         assert evaluator_span.parent_id is None
         assert template_span.parent_id == evaluator_span.span_id
+
+        assert len(db_span_costs) == 0  # LLM span has no token counts due to API error
         assert llm_span.parent_id == evaluator_span.span_id
 
         # template span
@@ -2346,6 +2495,9 @@ class TestLLMEvaluator:
 
     async def test_evaluate_with_no_tool_calls_records_error_on_chain_span(
         self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
         input_mapping: EvaluatorInputMappingInput,
@@ -2363,6 +2515,7 @@ class TestLLMEvaluator:
             input_mapping=input_mapping,
             name="correctness",
             output_config=output_config,
+            tracer=tracer,
         )
 
         # Check evaluation result
@@ -2383,7 +2536,12 @@ class TestLLMEvaluator:
         assert not result
 
         # Check spans
-        db_spans = llm_evaluator.db_spans
+        async with db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        db_spans = db_trace.spans
         assert len(db_spans) == 4  # All spans created
 
         evaluator_span = None
@@ -2516,6 +2674,139 @@ class TestLLMEvaluator:
         assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
+
+
+class TestGetEvaluators:
+    async def test_returns_evaluators_in_input_order_with_interspersed_types(
+        self,
+        db: Any,
+        correctness_llm_evaluator: models.LLMEvaluator,
+        openai_api_key: str,
+    ) -> None:
+        contains_id = _generate_builtin_evaluator_id("Contains")
+        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        regex_id = _generate_builtin_evaluator_id("Regex")
+
+        input_node_ids = [
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
+            GlobalID(
+                type_name=LLMEvaluatorNode.__name__, node_id=str(correctness_llm_evaluator.id)
+            ),
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(exact_match_id)),
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(regex_id)),
+        ]
+
+        async with db() as session:
+            evaluators = await get_evaluators(
+                evaluator_node_ids=input_node_ids,
+                session=session,
+                decrypt=lambda x: x,
+                credentials=None,
+            )
+
+        assert len(evaluators) == 4
+        assert isinstance(evaluators[0], BuiltInEvaluator)
+        assert evaluators[0].name == "Contains"
+        assert isinstance(evaluators[1], LLMEvaluatorClass)
+        assert evaluators[1].name == correctness_llm_evaluator.name.root
+        assert isinstance(evaluators[2], BuiltInEvaluator)
+        assert evaluators[2].name == "ExactMatch"
+        assert isinstance(evaluators[3], BuiltInEvaluator)
+        assert evaluators[3].name == "Regex"
+
+    async def test_raises_value_error_for_missing_llm_evaluator(
+        self,
+        db: Any,
+    ) -> None:
+        non_existent_id = 999999
+        input_node_ids = [
+            GlobalID(type_name=LLMEvaluatorNode.__name__, node_id=str(non_existent_id)),
+        ]
+
+        async with db() as session:
+            with pytest.raises(NotFound, match="LLM evaluator.*not found"):
+                await get_evaluators(
+                    evaluator_node_ids=input_node_ids,
+                    session=session,
+                    decrypt=lambda x: x,
+                    credentials=None,
+                )
+
+    async def test_raises_value_error_for_missing_builtin_evaluator(
+        self,
+        db: Any,
+    ) -> None:
+        non_existent_id = 12345
+        input_node_ids = [
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(non_existent_id)),
+        ]
+
+        async with db() as session:
+            with pytest.raises(NotFound, match="Built-in evaluator.*not found"):
+                await get_evaluators(
+                    evaluator_node_ids=input_node_ids,
+                    session=session,
+                    decrypt=lambda x: x,
+                    credentials=None,
+                )
+
+    async def test_raises_value_error_for_unknown_evaluator_type(
+        self,
+        db: Any,
+    ) -> None:
+        input_node_ids = [
+            GlobalID(type_name="UnknownEvaluatorType", node_id="123"),
+        ]
+
+        async with db() as session:
+            with pytest.raises(BadRequest, match="Unknown evaluator type"):
+                await get_evaluators(
+                    evaluator_node_ids=input_node_ids,
+                    session=session,
+                    decrypt=lambda x: x,
+                    credentials=None,
+                )
+
+    async def test_returns_empty_list_for_empty_input(
+        self,
+        db: Any,
+    ) -> None:
+        async with db() as session:
+            evaluators = await get_evaluators(
+                evaluator_node_ids=[],
+                session=session,
+                decrypt=lambda x: x,
+                credentials=None,
+            )
+
+        assert evaluators == []
+
+    async def test_preserves_order_with_only_builtin_evaluators(
+        self,
+        db: Any,
+    ) -> None:
+        levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
+        json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
+        contains_id = _generate_builtin_evaluator_id("Contains")
+        input_node_ids = [
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(levenshtein_id)),
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(json_distance_id)),
+            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
+        ]
+
+        async with db() as session:
+            evaluators = await get_evaluators(
+                evaluator_node_ids=input_node_ids,
+                session=session,
+                decrypt=lambda x: x,
+                credentials=None,
+            )
+
+        assert len(evaluators) == 3
+        assert all(isinstance(e, BuiltInEvaluator) for e in evaluators)
+        assert evaluators[0].name == "LevenshteinDistance"
+        assert evaluators[1].name == "JSONDistance"
+        assert evaluators[2].name == "Contains"
 
 
 @pytest.fixture
