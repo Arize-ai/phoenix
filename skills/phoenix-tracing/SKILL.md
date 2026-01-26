@@ -76,7 +76,6 @@ Reference these guidelines when:
 
 ### 7. Analysis
 
-- `analytics-query-dsl` - Query and filter spans
 - `export-python` - Export traces for evaluation (Python only)
 
 ### 8. Feedback
