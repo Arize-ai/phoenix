@@ -156,9 +156,3 @@ const response = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello!" }],
 });
 ```
-
-## Next Steps
-
-- Details on auto-instrumentation
-- Manual spans
-- Production config

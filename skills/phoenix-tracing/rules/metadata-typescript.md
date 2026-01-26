@@ -6,7 +6,7 @@ This guide teaches you how to add custom metadata to traces for richer observabi
 
 ---
 
-## 1. Overview
+## Overview
 
 **What is metadata?**
 - Custom attributes added to spans
@@ -26,7 +26,7 @@ This guide teaches you how to add custom metadata to traces for richer observabi
 
 ---
 
-## 2. Universal Attributes (Work on Any Span)
+## Universal Attributes (Work on Any Span)
 
 ### 2.1 TypeScript: `setAttribute` Context
 
@@ -87,7 +87,7 @@ await handleUserRequest("user_123", "What is Phoenix?");
 
 ---
 
-## 3. Input and Output Values
+## Input and Output Values
 
 **Recommended on all spans** to understand what data flowed through each operation.
 
@@ -150,7 +150,7 @@ span?.setAttributes({
 
 ---
 
-## 4. Prompt Templates
+## Prompt Templates
 
 **Use case:** Track which prompt template was used and with what variables.
 
@@ -180,7 +180,7 @@ const response = await llm.generate(prompt);
 
 ---
 
-## 5. Custom Metadata Namespace
+## Custom Metadata Namespace
 
 **Use `metadata.*` for arbitrary key-value pairs.**
 
@@ -232,7 +232,7 @@ const df = await client.querySpans(query);
 
 ---
 
-## 6. Span-Specific Attributes
+## Span-Specific Attributes
 
 ### 6.1 LLM Spans
 
@@ -326,7 +326,7 @@ await withSpan(
 
 ---
 
-## 7. Common Metadata Patterns
+## Common Metadata Patterns
 
 ### 7.1 A/B Testing
 
@@ -425,7 +425,7 @@ const result = await handleRequest(request);
 
 ---
 
-## 8. Adding Metadata to Specific Spans
+## Adding Metadata to Specific Spans
 
 **Use case:** Add metadata to a single span, not all spans in a context.
 
@@ -453,7 +453,7 @@ await withSpan(
 
 ---
 
-## 9. Attribute Data Types
+## Attribute Data Types
 
 **Supported types:**
 - `string`: `"hello"`
@@ -473,7 +473,7 @@ span?.setAttribute("metadata.config", JSON.stringify({ key: "value" }));
 
 ---
 
-## 10. Best Practices
+## Best Practices
 
 ### 10.1 Use Descriptive Attribute Names
 
@@ -556,7 +556,7 @@ const df = await client.querySpans(query);
 
 ---
 
-## 11. Complete Example
+## Complete Example
 
 ### 11.1 TypeScript: Enriched RAG Pipeline
 
@@ -630,18 +630,3 @@ const result = await ragPipeline(
 - LLM span has prompt template and variables
 
 ---
-
-## 12. Next Steps
-
-**Organize traces:**
-- Projects and sessions
-
-**Export data:**
-- Query by metadata
-
-**Production deployment:**
-- Data masking for sensitive metadata
-
-**Attribute reference:**
-- `fundamentals-universal-attributes.md` - Standard attributes
-- attribute files - Attribute schemas by category

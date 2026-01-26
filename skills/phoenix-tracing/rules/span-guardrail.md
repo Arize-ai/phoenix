@@ -47,8 +47,3 @@ GUARDRAIL spans represent safety and policy checks (content moderation, PII dete
   "metadata.redacted_output": "My SSN is [REDACTED]"
 }
 ```
-
-## Related Sections
-
-- Guardrail configuration
-- Input/output conventions

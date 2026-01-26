@@ -51,9 +51,3 @@ Each span has:
 - `status_code` - OK, ERROR, or UNSET
 - `status_message` - Optional error message
 - `attributes` - object with all semantic convention attributes
-
-## Related Documentation
-
-- The only required attribute for spans
-- Attributes that work on any span kind
-- How nested data is stored

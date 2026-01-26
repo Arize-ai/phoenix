@@ -44,9 +44,3 @@ CHAIN spans typically use [Universal Attributes](fundamentals-universal-attribut
   "metadata.parent_chain": "main_qa_chain"
 }
 ```
-
-## Related Sections
-
-- Input/output conventions
-- Chain naming and versioning
-- Root span patterns

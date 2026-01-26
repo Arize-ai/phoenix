@@ -61,9 +61,3 @@ llm.input_messages.0.message.tool_calls.0.tool_call.function.name
 **Use single values for**: unique fields (model_name, temperature) where order doesn't matter
 
 PostgreSQL JSONB operators enable efficient querying (e.g., `attributes->>'llm.model_name'`). UI reconstructs nested structure for display.
-
-## Related Documentation
-
-- See how metadata and tags use flattening
-- Detailed message flattening examples
-- LLM-specific flattening patterns

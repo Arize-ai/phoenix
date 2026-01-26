@@ -10,11 +10,12 @@ metadata:
 
 # Phoenix Tracing
 
-Comprehensive guide for instrumenting LLM applications with OpenInference tracing in Phoenix. Contains 36 rule files covering setup, instrumentation, span types, and production deployment.
+Comprehensive guide for instrumenting LLM applications with OpenInference tracing in Phoenix. Contains rule files covering setup, instrumentation, span types, and production deployment.
 
 ## When to Apply
 
 Reference these guidelines when:
+
 - Setting up Phoenix tracing (Python or TypeScript)
 - Creating custom spans for LLM operations
 - Adding attributes following OpenInference conventions
@@ -23,16 +24,16 @@ Reference these guidelines when:
 
 ## Rule Categories
 
-| Priority | Category | Description | Prefix |
-|----------|----------|-------------|--------|
-| 1 | Setup | Installation and configuration | `setup-*` |
-| 2 | Instrumentation | Auto and manual tracing | `instrumentation-*` |
-| 3 | Span Types | 9 span kinds with attributes | `span-*` |
-| 4 | Organization | Projects and sessions | `projects-*`, `sessions-*` |
-| 5 | Enrichment | Custom metadata | `metadata-*` |
-| 6 | Production | Batch processing, masking | `production-*` |
-| 7 | Analysis | Querying and export | `analytics-*`, `export-*` |
-| 8 | Feedback | Annotations and evaluation | `annotations-*` |
+| Priority | Category        | Description                    | Prefix                     |
+| -------- | --------------- | ------------------------------ | -------------------------- |
+| 1        | Setup           | Installation and configuration | `setup-*`                  |
+| 2        | Instrumentation | Auto and manual tracing        | `instrumentation-*`        |
+| 3        | Span Types      | 9 span kinds with attributes   | `span-*`                   |
+| 4        | Organization    | Projects and sessions          | `projects-*`, `sessions-*` |
+| 5        | Enrichment      | Custom metadata                | `metadata-*`               |
+| 6        | Production      | Batch processing, masking      | `production-*`             |
+| 7        | Analysis        | Querying and export            | `analytics-*`, `export-*`  |
+| 8        | Feedback        | Annotations and evaluation     | `annotations-*`            |
 
 ## Quick Reference
 
@@ -96,25 +97,27 @@ Reference these guidelines when:
 
 ## Common Attributes
 
-| Attribute | Purpose | Example |
-|-----------|---------|---------|
+| Attribute                 | Purpose              | Example                |
+| ------------------------- | -------------------- | ---------------------- |
 | `openinference.span.kind` | Span type (required) | `"LLM"`, `"RETRIEVER"` |
-| `input.value` | Operation input | JSON or text |
-| `output.value` | Operation output | JSON or text |
-| `user.id` | User identifier | `"user_123"` |
-| `session.id` | Conversation ID | `"session_abc"` |
-| `llm.model_name` | Model identifier | `"gpt-4"` |
-| `llm.token_count.total` | Token usage | `1500` |
-| `tool.name` | Tool/function name | `"get_weather"` |
+| `input.value`             | Operation input      | JSON or text           |
+| `output.value`            | Operation output     | JSON or text           |
+| `user.id`                 | User identifier      | `"user_123"`           |
+| `session.id`              | Conversation ID      | `"session_abc"`        |
+| `llm.model_name`          | Model identifier     | `"gpt-4"`              |
+| `llm.token_count.total`   | Token usage          | `1500`                 |
+| `tool.name`               | Tool/function name   | `"get_weather"`        |
 
 ## Common Workflows
 
 **Quick Start:**
+
 1. `setup-{lang}` → Install and configure
 2. `instrumentation-auto-{lang}` → Enable auto-instrumentation
 3. Check Phoenix UI for traces
 
 **Custom Spans:**
+
 1. `setup-{lang}` → Install
 2. `instrumentation-manual-{lang}` → Add decorators/wrappers
 3. `span-{type}` → Reference attributes
@@ -132,6 +135,7 @@ rules/span-llm.md
 ```
 
 Use file prefixes to find what you need:
+
 ```bash
 ls rules/span-*           # Span type specifications
 ls rules/*-python.md      # Python guides

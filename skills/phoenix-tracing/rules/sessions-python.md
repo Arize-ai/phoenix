@@ -128,17 +128,3 @@ response = llm.invoke(
 ```
 
 Phoenix recognizes: `thread_id`, `session_id`, `conversation_id`
-
-## Next Steps
-
-**Organize by project:**
-- Group sessions by application
-
-**Enrich sessions:**
-- Add custom attributes to sessions
-
-**Export sessions:**
-- Query and export session data
-
-**Production deployment:**
-- Best practices for sessions in production

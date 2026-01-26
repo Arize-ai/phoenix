@@ -49,10 +49,3 @@ EVALUATOR spans represent quality assessment operations (answer relevance, faith
   "metadata.explanation": "Answer makes unsupported claim about Paris being the capital"
 }
 ```
-
-## Related Sections
-
-- Manual quality feedback
-- Evaluators often use LLMs
-- Evaluator configuration
-- Input/output conventions

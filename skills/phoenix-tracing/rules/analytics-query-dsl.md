@@ -41,11 +41,3 @@ SpanQuery().group_by("llm.model_name", "status_code").aggregate("count()")
 SpanQuery().order_by("llm.token_count.total", descending=True)
 SpanQuery().limit(100).offset(50)
 ```
-
-## Related Sections
-
-- How attributes are flattened for querying
-- Cost tracking attributes
-- Custom metadata fields
-- Error-related queries
-- Available span kinds for filtering
