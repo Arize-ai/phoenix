@@ -62,7 +62,6 @@ Auto-instrumentation does NOT capture:
 
 - Custom business logic
 - Internal function calls
-- Non-OpenInference attributes
 
 **Example:**
 
@@ -83,37 +82,4 @@ def my_custom_workflow(query: str) -> str:
     response = client.chat.completions.create(...)
     postprocessed = postprocess(response)
     return postprocessed
-```
-
-## Troubleshooting
-
-**No traces:**
-
-- Check instrumentor installed: `pip list | grep openinference`
-- Check `auto_instrument=True` in `register()`
-- Check `PHOENIX_COLLECTOR_ENDPOINT` matches Phoenix server
-
-**Missing attributes:**
-
-- Update instrumentor: `pip install --upgrade openinference-instrumentation-openai`
-- Check library version compatibility
-- Add manual instrumentation for custom logic
-
-**Conflicts:**
-
-- Use selective instrumentation and only enable needed instrumentors
-
-## Combining Auto + Manual
-
-```python
-tracer_provider = register(project_name="my-app", auto_instrument=True)
-tracer = tracer_provider.get_tracer(__name__)
-
-client = OpenAI()  # Auto-instrumented
-
-@tracer.chain
-def my_workflow(query: str) -> str:
-    preprocessed = preprocess(query)
-    response = client.chat.completions.create(...)  # Auto-instrumented
-    return postprocess(response)
 ```
