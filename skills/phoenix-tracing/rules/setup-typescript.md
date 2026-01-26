@@ -156,3 +156,7 @@ const response = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello!" }],
 });
 ```
+
+## API Reference
+
+- [TypeScript API Docs](https://arize-ai.github.io/phoenix/)
