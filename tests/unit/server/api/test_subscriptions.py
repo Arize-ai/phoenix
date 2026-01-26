@@ -887,8 +887,12 @@ class TestChatCompletionSubscription:
         correctness_llm_evaluator: models.LLMEvaluator,
         custom_vcr: CustomVCR,
     ) -> None:
-        evaluator_gid = str(
+        llm_evaluator_gid = str(
             GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
+        )
+        contains_id = _generate_builtin_evaluator_id("Contains")
+        builtin_evaluator_gid = str(
+            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(contains_id))
         )
         variables = {
             "input": {
@@ -905,7 +909,7 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
                 "evaluators": [
                     {
-                        "id": evaluator_gid,
+                        "id": llm_evaluator_gid,
                         "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
@@ -913,7 +917,15 @@ class TestChatCompletionSubscription:
                                 "output": "$.output",
                             },
                         },
-                    }
+                    },
+                    {
+                        "id": builtin_evaluator_gid,
+                        "name": "contains-four",
+                        "inputMapping": {
+                            "literalMapping": {"words": "4"},
+                            "pathMapping": {"text": "$.output"},
+                        },
+                    },
                 ],
             },
         }
@@ -945,13 +957,23 @@ class TestChatCompletionSubscription:
         # Verify we got a result chunk with a span
         assert result_chunk["span"]["id"]
 
-        # Verify we got exactly 1 evaluation chunk
-        assert len(evaluation_chunks) == 1
-        eval_chunk = evaluation_chunks[0]
-        eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation["name"] == "correctness"
-        assert eval_annotation["annotatorKind"] == "LLM"
-        assert eval_annotation["label"] == "correct"
+        assert len(evaluation_chunks) == 2
+        llm_chunk = next(
+            chunk
+            for chunk in evaluation_chunks
+            if chunk["experimentRunEvaluation"]["name"] == "correctness"
+        )
+        llm_annotation = llm_chunk["experimentRunEvaluation"]
+        assert llm_annotation["annotatorKind"] == "LLM"
+        assert llm_annotation["label"] == "correct"
+        builtin_chunk = next(
+            chunk
+            for chunk in evaluation_chunks
+            if chunk["experimentRunEvaluation"]["name"] == "contains-four"
+        )
+        builtin_annotation = builtin_chunk["experimentRunEvaluation"]
+        assert builtin_annotation["annotatorKind"] == "CODE"
+        assert builtin_annotation["label"] == "true"
 
     async def test_evaluator_not_emitted_when_task_errors(
         self,
@@ -1705,8 +1727,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test that providing a single split ID filters examples correctly."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
@@ -1769,8 +1789,6 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has the correct split association in DB
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit).where(
@@ -1790,8 +1808,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test that providing multiple split IDs includes examples from all specified splits."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
@@ -1844,8 +1860,6 @@ class TestChatCompletionOverDatasetSubscription:
         experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit)
@@ -1866,8 +1880,6 @@ class TestChatCompletionOverDatasetSubscription:
         db: DbSessionFactory,
     ) -> None:
         """Test backward compatibility: when no splits are specified, all examples are included."""
-        from phoenix.db import models
-
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
 
@@ -1918,8 +1930,6 @@ class TestChatCompletionOverDatasetSubscription:
         experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
 
         async with db() as session:
-            from phoenix.server.api.types.node import from_global_id
-
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
             result = await session.execute(
                 select(models.ExperimentDatasetSplit).where(
@@ -1937,15 +1947,30 @@ class TestChatCompletionOverDatasetSubscription:
         assign_correctness_llm_evaluator_to_dataset: Callable[
             [int], Awaitable[models.DatasetEvaluators]
         ],
+        assign_exact_match_builtin_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
+        llm_dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
-        evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+        llm_evaluator_gid = str(
+            GlobalID(
+                type_name=LLMEvaluator.__name__, node_id=str(llm_dataset_evaluator.evaluator_id)
+            )
         )
+        builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
+            single_example_dataset.id
+        )
+        builtin_evaluator_gid = str(
+            GlobalID(
+                type_name=BuiltInEvaluator.__name__,
+                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
+            )
+        )
+
         dataset_gid = str(
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
         )
@@ -1963,9 +1988,10 @@ class TestChatCompletionOverDatasetSubscription:
                 ],
                 "templateFormat": "F_STRING",
                 "repetitions": 1,
+                "tracingEnabled": True,
                 "evaluators": [
                     {
-                        "id": evaluator_gid,
+                        "id": llm_evaluator_gid,
                         "name": "correctness",
                         "inputMapping": {
                             "pathMapping": {
@@ -1973,7 +1999,15 @@ class TestChatCompletionOverDatasetSubscription:
                                 "output": "$.output",
                             },
                         },
-                    }
+                    },
+                    {
+                        "id": builtin_evaluator_gid,
+                        "name": "exact-match",
+                        "inputMapping": {
+                            "literalMapping": {"expected": "France"},
+                            "pathMapping": {"actual": "$.output.messages[0].content"},
+                        },
+                    },
                 ],
             }
         }
@@ -1999,69 +2033,105 @@ class TestChatCompletionOverDatasetSubscription:
                             payloads[dataset_example_id] = []
                         payloads[dataset_example_id].append(payload)
 
-        assert len(evaluation_chunks) == 1
-
-        eval_chunk = evaluation_chunks[0]
-        assert eval_chunk["__typename"] == EvaluationChunk.__name__
-        eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation is not None
-        assert eval_annotation["name"] == "correctness"
-        assert eval_annotation["annotatorKind"] == "LLM"
+        assert len(evaluation_chunks) == 2
+        llm_chunk = next(
+            chunk
+            for chunk in evaluation_chunks
+            if chunk["experimentRunEvaluation"]["name"] == "correctness"
+        )
+        assert llm_chunk["__typename"] == EvaluationChunk.__name__
+        llm_annotation = llm_chunk["experimentRunEvaluation"]
+        assert llm_annotation is not None
+        assert llm_annotation["annotatorKind"] == "LLM"
+        builtin_chunk = next(
+            chunk
+            for chunk in evaluation_chunks
+            if chunk["experimentRunEvaluation"]["name"] == "exact-match"
+        )
+        assert builtin_chunk["__typename"] == EvaluationChunk.__name__
+        builtin_annotation = builtin_chunk["experimentRunEvaluation"]
+        assert builtin_annotation is not None
+        assert builtin_annotation["annotatorKind"] == "CODE"
 
         async with db() as session:
             result = await session.execute(select(models.ExperimentRunAnnotation))
             annotations = result.scalars().all()
-            assert len(annotations) == 1
+            assert len(annotations) == 2
 
-            annotation = annotations[0]
-            assert annotation.name == "correctness"
-            assert annotation.annotator_kind == "LLM"
-            assert annotation.experiment_run_id is not None
+            llm_annotation_orm = next(
+                annotation for annotation in annotations if annotation.name == "correctness"
+            )
+            assert llm_annotation_orm.annotator_kind == "LLM"
+            assert llm_annotation_orm.experiment_run_id is not None
 
-            evaluator_traces_result = await session.scalars(
+            builtin_annotation_orm = next(
+                annotation for annotation in annotations if annotation.name == "exact-match"
+            )
+            assert builtin_annotation_orm.annotator_kind == "CODE"
+            assert builtin_annotation_orm.experiment_run_id is not None
+
+            llm_traces_result = await session.scalars(
                 select(models.Trace).where(
-                    models.Trace.project_rowid == dataset_evaluator.project_id,
+                    models.Trace.project_rowid == llm_dataset_evaluator.project_id,
                 )
             )
-            evaluator_traces = evaluator_traces_result.all()
-            assert len(evaluator_traces) == 1
-            evaluator_trace = evaluator_traces[0]
+            llm_traces = llm_traces_result.all()
+            assert len(llm_traces) == 1
+            llm_evaluator_trace = llm_traces[0]
 
-            evaluator_spans_result = await session.execute(
+            llm_spans_result = await session.execute(
                 select(models.Span).where(
-                    models.Span.trace_rowid == evaluator_trace.id,
+                    models.Span.trace_rowid == llm_evaluator_trace.id,
                 )
             )
-            spans = evaluator_spans_result.scalars().all()
-            assert len(spans) == 4
+            llm_spans = llm_spans_result.scalars().all()
+            assert len(llm_spans) == 4
 
-            evaluator_span = None
-            template_span = None
-            llm_span = None
-            chain_span = None
-            for span in spans:
+            builtin_traces_result = await session.scalars(
+                select(models.Trace).where(
+                    models.Trace.project_rowid == builtin_dataset_evaluator.project_id,
+                )
+            )
+            builtin_traces = builtin_traces_result.all()
+            assert len(builtin_traces) == 1
+            builtin_evaluator_trace = builtin_traces[0]
+
+            builtin_spans_result = await session.execute(
+                select(models.Span).where(
+                    models.Span.trace_rowid == builtin_evaluator_trace.id,
+                )
+            )
+            builtin_spans = builtin_spans_result.scalars().all()
+            assert len(builtin_spans) == 4
+
+            # Parse LLM evaluator spans
+            llm_evaluator_span = None
+            llm_template_span = None
+            llm_llm_span = None
+            llm_parse_span = None
+            for span in llm_spans:
                 if span.span_kind == "EVALUATOR":
-                    evaluator_span = span
+                    llm_evaluator_span = span
                 elif span.span_kind == "TEMPLATE":
-                    template_span = span
+                    llm_template_span = span
                 elif span.span_kind == "LLM":
-                    llm_span = span
+                    llm_llm_span = span
                 elif span.span_kind == "CHAIN":
-                    chain_span = span
+                    llm_parse_span = span
 
-            assert evaluator_span is not None
-            assert evaluator_span.parent_id is None
-            assert template_span is not None
-            assert template_span.parent_id == evaluator_span.span_id
-            assert llm_span is not None
-            assert llm_span.parent_id == evaluator_span.span_id
-            assert chain_span is not None
-            assert chain_span.parent_id == evaluator_span.span_id
+            assert llm_evaluator_span is not None
+            assert llm_evaluator_span.parent_id is None
+            assert llm_template_span is not None
+            assert llm_template_span.parent_id == llm_evaluator_span.span_id
+            assert llm_llm_span is not None
+            assert llm_llm_span.parent_id == llm_evaluator_span.span_id
+            assert llm_parse_span is not None
+            assert llm_parse_span.parent_id == llm_evaluator_span.span_id
 
-            # evaluator span
-            assert evaluator_span.name == "Evaluation: correctness-evaluator"
-            assert evaluator_span.span_kind == "EVALUATOR"
-            attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
+            # LLM evaluator span
+            assert llm_evaluator_span.name == "Evaluation: correctness-evaluator"
+            assert llm_evaluator_span.span_kind == "EVALUATOR"
+            attributes = dict(flatten(llm_evaluator_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
             raw_input_value = attributes.pop(INPUT_VALUE)
             assert raw_input_value is not None
@@ -2074,17 +2144,17 @@ class TestChatCompletionOverDatasetSubscription:
             assert set(output_value.keys()) == {"score", "label", "explanation"}
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
-            assert not evaluator_span.events
-            assert evaluator_span.status_code == "OK"
-            assert not evaluator_span.status_message
+            assert not llm_evaluator_span.events
+            assert llm_evaluator_span.status_code == "OK"
+            assert not llm_evaluator_span.status_message
 
             # template span
-            assert template_span.name == "Apply template variables"
-            assert template_span.span_kind == "TEMPLATE"
-            assert template_span.status_code == "OK"
-            assert not template_span.status_message
-            assert not template_span.events
-            attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
+            assert llm_template_span.name == "Apply template variables"
+            assert llm_template_span.span_kind == "TEMPLATE"
+            assert llm_template_span.status_code == "OK"
+            assert not llm_template_span.status_message
+            assert not llm_template_span.events
+            attributes = dict(flatten(llm_template_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
             assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
             assert (
@@ -2159,17 +2229,17 @@ class TestChatCompletionOverDatasetSubscription:
             assert not attributes
 
             # llm span
-            assert llm_span.name == "gpt-4"
-            assert llm_span.span_kind == "LLM"
-            assert llm_span.status_code == "OK"
-            assert not llm_span.status_message
-            assert llm_span.llm_token_count_prompt is not None
-            assert llm_span.llm_token_count_prompt > 0
-            assert llm_span.llm_token_count_completion is not None
-            assert llm_span.llm_token_count_completion > 0
-            assert llm_span.cumulative_llm_token_count_prompt > 0
-            assert llm_span.cumulative_llm_token_count_completion > 0
-            attributes = dict(flatten(llm_span.attributes, recurse_on_sequence=True))
+            assert llm_llm_span.name == "gpt-4"
+            assert llm_llm_span.span_kind == "LLM"
+            assert llm_llm_span.status_code == "OK"
+            assert not llm_llm_span.status_message
+            assert llm_llm_span.llm_token_count_prompt is not None
+            assert llm_llm_span.llm_token_count_prompt > 0
+            assert llm_llm_span.llm_token_count_completion is not None
+            assert llm_llm_span.llm_token_count_completion > 0
+            assert llm_llm_span.cumulative_llm_token_count_prompt > 0
+            assert llm_llm_span.cumulative_llm_token_count_completion > 0
+            attributes = dict(flatten(llm_llm_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
             assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
             assert attributes.pop(LLM_PROVIDER) == "openai"
@@ -2191,13 +2261,65 @@ class TestChatCompletionOverDatasetSubscription:
                 assert isinstance(attributes.pop(key), int)
             assert not attributes
 
+            # span costs for evaluator trace
+            span_costs_result = await session.execute(
+                select(models.SpanCost).where(models.SpanCost.trace_rowid == llm_evaluator_trace.id)
+            )
+            span_costs = span_costs_result.scalars().all()
+            assert len(span_costs) == 1
+            span_cost = span_costs[0]
+            assert span_cost.span_rowid == llm_llm_span.id
+            assert span_cost.trace_rowid == llm_llm_span.trace_rowid
+            assert span_cost.model_id is not None
+            assert span_cost.span_start_time == llm_llm_span.start_time
+            assert span_cost.total_cost is not None
+            assert span_cost.total_cost > 0
+            assert span_cost.total_tokens == (
+                llm_llm_span.llm_token_count_prompt + llm_llm_span.llm_token_count_completion
+            )
+            assert span_cost.prompt_tokens == llm_llm_span.llm_token_count_prompt
+            assert span_cost.prompt_cost is not None
+            assert span_cost.prompt_cost > 0
+            assert span_cost.completion_tokens == llm_llm_span.llm_token_count_completion
+            assert span_cost.completion_cost is not None
+            assert span_cost.completion_cost > 0
+
+            # span cost details for evaluator trace
+            span_cost_details_result = await session.execute(
+                select(models.SpanCostDetail).where(
+                    models.SpanCostDetail.span_cost_id == span_cost.id
+                )
+            )
+            span_cost_details = span_cost_details_result.scalars().all()
+            assert len(span_cost_details) >= 2
+            input_detail = next(
+                d for d in span_cost_details if d.is_prompt and d.token_type == "input"
+            )
+            output_detail = next(
+                d for d in span_cost_details if not d.is_prompt and d.token_type == "output"
+            )
+            assert input_detail.span_cost_id == span_cost.id
+            assert input_detail.token_type == "input"
+            assert input_detail.is_prompt is True
+            assert input_detail.tokens == llm_llm_span.llm_token_count_prompt
+            assert input_detail.cost is not None
+            assert input_detail.cost > 0
+            assert input_detail.cost_per_token is not None
+            assert output_detail.span_cost_id == span_cost.id
+            assert output_detail.token_type == "output"
+            assert output_detail.is_prompt is False
+            assert output_detail.tokens == llm_llm_span.llm_token_count_completion
+            assert output_detail.cost is not None
+            assert output_detail.cost > 0
+            assert output_detail.cost_per_token is not None
+
             # chain span
-            assert chain_span.name == "Parse eval result"
-            assert chain_span.span_kind == "CHAIN"
-            assert chain_span.status_code == "OK"
-            assert not chain_span.status_message
-            assert not chain_span.events
-            attributes = dict(flatten(chain_span.attributes, recurse_on_sequence=True))
+            assert llm_parse_span.name == "Parse eval result"
+            assert llm_parse_span.span_kind == "CHAIN"
+            assert llm_parse_span.status_code == "OK"
+            assert not llm_parse_span.status_message
+            assert not llm_parse_span.events
+            attributes = dict(flatten(llm_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
             assert set(input_value.keys()) == {"tool_calls", "output_config"}
@@ -2214,6 +2336,136 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {"label": "incorrect", "score": 0.0, "explanation": None}
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
+
+            # built-in evaluator spans
+            builtin_evaluator_span = None
+            builtin_template_span = None
+            builtin_execution_span = None
+            builtin_parse_span = None
+            for span in builtin_spans:
+                if span.span_kind == "EVALUATOR":
+                    builtin_evaluator_span = span
+                elif span.span_kind == "TEMPLATE":
+                    builtin_template_span = span
+                elif span.span_kind == "CHAIN":
+                    if "Run" in span.name:
+                        builtin_execution_span = span
+                    elif "Parse" in span.name:
+                        builtin_parse_span = span
+
+            assert builtin_evaluator_span is not None
+            assert builtin_template_span is not None
+            assert builtin_execution_span is not None
+            assert builtin_parse_span is not None
+
+            # Verify span hierarchy
+            assert builtin_evaluator_span.parent_id is None
+            assert builtin_template_span.parent_id == builtin_evaluator_span.span_id
+            assert builtin_execution_span.parent_id == builtin_evaluator_span.span_id
+            assert builtin_parse_span.parent_id == builtin_evaluator_span.span_id
+
+            # Built-in evaluator span
+            assert builtin_evaluator_span.name == "Evaluation: ExactMatch"
+            assert builtin_evaluator_span.span_kind == "EVALUATOR"
+            assert builtin_evaluator_span.status_code == "OK"
+            assert not builtin_evaluator_span.status_message
+            assert not builtin_evaluator_span.events
+            attributes = dict(flatten(builtin_evaluator_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {
+                "input": {"city": "Paris"},
+                "output": {
+                    "messages": [{"role": "assistant", "content": "France"}],
+                    "available_tools": [],
+                },
+                "reference": {"country": "France"},
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "label": "true",
+                "score": 1.0,
+                "explanation": "expected matches actual",
+            }
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
+
+            # Built-in template span (Apply input mapping)
+            assert builtin_template_span.name == "Apply input mapping"
+            assert builtin_template_span.span_kind == "TEMPLATE"
+            assert builtin_template_span.status_code == "OK"
+            assert not builtin_template_span.status_message
+            assert not builtin_template_span.events
+            attributes = dict(flatten(builtin_template_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
+            assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {
+                "actual": "$.output.messages[0].content",
+            }
+            assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {"expected": "France"}
+            assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
+                "input": {"city": "Paris"},
+                "output": {
+                    "messages": [{"role": "assistant", "content": "France"}],
+                    "available_tools": [],
+                },
+                "reference": {"country": "France"},
+            }
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {
+                "variables": {
+                    "input": {"city": "Paris"},
+                    "output": {
+                        "messages": [{"role": "assistant", "content": "France"}],
+                        "available_tools": [],
+                    },
+                    "reference": {"country": "France"},
+                },
+                "input_mapping": {
+                    "path_mapping": {"actual": "$.output.messages[0].content"},
+                    "literal_mapping": {"expected": "France"},
+                },
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "inputs": {"expected": "France", "actual": "France"},
+            }
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
+
+            # Built-in execution span (Run ExactMatch)
+            assert builtin_execution_span.name == "Run ExactMatch"
+            assert builtin_execution_span.span_kind == "CHAIN"
+            assert builtin_execution_span.status_code == "OK"
+            assert not builtin_execution_span.status_message
+            assert not builtin_execution_span.events
+            attributes = dict(flatten(builtin_execution_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {
+                "expected": "France",
+                "actual": "France",
+                "case_sensitive": True,
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
+                "matched": True,
+                "explanation": "expected matches actual",
+            }
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert not attributes
+
+            # Built-in parse span (Parse eval result)
+            assert builtin_parse_span.name == "Parse eval result"
+            assert builtin_parse_span.span_kind == "CHAIN"
+            assert not builtin_parse_span.status_message
+            assert not builtin_parse_span.events
+            attributes = dict(flatten(builtin_parse_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {
+                "matched": True,
+                "explanation": "expected matches actual",
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
 
@@ -2305,13 +2557,21 @@ class TestChatCompletionOverDatasetSubscription:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         single_example_dataset: models.Dataset,
+        assign_exact_match_builtin_evaluator_to_dataset: Callable[
+            [int], Awaitable[models.DatasetEvaluators]
+        ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
         """Test that builtin evaluators use name for annotation names in dataset runs."""
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
+        builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
+            single_example_dataset.id
+        )
         evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
+            GlobalID(
+                type_name=BuiltInEvaluator.__name__,
+                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
+            )
         )
         custom_name = "my-dataset-exact-match"
         dataset_gid = str(
