@@ -94,8 +94,12 @@ const evaluatorColumnCSS = css`
 
 const EmptyState = ({
   builtInEvaluators,
+  onSelectLLMEvaluatorTemplate,
+  onSelectCodeEvaluator,
 }: {
   builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
+  onSelectCodeEvaluator?: (evaluatorId: string) => void;
 }) => {
   const codeEvaluators = builtInEvaluators.builtInEvaluators;
   const llmEvaluatorTemplates =
@@ -122,7 +126,7 @@ const EmptyState = ({
                 key={template.name}
                 css={evaluatorItemButtonCSS}
                 onClick={() => {
-                  // TODO: Open create evaluator dialog for LLM template
+                  onSelectLLMEvaluatorTemplate?.(template.name);
                 }}
               >
                 <Text size="S" weight="heavy">
@@ -143,7 +147,7 @@ const EmptyState = ({
                 key={evaluator.id}
                 css={evaluatorItemButtonCSS}
                 onClick={() => {
-                  // TODO: Open create evaluator dialog for code evaluator
+                  onSelectCodeEvaluator?.(evaluator.id);
                 }}
               >
                 <Text size="S" weight="heavy">
@@ -228,6 +232,14 @@ type DatasetEvaluatorsTableProps = {
    * If provided, these connections will be updated when a row is edited or deleted.
    */
   updateConnectionIds?: string[];
+  /**
+   * Callback for when an LLM evaluator template is selected from the empty state.
+   */
+  onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
+  /**
+   * Callback for when a code evaluator is selected from the empty state.
+   */
+  onSelectCodeEvaluator?: (evaluatorId: string) => void;
 };
 
 export const DatasetEvaluatorsTable = ({
@@ -240,6 +252,8 @@ export const DatasetEvaluatorsTable = ({
   onRowClick,
   datasetId,
   updateConnectionIds,
+  onSelectLLMEvaluatorTemplate,
+  onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
   "use no memo";
   const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
@@ -447,7 +461,11 @@ export const DatasetEvaluatorsTable = ({
           ))}
         </thead>
         {isEmpty ? (
-          <EmptyState builtInEvaluators={builtInEvaluators} />
+          <EmptyState
+            builtInEvaluators={builtInEvaluators}
+            onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
+            onSelectCodeEvaluator={onSelectCodeEvaluator}
+          />
         ) : (
           <tbody>
             {rows.map((row) => {

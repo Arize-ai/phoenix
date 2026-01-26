@@ -80,6 +80,14 @@ export type UseDatasetEvaluatorsTableParams = ReturnType<
 
 type DatasetEvaluatorsTableProps = UseDatasetEvaluatorsTableParams & {
   builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  /**
+   * Callback for when an LLM evaluator template is selected from the empty state.
+   */
+  onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
+  /**
+   * Callback for when a code evaluator is selected from the empty state.
+   */
+  onSelectCodeEvaluator?: (evaluatorId: string) => void;
 };
 
 const EMPTY_CONNECTION_IDS: string[] = [];
@@ -91,6 +99,8 @@ export const DatasetEvaluatorsTable = ({
   loadNext,
   refetch,
   builtInEvaluators,
+  onSelectLLMEvaluatorTemplate,
+  onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
   const { datasetId } = useParams();
   const navigate = useNavigate();
@@ -114,6 +124,8 @@ export const DatasetEvaluatorsTable = ({
       onRowClick={(row) => {
         navigate(`/datasets/${datasetId}/evaluators/${row.id}`);
       }}
+      onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
+      onSelectCodeEvaluator={onSelectCodeEvaluator}
     />
   );
 };
