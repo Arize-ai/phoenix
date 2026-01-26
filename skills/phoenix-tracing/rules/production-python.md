@@ -1,39 +1,19 @@
 # Phoenix Tracing: Production Guide (Python)
 
-**CRITICAL: Batch processing, data masking, span filtering for production deployment.**
+**CRITICAL: Configure batching, data masking, and span filtering for production deployment.**
 
-## 1. Batch Span Processing (MOST IMPORTANT)
+## 1. Batch Processing
 
-Phoenix enables `BatchSpanProcessor` by default for production efficiency.
+**Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
 
-**Configuration (OpenTelemetry standard):**
-
+Configure via OpenTelemetry environment variables if needed:
 ```bash
-export OTEL_BSP_SCHEDULE_DELAY=5000           # Batch every 5s
-export OTEL_BSP_MAX_QUEUE_SIZE=2048           # Queue up to 2048 spans
-export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Send 512 spans/batch
-export OTEL_BSP_EXPORT_TIMEOUT=30000          # Export timeout 30s
+export OTEL_BSP_SCHEDULE_DELAY=5000           # Batch interval
+export OTEL_BSP_MAX_QUEUE_SIZE=2048           # Queue size
+export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Batch size
 ```
 
-**Link:** https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
-
-**Python override:**
-
-```python
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from phoenix.otel import register
-
-tracer_provider = register(
-    project_name="my-app",
-    batch_span_processor=BatchSpanProcessor(...)  # Custom config
-)
-```
-
-**When to adjust:**
-
-- High volume (>10k spans/min): Increase `MAX_QUEUE_SIZE` to 4096
-- Low latency needs: Decrease `SCHEDULE_DELAY` to 1000
-- Network issues: Increase `EXPORT_TIMEOUT` to 60000
+See [OpenTelemetry docs](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for details.
 
 ---
 
@@ -80,18 +60,6 @@ with suppress_tracing():
     internal_logging()  # No spans generated
 ```
 
-**Custom SpanProcessor (advanced):**
-
-```python
-from opentelemetry.sdk.trace import SpanProcessor
-
-class FilterSpanProcessor(SpanProcessor):
-    def on_end(self, span):
-        if span.attributes.get("http.route") == "/health":
-            return  # Drop span
-        self.exporter.export([span])
-```
-
 **Sampling:**
 
 ```bash
@@ -118,29 +86,12 @@ with tracer.start_as_current_span("operation") as span:
 
 ---
 
-## 5. Performance
+## 5. Production Checklist
 
-**Span creation overhead:** ~1-5µs per span (negligible)
-**Network overhead:** Minimal with batch processing (~1-2% app time)
-**Memory overhead:** ~2-10MB per 2048 spans queued
-
-**Reduce memory:**
-
-```bash
-export OTEL_BSP_MAX_QUEUE_SIZE=1024
-```
-
----
-
-## 6. Production Checklist
-
-- [ ] Batch processing enabled (default)
-- [ ] Batch config tuned for workload
+- [ ] Batch processing enabled
 - [ ] Data masking configured (`HIDE_INPUTS`/`HIDE_OUTPUTS` if PII)
 - [ ] Span filtering for health checks/noisy paths
 - [ ] Error handling implemented
 - [ ] Graceful degradation if Phoenix unavailable
-- [ ] Performance tested (<2% latency impact)
+- [ ] Performance tested
 - [ ] Monitoring configured (Phoenix UI checked)
-
----
