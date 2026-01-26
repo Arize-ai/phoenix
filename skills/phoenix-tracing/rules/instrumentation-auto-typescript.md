@@ -43,9 +43,9 @@ registerInstrumentations({ instrumentations: [instrumentation] });
 
 ```typescript
 async function myWorkflow(query: string): Promise<string> {
-  const preprocessed = await preprocess(query);        // ❌ Not traced
-  const response = await client.chat.completions.create(...);  // ✅ Traced (auto)
-  const postprocessed = await postprocess(response);   // ❌ Not traced
+  const preprocessed = await preprocess(query);        // Not traced
+  const response = await client.chat.completions.create(...);  // Traced (auto)
+  const postprocessed = await postprocess(response);   // Not traced
   return postprocessed;
 }
 ```
@@ -85,26 +85,3 @@ const workflow = traceChain(
   { name: "my-workflow" }
 );
 ```
-
-## Troubleshooting
-
-**No traces:**
-- Check instrumentor installed: `npm list | grep openinference`
-- Verify `PHOENIX_COLLECTOR_ENDPOINT` matches Phoenix server
-- For ESM: Ensure `manuallyInstrument()` called before use
-
-**Missing attributes:**
-- Update instrumentor: `npm update @arizeai/openinference-instrumentation-openai`
-- Add manual instrumentation for custom logic
-
-## Best Practices
-
-- Use auto-instrumentation first (covers ~80% with zero effort)
-- Add manual instrumentation for custom business logic
-- Keep instrumentors updated
-- Install only needed instrumentors
-
-## See Also
-
-- **Manual instrumentation:** `instrumentation-manual-typescript.md`
-- **Setup guide:** `setup-typescript.md`

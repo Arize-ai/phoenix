@@ -32,8 +32,7 @@ Reference these guidelines when:
 | 4        | Organization    | Projects and sessions          | `projects-*`, `sessions-*` |
 | 5        | Enrichment      | Custom metadata                | `metadata-*`               |
 | 6        | Production      | Batch processing, masking      | `production-*`             |
-| 7        | Analysis        | Querying and export            | `analytics-*`, `export-*`  |
-| 8        | Feedback        | Annotations and evaluation     | `annotations-*`            |
+| 7        | Feedback        | Annotations and evaluation     | `annotations-*`            |
 
 ## Quick Reference
 
@@ -74,11 +73,7 @@ Reference these guidelines when:
 
 - `production-python` / `production-typescript` - Batch processing, PII masking
 
-### 7. Analysis
-
-- `export-python` - Export traces for evaluation (Python only)
-
-### 8. Feedback
+### 7. Feedback
 
 - `annotations-overview` - Feedback concepts
 - `annotations-python` / `annotations-typescript` - Add feedback to spans

@@ -2,14 +2,6 @@
 
 **Automatically create spans for LLM calls without code changes.**
 
-## Metadata
-
-| Attribute | Value |
-|-----------|-------|
-| Priority | High - covers 80% of use cases |
-| Impact | Zero-code tracing for supported frameworks |
-| Setup Time | <5 min |
-
 ## Overview
 
 Auto-instrumentation patches supported libraries at runtime to create spans automatically. Use for supported frameworks (LangChain, LlamaIndex, OpenAI SDK, etc.). For custom logic, manual-instrumentation-python.md.

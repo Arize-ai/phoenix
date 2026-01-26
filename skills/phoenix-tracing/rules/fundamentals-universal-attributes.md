@@ -44,19 +44,17 @@ These attributes can be used on **any span kind** to provide additional context,
 }
 ```
 
-## Metadata and
+## Metadata
 
-| Attribute  | Type   | Description                              |
-| ---------- | ------ | ---------------------------------------- |
-| `metadata` | Object | Arbitrary key-value metadata (flattened) |
+| Attribute  | Type   | Description                                |
+| ---------- | ------ | ------------------------------------------ |
+| `metadata` | string | JSON-serialized object of key-value pairs  |
 
 **Example:**
 
 ```json
 {
   "openinference.span.kind": "LLM",
-  "metadata.environment": "production",
-  "metadata.model_version": "v2.1",
-  "metadata.cost_center": "engineering"
+  "metadata": "{\"environment\": \"production\", \"model_version\": \"v2.1\", \"cost_center\": \"engineering\"}"
 }
 ```

@@ -50,7 +50,7 @@ Every annotation has these fields:
 | `LLM`   | Automated feedback from an LLM | GPT-4 evaluating response quality |
 | `CODE`  | Automated feedback from code   | Rule-based checks, heuristics     |
 
-## Common Annotation Names
+## Examples
 
 **Quality Assessment:**
 
@@ -67,7 +67,3 @@ Every annotation has these fields:
 
 - `toxicity` - Contains harmful content (score: 0-1)
 - `pii_detected` - Contains personally identifiable information (label: yes/no)
-
-**Custom:**
-
-- Any domain-specific annotation name
