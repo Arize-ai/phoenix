@@ -43,7 +43,7 @@ Unit and integration tests are located in `tests/unit` and `tests/integration`, 
 ```bash
 uv run pytest tests/unit -c pytest-quiet.ini -n auto                  # Runs the entire unit test suite in parallel with quiet output
 uv run pytest tests/unit/test_failed_unit_tests.py::test_failed_test  # Runs a particular failed test with verbose output
-uv run pytest tests/integration                                       # Runs integration tests
+uv run pytest tests/integration -n auto                               # Runs integration tests in parallel
 ```
 
 Other commands can be managed through the 
