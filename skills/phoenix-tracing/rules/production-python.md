@@ -2,6 +2,14 @@
 
 **CRITICAL: Configure batching, data masking, and span filtering for production deployment.**
 
+## Metadata
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | Critical - production readiness |
+| Impact | Security, Performance |
+| Setup Time | 5-15 min |
+
 ## Batch Processing
 
 **Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
