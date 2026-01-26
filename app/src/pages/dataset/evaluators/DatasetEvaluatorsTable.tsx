@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
-import { Empty } from "@phoenix/components";
+import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { DatasetEvaluatorsTable as BaseDatasetEvaluatorsTable } from "@phoenix/pages/evaluators/DatasetEvaluatorsTable";
@@ -78,17 +78,19 @@ export type UseDatasetEvaluatorsTableParams = ReturnType<
   typeof useDatasetEvaluatorsTable
 >;
 
-type DatasetEvaluatorsTableProps = UseDatasetEvaluatorsTableParams;
+type DatasetEvaluatorsTableProps = UseDatasetEvaluatorsTableParams & {
+  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+};
 
 const EMPTY_CONNECTION_IDS: string[] = [];
 
 export const DatasetEvaluatorsTable = ({
-  filter,
   data,
   hasNext,
   isLoadingNext,
   loadNext,
   refetch,
+  builtInEvaluators,
 }: DatasetEvaluatorsTableProps) => {
   const { datasetId } = useParams();
   const navigate = useNavigate();
@@ -106,16 +108,7 @@ export const DatasetEvaluatorsTable = ({
       hasNext={hasNext}
       loadNext={loadNext}
       refetch={refetch}
-      emptyState={
-        <Empty
-          size="S"
-          message={
-            filter
-              ? "No evaluators found"
-              : "No evaluators assigned to this dataset"
-          }
-        />
-      }
+      builtInEvaluators={builtInEvaluators}
       datasetId={datasetId}
       updateConnectionIds={connectionsToUpdate}
       onRowClick={(row) => {

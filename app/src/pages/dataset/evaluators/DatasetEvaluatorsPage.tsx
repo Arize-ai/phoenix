@@ -1,10 +1,12 @@
 import { Suspense, useMemo } from "react";
-import { usePreloadedQuery } from "react-relay";
+import { useFragment, usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
+import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import {
   datasetEvaluatorsLoader,
   datasetEvaluatorsLoaderGQL,
@@ -36,6 +38,25 @@ export function DatasetEvaluatorsPageContent() {
   const evaluatorsTableProps = useDatasetEvaluatorsTable(data.dataset);
   const evaluatorsTableData = evaluatorsTableProps.data;
 
+  const builtInEvaluators =
+    useFragment<DatasetEvaluatorsPage_builtInEvaluators$key>(
+      graphql`
+        fragment DatasetEvaluatorsPage_builtInEvaluators on Query {
+          builtInEvaluators {
+            id
+            name
+            description
+            kind
+          }
+          classificationEvaluatorConfigs {
+            name
+            description
+          }
+        }
+      `,
+      data
+    );
+
   const connectionsToUpdate = useMemo(() => {
     if (evaluatorsTableData.datasetEvaluators.__id) {
       return [evaluatorsTableData.datasetEvaluators.__id];
@@ -57,7 +78,10 @@ export function DatasetEvaluatorsPageContent() {
         }
       />
       <Suspense fallback={<Loading />}>
-        <DatasetEvaluatorsTable {...evaluatorsTableProps} />
+        <DatasetEvaluatorsTable
+          {...evaluatorsTableProps}
+          builtInEvaluators={builtInEvaluators}
+        />
       </Suspense>
     </main>
   );

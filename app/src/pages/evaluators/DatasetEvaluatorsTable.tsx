@@ -17,19 +17,13 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text, Token } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
   DatasetEvaluatorSort,
@@ -73,21 +67,61 @@ export const convertTanstackSortToEvaluatorSort = (
   return null;
 };
 
-const EmptyState = () => {
+const evaluatorItemCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--ac-global-dimension-size-100);
+  padding: var(--ac-global-dimension-size-100)
+    var(--ac-global-dimension-size-150);
+  border-radius: var(--ac-global-rounding-small);
+  background-color: var(--ac-global-color-grey-200);
+`;
+
+const EmptyState = ({
+  builtInEvaluators,
+}: {
+  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+}) => {
+  const codeEvaluators = builtInEvaluators.builtInEvaluators.filter(
+    (e) => e.kind === "CODE"
+  );
+  const llmEvaluatorTemplates =
+    builtInEvaluators.classificationEvaluatorConfigs;
+
   return (
-    <View width="100%" paddingY="size-400">
+    <TableEmptyWrap>
       <Flex
         direction="column"
-        width="100%"
         alignItems="center"
         justifyContent="center"
+        gap="size-300"
+        maxWidth="700px"
+        margin="var(--ac-global-dimension-size-300) auto"
       >
-        <Text size="XL">
-          Create and manage evaluators for your AI applications.
+        <Text size="L" fontStyle="italic" color="text-500">
+          No evaluators added to this dataset
         </Text>
-        {/* TODO: Put a video here explaining how to create and use evaluators */}
+        <Flex direction="row" gap="size-400" justifyContent="center">
+          {/* Code Evaluators Section */}
+          <Flex direction="column" gap="size-50">
+            {codeEvaluators.map((evaluator) => (
+              <div key={evaluator.id} css={evaluatorItemCSS}>
+                <Text size="S">{evaluator.name}</Text>
+              </div>
+            ))}
+          </Flex>
+          {/* LLM Evaluator Templates Section */}
+          <Flex direction="column" gap="size-50">
+            {llmEvaluatorTemplates.map((template) => (
+              <div key={template.name} css={evaluatorItemCSS}>
+                <Text size="S">{template.name}</Text>
+              </div>
+            ))}
+          </Flex>
+        </Flex>
       </Flex>
-    </View>
+    </TableEmptyWrap>
   );
 };
 
@@ -136,7 +170,10 @@ type DatasetEvaluatorsTableProps = {
    * pass the resulting edges into this prop.
    */
   rowReferences: DatasetEvaluatorsTable_row$key[];
-  emptyState?: React.ReactNode;
+  /**
+   * Built-in evaluators data to display in the empty state.
+   */
+  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -157,7 +194,7 @@ type DatasetEvaluatorsTableProps = {
 
 export const DatasetEvaluatorsTable = ({
   rowReferences,
-  emptyState,
+  builtInEvaluators,
   isLoadingNext,
   hasNext,
   loadNext,
@@ -320,10 +357,6 @@ export const DatasetEvaluatorsTable = ({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  if (isEmpty) {
-    return emptyState || <EmptyState />;
-  }
-
   return (
     <div
       css={css`
@@ -375,27 +408,34 @@ export const DatasetEvaluatorsTable = ({
             </tr>
           ))}
         </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  onRowClick?.(row.original);
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    align={cell.column.columnDef.meta?.textAlign}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
+        {isEmpty ? (
+          <EmptyState builtInEvaluators={builtInEvaluators} />
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() => {
+                    onRowClick?.(row.original);
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      align={cell.column.columnDef.meta?.textAlign}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        )}
       </table>
     </div>
   );
