@@ -38,7 +38,6 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult,
-    LLMEvaluator,
     create_llm_evaluator_from_inline,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
@@ -424,11 +423,7 @@ class ChatCompletionMutationMixin:
                             annotation_config=evaluator.output_config,
                             annotation_config_override=annotation_config_override,
                             name=name,
-                            description_override=(
-                                None
-                                if isinstance(evaluator, LLMEvaluator)
-                                else evaluator_input.description
-                            ),
+                            description_override=evaluator_input.description,
                         )
 
                         tracer: Tracer | None = None
@@ -547,11 +542,7 @@ class ChatCompletionMutationMixin:
                             annotation_config=evaluator.output_config,
                             annotation_config_override=annotation_config_override,
                             name=name,
-                            description_override=(
-                                None
-                                if isinstance(evaluator, LLMEvaluator)
-                                else evaluator_input.description
-                            ),
+                            description_override=evaluator_input.description,
                         )
                         eval_result: EvaluationResult = await evaluator.evaluate(
                             context=context_dict,
