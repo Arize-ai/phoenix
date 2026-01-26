@@ -163,9 +163,9 @@ class OpenAIModel(BaseModel):
     timeout: int = 120
 
     # GPT-5 specific parameters
-    reasoning_effort: Optional[str] = field(default="medium")
+    reasoning_effort: Optional[str] = field(default=None)
     """Controls reasoning depth for GPT-5 models: 'none', 'low', 'medium', 'high', 'xhigh'"""
-    verbosity: Optional[str] = field(default="medium")
+    verbosity: Optional[str] = field(default=None)
     """Controls output length for GPT-5 models: 'low', 'medium', 'high'"""
 
     # Azure options
