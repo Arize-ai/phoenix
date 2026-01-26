@@ -56,8 +56,3 @@ llm.input_messages.0.message.tool_calls.0.tool_call.function.name
   "llm.token_count.total": 15
 }
 ```
-
-**Use arrays for**: multiple items (messages, documents, tool calls) where order matters
-**Use single values for**: unique fields (model_name, temperature) where order doesn't matter
-
-PostgreSQL JSONB operators enable efficient querying (e.g., `attributes->>'llm.model_name'`). UI reconstructs nested structure for display.
