@@ -13,4 +13,6 @@ class MimeType(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.text
+        # For unsupported MIME types (e.g., image/png), default to text instead of None
+        # This prevents GraphQL errors when encountering unknown MIME types
+        return cls.text

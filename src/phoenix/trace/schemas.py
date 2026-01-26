@@ -184,7 +184,9 @@ class MimeType(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.TEXT
+        # For unsupported MIME types (e.g., image/png), default to TEXT
+        # This prevents errors when encountering unknown MIME types
+        return cls.TEXT
 
 
 @dataclass(frozen=True)
