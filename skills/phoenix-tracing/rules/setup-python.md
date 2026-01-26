@@ -2,6 +2,13 @@
 
 **Setup Phoenix tracing in Python with `arize-phoenix-otel`.**
 
+## Metadata
+
+| Attribute | Value |
+|-----------|-------|
+| Priority | Critical - required for all tracing |
+| Setup Time | <5 min |
+
 ## Quick Start (3 lines)
 
 ```python

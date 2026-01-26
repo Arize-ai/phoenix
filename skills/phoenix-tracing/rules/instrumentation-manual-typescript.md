@@ -1,6 +1,6 @@
 # Manual Instrumentation (TypeScript)
 
-Add custom spans to your LLM applications using OpenInference tracing helpers.
+Add custom spans using convenience wrappers or withSpan for fine-grained tracing control.
 
 ## Setup
 
@@ -13,17 +13,27 @@ import { register } from "@arizeai/phoenix-otel";
 register({ projectName: "my-app" });
 ```
 
-## Core API
+## Quick Reference
 
-### Convenience Wrappers
+| Span Kind | Method | Use Case |
+|-----------|--------|----------|
+| CHAIN | `traceChain` | Workflows, pipelines, orchestration |
+| AGENT | `traceAgent` | Multi-step reasoning, planning |
+| TOOL | `traceTool` | External APIs, function calls |
+| RETRIEVER | `withSpan` | Vector search, document retrieval |
+| LLM | `withSpan` | LLM API calls (prefer auto-instrumentation) |
+| EMBEDDING | `withSpan` | Embedding generation |
+| RERANKER | `withSpan` | Document re-ranking |
+| GUARDRAIL | `withSpan` | Safety checks, content moderation |
+| EVALUATOR | `withSpan` | LLM evaluation |
 
-Three span kinds have dedicated wrappers:
+## Convenience Wrappers
 
 ```typescript
 import { traceChain, traceAgent, traceTool } from "@arizeai/openinference-core";
 
-// CHAIN - workflows, pipelines
-const myPipeline = traceChain(
+// CHAIN - workflows
+const pipeline = traceChain(
   async (query: string) => {
     const docs = await retrieve(query);
     return await generate(docs, query);
@@ -31,197 +41,56 @@ const myPipeline = traceChain(
   { name: "rag-pipeline" }
 );
 
-// AGENT - multi-step reasoning
-const myAgent = traceAgent(
+// AGENT - reasoning
+const agent = traceAgent(
   async (question: string) => {
-    const docs = await retriever(question);
-    return `Answer: ${docs.join("\n")}`;
+    const thought = await llm.generate(`Think: ${question}`);
+    return await processThought(thought);
   },
   { name: "my-agent" }
 );
 
-// TOOL - external function calls
+// TOOL - function calls
 const getWeather = traceTool(
-  async (city: string) => {
-    const res = await fetch(`https://api.weather.com/${city}`);
-    return res.json();
-  },
+  async (city: string) => fetch(`/api/weather/${city}`).then(r => r.json()),
   { name: "get-weather" }
 );
 ```
 
-### withSpan (All Span Kinds)
-
-Use `withSpan` for other span kinds or custom attribute handling:
+## withSpan for Other Kinds
 
 ```typescript
 import { withSpan, getInputAttributes, getRetrieverAttributes } from "@arizeai/openinference-core";
 
 // RETRIEVER with custom attributes
-const retriever = withSpan(
+const retrieve = withSpan(
   async (query: string) => {
     const results = await vectorDb.search(query, { topK: 5 });
-    return results.map((doc) => ({ content: doc.text, score: doc.score }));
+    return results.map(doc => ({ content: doc.text, score: doc.score }));
   },
   {
     kind: "RETRIEVER",
     name: "vector-search",
     processInput: (query) => getInputAttributes(query),
-    processOutput: (documents) => getRetrieverAttributes({ documents }),
+    processOutput: (docs) => getRetrieverAttributes({ documents: docs })
   }
 );
 ```
 
-## Span Kinds Reference
-
-| Kind | Wrapper | Use Case |
-|------|---------|----------|
-| `CHAIN` | `traceChain` | Workflows, pipelines, orchestration |
-| `AGENT` | `traceAgent` | Multi-step reasoning, planning |
-| `TOOL` | `traceTool` | External APIs, function calls |
-| `RETRIEVER` | `withSpan` | Vector search, document retrieval |
-| `LLM` | `withSpan` | LLM API calls (prefer auto-instrumentation) |
-| `EMBEDDING` | `withSpan` | Generating embeddings |
-| `RERANKER` | `withSpan` | Re-ranking documents |
-| `GUARDRAIL` | `withSpan` | Safety checks, content moderation |
-| `EVALUATOR` | `withSpan` | LLM evaluation |
-
-## Attribute Helpers
-
-```typescript
-import {
-  getInputAttributes,
-  getOutputAttributes,
-  getRetrieverAttributes,
-  getEmbeddingAttributes,
-  getLLMAttributes,
-  getToolAttributes,
-  getMetadataAttributes,
-} from "@arizeai/openinference-core";
-
-// Retriever attributes
-getRetrieverAttributes({
-  documents: [
-    { content: "Doc text", id: "doc1", score: 0.95 },
-    { content: "Another doc", metadata: { source: "web" } },
-  ],
-});
-
-// Embedding attributes
-getEmbeddingAttributes({
-  modelName: "text-embedding-ada-002",
-  embeddings: [{ text: "hello", vector: [0.1, 0.2, 0.3] }],
-});
-
-// LLM attributes
-getLLMAttributes({
-  provider: "openai",
-  modelName: "gpt-4",
-  inputMessages: [{ role: "user", content: "Hello" }],
-  outputMessages: [{ role: "assistant", content: "Hi!" }],
-  tokenCount: { prompt: 10, completion: 5, total: 15 },
-});
-```
-
-## Complete Examples
-
-### RAG Pipeline
-
-```typescript
-import {
-  traceChain,
-  withSpan,
-  getInputAttributes,
-  getRetrieverAttributes,
-} from "@arizeai/openinference-core";
-
-const retriever = withSpan(
-  async (query: string) => {
-    const results = await vectorDb.search(query, { topK: 5 });
-    return results.map((doc) => ({ content: doc.text, score: doc.score }));
-  },
-  {
-    kind: "RETRIEVER",
-    name: "vector-search",
-    processInput: (query) => getInputAttributes(query),
-    processOutput: (docs) => getRetrieverAttributes({ documents: docs }),
-  }
-);
-
-const ragPipeline = traceChain(
-  async (query: string) => {
-    const docs = await retriever(query);  // Child: RETRIEVER span
-    const context = docs.map((d) => d.content).join("\n");
-    const response = await llm.chat(query, context);  // Child: LLM span (auto-instrumented)
-    return response;
-  },
-  { name: "rag-pipeline" }
-);
-```
-
-### Agent with Tools
-
-```typescript
-import { traceAgent, traceTool } from "@arizeai/openinference-core";
-
-const searchTool = traceTool(
-  async (query: string) => {
-    const res = await fetch(`https://api.search.com?q=${query}`);
-    return res.json();
-  },
-  { name: "web-search" }
-);
-
-const calculatorTool = traceTool(
-  (expression: string) => eval(expression),
-  { name: "calculator" }
-);
-
-const agent = traceAgent(
-  async (question: string) => {
-    const thought = await llm.generate(`Think: ${question}`);
-
-    if (thought.includes("search")) {
-      const results = await searchTool(question);  // Child: TOOL span
-      return await llm.generate(`Answer based on: ${JSON.stringify(results)}`);
-    }
-    return await llm.generate(question);
-  },
-  { name: "react-agent" }
-);
-```
-
-## withSpan Options
+**Options:**
 
 ```typescript
 withSpan(fn, {
-  name: "span-name",           // Span name (defaults to function name)
-  kind: "RETRIEVER",           // OpenInference span kind
-  processInput: (args) => {},  // Transform input to attributes
-  processOutput: (result) => {},// Transform output to attributes
-  attributes: { key: "value" },// Static attributes
+  kind: "RETRIEVER",              // OpenInference span kind
+  name: "span-name",              // Span name (defaults to function name)
+  processInput: (args) => {},     // Transform input to attributes
+  processOutput: (result) => {},  // Transform output to attributes
+  attributes: { key: "value" }    // Static attributes
 });
 ```
 
-## Error Handling
+## See Also
 
-```typescript
-import { SpanStatusCode } from "@opentelemetry/api";
-import { trace } from "@arizeai/phoenix-otel";
-
-const riskyOperation = traceChain(
-  async (input: string) => {
-    const span = trace.getActiveSpan();
-    try {
-      const result = await doSomething(input);
-      span?.setStatus({ code: SpanStatusCode.OK });
-      return result;
-    } catch (e) {
-      span?.recordException(e as Error);
-      span?.setStatus({ code: SpanStatusCode.ERROR });
-      throw e;
-    }
-  },
-  { name: "risky-operation" }
-);
-```
+- **Span attributes:** `span-chain.md`, `span-retriever.md`, `span-tool.md`, etc.
+- **Attribute helpers:** https://docs.arize.com/phoenix/tracing/manual-instrumentation-typescript#attribute-helpers
+- **Auto-instrumentation:** `instrumentation-auto-typescript.md` for framework integrations
