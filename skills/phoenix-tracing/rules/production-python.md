@@ -6,8 +6,6 @@
 
 **Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
 
----
-
 ## Data Masking (PII Protection)
 
 **Environment variables:**
@@ -50,12 +48,3 @@ from phoenix.otel import suppress_tracing
 with suppress_tracing():
     internal_logging()  # No spans generated
 ```
-
-**Sampling:**
-
-```bash
-export OTEL_TRACES_SAMPLER="parentbased_traceidratio"
-export OTEL_TRACES_SAMPLER_ARG="0.1"  # Sample 10%
-```
-
----

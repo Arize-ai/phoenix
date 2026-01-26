@@ -1,563 +1,87 @@
-# Phoenix Tracing: Custom Metadata Guide (Python)
+# Phoenix Tracing: Custom Metadata (Python)
 
-**Comprehensive guide for adding custom attributes and enriching spans in Python.**
+Add custom attributes to spans for richer observability.
 
-This guide teaches you how to add custom metadata to traces for richer observability.
+## Install
 
----
-
-## Overview
-
-**What is metadata?**
-
-- Custom attributes added to spans
-- Key-value pairs (e.g., `user_id="user_123"`, `environment="production"`)
-- Enriches traces with application-specific context
-
-**When to add metadata:**
-
-- User identification (`user.id`, `user.email`)
-- Environment context (`environment`, `version`, `region`)
-- Business logic (`experiment_id`, `model_version`, `feature_flag`)
-- Debugging (`debug_mode`, `request_id`)
-- A/B testing (`variant`, `experiment_name`)
-
----
-
-## Universal Attributes (Work on Any Span)
-
-### `using_attributes` Context Manager
-
-```python
-from openinference.instrumentation import using_attributes
-
-# All spans created within this context will have these attributes
-with using_attributes(
-    user_id="user_123",
-    metadata={"environment": "production", "version": "v2.1"}
-):
-    result = my_app.run(query)
+```bash
+pip install openinference-instrumentation
 ```
 
-**What gets captured:**
-
-- `user.id` = "user_123"
-- `metadata.environment` = "production"
-- `metadata.version` = "v2.1"
-
-**Applies to:**
-
-- All spans created within the context
-- Auto-instrumented spans (LLM, retriever, tool)
-- Manually instrumented spans
-
----
-
-### Example: User Tracking
+## Session
 
 ```python
-from openinference.instrumentation import using_attributes
+from openinference.instrumentation import using_session
 
-def handle_user_request(user_id: str, query: str):
-    # All spans in this request will have user_id
-    with using_attributes(user_id=user_id):
-        response = process_query(query)
-    return response
-
-handle_user_request("user_123", "What is Phoenix?")
+with using_session(session_id="my-session-id"):
+    # Spans get: "session.id" = "my-session-id"
+    ...
 ```
 
-**Phoenix UI:** Filter traces by `user.id == "user_123"`, track user-specific behavior.
-
----
-
-## Input and Output Values
-
-**Recommended on all spans** to understand what data flowed through each operation.
-
-### Automatic Capture (Decorators)
+## User
 
 ```python
-@tracer.chain
-def process(query: str) -> str:
-    # Input and output automatically captured as:
-    # - input.value = query
-    # - output.value = return value
-    return f"Result: {query}"
+from openinference.instrumentation import using_user
+
+with using_user("my-user-id"):
+    # Spans get: "user.id" = "my-user-id"
+    ...
 ```
 
----
-
-### Manual Capture (Context Managers)
+## Metadata
 
 ```python
-with tracer.start_as_current_span("operation", openinference_span_kind="chain") as span:
-    span.set_attribute("input.value", user_query)
+from openinference.instrumentation import using_metadata
 
-    result = process(user_query)
-
-    span.set_attribute("output.value", result)
+with using_metadata({"key": "value", "experiment_id": "exp_123"}):
+    # Spans get: "metadata" = '{"key": "value", "experiment_id": "exp_123"}'
+    ...
 ```
 
----
-
-### Complex Input/Output (JSON)
+## Tags
 
 ```python
-import json
+from openinference.instrumentation import using_tags
 
-with tracer.start_as_current_span("operation") as span:
-    input_data = {"query": "Hello", "filters": ["recent", "relevant"]}
-    span.set_attribute("input.value", json.dumps(input_data))
-
-    output_data = {"response": "Hi!", "confidence": 0.95}
-    span.set_attribute("output.value", json.dumps(output_data))
+with using_tags(["tag_1", "tag_2"]):
+    # Spans get: "tag.tags" = '["tag_1", "tag_2"]'
+    ...
 ```
 
-**Phoenix UI:** Displays JSON in a formatted view.
-
----
-
-## Prompt Templates
-
-**Use case:** Track which prompt template was used and with what variables.
-
-### Prompt Template Attributes
-
-```python
-import json
-
-with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as span:
-    template = "You are a helpful assistant. Answer this question: {question}"
-    variables = {"question": "What is Phoenix?"}
-
-    span.set_attribute("llm.prompt_template.template", template)
-    span.set_attribute("llm.prompt_template.variables", json.dumps(variables))
-
-    # Render and call LLM
-    prompt = template.format(**variables)
-    response = llm.generate(prompt)
-```
-
-**What gets captured:**
-
-- `llm.prompt_template.template`: Template string
-- `llm.prompt_template.variables`: Template variables (JSON)
-
-**Phoenix UI:** See which template and variables were used for each LLM call.
-
-**Cross-reference:** See `span-llm.md` for full LLM attributes.
-
----
-
-## Custom Metadata Namespace
-
-**Use `metadata.*` for arbitrary key-value pairs.**
-
-### Custom Metadata
+## Combined (using_attributes)
 
 ```python
 from openinference.instrumentation import using_attributes
 
 with using_attributes(
-    metadata={
-        "experiment_id": "exp_123",
-        "model_version": "gpt-4-1106-preview",
-        "feature_flag_enabled": True,
-        "request_id": "req_abc",
-        "environment": "production",
-        "user_tier": "premium",
-    }
+    session_id="my-session-id",
+    user_id="my-user-id",
+    metadata={"environment": "production"},
+    tags=["prod", "v2"],
+    prompt_template="Answer: {question}",
+    prompt_template_version="v1.0",
+    prompt_template_variables={"question": "What is Phoenix?"},
 ):
-    result = my_app.run(query)
+    # All attributes applied to spans in this context
+    ...
 ```
 
-**What gets captured:**
-
-- `metadata.experiment_id` = "exp_123"
-- `metadata.model_version` = "gpt-4-1106-preview"
-- `metadata.feature_flag_enabled` = True
-- etc.
-
----
-
-### Filtering by Metadata in Phoenix UI
-
-**Query DSL:**
+## On a Single Span
 
 ```python
-# In Phoenix UI search bar or client query
-metadata["experiment_id"] == "exp_123"
-metadata["user_tier"] == "premium"
-metadata["feature_flag_enabled"] == true
+span.set_attribute("metadata", json.dumps({"key": "value"}))
+span.set_attribute("user.id", "user_123")
+span.set_attribute("session.id", "session_456")
 ```
 
-**Export traces with specific metadata:**
+## As Decorators
+
+All context managers can be used as decorators:
 
 ```python
-from phoenix.trace.dsl import SpanQuery
-
-query = SpanQuery().where(
-    "metadata['experiment_id'] == 'exp_123'"
-).select(
-    "span_id",
-    "input.value",
-    "output.value",
-)
-
-df = client.query_spans(query)
+@using_session(session_id="my-session-id")
+@using_user("my-user-id")
+@using_metadata({"env": "prod"})
+def my_function():
+    ...
 ```
-
-**Cross-reference:** export-data.md for querying.
-
----
-
-## Span-Specific Attributes
-
-### LLM Spans
-
-```python
-with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as span:
-    span.set_attribute("llm.model_name", "gpt-4")
-    span.set_attribute("llm.provider", "openai")
-    span.set_attribute("llm.invocation_parameters.temperature", 0.7)
-    span.set_attribute("llm.invocation_parameters.max_tokens", 500)
-
-    response = llm.generate(prompt)
-
-    span.set_attribute("llm.token_count.prompt", response.usage.prompt_tokens)
-    span.set_attribute("llm.token_count.completion", response.usage.completion_tokens)
-    span.set_attribute("llm.token_count.total", response.usage.total_tokens)
-```
-
-**Cross-reference:** See `span-llm.md` for full LLM attributes.
-
----
-
-### Retriever Spans
-
-```python
-import json
-
-with tracer.start_as_current_span("vector_search", openinference_span_kind="retriever") as span:
-    span.set_attribute("input.value", query)
-
-    results = vector_db.search(query, top_k=5)
-
-    # Set retrieval.documents attribute
-    documents = [
-        {
-            "document.id": doc.id,
-            "document.content": doc.text,
-            "document.score": doc.score,
-            "document.metadata": json.dumps(doc.metadata),
-        }
-        for doc in results
-    ]
-    span.set_attribute("retrieval.documents", json.dumps(documents))
-```
-
-**Cross-reference:** See `span-retriever.md` for full retrieval attributes.
-
----
-
-### Tool Spans
-
-```python
-with tracer.start_as_current_span("tool_call", openinference_span_kind="tool") as span:
-    span.set_attribute("tool.name", "get_weather")
-    span.set_attribute("tool.description", "Fetches current weather for a city")
-    span.set_attribute("tool.parameters", json.dumps({"city": "San Francisco"}))
-
-    result = get_weather("San Francisco")
-
-    span.set_attribute("output.value", result)
-```
-
-**Cross-reference:** See `span-tool.md` for full tool attributes.
-
----
-
-## Common Metadata Patterns
-
-### A/B Testing
-
-```python
-from openinference.instrumentation import using_attributes
-
-# Track which variant a user sees
-with using_attributes(
-    metadata={
-        "experiment_name": "model_comparison",
-        "variant": "gpt-4",  # or "claude-3"
-    }
-):
-    result = run_experiment(query)
-```
-
-**Phoenix UI:** Filter by `metadata.variant`, compare performance across variants.
-
----
-
-### Feature Flags
-
-```python
-with using_attributes(
-    metadata={
-        "feature_flag": "new_retrieval_algorithm",
-        "flag_enabled": True,
-    }
-):
-    result = my_app.run(query)
-```
-
-**Phoenix UI:** Compare traces with `flag_enabled=true` vs `flag_enabled=false`.
-
----
-
-### Model Versioning
-
-```python
-with using_attributes(
-    metadata={
-        "model_version": "gpt-4-1106-preview",
-        "embedding_model": "text-embedding-3-small",
-    }
-):
-    result = my_app.run(query)
-```
-
-**Phoenix UI:** Track which model versions were used, compare performance.
-
----
-
-### Environment Context
-
-```python
-import os
-
-with using_attributes(
-    metadata={
-        "environment": os.getenv("ENV", "development"),
-        "region": os.getenv("AWS_REGION", "us-west-2"),
-        "version": "v2.1.0",
-    }
-):
-    result = my_app.run(query)
-```
-
-**Phoenix UI:** Filter by environment, debug production vs staging differences.
-
----
-
-### Request Tracking
-
-```python
-import uuid
-
-request_id = str(uuid.uuid4())
-
-with using_attributes(
-    user_id=user_id,
-    metadata={
-        "request_id": request_id,
-        "ip_address": request.remote_addr,
-        "user_agent": request.headers.get("User-Agent"),
-    }
-):
-    result = handle_request(request)
-```
-
-**Phoenix UI:** Search by `request_id`, track full request lifecycle.
-
----
-
-## Adding Metadata to Specific Spans
-
-**Use case:** Add metadata to a single span, not all spans in a context.
-
-### Span Attributes
-
-```python
-with tracer.start_as_current_span("operation") as span:
-    # Add custom attributes to this span only
-    span.set_attribute("metadata.custom_field", "custom_value")
-    span.set_attribute("metadata.debug_mode", True)
-
-    result = process()
-```
-
----
-
-## Attribute Data Types
-
-**Supported types:**
-
-- `string`: `"hello"`
-- `number`: `123`, `45.6`
-- `boolean`: `true`, `false`
-- `array`: `["a", "b", "c"]` (strings, numbers, or booleans)
-- `null`: Not supported (use empty string or omit)
-
-**Complex types (use JSON):**
-
-- `dict`: Serialize with `json.dumps()`
-
-**Example:**
-
-```python
-span.set_attribute("metadata.config", json.dumps({"key": "value"}))
-```
-
----
-
-## Best Practices
-
-### Use Descriptive Attribute Names
-
-**Bad:**
-
-```python
-span.set_attribute("metadata.val", "123")
-span.set_attribute("metadata.x", True)
-```
-
-**Good:**
-
-```python
-span.set_attribute("metadata.experiment_id", "exp_123")
-span.set_attribute("metadata.feature_flag_enabled", True)
-```
-
----
-
-### Use Standard Attributes When Available
-
-**Bad:**
-
-```python
-span.set_attribute("metadata.user", "user_123")
-```
-
-**Good:**
-
-```python
-with using_attributes(user_id="user_123"):
-    # Uses standard `user.id` attribute
-```
-
-**Standard attributes:**
-
-- `user.id`, `user.email`
-- `session.id`
-- `input.value`, `output.value`
-- `llm.model_name`, `llm.token_count.*`
-
-**Cross-reference:** See `fundamentals-universal-attributes.md` for full list.
-
----
-
-### Avoid PII in Metadata (Unless Masked)
-
-**Bad:**
-
-```python
-span.set_attribute("metadata.email", "alice@example.com")  # PII
-span.set_attribute("metadata.ssn", "123-45-6789")  # Sensitive
-```
-
-**Good:**
-
-```python
-span.set_attribute("user.id", "user_123")  # No PII
-span.set_attribute("metadata.user_tier", "premium")  # Non-sensitive
-```
-
-**If PII is needed:** production-guide.md for data masking.
-
----
-
-### Use Metadata for Filtering and Analysis
-
-**Phoenix UI supports filtering by metadata:**
-
-```python
-# Search bar in Phoenix UI
-metadata["experiment_id"] == "exp_123"
-metadata["user_tier"] == "premium" and llm.model_name == "gpt-4"
-```
-
-**Querying via client:**
-
-```python
-from phoenix.trace.dsl import SpanQuery
-
-query = SpanQuery().where(
-    "metadata['experiment_id'] == 'exp_123' and span_kind == 'LLM'"
-).select(
-    "llm.model_name",
-    "llm.token_count.total",
-)
-
-df = client.query_spans(query)
-```
-
----
-
-## Complete Example
-
-### Enriched RAG Pipeline
-
-```python
-import json
-from phoenix.otel import register
-from openinference.instrumentation import using_attributes
-
-# Setup
-tracer_provider = register(project_name="rag-app")
-tracer = tracer_provider.get_tracer(__name__)
-
-@tracer.chain
-def rag_pipeline(query: str, user_id: str, experiment_id: str) -> str:
-    # Add context metadata for all spans in this pipeline
-    with using_attributes(
-        user_id=user_id,
-        metadata={
-            "experiment_id": experiment_id,
-            "model_version": "gpt-4-1106-preview",
-            "environment": "production",
-        }
-    ):
-        # Retrieval
-        docs = retrieve_documents(query)
-
-        # LLM generation with prompt template tracking
-        with tracer.start_as_current_span("llm_generation", openinference_span_kind="llm") as span:
-            template = "Answer the question based on context:\n{context}\n\nQuestion: {question}"
-            variables = {"context": "\n".join([doc["content"] for doc in docs]), "question": query}
-
-            span.set_attribute("llm.prompt_template.template", template)
-            span.set_attribute("llm.prompt_template.variables", json.dumps(variables))
-
-            prompt = template.format(**variables)
-            response = llm.generate(prompt)
-
-        return response
-
-# Run pipeline
-result = rag_pipeline(
-    query="What is Phoenix?",
-    user_id="user_123",
-    experiment_id="exp_rag_v2",
-)
-```
-
-**Phoenix UI:** All spans have:
-
-- `user.id` = "user_123"
-- `metadata.experiment_id` = "exp_rag_v2"
-- `metadata.model_version` = "gpt-4-1106-preview"
-- `metadata.environment` = "production"
-- LLM span has prompt template and variables
-
----
