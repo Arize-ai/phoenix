@@ -35,20 +35,26 @@ pnpm run build
 
 ### Python
 
-IMPORTANT: Use `tox` for all testing, linting, and type-checking. Run `tox run -e ruff` (not ruff directly).
+Unit and integration tests are located in `tests/unit` and `tests/integration`, respectively, and are run using `uv run pytest`. By default, `pytest` is configured to produce verbose output. When running large numbers of tests:
+
+- Use `-n auto` to run tests in parallel
+- Use `pytest-quiet.ini` to produce quiet output that avoids flooding the context window
 
 ```bash
-tox run -e ruff                          # Format and lint
+uv run pytest tests/unit -c pytest-quiet.ini -n auto                  # Runs the entire unit test suite in parallel with quiet output
+uv run pytest tests/unit/test_failed_unit_tests.py::test_failed_test  # Runs a particular failed test with verbose output
+uv run pytest tests/integration                                       # Runs integration tests
+```
+
+Other commands can be managed through the 
+
+```bash
+tox run -e ruff                                          # Format and lint
 tox run -e ruff,remove_symlinks,type_check,add_symlinks  # Type check (remove/add symlinks)
-tox run -e type_check_unit_tests         # Type check unit tests
-tox run -e type_check_integration_tests  # Type check integration tests
-tox run -e unit_tests                    # Run all unit tests
-tox run -e unit_tests -- -k test_name    # Run specific test by name
-tox run -e unit_tests -- --run-postgres  # Run tests with PostgreSQL
-tox run -e integration_tests             # Run all integration tests
-tox run -e integration_tests -- -k test_name  # Run specific integration test
-tox run -e phoenix_client                # Test sub-package
-tox list                                 # List all environments
+tox run -e type_check_unit_tests                         # Type check unit tests
+tox run -e type_check_integration_tests                  # Type check integration tests
+tox run -e phoenix_client                                # Test sub-package
+tox list                                                 # List all environments
 ```
 
 ### Frontend (app/)

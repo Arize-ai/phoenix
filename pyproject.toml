@@ -210,23 +210,6 @@ testpaths = [
   "tests",
 ]
 
-[tool.coverage.run]
-branch = true
-parallel = true
-omit = [
-  "**/__init__.py",
-]
-
-[tool.coverage.report]
-fail_under=30
-show_missing=true
-sort="cover"
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
-
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
