@@ -143,5 +143,16 @@ ls rules/*-typescript.md  # TypeScript guides
 
 ## References
 
-- [OpenInference Spec](https://github.com/Arize-ai/openinference/tree/main/spec)
+**Phoenix Documentation:**
+
 - [Phoenix Documentation](https://docs.arize.com/phoenix)
+- [OpenInference Spec](https://github.com/Arize-ai/openinference/tree/main/spec)
+
+**Python API Documentation:**
+
+- [Python OTEL Package](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/) - `arize-phoenix-otel` API reference
+- [Python Client Package](https://arize-phoenix.readthedocs.io/projects/client/en/latest/) - `arize-phoenix-client` API reference
+
+**TypeScript API Documentation:**
+
+- [TypeScript Packages](https://arize-ai.github.io/phoenix/) - `@arizeai/phoenix-otel`, `@arizeai/phoenix-client`, and other TypeScript packages

@@ -114,3 +114,8 @@ response = client.chat.completions.create(
     messages=[{"role": "user", "content": "Hello!"}]
 )
 ```
+
+## API Reference
+
+- [Python OTEL API Docs](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/)
+- [Python Client API Docs](https://arize-phoenix.readthedocs.io/projects/client/en/latest/)
