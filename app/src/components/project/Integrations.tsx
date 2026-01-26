@@ -350,16 +350,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   },
   {
     name: "BeeAI",
-    docsHref:
-      "https://arize.com/docs/phoenix/integrations/typescript/beeai",
+    docsHref: "https://arize.com/docs/phoenix/integrations/typescript/beeai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
     icon: <BeeAISVG />,
   },
   {
     name: "MCP",
-    docsHref:
-      "https://arize.com/docs/phoenix/integrations/typescript/mcp",
+    docsHref: "https://arize.com/docs/phoenix/integrations/typescript/mcp",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp",
     icon: <McpSVG />,
