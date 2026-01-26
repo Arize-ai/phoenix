@@ -2318,6 +2318,46 @@ class CodeEvaluator(Evaluator):
     )
 
 
+class BuiltinEvaluator(Base):
+    """
+    Database reflection of the in-memory builtin evaluator registry.
+
+    This table is synchronized on application startup to stay in sync
+    with the Python code definitions. The negative ID scheme is preserved
+    for backwards compatibility with existing dataset_evaluators references.
+
+    Note: The in-memory registry remains the authoritative source for
+    evaluator behavior. This table provides database VISIBILITY only,
+    not referential integrity (no FK from dataset_evaluators).
+    """
+
+    __tablename__ = "builtin_evaluators"
+
+    # Use the CRC32-generated negative ID as primary key (not auto-increment)
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+
+    # Store output config details for inspection
+    output_config_type: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "output_config_type IN ('CATEGORICAL', 'CONTINUOUS')",
+            name="valid_output_config_type",
+        ),
+        nullable=False,
+    )
+    output_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+
+    # Track when this was last synced from the registry
+    synced_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
