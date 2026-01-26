@@ -23,6 +23,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
@@ -67,15 +68,28 @@ export const convertTanstackSortToEvaluatorSort = (
   return null;
 };
 
-const evaluatorItemCSS = css`
+const evaluatorItemButtonCSS = css`
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--ac-global-dimension-size-100);
-  padding: var(--ac-global-dimension-size-100)
-    var(--ac-global-dimension-size-150);
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-50);
+  height: 90px;
+  padding: var(--ac-global-dimension-size-200);
   border-radius: var(--ac-global-rounding-small);
-  background-color: var(--ac-global-color-grey-200);
+  border: 1px solid var(--ac-global-border-color-default);
+  background-color: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s ease;
+  &:hover {
+    background-color: var(--ac-global-color-grey-200);
+  }
+`;
+
+const evaluatorColumnCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-125);
+  flex: 1;
 `;
 
 const EmptyState = ({
@@ -83,9 +97,7 @@ const EmptyState = ({
 }: {
   builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
 }) => {
-  const codeEvaluators = builtInEvaluators.builtInEvaluators.filter(
-    (e) => e.kind === "CODE"
-  );
+  const codeEvaluators = builtInEvaluators.builtInEvaluators;
   const llmEvaluatorTemplates =
     builtInEvaluators.classificationEvaluatorConfigs;
 
@@ -99,26 +111,52 @@ const EmptyState = ({
         maxWidth="700px"
         margin="var(--ac-global-dimension-size-300) auto"
       >
-        <Text size="L" fontStyle="italic" color="text-500">
+        <Text size="S" fontStyle="italic" color="text-500">
           No evaluators added to this dataset
         </Text>
-        <Flex direction="row" gap="size-400" justifyContent="center">
-          {/* Code Evaluators Section */}
-          <Flex direction="column" gap="size-50">
-            {codeEvaluators.map((evaluator) => (
-              <div key={evaluator.id} css={evaluatorItemCSS}>
-                <Text size="S">{evaluator.name}</Text>
-              </div>
-            ))}
-          </Flex>
-          {/* LLM Evaluator Templates Section */}
-          <Flex direction="column" gap="size-50">
+        <Flex direction="row" gap="size-125">
+          {/* LLM Evaluator Templates */}
+          <div css={evaluatorColumnCSS}>
             {llmEvaluatorTemplates.map((template) => (
-              <div key={template.name} css={evaluatorItemCSS}>
-                <Text size="S">{template.name}</Text>
-              </div>
+              <button
+                key={template.name}
+                css={evaluatorItemButtonCSS}
+                onClick={() => {
+                  // TODO: Open create evaluator dialog for LLM template
+                }}
+              >
+                <Text size="S" weight="heavy">
+                  {template.name}
+                </Text>
+                <LineClamp lines={2}>
+                  <Text size="XS" color="text-700">
+                    {template.description}
+                  </Text>
+                </LineClamp>
+              </button>
             ))}
-          </Flex>
+          </div>
+          {/* Code Evaluators */}
+          <div css={evaluatorColumnCSS}>
+            {codeEvaluators.map((evaluator) => (
+              <button
+                key={evaluator.id}
+                css={evaluatorItemButtonCSS}
+                onClick={() => {
+                  // TODO: Open create evaluator dialog for code evaluator
+                }}
+              >
+                <Text size="S" weight="heavy">
+                  {evaluator.name}
+                </Text>
+                <LineClamp lines={2}>
+                  <Text size="XS" color="text-700">
+                    {evaluator.description}
+                  </Text>
+                </LineClamp>
+              </button>
+            ))}
+          </div>
         </Flex>
       </Flex>
     </TableEmptyWrap>

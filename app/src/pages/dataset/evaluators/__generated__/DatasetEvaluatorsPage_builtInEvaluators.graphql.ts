@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<874a5308ef703a780ddb599951a28e68>>
+ * @generated SignedSource<<9743976f7832c1088bb5e7ea0b939aee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,13 +9,11 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsPage_builtInEvaluators$data = {
   readonly builtInEvaluators: ReadonlyArray<{
     readonly description: string | null;
     readonly id: string;
-    readonly kind: EvaluatorKind;
     readonly name: string;
   }>;
   readonly classificationEvaluatorConfigs: ReadonlyArray<{
@@ -66,14 +64,7 @@ return {
           "storageKey": null
         },
         (v0/*: any*/),
-        (v1/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "kind",
-          "storageKey": null
-        }
+        (v1/*: any*/)
       ],
       "storageKey": null
     },
@@ -96,6 +87,6 @@ return {
 };
 })();
 
-(node as any).hash = "8177dfc400dc9ac53146b521f7ef3dc9";
+(node as any).hash = "64b93d6bd425c623c6ec705792c91a35";
 
 export default node;

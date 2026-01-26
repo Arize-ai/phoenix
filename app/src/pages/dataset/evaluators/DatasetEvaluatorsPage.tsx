@@ -3,6 +3,7 @@ import { useFragment, usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
+import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
@@ -46,7 +47,6 @@ export function DatasetEvaluatorsPageContent() {
             id
             name
             description
-            kind
           }
           classificationEvaluatorConfigs {
             name
@@ -65,7 +65,14 @@ export function DatasetEvaluatorsPageContent() {
   }, [evaluatorsTableData]);
 
   return (
-    <main>
+    <main
+      css={css`
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      `}
+    >
       <DatasetEvaluatorsFilterBar
         padding="size-100"
         extraActions={
@@ -77,12 +84,21 @@ export function DatasetEvaluatorsPageContent() {
           />
         }
       />
-      <Suspense fallback={<Loading />}>
-        <DatasetEvaluatorsTable
-          {...evaluatorsTableProps}
-          builtInEvaluators={builtInEvaluators}
-        />
-      </Suspense>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        `}
+      >
+        <Suspense fallback={<Loading />}>
+          <DatasetEvaluatorsTable
+            {...evaluatorsTableProps}
+            builtInEvaluators={builtInEvaluators}
+          />
+        </Suspense>
+      </div>
     </main>
   );
 }
