@@ -1,3 +1,25 @@
+"""
+Playground Cancellation Architecture
+=====================================
+
+This module provides the backend cancellation token used to stop in-progress
+playground chat completions. The full cancellation flow spans frontend and backend:
+
+Frontend (UI):
+  1. User clicks Cancel → cancelPlaygroundInstances() sets activeRunId=null
+  2. React effect cleanup in PlaygroundOutput.tsx calls subscription.dispose()
+  3. RelayEnvironment.ts AbortController aborts the HTTP fetch
+  See: app/src/store/playground/playgroundStore.tsx (cancelPlaygroundInstances)
+       app/src/pages/playground/PlaygroundOutput.tsx (useEffect cleanup)
+       app/src/RelayEnvironment.ts (createSubscribe)
+
+Backend (Python):
+  4. subscriptions.py detects client disconnect via request.is_disconnected()
+  5. PlaygroundCancellationToken.cancel() is called
+  6. All LLM streams check is_cancelled() and break early
+  See: src/phoenix/server/api/subscriptions.py (chatCompletionSubscription)
+"""
+
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone

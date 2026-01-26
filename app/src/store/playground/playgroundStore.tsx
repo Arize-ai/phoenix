@@ -832,6 +832,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "runPlaygroundInstances" }
       );
     },
+    /**
+     * Cancels all running playground instances.
+     *
+     * CANCELLATION FLOW: Setting activeRunId=null triggers a chain of events:
+     *   1. runInProgress becomes false in PlaygroundOutput.tsx
+     *   2. useEffect cleanup calls subscription.dispose()
+     *   3. AbortController in RelayEnvironment.ts aborts the HTTP request
+     *   4. Backend detects disconnect and cancels LLM streams
+     *
+     * See: src/phoenix/server/api/helpers/cancellation.py for full architecture
+     */
     cancelPlaygroundInstances: () => {
       const instances = get().instances;
       set(

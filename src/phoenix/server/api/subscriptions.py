@@ -422,7 +422,10 @@ class Subscription:
 
         try:
             while not_started or in_progress:
-                # Check for client disconnect
+                # CANCELLATION: When the frontend aborts the HTTP request (via
+                # AbortController), is_disconnected() returns True here. We then
+                # set the cancellation token, which causes all LLM streams to break.
+                # See: src/phoenix/server/api/helpers/cancellation.py for full architecture
                 if hasattr(info.context, "request"):
                     request = info.context.request
                     if request is not None and hasattr(request, "is_disconnected"):
