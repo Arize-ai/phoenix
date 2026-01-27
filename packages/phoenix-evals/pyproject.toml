@@ -58,7 +58,6 @@ test = [
   "nest_asyncio",
   "pandas-stubs==2.0.3.230814",
   "types-tqdm",
-  "lameenc"
 ]
 
 [project.urls]

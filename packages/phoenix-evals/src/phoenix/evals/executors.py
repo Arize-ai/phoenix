@@ -278,12 +278,20 @@ class AsyncExecutor(Executor):
                         break
                     await asyncio.sleep(self._concurrency_controller.inactive_check_interval)
                     continue
-            try:
-                priority, item = await asyncio.wait_for(queue.get(), timeout=1)
-            except asyncio.TimeoutError:
+            # Use asyncio.wait instead of wait_for for Python 3.14 compatibility
+            # (wait_for uses asyncio.timeout which requires task context)
+            get_task = asyncio.create_task(queue.get())
+            done, _ = await asyncio.wait({get_task}, timeout=1)
+            if not done:
+                get_task.cancel()
+                try:
+                    await get_task
+                except asyncio.CancelledError:
+                    pass
                 if done_producing.is_set() and queue.empty():
                     break
                 continue
+            priority, item = get_task.result()
             if termination_event.is_set():
                 # discard any remaining items in the queue
                 queue.task_done()
@@ -297,7 +305,7 @@ class AsyncExecutor(Executor):
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, _ = await asyncio.wait(
-                    [generate_task, termination_event_watcher],
+                    [generate_task, termination_event_watcher],  # type: ignore[list-item]
                     timeout=self.timeout,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
@@ -329,8 +337,11 @@ class AsyncExecutor(Executor):
                     if not generate_task.done():
                         generate_task.cancel()
                         try:
-                            await asyncio.wait_for(generate_task, timeout=1)
-                        except (asyncio.TimeoutError, asyncio.CancelledError):
+                            # Use asyncio.wait instead of wait_for for Python 3.14 compatibility
+                            done, _ = await asyncio.wait({generate_task}, timeout=1)
+                            if not done:
+                                pass  # Task didn't complete in time, move on
+                        except asyncio.CancelledError:
                             pass
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))

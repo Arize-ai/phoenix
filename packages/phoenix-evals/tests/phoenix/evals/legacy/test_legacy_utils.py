@@ -2,8 +2,6 @@ import base64
 import io
 import wave
 
-import lameenc
-
 from phoenix.evals.utils import NOT_PARSABLE, get_audio_format_from_base64, snap_to_rail
 
 PCM_ENC_STR = "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
@@ -48,18 +46,17 @@ def test_get_audio_format_from_base64_wav():
 
 
 def test_get_audio_format_from_base64_mp3():
-    encoder = lameenc.Encoder()
-    encoder.set_bit_rate(BITRATE)
-    encoder.set_in_sample_rate(SAMPLE_RATE)
-    encoder.set_channels(CHANNELS)
-    encoder.set_quality(2)
+    # mp3 sample - starts with ID3 tag header followed by MP3 frame data
+    # ID3 header: "ID3" + version + flags + size, then MP3 frame sync 0xFF 0xFB
+    audio_base64 = (
+        "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/7"
+        "UMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/7"
+        "UMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    )
 
-    mp3_bytes = encoder.encode(PCM_BYTES)
-    mp3_bytes += encoder.flush()
-
-    mp3_base64 = base64.b64encode(mp3_bytes).decode("utf-8")
-
-    assert get_audio_format_from_base64(mp3_base64) == "mp3"
+    assert get_audio_format_from_base64(audio_base64) == "mp3"
 
 
 def test_get_audio_format_from_base64_ogg():
