@@ -21,7 +21,6 @@
       "family": "Roboto"
     }
   },
-  "css": "/docs/custom.css",
   "integrations": {
     "ga4": {
       "measurementId": "G-V9Z9MCPE84"
@@ -34,10 +33,7 @@
     }
   },
   "navigation": {
-    "languages": [
-      {
-        "language": "en",
-        "tabs": [
+    "tabs": [
           {
             "tab": "Documentation",
             "icon": "book-open",
@@ -1223,26 +1219,7 @@
             ]
           }
         ]
-      },
-      {
-        "language": "jp",
-        "groups": [
-          {
-            "group": " ",
-            "pages": ["docs/phoenix/documentation/jp"]
-          }
-        ]
-      },
-      {
-        "language": "cn",
-        "groups": [
-          {
-            "group": " ",
-            "pages": ["docs/phoenix/documentation/zh"]
-          }
-        ]
-      }
-    ],
+    ,
     "global": {
       "anchors": []
     }
