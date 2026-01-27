@@ -1233,31 +1233,37 @@
       {
         "label": "",
         "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
+        "title": "Community Slack",
         "icon": "users"
       },
       {
         "label": "",
         "href": "https://arize.com/blog/?cat=phoenix",
+        "title": "Blog",
         "icon": "newspaper"
       },
       {
         "label": "",
         "href": "https://x.com/ArizePhoenix", 
+        "title": "X",
         "icon": "x-twitter"
       },
       {
         "label": "",
         "href": "https://bsky.app/profile/arize-phoenix.bsky.social", 
+        "title": "Bluesky",
         "icon": "bluesky"
       }, 
       {
         "label": "",
         "href": "https://www.linkedin.com/company/arizeai/", 
+        "title": "LinkedIn",
         "icon": "linkedin"
       }, 
       {
         "label": "",
         "href": "https://github.com/Arize-ai/phoenix", 
+        "title": "GitHub",
         "icon": "github"
       }
     ],
