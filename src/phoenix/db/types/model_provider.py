@@ -6,8 +6,10 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
+    Hashable,
     Literal,
     Mapping,
+    Protocol,
     TypeVar,
     Union,
 )
@@ -30,9 +32,88 @@ if TYPE_CHECKING:
 
     from phoenix.db.models import GenerativeModelSDK
 
-# Generic type for client factory
+# Covariant type for Protocol (output position only)
+ClientT_co = TypeVar("ClientT_co", covariant=True)
+
+# Invariant type for concrete implementations that need input position usage
 ClientT = TypeVar("ClientT")
-ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
+
+
+class ClientFactory(Protocol[ClientT_co]):
+    def __call__(self) -> AbstractAsyncContextManager[ClientT_co]: ...
+    @property
+    def rate_limit_key(self) -> Hashable: ...
+
+
+class LLMClientFactory(ClientFactory[ClientT]):
+    """
+    Factory for creating LLM clients with rate limit key for bucketing.
+
+    Wraps a callable that creates the client and pairs it with a rate_limit_key
+    that identifies which rate limit bucket this client should use.
+    """
+
+    __slots__ = ("_create", "_rate_limit_key")
+
+    def __init__(
+        self,
+        create: Callable[[], AbstractAsyncContextManager[ClientT]],
+        rate_limit_key: Hashable,
+    ) -> None:
+        self._create = create
+        self._rate_limit_key = rate_limit_key
+
+    def __call__(self) -> AbstractAsyncContextManager[ClientT]:
+        return self._create()
+
+    @property
+    def rate_limit_key(self) -> Hashable:
+        return self._rate_limit_key
+
+
+# =============================================================================
+# Rate limit key helpers
+# =============================================================================
+
+
+def openai_rate_limit_key(api_key: str | None, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for OpenAI and OpenAI-compatible providers."""
+    return ("openai", hash(api_key), hash(base_url))
+
+
+def azure_rate_limit_key(endpoint: str, credential: str | None) -> tuple[str, int, int | str]:
+    """Rate limit key for Azure OpenAI. Credential can be api_key, client_id, or 'default'."""
+    return ("azure", hash(endpoint), hash(credential) if credential else "default")
+
+
+def anthropic_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for Anthropic."""
+    return ("anthropic", hash(api_key), hash(base_url))
+
+
+def bedrock_rate_limit_key(region: str, credential: str | None) -> tuple[str, str, int | str]:
+    """Rate limit key for AWS Bedrock. Credential can be access_key_id or 'default'."""
+    return ("bedrock", region, hash(credential) if credential else "default")
+
+
+def google_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for Google GenAI."""
+    return ("google", hash(api_key), hash(base_url))
+
+
+def deepseek_rate_limit_key(api_key: str | None, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for DeepSeek (OpenAI-compatible)."""
+    return ("deepseek", hash(api_key), hash(base_url))
+
+
+def xai_rate_limit_key(api_key: str | None, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for xAI (OpenAI-compatible)."""
+    return ("xai", hash(api_key), hash(base_url))
+
+
+def ollama_rate_limit_key(base_url: str) -> tuple[str, int]:
+    """Rate limit key for Ollama (local, no API key)."""
+    return ("ollama", hash(base_url))
 
 
 @asynccontextmanager
@@ -201,7 +282,7 @@ class OpenAICustomProviderConfig(BaseModel):
                     default_headers=merged_headers,
                 )
 
-        return create_client
+        return LLMClientFactory(create_client, openai_rate_limit_key(api_key, base_url))
 
 
 class AuthenticationMethodAzureADTokenProvider(BaseModel):
@@ -312,7 +393,9 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         default_headers=merged_headers,
                     )
 
-            return create_client_with_api_key
+            return LLMClientFactory(
+                create_client_with_api_key, azure_rate_limit_key(azure_endpoint, api_key)
+            )
 
         elif method.type == "azure_ad_token_provider":
             try:
@@ -341,7 +424,9 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         default_headers=merged_headers,
                     )
 
-            return create_client_with_token
+            return LLMClientFactory(
+                create_client_with_token, azure_rate_limit_key(azure_endpoint, client_id)
+            )
 
         elif method.type == "default_credentials":
             # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
@@ -363,7 +448,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     default_headers=merged_headers,
                 )
 
-            return create_client_with_default_cred
+            # Default credentials use managed identity, keyed by endpoint
+            return LLMClientFactory(
+                create_client_with_default_cred, azure_rate_limit_key(azure_endpoint, None)
+            )
 
         else:
             assert_never(method.type)
@@ -438,7 +526,7 @@ class AnthropicCustomProviderConfig(BaseModel):
                     default_headers=merged_headers,
                 )
 
-        return create_client
+        return LLMClientFactory(create_client, anthropic_rate_limit_key(api_key, base_url))
 
 
 class AWSBedrockAuthenticationMethodAccessKeys(BaseModel):
@@ -556,7 +644,9 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                     )
                 return _bedrock_client_with_headers(client_context, headers)
 
-            return create_client_with_keys
+            return LLMClientFactory(
+                create_client_with_keys, bedrock_rate_limit_key(region_name, aws_access_key_id)
+            )
 
         elif method.type == "default_credentials":
             # Use boto3 default credential chain (IAM role, env vars, ~/.aws/credentials)
@@ -569,7 +659,9 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                 )
                 return _bedrock_client_with_headers(client_context, headers)
 
-            return create_client_with_env
+            return LLMClientFactory(
+                create_client_with_env, bedrock_rate_limit_key(region_name, None)
+            )
 
         else:
             assert_never(method.type)
@@ -669,7 +761,7 @@ class GoogleGenAICustomProviderConfig(BaseModel):
                     http_options=http_options,
                 ).aio
 
-        return create_client
+        return LLMClientFactory(create_client, google_rate_limit_key(api_key, base_url))
 
 
 GenerativeModelCustomerProviderConfigType = Annotated[

@@ -188,22 +188,24 @@ async def test_add_span_to_dataset(
                         {
                             "example": {
                                 "revision": {
-                                    "input": {
-                                        "messages": [
-                                            {"content": "user-message-content", "role": "user"}
-                                        ]
-                                    },
+                                    "input": {"input": "chain-span-input-value"},
+                                    "output": {"output": "chain-span-output-value"},
                                     "metadata": {
-                                        "span_kind": "LLM",
-                                        "annotations": {},
-                                    },
-                                    "output": {
-                                        "messages": [
-                                            {
-                                                "content": "assistant-message-content",
-                                                "role": "assistant",
-                                            }
-                                        ]
+                                        "span_kind": "CHAIN",
+                                        "annotations": {
+                                            "test annotation": [
+                                                {
+                                                    "label": "ambiguous",
+                                                    "score": 0.5,
+                                                    "explanation": "meaningful words",
+                                                    "metadata": {},
+                                                    "annotator_kind": "HUMAN",
+                                                    "user_id": None,
+                                                    "username": None,
+                                                    "email": None,
+                                                }
+                                            ]
+                                        },
                                     },
                                 }
                             }
@@ -230,24 +232,22 @@ async def test_add_span_to_dataset(
                         {
                             "example": {
                                 "revision": {
-                                    "input": {"input": "chain-span-input-value"},
-                                    "output": {"output": "chain-span-output-value"},
+                                    "input": {
+                                        "messages": [
+                                            {"content": "user-message-content", "role": "user"}
+                                        ]
+                                    },
                                     "metadata": {
-                                        "span_kind": "CHAIN",
-                                        "annotations": {
-                                            "test annotation": [
-                                                {
-                                                    "label": "ambiguous",
-                                                    "score": 0.5,
-                                                    "explanation": "meaningful words",
-                                                    "metadata": {},
-                                                    "annotator_kind": "HUMAN",
-                                                    "user_id": None,
-                                                    "username": None,
-                                                    "email": None,
-                                                }
-                                            ]
-                                        },
+                                        "span_kind": "LLM",
+                                        "annotations": {},
+                                    },
+                                    "output": {
+                                        "messages": [
+                                            {
+                                                "content": "assistant-message-content",
+                                                "role": "assistant",
+                                            }
+                                        ]
                                     },
                                 }
                             }
@@ -306,22 +306,22 @@ class TestPatchDatasetExamples:
         expected_examples = [
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
                     "revision": {
-                        "input": {"input": "patched-example-2-input"},
-                        "output": {"output": "patched-example-2-output"},
-                        "metadata": {"metadata": "patched-example-2-metadata"},
+                        "input": {"input": "patched-example-1-input"},
+                        "output": {"output": "original-example-1-version-1-output"},
+                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }
             },
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
                     "revision": {
-                        "input": {"input": "patched-example-1-input"},
-                        "output": {"output": "original-example-1-version-1-output"},
-                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
+                        "input": {"input": "patched-example-2-input"},
+                        "output": {"output": "patched-example-2-output"},
+                        "metadata": {"metadata": "patched-example-2-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }

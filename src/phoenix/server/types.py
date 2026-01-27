@@ -86,9 +86,19 @@ class DaemonTask(ABC):
 
     async def stop(self) -> None:
         self._running = False
+        # Cancel all tasks in reverse order (most recently spawned first)
         for task in reversed(self._tasks):
             if not task.done():
                 task.cancel()
+        # Wait for all tasks concurrently with a single timeout
+        if self._tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._tasks, return_exceptions=True),
+                    timeout=10.0,
+                )
+            except asyncio.TimeoutError:
+                pass  # Some tasks didn't respond to cancel in time
         self._tasks.clear()
 
     async def __aenter__(self) -> None:

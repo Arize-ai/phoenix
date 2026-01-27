@@ -183,6 +183,10 @@ class LLMEvaluator(BaseEvaluator):
         return self._output_config
 
     @property
+    def llm_client(self) -> "PlaygroundStreamingClient[Any]":
+        return self._llm_client
+
+    @property
     def input_schema(self) -> dict[str, Any]:
         formatter = get_template_formatter(self._template_format)
         variables: set[str] = set()

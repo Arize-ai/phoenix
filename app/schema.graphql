@@ -878,6 +878,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
@@ -1810,6 +1811,33 @@ type ExperimentEdge {
   node: Experiment!
 }
 
+type ExperimentJob implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experiment: Experiment!
+  isActive: Boolean!
+  createdAt: DateTime!
+  lastError: String
+}
+
+"""A connection to a list of items."""
+type ExperimentJobConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentJobEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentJobEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentJob!
+}
+
 type ExperimentMutationPayload {
   experiments: [Experiment!]!
 }
@@ -2448,6 +2476,8 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  stopExperiment(experimentId: ID!): StopExperimentPayload!
+  resumeExperiment(experimentId: ID!): ResumeExperimentPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -3243,6 +3273,10 @@ input ResponseFormatInput {
   definition: JSON!
 }
 
+type ResumeExperimentPayload {
+  job: ExperimentJob!
+}
+
 type Retrieval {
   queryId: ID!
   documentId: ID!
@@ -3635,6 +3669,10 @@ enum SpanStatusCode {
   UNSET
 }
 
+type StopExperimentPayload {
+  job: ExperimentJob!
+}
+
 type StringInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   canonicalName: CanonicalParameterName
@@ -3656,6 +3694,7 @@ type StringListInvocationParameter implements InvocationParameterBase {
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
   chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDatasetNew(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {

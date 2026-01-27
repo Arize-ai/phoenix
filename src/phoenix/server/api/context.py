@@ -97,7 +97,7 @@ from phoenix.server.types import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from phoenix.server.daemons.experiment_runner import ExperimentRunner
 
 
 @dataclass
@@ -132,6 +132,7 @@ class DataLoaders:
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_execution_config_fields: TableFieldsDataLoader
     experiment_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
@@ -227,6 +228,7 @@ class Context(BaseContext):
     model: Model
     export_path: Path
     span_cost_calculator: SpanCostCalculator
+    experiment_runner: "ExperimentRunner"
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()

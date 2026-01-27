@@ -12,6 +12,7 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    Protocol,
     Union,
     cast,
 )
@@ -185,7 +186,35 @@ class streaming_llm_span:
         return unflatten(self._attributes.items())
 
 
-def get_db_trace(span: streaming_llm_span, project_id: int) -> models.Trace:
+class _LLMSpan(Protocol):
+    """Protocol for LLM span objects used by get_db_trace/get_db_span."""
+
+    @property
+    def trace_id(self) -> str: ...
+
+    @property
+    def span_id(self) -> str: ...
+
+    @property
+    def start_time(self) -> datetime: ...
+
+    @property
+    def end_time(self) -> datetime: ...
+
+    @property
+    def status_code(self) -> StatusCode: ...
+
+    @property
+    def status_message(self) -> Optional[str]: ...
+
+    @property
+    def events(self) -> list[SpanEvent]: ...
+
+    @property
+    def attributes(self) -> dict[str, Any]: ...
+
+
+def get_db_trace(span: _LLMSpan, project_id: int) -> models.Trace:
     return models.Trace(
         project_rowid=project_id,
         trace_id=span.trace_id,
@@ -195,7 +224,7 @@ def get_db_trace(span: streaming_llm_span, project_id: int) -> models.Trace:
 
 
 def get_db_span(
-    span: streaming_llm_span,
+    span: _LLMSpan,
     db_trace: models.Trace,
 ) -> models.Span:
     prompt_tokens = get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT) or 0

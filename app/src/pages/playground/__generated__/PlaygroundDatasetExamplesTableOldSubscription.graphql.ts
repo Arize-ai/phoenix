@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ca00802c917fe33c993f3bbfefb6e79>>
+ * @generated SignedSource<<ee995c9cf34de7fc57ddaf7cb284e030>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -102,10 +102,10 @@ export type ContinuousAnnotationConfigOverrideInput = {
   optimizationDirection?: OptimizationDirection | null;
   upperBound?: number | null;
 };
-export type PlaygroundDatasetExamplesTableSubscription$variables = {
+export type PlaygroundDatasetExamplesTableOldSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
 };
-export type PlaygroundDatasetExamplesTableSubscription$data = {
+export type PlaygroundDatasetExamplesTableOldSubscription$data = {
   readonly chatCompletionOverDataset: {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly datasetExampleId: string | null;
@@ -183,9 +183,9 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly __typename: "%other";
   };
 };
-export type PlaygroundDatasetExamplesTableSubscription = {
-  response: PlaygroundDatasetExamplesTableSubscription$data;
-  variables: PlaygroundDatasetExamplesTableSubscription$variables;
+export type PlaygroundDatasetExamplesTableOldSubscription = {
+  response: PlaygroundDatasetExamplesTableOldSubscription$data;
+  variables: PlaygroundDatasetExamplesTableOldSubscription$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -494,14 +494,14 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PlaygroundDatasetExamplesTableSubscription",
+    "name": "PlaygroundDatasetExamplesTableOldSubscription",
     "selections": [
       {
-        "alias": "chatCompletionOverDataset",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
-        "name": "chatCompletionOverDatasetNew",
+        "name": "chatCompletionOverDataset",
         "plural": false,
         "selections": [
           (v2/*: any*/),
@@ -563,14 +563,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PlaygroundDatasetExamplesTableSubscription",
+    "name": "PlaygroundDatasetExamplesTableOldSubscription",
     "selections": [
       {
-        "alias": "chatCompletionOverDataset",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
-        "name": "chatCompletionOverDatasetNew",
+        "name": "chatCompletionOverDataset",
         "plural": false,
         "selections": [
           (v2/*: any*/),
@@ -628,16 +628,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0f38f05d2d7f619d882885db3da144c9",
+    "cacheID": "368203641febf61819b191bc0431031f",
     "id": null,
     "metadata": {},
-    "name": "PlaygroundDatasetExamplesTableSubscription",
+    "name": "PlaygroundDatasetExamplesTableOldSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset: chatCompletionOverDatasetNew(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n    ... on EvaluationErrorChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableOldSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n        trace {\n          traceId\n          projectId\n          id\n        }\n      }\n    }\n    ... on EvaluationErrorChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d173ddef8f647a150cefff0f8527373c";
+(node as any).hash = "bbd3d8a7bedf0c3bcb1e0873cb60a7c2";
 
 export default node;

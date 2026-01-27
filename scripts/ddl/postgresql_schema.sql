@@ -708,7 +708,7 @@ CREATE TABLE public.dataset_evaluators (
     dataset_id BIGINT NOT NULL,
     evaluator_id BIGINT,
     builtin_evaluator_id BIGINT,
-    display_name VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
     description VARCHAR,
     output_config JSONB,
     input_mapping JSONB NOT NULL,
@@ -717,8 +717,8 @@ CREATE TABLE public.dataset_evaluators (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_display_name
-        UNIQUE (dataset_id, display_name),
+    CONSTRAINT uq_dataset_evaluators_dataset_id_name
+        UNIQUE (dataset_id, name),
     CHECK (((evaluator_id IS NOT NULL) <> (builtin_evaluator_id IS NOT NULL))),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -784,6 +784,25 @@ CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
+
+
+-- Table: experiment_execution_configs
+-- -----------------------------------
+CREATE TABLE public.experiment_execution_configs (
+    id BIGINT NOT NULL,
+    task_config JSONB,
+    evaluator_configs JSONB,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    toggled_at TIMESTAMP WITH TIME ZONE,
+    last_error VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_experiment_execution_configs PRIMARY KEY (id),
+    CONSTRAINT fk_experiment_execution_configs_id_experiments FOREIGN KEY
+        (id)
+        REFERENCES public.experiments (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiment_runs
