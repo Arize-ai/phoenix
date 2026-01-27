@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate sitemap.xml files from docs.json navigation structure.
+Generate sitemap.xml files from docs.json.
 
-This script parses docs.json and extracts all page URLs to create a standard
-sitemap.xml file. The sitemap is written to both the repository root and
-docs/phoenix/ directories.
+This script parses docs.json and extracts all page URLs from the navigation
+and footer sections to create a standard sitemap.xml file. The sitemap is
+written to both the repository root and docs/phoenix/ directories.
 """
 
 import json
@@ -26,9 +26,12 @@ def extract_pages(item: Any) -> list[str]:
     pages: list[str] = []
 
     if isinstance(item, str):
-        # Only treat strings starting with "docs/" as page paths
+        # Only treat strings starting with "docs/" or "/docs/" as page paths
         if item.startswith("docs/"):
             pages.append(item)
+        elif item.startswith("/docs/"):
+            # Strip leading slash for consistency
+            pages.append(item[1:])
     elif isinstance(item, dict):
         # Recurse into all dict values
         for value in item.values():
@@ -141,12 +144,19 @@ def main() -> None:
     docs_phoenix_dir = repo_root / "docs" / "phoenix"
 
     # Read docs.json
-    with open(docs_json_path, encoding="utf-8") as f:
-        docs_config = json.load(f)
+    if not docs_json_path.exists():
+        raise SystemExit(f"Error: {docs_json_path} not found")
 
-    # Extract all pages from navigation (recursively handles any structure)
-    navigation = docs_config.get("navigation", {})
-    all_pages = extract_pages(navigation)
+    try:
+        with open(docs_json_path, encoding="utf-8") as f:
+            docs_config = json.load(f)
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"Error: Invalid JSON in {docs_json_path}: {e}")
+
+    # Extract pages from navigation and footer (but not redirects or other sections)
+    all_pages: list[str] = []
+    all_pages.extend(extract_pages(docs_config.get("navigation", {})))
+    all_pages.extend(extract_pages(docs_config.get("footer", {})))
 
     # Remove duplicates while preserving order
     seen = set()
@@ -157,6 +167,13 @@ def main() -> None:
             unique_pages.append(page)
 
     print(f"Found {len(unique_pages)} unique pages")
+
+    # Fail if no pages found - likely indicates a parsing issue with docs.json structure
+    if not unique_pages:
+        raise SystemExit(
+            "Error: No pages found in docs.json. "
+            "The structure of navigation/footer may have changed."
+        )
 
     # Parse existing sitemap to preserve timestamps for unchanged URLs
     existing_sitemap_path = repo_root / "sitemap.xml"
