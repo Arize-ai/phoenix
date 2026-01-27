@@ -51,7 +51,7 @@ export function DatasetForm({
   });
 
   return (
-    <Form>
+    <Form onSubmit={handleSubmit(onSubmit)}>
       <View padding="size-200">
         <Controller
           name="name"
@@ -143,9 +143,7 @@ export function DatasetForm({
             }
             variant={isDirty ? "primary" : "default"}
             size="S"
-            onPress={() => {
-              handleSubmit(onSubmit)();
-            }}
+            type="submit"
           >
             {submitButtonText}
           </Button>

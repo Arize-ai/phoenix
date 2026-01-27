@@ -9,6 +9,7 @@ import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
 from collections.abc import Iterable, Iterator, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
@@ -2100,66 +2101,61 @@ def _get_existing_spans(
     span_ids: Iterable[_SpanId],
 ) -> set[_ExistingSpan]:
     ids = list(span_ids)
-    n = len(ids)
     query = """
-      query ($filterCondition: String, $first: Int) {
-        projects {
-          edges {
-            node {
+      query ($spanId: String!) {
+        getSpanByOtelId(spanId: $spanId) {
+          id
+          spanId
+          trace {
+            id
+            traceId
+            project {
               id
               name
-              spans (filterCondition: $filterCondition, first: $first) {
-                edges {
-                  node {
-                    id
-                    spanId
-                    trace {
-                      id
-                      traceId
-                      session {
-                        id
-                        sessionId
-                      }
-                    }
-                  }
-                }
-              }
+            }
+            session {
+              id
+              sessionId
             }
           }
         }
       }
     """
-    res, _ = _gql(
-        app,
-        app.admin_secret,
-        query=query,
-        variables={"filterCondition": f"span_id in {ids}", "first": n},
-    )
-    return {
-        _ExistingSpan(
-            id=GlobalID.from_id(span["node"]["id"]),
-            span_id=span["node"]["spanId"],
+
+    def fetch_span(span_id: _SpanId) -> _ExistingSpan | None:
+        res, _ = _gql(
+            app,
+            app.admin_secret,
+            query=query,
+            variables={"spanId": span_id},
+        )
+        span = res["data"]["getSpanByOtelId"]
+        if span is None:
+            return None
+        return _ExistingSpan(
+            id=GlobalID.from_id(span["id"]),
+            span_id=span["spanId"],
             trace=_ExistingTrace(
-                id=GlobalID.from_id(span["node"]["trace"]["id"]),
-                trace_id=span["node"]["trace"]["traceId"],
+                id=GlobalID.from_id(span["trace"]["id"]),
+                trace_id=span["trace"]["traceId"],
                 project=_ExistingProject(
-                    id=GlobalID.from_id(project["node"]["id"]),
-                    name=project["node"]["name"],
+                    id=GlobalID.from_id(span["trace"]["project"]["id"]),
+                    name=span["trace"]["project"]["name"],
                 ),
                 session=(
                     _ExistingSession(
-                        id=GlobalID.from_id(span["node"]["trace"]["session"]["id"]),
-                        session_id=span["node"]["trace"]["session"]["sessionId"],
+                        id=GlobalID.from_id(span["trace"]["session"]["id"]),
+                        session_id=span["trace"]["session"]["sessionId"],
                     )
-                    if span["node"]["trace"]["session"] is not None
+                    if span["trace"]["session"] is not None
                     else None
                 ),
             ),
         )
-        for project in res["data"]["projects"]["edges"]
-        for span in project["node"]["spans"]["edges"]
-        if span["node"]["spanId"] in ids
-    }
+
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(fetch_span, ids)
+        return {span for span in results if span is not None}
 
 
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:

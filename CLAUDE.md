@@ -16,14 +16,13 @@ Phoenix is an open-source AI observability platform built on OpenTelemetry with 
 
 ## Development Setup
 
-IMPORTANT: Always run `tox run -e add_symlinks` after setup. Python sub-packages (client, evals, otel) require symlinks for local development.
+Your development environment should already be set up, but in case it is not, use these commands to bootstrap a new environment.
+
+IMPORTANT: Use the lowest supported version of Python (currently 3.10) to ensure compatibility across all supported Python versions.
 
 ```bash
 # Python setup
-uv venv --python 3.10
-source ./.venv/bin/activate
-uv pip install -e ".[dev]"
-tox run -e add_symlinks
+uv sync --python 3.10
 
 # Frontend setup
 cd app

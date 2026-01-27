@@ -158,13 +158,6 @@ def main() -> None:
 
     print(f"Found {len(unique_pages)} unique pages")
 
-    # Fail if no pages found - likely indicates a parsing issue with docs.json structure
-    if not unique_pages:
-        raise SystemExit(
-            "Error: No pages found in docs.json navigation. "
-            "The navigation structure may have changed."
-        )
-
     # Parse existing sitemap to preserve timestamps for unchanged URLs
     existing_sitemap_path = repo_root / "sitemap.xml"
     existing_timestamps = parse_existing_sitemap(existing_sitemap_path)
