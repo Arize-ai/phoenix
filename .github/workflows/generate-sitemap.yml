@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "docs.json"
+      - "scripts/generate_sitemap.py"
   workflow_dispatch: # Allow manual trigger
 
 permissions:
