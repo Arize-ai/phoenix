@@ -2,7 +2,7 @@ import re
 
 from sqlalchemy import select
 from strawberry.relay import GlobalID
-from vcr.request import Request
+from vcr.request import Request  # type: ignore[import-untyped]
 
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset

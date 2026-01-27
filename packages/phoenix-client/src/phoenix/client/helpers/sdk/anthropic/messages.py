@@ -226,6 +226,9 @@ class _InvocationParametersConversion:
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
             v1.PromptGoogleInvocationParameters,
+            v1.PromptDeepSeekInvocationParameters,
+            v1.PromptXAIInvocationParameters,
+            v1.PromptOllamaInvocationParameters,
             v1.PromptAwsInvocationParameters,
         ],
     ) -> _InvocationParameters:
@@ -292,8 +295,7 @@ class _InvocationParametersConversion:
                 ans["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
                 ans["top_p"] = aws_params["top_p"]
-        elif TYPE_CHECKING:
-            assert_never(obj["type"])
+        # Note: deepseek, xai, and ollama are handled above
         return ans
 
     @staticmethod

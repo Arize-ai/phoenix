@@ -11,7 +11,7 @@ from openinference.semconv.trace import (
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
-from vcr.request import Request as VCRRequest
+from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,

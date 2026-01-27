@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_litellm_rate_limit_errors() -> list[Type[Exception]]:
-    from litellm import RateLimitError as LiteLLMRateLimitError
+    from litellm import RateLimitError as LiteLLMRateLimitError  # type: ignore[attr-defined]
 
     return [LiteLLMRateLimitError]
 

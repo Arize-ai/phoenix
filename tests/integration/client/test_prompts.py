@@ -864,13 +864,13 @@ class TestClient:
                                     "type": "text",
                                     "text": "I'll call these functions",
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_weather",
                                     "input": '{"city": "Los Angeles"}',
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",
@@ -905,13 +905,13 @@ class TestClient:
                                     "type": "text",
                                     "text": "I'll call these functions",
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_weather",
                                     "input": '{"city": "Los Angeles"}',
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",
@@ -965,13 +965,13 @@ class TestClient:
                                     "type": "text",
                                     "text": "I'll call these functions",
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_weather",
                                     "input": '{"city": "Los Angeles"}',
                                 },
-                                {
+                                {  # type: ignore[misc,list-item]
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",

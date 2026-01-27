@@ -191,7 +191,7 @@ class _ToolConfigConversion:
         from google.generativeai import protos
         from google.generativeai.types import content_types
 
-        ans: protos.ToolConfig = protos.ToolConfig()  # type: ignore[no-untyped-call]
+        ans: protos.ToolConfig = protos.ToolConfig()
         if obj["type"] == "none":
             ans.function_calling_config.mode = content_types.FunctionCallingMode.NONE
             return ans
@@ -273,7 +273,7 @@ class _SchemaConversion:
     ) -> protos.Schema:
         from google.generativeai import protos
 
-        ans: protos.Schema = protos.Schema()  # type: ignore[no-untyped-call]
+        ans: protos.Schema = protos.Schema()
         if isinstance(type_ := obj.get("type"), str):
             if type_ == "string":
                 ans.type_ = protos.Type.STRING
@@ -366,7 +366,7 @@ class _ContentConversion:
         parts: list[protos.Part] = []
         if isinstance(obj["content"], str):
             text = formatter.format(obj["content"], variables=variables)
-            yield protos.Content(role=role, parts=[protos.Part(text=text)])  # type: ignore[no-untyped-call]
+            yield protos.Content(role=role, parts=[protos.Part(text=text)])
             return
         for part in obj["content"]:
             if part["type"] == "text":
@@ -377,7 +377,7 @@ class _ContentConversion:
                 continue
             elif TYPE_CHECKING:
                 assert_never(part["type"])
-        yield protos.Content(role=role, parts=parts)  # type: ignore[no-untyped-call]
+        yield protos.Content(role=role, parts=parts)
 
     @staticmethod
     def from_google(
@@ -406,7 +406,7 @@ class _TextContentPartConversion:
         from google.generativeai import protos
 
         text = formatter.format(obj["text"], variables=variables)
-        ans: protos.Part = protos.Part()  # type: ignore[no-untyped-call]
+        ans: protos.Part = protos.Part()
         ans.text = text
         return ans
 

@@ -22,7 +22,7 @@ from typing import (
     cast,
 )
 
-from tqdm.auto import tqdm  # type: ignore[import-untyped]
+from tqdm.auto import tqdm
 
 from phoenix.client.exceptions import PhoenixException
 from phoenix.client.utils.rate_limiters import RateLimitError

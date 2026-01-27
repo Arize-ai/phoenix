@@ -75,4 +75,5 @@ class OpenAIToolChoiceConversion:
                 function_name=function["name"],
             )
             return choice_function_tool
-        assert_never(obj["type"])
+        # OpenAI spec includes "allowed_tools" and "custom" but these are not used in Phoenix
+        assert_never(obj["type"])  # type: ignore[arg-type]

@@ -41,11 +41,9 @@ if TYPE_CHECKING:
         ChatCompletionToolChoiceOptionParam,
         ChatCompletionToolMessageParam,
         ChatCompletionToolParam,
-        ChatCompletionToolUnionParam,
         ChatCompletionUserMessageParam,
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-    from openai.types.chat.chat_completion_content_part_param import File
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
     from openai.types.chat.completion_create_params import (
         CompletionCreateParamsBase,
@@ -65,7 +63,7 @@ if TYPE_CHECKING:
 class _ToolKwargs(TypedDict, total=False):
     parallel_tool_calls: bool
     tool_choice: ChatCompletionToolChoiceOptionParam
-    tools: Sequence[ChatCompletionToolUnionParam]
+    tools: Sequence[ChatCompletionToolParam]
 
 
 class _InvocationParameters(TypedDict, total=False):
@@ -219,7 +217,9 @@ class _InvocationParametersConversion:
             if "seed" in openai_params:
                 ans["seed"] = openai_params["seed"]
             if "reasoning_effort" in openai_params:
-                ans["reasoning_effort"] = openai_params["reasoning_effort"]
+                re_val = openai_params["reasoning_effort"]
+                if re_val in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = re_val  # type: ignore[typeddict-item]
         elif obj["type"] == "azure_openai":
             azure_params: v1.PromptAzureOpenAIInvocationParametersContent
             azure_params = obj["azure_openai"]
@@ -238,7 +238,9 @@ class _InvocationParametersConversion:
             if "seed" in azure_params:
                 ans["seed"] = azure_params["seed"]
             if "reasoning_effort" in azure_params:
-                ans["reasoning_effort"] = azure_params["reasoning_effort"]
+                re_val = azure_params["reasoning_effort"]
+                if re_val in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = re_val  # type: ignore[typeddict-item]
         elif obj["type"] == "deepseek":
             deepseek_params: v1.PromptDeepSeekInvocationParametersContent
             deepseek_params = obj["deepseek"]
@@ -257,7 +259,9 @@ class _InvocationParametersConversion:
             if "seed" in deepseek_params:
                 ans["seed"] = deepseek_params["seed"]
             if "reasoning_effort" in deepseek_params:
-                ans["reasoning_effort"] = deepseek_params["reasoning_effort"]
+                re_val = deepseek_params["reasoning_effort"]
+                if re_val in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = re_val  # type: ignore[typeddict-item]
         elif obj["type"] == "xai":
             xai_params: v1.PromptXAIInvocationParametersContent
             xai_params = obj["xai"]
@@ -276,7 +280,9 @@ class _InvocationParametersConversion:
             if "seed" in xai_params:
                 ans["seed"] = xai_params["seed"]
             if "reasoning_effort" in xai_params:
-                ans["reasoning_effort"] = xai_params["reasoning_effort"]
+                re_val = xai_params["reasoning_effort"]
+                if re_val in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = re_val  # type: ignore[typeddict-item]
         elif obj["type"] == "ollama":
             ollama_params: v1.PromptOllamaInvocationParametersContent
             ollama_params = obj["ollama"]
@@ -295,7 +301,9 @@ class _InvocationParametersConversion:
             if "seed" in ollama_params:
                 ans["seed"] = ollama_params["seed"]
             if "reasoning_effort" in ollama_params:
-                ans["reasoning_effort"] = ollama_params["reasoning_effort"]
+                re_val = ollama_params["reasoning_effort"]
+                if re_val in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = re_val  # type: ignore[typeddict-item]
         elif obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
             anthropic_params = obj["anthropic"]
@@ -430,7 +438,8 @@ class _InvocationParametersConversion:
             content["seed"] = obj["seed"]
         if "reasoning_effort" in obj:
             v = obj["reasoning_effort"]
-            if v in ("none", "minimal", "low", "medium", "high", "xhigh"):
+            # OpenAI only accepts low, medium, high (not none, minimal, xhigh)
+            if v in ("low", "medium", "high"):
                 content["reasoning_effort"] = v
         if model_provider == "OPENAI":
             return v1.PromptOpenAIInvocationParameters(
@@ -1041,7 +1050,6 @@ class _ContentPartsConversion:
                     ChatCompletionContentPartImageParam,
                     ChatCompletionContentPartInputAudioParam,
                     ChatCompletionContentPartRefusalParam,
-                    File,
                 ]
             ],
             None,
@@ -1051,18 +1059,12 @@ class _ContentPartsConversion:
             yield v1.TextContentPart(type="text", text=obj)
             return
         for part in obj or ():
-            if part["type"] == "text":
-                yield _TextContentPartConversion.from_openai(part)
-            elif part["type"] == "image_url":
-                continue
-            elif part["type"] == "input_audio":
-                continue
-            elif part["type"] == "refusal":
-                continue
-            elif part["type"] == "file":
-                continue
-            elif TYPE_CHECKING:
-                assert_never(part["type"])
+            if isinstance(part, dict):
+                part_type = part.get("type")
+                if part_type == "text":
+                    yield _TextContentPartConversion.from_openai(part)  # type: ignore[arg-type]
+                elif part_type in ("image_url", "input_audio", "refusal", "file"):
+                    continue
 
 
 class _TextContentPartConversion:
