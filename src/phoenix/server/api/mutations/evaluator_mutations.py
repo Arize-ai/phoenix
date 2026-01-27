@@ -864,17 +864,6 @@ class EvaluatorMutationMixin:
             evaluator_name=builtin_evaluator.name,
         )
 
-        dataset_evaluator = models.DatasetEvaluators(
-            dataset_id=dataset_rowid,
-            name=name,
-            input_mapping=input_mapping.to_dict(),
-            builtin_evaluator_id=built_in_evaluator_id,
-            evaluator_id=None,
-            output_config_override=output_config_override,
-            description=input.description,
-            user_id=user_id,
-        )
-
         try:
             async with info.context.db() as session:
                 dataset_name = await session.scalar(
@@ -889,6 +878,9 @@ class EvaluatorMutationMixin:
                     input_mapping=input_mapping.to_dict(),
                     builtin_evaluator_id=built_in_evaluator_id,
                     evaluator_id=None,
+                    output_config_override=output_config_override,
+                    description=input.description,
+                    user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
                         dataset_evaluator_name=str(name),
