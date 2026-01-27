@@ -16,6 +16,7 @@ export const datasetEvaluatorsLoaderGQL = graphql`
       }
     }
     ...AddEvaluatorMenu_query
+    ...DatasetEvaluatorsPage_builtInEvaluators
   }
 `;
 

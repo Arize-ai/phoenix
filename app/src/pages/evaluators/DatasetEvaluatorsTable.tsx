@@ -17,19 +17,15 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  Token,
-  View,
-} from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text, Token } from "@phoenix/components";
+import { formatBuiltinEvaluatorDisplayName } from "@phoenix/components/evaluators/utils";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { LineClamp } from "@phoenix/components/utility/LineClamp";
+import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
   DatasetEvaluatorSort,
@@ -73,21 +69,132 @@ export const convertTanstackSortToEvaluatorSort = (
   return null;
 };
 
-const EmptyState = () => {
+const evaluatorItemButtonCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-50);
+  height: 90px;
+  padding: var(--ac-global-dimension-size-200);
+  border-radius: var(--ac-global-rounding-small);
+  border: 1px solid var(--ac-global-border-color-default);
+  background-color: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s ease;
+  &:hover {
+    background-color: var(--ac-global-color-grey-200);
+  }
+`;
+
+const evaluatorColumnCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-125);
+  flex: 1;
+`;
+
+const EmptyState = ({
+  builtInEvaluators,
+  onSelectLLMEvaluatorTemplate,
+  onSelectCodeEvaluator,
+  hasActiveFilter,
+}: {
+  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
+  onSelectCodeEvaluator?: (evaluatorId: string) => void;
+  hasActiveFilter: boolean;
+}) => {
+  const codeEvaluators = useMemo(
+    () =>
+      builtInEvaluators.builtInEvaluators.map((evaluator) => ({
+        ...evaluator,
+        name: formatBuiltinEvaluatorDisplayName(evaluator.name),
+      })),
+    [builtInEvaluators.builtInEvaluators]
+  );
+  const llmEvaluatorTemplates =
+    builtInEvaluators.classificationEvaluatorConfigs;
+
+  // If there's an active filter, show a simple "no results" message
+  if (hasActiveFilter) {
+    return (
+      <TableEmptyWrap>
+        <Flex
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          gap="size-300"
+          maxWidth="700px"
+          margin="var(--ac-global-dimension-size-300) auto"
+        >
+          <Text size="S" fontStyle="italic" color="text-500">
+            No evaluators found that match the given filter.
+          </Text>
+        </Flex>
+      </TableEmptyWrap>
+    );
+  }
+
+  // Otherwise, show the template selection grid
   return (
-    <View width="100%" paddingY="size-400">
+    <TableEmptyWrap>
       <Flex
         direction="column"
-        width="100%"
         alignItems="center"
         justifyContent="center"
+        gap="size-300"
+        maxWidth="700px"
+        margin="var(--ac-global-dimension-size-300) auto"
       >
-        <Text size="XL">
-          Create and manage evaluators for your AI applications.
+        <Text size="S" fontStyle="italic" color="text-500">
+          No evaluators added to this dataset
         </Text>
-        {/* TODO: Put a video here explaining how to create and use evaluators */}
+        <Flex direction="row" gap="size-125">
+          {/* LLM Evaluator Templates */}
+          <div css={evaluatorColumnCSS}>
+            {llmEvaluatorTemplates.map((template) => (
+              <button
+                key={template.name}
+                css={evaluatorItemButtonCSS}
+                onClick={() => {
+                  onSelectLLMEvaluatorTemplate?.(template.name);
+                }}
+              >
+                <Text size="S" weight="heavy">
+                  {template.name}
+                </Text>
+                <LineClamp lines={2}>
+                  <Text size="XS" color="text-700">
+                    {template.description}
+                  </Text>
+                </LineClamp>
+              </button>
+            ))}
+          </div>
+          {/* Code Evaluators */}
+          <div css={evaluatorColumnCSS}>
+            {codeEvaluators.map((evaluator) => (
+              <button
+                key={evaluator.id}
+                css={evaluatorItemButtonCSS}
+                onClick={() => {
+                  onSelectCodeEvaluator?.(evaluator.id);
+                }}
+              >
+                <Text size="S" weight="heavy">
+                  {evaluator.name}
+                </Text>
+                <LineClamp lines={2}>
+                  <Text size="XS" color="text-700">
+                    {evaluator.description}
+                  </Text>
+                </LineClamp>
+              </button>
+            ))}
+          </div>
+        </Flex>
       </Flex>
-    </View>
+    </TableEmptyWrap>
   );
 };
 
@@ -136,7 +243,10 @@ type DatasetEvaluatorsTableProps = {
    * pass the resulting edges into this prop.
    */
   rowReferences: DatasetEvaluatorsTable_row$key[];
-  emptyState?: React.ReactNode;
+  /**
+   * Built-in evaluators data to display in the empty state.
+   */
+  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -153,11 +263,19 @@ type DatasetEvaluatorsTableProps = {
    * If provided, these connections will be updated when a row is edited or deleted.
    */
   updateConnectionIds?: string[];
+  /**
+   * Callback for when an LLM evaluator template is selected from the empty state.
+   */
+  onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
+  /**
+   * Callback for when a code evaluator is selected from the empty state.
+   */
+  onSelectCodeEvaluator?: (evaluatorId: string) => void;
 };
 
 export const DatasetEvaluatorsTable = ({
   rowReferences,
-  emptyState,
+  builtInEvaluators,
   isLoadingNext,
   hasNext,
   loadNext,
@@ -165,6 +283,8 @@ export const DatasetEvaluatorsTable = ({
   onRowClick,
   datasetId,
   updateConnectionIds,
+  onSelectLLMEvaluatorTemplate,
+  onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
   "use no memo";
   const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
@@ -320,10 +440,6 @@ export const DatasetEvaluatorsTable = ({
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  if (isEmpty) {
-    return emptyState || <EmptyState />;
-  }
-
   return (
     <div
       css={css`
@@ -375,27 +491,39 @@ export const DatasetEvaluatorsTable = ({
             </tr>
           ))}
         </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  onRowClick?.(row.original);
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    align={cell.column.columnDef.meta?.textAlign}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
+        {isEmpty ? (
+          <EmptyState
+            builtInEvaluators={builtInEvaluators}
+            onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
+            onSelectCodeEvaluator={onSelectCodeEvaluator}
+            hasActiveFilter={!!filter}
+          />
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() => {
+                    onRowClick?.(row.original);
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      align={cell.column.columnDef.meta?.textAlign}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        )}
       </table>
     </div>
   );
