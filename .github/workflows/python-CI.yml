@@ -594,7 +594,7 @@ jobs:
           sparse-checkout: src/phoenix/
       - name: Install Phoenix from current branch
         run: |
-          uv pip install --system --reinstall-package arize-phoenix .
+          uv pip install --system --reinstall-package arize-phoenix --no-sources .
       - name: Test new migrations
         working-directory: ${{ env.PHOENIX_PATH }}
         run: |
