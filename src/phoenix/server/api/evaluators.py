@@ -11,6 +11,7 @@ from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
 from openinference.instrumentation import (
     Message,
+    TextMessageContent,
     get_input_attributes,
     get_llm_input_message_attributes,
     get_llm_model_name_attributes,
@@ -2058,6 +2059,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
 
 # message attributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 
 # these constants will be added to openinference-semantic-conventions
@@ -2073,29 +2075,50 @@ def _get_messages_from_template(template: PromptChatTemplate) -> list[Message]:
     for msg in template.messages:
         role = msg.role
         if isinstance(msg.content, str):
-            content = msg.content
+            messages.append(Message(role=role, content=msg.content))
         elif isinstance(msg.content, list):
-            raise NotImplementedError("Multipart content is not supported yet")
+            contents: list[TextMessageContent] = []
+            for part in msg.content:
+                if isinstance(part, TextContentPart):
+                    contents.append(TextMessageContent(type="text", text=part.text))
+                else:
+                    raise ValueError(f"Unsupported content part type: {type(part)}")
+            messages.append(Message(role=role, contents=contents))
         else:
             assert_never(msg.content)
-        messages.append(Message(role=role, content=content))
     return messages
 
 
 # the following helper functions will be refactored to `openinference-instrumentation`
 def _get_template_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
-    for idx, msg in enumerate(messages):
-        attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
-        attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
+        if "content" in msg:
+            attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg["content"]
+        elif "contents" in msg:
+            for content_idx, content_part in enumerate(msg["contents"]):
+                if content_part.get("type") == "text":
+                    attributes[
+                        f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                    ] = content_part.get("text", "")
     return attributes
 
 
 def _get_template_formatted_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
-    for idx, msg in enumerate(messages):
-        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
-        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
+        if "content" in msg:
+            attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg[
+                "content"
+            ]
+        elif "contents" in msg:
+            for content_idx, content_part in enumerate(msg["contents"]):
+                if content_part.get("type") == "text":
+                    attributes[
+                        f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                    ] = content_part.get("text", "")
     return attributes
 
 
