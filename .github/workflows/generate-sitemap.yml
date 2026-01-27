@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "docs.json"
+      - "scripts/generate_sitemap.py"
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -25,10 +26,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Generate sitemap
+        id: generate
         run: python scripts/generate_sitemap.py
+
+      - name: Comment on PR if sitemap generation failed
+        if: failure() && steps.generate.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Sitemap generation failed**\n\nThe `docs.json` structure may have changed in a way that broke sitemap generation. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
 
       - name: Commit and push if changed
         run: |
