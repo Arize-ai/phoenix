@@ -386,74 +386,165 @@ class ChatCompletionMutationMixin:
 
         evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResultUnion]] = {}
         if input.evaluators:
+            from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
+
             dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
             evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+
+            # Check if the first evaluator ID is a DatasetEvaluator ID
+            # If so, use the new resolution function that handles multiple evaluators
+            # of the same underlying type with different configurations
+            first_type_name, _ = from_global_id(evaluator_node_ids[0])
+            use_dataset_evaluator_ids = first_type_name == DatasetEvaluatorNode.__name__
+
             async with info.context.db() as session:
-                evaluators = await get_evaluators(
-                    evaluator_node_ids=evaluator_node_ids,
-                    session=session,
-                    decrypt=info.context.decrypt,
-                    credentials=input.credentials,
-                )
-                project_ids = await get_evaluator_project_ids(
-                    evaluator_node_ids=evaluator_node_ids,
-                    dataset_id=dataset_id,
-                    session=session,
-                )
-                for (revision, repetition_number), experiment_run in zip(
-                    unbatched_items, experiment_runs
-                ):
-                    if experiment_run.error:
-                        continue  # skip runs that errored out
-                    evaluation_key = (revision.dataset_example_id, repetition_number)
-                    evaluations[evaluation_key] = []
-
-                    context_dict: dict[str, Any] = {
-                        "input": revision.input,
-                        "reference": revision.output,
-                        "output": experiment_run.output.get("task_output", experiment_run.output),
-                    }
-
-                    for evaluator, evaluator_input, project_id in zip(
-                        evaluators, input.evaluators, project_ids
+                if use_dataset_evaluator_ids:
+                    # New path: resolve evaluators from DatasetEvaluator IDs
+                    # This supports multiple evaluators of the same type with different configs
+                    resolved_evaluators = await get_evaluators_from_dataset_evaluator_ids(
+                        dataset_evaluator_ids=evaluator_node_ids,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                        credentials=input.credentials,
+                    )
+                    for (revision, repetition_number), experiment_run in zip(
+                        unbatched_items, experiment_runs
                     ):
-                        name = str(evaluator_input.name)
-                        annotation_config_override = get_annotation_config_override(evaluator_input)
-                        merged_config = apply_overrides_to_annotation_config(
-                            annotation_config=evaluator.output_config,
-                            annotation_config_override=annotation_config_override,
-                            name=name,
-                            description_override=evaluator_input.description,
-                        )
+                        if experiment_run.error:
+                            continue  # skip runs that errored out
+                        evaluation_key = (revision.dataset_example_id, repetition_number)
+                        evaluations[evaluation_key] = []
 
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+                        context_dict: dict[str, Any] = {
+                            "input": revision.input,
+                            "reference": revision.output,
+                            "output": experiment_run.output.get(
+                                "task_output", experiment_run.output
+                            ),
+                        }
 
-                        eval_result: EvaluationResult = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_config=merged_config,
-                            tracer=tracer,
-                        )
-
-                        if tracer is not None:
-                            traces = await tracer.save_db_traces(
-                                session=session, project_id=project_id
+                        for resolved in resolved_evaluators:
+                            evaluator = resolved["evaluator"]
+                            name = resolved["name"]
+                            project_id = resolved["project_id"]
+                            # Convert dict input_mapping to EvaluatorInputMappingInput
+                            input_mapping_dict = resolved["input_mapping"]
+                            input_mapping = EvaluatorInputMappingInput(
+                                literal_mapping=input_mapping_dict.get("literal_mapping", {}),
+                                path_mapping=input_mapping_dict.get("path_mapping", {}),
                             )
-                            eval_result["trace_id"] = traces[0].trace_id
 
-                        if eval_result["error"] is None:
-                            annotation_model = evaluation_result_to_model(
-                                eval_result,
-                                experiment_run_id=experiment_run.id,
+                            # Apply output config override from dataset evaluator
+                            merged_config = apply_overrides_to_annotation_config(
+                                annotation_config=evaluator.output_config,
+                                annotation_config_override=resolved["output_config_override"],
+                                name=name,
+                                description_override=None,
                             )
-                            session.add(annotation_model)
-                            await session.flush()
-                        evaluations[evaluation_key].append(
-                            _to_evaluation_result_union(eval_result, name)
-                        )
+
+                            tracer: Tracer | None = None
+                            if input.tracing_enabled:
+                                tracer = Tracer(
+                                    span_cost_calculator=info.context.span_cost_calculator
+                                )
+
+                            eval_result: EvaluationResult = await evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=input_mapping,
+                                name=name,
+                                output_config=merged_config,
+                                tracer=tracer,
+                            )
+
+                            if tracer is not None:
+                                traces = await tracer.save_db_traces(
+                                    session=session, project_id=project_id
+                                )
+                                eval_result["trace_id"] = traces[0].trace_id
+
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_model(
+                                    eval_result,
+                                    experiment_run_id=experiment_run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations[evaluation_key].append(
+                                _to_evaluation_result_union(eval_result, name)
+                            )
+                else:
+                    # Legacy path: resolve evaluators from Evaluator IDs (LLMEvaluator/BuiltInEvaluator)
+                    evaluators = await get_evaluators(
+                        evaluator_node_ids=evaluator_node_ids,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                        credentials=input.credentials,
+                    )
+                    project_ids = await get_evaluator_project_ids(
+                        evaluator_node_ids=evaluator_node_ids,
+                        dataset_id=dataset_id,
+                        session=session,
+                    )
+                    for (revision, repetition_number), experiment_run in zip(
+                        unbatched_items, experiment_runs
+                    ):
+                        if experiment_run.error:
+                            continue  # skip runs that errored out
+                        evaluation_key = (revision.dataset_example_id, repetition_number)
+                        evaluations[evaluation_key] = []
+
+                        context_dict: dict[str, Any] = {
+                            "input": revision.input,
+                            "reference": revision.output,
+                            "output": experiment_run.output.get(
+                                "task_output", experiment_run.output
+                            ),
+                        }
+
+                        for evaluator, evaluator_input, project_id in zip(
+                            evaluators, input.evaluators, project_ids
+                        ):
+                            name = str(evaluator_input.name)
+                            annotation_config_override = get_annotation_config_override(
+                                evaluator_input
+                            )
+                            merged_config = apply_overrides_to_annotation_config(
+                                annotation_config=evaluator.output_config,
+                                annotation_config_override=annotation_config_override,
+                                name=name,
+                                description_override=evaluator_input.description,
+                            )
+
+                            tracer: Tracer | None = None
+                            if input.tracing_enabled:
+                                tracer = Tracer(
+                                    span_cost_calculator=info.context.span_cost_calculator
+                                )
+
+                            eval_result: EvaluationResult = await evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=evaluator_input.input_mapping,
+                                name=name,
+                                output_config=merged_config,
+                                tracer=tracer,
+                            )
+
+                            if tracer is not None:
+                                traces = await tracer.save_db_traces(
+                                    session=session, project_id=project_id
+                                )
+                                eval_result["trace_id"] = traces[0].trace_id
+
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_model(
+                                    eval_result,
+                                    experiment_run_id=experiment_run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations[evaluation_key].append(
+                                _to_evaluation_result_union(eval_result, name)
+                            )
 
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results

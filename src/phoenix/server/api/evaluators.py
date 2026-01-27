@@ -787,6 +787,200 @@ async def get_evaluator_project_ids(
     return result
 
 
+class ResolvedDatasetEvaluator(TypedDict):
+    """Resolved evaluator with its dataset-specific configuration."""
+
+    evaluator: "BaseEvaluator"
+    name: str
+    input_mapping: dict[str, Any]
+    output_config_override: Optional[Any]
+    project_id: int
+
+
+async def get_evaluators_from_dataset_evaluator_ids(
+    *,
+    dataset_evaluator_ids: list[GlobalID],
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: list[GenerativeCredentialInput] | None = None,
+) -> list[ResolvedDatasetEvaluator]:
+    """
+    Resolve evaluators from DatasetEvaluator IDs.
+
+    This function is used when the frontend sends DatasetEvaluator IDs (which are unique
+    per configuration) rather than the underlying evaluator IDs. This allows multiple
+    configurations of the same evaluator type (e.g., two "Contains" evaluators with
+    different names and settings).
+
+    Returns a list of ResolvedDatasetEvaluator in the same order as input IDs.
+    Each result includes the evaluator instance plus dataset-specific configuration
+    (name, input_mapping, output_config_override, project_id).
+    """
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
+
+    if not dataset_evaluator_ids:
+        return []
+
+    # Parse and validate all IDs are DatasetEvaluator type
+    db_ids: list[int] = []
+    for gid in dataset_evaluator_ids:
+        type_name, db_id = from_global_id(gid)
+        if type_name != DatasetEvaluatorNode.__name__:
+            raise BadRequest(f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{gid}'")
+        db_ids.append(db_id)
+
+    # Load all DatasetEvaluators records
+    dataset_evaluators = (
+        await session.scalars(
+            select(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(db_ids))
+        )
+    ).all()
+
+    # Build lookup dict
+    de_by_id: dict[int, models.DatasetEvaluators] = {de.id: de for de in dataset_evaluators}
+
+    # Collect LLM evaluator IDs that need to be resolved
+    llm_evaluator_ids: list[int] = []
+    for db_id in db_ids:
+        de = de_by_id.get(db_id)
+        if de is None:
+            raise NotFound(f"DatasetEvaluator with ID {db_id} not found")
+        if de.evaluator_id is not None:
+            llm_evaluator_ids.append(de.evaluator_id)
+
+    # Load LLM evaluators if any
+    llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
+    if llm_evaluator_ids:
+        llm_evaluator_orms = (
+            await session.scalars(
+                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(llm_evaluator_ids))
+            )
+        ).all()
+
+        for llm_evaluator_orm in llm_evaluator_orms:
+            prompt_id = llm_evaluator_orm.prompt_id
+            prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
+            if prompt_version_tag_id is not None:
+                prompt_version_query = (
+                    select(models.PromptVersion)
+                    .join(models.PromptVersionTag)
+                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
+                )
+            else:
+                prompt_version_query = (
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == prompt_id)
+                    .order_by(models.PromptVersion.id.desc())
+                    .limit(1)
+                )
+            prompt_version = await session.scalar(prompt_version_query)
+            if prompt_version is None:
+                raise NotFound(
+                    f"Prompt version not found for LLM evaluator '{llm_evaluator_orm.id}'"
+                )
+
+            # Create model input based on whether a custom provider is configured
+            if prompt_version.custom_provider_id is not None:
+                from phoenix.server.api.types.GenerativeModelCustomProvider import (
+                    GenerativeModelCustomProvider,
+                )
+
+                custom_provider = await session.get(
+                    models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
+                )
+                if custom_provider is None:
+                    raise NotFound(
+                        f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
+                    )
+                if not is_sdk_compatible_with_model_provider(
+                    custom_provider.sdk, prompt_version.model_provider
+                ):
+                    raise BadRequest(
+                        f"Custom provider '{custom_provider.name}' has SDK '{custom_provider.sdk}' "
+                        f"which is not compatible with prompt's model provider "
+                        f"'{prompt_version.model_provider.value}'."
+                    )
+
+                provider_global_id = GlobalID(
+                    type_name=GenerativeModelCustomProvider.__name__,
+                    node_id=str(prompt_version.custom_provider_id),
+                )
+                model_input = GenerativeModelInput(
+                    custom=GenerativeModelCustomProviderInput(
+                        provider_id=provider_global_id,
+                        model_name=prompt_version.model_name,
+                    )
+                )
+            else:
+                provider_key = GenerativeProviderKey.from_model_provider(
+                    prompt_version.model_provider
+                )
+                model_input = GenerativeModelInput(
+                    builtin=GenerativeModelBuiltinProviderInput(
+                        provider_key=provider_key,
+                        name=prompt_version.model_name,
+                    )
+                )
+
+            llm_client = await get_playground_client(
+                model=model_input,
+                session=session,
+                decrypt=decrypt,
+                credentials=credentials,
+            )
+
+            template = prompt_version.template
+            assert isinstance(template, PromptChatTemplate)
+            tools = prompt_version.tools
+            assert tools is not None
+
+            llm_evaluators_by_id[llm_evaluator_orm.id] = LLMEvaluator(
+                name=llm_evaluator_orm.name.root,
+                description=llm_evaluator_orm.description,
+                template=template,
+                template_format=prompt_version.template_format,
+                tools=tools,
+                invocation_parameters=prompt_version.invocation_parameters,
+                model_provider=prompt_version.model_provider,
+                llm_client=llm_client,
+                output_config=llm_evaluator_orm.output_config,
+            )
+
+    # Build result list in original input order
+    result: list[ResolvedDatasetEvaluator] = []
+    for db_id in db_ids:
+        de = de_by_id[db_id]
+
+        # Resolve the underlying evaluator
+        evaluator: BaseEvaluator
+        if de.builtin_evaluator_id is not None:
+            builtin_cls = get_builtin_evaluator_by_id(de.builtin_evaluator_id)
+            if builtin_cls is None:
+                raise NotFound(f"Built-in evaluator with ID {de.builtin_evaluator_id} not found")
+            evaluator = builtin_cls()
+        elif de.evaluator_id is not None:
+            llm_evaluator = llm_evaluators_by_id.get(de.evaluator_id)
+            if llm_evaluator is None:
+                raise NotFound(f"LLM evaluator with ID {de.evaluator_id} not found")
+            evaluator = llm_evaluator
+        else:
+            raise ValueError(
+                f"DatasetEvaluator {db_id} has neither evaluator_id nor builtin_evaluator_id"
+            )
+
+        result.append(
+            ResolvedDatasetEvaluator(
+                evaluator=evaluator,
+                name=de.name.root,
+                input_mapping=de.input_mapping,
+                output_config_override=de.output_config_override,
+                project_id=de.project_id,
+            )
+        )
+
+    return result
+
+
 def apply_input_mapping(
     *,
     input_schema: dict[str, Any],

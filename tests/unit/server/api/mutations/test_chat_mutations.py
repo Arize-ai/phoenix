@@ -24,7 +24,11 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    DatasetEvaluator,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -1620,6 +1624,181 @@ class TestChatCompletionMutationMixin:
             annotation = annotations[0]
             assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
+
+    async def test_multiple_evaluators_of_same_type_with_different_names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that multiple evaluators of the same type with different names all return results.
+
+        This test verifies the fix for a bug where configuring two evaluators of the same built-in
+        type (e.g., two "Contains" evaluators) with different names would only return one evaluation
+        result instead of both.
+        """
+        # Create two Contains evaluators with different names and settings
+        contains_id = _generate_builtin_evaluator_id("Contains")
+
+        async with db() as session:
+            # Create first Contains evaluator - checks for "hello"
+            dataset_evaluator_1 = models.DatasetEvaluators(
+                dataset_id=single_example_dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=models.Identifier(root="contains-hello"),
+                input_mapping={
+                    "literal_mapping": {"expected": "hello"},
+                    "path_mapping": {"actual": "$.output"},
+                },
+                project=models.Project(
+                    name="contains-hello-project",
+                    description="Project for contains-hello evaluator",
+                ),
+            )
+            session.add(dataset_evaluator_1)
+            await session.flush()
+            dataset_evaluator_1_id = dataset_evaluator_1.id
+
+            # Create second Contains evaluator - checks for "world"
+            dataset_evaluator_2 = models.DatasetEvaluators(
+                dataset_id=single_example_dataset.id,
+                builtin_evaluator_id=contains_id,  # Same underlying evaluator type
+                name=models.Identifier(root="contains-world"),
+                input_mapping={
+                    "literal_mapping": {"expected": "world"},
+                    "path_mapping": {"actual": "$.output"},
+                },
+                project=models.Project(
+                    name="contains-world-project",
+                    description="Project for contains-world evaluator",
+                ),
+            )
+            session.add(dataset_evaluator_2)
+            await session.flush()
+            dataset_evaluator_2_id = dataset_evaluator_2.id
+
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+
+        # Use DatasetEvaluator IDs (not BuiltInEvaluator IDs) to support multiple configs
+        evaluator_1_gid = str(
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator_1_id))
+        )
+        evaluator_2_gid = str(
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator_2_id))
+        )
+
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    ... on EvaluationSuccess {
+                      annotation {
+                        name
+                        score
+                        annotatorKind
+                      }
+                    }
+                    ... on EvaluationError {
+                      evaluatorName
+                      message
+                    }
+                  }
+                  span {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                # Note: When using DatasetEvaluator IDs, the name and inputMapping
+                # come from the DatasetEvaluators record, not from these inputs
+                "evaluators": [
+                    {
+                        "id": evaluator_1_gid,
+                        "name": "contains-hello",
+                    },
+                    {
+                        "id": evaluator_2_gid,
+                        "name": "contains-world",
+                    },
+                ],
+            }
+        }
+
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            assert not repetition["errorMessage"]
+
+            # Verify BOTH evaluations are returned (the bug caused only one to be returned)
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 2, (
+                f"Expected 2 evaluations but got {len(evaluations)}. "
+                "Multiple evaluators of the same type should each return results."
+            )
+
+            # Check that both evaluator names are present
+            eval_names = [e["annotation"]["name"] for e in evaluations]
+            assert "contains-hello" in eval_names
+            assert "contains-world" in eval_names
+
+            # All evaluations should be CODE type (built-in evaluators)
+            for eval_result in evaluations:
+                assert eval_result["annotation"]["annotatorKind"] == "CODE"
+
+        # Verify experiment run annotations were persisted for both evaluators
+        async with db() as session:
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
+            assert len(annotations) == 2
+
+            annotation_names = {a.name for a in annotations}
+            assert "contains-hello" in annotation_names
+            assert "contains-world" in annotation_names
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:

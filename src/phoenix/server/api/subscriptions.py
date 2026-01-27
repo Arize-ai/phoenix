@@ -41,6 +41,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_evaluator_project_ids,
     get_evaluators,
+    get_evaluators_from_dataset_evaluator_ids,
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.annotation_configs import (
@@ -69,6 +70,9 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
+    EvaluatorInputMappingInput,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -83,7 +87,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
@@ -406,18 +410,42 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
+            from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
+
             evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
-            evaluators = await get_evaluators(
-                evaluator_node_ids=evaluator_node_ids,
-                session=session,
-                decrypt=info.context.decrypt,
-                credentials=input.credentials,
+
+            # Check if the first evaluator ID is a DatasetEvaluator ID
+            # If so, use the new resolution function that handles multiple evaluators
+            # of the same underlying type with different configurations
+            first_type_name, _ = (
+                from_global_id(evaluator_node_ids[0]) if evaluator_node_ids else ("", 0)
             )
-            project_ids = await get_evaluator_project_ids(
-                evaluator_node_ids=evaluator_node_ids,
-                dataset_id=dataset_id,
-                session=session,
-            )
+            use_dataset_evaluator_ids = first_type_name == DatasetEvaluatorNode.__name__
+
+            resolved_evaluators = None
+            evaluators: list[BaseEvaluator] = []
+            project_ids: list[int] = []
+            if use_dataset_evaluator_ids:
+                # New path: resolve evaluators from DatasetEvaluator IDs
+                resolved_evaluators = await get_evaluators_from_dataset_evaluator_ids(
+                    dataset_evaluator_ids=evaluator_node_ids,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+            else:
+                # Legacy path: resolve evaluators from Evaluator IDs
+                evaluators = await get_evaluators(
+                    evaluator_node_ids=evaluator_node_ids,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+                project_ids = await get_evaluator_project_ids(
+                    evaluator_node_ids=evaluator_node_ids,
+                    dataset_id=dataset_id,
+                    session=session,
+                )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
@@ -619,64 +647,132 @@ class Subscription:
                             "reference": revision.output,
                             "output": run.output.get("task_output", run.output),
                         }
-                        for evaluator, evaluator_input, project_id in zip(
-                            evaluators, input.evaluators, project_ids
-                        ):
-                            name = str(evaluator_input.name)
-                            annotation_config_override = get_annotation_config_override(
-                                evaluator_input
-                            )
-                            merged_config = apply_overrides_to_annotation_config(
-                                annotation_config=evaluator.output_config,
-                                annotation_config_override=annotation_config_override,
-                                name=name,
-                                description_override=evaluator_input.description,
-                            )
 
-                            tracer: Tracer | None = None
-                            if input.tracing_enabled:
-                                tracer = Tracer(
-                                    span_cost_calculator=info.context.span_cost_calculator
+                        if use_dataset_evaluator_ids and resolved_evaluators:
+                            # New path: use resolved evaluators from DatasetEvaluator IDs
+                            for resolved in resolved_evaluators:
+                                evaluator = resolved["evaluator"]
+                                name = resolved["name"]
+                                project_id = resolved["project_id"]
+                                # Convert dict input_mapping to EvaluatorInputMappingInput
+                                input_mapping_dict = resolved["input_mapping"]
+                                input_mapping = EvaluatorInputMappingInput(
+                                    literal_mapping=input_mapping_dict.get("literal_mapping", {}),
+                                    path_mapping=input_mapping_dict.get("path_mapping", {}),
                                 )
 
-                            result: EvaluationResult = await evaluator.evaluate(
-                                context=context_dict,
-                                input_mapping=evaluator_input.input_mapping,
-                                name=name,
-                                output_config=merged_config,
-                                tracer=tracer,
-                            )
-
-                            if tracer is not None:
-                                traces = await tracer.save_db_traces(
-                                    session=session, project_id=project_id
+                                # Apply output config override from dataset evaluator
+                                merged_config = apply_overrides_to_annotation_config(
+                                    annotation_config=evaluator.output_config,
+                                    annotation_config_override=resolved["output_config_override"],
+                                    name=name,
+                                    description_override=None,
                                 )
-                                result["trace_id"] = traces[0].trace_id
 
-                            if result["error"] is not None:
-                                yield EvaluationErrorChunk(
-                                    evaluator_name=name,
-                                    message=result["error"],
+                                tracer: Tracer | None = None
+                                if input.tracing_enabled:
+                                    tracer = Tracer(
+                                        span_cost_calculator=info.context.span_cost_calculator
+                                    )
+
+                                result: EvaluationResult = await evaluator.evaluate(
+                                    context=context_dict,
+                                    input_mapping=input_mapping,
+                                    name=name,
+                                    output_config=merged_config,
+                                    tracer=tracer,
+                                )
+
+                                if tracer is not None:
+                                    traces = await tracer.save_db_traces(
+                                        session=session, project_id=project_id
+                                    )
+                                    result["trace_id"] = traces[0].trace_id
+
+                                if result["error"] is not None:
+                                    yield EvaluationErrorChunk(
+                                        evaluator_name=name,
+                                        message=result["error"],
+                                        dataset_example_id=example_id,
+                                        repetition_number=repetition_number,
+                                    )
+                                    continue
+                                annotation_model = evaluation_result_to_model(
+                                    result,
+                                    experiment_run_id=run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                                evaluation_chunk = EvaluationChunk(
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
+                                        id=annotation_model.id,
+                                        db_record=annotation_model,
+                                    ),
+                                    span_evaluation=None,
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                                continue
-                            annotation_model = evaluation_result_to_model(
-                                result,
-                                experiment_run_id=run.id,
-                            )
-                            session.add(annotation_model)
-                            await session.flush()
-                            evaluation_chunk = EvaluationChunk(
-                                experiment_run_evaluation=ExperimentRunAnnotation(
-                                    id=annotation_model.id,
-                                    db_record=annotation_model,
-                                ),
-                                span_evaluation=None,
-                                dataset_example_id=example_id,
-                                repetition_number=repetition_number,
-                            )
-                            yield evaluation_chunk
+                                yield evaluation_chunk
+                        else:
+                            # Legacy path: use evaluators and project_ids from old resolution
+                            for evaluator, evaluator_input, project_id in zip(
+                                evaluators, input.evaluators, project_ids
+                            ):
+                                name = str(evaluator_input.name)
+                                annotation_config_override = get_annotation_config_override(
+                                    evaluator_input
+                                )
+                                merged_config = apply_overrides_to_annotation_config(
+                                    annotation_config=evaluator.output_config,
+                                    annotation_config_override=annotation_config_override,
+                                    name=name,
+                                    description_override=evaluator_input.description,
+                                )
+
+                                tracer: Tracer | None = None
+                                if input.tracing_enabled:
+                                    tracer = Tracer(
+                                        span_cost_calculator=info.context.span_cost_calculator
+                                    )
+
+                                result: EvaluationResult = await evaluator.evaluate(
+                                    context=context_dict,
+                                    input_mapping=evaluator_input.input_mapping,
+                                    name=name,
+                                    output_config=merged_config,
+                                    tracer=tracer,
+                                )
+
+                                if tracer is not None:
+                                    traces = await tracer.save_db_traces(
+                                        session=session, project_id=project_id
+                                    )
+                                    result["trace_id"] = traces[0].trace_id
+
+                                if result["error"] is not None:
+                                    yield EvaluationErrorChunk(
+                                        evaluator_name=name,
+                                        message=result["error"],
+                                        dataset_example_id=example_id,
+                                        repetition_number=repetition_number,
+                                    )
+                                    continue
+                                annotation_model = evaluation_result_to_model(
+                                    result,
+                                    experiment_run_id=run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                                evaluation_chunk = EvaluationChunk(
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
+                                        id=annotation_model.id,
+                                        db_record=annotation_model,
+                                    ),
+                                    span_evaluation=None,
+                                    dataset_example_id=example_id,
+                                    repetition_number=repetition_number,
+                                )
+                                yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
