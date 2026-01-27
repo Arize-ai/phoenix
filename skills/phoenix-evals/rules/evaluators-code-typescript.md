@@ -13,12 +13,12 @@ const containsCitation = createEvaluator<{ output: string }>(
 );
 ```
 
-## With Full Results (asEvaluator)
+## With Full Results (asExperimentEvaluator)
 
 ```typescript
-import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
 
-const jsonValid = asEvaluator({
+const jsonValid = asExperimentEvaluator({
   name: "json_valid",
   kind: "CODE",
   evaluate: async ({ output }) => {

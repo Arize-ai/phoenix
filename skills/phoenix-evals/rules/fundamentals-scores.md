@@ -7,7 +7,7 @@ Score anatomy and why binary is better than Likert scales.
 | Property | Required | Description |
 | -------- | -------- | ----------- |
 | `name` | Yes | Evaluator name |
-| `kind` | Yes | `"CODE"`, `"LLM"`, or `"HUMAN"` |
+| `kind` | Yes | `"code"`, `"llm"`, or `"human"` |
 | `score` | No* | Numeric value (typically 0-1) |
 | `label` | No* | Categorical outcome ("pass", "fail") |
 | `explanation` | No | Rationale for result |
