@@ -14,9 +14,10 @@ on:
       - "src/**"
       - "tests/**"
       - "tutorials/**"
-      - "pyproject.toml"
+      - "**/pyproject.toml"
       - "packages/**"
       - "tox.ini"
+      - "uv.lock"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
