@@ -1289,7 +1289,9 @@ export const getChatCompletionOverDatasetInput = ({
   datasetId: string;
   splitIds?: string[];
   /**
-   * Record of evaluator id to name and input mappings
+   * Record of DatasetEvaluator id to name and input mappings.
+   * Using DatasetEvaluator id as the key allows multiple evaluators of the same
+   * type (e.g., two "Contains" evaluators with different names).
    */
   evaluatorMappings: Record<
     string,
@@ -1316,8 +1318,8 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
     splitIds: splitIds ?? null,
     evaluators: Object.entries(evaluatorMappings).map(
-      ([evaluatorId, { name, inputMapping }]) => ({
-        id: evaluatorId,
+      ([datasetEvaluatorId, { name, inputMapping }]) => ({
+        id: datasetEvaluatorId,
         name,
         inputMapping,
       })

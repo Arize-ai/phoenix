@@ -1621,6 +1621,169 @@ class TestChatCompletionMutationMixin:
             assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
 
+    async def test_multiple_builtin_evaluators_same_type_different_names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that multiple builtin evaluators of the same type with different names
+        all return separate evaluations.
+
+        This is a regression test for a bug where the frontend was using the evaluator
+        type's ID as a key, causing deduplication when multiple evaluators of the same
+        type were configured with different names (e.g., two "Contains" evaluators).
+        """
+        # Create two DatasetEvaluator records pointing to the same builtin evaluator type
+        contains_id = _generate_builtin_evaluator_id("Contains")
+        first_eval_name = "contains-hello"
+        second_eval_name = "contains-world"
+
+        async with db() as session:
+            version_id = await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    models.DatasetVersion.dataset_id == single_example_dataset.id
+                )
+            )
+            # Create two DatasetEvaluators with the same builtin type but different names
+            first_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=single_example_dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=first_eval_name,
+            )
+            second_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=single_example_dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=second_eval_name,
+            )
+            session.add(first_dataset_evaluator)
+            session.add(second_dataset_evaluator)
+            await session.flush()
+            first_evaluator_gid = str(
+                GlobalID(type_name="DatasetEvaluator", node_id=str(first_dataset_evaluator.id))
+            )
+            second_evaluator_gid = str(
+                GlobalID(type_name="DatasetEvaluator", node_id=str(second_dataset_evaluator.id))
+            )
+        dataset_gid = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(version_id)))
+
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              datasetVersionId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  evaluations {
+                    ... on EvaluationSuccess {
+                      annotation {
+                        name
+                        score
+                        annotatorKind
+                      }
+                    }
+                    ... on EvaluationError {
+                      evaluatorName
+                      message
+                    }
+                  }
+                  span {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "datasetId": dataset_gid,
+                "datasetVersionId": version_gid,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateFormat": "F_STRING",
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": first_evaluator_gid,
+                        "name": first_eval_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "words": "hello",
+                                "text": "hello world",
+                            },
+                        },
+                    },
+                    {
+                        "id": second_evaluator_gid,
+                        "name": second_eval_name,
+                        "inputMapping": {
+                            "literalMapping": {
+                                "words": "world",
+                                "text": "hello world",
+                            },
+                        },
+                    },
+                ],
+            }
+        }
+
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            assert not repetition["errorMessage"]
+
+            # Verify both evaluations are returned with different names
+            assert (evaluations := repetition["evaluations"])
+            assert len(evaluations) == 2, (
+                "Expected 2 evaluations but got "
+                f"{len(evaluations)}. This may indicate deduplication of same-type evaluators."
+            )
+
+            eval_names = {e["annotation"]["name"] for e in evaluations}
+            assert eval_names == {first_eval_name, second_eval_name}
+
+            # Both should be CODE evaluators with score 1.0 (text contains the words)
+            for eval_result in evaluations:
+                assert eval_result["annotation"]["annotatorKind"] == "CODE"
+                assert eval_result["annotation"]["score"] == 1.0
+
+        # Verify both experiment run annotations were persisted
+        async with db() as session:
+            run_annotations_result = await session.execute(select(models.ExperimentRunAnnotation))
+            annotations = run_annotations_result.scalars().all()
+            assert len(annotations) == 2
+
+            annotation_names = {a.name for a in annotations}
+            assert annotation_names == {first_eval_name, second_eval_name}
+            for annotation in annotations:
+                assert annotation.annotator_kind == "CODE"
+
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())

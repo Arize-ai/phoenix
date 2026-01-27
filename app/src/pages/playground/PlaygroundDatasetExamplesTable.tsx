@@ -691,7 +691,9 @@ export function PlaygroundDatasetExamplesTable({
   splitIds?: string[];
   evaluatorOutputConfigs: AnnotationConfig[];
   /**
-   * Record of evaluator id to name and input mappings
+   * Record of DatasetEvaluator id to name and input mappings.
+   * Using DatasetEvaluator id as the key allows multiple evaluators of the same
+   * type (e.g., two "Contains" evaluators with different names).
    */
   evaluatorMappings: Record<
     string,

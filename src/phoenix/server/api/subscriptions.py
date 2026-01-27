@@ -167,7 +167,7 @@ async def _stream_single_chat_completion(
     db_span = get_db_span(span, db_trace)
     await results.put((db_span, repetition_number))
 
-    if input.evaluators and span.status_code is StatusCode.OK:
+    if evaluators and span.status_code is StatusCode.OK:
         context_dict: dict[str, Any] = {
             "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
             "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),

@@ -63,6 +63,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
     EvaluatorInputMappingInput,
+    PlaygroundEvaluatorInput,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     PromptChatTemplateInput,
@@ -526,6 +527,13 @@ def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvalu
     return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
 
 
+class ResolvedBuiltinEvaluatorWithInput(TypedDict):
+    """Builtin evaluator resolved with its corresponding input configuration."""
+
+    evaluator_input: PlaygroundEvaluatorInput
+    builtin_evaluator_cls: type[BuiltInEvaluator]
+
+
 async def _get_llm_evaluators(
     *,
     evaluator_node_ids: list[GlobalID],
@@ -786,6 +794,171 @@ async def get_evaluator_project_ids(
             raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
 
     return result
+
+
+async def resolve_dataset_evaluators(
+    evaluator_inputs: list[PlaygroundEvaluatorInput],
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: list[GenerativeCredentialInput] | None = None,
+) -> tuple[list[LLMEvaluator], list[ResolvedBuiltinEvaluatorWithInput]]:
+    """
+    Resolve DatasetEvaluator records in bulk, separating them into LLM and builtin evaluators.
+
+    This function efficiently batches database queries to resolve all evaluators at once,
+    rather than querying one-by-one in a loop.
+
+    Args:
+        evaluator_inputs: List of evaluator inputs from the GraphQL request.
+            All IDs must be DatasetEvaluator IDs.
+        session: Database session for lookups
+        decrypt: Decryption function for credentials
+        credentials: Optional credentials for LLM evaluators
+
+    Returns:
+        Tuple of (llm_evaluators, builtin_evaluators_with_input)
+    """
+    if not evaluator_inputs:
+        return [], []
+
+    # Step 1: Parse all global IDs - all must be DatasetEvaluator IDs
+    dataset_evaluator_ids: list[int] = []
+    input_by_dataset_evaluator_id: dict[int, PlaygroundEvaluatorInput] = {}
+
+    for evaluator_input in evaluator_inputs:
+        type_name, db_id = from_global_id(evaluator_input.id)
+        assert type_name == "DatasetEvaluator", f"Expected DatasetEvaluator ID, got {type_name}"
+        dataset_evaluator_ids.append(db_id)
+        input_by_dataset_evaluator_id[db_id] = evaluator_input
+
+    # Step 2: Batch fetch all DatasetEvaluator records
+    llm_evaluator_ids: list[int] = []
+    builtin_evaluators: list[ResolvedBuiltinEvaluatorWithInput] = []
+    input_by_llm_evaluator_id: dict[int, PlaygroundEvaluatorInput] = {}
+
+    dataset_evaluator_records = (
+        await session.scalars(
+            select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_ids)
+            )
+        )
+    ).all()
+
+    for record in dataset_evaluator_records:
+        evaluator_input_opt = input_by_dataset_evaluator_id.get(record.id)
+        if evaluator_input_opt is None:
+            continue
+        evaluator_input = evaluator_input_opt
+
+        if record.builtin_evaluator_id is not None:
+            # This is a builtin evaluator
+            builtin_cls = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
+            if builtin_cls is not None:
+                builtin_evaluators.append(
+                    ResolvedBuiltinEvaluatorWithInput(
+                        evaluator_input=evaluator_input,
+                        builtin_evaluator_cls=builtin_cls,
+                    )
+                )
+        elif record.evaluator_id is not None:
+            # This is an LLM evaluator - collect the ID for batch processing
+            llm_evaluator_ids.append(record.evaluator_id)
+            input_by_llm_evaluator_id[record.evaluator_id] = evaluator_input
+
+    # Step 3: Batch fetch and build all LLM evaluators
+    llm_evaluators: list[LLMEvaluator] = []
+
+    if llm_evaluator_ids:
+        llm_evaluator_orms = (
+            await session.scalars(
+                select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(llm_evaluator_ids))
+            )
+        ).all()
+
+        for llm_evaluator_orm in llm_evaluator_orms:
+            prompt_id = llm_evaluator_orm.prompt_id
+            prompt_version_tag_id = llm_evaluator_orm.prompt_version_tag_id
+
+            if prompt_version_tag_id is not None:
+                prompt_version_query = (
+                    select(models.PromptVersion)
+                    .join(models.PromptVersionTag)
+                    .where(models.PromptVersionTag.id == prompt_version_tag_id)
+                )
+            else:
+                prompt_version_query = (
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == prompt_id)
+                    .order_by(models.PromptVersion.id.desc())
+                    .limit(1)
+                )
+
+            prompt_version = await session.scalar(prompt_version_query)
+            if prompt_version is None:
+                raise NotFound(
+                    f"Prompt version not found for LLM evaluator '{llm_evaluator_orm.id}'"
+                )
+
+            # Create model input based on whether a custom provider is configured
+            if prompt_version.custom_provider_id is not None:
+                from phoenix.server.api.types.GenerativeModelCustomProvider import (
+                    GenerativeModelCustomProvider,
+                )
+
+                custom_provider = await session.get(
+                    models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
+                )
+                if custom_provider is None:
+                    raise NotFound(
+                        f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
+                    )
+                if not is_sdk_compatible_with_model_provider(
+                    custom_provider.sdk, prompt_version.model_provider
+                ):
+                    raise BadRequest(
+                        f"Custom provider '{custom_provider.name}' has SDK '{custom_provider.sdk}' "
+                        f"which is not compatible with prompt's model provider "
+                        f"'{prompt_version.model_provider.value}'. The custom provider's SDK may "
+                        f"have been changed after it was attached to this prompt."
+                    )
+
+                provider_global_id = GlobalID(
+                    type_name=GenerativeModelCustomProvider.__name__,
+                    node_id=str(prompt_version.custom_provider_id),
+                )
+                model_input = GenerativeModelInput(
+                    custom=GenerativeModelCustomProviderInput(
+                        provider_id=provider_global_id,
+                        model_name=prompt_version.model_name,
+                    )
+                )
+            else:
+                provider_key = GenerativeProviderKey.from_model_provider(
+                    prompt_version.model_provider
+                )
+                model_input = GenerativeModelInput(
+                    builtin=GenerativeModelBuiltinProviderInput(
+                        provider_key=provider_key,
+                        name=prompt_version.model_name,
+                    )
+                )
+
+            llm_client = await get_playground_client(
+                model=model_input,
+                session=session,
+                decrypt=decrypt,
+                credentials=credentials,
+            )
+
+            llm_evaluators.append(
+                LLMEvaluator.from_orm(
+                    llm_evaluator_orm=llm_evaluator_orm,
+                    prompt_version_orm=prompt_version,
+                    llm_client=llm_client,
+                )
+            )
+
+    return llm_evaluators, builtin_evaluators
 
 
 def apply_input_mapping(

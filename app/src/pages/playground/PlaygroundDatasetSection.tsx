@@ -115,7 +115,9 @@ export function PlaygroundDatasetSection({
       )
       .reduce(
         (acc, datasetEvaluator) => {
-          acc[datasetEvaluator.evaluator.id] = {
+          // Use datasetEvaluator.id as key to allow multiple evaluators of the same type
+          // (e.g., two "Contains" evaluators with different names)
+          acc[datasetEvaluator.id] = {
             name: datasetEvaluator.name,
             inputMapping:
               datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
