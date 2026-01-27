@@ -5,11 +5,13 @@
 ### Testing and Linting
 
 - `tox run -e ruff` - Format and lint code
-- `tox run -e unit_tests` - Run all unit tests
-- `tox run -e unit_tests -- -k test_name` - Run specific test
+- `tox run -e unit_tests -- -c pytest-quiet.ini` - Run all unit tests in quiet mode
+- `tox run -e unit_tests -- -k test_name` - Run specific test in verbose mode
 - `tox run -e integration_tests` - Run integration tests
 - `tox run -e type_check_unit_tests` - Type check unit tests
 - `tox list` - List all available tox environments
+
+By default, `pytest` is configured to run in verbose mode. When running a large number of tests at once, ensure that you run in quiet mode to avoid flooding the context window.
 
 ### Development Setup
 
