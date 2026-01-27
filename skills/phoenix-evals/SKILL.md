@@ -20,10 +20,6 @@ OBSERVE → ERROR ANALYSIS → AXIAL CODING → BUILD EVALS → EXPERIMENT → V
    └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key insight:** "An LLM-as-Judge Won't Save The Product—Fixing Your Process Will"
-
-## When to Apply
-
 - Setting up evaluation for an AI/LLM application
 - Reviewing traces to find failure modes
 - Building automated evaluators (code or LLM-based)
@@ -32,16 +28,16 @@ OBSERVE → ERROR ANALYSIS → AXIAL CODING → BUILD EVALS → EXPERIMENT → V
 
 ## Rule Categories
 
-| Priority | Category | Description | Prefix |
-| -------- | -------- | ----------- | ------ |
-| 1 | Fundamentals | Core concepts, anti-patterns | `fundamentals-*` |
-| 2 | Observe | Tracing, sampling | `observe-*` |
-| 3 | Error Analysis | Manual review, failure identification | `error-analysis-*` |
-| 4 | Axial Coding | Failure taxonomies | `axial-coding-*` |
-| 5 | Evaluators | Code and LLM evaluators | `evaluators-*` |
-| 6 | Experiments | Datasets, tasks, runs | `experiments-*` |
-| 7 | Validation | Calibrating judges | `validation-*` |
-| 8 | Production | CI/CD, monitoring | `production-*` |
+| Priority | Category       | Description                                   | Prefix             |
+| -------- | -------------- | --------------------------------------------- | ------------------ |
+| 1        | Fundamentals   | Core concepts, anti-patterns, model selection | `fundamentals-*`   |
+| 2        | Observe        | Tracing, sampling                             | `observe-*`        |
+| 3        | Error Analysis | Failure identification, multi-turn debugging  | `error-analysis-*` |
+| 4        | Axial Coding   | Failure taxonomies, agent workflows           | `axial-coding-*`   |
+| 5        | Evaluators     | Code, LLM, and RAG evaluators                 | `evaluators-*`     |
+| 6        | Experiments    | Datasets, tasks, runs                         | `experiments-*`    |
+| 7        | Validation     | Calibrating judges, golden datasets           | `validation-*`     |
+| 8        | Production     | CI/CD, monitoring, guardrails                 | `production-*`     |
 
 ## Setup
 
@@ -58,18 +54,23 @@ Before running evals, install the required packages:
 **Building an Evaluator:**
 `fundamentals-types` → `evaluators-{code|llm}-{python|typescript}` → `validation-human-calibration-{python|typescript}` → `experiments-running-{python|typescript}`
 
+**Evaluating RAG Systems:**
+`evaluators-rag` → `evaluators-code-{python|typescript}` (retrieval metrics) → `evaluators-llm-{python|typescript}` (faithfulness)
+
 **Going to Production:**
 `production-overview` → `production-guardrails` → `production-continuous`
 
 ## Key Principles
 
-| Principle | Description |
-| --------- | ----------- |
-| Process > Tools | Evals are the scientific method in disguise |
-| Error Analysis First | 60-80% of time should be manual review |
-| Binary > Likert | Pass/fail forces clearer thinking |
-| Custom > Generic | Application-specific metrics beat generic scores |
-| Validate Judges | Measure TPR/TNR on held-out test sets |
+| Principle            | Description                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| Error Analysis First | You cannot automate what you haven't observed                |
+| Custom > Generic     | Application-specific metrics beat off-the-shelf              |
+| Code First           | Use deterministic checks before LLM judges                   |
+| Validate Judges      | Measure TPR/TNR before trusting any LLM evaluator            |
+| Binary > Likert      | Pass/fail forces clearer criteria than 1-5 scales            |
+
+**Warning:** Pre-built "quality" or "helpfulness" evaluators create false confidence. Build evaluators based on failures discovered through error analysis.
 
 ## References
 

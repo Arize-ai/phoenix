@@ -6,7 +6,10 @@ Execute experiments with `runExperiment`.
 
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
-import { runExperiment, asEvaluator } from "@arizeai/phoenix-client/experiments";
+import {
+  runExperiment,
+  asExperimentEvaluator,
+} from "@arizeai/phoenix-client/experiments";
 
 const client = createClient();
 
@@ -14,7 +17,7 @@ const task = async (example: { input: Record<string, unknown> }) => {
   return await callLLM(example.input.question as string);
 };
 
-const exactMatch = asEvaluator({
+const exactMatch = asExperimentEvaluator({
   name: "exact_match",
   kind: "CODE",
   evaluate: async ({ output, expected }) => ({
@@ -65,8 +68,8 @@ const experiment = await runExperiment({
   dataset: { datasetName: "qa-test-v1" },
   task,
   evaluators,
-  repetitions: 3,      // Run each example 3 times
-  maxConcurrency: 5,   // Limit concurrent executions
+  repetitions: 3, // Run each example 3 times
+  maxConcurrency: 5, // Limit concurrent executions
 });
 ```
 

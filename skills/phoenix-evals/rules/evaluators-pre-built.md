@@ -1,6 +1,16 @@
 # Evaluators: Pre-Built Phoenix Evaluators
 
-Pre-built evaluators are starting points, not production-ready solutions. Always validate against human labels.
+Pre-built evaluators are **exploration tools, not production solutions**.
+
+## Warning: Illusion of Confidence
+
+Generic evaluators (helpfulness, quality, coherence) create false confidence:
+
+- High scores don't mean your system works for your use case
+- They measure abstract qualities that may not matter for your application
+- They can't catch domain-specific failures you haven't discovered yet
+
+**The abuse of generic metrics is endemic.** Many eval vendors promote off-the-shelf metrics that waste time and create unjustified confidence.
 
 ## Quick Start
 
@@ -31,8 +41,9 @@ Common evaluators include: Hallucination, QA, Relevance, Toxicity, Faithfulness,
 
 | Situation | Recommendation |
 | --------- | -------------- |
-| Quick exploration | Use pre-built as-is |
-| Production | Customize and validate first |
+| Initial exploration | Use to find interesting traces to review |
+| Understanding data | Sort by scores to find outliers |
+| **Production** | **Never without validation and customization** |
 | Domain-specific | Build custom from scratch |
 
 ## Validation Required
@@ -40,11 +51,28 @@ Common evaluators include: Hallucination, QA, Relevance, Toxicity, Faithfulness,
 ```python
 from sklearn.metrics import classification_report
 
-# Always compare to human labels before production use
+# ALWAYS compare to human labels before any production use
 print(classification_report(human_labels, evaluator_results["label"]))
 # Target: >80% agreement with humans
+# If below 70%, the evaluator is not ready
+```
+
+## Using Pre-Built as Exploration Tools
+
+Pre-built evaluators can help find interesting traces:
+
+```python
+# Use scores to sort, not to judge
+results = run_evals(traces, [hallucination_eval])
+low_scores = results[results["score"] < 0.5]  # Candidates for review
+high_scores = results[results["score"] > 0.9]  # Also review some
+
+# Then do error analysis on these samples
+# Build custom evaluators based on what you find
 ```
 
 ## Key Principle
 
-Pre-built evaluators rarely work well out-of-box for specific tasks. Use them to explore, then customize or build your own based on your error analysis findings.
+Pre-built evaluators are for exploration, not judgment. Use them to find traces worth reviewing, then build custom evaluators based on your error analysis findings.
+
+**See Also:** [fundamentals-anti-patterns](fundamentals-anti-patterns.md) for the generic metrics trap.

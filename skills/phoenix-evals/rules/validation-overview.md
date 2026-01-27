@@ -41,4 +41,4 @@ print(classification_report(human_labels, evaluator_predictions))
 - Random results → criteria unclear
 - Disagrees with your intuition → needs investigation
 
-**See Also:** [validation-human-calibration](validation-human-calibration.md) for detailed calibration process.
+**See Also:** [validation-human-calibration-python](validation-human-calibration-python.md) or [validation-human-calibration-typescript](validation-human-calibration-typescript.md) for detailed calibration process.
