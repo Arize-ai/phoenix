@@ -296,6 +296,30 @@ jobs:
       - name: Check for changes
         run: git diff --exit-code
 
+  check-lockfile:
+    name: Check uv.lock is up to date
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+      - name: Check lockfile is up to date
+        run: uv lock --check
+
   ruff:
     name: Ruff
     runs-on: ${{ matrix.os }}
