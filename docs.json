@@ -21,6 +21,7 @@
       "family": "Roboto"
     }
   },
+  "css": "/docs/custom.css",
   "integrations": {
     "ga4": {
       "measurementId": "G-V9Z9MCPE84"
@@ -349,6 +350,8 @@
                   },
                   "docs/phoenix/resources/contribute-to-phoenix",
                   "docs/phoenix/resources/phoenix-to-arize-ax-migration",
+                  "docs/phoenix/resources/typescript-api",
+                  "docs/phoenix/resources/python-api",
                   "docs/phoenix/resources/github",
                   "docs/phoenix/resources/openinference"
                 ]
@@ -1241,20 +1244,7 @@
       }
     ],
     "global": {
-      "anchors": [
-        {
-          "anchor": "Community",
-          "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
-          "icon": "users",
-          "excludedTabs": ["Integrations"]
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://arize.com/blog/?cat=phoenix",
-          "icon": "newspaper",
-          "excludedTabs": ["Integrations"]
-        }
-      ]
+      "anchors": []
     }
   },
   "logo": {
@@ -1264,16 +1254,34 @@
   "navbar": {
     "links": [
       {
-        "label": "TypeScript API",
-        "href": "https://arize-ai.github.io/phoenix/"
+        "label": "",
+        "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
+        "icon": "users"
       },
       {
-        "label": "Python API",
-        "href": "https://arize-phoenix.readthedocs.io/en/latest/"
+        "label": "",
+        "href": "https://arize.com/blog/?cat=phoenix",
+        "icon": "newspaper"
       },
       {
-        "label": "GitHub",
-        "href": "https://github.com/Arize-ai/phoenix"
+        "label": "",
+        "href": "https://x.com/ArizePhoenix", 
+        "icon": "x-twitter"
+      },
+      {
+        "label": "",
+        "href": "https://bsky.app/profile/arize-phoenix.bsky.social", 
+        "icon": "bluesky"
+      }, 
+      {
+        "label": "",
+        "href": "https://www.linkedin.com/company/arizeai/", 
+        "icon": "linkedin"
+      }, 
+      {
+        "label": "",
+        "href": "https://github.com/Arize-ai/phoenix", 
+        "icon": "github"
       }
     ],
     "primary": {
@@ -1283,10 +1291,25 @@
     }
   },
   "footer": {
-    "socials": {
-      "x": "https://x.com/ArizePhoenix",
-      "github": "https://github.com/Arize-ai/phoenix"
-    }
+    "links": [
+      {
+        "label": "Languages",
+        "items": [
+          {
+            "label": "English",
+            "href": "/docs/phoenix"
+          },
+          {
+            "label": "日本語 (Japanese)",
+            "href": "/docs/phoenix/documentation/jp"
+          },
+          {
+            "label": "中文 (Chinese)",
+            "href": "/docs/phoenix/documentation/zh"
+          }
+        ]
+      }
+    ]
   },
   "redirects": [
     {
