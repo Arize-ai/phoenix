@@ -45,7 +45,7 @@ def matches_expected(output: str, expected: dict) -> bool:
 - **Length**: `len(output.split())`
 - **Similarity**: `editdistance.eval()` or Jaccard
 
-## Pre-Built Evaluators
+## Pre-Built
 
 ```python
 from phoenix.experiments.evaluators import ContainsAnyKeyword, JSONParseable, MatchesRegex
@@ -56,5 +56,3 @@ evaluators = [
     MatchesRegex(pattern=r"\d{4}-\d{2}-\d{2}"),
 ]
 ```
-
-**Library Reference:** [Phoenix Evals Python](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/)

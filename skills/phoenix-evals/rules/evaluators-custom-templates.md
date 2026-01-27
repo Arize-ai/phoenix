@@ -1,66 +1,54 @@
-# Evaluators: Designing Custom Eval Prompts
+# Evaluators: Custom Templates
 
-Best practices for writing effective LLM-as-judge prompt templates.
+Design LLM judge prompts.
 
-## Template Structure
-
-1. **Task description** - What you're evaluating
-2. **Input variables** - Data wrapped in XML tags
-3. **Criteria** - What "pass" and "fail" mean
-4. **Examples** - Concrete cases for each label
-5. **Edge cases** - How to handle ambiguity
-6. **Output format** - Exact response structure
-
-## Use XML Tags
-
-Wrap data in XML tags for [clear boundaries](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/use-xml-tags):
+## Complete Template Pattern
 
 ```python
-TEMPLATE = """Evaluate faithfulness.
+TEMPLATE = """Evaluate faithfulness of the response to the context.
 
 <context>{{context}}</context>
 <response>{{output}}</response>
 
-"faithful" means ALL claims are supported by context.
-"unfaithful" means ANY claim is NOT in context.
+CRITERIA:
+"faithful" = ALL claims supported by context
+"unfaithful" = ANY claim NOT in context
+
+EXAMPLES:
+Context: "Price is $10" → Response: "It costs $10" → faithful
+Context: "Price is $10" → Response: "About $15" → unfaithful
+
+EDGE CASES:
+- Empty context → cannot_evaluate
+- "I don't know" when appropriate → faithful
+- Partial faithfulness → unfaithful (strict)
 
 Answer (faithful/unfaithful):"""
 ```
 
-## Include Examples
+## Template Structure
 
-```python
-TEMPLATE = """...
+1. Task description
+2. Input variables in XML tags
+3. Criteria definitions
+4. Examples (2-4 cases)
+5. Edge cases
+6. Output format
 
-<examples>
-Context: "Price is $10" → Response: "It costs $10" → faithful
-Context: "Price is $10" → Response: "About $15" → unfaithful
-</examples>
+## XML Tags
 
-..."""
 ```
-
-## Handle Edge Cases
-
-```python
-"""EDGE CASES:
-- Empty context → "cannot_evaluate"
-- "I don't know" when appropriate → faithful
-- Partial faithfulness → unfaithful (strict)"""
+<question>{{input}}</question>
+<response>{{output}}</response>
+<context>{{context}}</context>
+<reference>{{reference}}</reference>
 ```
 
 ## Common Mistakes
 
 | Mistake | Fix |
 | ------- | --- |
-| Vague criteria | Define exactly what each label means |
-| No examples | Include 2-4 concrete cases |
-| Ambiguous format | Specify exact output format |
-| No edge cases | Address ambiguous situations |
-
-## Key Principles
-
-- **Use XML tags** for data boundaries
-- **Be explicit** about every criterion
-- **Show examples** of each label
-- **Test** with known pass/fail cases
+| Vague criteria | Define each label exactly |
+| No examples | Include 2-4 cases |
+| Ambiguous format | Specify exact output |
+| No edge cases | Address ambiguity |

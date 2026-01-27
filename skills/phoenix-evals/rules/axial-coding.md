@@ -1,37 +1,13 @@
-# Axial Coding: Building Failure Taxonomies
+# Axial Coding
 
-Axial coding transforms open-ended notes into a structured failure taxonomy.
+Group open-ended notes into structured failure taxonomies.
 
 ## Process
 
 1. **Gather** - Collect open coding notes
 2. **Pattern** - Group notes with common themes
 3. **Name** - Create actionable category names
-4. **Refine** - Adjust granularity
-
-```
-Raw Notes                    Categories
-─────────                    ──────────
-"wrong timezone"      ──┐
-"date format wrong"   ──┼──► Timezone/Locale Issues
-"said EST not PST"    ──┘
-```
-
-## Taxonomy Principles
-
-### 1. MECE (Mutually Exclusive, Collectively Exhaustive)
-
-Each failure fits ONE primary category.
-
-### 2. Actionable
-
-Categories suggest fixes:
-- `"missing_safety_disclaimer"` → Add to system prompt
-- `"wrong_persona_tone"` → Add persona detection
-
-### 3. Consistent Depth
-
-Similar granularity across branches.
+4. **Quantify** - Count failures per category
 
 ## Example Taxonomy
 
@@ -52,21 +28,16 @@ failure_taxonomy:
   
   safety:
     missing_disclaimers: [legal, medical, financial]
-    inappropriate: [harmful_advice, privacy_violation]
 ```
 
-## Recording Categories via API
-
-After categorizing, add structured annotations to spans:
+## Add Annotation (Python)
 
 ```python
 from phoenix.client import Client
 
 client = Client()
-
-# Add categorized annotation
 client.spans.add_span_annotation(
-    span_id="abc123def456",
+    span_id="abc123",
     annotation_name="failure_category",
     label="hallucination",
     explanation="invented a feature that doesn't exist",
@@ -75,12 +46,14 @@ client.spans.add_span_annotation(
 )
 ```
 
+## Add Annotation (TypeScript)
+
 ```typescript
 import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
 
 await addSpanAnnotation({
   spanAnnotation: {
-    spanId: "abc123def456",
+    spanId: "abc123",
     name: "failure_category",
     label: "hallucination",
     explanation: "invented a feature that doesn't exist",
@@ -89,11 +62,34 @@ await addSpanAnnotation({
 });
 ```
 
-## Key Principles
+## Agent Failure Taxonomy
 
-| Principle | Description |
-| --------- | ----------- |
-| Bottom-up | Let categories emerge from data |
-| Actionable | Each category suggests a fix |
-| Versioned | Track taxonomy evolution |
-| Quantified | Count failures to prioritize |
+```yaml
+agent_failures:
+  planning: [wrong_plan, incomplete_plan]
+  tool_selection: [wrong_tool, missed_tool, unnecessary_call]
+  tool_execution: [wrong_parameters, type_error]
+  state_management: [lost_context, stuck_in_loop]
+  error_recovery: [no_fallback, wrong_fallback]
+```
+
+## Transition Matrix (Agents)
+
+Shows where failures occur between states:
+
+```python
+def build_transition_matrix(conversations, states):
+    matrix = defaultdict(lambda: defaultdict(int))
+    for conv in conversations:
+        if conv["failed"]:
+            last_success = find_last_success(conv)
+            first_failure = find_first_failure(conv)
+            matrix[last_success][first_failure] += 1
+    return pd.DataFrame(matrix).fillna(0)
+```
+
+## Principles
+
+- **MECE** - Each failure fits ONE category
+- **Actionable** - Categories suggest fixes
+- **Bottom-up** - Let categories emerge from data

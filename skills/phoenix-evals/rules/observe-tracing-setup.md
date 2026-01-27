@@ -54,10 +54,8 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
-## Checklist
+## Verify
 
-- [ ] Input captured
-- [ ] Output captured
-- [ ] Context captured (retrieved docs, tool calls)
-- [ ] Errors logged with status
-- [ ] Sampling representative of production
+Required attributes: `input.value`, `output.value`, `status_code`
+For RAG: `retrieval.documents`
+For agents: `tool.name`, `tool.parameters`

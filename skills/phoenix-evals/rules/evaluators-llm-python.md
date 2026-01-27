@@ -64,5 +64,3 @@ from phoenix.evals import run_evals
 
 results_df = run_evals(dataframe=df, evaluators=[helpfulness], provide_explanation=True)
 ```
-
-**Library Reference:** [Phoenix Evals Python](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/)

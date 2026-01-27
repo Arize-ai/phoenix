@@ -37,6 +37,4 @@ Can I fix it with a prompt change?
 
 - **Rare issues** - <5 instances? Watchlist, don't build
 - **Quick fixes** - Fixable by prompt change? Fix it
-- **Evolving criteria** - Stabilize definition of "good" first
-
-**See Also:** [fundamentals-types](fundamentals-types.md) for evaluator types and cost tradeoffs.
+- **Evolving criteria** - Stabilize definition first
