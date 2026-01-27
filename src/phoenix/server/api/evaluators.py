@@ -2092,32 +2092,32 @@ def _get_messages_from_template(template: PromptChatTemplate) -> list[Message]:
 # the following helper functions will be refactored to `openinference-instrumentation`
 def _get_template_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
-    for idx, msg in enumerate(messages):
-        attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
         if "content" in msg:
-            attributes[f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+            attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg["content"]
         elif "contents" in msg:
-            # For multipart messages, serialize each content part
             for content_idx, content_part in enumerate(msg["contents"]):
                 if content_part.get("type") == "text":
                     attributes[
-                        f"{TEMPLATE_MESSAGES}.{idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                        f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
                     ] = content_part.get("text", "")
     return attributes
 
 
 def _get_template_formatted_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
-    for idx, msg in enumerate(messages):
-        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_ROLE}"] = msg["role"]
+    for msg_idx, msg in enumerate(messages):
+        attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
         if "content" in msg:
-            attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_CONTENT}"] = msg["content"]
+            attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENT}"] = msg[
+                "content"
+            ]
         elif "contents" in msg:
-            # For multipart messages, serialize each content part
             for content_idx, content_part in enumerate(msg["contents"]):
                 if content_part.get("type") == "text":
                     attributes[
-                        f"{TEMPLATE_FORMATTED_MESSAGES}.{idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
+                        f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_CONTENTS}.{content_idx}.{MESSAGE_CONTENT}"
                     ] = content_part.get("text", "")
     return attributes
 

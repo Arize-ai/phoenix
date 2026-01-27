@@ -2804,6 +2804,73 @@ class TestLLMEvaluator:
         assert result.pop("metadata") == {}
         assert not result
 
+        async with db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+
+        assert len(db_traces) == 1
+        db_trace = db_traces[0]
+        assert db_trace.trace_id == trace_id
+        db_spans = db_trace.spans
+
+        template_span = None
+        for span in db_spans:
+            if span.span_kind == "TEMPLATE":
+                template_span = span
+                break
+
+        assert template_span is not None
+        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
+        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+        assert (
+            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT}")
+            == "You are an evaluator. "
+        )
+        assert (
+            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENTS}.1.{MESSAGE_CONTENT}")
+            == "Assess whether the output correctly answers the input question."
+        )
+        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+        assert (
+            attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT}")
+            == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
+        )
+        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
+        assert (
+            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
+            == "You are an evaluator. Assess whether the output correctly answers the input question."
+        )
+        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
+        assert (
+            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}")
+            == "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?"
+        )
+        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {}
+        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
+        variables = json.loads(attributes.pop(TEMPLATE_VARIABLES))
+        assert variables == {"input": "What is 2 + 2?", "output": "4"}
+        input_value = json.loads(attributes.pop(INPUT_VALUE))
+        assert input_value == {
+            "variables": {"input": "What is 2 + 2?", "output": "4"},
+            "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
+        }
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+        output_value = json.loads(attributes.pop(OUTPUT_VALUE))
+        assert output_value == {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
+                },
+                {
+                    "role": "user",
+                    "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
+                },
+            ]
+        }
+        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+        assert not attributes
+
 
 class TestGetEvaluators:
     async def test_returns_evaluators_in_input_order_with_interspersed_types(
@@ -3011,6 +3078,7 @@ def prompt_version() -> models.PromptVersion:
 
 # message attributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 
 # span attributes
