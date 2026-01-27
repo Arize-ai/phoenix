@@ -161,16 +161,21 @@ class TestDbDiskUsageMonitor:
         # an alert was properly sent to the configured admin email address.
         retries_left = 100
         received_email = False
+        expected_subject = "[Phoenix] Database Disk Space Usage Threshold Exceeded"
         while retries_left and not received_email:
             retries_left -= 1
             try:
                 assert _smtpd.messages
-                message = _smtpd.messages[-1]
-                assert message["To"] == _admin_email
+                # Find the specific message we're waiting for (shared SMTP fixture may have
+                # messages from other tests)
+                matching_messages = [
+                    m
+                    for m in _smtpd.messages
+                    if m["To"] == _admin_email and m["Subject"] == expected_subject
+                ]
+                assert matching_messages, f"No message found for {_admin_email}"
+                message = matching_messages[-1]
                 assert message["Cc"] == _support_email
-                assert (
-                    message["Subject"] == "[Phoenix] Database Disk Space Usage Threshold Exceeded"
-                )
                 assert (soup := _extract_html(message))
                 assert soup.title
                 assert soup.title.string == "Database Usage Notification"
@@ -250,8 +255,15 @@ class TestDbDiskUsageMonitor:
             retries_left -= 1
             try:
                 assert _smtpd.messages
-                message = _smtpd.messages[-1]
-                assert message["To"] == _admin_email
+                # Find password reset emails for this specific admin (shared SMTP fixture may
+                # have messages from other tests)
+                matching_messages = [
+                    m
+                    for m in _smtpd.messages
+                    if m["To"] == _admin_email and "Password Reset" in (m["Subject"] or "")
+                ]
+                assert matching_messages, f"No password reset message found for {_admin_email}"
+                message = matching_messages[-1]
                 reset_token = _extract_password_reset_token(message)
             except AssertionError:
                 if retries_left:
