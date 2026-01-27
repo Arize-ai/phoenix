@@ -9,14 +9,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv tool run ruff format >&2 || { [ $? -eq 1 ] && exit 2; }"
-          },
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv tool run ruff check --fix >&2 || { [ $? -eq 1 ] && exit 2; }"
-          },
-          {
-            "type": "command",
             "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv run mypy --strict >&2 || { [ $? -eq 1 ] && exit 2; }"
           },
           {
