@@ -67,15 +67,55 @@ def indent_xml(elem: ET.Element, level: int = 0) -> None:
             elem.tail = indent
 
 
-def generate_sitemap_xml(urls: list[str], base_url: str = "https://arize.com") -> str:
+def parse_existing_sitemap(sitemap_path: Path) -> dict[str, str]:
+    """
+    Parse an existing sitemap.xml and return a mapping of URLs to their lastmod values.
+    """
+    url_to_lastmod: dict[str, str] = {}
+
+    if not sitemap_path.exists():
+        return url_to_lastmod
+
+    try:
+        tree = ET.parse(sitemap_path)
+        root = tree.getroot()
+
+        # Handle namespace in sitemap
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+        for url_elem in root.findall("ns:url", namespace):
+            loc_elem = url_elem.find("ns:loc", namespace)
+            lastmod_elem = url_elem.find("ns:lastmod", namespace)
+
+            if (
+                loc_elem is not None
+                and loc_elem.text
+                and lastmod_elem is not None
+                and lastmod_elem.text
+            ):
+                url_to_lastmod[loc_elem.text] = lastmod_elem.text
+    except ET.ParseError:
+        # If parsing fails, return empty dict and regenerate all timestamps
+        pass
+
+    return url_to_lastmod
+
+
+def generate_sitemap_xml(
+    urls: list[str],
+    existing_timestamps: dict[str, str],
+    base_url: str = "https://arize.com",
+) -> str:
     """
     Generate a standard sitemap.xml string from a list of URL paths.
+
+    Preserves lastmod timestamps for URLs that already exist in existing_timestamps.
     """
     # Create the root element with proper namespace
     urlset = ET.Element("urlset")
     urlset.set("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9")
 
-    # Get current timestamp for lastmod (ISO 8601 format)
+    # Get current timestamp for new URLs (ISO 8601 format)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
     # Add each URL
@@ -88,7 +128,8 @@ def generate_sitemap_xml(urls: list[str], base_url: str = "https://arize.com") -
         loc.text = full_url
 
         lastmod = ET.SubElement(url_element, "lastmod")
-        lastmod.text = now
+        # Use existing timestamp if available, otherwise use current time
+        lastmod.text = existing_timestamps.get(full_url, now)
 
     # Pretty print the XML
     indent_xml(urlset)
@@ -130,8 +171,14 @@ def main() -> None:
 
     print(f"Found {len(unique_pages)} unique pages")
 
+    # Parse existing sitemap to preserve timestamps for unchanged URLs
+    existing_sitemap_path = repo_root / "sitemap.xml"
+    existing_timestamps = parse_existing_sitemap(existing_sitemap_path)
+    if existing_timestamps:
+        print(f"Loaded {len(existing_timestamps)} existing timestamps")
+
     # Generate sitemap XML
-    sitemap_xml = generate_sitemap_xml(unique_pages)
+    sitemap_xml = generate_sitemap_xml(unique_pages, existing_timestamps)
 
     # Write to both locations
     output_paths = [
