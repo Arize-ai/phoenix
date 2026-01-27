@@ -46,8 +46,6 @@ interface EvaluatorParams {
 ## Common Patterns
 
 - **Regex**: `/pattern/.test(output)`
-- **JSON**: `JSON.parse()` + optional zod schema
+- **JSON**: `JSON.parse()` + zod schema
 - **Keywords**: `output.includes(keyword)`
-- **Similarity**: `fastest-levenshtein` for edit distance
-
-**Library Reference:** [@arizeai/phoenix-evals TypeScript](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
+- **Similarity**: `fastest-levenshtein`

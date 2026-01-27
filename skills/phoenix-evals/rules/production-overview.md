@@ -47,5 +47,3 @@ Prioritize: errors → negative feedback → random sample.
 ```
 Production finds failure → Error analysis → Add to CI dataset → Prevents future regression
 ```
-
-**See Also:** [production-continuous](production-continuous.md) for capability vs regression evals.

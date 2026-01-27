@@ -101,11 +101,8 @@ generation_failures:
 
 ## Evaluation Order
 
-1. **Retrieval first** - If wrong docs retrieved, generation will fail
-2. **Context relevance** - Is retrieved context relevant to query?
-3. **Faithfulness** - Is answer grounded in context?
-4. **Answer quality** - Does answer address the question?
+1. **Retrieval first** - If wrong docs, generation will fail
+2. **Faithfulness** - Is answer grounded in context?
+3. **Answer quality** - Does answer address the question?
 
-## Key Principle
-
-Separate retrieval evaluation (IR metrics) from generation evaluation (LLM judges). Fix retrieval problems before debugging generation.
+Fix retrieval problems before debugging generation.

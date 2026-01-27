@@ -46,8 +46,5 @@ experiment = run_experiment(dataset, task, evaluators, dry_run=3)  # Just 3 exam
 ## Best Practices
 
 - **Name meaningfully**: `"improved-retrieval-v2-2024-01-15"` not `"test"`
-- **Version datasets**: Don't modify existing datasets
+- **Version datasets**: Don't modify existing
 - **Multiple evaluators**: Combine perspectives
-- **Compare apples to apples**: Same dataset, different tasks
-
-**See Also:** [production-continuous](production-continuous.md) for CI/CD integration.

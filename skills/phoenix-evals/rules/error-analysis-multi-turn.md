@@ -44,11 +44,9 @@ response = chat_with_context(context, user_message_n)
 
 This isolates whether error is from context or underlying capability.
 
-## Debugging Checklist
+## Checklist
 
 1. Did conversation achieve goal? (E2E)
 2. Which turn first went wrong?
 3. Can you reproduce with single-turn?
 4. Is error from context or capability? (N-1 test)
-
-**See Also:** [axial-coding-agents](axial-coding-agents.md) for transition matrices.

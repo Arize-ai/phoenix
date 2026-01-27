@@ -51,12 +51,8 @@ const faithfulnessEvaluator = createFaithfulnessEvaluator({
 });
 ```
 
-See full list: [@arizeai/phoenix-evals](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
-
 ## Best Practices
 
 - Be specific about criteria
 - Include examples in prompts
 - Use `<thinking>` for chain of thought
-
-**Library Reference:** [@arizeai/phoenix-evals TypeScript](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
