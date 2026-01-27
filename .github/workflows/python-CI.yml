@@ -42,6 +42,7 @@ jobs:
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      uv_lock: ${{ steps.filter.outputs.uv_lock }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -74,6 +75,8 @@ jobs:
               - "tox.ini"
             migrations:
               - "src/phoenix/db/migrations/versions/**"
+            uv_lock:
+              - "**/pyproject.toml"
       - name: Print Filters
         run: |
           echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
@@ -85,6 +88,7 @@ jobs:
           echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
           echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
           echo "migrations: ${{ steps.filter.outputs.migrations }}"
+          echo "uv_lock: ${{ steps.filter.outputs.uv_lock }}"
 
   phoenix-client:
     name: Phoenix Client
@@ -300,7 +304,7 @@ jobs:
     name: Check uv.lock is up to date
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.uv_lock == 'true' }}
     strategy:
       fail-fast: false
       matrix:
