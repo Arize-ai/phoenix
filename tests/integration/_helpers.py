@@ -2100,66 +2100,60 @@ def _get_existing_spans(
     span_ids: Iterable[_SpanId],
 ) -> set[_ExistingSpan]:
     ids = list(span_ids)
-    n = len(ids)
     query = """
-      query ($filterCondition: String, $first: Int) {
-        projects {
-          edges {
-            node {
+      query ($spanId: String!) {
+        getSpanByOtelId(spanId: $spanId) {
+          id
+          spanId
+          trace {
+            id
+            traceId
+            project {
               id
               name
-              spans (filterCondition: $filterCondition, first: $first) {
-                edges {
-                  node {
-                    id
-                    spanId
-                    trace {
-                      id
-                      traceId
-                      session {
-                        id
-                        sessionId
-                      }
-                    }
-                  }
-                }
-              }
+            }
+            session {
+              id
+              sessionId
             }
           }
         }
       }
     """
-    res, _ = _gql(
-        app,
-        app.admin_secret,
-        query=query,
-        variables={"filterCondition": f"span_id in {ids}", "first": n},
-    )
-    return {
-        _ExistingSpan(
-            id=GlobalID.from_id(span["node"]["id"]),
-            span_id=span["node"]["spanId"],
-            trace=_ExistingTrace(
-                id=GlobalID.from_id(span["node"]["trace"]["id"]),
-                trace_id=span["node"]["trace"]["traceId"],
-                project=_ExistingProject(
-                    id=GlobalID.from_id(project["node"]["id"]),
-                    name=project["node"]["name"],
-                ),
-                session=(
-                    _ExistingSession(
-                        id=GlobalID.from_id(span["node"]["trace"]["session"]["id"]),
-                        session_id=span["node"]["trace"]["session"]["sessionId"],
-                    )
-                    if span["node"]["trace"]["session"] is not None
-                    else None
-                ),
-            ),
+    result: set[_ExistingSpan] = set()
+    for span_id in ids:
+        res, _ = _gql(
+            app,
+            app.admin_secret,
+            query=query,
+            variables={"spanId": span_id},
         )
-        for project in res["data"]["projects"]["edges"]
-        for span in project["node"]["spans"]["edges"]
-        if span["node"]["spanId"] in ids
-    }
+        span = res["data"]["getSpanByOtelId"]
+        if span is None:
+            continue
+        result.add(
+            _ExistingSpan(
+                id=GlobalID.from_id(span["id"]),
+                span_id=span["spanId"],
+                trace=_ExistingTrace(
+                    id=GlobalID.from_id(span["trace"]["id"]),
+                    trace_id=span["trace"]["traceId"],
+                    project=_ExistingProject(
+                        id=GlobalID.from_id(span["trace"]["project"]["id"]),
+                        name=span["trace"]["project"]["name"],
+                    ),
+                    session=(
+                        _ExistingSession(
+                            id=GlobalID.from_id(span["trace"]["session"]["id"]),
+                            session_id=span["trace"]["session"]["sessionId"],
+                        )
+                        if span["trace"]["session"] is not None
+                        else None
+                    ),
+                ),
+            )
+        )
+    return result
 
 
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
