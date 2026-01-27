@@ -44,6 +44,7 @@ from .Identifier import Identifier
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
+    from .Project import Project
     from .Prompt import Prompt
     from .PromptVersion import PromptVersion
     from .PromptVersionTag import PromptVersionTag
@@ -791,6 +792,15 @@ class DatasetEvaluator(Node):
         from .User import User
 
         return User(id=record.user_id)
+
+    @strawberry.field
+    async def project(
+        self, info: Info[Context, None]
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
+        record = await self._get_record(info)
+        from .Project import Project
+
+        return Project(id=record.project_id)
 
     async def _get_record(self, info: Info[Context, None]) -> models.DatasetEvaluators:
         if self.db_record is not None:
