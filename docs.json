@@ -1273,7 +1273,13 @@
       },
       {
         "label": "GitHub",
-        "href": "https://github.com/Arize-ai/phoenix"
+        "href": "https://github.com/Arize-ai/phoenix",
+        "icon": "github"
+      },
+      {
+        "label": "X",
+        "href": "https://x.com/ArizePhoenix",
+        "icon": "x-twitter"
       }
     ],
     "primary": {
