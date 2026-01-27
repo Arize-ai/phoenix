@@ -93,7 +93,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: [3.9, 3.12]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
@@ -140,7 +140,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: [3.9, 3.12]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4

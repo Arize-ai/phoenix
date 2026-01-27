@@ -2,7 +2,7 @@
 name = "arize-phoenix-otel"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.8, <3.14"
+requires-python = ">=3.10, <3.15"
 license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,12 +15,11 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 version = "0.14.0"
 dependencies = [
@@ -73,7 +72,7 @@ pypi = [
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py38"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
