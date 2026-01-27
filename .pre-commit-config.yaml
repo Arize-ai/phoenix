@@ -46,3 +46,10 @@ repos:
         entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
         language: system
         stages: [ pre-commit ]
+      - id: uv-lock-check
+        name: uv lock --check
+        entry: uv lock --check
+        language: system
+        files: (pyproject\.toml$|^uv\.lock$)
+        pass_filenames: false
+        stages: [ pre-commit ]
