@@ -699,7 +699,11 @@ async def get_evaluators(
     for node_id in dataset_evaluator_node_ids:
         type_name, db_id = from_global_id(node_id)
         if type_name != DatasetEvaluatorNode.__name__:
-            raise BadRequest(f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'")
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'. "
+                f"To use an evaluator, first create a DatasetEvaluator that wraps it using "
+                f"the createDatasetEvaluator mutation, then use the DatasetEvaluator's ID."
+            )
         dataset_evaluator_db_ids.append(db_id)
 
     # Load DatasetEvaluators records
@@ -780,7 +784,11 @@ async def get_dataset_evaluator_project_ids(
     for node_id in dataset_evaluator_node_ids:
         type_name, db_id = from_global_id(node_id)
         if type_name != DatasetEvaluatorNode.__name__:
-            raise BadRequest(f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'")
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'. "
+                f"To use an evaluator, first create a DatasetEvaluator that wraps it using "
+                f"the createDatasetEvaluator mutation, then use the DatasetEvaluator's ID."
+            )
         dataset_evaluator_db_ids.append(db_id)
 
     # Load DatasetEvaluators records
