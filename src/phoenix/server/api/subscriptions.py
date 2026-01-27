@@ -39,7 +39,7 @@ from phoenix.server.api.evaluators import (
     BaseEvaluator,
     EvaluationResult,
     evaluation_result_to_model,
-    get_evaluator_project_ids,
+    get_dataset_evaluator_project_ids,
     get_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
@@ -274,7 +274,7 @@ class Subscription:
                 credentials=input.credentials,
             )
             evaluators = await get_evaluators(
-                evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
@@ -406,16 +406,15 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
             evaluators = await get_evaluators(
-                evaluator_node_ids=evaluator_node_ids,
+                dataset_evaluator_node_ids=dataset_evaluator_node_ids,
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            project_ids = await get_evaluator_project_ids(
-                evaluator_node_ids=evaluator_node_ids,
-                dataset_id=dataset_id,
+            project_ids = await get_dataset_evaluator_project_ids(
+                dataset_evaluator_node_ids=dataset_evaluator_node_ids,
                 session=session,
             )
             if (

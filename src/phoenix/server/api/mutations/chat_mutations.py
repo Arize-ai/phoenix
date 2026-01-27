@@ -42,7 +42,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
-    get_evaluator_project_ids,
+    get_dataset_evaluator_project_ids,
     get_evaluators,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -387,17 +387,16 @@ class ChatCompletionMutationMixin:
         evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResultUnion]] = {}
         if input.evaluators:
             dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
-            evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
             async with info.context.db() as session:
                 evaluators = await get_evaluators(
-                    evaluator_node_ids=evaluator_node_ids,
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
                 )
-                project_ids = await get_evaluator_project_ids(
-                    evaluator_node_ids=evaluator_node_ids,
-                    dataset_id=dataset_id,
+                project_ids = await get_dataset_evaluator_project_ids(
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
                     session=session,
                 )
                 for (revision, repetition_number), experiment_run in zip(
@@ -517,7 +516,7 @@ class ChatCompletionMutationMixin:
         if input.evaluators:
             async with info.context.db() as session:
                 evaluators = await get_evaluators(
-                    evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                    dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,

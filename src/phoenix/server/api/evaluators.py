@@ -673,7 +673,7 @@ async def _get_llm_evaluators(
 
 async def get_evaluators(
     *,
-    evaluator_node_ids: list[GlobalID],
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
@@ -691,28 +691,30 @@ async def get_evaluators(
     from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
     # Validate and parse all IDs (must all be DatasetEvaluator)
-    db_ids: list[int] = []
-    for node_id in evaluator_node_ids:
+    dataset_evaluator_db_ids: list[int] = []
+    for node_id in dataset_evaluator_node_ids:
         type_name, db_id = from_global_id(node_id)
         if type_name != DatasetEvaluatorNode.__name__:
             raise BadRequest(f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'")
-        db_ids.append(db_id)
+        dataset_evaluator_db_ids.append(db_id)
 
     # Load DatasetEvaluators records
     dataset_evaluators = (
         await session.scalars(
-            select(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(db_ids))
+            select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+            )
         )
     ).all()
     de_by_id: dict[int, models.DatasetEvaluators] = {de.id: de for de in dataset_evaluators}
 
     # Collect LLM evaluator IDs that need resolution
     llm_evaluator_ids: set[int] = set()
-    for db_id in db_ids:
+    for db_id in dataset_evaluator_db_ids:
         de = de_by_id.get(db_id)
         if de is None:
             raise NotFound(f"DatasetEvaluator with ID {db_id} not found")
@@ -737,7 +739,7 @@ async def get_evaluators(
 
     # Build result in original input order
     result: list[BaseEvaluator] = []
-    for db_id in db_ids:
+    for db_id in dataset_evaluator_db_ids:
         de = de_by_id[db_id]
 
         if de.builtin_evaluator_id is not None:
@@ -756,9 +758,8 @@ async def get_evaluators(
     return result
 
 
-async def get_evaluator_project_ids(
-    evaluator_node_ids: list[GlobalID],
-    dataset_id: int,  # kept for backward compatibility, not used
+async def get_dataset_evaluator_project_ids(
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
 ) -> list[int]:
     """
@@ -766,33 +767,35 @@ async def get_evaluator_project_ids(
 
     DatasetEvaluators have project_id directly on the record, so this is a simple lookup.
 
-    Returns a list of project IDs in the same order as the input evaluator_node_ids.
+    Returns a list of project IDs in the same order as the input dataset_evaluator_node_ids.
     Raises NotFound if any DatasetEvaluator doesn't exist.
     """
     from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
     # Validate and parse all IDs (must all be DatasetEvaluator)
-    db_ids: list[int] = []
-    for node_id in evaluator_node_ids:
+    dataset_evaluator_db_ids: list[int] = []
+    for node_id in dataset_evaluator_node_ids:
         type_name, db_id = from_global_id(node_id)
         if type_name != DatasetEvaluatorNode.__name__:
             raise BadRequest(f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{node_id}'")
-        db_ids.append(db_id)
+        dataset_evaluator_db_ids.append(db_id)
 
     # Load DatasetEvaluators records
     dataset_evaluators = (
         await session.scalars(
-            select(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(db_ids))
+            select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+            )
         )
     ).all()
     de_by_id = {de.id: de for de in dataset_evaluators}
 
     # Build result in original input order
     result: list[int] = []
-    for db_id in db_ids:
+    for db_id in dataset_evaluator_db_ids:
         de = de_by_id.get(db_id)
         if de is None:
             raise NotFound(f"DatasetEvaluator with ID {db_id} not found")
