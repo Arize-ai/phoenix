@@ -92,7 +92,7 @@ def _get_project_for_dataset_evaluator(
     dataset_evaluator_name: str,
 ) -> models.Project:
     return models.Project(
-        name=f"{dataset_name}/{dataset_evaluator_name}",
+        name=f"{dataset_name}/{dataset_evaluator_name}/{token_hex(12)}",
         description=f"Traces for dataset evaluator: {dataset_evaluator_name}",
     )
 
