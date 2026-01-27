@@ -34,7 +34,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.experiments.utils import is_experiment_project_name
@@ -886,14 +886,48 @@ class TestChatCompletionSubscription:
         openai_api_key: str,
         correctness_llm_evaluator: models.LLMEvaluator,
         custom_vcr: CustomVCR,
+        db: DbSessionFactory,
     ) -> None:
-        llm_evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
-        )
+        # Create DatasetEvaluators (required by get_evaluators)
         contains_id = _generate_builtin_evaluator_id("Contains")
-        builtin_evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(contains_id))
-        )
+        async with db() as session:
+            dataset = models.Dataset(name="sub-evaluator-test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            llm_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=correctness_llm_evaluator.id,
+                name=correctness_llm_evaluator.name,
+                input_mapping={},
+                project=models.Project(
+                    name="sub-llm-evaluator-project",
+                    description="Project for LLM evaluator",
+                ),
+            )
+            session.add(llm_dataset_evaluator)
+
+            builtin_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=models.Identifier(root="contains-four"),
+                input_mapping={},
+                project=models.Project(
+                    name="sub-builtin-evaluator-project",
+                    description="Project for builtin evaluator",
+                ),
+            )
+            session.add(builtin_dataset_evaluator)
+            await session.flush()
+
+            llm_evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
+            )
+            builtin_evaluator_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__, node_id=str(builtin_dataset_evaluator.id)
+                )
+            )
         variables = {
             "input": {
                 "messages": [
@@ -981,11 +1015,31 @@ class TestChatCompletionSubscription:
         openai_api_key: str,
         correctness_llm_evaluator: models.LLMEvaluator,
         custom_vcr: CustomVCR,
+        db: DbSessionFactory,
     ) -> None:
         """Test that no evaluation chunks are emitted when the chat completion errors out."""
-        evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
-        )
+        # Create DatasetEvaluator (required by get_evaluators)
+        async with db() as session:
+            dataset = models.Dataset(name="sub-error-test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=correctness_llm_evaluator.id,
+                name=correctness_llm_evaluator.name,
+                input_mapping={},
+                project=models.Project(
+                    name="sub-error-evaluator-project",
+                    description="Project for error test evaluator",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
+            )
         variables = {
             "input": {
                 "messages": [
@@ -1050,13 +1104,34 @@ class TestChatCompletionSubscription:
         gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
+        db: DbSessionFactory,
     ) -> None:
         """Test that builtin evaluators use name for annotation names."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
-        )
         custom_name = "my-custom-exact-match"
+
+        # Create DatasetEvaluator (required by get_evaluators)
+        async with db() as session:
+            dataset = models.Dataset(name="sub-builtin-name-test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=exact_match_id,
+                name=models.Identifier(root=custom_name),
+                input_mapping={},
+                project=models.Project(
+                    name="sub-builtin-name-evaluator-project",
+                    description="Project for builtin evaluator name test",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
+            )
         variables = {
             "input": {
                 "messages": [
@@ -1957,18 +2032,13 @@ class TestChatCompletionOverDatasetSubscription:
             single_example_dataset.id
         )
         llm_evaluator_gid = str(
-            GlobalID(
-                type_name=LLMEvaluator.__name__, node_id=str(llm_dataset_evaluator.evaluator_id)
-            )
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
         )
         builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
             single_example_dataset.id
         )
         builtin_evaluator_gid = str(
-            GlobalID(
-                type_name=BuiltInEvaluator.__name__,
-                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
-            )
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(builtin_dataset_evaluator.id))
         )
 
         dataset_gid = str(
@@ -2484,7 +2554,7 @@ class TestChatCompletionOverDatasetSubscription:
             single_example_dataset.id
         )
         evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
         )
         dataset_gid = str(
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
@@ -2568,10 +2638,7 @@ class TestChatCompletionOverDatasetSubscription:
             single_example_dataset.id
         )
         evaluator_gid = str(
-            GlobalID(
-                type_name=BuiltInEvaluator.__name__,
-                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
-            )
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(builtin_dataset_evaluator.id))
         )
         custom_name = "my-dataset-exact-match"
         dataset_gid = str(
