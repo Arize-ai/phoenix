@@ -97,10 +97,12 @@ const EmptyState = ({
   builtInEvaluators,
   onSelectLLMEvaluatorTemplate,
   onSelectCodeEvaluator,
+  hasActiveFilter,
 }: {
   builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
   onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
+  hasActiveFilter: boolean;
 }) => {
   const codeEvaluators = useMemo(
     () =>
@@ -113,6 +115,27 @@ const EmptyState = ({
   const llmEvaluatorTemplates =
     builtInEvaluators.classificationEvaluatorConfigs;
 
+  // If there's an active filter, show a simple "no results" message
+  if (hasActiveFilter) {
+    return (
+      <TableEmptyWrap>
+        <Flex
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          gap="size-300"
+          maxWidth="700px"
+          margin="var(--ac-global-dimension-size-300) auto"
+        >
+          <Text size="S" fontStyle="italic" color="text-500">
+            No evaluators found that match the given filter.
+          </Text>
+        </Flex>
+      </TableEmptyWrap>
+    );
+  }
+
+  // Otherwise, show the template selection grid
   return (
     <TableEmptyWrap>
       <Flex
@@ -473,6 +496,7 @@ export const DatasetEvaluatorsTable = ({
             builtInEvaluators={builtInEvaluators}
             onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
             onSelectCodeEvaluator={onSelectCodeEvaluator}
+            hasActiveFilter={!!filter}
           />
         ) : (
           <tbody>
