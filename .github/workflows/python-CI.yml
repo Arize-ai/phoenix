@@ -327,7 +327,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -365,7 +365,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -451,7 +451,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository

@@ -2,7 +2,7 @@
 name = "arize-phoenix-client"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.9, <3.14"
+requires-python = ">=3.9, <3.15"
 license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -20,6 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 version = "1.28.0"
 dependencies = [
