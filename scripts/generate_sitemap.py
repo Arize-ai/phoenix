@@ -19,28 +19,20 @@ def extract_pages(item: Any) -> list[str]:
     Recursively extract page paths from the docs.json navigation structure.
 
     Pages can be:
-    - A string (direct page path)
-    - An object with "group" and "pages" keys (nested group)
-    - An object with "tab" and "groups" keys (tab containing groups)
+    - A string starting with "docs/" (direct page path)
+    - An object containing arrays/nested objects to recurse into
+    - An array of items to recurse into
     """
     pages: list[str] = []
 
     if isinstance(item, str):
-        # Direct page path
-        pages.append(item)
+        # Only treat strings starting with "docs/" as page paths
+        if item.startswith("docs/"):
+            pages.append(item)
     elif isinstance(item, dict):
-        # Check for nested pages
-        if "pages" in item:
-            for page in item["pages"]:
-                pages.extend(extract_pages(page))
-        # Check for groups (in tabs)
-        if "groups" in item:
-            for group in item["groups"]:
-                pages.extend(extract_pages(group))
-        # Check for tabs (in languages)
-        if "tabs" in item:
-            for tab in item["tabs"]:
-                pages.extend(extract_pages(tab))
+        # Recurse into all dict values
+        for value in item.values():
+            pages.extend(extract_pages(value))
     elif isinstance(item, list):
         for sub_item in item:
             pages.extend(extract_pages(sub_item))
@@ -152,14 +144,9 @@ def main() -> None:
     with open(docs_json_path, encoding="utf-8") as f:
         docs_config = json.load(f)
 
-    # Extract all pages from navigation
+    # Extract all pages from navigation (recursively handles any structure)
     navigation = docs_config.get("navigation", {})
-    languages = navigation.get("languages", [])
-
-    all_pages: list[str] = []
-    for language in languages:
-        pages = extract_pages(language)
-        all_pages.extend(pages)
+    all_pages = extract_pages(navigation)
 
     # Remove duplicates while preserving order
     seen = set()
