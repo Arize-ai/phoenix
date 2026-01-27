@@ -38,6 +38,10 @@
           {
             "type": "command",
             "command": "jq -r '.tool_input.file_path | select(contains(\"src/phoenix/db/migrations/versions\"))' | xargs -r sh -c 'tox run -e ddl_extract >&2' || { [ $? -eq 1 ] && exit 2; }"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path | select(endswith(\"pyproject.toml\"))' | xargs -r sh -c 'uv sync >&2' || { [ $? -eq 1 ] && exit 2; }"
           }
         ]
       }
