@@ -34,6 +34,8 @@ from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
 )
+from phoenix.server.api.types.AnnotationType import to_gql_annotation_type
+from phoenix.server.api.types.OptimizationDirection import to_gql_optimization_direction
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -564,8 +566,8 @@ def _to_gql_categorical_annotation_config(
     return CategoricalAnnotationConfig(
         id_attr=_generate_output_config_id(id_prefix, evaluator_id),
         name=annotation_name,
-        annotation_type=config.type,
-        optimization_direction=config.optimization_direction,
+        annotation_type=to_gql_annotation_type(config.type),
+        optimization_direction=to_gql_optimization_direction(config.optimization_direction),
         description=config.description,
         values=values,
     )
@@ -580,8 +582,8 @@ def _to_gql_continuous_annotation_config(
     return ContinuousAnnotationConfig(
         id_attr=_generate_output_config_id(id_prefix, evaluator_id),
         name=annotation_name,
-        annotation_type=config.type,
-        optimization_direction=config.optimization_direction,
+        annotation_type=to_gql_annotation_type(config.type),
+        optimization_direction=to_gql_optimization_direction(config.optimization_direction),
         description=config.description,
         lower_bound=config.lower_bound,
         upper_bound=config.upper_bound,

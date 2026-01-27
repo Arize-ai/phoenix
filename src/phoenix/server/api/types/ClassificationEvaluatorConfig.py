@@ -3,7 +3,7 @@ from typing import Optional
 import strawberry
 from strawberry.scalars import JSON
 
-from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.server.api.types.OptimizationDirection import OptimizationDirection
 from phoenix.server.api.types.PromptVersionTemplate import PromptMessage
 
 

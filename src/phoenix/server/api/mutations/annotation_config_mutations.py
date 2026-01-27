@@ -117,7 +117,7 @@ def _to_pydantic_categorical_annotation_config(
             type=AnnotationType.CATEGORICAL.value,
             name=input.name,
             description=input.description,
-            optimization_direction=input.optimization_direction,
+            optimization_direction=input.optimization_direction.value,
             values=[
                 CategoricalAnnotationValue(label=value.label, score=value.score)
                 for value in input.values
@@ -132,7 +132,9 @@ def _to_pydantic_categorical_annotation_config_override(
 ) -> CategoricalAnnotationConfigOverrideModel:
     try:
         return CategoricalAnnotationConfigOverrideModel(
-            optimization_direction=input.optimization_direction,
+            optimization_direction=(
+                input.optimization_direction.value if input.optimization_direction else None
+            ),
             values=[
                 CategoricalAnnotationValue(label=value.label, score=value.score)
                 for value in input.values
@@ -151,7 +153,7 @@ def _to_pydantic_continuous_annotation_config(
         return ContinuousAnnotationConfigModel(
             type=AnnotationType.CONTINUOUS.value,
             description=input.description,
-            optimization_direction=input.optimization_direction,
+            optimization_direction=input.optimization_direction.value,
             lower_bound=input.lower_bound,
             upper_bound=input.upper_bound,
         )

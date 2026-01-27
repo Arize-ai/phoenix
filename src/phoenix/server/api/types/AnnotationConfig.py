@@ -6,10 +6,6 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    AnnotationType,
-    OptimizationDirection,
-)
-from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
@@ -17,6 +13,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
+)
+from phoenix.server.api.types.AnnotationType import AnnotationType, to_gql_annotation_type
+from phoenix.server.api.types.OptimizationDirection import (
+    OptimizationDirection,
+    to_gql_optimization_direction,
 )
 
 
@@ -74,8 +75,8 @@ def _to_gql_categorical_annotation_config(
     return CategoricalAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.type,
-        optimization_direction=config.optimization_direction,
+        annotation_type=to_gql_annotation_type(config.type),
+        optimization_direction=to_gql_optimization_direction(config.optimization_direction),
         description=config.description,
         values=values,
     )
@@ -89,8 +90,8 @@ def _to_gql_continuous_annotation_config(
     return ContinuousAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.type,
-        optimization_direction=config.optimization_direction,
+        annotation_type=to_gql_annotation_type(config.type),
+        optimization_direction=to_gql_optimization_direction(config.optimization_direction),
         description=config.description,
         lower_bound=config.lower_bound,
         upper_bound=config.upper_bound,
@@ -105,7 +106,7 @@ def _to_gql_freeform_annotation_config(
     return FreeformAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.type,
+        annotation_type=to_gql_annotation_type(config.type),
         description=config.description,
     )
 

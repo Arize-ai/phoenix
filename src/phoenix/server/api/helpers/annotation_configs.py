@@ -30,7 +30,9 @@ def get_annotation_config_override(
             values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
         return CategoricalAnnotationConfigOverride(
             type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
+            optimization_direction=(
+                cat.optimization_direction.value if cat.optimization_direction else None
+            ),
             values=values,
         )
     elif (
@@ -40,7 +42,9 @@ def get_annotation_config_override(
         cont = evaluator_input.output_config_override.continuous
         return ContinuousAnnotationConfigOverride(
             type="CONTINUOUS",
-            optimization_direction=cont.optimization_direction,
+            optimization_direction=(
+                cont.optimization_direction.value if cont.optimization_direction else None
+            ),
             lower_bound=cont.lower_bound,
             upper_bound=cont.upper_bound,
         )
@@ -51,7 +55,9 @@ def get_annotation_config_override(
             values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
         return CategoricalAnnotationConfigOverride(
             type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
+            optimization_direction=(
+                cat.optimization_direction.value if cat.optimization_direction else None
+            ),
             values=values,
         )
     return None

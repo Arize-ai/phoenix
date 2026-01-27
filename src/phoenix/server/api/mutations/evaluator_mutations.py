@@ -194,7 +194,11 @@ def _validate_and_convert_builtin_override(
             ]
         return CategoricalAnnotationConfigOverrideModel(
             type=AnnotationType.CATEGORICAL.value,
-            optimization_direction=cat_override.optimization_direction,
+            optimization_direction=(
+                cat_override.optimization_direction.value
+                if cat_override.optimization_direction
+                else None
+            ),
             values=values,
         )
     else:
@@ -223,7 +227,11 @@ def _validate_and_convert_builtin_override(
 
         return ContinuousAnnotationConfigOverrideModel(
             type=AnnotationType.CONTINUOUS.value,
-            optimization_direction=cont_override.optimization_direction,
+            optimization_direction=(
+                cont_override.optimization_direction.value
+                if cont_override.optimization_direction
+                else None
+            ),
             lower_bound=cont_override.lower_bound,
             upper_bound=cont_override.upper_bound,
         )

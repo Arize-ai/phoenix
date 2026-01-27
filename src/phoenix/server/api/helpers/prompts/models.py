@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Any, Literal, Mapping, Optional, Union
 
+import strawberry
 from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
@@ -19,6 +20,7 @@ class PromptTemplateType(str, Enum):
     CHAT = "CHAT"
 
 
+@strawberry.enum
 class PromptMessageRole(str, Enum):
     USER = "USER"
     SYSTEM = "SYSTEM"  # e.g. the OpenAI developer role or an Anthropic system instruction

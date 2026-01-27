@@ -2,8 +2,8 @@ from typing import Optional
 
 import strawberry
 
-from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.types.OptimizationDirection import OptimizationDirection
 
 
 @strawberry.input

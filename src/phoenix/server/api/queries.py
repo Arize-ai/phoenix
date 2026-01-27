@@ -30,7 +30,6 @@ from phoenix.db.helpers import (
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
-from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -72,7 +71,10 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.ClassificationEvaluatorConfig import (
+    ClassificationEvaluatorConfig,
+    OptimizationDirection,
+)
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -1430,15 +1432,54 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[ClassificationEvaluatorConfig]:
+        # #region agent log
+        import json as _json_debug
+
+        _log_path = "/Users/mikeldking/work/phoenix/.cursor/debug.log"
+
+        def _debug_log(loc, msg, data):
+            open(_log_path, "a").write(
+                _json_debug.dumps(
+                    {"location": loc, "message": msg, "data": data, "hypothesisId": "A"}
+                )
+                + "\n"
+            )
+
+        # #endregion
         pydantic_configs = get_classification_evaluator_configs()
+        # #region agent log
+        _debug_log(
+            "queries.py:1433",
+            "pydantic_configs loaded",
+            {"count": len(pydantic_configs), "config_names": [c.name for c in pydantic_configs]},
+        )
+        # #endregion
 
         gql_configs: list[ClassificationEvaluatorConfig] = []
         for config in pydantic_configs:
+            # #region agent log
+            _debug_log(
+                "queries.py:1437",
+                "processing config",
+                {
+                    "name": config.name,
+                    "opt_dir": config.optimization_direction,
+                    "opt_dir_type": str(type(config.optimization_direction)),
+                },
+            )
+            # #endregion
             optimization_direction = (
                 OptimizationDirection.MAXIMIZE
                 if config.optimization_direction == "maximize"
                 else OptimizationDirection.MINIMIZE
             )
+            # #region agent log
+            _debug_log(
+                "queries.py:1441",
+                "optimization_direction set",
+                {"value": str(optimization_direction), "type": str(type(optimization_direction))},
+            )
+            # #endregion
 
             gql_messages: list[PromptMessage] = []
             for msg in config.messages:
@@ -1455,13 +1496,96 @@ class Query:
                     # Default to USER if unknown role
                     role = PromptMessageRole.USER
 
+                # #region agent log
+                _debug_log(
+                    "queries.py:1460",
+                    "creating content",
+                    {
+                        "msg_content_type": str(type(msg.content)),
+                        "role": str(role),
+                        "role_type": str(type(role)),
+                    },
+                )
+                # #endregion
                 content = type_cast(
                     list[ContentPart],
                     [TextContentPart(text=TextContentValue(text=msg.content))],
                 )
+                # #region agent log
+                _debug_log(
+                    "queries.py:1465",
+                    "content created",
+                    {
+                        "content_len": len(content),
+                        "content_0_type": str(type(content[0])),
+                        "text_value_type": str(type(content[0].text)),
+                    },
+                )
+                # Check class-level descriptors
+                _debug_log(
+                    "queries.py:1465b",
+                    "TextContentValue class text attr",
+                    {
+                        "class_text_type": str(
+                            type(TextContentValue.__dict__.get("text", "NOT_FOUND"))
+                        ),
+                        "instance_text_type": str(type(content[0].text.text)),
+                        "instance_text_value": content[0].text.text[:50]
+                        if len(content[0].text.text) > 50
+                        else content[0].text.text,
+                    },
+                )
+                _debug_log(
+                    "queries.py:1465c",
+                    "TextContentPart class text attr",
+                    {
+                        "class_text_type": str(
+                            type(TextContentPart.__dict__.get("text", "NOT_FOUND"))
+                        ),
+                    },
+                )
+                _debug_log(
+                    "queries.py:1465d",
+                    "PromptMessage class attrs",
+                    {
+                        "class_role_type": str(
+                            type(PromptMessage.__dict__.get("role", "NOT_FOUND"))
+                        ),
+                        "class_content_type": str(
+                            type(PromptMessage.__dict__.get("content", "NOT_FOUND"))
+                        ),
+                    },
+                )
+                # #endregion
 
-                gql_messages.append(PromptMessage(role=role, content=content))
+                pm = PromptMessage(role=role, content=content)
+                # #region agent log
+                _debug_log(
+                    "queries.py:1465e",
+                    "PromptMessage instance",
+                    {
+                        "pm_role_type": str(type(pm.role)),
+                        "pm_content_type": str(type(pm.content)),
+                        "pm_dict_keys": list(pm.__dict__.keys())
+                        if hasattr(pm, "__dict__")
+                        else "no __dict__",
+                    },
+                )
+                # #endregion
+                gql_messages.append(pm)
 
+            # #region agent log
+            _debug_log(
+                "queries.py:1470",
+                "creating gql_config",
+                {
+                    "name": config.name,
+                    "desc_type": str(type(config.description)),
+                    "choices_type": str(type(config.choices)),
+                    "messages_count": len(gql_messages),
+                },
+            )
+            # #endregion
             gql_config = ClassificationEvaluatorConfig(
                 name=config.name,
                 description=config.description,
@@ -1469,8 +1593,72 @@ class Query:
                 messages=gql_messages,
                 choices=config.choices,
             )
+            # #region agent log
+            _debug_log(
+                "queries.py:1480",
+                "gql_config created",
+                {
+                    "name": gql_config.name,
+                    "opt_dir_type": str(type(gql_config.optimization_direction)),
+                    "messages_type": str(type(gql_config.messages)),
+                },
+            )
+            for attr_name in [
+                "name",
+                "description",
+                "optimization_direction",
+                "messages",
+                "choices",
+            ]:
+                attr_val = getattr(gql_config, attr_name)
+                _debug_log(
+                    "queries.py:1483",
+                    f"gql_config.{attr_name}",
+                    {"type": str(type(attr_val)), "is_property": isinstance(attr_val, property)},
+                )
+            # #endregion
             gql_configs.append(gql_config)
 
+        # #region agent log
+        _debug_log("queries.py:1488", "returning gql_configs", {"count": len(gql_configs)})
+
+        # Try to find the property object by recursively checking all attributes
+        def find_property_objects(obj, path="root", depth=0):
+            if depth > 10:
+                return []
+            found = []
+            if isinstance(obj, property):
+                found.append(f"{path}: property")
+                return found
+            if isinstance(obj, (str, int, float, bool, type(None))):
+                return []
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    found.extend(find_property_objects(v, f"{path}.{k}", depth + 1))
+                return found
+            if isinstance(obj, (list, tuple)):
+                for i, v in enumerate(obj):
+                    found.extend(find_property_objects(v, f"{path}[{i}]", depth + 1))
+                return found
+            if hasattr(obj, "__dict__"):
+                for k, v in obj.__dict__.items():
+                    found.extend(find_property_objects(v, f"{path}.{k}", depth + 1))
+            # Also check class-level attributes
+            if hasattr(obj, "__class__"):
+                for k, v in type(obj).__dict__.items():
+                    if isinstance(v, property):
+                        found.append(f"{path}.__class__.{k}: property (class-level)")
+            return found
+
+        for i, cfg in enumerate(gql_configs):
+            props = find_property_objects(cfg, f"config[{i}]")
+            if props:
+                _debug_log(
+                    "queries.py:1490", f"Found property in config[{i}]", {"properties": props}
+                )
+            else:
+                _debug_log("queries.py:1490", f"No property in config[{i}]", {"checked": "ok"})
+        # #endregion
         return gql_configs
 
     @strawberry.field
