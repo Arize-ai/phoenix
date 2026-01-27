@@ -1,5 +1,28 @@
 # Changelog
 
+## [12.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.2...arize-phoenix-v12.32.0) (2026-01-27)
+
+
+### Features
+
+* add phoenix-ci/SKILL.md ([#11074](https://github.com/Arize-ai/phoenix/issues/11074)) ([3686228](https://github.com/Arize-ai/phoenix/commit/36862286060ccd47d563ef13923b1798a6bb5d4b))
+* add tool invocation accuracy metric ([#10988](https://github.com/Arize-ai/phoenix/issues/10988)) ([d1c89bf](https://github.com/Arize-ai/phoenix/commit/d1c89bf80e6460efa6ee5ae94ee94972f95ab0ea))
+* evals skill ([68ac6fb](https://github.com/Arize-ai/phoenix/commit/68ac6fb558329b417f3007ca8f575908974fbf9f))
+* tracing skill ([d91a52b](https://github.com/Arize-ai/phoenix/commit/d91a52bd4b401026f8356b0ddfb71e260abcf5f3))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#11088](https://github.com/Arize-ai/phoenix/issues/11088)) ([422250a](https://github.com/Arize-ai/phoenix/commit/422250aa1fc5a765d34ee861640f4ef8e98320b2))
+* keyboard form submission of dataset creation ([#11109](https://github.com/Arize-ai/phoenix/issues/11109)) ([7b5b680](https://github.com/Arize-ai/phoenix/commit/7b5b68082cba8e4fe84e94dfec6d3da1594602ad))
+* update links to typescript documentation ([#11086](https://github.com/Arize-ai/phoenix/issues/11086)) ([5c7664d](https://github.com/Arize-ai/phoenix/commit/5c7664d228d373575a68c19dd5ded8a4f6f1eba2))
+
+
+### Documentation
+
+* coding agents ([#11075](https://github.com/Arize-ai/phoenix/issues/11075)) ([4389afd](https://github.com/Arize-ai/phoenix/commit/4389afd599adcc1736b9d8a89c6531b34ba141c7))
+* replace hallucination page with faithfulness ([#11070](https://github.com/Arize-ai/phoenix/issues/11070)) ([5cfd86f](https://github.com/Arize-ai/phoenix/commit/5cfd86f67859f9284a1774e431488edb4212aa89))
+
 ## [12.31.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.1...arize-phoenix-v12.31.2) (2026-01-22)
 
 
