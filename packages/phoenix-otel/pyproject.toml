@@ -24,7 +24,6 @@ classifiers = [
 ]
 version = "0.14.0"
 dependencies = [
-  "pytorch",
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
   "opentelemetry-proto>=1.12.0",
