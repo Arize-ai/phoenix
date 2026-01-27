@@ -1286,7 +1286,8 @@
     "socials": {
       "x": "https://x.com/ArizePhoenix",
       "github": "https://github.com/Arize-ai/phoenix"
-    }
+    },
+    "languageSelector": true
   },
   "redirects": [
     {
