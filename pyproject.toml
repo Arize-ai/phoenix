@@ -339,3 +339,11 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+arize-phoenix-client = { workspace = true }
+arize-phoenix-evals = { workspace = true }
+arize-phoenix-otel = { workspace = true }
