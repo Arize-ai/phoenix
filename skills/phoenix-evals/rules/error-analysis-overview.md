@@ -17,19 +17,17 @@ The most important activity in evals. Expect to spend **60-80% of development ti
 
 ## Error Analysis vs Automated Evals
 
-| Aspect | Error Analysis | Automated Evals |
-| ------ | -------------- | --------------- |
-| Purpose | Discover problems | Monitor known problems |
-| Scale | 100s of traces | 1000s of traces |
-| Output | Insights, hypotheses | Scores, pass/fail |
+| Aspect  | Error Analysis       | Automated Evals        |
+| ------- | -------------------- | ---------------------- |
+| Purpose | Discover problems    | Monitor known problems |
+| Scale   | 100s of traces       | 1000s of traces        |
+| Output  | Insights, hypotheses | Scores, pass/fail      |
 
 They complement each other: Error analysis → Build evaluators → Run automated evals → New failures feed back to error analysis.
 
 ## The Benevolent Dictator
 
 One domain expert should own error analysis. Benefits: consistent standards, faster decisions, deep expertise.
-
-**Don't outsource.** You lose product intuition and tacit knowledge.
 
 ## Getting Started
 

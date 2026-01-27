@@ -8,7 +8,10 @@ LLM evaluators use a language model to judge outputs. Uses Vercel AI SDK.
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
-const helpfulness = await createClassificationEvaluator<{ input: string; output: string }>({
+const helpfulness = await createClassificationEvaluator<{
+  input: string;
+  output: string;
+}>({
   name: "helpfulness",
   model: openai("gpt-4o"),
   promptTemplate: `Rate helpfulness.
@@ -41,9 +44,11 @@ const customEval = asEvaluator({
 ## Pre-Built Evaluators
 
 ```typescript
-import { createHallucinationEvaluator, createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 
-const hallucination = createHallucinationEvaluator({ model: openai("gpt-4o") });
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
+  model: openai("gpt-4o"),
+});
 ```
 
 See full list: [@arizeai/phoenix-evals](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
