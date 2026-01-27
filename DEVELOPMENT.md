@@ -43,10 +43,10 @@ Activate your virtual environment before continuing.
 source ./.venv/bin/activate
 ```
 
-From the root of the repository, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibilty with all supported Python versions.
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync --python 3.10
 ```
 
 Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
