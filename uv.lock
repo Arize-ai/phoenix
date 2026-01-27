@@ -15,7 +15,6 @@ resolution-markers = [
 [manifest]
 members = [
     "arize-phoenix",
-    "arize-phoenix-client",
     "arize-phoenix-evals",
     "arize-phoenix-otel",
 ]
