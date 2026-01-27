@@ -55,6 +55,40 @@ failure_taxonomy:
     inappropriate: [harmful_advice, privacy_violation]
 ```
 
+## Recording Categories via API
+
+After categorizing, add structured annotations to spans:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Add categorized annotation
+client.spans.add_span_annotation(
+    span_id="abc123def456",
+    annotation_name="failure_category",
+    label="hallucination",
+    explanation="invented a feature that doesn't exist",
+    annotator_kind="HUMAN",
+    sync=True,
+)
+```
+
+```typescript
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "failure_category",
+    label: "hallucination",
+    explanation: "invented a feature that doesn't exist",
+    annotatorKind: "HUMAN",
+  }
+});
+```
+
 ## Key Principles
 
 | Principle | Description |

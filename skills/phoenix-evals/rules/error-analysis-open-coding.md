@@ -43,4 +43,33 @@ BAD:  "Tone is wrong"
 GOOD: "Used 'Hey!' for enterprise client who prefers formal"
 ```
 
+## Adding Notes via API
+
+Use the span notes API to programmatically add free-form annotations:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Add a note to a span during review
+client.spans.add_span_note(
+    span_id="abc123def456",
+    note="wrong timezone - said 3pm EST but user is PST"
+)
+```
+
+```typescript
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  spanNote: {
+    spanId: "abc123def456",
+    note: "wrong timezone - said 3pm EST but user is PST"
+  }
+});
+```
+
+Notes are a special annotation type that allow multiple entries per span (unlike regular annotations which are unique by name).
+
 Open coding feeds into axial coding (categorization). See [axial-coding-taxonomy](axial-coding-taxonomy.md).

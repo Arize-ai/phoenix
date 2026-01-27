@@ -26,12 +26,12 @@ Answer (helpful/not_helpful):`,
 
 Use XML tags: `<question>{{input}}</question>`, `<response>{{output}}</response>`, `<context>{{context}}</context>`
 
-## Custom Evaluator with asEvaluator
+## Custom Evaluator with asExperimentEvaluator
 
 ```typescript
-import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
 
-const customEval = asEvaluator({
+const customEval = asExperimentEvaluator({
   name: "custom",
   kind: "LLM",
   evaluate: async ({ input, output }) => {

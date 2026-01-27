@@ -15,9 +15,10 @@ Three types of evaluators: code-based, LLM-as-judge, and human.
 Deterministic checks without LLM. Use for: exact match, regex, JSON validation, format checks.
 
 ```python
+import re
 from phoenix.evals import create_evaluator
 
-@create_evaluator(name="has_citation", kind="CODE")
+@create_evaluator(name="has_citation", kind="code")
 def has_citation(output: str) -> float:
     return 1.0 if re.search(r'\[\d+\]', output) else 0.0
 ```

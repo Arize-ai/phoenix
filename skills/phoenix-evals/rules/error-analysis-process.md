@@ -32,6 +32,22 @@ For each trace, ask:
 - Is tone appropriate?
 - Anything missing or extra?
 
+Record notes using the span notes API:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Add free-form notes during review
+client.spans.add_span_note(
+    span_id=trace["span_id"],
+    note="Informal greeting 'Hey!' for enterprise client"
+)
+```
+
+Or track in a DataFrame for batch processing:
+
 ```python
 entry["notes"] = "Informal greeting 'Hey!' for enterprise client"
 entry["verdict"] = "fail"

@@ -5,13 +5,15 @@ Deterministic evaluators without LLM. Fast, cheap, reproducible.
 ## Basic Pattern
 
 ```python
+import re
+import json
 from phoenix.evals import create_evaluator
 
-@create_evaluator(name="has_citation", kind="CODE")
+@create_evaluator(name="has_citation", kind="code")
 def has_citation(output: str) -> bool:
     return bool(re.search(r'\[\d+\]', output))
 
-@create_evaluator(name="json_valid", kind="CODE")
+@create_evaluator(name="json_valid", kind="code")
 def json_valid(output: str) -> bool:
     try:
         json.loads(output)
@@ -30,7 +32,7 @@ def json_valid(output: str) -> bool:
 | `metadata` | Example metadata |
 
 ```python
-@create_evaluator(name="matches_expected", kind="CODE")
+@create_evaluator(name="matches_expected", kind="code")
 def matches_expected(output: str, expected: dict) -> bool:
     return output.strip() == expected.get("answer", "").strip()
 ```
