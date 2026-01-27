@@ -7,6 +7,10 @@ import { ProjectTab } from "@phoenix/pages/project/constants";
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {
   /**
+   * The project ID for this tracing context
+   */
+  projectId: string;
+  /**
    * Map of the column id to the visibility state
    */
   columnVisibility: VisibilityState;
@@ -57,7 +61,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     TracingState,
     [["zustand/devtools", unknown]]
   > = (set) => ({
-    ...initialProps,
+    projectId: initialProps.projectId,
     columnVisibility: {
       metadata: false,
     },

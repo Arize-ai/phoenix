@@ -1,7 +1,6 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate, useParams } from "react-router";
-import invariant from "tiny-invariant";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -30,6 +29,7 @@ import {
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
@@ -46,9 +46,8 @@ type SpanSelectionToolbarProps = {
 };
 
 export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
-  const { projectId } = useParams();
+  const projectId = useTracingContext((state) => state.projectId);
   const { setFetchKey } = useStreamState();
-  invariant(projectId, "projectId is required for the SpanSelectionToolbar");
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();

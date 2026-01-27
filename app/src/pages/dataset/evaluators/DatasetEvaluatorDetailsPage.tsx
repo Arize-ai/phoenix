@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -10,7 +10,11 @@ import {
   Heading,
   Icon,
   Icons,
+  LazyTabPanel,
   Loading,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   View,
 } from "@phoenix/components";
@@ -20,6 +24,7 @@ import {
   datasetEvaluatorDetailsLoader,
   datasetEvaluatorDetailsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorTraces } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorTraces";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -27,6 +32,15 @@ const mainCSS = css`
   overflow: hidden;
   flex-direction: column;
   height: 100%;
+  .ac-tabs {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    div[role="tablist"] {
+      flex: none;
+    }
+  }
 `;
 
 export function DatasetEvaluatorDetailsPage() {
@@ -81,22 +95,36 @@ function DatasetEvaluatorDetailsPageContent({
           </Button>
         </Flex>
       </View>
-      {isLLMEvaluator && (
-        <LLMDatasetEvaluatorDetails
-          datasetEvaluatorRef={datasetEvaluator}
-          datasetId={datasetId}
-          isEditSlideoverOpen={isEditSlideoverOpen}
-          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-        />
-      )}
-      {isBuiltInEvaluator && (
-        <BuiltInDatasetEvaluatorDetails
-          datasetEvaluatorRef={datasetEvaluator}
-          datasetId={datasetId}
-          isEditSlideoverOpen={isEditSlideoverOpen}
-          onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-        />
-      )}
+      <Tabs defaultSelectedKey="configuration">
+        <TabList>
+          <Tab id="configuration">Configuration</Tab>
+          <Tab id="traces">Traces</Tab>
+        </TabList>
+        <LazyTabPanel id="configuration">
+          {isLLMEvaluator && (
+            <LLMDatasetEvaluatorDetails
+              datasetEvaluatorRef={datasetEvaluator}
+              datasetId={datasetId}
+              isEditSlideoverOpen={isEditSlideoverOpen}
+              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+            />
+          )}
+          {isBuiltInEvaluator && (
+            <BuiltInDatasetEvaluatorDetails
+              datasetEvaluatorRef={datasetEvaluator}
+              datasetId={datasetId}
+              isEditSlideoverOpen={isEditSlideoverOpen}
+              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+            />
+          )}
+        </LazyTabPanel>
+        <LazyTabPanel id="traces">
+          <DatasetEvaluatorTraces projectRef={datasetEvaluator.project} />
+        </LazyTabPanel>
+      </Tabs>
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }
