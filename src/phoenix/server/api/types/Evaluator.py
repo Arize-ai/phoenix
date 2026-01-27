@@ -503,7 +503,7 @@ class BuiltInEvaluator(Evaluator, Node):
         evaluator_class = get_builtin_evaluator_by_id(self.id)
         if evaluator_class is None:
             raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_class.input_schema
+        return evaluator_class().input_schema
 
     @strawberry.field
     async def user(
