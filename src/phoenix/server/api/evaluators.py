@@ -355,6 +355,21 @@ class LLMEvaluator(BaseEvaluator):
                                         chunk.function.arguments
                                     )
 
+                        # Record output tool calls on the span
+                        llm_span.set_attributes(
+                            get_output_attributes(
+                                {
+                                    "tool_calls": [
+                                        {
+                                            "id": call_id,
+                                            "name": call["name"],
+                                            "arguments": call["arguments"],
+                                        }
+                                        for call_id, call in tool_call_by_id.items()
+                                    ]
+                                }
+                            )
+                        )
                         llm_span.set_status(Status(StatusCode.OK))
                     finally:
                         llm_span.set_attributes(self._llm_client.attributes)
