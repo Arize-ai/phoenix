@@ -13,6 +13,7 @@ import { SpanType } from "@mastra/core/observability";
 import { financialOrchestratorAgent } from "./agents/financial-orchestrator-agent";
 import { financialResearcherAgent } from "./agents/financial-researcher-agent";
 import { financialWriterAgent } from "./agents/financial-writer-agent";
+import { createArizeConfig } from '@mastra/arize';
 
 
 export const mastra = new Mastra({
@@ -23,38 +24,53 @@ export const mastra = new Mastra({
   },
   observability: new Observability({
     configs: {
-      arize: {
-        serviceName:
-          process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
-        exporters: [
-          new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
-            apiKey: process.env.PHOENIX_API_KEY,
-            projectName: process.env.PHOENIX_PROJECT_NAME,
-          }),
-        ],
-        serializationOptions: {
-          maxStringLength: 25000,
-          maxDepth: 10,
-          maxArrayLength: 1000,
-          maxObjectKeys: 1000,
+      arize: createArizeConfig({
+        exporter: {
+          endpoint: process.env.PHOENIX_ENDPOINT!,
+          apiKey: process.env.PHOENIX_API_KEY,
+          projectName: process.env.PHOENIX_PROJECT_NAME,
         },
-        spanOutputProcessors: [
-          {
-            name: "workflow-loop-filter",
-            process: (span) =>
-              [
-                SpanType.WORKFLOW_LOOP,
-                SpanType.WORKFLOW_PARALLEL,
-                SpanType.WORKFLOW_CONDITIONAL,
-                SpanType.WORKFLOW_CONDITIONAL_EVAL,
-              ].includes((span as any)?.type)
-                ? undefined
-                : span,
-            shutdown: async () => {},
-          } satisfies SpanOutputProcessor,
-        ],
-      },
+        //  serializationOptions: {
+        //  },
+        //  spanProcessors: [
+        //  ],
+      }),
     },
-  }),
+ }),
+  // observability: new Observability({
+  //   configs: {
+  //     arize: {
+  //       serviceName:
+  //         process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
+  //       exporters: [
+  //         new ArizeExporter({
+  //           endpoint: process.env.PHOENIX_ENDPOINT!,
+  //           apiKey: process.env.PHOENIX_API_KEY,
+  //           projectName: process.env.PHOENIX_PROJECT_NAME,
+  //         }),
+  //       ],
+  //       serializationOptions: {
+  //         maxStringLength: Infinity,
+  //         maxDepth: 10,
+  //         maxArrayLength: 1000,
+  //         maxObjectKeys: 1000,
+  //       },
+  //       spanOutputProcessors: [
+  //         {
+  //           name: "workflow-loop-filter",
+  //           process: (span) =>
+  //             [
+  //               SpanType.WORKFLOW_LOOP,
+  //               SpanType.WORKFLOW_PARALLEL,
+  //               SpanType.WORKFLOW_CONDITIONAL,
+  //               SpanType.WORKFLOW_CONDITIONAL_EVAL,
+  //             ].includes((span as any)?.type)
+  //               ? undefined
+  //               : span,
+  //           shutdown: async () => {},
+  //         } satisfies SpanOutputProcessor,
+  //       ],
+  //     },
+  //   },
+  // }),
 });
