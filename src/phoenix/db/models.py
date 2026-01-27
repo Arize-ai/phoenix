@@ -2344,7 +2344,7 @@ class BuiltinEvaluator(Base):
         String,
         CheckConstraint(
             "output_config_type IN ('CATEGORICAL', 'CONTINUOUS')",
-            name="valid_output_config_type",
+            name="valid_builtin_evaluator_output_config_type",
         ),
         nullable=False,
     )

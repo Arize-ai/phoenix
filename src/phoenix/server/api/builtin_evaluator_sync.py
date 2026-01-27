@@ -40,14 +40,15 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
         for evaluator_id, evaluator_cls in get_builtin_evaluators():
             current_ids.add(evaluator_id)
 
-            output_cfg = evaluator_cls.output_config()
+            evaluator = evaluator_cls()
+            output_cfg = evaluator.output_config
 
             records.append(
                 {
                     "id": evaluator_id,
                     "name": evaluator_cls.name,
                     "description": evaluator_cls.description,
-                    "input_schema": evaluator_cls.input_schema,
+                    "input_schema": evaluator.input_schema,
                     "output_config_type": output_cfg.type,
                     "output_config": output_cfg.model_dump(),
                     "synced_at": now,
@@ -62,8 +63,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                 dialect=db.dialect,
                 unique_by=["id"],
                 on_conflict=OnConflict.DO_UPDATE,
-                # For PostgreSQL, use the primary key constraint
-                constraint_name="builtin_evaluators_pkey"
+                constraint_name="pk_builtin_evaluators"
                 if db.dialect is SupportedSQLDialect.POSTGRESQL
                 else None,
             )
