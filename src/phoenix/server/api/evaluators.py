@@ -5,7 +5,7 @@ import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
 
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
@@ -464,6 +464,12 @@ class BuiltInEvaluator(ABC):
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
+
+    @property
+    @abstractmethod
+    def input_schema(self) -> dict[str, Any]:
+        """Returns the JSON schema describing the input format for this evaluator."""
+        raise NotImplementedError
 
     @property
     @abstractmethod
