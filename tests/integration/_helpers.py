@@ -9,6 +9,7 @@ import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
 from collections.abc import Iterable, Iterator, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
