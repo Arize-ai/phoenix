@@ -15,7 +15,10 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigOverride,
+  formatBuiltinEvaluatorDisplayName,
+} from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -74,21 +77,6 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
     </ModalOverlay>
   );
 }
-
-const formatDisplayName = (name: string) => {
-  return (
-    name
-      // convert camel case to snake case, but keep contiguous uppercase sequences together (e.g. "JSONDistance" -> "JSON_Distance")
-      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // Handle boundary between acronym and normal word: JSONDistance -> JSON_Distance
-      .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // Handle boundary between lower and upper: fooBar -> foo_Bar
-      // replace spaces with underscores
-      .replace(/\s+/g, "_")
-      // trim leading and trailing underscores
-      .replace(/^_+|_+$/g, "")
-      // convert to lowercase
-      .toLowerCase()
-  );
-};
 
 function CreateBuiltInDatasetEvaluatorSlideoverContent({
   evaluatorId,
@@ -173,7 +161,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const initialState = useMemo(() => {
     invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "CODE") {
-      const name = formatDisplayName(evaluator.name) ?? "";
+      const name = formatBuiltinEvaluatorDisplayName(evaluator.name) ?? "";
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
