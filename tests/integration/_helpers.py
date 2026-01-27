@@ -2120,8 +2120,8 @@ def _get_existing_spans(
         }
       }
     """
-    result: set[_ExistingSpan] = set()
-    for span_id in ids:
+
+    def fetch_span(span_id: _SpanId) -> _ExistingSpan | None:
         res, _ = _gql(
             app,
             app.admin_secret,
@@ -2130,30 +2130,31 @@ def _get_existing_spans(
         )
         span = res["data"]["getSpanByOtelId"]
         if span is None:
-            continue
-        result.add(
-            _ExistingSpan(
-                id=GlobalID.from_id(span["id"]),
-                span_id=span["spanId"],
-                trace=_ExistingTrace(
-                    id=GlobalID.from_id(span["trace"]["id"]),
-                    trace_id=span["trace"]["traceId"],
-                    project=_ExistingProject(
-                        id=GlobalID.from_id(span["trace"]["project"]["id"]),
-                        name=span["trace"]["project"]["name"],
-                    ),
-                    session=(
-                        _ExistingSession(
-                            id=GlobalID.from_id(span["trace"]["session"]["id"]),
-                            session_id=span["trace"]["session"]["sessionId"],
-                        )
-                        if span["trace"]["session"] is not None
-                        else None
-                    ),
+            return None
+        return _ExistingSpan(
+            id=GlobalID.from_id(span["id"]),
+            span_id=span["spanId"],
+            trace=_ExistingTrace(
+                id=GlobalID.from_id(span["trace"]["id"]),
+                trace_id=span["trace"]["traceId"],
+                project=_ExistingProject(
+                    id=GlobalID.from_id(span["trace"]["project"]["id"]),
+                    name=span["trace"]["project"]["name"],
                 ),
-            )
+                session=(
+                    _ExistingSession(
+                        id=GlobalID.from_id(span["trace"]["session"]["id"]),
+                        session_id=span["trace"]["session"]["sessionId"],
+                    )
+                    if span["trace"]["session"] is not None
+                    else None
+                ),
+            ),
         )
-    return result
+
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(fetch_span, ids)
+        return {span for span in results if span is not None}
 
 
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
