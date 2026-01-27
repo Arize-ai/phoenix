@@ -39,8 +39,8 @@ from phoenix.server.api.evaluators import (
     BaseEvaluator,
     EvaluationResult,
     evaluation_result_to_model,
+    get_evaluator_project_ids,
     get_evaluators,
-    resolve_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.annotation_configs import (
@@ -406,12 +406,17 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            resolved_evaluators = await resolve_evaluators(
-                evaluator_inputs=input.evaluators,
-                dataset_id=dataset_id,
+            evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            evaluators = await get_evaluators(
+                evaluator_node_ids=evaluator_node_ids,
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+            )
+            project_ids = await get_evaluator_project_ids(
+                evaluator_node_ids=evaluator_node_ids,
+                dataset_id=dataset_id,
+                session=session,
             )
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
@@ -615,14 +620,18 @@ class Subscription:
                             "output": run.output.get("task_output", run.output),
                         }
 
-                        for resolved in resolved_evaluators:
-                            evaluator = resolved["evaluator"]
-                            name = resolved["name"]
+                        for evaluator, evaluator_input, project_id in zip(
+                            evaluators, input.evaluators, project_ids
+                        ):
+                            name = str(evaluator_input.name)
+                            annotation_config_override = get_annotation_config_override(
+                                evaluator_input
+                            )
                             merged_config = apply_overrides_to_annotation_config(
                                 annotation_config=evaluator.output_config,
-                                annotation_config_override=resolved["output_config_override"],
+                                annotation_config_override=annotation_config_override,
                                 name=name,
-                                description_override=resolved["description_override"],
+                                description_override=evaluator_input.description,
                             )
 
                             tracer: Tracer | None = None
@@ -633,7 +642,7 @@ class Subscription:
 
                             result: EvaluationResult = await evaluator.evaluate(
                                 context=context_dict,
-                                input_mapping=resolved["input_mapping"],
+                                input_mapping=evaluator_input.input_mapping,
                                 name=name,
                                 output_config=merged_config,
                                 tracer=tracer,
@@ -641,7 +650,7 @@ class Subscription:
 
                             if tracer is not None:
                                 traces = await tracer.save_db_traces(
-                                    session=session, project_id=resolved["project_id"]
+                                    session=session, project_id=project_id
                                 )
                                 result["trace_id"] = traces[0].trace_id
 

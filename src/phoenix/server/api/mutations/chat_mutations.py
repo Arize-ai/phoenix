@@ -42,6 +42,8 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_id,
+    get_evaluator_project_ids,
+    get_evaluators,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.annotation_configs import (
@@ -385,13 +387,18 @@ class ChatCompletionMutationMixin:
         evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResultUnion]] = {}
         if input.evaluators:
             dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+            evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
             async with info.context.db() as session:
-                resolved_evaluators = await resolve_evaluators(
-                    evaluator_inputs=input.evaluators,
-                    dataset_id=dataset_id,
+                evaluators = await get_evaluators(
+                    evaluator_node_ids=evaluator_node_ids,
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
+                )
+                project_ids = await get_evaluator_project_ids(
+                    evaluator_node_ids=evaluator_node_ids,
+                    dataset_id=dataset_id,
+                    session=session,
                 )
                 for (revision, repetition_number), experiment_run in zip(
                     unbatched_items, experiment_runs
@@ -407,14 +414,16 @@ class ChatCompletionMutationMixin:
                         "output": experiment_run.output.get("task_output", experiment_run.output),
                     }
 
-                    for resolved in resolved_evaluators:
-                        evaluator = resolved["evaluator"]
-                        name = resolved["name"]
+                    for evaluator, evaluator_input, project_id in zip(
+                        evaluators, input.evaluators, project_ids
+                    ):
+                        name = str(evaluator_input.name)
+                        annotation_config_override = get_annotation_config_override(evaluator_input)
                         merged_config = apply_overrides_to_annotation_config(
                             annotation_config=evaluator.output_config,
-                            annotation_config_override=resolved["output_config_override"],
+                            annotation_config_override=annotation_config_override,
                             name=name,
-                            description_override=resolved["description_override"],
+                            description_override=evaluator_input.description,
                         )
 
                         tracer: Tracer | None = None
@@ -423,7 +432,7 @@ class ChatCompletionMutationMixin:
 
                         eval_result: EvaluationResult = await evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=resolved["input_mapping"],
+                            input_mapping=evaluator_input.input_mapping,
                             name=name,
                             output_config=merged_config,
                             tracer=tracer,
@@ -431,7 +440,7 @@ class ChatCompletionMutationMixin:
 
                         if tracer is not None:
                             traces = await tracer.save_db_traces(
-                                session=session, project_id=resolved["project_id"]
+                                session=session, project_id=project_id
                             )
                             eval_result["trace_id"] = traces[0].trace_id
 
