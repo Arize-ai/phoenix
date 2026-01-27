@@ -1949,6 +1949,101 @@ class TestLLMEvaluator:
             literal_mapping={},
         )
 
+    @pytest.fixture
+    def multipart_llm_evaluator_prompt_version(self) -> models.PromptVersion:
+        return models.PromptVersion(
+            prompt_id=1,
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat",
+                messages=[
+                    PromptMessage(
+                        role="system",
+                        content=[
+                            TextContentPart(
+                                type="text",
+                                text="You are an evaluator. ",
+                            ),
+                            TextContentPart(
+                                type="text",
+                                text="Assess whether the output correctly answers the input question.",
+                            ),
+                        ],
+                    ),
+                    PromptMessage(
+                        role="user",
+                        content=[
+                            TextContentPart(
+                                type="text",
+                                text="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
+            ),
+            tools=PromptTools(
+                type="tools",
+                tools=[
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(
+                            name="correctness_evaluator",
+                            description="Evaluates the correctness of the output",
+                            parameters={
+                                "type": "object",
+                                "properties": {
+                                    "label": {
+                                        "type": "string",
+                                        "enum": ["correct", "incorrect"],
+                                        "description": "correctness",
+                                    },
+                                    "explanation": {
+                                        "type": "string",
+                                        "description": "Brief explanation for the label",
+                                    },
+                                },
+                                "required": ["label", "explanation"],
+                            },
+                        ),
+                    )
+                ],
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+            ),
+            response_format=None,
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            metadata_={},
+        )
+
+    @pytest.fixture
+    def multipart_llm_evaluator(
+        self,
+        multipart_llm_evaluator_prompt_version: models.PromptVersion,
+        output_config: CategoricalAnnotationConfig,
+        openai_streaming_client: "OpenAIStreamingClient",
+    ) -> LLMEvaluator:
+        template = multipart_llm_evaluator_prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = multipart_llm_evaluator_prompt_version.tools
+        assert tools is not None
+
+        return LLMEvaluator(
+            name="correctness",
+            description="Evaluates correctness",
+            template=template,
+            template_format=multipart_llm_evaluator_prompt_version.template_format,
+            tools=tools,
+            invocation_parameters=multipart_llm_evaluator_prompt_version.invocation_parameters,
+            model_provider=multipart_llm_evaluator_prompt_version.model_provider,
+            llm_client=openai_streaming_client,
+            output_config=output_config,
+        )
+
     async def test_evaluate_returns_correct_result(
         self,
         db: DbSessionFactory,
@@ -2674,6 +2769,40 @@ class TestLLMEvaluator:
         assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
+
+    async def test_evaluate_with_multipart_template(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
+        output_config: CategoricalAnnotationConfig,
+        input_mapping: EvaluatorInputMappingInput,
+        multipart_llm_evaluator: LLMEvaluator,
+        custom_vcr: CustomVCR,
+        gpt_4o_mini_generative_model: models.GenerativeModel,
+    ) -> None:
+        with custom_vcr.use_cassette():
+            evaluation_result = await multipart_llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_config=output_config,
+                tracer=tracer,
+            )
+
+        result = dict(evaluation_result)
+        assert result.pop("error") is None
+        assert result.pop("label") == "correct"
+        assert result.pop("score") == 1.0
+        assert result.pop("explanation") is not None
+        assert result.pop("annotator_kind") == "LLM"
+        assert result.pop("name") == "correctness"
+        trace_id = result.pop("trace_id")
+        assert isinstance(trace_id, str)
+        assert isinstance(result.pop("start_time"), datetime)
+        assert isinstance(result.pop("end_time"), datetime)
+        assert result.pop("metadata") == {}
+        assert not result
 
 
 class TestGetEvaluators:
