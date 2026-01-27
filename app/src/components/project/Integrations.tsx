@@ -320,7 +320,7 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "OpenAI NodeJS SDK",
     docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-node-sdk",
+      "https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
     icon: <OpenAISVG />,
@@ -328,7 +328,7 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "LangChain.js",
     docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain.js",
+      "https://arize.com/docs/phoenix/integrations/typescript/langchain",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain",
     icon: <LangChainSVG />,
@@ -350,16 +350,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
   },
   {
     name: "BeeAI",
-    docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/beeai",
+    docsHref: "https://arize.com/docs/phoenix/integrations/typescript/beeai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
     icon: <BeeAISVG />,
   },
   {
     name: "MCP",
-    docsHref:
-      "https://arize.com/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+    docsHref: "https://arize.com/docs/phoenix/integrations/typescript/mcp",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp",
     icon: <McpSVG />,

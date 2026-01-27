@@ -132,14 +132,14 @@ container = [
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.33.1/0.54b1) to ensure compatibility.
-  "opentelemetry-sdk==1.33.1",
-  "opentelemetry-proto==1.33.1",
-  "opentelemetry-exporter-otlp==1.33.1",
-  "opentelemetry-semantic-conventions==0.54b1",
-  "opentelemetry-instrumentation-fastapi==0.54b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
-  "opentelemetry-instrumentation-sqlalchemy==0.54b1",
-  "opentelemetry-instrumentation-grpc==0.54b1",
+  # released on the same date (e.g., 1.39.1/0.60b1) to ensure compatibility.
+  "opentelemetry-sdk==1.39.1",
+  "opentelemetry-proto==1.39.1",
+  "opentelemetry-exporter-otlp==1.39.1",
+  "opentelemetry-semantic-conventions==0.60b1",
+  "opentelemetry-instrumentation-fastapi==0.60b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-sqlalchemy==0.60b1",
+  "opentelemetry-instrumentation-grpc==0.60b1",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.287.3",
   "uvloop; platform_system != 'Windows'",
