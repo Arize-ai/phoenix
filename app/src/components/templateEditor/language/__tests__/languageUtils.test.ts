@@ -1,6 +1,7 @@
 import { formatFString, FStringTemplatingLanguage } from "../fString";
 import { extractVariables } from "../languageUtils";
 import {
+  extractVariablesFromMustacheLike,
   formatMustacheLike,
   MustacheLikeTemplatingLanguage,
 } from "../mustacheLike";
@@ -44,12 +45,7 @@ can you help with this json?
       },
     ] as const;
     tests.forEach(({ input, expected }) => {
-      expect(
-        extractVariables({
-          parser: MustacheLikeTemplatingLanguage.parser,
-          text: input,
-        })
-      ).toEqual(expected);
+      expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
     });
   });
 
