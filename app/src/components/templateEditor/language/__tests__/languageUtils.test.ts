@@ -3,6 +3,7 @@ import { extractVariables } from "../languageUtils";
 import {
   extractVariablesFromMustacheLike,
   formatMustacheLike,
+  validateMustacheSections,
 } from "../mustacheLike";
 
 describe("language utils", () => {
@@ -81,6 +82,42 @@ can you help with this json?
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
+    });
+  });
+
+  it("should validate mustache section tags", () => {
+    const tests = [
+      {
+        input: "{{#query}}\n{{#messages}}\n{{role}}\n{{/messages}}",
+        expected: {
+          errors: [],
+          warnings: ["Unclosed section tag: query"],
+        },
+      },
+      {
+        input: "{{/items}}",
+        expected: {
+          errors: ["Unmatched closing tag: items"],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#items}}{{name}}{{/items}}",
+        expected: {
+          errors: [],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#a}}{{/b}}",
+        expected: {
+          errors: ["Mismatched closing tag: expected a, found b"],
+          warnings: [],
+        },
+      },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(validateMustacheSections(input)).toEqual(expected);
     });
   });
 
