@@ -53,6 +53,47 @@ can you help with this json?
     });
   });
 
+  it("should extract only top-level variables from mustache sections", () => {
+    const tests = [
+      { input: "{{#items}}{{name}}{{/items}}", expected: ["items"] },
+      {
+        input: "{{input}}{{#messages}}{{role}}{{/messages}}",
+        expected: ["input", "messages"],
+      },
+      {
+        input: "{{#outer}}{{#inner}}{{x}}{{/inner}}{{/outer}}",
+        expected: ["outer"],
+      },
+      { input: "{{^items}}No items{{/items}}", expected: ["items"] },
+      {
+        input: "{{#items}}{{name}}{{/items}}{{^items}}Empty{{/items}}",
+        expected: ["items"],
+      },
+      {
+        input: `{{#messages}}
+{{role}}: {{content}}
+{{#tool_calls}}
+- {{function.name}}({{function.arguments}})
+{{/tool_calls}}
+{{/messages}}`,
+        expected: ["messages"],
+      },
+      { input: "{{#a}}{{x}}{{/a}}{{#b}}{{y}}{{/b}}", expected: ["a", "b"] },
+      {
+        input: "{{simple}}{{#list}}{{item}}{{/list}}",
+        expected: ["simple", "list"],
+      },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(
+        extractVariables({
+          parser: MustacheLikeTemplatingLanguage.parser,
+          text: input,
+        })
+      ).toEqual(expected);
+    });
+  });
+
   it("should extract variable names from a f-string template", () => {
     const tests = [
       { input: "{name}", expected: ["name"] },
