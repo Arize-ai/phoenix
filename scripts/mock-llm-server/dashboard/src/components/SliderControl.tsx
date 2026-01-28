@@ -6,6 +6,7 @@ interface SliderControlProps {
   step: number;
   unit?: string;
   accentColor?: "blue" | "yellow";
+  displayMultiplier?: number; // Multiply displayed value (e.g., 100 for percentages)
   onChange: (value: number) => void;
 }
 
@@ -22,14 +23,23 @@ export function SliderControl({
   step,
   unit = "",
   accentColor = "blue",
+  displayMultiplier = 1,
   onChange,
 }: SliderControlProps) {
+  const displayValue = value * displayMultiplier;
+  // Format percentage values to whole numbers, others to reasonable precision
+  const formattedValue =
+    unit === "%"
+      ? Math.round(displayValue)
+      : displayValue % 1 === 0
+        ? displayValue
+        : displayValue.toFixed(1);
   return (
     <div>
       <div className="flex justify-between text-xs mb-0.5">
         <span className="text-gray-500">{label}</span>
         <span className="font-mono text-gray-300">
-          {value}
+          {formattedValue}
           {unit}
         </span>
       </div>

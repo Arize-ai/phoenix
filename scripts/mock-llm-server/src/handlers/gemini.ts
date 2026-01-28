@@ -84,11 +84,12 @@ export function handleNonStreaming(
   const functionDeclarations = extractFunctionDeclarations(request);
 
   // Decide whether to make a function call
+  // toolCallProbability overrides client's tool_choice (except "NONE" which always disables)
   const toolConfig = getToolConfig(request);
   const shouldMakeFunctionCall =
     functionDeclarations.length > 0 &&
     toolConfig?.mode !== "NONE" &&
-    (toolConfig?.mode === "ANY" || Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   let candidate: MockGenerateContentResponse["candidates"][0];
   const finishReason = "STOP";
@@ -217,11 +218,12 @@ export async function handleStreaming(
   };
 
   // Decide whether to make a function call
+  // toolCallProbability overrides client's tool_choice (except "NONE" which always disables)
   const toolConfig = getToolConfig(request);
   const shouldMakeFunctionCall =
     functionDeclarations.length > 0 &&
     toolConfig?.mode !== "NONE" &&
-    (toolConfig?.mode === "ANY" || Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   const contentsText = extractContentsText(request.contents);
   const promptTokens = estimateTokens(contentsText);

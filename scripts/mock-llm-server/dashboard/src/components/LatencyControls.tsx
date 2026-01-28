@@ -10,7 +10,7 @@ export function LatencyControls({ config, onUpdate }: Props) {
   if (!config) {
     return (
       <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Latency Controls</h2>
+        <h2 className="text-sm font-medium mb-2">Streaming Controls</h2>
         <div className="text-gray-500 text-xs">Waiting for config...</div>
       </div>
     );
@@ -20,7 +20,7 @@ export function LatencyControls({ config, onUpdate }: Props) {
 
   return (
     <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <h2 className="text-sm font-medium mb-2">Latency Controls</h2>
+      <h2 className="text-sm font-medium mb-2">Streaming Controls</h2>
       <div className="space-y-2">
         <SliderControl
           label="Initial Delay"
@@ -57,6 +57,16 @@ export function LatencyControls({ config, onUpdate }: Props) {
           step={1}
           unit=" chars"
           onChange={(value) => onUpdate({ streamChunkSize: value })}
+        />
+        <SliderControl
+          label="Tool Call Probability"
+          value={global.toolCallProbability}
+          min={0}
+          max={1}
+          step={0.01}
+          unit="%"
+          displayMultiplier={100}
+          onChange={(value) => onUpdate({ toolCallProbability: value })}
         />
       </div>
     </div>
