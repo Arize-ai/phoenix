@@ -6,7 +6,7 @@ interface Props {
 }
 
 const TIME_RANGES: { value: TimeRange; label: string }[] = [
-  { value: "10m", label: "10m" },
+  { value: "5m", label: "5m" },
   { value: "30m", label: "30m" },
   { value: "60m", label: "60m" },
 ];

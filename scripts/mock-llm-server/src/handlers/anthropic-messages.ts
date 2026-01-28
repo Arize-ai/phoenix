@@ -47,13 +47,12 @@ export function handleNonStreaming(
 
   // Decide whether to make a tool call
   const toolChoice = req.tool_choice as { type?: string } | undefined;
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     toolChoice?.type !== "none" &&
-    (toolChoice?.type === "any" ||
-      toolChoice?.type === "tool" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   let content: ContentBlock[] = [];
   let stopReason: StopReason = "end_turn";
@@ -128,13 +127,12 @@ export async function handleStreaming(
 
   // Decide whether to make a tool call
   const toolChoice = req.tool_choice as { type?: string } | undefined;
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     toolChoice?.type !== "none" &&
-    (toolChoice?.type === "any" ||
-      toolChoice?.type === "tool" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   const inputTokens = estimateTokens(
     req.messages
