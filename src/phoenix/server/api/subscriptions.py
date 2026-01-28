@@ -600,10 +600,10 @@ class Subscription:
                 yield result_payload
 
         if input.evaluators:
-            async with info.context.db() as session:
-                for revision in revisions:
-                    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-                    for repetition_number in range(1, input.repetitions + 1):
+            for revision in revisions:
+                example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+                for repetition_number in range(1, input.repetitions + 1):
+                    async with info.context.db() as session:
                         run = await session.scalar(  # pyright: ignore
                             select(models.ExperimentRun).where(
                                 models.ExperimentRun.experiment_id == experiment.id,
@@ -612,71 +612,69 @@ class Subscription:
                                 models.ExperimentRun.repetition_number == repetition_number,
                             )
                         )
-                        if run is None or run.error is not None:
-                            continue
-                        context_dict: dict[str, Any] = {
-                            "input": revision.input,
-                            "reference": revision.output,
-                            "output": run.output.get("task_output", run.output),
-                        }
-                        for evaluator, evaluator_input, project_id in zip(
-                            evaluators, input.evaluators, project_ids
-                        ):
-                            name = str(evaluator_input.name)
-                            annotation_config_override = get_annotation_config_override(
-                                evaluator_input
-                            )
-                            merged_config = apply_overrides_to_annotation_config(
-                                annotation_config=evaluator.output_config,
-                                annotation_config_override=annotation_config_override,
-                                name=name,
-                                description_override=evaluator_input.description,
-                            )
+                    if run is None or run.error is not None:
+                        continue
+                    context_dict: dict[str, Any] = {
+                        "input": revision.input,
+                        "reference": revision.output,
+                        "output": run.output.get("task_output", run.output),
+                    }
+                    for evaluator, evaluator_input, project_id in zip(
+                        evaluators, input.evaluators, project_ids
+                    ):
+                        name = str(evaluator_input.name)
+                        annotation_config_override = get_annotation_config_override(evaluator_input)
+                        merged_config = apply_overrides_to_annotation_config(
+                            annotation_config=evaluator.output_config,
+                            annotation_config_override=annotation_config_override,
+                            name=name,
+                            description_override=evaluator_input.description,
+                        )
 
-                            tracer: Tracer | None = None
-                            if input.tracing_enabled:
-                                tracer = Tracer(
-                                    span_cost_calculator=info.context.span_cost_calculator
-                                )
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
-                            result: EvaluationResult = await evaluator.evaluate(
-                                context=context_dict,
-                                input_mapping=evaluator_input.input_mapping,
-                                name=name,
-                                output_config=merged_config,
-                                tracer=tracer,
-                            )
+                        result: EvaluationResult = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_config=merged_config,
+                            tracer=tracer,
+                        )
 
-                            if tracer is not None:
+                        if tracer is not None:
+                            async with info.context.db() as session:
                                 traces = await tracer.save_db_traces(
                                     session=session, project_id=project_id
                                 )
-                                result["trace_id"] = traces[0].trace_id
+                            result["trace_id"] = traces[0].trace_id
 
-                            if result["error"] is not None:
-                                yield EvaluationErrorChunk(
-                                    evaluator_name=name,
-                                    message=result["error"],
-                                    dataset_example_id=example_id,
-                                    repetition_number=repetition_number,
-                                )
-                                continue
-                            annotation_model = evaluation_result_to_model(
-                                result,
-                                experiment_run_id=run.id,
-                            )
-                            session.add(annotation_model)
-                            await session.flush()
-                            evaluation_chunk = EvaluationChunk(
-                                experiment_run_evaluation=ExperimentRunAnnotation(
-                                    id=annotation_model.id,
-                                    db_record=annotation_model,
-                                ),
-                                span_evaluation=None,
+                        if result["error"] is not None:
+                            yield EvaluationErrorChunk(
+                                evaluator_name=name,
+                                message=result["error"],
                                 dataset_example_id=example_id,
                                 repetition_number=repetition_number,
                             )
-                            yield evaluation_chunk
+                            continue
+                        annotation_model = evaluation_result_to_model(
+                            result,
+                            experiment_run_id=run.id,
+                        )
+                        async with info.context.db() as session:
+                            session.add(annotation_model)
+                            await session.flush()
+                        evaluation_chunk = EvaluationChunk(
+                            experiment_run_evaluation=ExperimentRunAnnotation(
+                                id=annotation_model.id,
+                                db_record=annotation_model,
+                            ),
+                            span_evaluation=None,
+                            dataset_example_id=example_id,
+                            repetition_number=repetition_number,
+                        )
+                        yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
