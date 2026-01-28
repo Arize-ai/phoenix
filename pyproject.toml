@@ -134,6 +134,7 @@ dev = [
   "syrupy",
   "tenacity",
   "tiktoken",
+  "ty",
   "types-beautifulsoup4",
   "types-cachetools",
   "types-jmespath",
