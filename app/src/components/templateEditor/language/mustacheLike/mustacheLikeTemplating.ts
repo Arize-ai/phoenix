@@ -114,7 +114,7 @@ export const validateMustacheSections = (
   });
   const errors: string[] = [];
   const warnings: string[] = [];
-  const sectionStack: string[] = [];
+  const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
 
   for (const variable of allVariables) {
     const trimmed = variable.trim();
@@ -122,7 +122,8 @@ export const validateMustacheSections = (
       continue;
     }
     if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-      sectionStack.push(trimmed.slice(1).trim());
+      const opener = trimmed.startsWith("#") ? "#" : "^";
+      sectionStack.push({ name: trimmed.slice(1).trim(), opener });
       continue;
     }
     if (trimmed.startsWith("/")) {
@@ -131,11 +132,21 @@ export const validateMustacheSections = (
         errors.push(`Unmatched closing tag: {{/${closingName}}}`);
         continue;
       }
-      const expectedName = sectionStack[sectionStack.length - 1];
+      const expectedEntry = sectionStack[sectionStack.length - 1];
+      const expectedName = expectedEntry.name;
       if (expectedName !== closingName) {
+        const closingIndex = sectionStack
+          .map((entry) => entry.name)
+          .lastIndexOf(closingName);
+        if (closingIndex === -1) {
+          errors.push(`Unmatched closing tag: {{/${closingName}}}`);
+          continue;
+        }
         errors.push(
-          `Unmatched closing tag: {{/${closingName}}} (expected {{/${expectedName}}})`
+          `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
+            `before {{/${closingName}}}`
         );
+        sectionStack.length = closingIndex;
         continue;
       }
       sectionStack.pop();
@@ -147,8 +158,8 @@ export const validateMustacheSections = (
   }
 
   if (sectionStack.length > 0) {
-    sectionStack.forEach((name) => {
-      warnings.push(`Unclosed section tag: {{#${name}}}`);
+    sectionStack.forEach(({ name, opener }) => {
+      warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
     });
   }
 

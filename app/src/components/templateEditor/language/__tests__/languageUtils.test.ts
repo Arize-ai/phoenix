@@ -95,6 +95,13 @@ can you help with this json?
         },
       },
       {
+        input: "{{^available_tools}}\n{{name}}",
+        expected: {
+          errors: [],
+          warnings: ["Unclosed section tag: {{^available_tools}}"],
+        },
+      },
+      {
         input: "{{/items}}",
         expected: {
           errors: ["Unmatched closing tag: {{/items}}"],
@@ -111,7 +118,25 @@ can you help with this json?
       {
         input: "{{#a}}{{/b}}",
         expected: {
-          errors: ["Unmatched closing tag: {{/b}} (expected {{/a}})"],
+          errors: ["Unmatched closing tag: {{/b}}"],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#messages}}{{#tool_calls}}{{/messages}}",
+        expected: {
+          errors: [
+            "Missing closing tag for {{#tool_calls}} before {{/messages}}",
+          ],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#messages}}{{^tool_calls}}{{/messages}}",
+        expected: {
+          errors: [
+            "Missing closing tag for {{^tool_calls}} before {{/messages}}",
+          ],
           warnings: [],
         },
       },
