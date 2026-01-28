@@ -1,6 +1,7 @@
 """Tests for formatter expansion logic."""
 
 from phoenix.server.api.helpers.formatters import (
+    expand_config_templates,
     expand_template_placeholders,
     load_formatters,
 )
@@ -88,3 +89,81 @@ class TestExpandTemplatePlaceholders:
 
         result = expand_template_placeholders(template, formatters_mapping, formatters)
         assert result == "Test: [REPLACED]"
+
+
+class TestExpandConfigTemplates:
+    def test_expand_config_with_formatters(self) -> None:
+        """Test that config templates are expanded when formatters are defined."""
+        from phoenix.__generated__.classification_evaluator_configs import (
+            ClassificationEvaluatorConfig,
+            PromptMessage,
+        )
+
+        config = ClassificationEvaluatorConfig(
+            name="test",
+            description="Test evaluator",
+            optimization_direction="maximize",
+            messages=[PromptMessage(role="user", content="Tools: {{available_tools}}")],
+            choices={"yes": 1.0, "no": 0.0},
+            formatters={"available_tools": "available_tools_descriptions"},
+        )
+
+        expanded = expand_config_templates(config)
+
+        # The placeholder should be expanded to the full Mustache block
+        assert "{{#available_tools}}" in expanded.messages[0].content
+        assert "{{function.name}}" in expanded.messages[0].content
+
+    def test_expand_config_without_formatters_unchanged(self) -> None:
+        """Test that configs without formatters are returned unchanged."""
+        from phoenix.__generated__.classification_evaluator_configs import (
+            ClassificationEvaluatorConfig,
+            PromptMessage,
+        )
+
+        config = ClassificationEvaluatorConfig(
+            name="test",
+            description="Test evaluator",
+            optimization_direction="maximize",
+            messages=[PromptMessage(role="user", content="Input: {{input}}")],
+            choices={"yes": 1.0, "no": 0.0},
+            formatters=None,
+        )
+
+        result = expand_config_templates(config)
+
+        # Config should be unchanged
+        assert result.messages[0].content == "Input: {{input}}"
+
+
+class TestClassificationEvaluatorConfigsLoading:
+    def test_tool_selection_config_has_expanded_formatters(self) -> None:
+        """Test that tool_selection config has expanded formatter placeholders."""
+        from phoenix.server.api.helpers.classification_evaluator_configs import (
+            get_classification_evaluator_configs,
+        )
+
+        configs = get_classification_evaluator_configs()
+        tool_sel = next(c for c in configs if c.name == "tool_selection")
+
+        # The available_tools placeholder should be expanded
+        content = tool_sel.messages[0].content
+        assert "{{#available_tools}}" in content
+        assert "{{function.name}}" in content
+        assert "{{^available_tools}}" in content
+
+    def test_non_tool_configs_unchanged(self) -> None:
+        """Test that configs without formatters have simple placeholders."""
+        from phoenix.server.api.helpers.classification_evaluator_configs import (
+            get_classification_evaluator_configs,
+        )
+
+        configs = get_classification_evaluator_configs()
+        correctness = next(c for c in configs if c.name == "correctness")
+
+        # Should have simple placeholders, not expanded sections
+        content = correctness.messages[0].content
+        assert "{{input}}" in content
+        assert "{{output}}" in content
+        # Should NOT have section syntax
+        assert "{{#" not in content
