@@ -2217,6 +2217,12 @@ class TestLLMEvaluator:
             assert isinstance(attributes.pop(key), int)
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
+        # Check for output attributes (tool calls)
+        output_mime_type = attributes.pop("output.mime_type", None)
+        if output_mime_type:
+            assert output_mime_type == "application/json"
+            output_value = attributes.pop("output.value")
+            assert "tool_calls" in output_value
         assert not attributes
 
         # chain span

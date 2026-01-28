@@ -2259,6 +2259,13 @@ class TestChatCompletionOverDatasetSubscription:
             ]
             for key in token_count_attribute_keys:
                 assert isinstance(attributes.pop(key), int)
+            # Check for output attributes (tool calls)
+            output_mime_type = attributes.pop("output.mime_type", None)
+            if output_mime_type:
+                assert output_mime_type == "application/json"
+                output_value = attributes.pop("output.value")
+                assert "tool_calls" in output_value
+                assert "evaluate_correctness" in output_value
             assert not attributes
 
             # span costs for evaluator trace
