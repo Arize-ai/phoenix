@@ -3,7 +3,7 @@ description: A specialized evaluator for detecting faithfulness in grounded LLM 
 optimization_direction: maximize
 messages:
   - role: user
-    content: >-
+    content: |-
       In this task, you will be presented with a query, some context and a response. The response
       is generated to the question based on the context. The response may contain false
       information. You must use the context to determine if the response to the question
@@ -17,31 +17,23 @@ messages:
       the question is correct relative to the context, and does not contain made up
       information. Please read the query and context carefully before determining your
       response.
-      
 
       <data>
 
       <query>
-
       {{input}}
-
       </query>
 
       <context>
-
       {{context}}
-
       </context>
 
       <response>
-
       {{output}}
-
       </response>
 
       </data>
 
-      
       Is the response above faithful or unfaithful based on the query and context?
 choices:
   faithful: 1.0

@@ -3,7 +3,7 @@ description: For determining if the correct tool was selected for a given contex
 optimization_direction: maximize
 messages:
   - role: user
-    content: >-
+    content: |-
       You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM selected the most appropriate tool or tools for the task.
 
       Your task: Determine whether the LLM's tool selection was correct or incorrect based on:
