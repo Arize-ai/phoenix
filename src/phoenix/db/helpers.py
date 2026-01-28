@@ -300,8 +300,8 @@ _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
 
 
 def exclude_experiment_projects(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
+    stmt: Select[models.Project],
+) -> Select[models.Project]:
     return stmt.outerjoin(
         models.Experiment,
         and_(
@@ -309,6 +309,15 @@ def exclude_experiment_projects(
             models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
         ),
     ).where(models.Experiment.project_name.is_(None))
+
+
+def exclude_dataset_evaluator_projects(
+    stmt: Select[models.Project],
+) -> Select[models.Project]:
+    return stmt.outerjoin(
+        models.DatasetEvaluators,
+        models.Project.id == models.DatasetEvaluators.project_id,
+    ).where(models.DatasetEvaluators.project_id.is_(None))
 
 
 def date_trunc(
