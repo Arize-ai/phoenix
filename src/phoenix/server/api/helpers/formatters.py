@@ -5,12 +5,15 @@ This module provides functions to load formatter definitions and expand
 simple template placeholders into full Mustache blocks.
 """
 
+import logging
 import re
 from functools import lru_cache
 from importlib import resources
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def _get_formatters_path() -> Any:
@@ -58,6 +61,10 @@ def expand_template_placeholders(
 
     for placeholder, formatter_name in formatters_mapping.items():
         if formatter_name not in formatters:
+            logger.warning(
+                f"Formatter '{formatter_name}' referenced by placeholder "
+                f"'{placeholder}' not found in formatters.yaml"
+            )
             continue
 
         # Pattern matches {{placeholder}} with optional whitespace

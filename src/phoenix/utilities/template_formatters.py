@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from string import Formatter
@@ -90,11 +91,12 @@ class MustacheTemplateFormatter(TemplateFormatter):
     _ESCAPED_PATTERN = r"\\(\{\{)"
     # Placeholder that won't appear in normal templates
     _ESCAPED_PLACEHOLDER = "\x00ESCAPED_BRACE\x00"
+    # Pattern to extract all {{...}} sequences
+    _VARIABLE_PATTERN = r"\{\{\s*([^}]+?)\s*\}\}"
 
     def __init__(self) -> None:
-        import re
-
         self._escape_regex = re.compile(self._ESCAPED_PATTERN)
+        self._variable_regex = re.compile(self._VARIABLE_PATTERN)
         # Create renderer with no HTML escaping
         self._renderer = pystache.Renderer(escape=lambda x: x)
 
@@ -105,16 +107,40 @@ class MustacheTemplateFormatter(TemplateFormatter):
         Only extracts variables at the top level, not those nested inside sections.
         This ensures validation only checks for required top-level inputs.
         Escaped sequences (\\{{) are ignored.
+
+        This implementation uses regex with depth tracking to match the TypeScript
+        implementation in mustacheLikeTemplating.ts, avoiding private pystache APIs.
         """
         # Temporarily remove escaped sequences before parsing
         clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
-        parsed = pystache.parse(clean_template)
+
+        # Find all {{...}} patterns
+        matches = self._variable_regex.findall(clean_template)
+
         variables: set[str] = set()
-        # Only extract top-level keys, not nested ones inside sections
-        elements = parsed._parse_tree if hasattr(parsed, "_parse_tree") else parsed
-        for element in elements:
-            if hasattr(element, "key") and element.key:
-                variables.add(element.key)
+        depth = 0
+
+        for variable in matches:
+            trimmed = variable.strip()
+            if not trimmed:
+                continue
+
+            # Section opener (# or ^) - only add variable if at top level
+            if trimmed.startswith("#") or trimmed.startswith("^"):
+                if depth == 0:
+                    variables.add(trimmed[1:].strip())
+                depth += 1
+                continue
+
+            # Section closer (/)
+            if trimmed.startswith("/"):
+                depth = max(0, depth - 1)
+                continue
+
+            # Regular variable - only add if at top level
+            if depth == 0:
+                variables.add(trimmed)
+
         return variables
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
