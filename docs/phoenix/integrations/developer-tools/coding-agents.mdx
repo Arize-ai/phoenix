@@ -17,10 +17,10 @@ npm install -g @arizeai/phoenix-cli
 
 ### Phoenix Skills
 
-Add Phoenix skills to your AI coding agent using [add-skill](https://github.com/vercel-labs/add-skill):
+Add Phoenix skills to your AI coding agent using [skills add](https://github.com/vercel-labs/skills):
 
 ```bash
-npx add-skill Arize-ai/phoenix --skill phoenix-cli
+npx skills add Arize-ai/phoenix
 ```
 
 This installs the skill to your project's skills directory (`.cursor/skills/`, `.claude/skills/`, or `.github/skills/`).
@@ -30,9 +30,10 @@ This installs the skill to your project's skills directory (`.cursor/skills/`, `
 | Skill | Description | Recommended |
 |-------|-------------|-------------|
 | `phoenix-cli` | Debug and analyze LLM applications using Phoenix CLI tools. Teaches agents to fetch traces, analyze performance, and review experiments. | Yes |
+| `phoenix-evals` | Build and run evaluators for AI/LLM applications. Teaches agents to create code and LLM evaluators, run experiments, and validate against human feedback. | Optional |
 | `phoenix-tracing` | OpenInference semantic conventions and instrumentation. Teaches agents proper span types, attributes, and production deployment patterns. | Optional |
 
-#### add-skill Options
+#### skills add Options
 
 | Option | Description |
 |--------|-------------|
@@ -46,19 +47,19 @@ This installs the skill to your project's skills directory (`.cursor/skills/`, `
 
 ```bash
 # Install the CLI skill globally for all projects
-npx add-skill Arize-ai/phoenix --skill phoenix-cli -g
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g
 
 # Install both skills for comprehensive Phoenix support
-npx add-skill Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 
 # Install to specific agents
-npx add-skill Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
+npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
 
 # Non-interactive installation (CI/CD friendly)
-npx add-skill Arize-ai/phoenix --skill phoenix-cli -g -y
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
 ```
 
-**Supported agents:** Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/add-skill#available-agents).
+**Supported agents:** Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents).
 
 ## Configuration
 
