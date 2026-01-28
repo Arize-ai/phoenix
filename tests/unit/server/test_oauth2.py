@@ -313,6 +313,35 @@ class TestHasSufficientClaims:
 
         assert client.has_sufficient_claims(claims) is True
 
+    def test_sufficient_with_custom_email_attribute_path(self) -> None:
+        """Test that claims are sufficient when using custom email_attribute_path."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+            email_attribute_path="preferred_username",
+        )
+
+        # email claim is missing, but preferred_username is present
+        claims = {"sub": "user123", "preferred_username": "user@company.onmicrosoft.com"}
+
+        assert client.has_sufficient_claims(claims) is True
+
+    def test_insufficient_with_custom_email_attribute_path_missing(self) -> None:
+        """Test that claims are insufficient when custom email path claim is missing."""
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            groups_attribute_path=None,
+            allowed_groups=[],
+            email_attribute_path="preferred_username",
+        )
+
+        # Neither email nor preferred_username present
+        claims = {"sub": "user123", "email": "user@example.com"}
+
+        # Should be insufficient because we're looking for preferred_username, not email
+        assert client.has_sufficient_claims(claims) is False
+
 
 class TestOAuth2ClientAccessValidation:
     """Test group-based access control validation."""
