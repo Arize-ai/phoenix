@@ -1289,7 +1289,7 @@ export const getChatCompletionOverDatasetInput = ({
   datasetId: string;
   splitIds?: string[];
   /**
-   * Record of evaluator id to name and input mappings
+   * Record of datasetEvaluatorId to name and input mappings
    */
   evaluatorMappings: Record<
     string,
@@ -1316,8 +1316,8 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
     splitIds: splitIds ?? null,
     evaluators: Object.entries(evaluatorMappings).map(
-      ([evaluatorId, { name, inputMapping }]) => ({
-        id: evaluatorId,
+      ([datasetEvaluatorId, { name, inputMapping }]) => ({
+        id: datasetEvaluatorId,
         name,
         inputMapping,
       })
