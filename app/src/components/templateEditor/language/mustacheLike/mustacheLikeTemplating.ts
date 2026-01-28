@@ -128,21 +128,21 @@ export const validateMustacheSections = (
     if (trimmed.startsWith("/")) {
       const closingName = trimmed.slice(1).trim();
       if (sectionStack.length === 0) {
-        errors.push(`Unmatched closing tag: ${closingName}`);
+        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
         continue;
       }
-      const expectedName = sectionStack.pop();
+      const expectedName = sectionStack[sectionStack.length - 1];
       if (expectedName !== closingName) {
-        errors.push(
-          `Mismatched closing tag: expected ${expectedName}, found ${closingName}`
-        );
+        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
+        continue;
       }
+      sectionStack.pop();
     }
   }
 
   if (sectionStack.length > 0) {
     sectionStack.forEach((name) => {
-      warnings.push(`Unclosed section tag: ${name}`);
+      warnings.push(`Unclosed section tag: {{#${name}}}`);
     });
   }
 

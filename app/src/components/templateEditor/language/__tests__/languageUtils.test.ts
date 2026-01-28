@@ -91,13 +91,13 @@ can you help with this json?
         input: "{{#query}}\n{{#messages}}\n{{role}}\n{{/messages}}",
         expected: {
           errors: [],
-          warnings: ["Unclosed section tag: query"],
+          warnings: ["Unclosed section tag: {{#query}}"],
         },
       },
       {
         input: "{{/items}}",
         expected: {
-          errors: ["Unmatched closing tag: items"],
+          errors: ["Unmatched closing tag: {{/items}}"],
           warnings: [],
         },
       },
@@ -111,8 +111,8 @@ can you help with this json?
       {
         input: "{{#a}}{{/b}}",
         expected: {
-          errors: ["Mismatched closing tag: expected a, found b"],
-          warnings: [],
+          errors: ["Unmatched closing tag: {{/b}}"],
+          warnings: ["Unclosed section tag: {{#a}}"],
         },
       },
     ] as const;
