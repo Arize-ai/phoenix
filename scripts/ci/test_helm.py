@@ -760,6 +760,7 @@ class OAuth2Validators:
         role_attribute_path: Optional[str] = None,
         role_mapping: Optional[str] = None,
         role_attribute_strict: Optional[bool] = None,
+        email_attribute_path: Optional[str] = None,
     ) -> Validator:
         """Comprehensive validator for all OAuth2 provider configuration fields."""
 
@@ -842,6 +843,13 @@ class OAuth2Validators:
             if role_attribute_strict is not None:
                 actual_strict = data.get(f"PHOENIX_OAUTH2_{provider_upper}_ROLE_ATTRIBUTE_STRICT")
                 if actual_strict != str(role_attribute_strict).lower():
+                    return False
+
+            if email_attribute_path is not None:
+                actual_email_path = data.get(
+                    f"PHOENIX_OAUTH2_{provider_upper}_EMAIL_ATTRIBUTE_PATH"
+                )
+                if actual_email_path != email_attribute_path:
                     return False
 
             return True
@@ -2449,6 +2457,21 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 ),
                 OAuth2Validators.provider_role_mapping(
                     "okta", "role", "Owner:ADMIN", role_attribute_strict=True
+                ),
+            ),
+        ),
+        TestCase(
+            "OAuth2 with email_attribute_path (Azure AD)",
+            "--set auth.oauth2.enabled=true --set auth.oauth2.providers.azure_ad.client_id=azure-id --set auth.oauth2.providers.azure_ad.client_secret=azure-secret --set auth.oauth2.providers.azure_ad.oidc_config_url=https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration --set auth.oauth2.providers.azure_ad.email_attribute_path=preferred_username",
+            all_of(
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH", "preferred_username"
+                ),
+                OAuth2Validators.provider_comprehensive(
+                    provider="azure_ad",
+                    client_id="azure-id",
+                    oidc_config_url="https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration",
+                    email_attribute_path="preferred_username",
                 ),
             ),
         ),
