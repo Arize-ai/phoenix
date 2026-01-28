@@ -36,6 +36,8 @@ import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { validateMustacheSections } from "@phoenix/components/templateEditor/language/mustacheLike";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -208,6 +210,12 @@ function MessageEditor({
     },
     [updateMessage]
   );
+  const sectionValidation = useMemo(() => {
+    if (templateFormat !== TemplateFormats.Mustache) {
+      return null;
+    }
+    return validateMustacheSections(message.content ?? "");
+  }, [message.content, templateFormat]);
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -270,6 +278,20 @@ function MessageEditor({
         templateFormat={templateFormat}
         onChange={onChange}
       />
+      {sectionValidation?.errors.length ? (
+        <View paddingTop="size-100" paddingX="size-200">
+          <Alert variant="danger" title="Invalid mustache sections">
+            {sectionValidation.errors.join(", ")}
+          </Alert>
+        </View>
+      ) : null}
+      {sectionValidation?.warnings.length ? (
+        <View paddingTop="size-100" paddingX="size-200">
+          <Alert variant="warning" title="Unclosed mustache sections">
+            {sectionValidation.warnings.join(", ")}
+          </Alert>
+        </View>
+      ) : null}
     </TemplateEditorWrap>
   );
 }

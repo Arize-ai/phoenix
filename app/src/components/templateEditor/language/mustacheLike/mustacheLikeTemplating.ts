@@ -100,6 +100,55 @@ export const extractVariablesFromMustacheLike = (text: string) => {
   return Array.from(topLevelVariables);
 };
 
+export type MustacheSectionValidation = {
+  errors: string[];
+  warnings: string[];
+};
+
+export const validateMustacheSections = (
+  text: string
+): MustacheSectionValidation => {
+  const allVariables = extractVariables({
+    parser: MustacheLikeTemplatingLanguage.parser,
+    text,
+  });
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const sectionStack: string[] = [];
+
+  for (const variable of allVariables) {
+    const trimmed = variable.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
+      sectionStack.push(trimmed.slice(1).trim());
+      continue;
+    }
+    if (trimmed.startsWith("/")) {
+      const closingName = trimmed.slice(1).trim();
+      if (sectionStack.length === 0) {
+        errors.push(`Unmatched closing tag: ${closingName}`);
+        continue;
+      }
+      const expectedName = sectionStack.pop();
+      if (expectedName !== closingName) {
+        errors.push(
+          `Mismatched closing tag: expected ${expectedName}, found ${closingName}`
+        );
+      }
+    }
+  }
+
+  if (sectionStack.length > 0) {
+    sectionStack.forEach((name) => {
+      warnings.push(`Unclosed section tag: ${name}`);
+    });
+  }
+
+  return { errors, warnings };
+};
+
 /**
  * Creates a CodeMirror extension for the FString templating system
  */
