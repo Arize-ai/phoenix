@@ -88,13 +88,23 @@ async def _generate_unique_evaluator_name(
 
 
 def _get_project_for_dataset_evaluator(
+    *,
     dataset_name: str,
     dataset_evaluator_name: str,
 ) -> models.Project:
+    project_name_identifier = _get_dataset_evaluator_project_name_identifier()
+    project_name = project_name_identifier.root
     return models.Project(
-        name=f"{dataset_name}/{dataset_evaluator_name}/{token_hex(12)}",
-        description=f"Traces for dataset evaluator: {dataset_evaluator_name}",
+        name=project_name,
+        description=(
+            f"Traces for dataset evaluator: {dataset_evaluator_name} on dataset: {dataset_name}"
+        ),
     )
+
+
+def _get_dataset_evaluator_project_name_identifier() -> IdentifierModel:
+    project_name = f"dataset-evaluator-{token_hex(12)}"
+    return IdentifierModel.model_validate(project_name)
 
 
 async def _ensure_evaluator_prompt_label(
@@ -241,13 +251,6 @@ class CreateDatasetLLMEvaluatorInput:
 
 
 @strawberry.input
-class CreateCodeEvaluatorInput:
-    dataset_id: Optional[GlobalID] = UNSET
-    name: Identifier
-    description: Optional[str] = UNSET
-
-
-@strawberry.input
 class UpdateDatasetLLMEvaluatorInput:
     dataset_evaluator_id: GlobalID
     dataset_id: GlobalID
@@ -262,12 +265,6 @@ class UpdateDatasetLLMEvaluatorInput:
 @strawberry.type
 class DatasetEvaluatorMutationPayload:
     evaluator: DatasetEvaluator
-    query: Query
-
-
-@strawberry.type
-class CodeEvaluatorMutationPayload:
-    evaluator: CodeEvaluator
     query: Query
 
 
@@ -315,66 +312,6 @@ class DeleteDatasetEvaluatorsPayload:
 
 @strawberry.type
 class EvaluatorMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def create_code_evaluator(
-        self, info: Info[Context, None], input: CreateCodeEvaluatorInput
-    ) -> CodeEvaluatorMutationPayload:
-        dataset_id: Optional[int] = None
-        if input.dataset_id is not UNSET and input.dataset_id is not None:
-            dataset_id = from_global_id_with_expected_type(
-                global_id=input.dataset_id, expected_type_name=Dataset.__name__
-            )
-        user_id: Optional[int] = None
-        assert isinstance(request := info.context.request, Request)
-        if "user" in request.scope:
-            assert isinstance(user := request.user, PhoenixUser)
-            user_id = int(user.identity)
-        try:
-            validated_name = IdentifierModel.model_validate(input.name)
-        except ValidationError as error:
-            raise BadRequest(f"Invalid evaluator name: {error}")
-        try:
-            async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, validated_name.root)
-
-                dataset_evaluators = []
-                if dataset_id is not None:
-                    dataset_name = await session.scalar(
-                        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-                    )
-                    if dataset_name is None:
-                        raise NotFound(f"Dataset with id {dataset_id} not found")
-                    dataset_evaluators = [
-                        models.DatasetEvaluators(
-                            dataset_id=dataset_id,
-                            name=evaluator_name,
-                            input_mapping={},
-                            project=_get_project_for_dataset_evaluator(
-                                dataset_name=dataset_name,
-                                dataset_evaluator_name=str(evaluator_name),
-                            ),
-                        )
-                    ]
-
-                code_evaluator = models.CodeEvaluator(
-                    name=evaluator_name,
-                    description=input.description or None,
-                    kind="CODE",
-                    user_id=user_id,
-                    dataset_evaluators=dataset_evaluators,
-                )
-                session.add(code_evaluator)
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            if "foreign" in str(e).lower():
-                raise BadRequest(f"Dataset with id {dataset_id} not found")
-            raise BadRequest(
-                f"An evaluator with name '{input.name}' already exists for this dataset"
-            )
-        return CodeEvaluatorMutationPayload(
-            evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
-            query=Query(),
-        )
-
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput

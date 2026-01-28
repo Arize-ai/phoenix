@@ -12,11 +12,16 @@ from jsonschema import ValidationError, validate
 from openinference.instrumentation import (
     Message,
     TextMessageContent,
+    ToolCallFunction,
     get_input_attributes,
     get_llm_input_message_attributes,
     get_llm_model_name_attributes,
+    get_llm_output_message_attributes,
     get_output_attributes,
     get_span_kind_attributes,
+)
+from openinference.instrumentation import (
+    ToolCall as OIToolCall,
 )
 from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.context import Context
@@ -355,21 +360,29 @@ class LLMEvaluator(BaseEvaluator):
                                         chunk.function.arguments
                                     )
 
-                        # Record output tool calls on the span
-                        llm_span.set_attributes(
-                            get_output_attributes(
-                                {
-                                    "tool_calls": [
-                                        {
-                                            "id": call_id,
-                                            "name": call["name"],
-                                            "arguments": call["arguments"],
-                                        }
-                                        for call_id, call in tool_call_by_id.items()
-                                    ]
-                                }
+                        oi_tool_calls = [
+                            OIToolCall(
+                                id=call_id,
+                                function=ToolCallFunction(
+                                    name=call["name"],
+                                    arguments=call["arguments"],
+                                ),
                             )
+                            for call_id, call in tool_call_by_id.items()
+                        ]
+                        output_messages: list[Message] = [
+                            Message(
+                                role="assistant",
+                                tool_calls=oi_tool_calls,
+                            )
+                        ]
+                        llm_span.set_attributes(
+                            get_output_attributes({"messages": output_messages})
                         )
+                        if oi_tool_calls:
+                            llm_span.set_attributes(
+                                get_llm_output_message_attributes(output_messages)
+                            )
                         llm_span.set_status(Status(StatusCode.OK))
                     finally:
                         llm_span.set_attributes(self._llm_client.attributes)
