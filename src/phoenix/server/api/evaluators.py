@@ -798,6 +798,9 @@ def apply_input_mapping(
     # apply path mappings
     if hasattr(input_mapping, "path_mapping"):
         for key, path_expr in input_mapping.path_mapping.items():
+            # Skip empty or non-string path expressions
+            if not path_expr or not isinstance(path_expr, str):
+                continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
             except Exception as e:
