@@ -48,7 +48,16 @@ type ExperimentCostAndLatencySummaryProps = {
    * Pre-fetched experiment data (required when executionState is "complete")
    */
   experiment?: ExperimentCostAndLatencySummaryExperiment | null;
+  /**
+   * Whether this is a placeholder in a non-experiment column (e.g., reference output).
+   * When true, renders with reduced opacity.
+   */
+  isPlaceholder?: boolean;
 };
+
+const placeholderCSS = css`
+  opacity: 0.5;
+`;
 
 /**
  * Component that displays aggregate experiment cost and latency summary.
@@ -57,9 +66,14 @@ type ExperimentCostAndLatencySummaryProps = {
 export function ExperimentCostAndLatencySummary({
   executionState,
   experiment,
+  isPlaceholder = false,
 }: ExperimentCostAndLatencySummaryProps) {
   if (executionState === "idle") {
-    return <ExperimentCostAndLatencySummaryPlaceholder />;
+    return (
+      <ExperimentCostAndLatencySummaryPlaceholder
+        isPlaceholder={isPlaceholder}
+      />
+    );
   }
 
   if (executionState === "running") {
@@ -67,7 +81,11 @@ export function ExperimentCostAndLatencySummary({
   }
 
   if (experiment == null) {
-    return <ExperimentCostAndLatencySummaryPlaceholder />;
+    return (
+      <ExperimentCostAndLatencySummaryPlaceholder
+        isPlaceholder={isPlaceholder}
+      />
+    );
   }
 
   const { id, runCount, costSummary, averageRunLatencyMs } = experiment;
@@ -115,9 +133,18 @@ export function ExperimentCostAndLatencySummary({
  * Placeholder state shown when no experiment has been run.
  * Shows the icons with placeholder values (--).
  */
-export function ExperimentCostAndLatencySummaryPlaceholder() {
+export function ExperimentCostAndLatencySummaryPlaceholder({
+  isPlaceholder = false,
+}: {
+  isPlaceholder?: boolean;
+}) {
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
+    <Flex
+      direction="row"
+      gap="size-100"
+      alignItems="center"
+      css={isPlaceholder && placeholderCSS}
+    >
       <Text size="S" fontFamily="mono" color="grey-500">
         AVG
       </Text>
