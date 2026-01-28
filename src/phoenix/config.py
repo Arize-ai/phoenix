@@ -1289,7 +1289,7 @@ _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
 """Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class OAuth2ClientConfig:
     """Configuration for an OAuth2/OIDC identity provider."""
 
@@ -1321,6 +1321,16 @@ class OAuth2ClientConfig:
     role_attribute_path: Optional[str]
     role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
+
+    # Email extraction
+    email_attribute_path: Optional[str] = None
+    """JMESPath expression to extract email from user claims.
+
+    Default: "email" (standard OIDC claim)
+
+    For Azure AD/Entra ID without email attribute:
+        PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
+    """
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -1497,6 +1507,9 @@ class OAuth2ClientConfig:
                     f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH."
                 )
 
+        # Email extraction configuration
+        email_attribute_path = _get_optional("EMAIL_ATTRIBUTE_PATH")
+
         return cls(
             idp_name=idp_name,
             idp_display_name=_get_optional("DISPLAY_NAME")
@@ -1514,6 +1527,7 @@ class OAuth2ClientConfig:
             role_attribute_path=role_attribute_path,
             role_mapping=role_mapping,
             role_attribute_strict=role_attribute_strict,
+            email_attribute_path=email_attribute_path,
         )
 
 
@@ -2132,6 +2146,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
     # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
     "SCOPES",
+    "EMAIL_ATTRIBUTE_PATH",  # JMESPath expression to extract email from ID token
     "GROUPS_ATTRIBUTE_PATH",  # JMESPath expression to extract groups from ID token
     "ALLOWED_GROUPS",  # Comma-separated list of groups allowed to sign in
     "ROLE_ATTRIBUTE_PATH",  # JMESPath expression to extract role from ID token
@@ -2206,6 +2221,31 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
           These are added to the required baseline scopes "openid email profile". For example, set to
           "offline_access groups" to request refresh tokens and group information. The baseline scopes
           are always included and cannot be removed.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_EMAIL_ATTRIBUTE_PATH: JMESPath expression to extract email from
+          the OIDC ID token or userinfo endpoint response. Defaults to "email" (standard OIDC claim).
+          See https://jmespath.org for full syntax.
+
+          ⚠️ IMPORTANT: Claim keys with special characters (colons, dots, slashes, hyphens, etc.) MUST be
+          enclosed in double quotes. Examples: `"https://myapp.com/email"`, `"custom:email"`, `user.profile."app-email"`
+
+          Common patterns:
+            • Simple key: `email` - extracts top-level claim (default)
+            • Alternative claim: `preferred_username` - extracts from preferred_username (Azure AD/Entra ID)
+            • Nested key: `attributes.email` - dot notation for nested objects
+            • UPN claim: `upn` - extracts User Principal Name (Azure AD, requires optional claim config)
+
+          Common provider examples:
+            • Standard OIDC: `email` (default) - standard email claim
+            • Azure AD/Entra ID: `preferred_username` - when email claim is null but UPN is available
+            • Azure AD/Entra ID: `upn` - User Principal Name (requires Azure AD optional claim configuration)
+            • Custom nested: `attributes.email` - for providers with nested email structures
+
+          Values are automatically lowercased and trimmed before storage. This ensures consistent email
+          matching regardless of case differences between IDP claims and admin-provisioned users.
+
+          If not set, defaults to "email" (standard OIDC claim). This maintains backward compatibility
+          with existing deployments.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_GROUPS_ATTRIBUTE_PATH: JMESPath expression to extract group/role claims
           from the OIDC ID token or userinfo endpoint response. See https://jmespath.org for full syntax.
@@ -2349,6 +2389,10 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         With custom display name and auto-login:
             PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google Workspace
             PHOENIX_OAUTH2_GOOGLE_AUTO_LOGIN=true
+
+        With custom email attribute path (Azure AD/Entra ID):
+            PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
+            # Use preferred_username when email claim is null
 
         With group-based access control (simple path):
             PHOENIX_OAUTH2_GOOGLE_GROUPS_ATTRIBUTE_PATH=groups
