@@ -1,5 +1,22 @@
 # Changelog
 
+## [12.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.32.0...arize-phoenix-v12.33.0) (2026-01-28)
+
+
+### Features
+
+* **oauth2:** add EMAIL_ATTRIBUTE_PATH for configurable email extraction ([#11139](https://github.com/Arize-ai/phoenix/issues/11139)) ([90ab5ca](https://github.com/Arize-ai/phoenix/commit/90ab5cad3b286c1abf460efcbe5cd495ed355165))
+
+
+### Bug Fixes
+
+* move namespace package discovery before imports ([#11130](https://github.com/Arize-ai/phoenix/issues/11130)) ([e12fa87](https://github.com/Arize-ai/phoenix/commit/e12fa872405f8892f6f5c8f04e00e489d475ebe1))
+
+
+### Documentation
+
+* updating phoenix nav  ([#11119](https://github.com/Arize-ai/phoenix/issues/11119)) ([1e2ae4d](https://github.com/Arize-ai/phoenix/commit/1e2ae4d1992e20bce8cd32d5eb38e41dccaa4e75))
+
 ## [12.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.2...arize-phoenix-v12.32.0) (2026-01-27)
 
 
