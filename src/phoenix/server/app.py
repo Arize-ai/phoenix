@@ -165,6 +165,7 @@ from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -603,6 +604,7 @@ def _lifespan(
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    experiment_runner: ExperimentRunner,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -645,6 +647,7 @@ def _lifespan(
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(experiment_runner)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -661,6 +664,7 @@ def _lifespan(
                 "enqueue_span": enqueue_span,
                 "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
+                "experiment_runner": experiment_runner,
             }
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -694,6 +698,7 @@ def create_graphql_router(
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     corpus: Optional[Model] = None,
@@ -777,6 +782,9 @@ def create_graphql_router(
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_execution_config_fields=TableFieldsDataLoader(
+                    db, models.ExperimentExecutionConfig
+                ),
                 experiment_fields=TableFieldsDataLoader(db, models.Experiment),
                 experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
                     db
@@ -908,6 +916,7 @@ def create_graphql_router(
             token_store=token_store,
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
             encrypt=encrypt,
             decrypt=decrypt,
         )
@@ -1131,6 +1140,7 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
+    experiment_runner = ExperimentRunner(db, decrypt=encryption_service.decrypt)
     graphql_router = create_graphql_router(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
@@ -1146,6 +1156,7 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1167,6 +1178,7 @@ def create_app(
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            experiment_runner=experiment_runner,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,

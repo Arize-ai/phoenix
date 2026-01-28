@@ -106,7 +106,7 @@ export function getConfig(): ServerConfig {
 
     // Tool calls
     toolCallProbability: parseFloat(
-      process.env.TOOL_CALL_PROBABILITY || "0.75",
+      process.env.TOOL_CALL_PROBABILITY || "1.0",
     ),
 
     // Response content

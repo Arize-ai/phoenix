@@ -3138,6 +3138,19 @@ request is authenticated as the system user with the user_id set to this
 SYSTEM_USER_ID value (only if this variable is not None).
 """
 
+# Experiment execution config
+EXPERIMENT_STALE_CLAIM_TIMEOUT = timedelta(minutes=10)
+"""
+Timeout after which an experiment claim is considered stale.
+Used by ExperimentRunner for heartbeat and by GraphQL for isActive detection.
+"""
+
+EXPERIMENT_TOGGLE_COOLDOWN = timedelta(seconds=5)
+"""
+Cooldown period between pause/resume toggles.
+Prevents rapid state thrashing that wastes work.
+"""
+
 
 def _validate_file_exists_and_is_readable(
     file_path: Path,

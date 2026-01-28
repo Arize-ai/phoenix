@@ -70,6 +70,8 @@ import {
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
+  jobsLoader,
+  JobsPage,
   LoggedOutPage,
   LoginPage,
   PlaygroundPage,
@@ -245,6 +247,7 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
+                <Route path="jobs" element={<JobsPage />} loader={jobsLoader} />
                 <Route
                   path="evaluators"
                   element={<DatasetEvaluatorsPage />}

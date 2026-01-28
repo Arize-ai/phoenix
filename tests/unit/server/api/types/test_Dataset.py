@@ -247,17 +247,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -265,6 +254,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -300,17 +300,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "first-input"},
-                        "output": {"output": "first-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
@@ -318,6 +307,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -375,17 +375,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "first-input"},
-                        "output": {"output": "first-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
@@ -393,6 +382,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -415,17 +415,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -433,6 +422,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -455,17 +455,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -473,6 +462,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]

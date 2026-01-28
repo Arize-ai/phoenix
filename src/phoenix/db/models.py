@@ -64,6 +64,7 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalAnnotationConfig,
 )
+from phoenix.db.types.experiment_config import EvaluatorConfigs, TaskConfig
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.token_price_customization import (
@@ -507,6 +508,46 @@ class _HexColor(TypeDecorator[str]):
 
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
+
+
+class _TaskConfig(TypeDecorator[TaskConfig]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[TaskConfig], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump(exclude_defaults=True)
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TaskConfig]:
+        if value is None:
+            return None
+        return TaskConfig.model_validate(value)
+
+
+class _EvaluatorConfigs(TypeDecorator[EvaluatorConfigs]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[EvaluatorConfigs], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[EvaluatorConfigs]:
+        if value is None:
+            return None
+        return EvaluatorConfigs.model_validate(value)
 
 
 class Base(DeclarativeBase):
@@ -1538,6 +1579,30 @@ class ExperimentTag(HasId):
     user: Mapped[Optional["User"]] = relationship("User")
 
     __table_args__ = (UniqueConstraint("dataset_id", "name"),)
+
+
+class ExperimentExecutionConfig(HasId):
+    __tablename__ = "experiment_execution_configs"
+    id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    task_config: Mapped[Optional[TaskConfig]] = mapped_column(_TaskConfig)
+    evaluator_configs: Mapped[Optional[EvaluatorConfigs]] = mapped_column(_EvaluatorConfigs)
+
+    # Ownership: claimed_at NOT NULL = running, NULL = not running
+    # Updated by heartbeat to maintain claim
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+
+    # Cooldown: set on user-initiated stop/resume, not by heartbeat or orphan scan
+    toggled_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    # Error tracking (set when experiment fails, e.g., circuit breaker trip)
+    last_error: Mapped[Optional[str]] = mapped_column(String)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    experiment: Mapped["Experiment"] = relationship("Experiment")
 
 
 class UserRole(HasId):

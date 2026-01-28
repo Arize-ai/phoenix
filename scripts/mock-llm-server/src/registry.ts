@@ -92,7 +92,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
   streamDelayMs: 50,
   streamJitterMs: 30,
   streamChunkSize: 10,
-  toolCallProbability: 0.75,
+  toolCallProbability: 1.0,
   errorRate: 0,
   errorTypes: ["server_error"],
   streamInterruptRate: 0,
