@@ -1,9 +1,9 @@
-import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from string import Formatter
 from typing import Any
 
+import pystache
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
@@ -71,7 +71,13 @@ class FStringTemplateFormatter(TemplateFormatter):
 
 class MustacheTemplateFormatter(TemplateFormatter):
     """
-    Mustache template formatter.
+    Mustache template formatter using pystache.
+
+    Supports full Mustache syntax including sections ({{#list}}...{{/list}}),
+    inverted sections ({{^field}}...{{/field}}), and nested properties.
+
+    Escaped sequences (\\{{ ... }}) are preserved and not replaced.
+    HTML escaping is disabled - values are rendered as-is.
 
     Examples:
 
@@ -80,24 +86,45 @@ class MustacheTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
+    # Pattern to find escaped mustache sequences (backslash before {{)
+    _ESCAPED_PATTERN = r"\\(\{\{)"
+    # Placeholder that won't appear in normal templates
+    _ESCAPED_PLACEHOLDER = "\x00ESCAPED_BRACE\x00"
+
+    def __init__(self) -> None:
+        import re
+
+        self._escape_regex = re.compile(self._ESCAPED_PATTERN)
+        # Create renderer with no HTML escaping
+        self._renderer = pystache.Renderer(escape=lambda x: x)
 
     def parse(self, template: str) -> set[str]:
-        return set(match for match in re.findall(self.PATTERN, template))
+        """
+        Extract top-level variable names from mustache template.
+
+        Only extracts variables at the top level, not those nested inside sections.
+        This ensures validation only checks for required top-level inputs.
+        Escaped sequences (\\{{) are ignored.
+        """
+        # Temporarily remove escaped sequences before parsing
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+        parsed = pystache.parse(clean_template)
+        variables: set[str] = set()
+        # Only extract top-level keys, not nested ones inside sections
+        elements = parsed._parse_tree if hasattr(parsed, "_parse_tree") else parsed
+        for element in elements:
+            if hasattr(element, "key") and element.key:
+                variables.add(element.key)
+        return variables
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
-        for variable_name in variable_names:
-            replacement = str(variables[variable_name])
-            # Use a lambda instead of passing the replacement string directly. When re.sub
-            # receives a string as `repl`, it interprets backslash escape sequences like \u, \n,
-            # \1, etc. This causes errors when the replacement contains JSON with Unicode escapes
-            # (e.g., \u2019). A callable `repl` returns the string literally without processing.
-            template = re.sub(
-                pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=lambda _: replacement,
-                string=template,
-            )
-        return template
+        # Temporarily replace escaped sequences before rendering
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+        # Render with pystache (no HTML escaping)
+        result = self._renderer.render(clean_template, variables)
+        # Restore escaped sequences (without the backslash, keeping the braces)
+        result = result.replace(self._ESCAPED_PLACEHOLDER, r"\{{")
+        return result
 
 
 class TemplateFormatterError(Exception):
