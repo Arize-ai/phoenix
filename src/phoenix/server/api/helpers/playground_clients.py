@@ -6,7 +6,7 @@ import inspect
 import json
 import time
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager
 from functools import wraps
 from typing import (
@@ -16,7 +16,6 @@ from typing import (
     Generic,
     Hashable,
     Mapping,
-    MutableMapping,
     Optional,
     Sequence,
     TypeVar,
@@ -92,7 +91,7 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
-    from opentelemetry.util.types import AttributeValue
+    from opentelemetry.trace import Tracer as OTelTracer
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
 # TypeVar for generic client type
@@ -215,7 +214,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         model_name: str,
         provider: str,
     ) -> None:
-        self._attributes: dict[str, AttributeValue] = {LLM_PROVIDER: provider}
         self.provider = provider
         self.model_name = model_name
         self._client_factory = client_factory
@@ -237,6 +235,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # a yield statement is needed to satisfy the type-checker
@@ -276,10 +275,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             # happens in some cases if the spec is None
             return False
 
-    @property
-    def attributes(self) -> dict[str, Any]:
-        return self._attributes
-
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     def __init__(
@@ -298,7 +293,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             provider=provider,
             model_name=model_name,
         )
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
 
     @classmethod
@@ -374,10 +368,16 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from collections import defaultdict
+
         from openai import omit
         from openai.types import chat
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -388,53 +388,120 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            stream = cast(
-                AsyncIterable[chat.ChatCompletionChunk],
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=True,
-                    stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
-            async for chunk in stream:
-                if (usage := chunk.usage) is not None:
-                    token_usage = usage
-                if not chunk.choices:
-                    # for Azure, initial chunk contains the content filter
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if tool_call.id is not None
-                                else tool_call_ids[tool_call_index]
-                            )
-                            tool_call_ids[tool_call_index] = tool_call_id
-                            if (function := tool_call.function) is not None:
-                                tool_call_chunk = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
-                                )
-                                yield tool_call_chunk
+        # Build initial attributes using helper
+        initial_attrs = _build_initial_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            llm_system=OpenInferenceLLMSystemValues.OPENAI.value,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+        # Track accumulated output
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = defaultdict(list)
+
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                # Wrap httpx client for instrumentation (fresh client each request)
+                client._client = _HttpxClient(client._client, _tracer)
+                throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+                stream = cast(
+                    AsyncIterable[chat.ChatCompletionChunk],
+                    await throttled_create(
+                        messages=openai_messages,
+                        model=self.model_name,
+                        stream=True,
+                        stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
+                        tools=tools or omit,
+                        **invocation_parameters,
+                    ),
+                )
+                async for chunk in stream:
+                    if (usage := chunk.usage) is not None:
+                        token_usage = usage
+                    if not chunk.choices:
+                        # for Azure, initial chunk contains the content filter
+                        continue
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+                    if choice.finish_reason is None:
+                        if isinstance(chunk_content := delta.content, str):
+                            accumulated_text.append(chunk_content)
+                            text_chunk = TextChunk(content=chunk_content)
+                            yield text_chunk
+                        if (tool_calls := delta.tool_calls) is not None:
+                            for tool_call_index, tool_call in enumerate(tool_calls):
+                                tool_call_id = (
+                                    tool_call.id
+                                    if tool_call.id is not None
+                                    else tool_call_ids[tool_call_index]
+                                )
+                                tool_call_ids[tool_call_index] = tool_call_id
+                                if (function := tool_call.function) is not None:
+                                    tool_call_chunk = ToolCallChunk(
+                                        id=tool_call_id,
+                                        function=FunctionCallChunk(
+                                            name=function.name or "",
+                                            arguments=function.arguments or "",
+                                        ),
+                                    )
+                                    accumulated_tool_calls[tool_call_id].append(tool_call_chunk)
+                                    yield tool_call_chunk
+
+            # Set output attributes using helper
+            _set_output_attributes(span, accumulated_text, accumulated_tool_calls)
+
+            # Set token counts directly on span
+            if token_usage is not None:
+                span.set_attribute(LLM_TOKEN_COUNT_PROMPT, token_usage.prompt_tokens)
+                span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, token_usage.completion_tokens)
+                span.set_attribute(LLM_TOKEN_COUNT_TOTAL, token_usage.total_tokens)
+
+                # Add cache/audio/reasoning tokens if present
+                if (
+                    hasattr(token_usage, "prompt_tokens_details")
+                    and token_usage.prompt_tokens_details is not None
+                ):
+                    prompt_details = token_usage.prompt_tokens_details
+                    if (
+                        hasattr(prompt_details, "cached_tokens")
+                        and prompt_details.cached_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+                            prompt_details.cached_tokens,
+                        )
+                    if (
+                        hasattr(prompt_details, "audio_tokens")
+                        and prompt_details.audio_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
+                        )
+
+                if (
+                    hasattr(token_usage, "completion_tokens_details")
+                    and token_usage.completion_tokens_details is not None
+                ):
+                    completion_details = token_usage.completion_tokens_details
+                    if (
+                        hasattr(completion_details, "reasoning_tokens")
+                        and completion_details.reasoning_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                            completion_details.reasoning_tokens,
+                        )
+                    if (
+                        hasattr(completion_details, "audio_tokens")
+                        and completion_details.audio_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
+                            completion_details.audio_tokens,
+                        )
 
     def to_openai_chat_completion_param(
         self,
@@ -504,41 +571,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             },
             type="function",
         )
-
-    @staticmethod
-    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
-        yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
-        yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
-        yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
-
-        if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details is not None:
-            prompt_details = usage.prompt_tokens_details
-            if (
-                hasattr(prompt_details, "cached_tokens")
-                and prompt_details.cached_tokens is not None
-            ):
-                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, prompt_details.cached_tokens
-            if hasattr(prompt_details, "audio_tokens") and prompt_details.audio_tokens is not None:
-                yield LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
-
-        if (
-            hasattr(usage, "completion_tokens_details")
-            and usage.completion_tokens_details is not None
-        ):
-            completion_details = usage.completion_tokens_details
-            if (
-                hasattr(completion_details, "reasoning_tokens")
-                and completion_details.reasoning_tokens is not None
-            ):
-                yield (
-                    LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
-                    completion_details.reasoning_tokens,
-                )
-            if (
-                hasattr(completion_details, "audio_tokens")
-                and completion_details.audio_tokens is not None
-            ):
-                yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
 @register_llm_client(
@@ -639,7 +671,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_SYSTEM] = "aws"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -682,10 +713,41 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
-            yield chunk
+        from collections import defaultdict
+
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
+
+        # Build initial attributes
+        initial_attrs = _build_initial_span_attributes(
+            model_name=self.model_name,
+            provider=self.provider,
+            llm_system="aws",
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
+
+        # Track accumulated output
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = defaultdict(list)
+
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async for chunk in self._handle_converse_api(
+                messages, tools, invocation_parameters, span
+            ):
+                if isinstance(chunk, TextChunk):
+                    accumulated_text.append(chunk.content)
+                elif isinstance(chunk, ToolCallChunk):
+                    accumulated_tool_calls[chunk.id].append(chunk)
+                yield chunk
+
+            # Set output attributes after streaming completes
+            _set_output_attributes(span, accumulated_text, accumulated_tool_calls)
 
     async def _handle_converse_api(
         self,
@@ -694,6 +756,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
+        span: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         Handle the converse API.
@@ -817,29 +880,14 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         del active_tool_calls[stop_index]
 
                 elif "metadata" in event:
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
-                            .get("usage", {})
-                            .get("inputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
-                            .get("usage", {})
-                            .get("outputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
-                            .get("usage", {})
-                            .get("totalTokens", 0)
-                        }
-                    )
+                    metadata = event.get("metadata", {})
+                    usage = metadata.get("usage", {})
+                    if input_tokens := usage.get("inputTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_PROMPT, input_tokens)
+                    if output_tokens := usage.get("outputTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, output_tokens)
+                    if total_tokens := usage.get("totalTokens"):
+                        span.set_attribute(LLM_TOKEN_COUNT_TOTAL, total_tokens)
 
     async def _handle_invoke_api(
         self,
@@ -848,6 +896,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         ],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
+        span: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         if "anthropic" not in self.model_name:
             raise ValueError("Invoke API is only supported for Anthropic models")
@@ -948,21 +997,11 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                             del active_tool_calls[index]
 
                     elif chunk_data.get("type") == "message_stop":
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("outputTokenCount", 0)
-                            }
-                        )
-
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("inputTokenCount", 0)
-                            }
-                        )
+                        metrics = chunk_data.get("amazon-bedrock-invocationMetrics", {})
+                        if output_tokens := metrics.get("outputTokenCount"):
+                            span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, output_tokens)
+                        if input_tokens := metrics.get("inputTokenCount"):
+                            span.set_attribute(LLM_TOKEN_COUNT_PROMPT, input_tokens)
 
     def _build_bedrock_messages(
         self,
@@ -1222,8 +1261,6 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         provider: str = "azure",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
 @register_llm_client(
@@ -1241,10 +1278,16 @@ class AzureOpenAIReasoningNonStreamingClient(
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from collections import defaultdict
+
         from openai import omit
         from openai.types import chat
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1253,42 +1296,108 @@ class AzureOpenAIReasoningNonStreamingClient(
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            response = cast(
-                chat.ChatCompletion,
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=False,
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
+        # Build initial attributes
+        initial_attrs = _build_initial_span_attributes(
+            model_name=self.model_name,
+            provider=OpenInferenceLLMProviderValues.AZURE.value,
+            llm_system=OpenInferenceLLMSystemValues.OPENAI.value,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
-        if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = defaultdict(list)
 
-        choice = response.choices[0]
-        if choice.message.content:
-            yield TextChunk(content=choice.message.content)
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                # Wrap httpx client for instrumentation (fresh client each request)
+                client._client = _HttpxClient(client._client, _tracer)
+                throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+                response = cast(
+                    chat.ChatCompletion,
+                    await throttled_create(
+                        messages=openai_messages,
+                        model=self.model_name,
+                        stream=False,
+                        tools=tools or omit,
+                        **invocation_parameters,
+                    ),
+                )
 
-        if choice.message.tool_calls:
-            for tool_call in choice.message.tool_calls:
-                if tool_call.type == "function":
-                    yield ToolCallChunk(
-                        id=tool_call.id,
-                        function=FunctionCallChunk(
-                            name=tool_call.function.name,
-                            arguments=tool_call.function.arguments,
-                        ),
-                    )
-                elif tool_call.type == "custom":
-                    raise NotImplementedError("custom tool calls are not supported")
-                else:
-                    assert_never(tool_call.type)
+            # Set token counts on span
+            if response.usage is not None:
+                span.set_attribute(LLM_TOKEN_COUNT_PROMPT, response.usage.prompt_tokens)
+                span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, response.usage.completion_tokens)
+                span.set_attribute(LLM_TOKEN_COUNT_TOTAL, response.usage.total_tokens)
+
+                if (
+                    hasattr(response.usage, "prompt_tokens_details")
+                    and response.usage.prompt_tokens_details is not None
+                ):
+                    prompt_details = response.usage.prompt_tokens_details
+                    if (
+                        hasattr(prompt_details, "cached_tokens")
+                        and prompt_details.cached_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+                            prompt_details.cached_tokens,
+                        )
+                    if (
+                        hasattr(prompt_details, "audio_tokens")
+                        and prompt_details.audio_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_PROMPT_DETAILS_AUDIO, prompt_details.audio_tokens
+                        )
+
+                if (
+                    hasattr(response.usage, "completion_tokens_details")
+                    and response.usage.completion_tokens_details is not None
+                ):
+                    completion_details = response.usage.completion_tokens_details
+                    if (
+                        hasattr(completion_details, "reasoning_tokens")
+                        and completion_details.reasoning_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+                            completion_details.reasoning_tokens,
+                        )
+                    if (
+                        hasattr(completion_details, "audio_tokens")
+                        and completion_details.audio_tokens is not None
+                    ):
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO,
+                            completion_details.audio_tokens,
+                        )
+
+            choice = response.choices[0]
+            if choice.message.content:
+                accumulated_text.append(choice.message.content)
+                yield TextChunk(content=choice.message.content)
+
+            if choice.message.tool_calls:
+                for tool_call in choice.message.tool_calls:
+                    if tool_call.type == "function":
+                        tool_chunk = ToolCallChunk(
+                            id=tool_call.id,
+                            function=FunctionCallChunk(
+                                name=tool_call.function.name,
+                                arguments=tool_call.function.arguments,
+                            ),
+                        )
+                        accumulated_tool_calls[tool_call.id].append(tool_chunk)
+                        yield tool_chunk
+                    elif tool_call.type == "custom":
+                        raise NotImplementedError("custom tool calls are not supported")
+                    else:
+                        assert_never(tool_call.type)
+
+            # Set output attributes
+            _set_output_attributes(span, accumulated_text, accumulated_tool_calls)
 
     def to_openai_chat_completion_param(
         self,
@@ -1365,8 +1474,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         import anthropic
 
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
 
     @classmethod
@@ -1416,10 +1523,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from collections import defaultdict
+
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
@@ -1430,77 +1543,97 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             **invocation_parameters,
         }
 
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
-            throttled_stream = self.rate_limiter._alimit(client.messages.stream)
-            async with await throttled_stream(**anthropic_params) as stream:
-                async for event in stream:
-                    if isinstance(event, anthropic_types.RawMessageStartEvent):
-                        usage = event.message.usage
+        # Build initial attributes
+        initial_attrs = _build_initial_span_attributes(
+            model_name=self.model_name,
+            provider=OpenInferenceLLMProviderValues.ANTHROPIC.value,
+            llm_system=OpenInferenceLLMSystemValues.ANTHROPIC.value,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
-                        token_counts: dict[str, Any] = {}
-                        if prompt_tokens := (
-                            (usage.input_tokens or 0)
-                            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-                            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+        # Track accumulated output
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = defaultdict(list)
+
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                # Wrap httpx client for instrumentation (fresh client each request)
+                client._client = _HttpxClient(client._client, _tracer)
+                throttled_stream = self.rate_limiter._alimit(client.messages.stream)
+                async with await throttled_stream(**anthropic_params) as stream:
+                    async for event in stream:
+                        if isinstance(event, anthropic_types.RawMessageStartEvent):
+                            usage = event.message.usage
+
+                            # Set prompt token counts on span
+                            if prompt_tokens := (
+                                (usage.input_tokens or 0)
+                                + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                                + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                            ):
+                                span.set_attribute(LLM_TOKEN_COUNT_PROMPT, prompt_tokens)
+                            if cache_creation_tokens := getattr(
+                                usage, "cache_creation_input_tokens", None
+                            ):
+                                if cache_creation_tokens is not None:
+                                    span.set_attribute(
+                                        LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE,
+                                        cache_creation_tokens,
+                                    )
+                        elif isinstance(event, anthropic_streaming.TextEvent):
+                            accumulated_text.append(event.text)
+                            yield TextChunk(content=event.text)
+                        elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                            usage = event.message.usage
+                            # Set completion token counts on span
+                            if usage.output_tokens:
+                                span.set_attribute(LLM_TOKEN_COUNT_COMPLETION, usage.output_tokens)
+                            if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                                if cache_read_tokens is not None:
+                                    span.set_attribute(
+                                        LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+                                        cache_read_tokens,
+                                    )
+                        elif (
+                            isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                            and event.content_block.type == "tool_use"
                         ):
-                            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                        if cache_creation_tokens := getattr(
-                            usage, "cache_creation_input_tokens", None
-                        ):
-                            if cache_creation_tokens is not None:
-                                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                                    cache_creation_tokens
-                                )
-                        self._attributes.update(token_counts)
-                    elif isinstance(event, anthropic_streaming.TextEvent):
-                        yield TextChunk(content=event.text)
-                    elif isinstance(event, anthropic_streaming.MessageStopEvent):
-                        usage = event.message.usage
-                        output_token_counts: dict[str, Any] = {}
-                        if usage.output_tokens:
-                            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                            if cache_read_tokens is not None:
-                                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                                    cache_read_tokens
-                                )
-                        self._attributes.update(output_token_counts)
-                    elif (
-                        isinstance(event, anthropic_streaming.ContentBlockStopEvent)
-                        and event.content_block.type == "tool_use"
-                    ):
-                        tool_call_chunk = ToolCallChunk(
-                            id=event.content_block.id,
-                            function=FunctionCallChunk(
-                                name=event.content_block.name,
-                                arguments=json.dumps(event.content_block.input),
+                            tool_call_chunk = ToolCallChunk(
+                                id=event.content_block.id,
+                                function=FunctionCallChunk(
+                                    name=event.content_block.name,
+                                    arguments=json.dumps(event.content_block.input),
+                                ),
+                            )
+                            accumulated_tool_calls[event.content_block.id].append(tool_call_chunk)
+                            yield tool_call_chunk
+                        elif isinstance(
+                            event,
+                            (
+                                anthropic_types.RawContentBlockStartEvent,
+                                anthropic_types.RawContentBlockDeltaEvent,
+                                anthropic_types.RawMessageDeltaEvent,
+                                anthropic_streaming.ContentBlockStopEvent,
+                                anthropic_streaming.InputJsonEvent,
                             ),
-                        )
-                        yield tool_call_chunk
-                    elif isinstance(
-                        event,
-                        (
-                            anthropic_types.RawContentBlockStartEvent,
-                            anthropic_types.RawContentBlockDeltaEvent,
-                            anthropic_types.RawMessageDeltaEvent,
-                            anthropic_streaming.ContentBlockStopEvent,
-                            anthropic_streaming.InputJsonEvent,
-                        ),
-                    ):
-                        # event types emitted by the stream that don't contain useful information
-                        pass
-                    elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
-                        pass
-                    elif isinstance(event, anthropic_streaming._types.SignatureEvent):
-                        pass
-                    else:
-                        assert_never(event)
+                        ):
+                            # event types emitted by stream that don't contain useful information
+                            pass
+                        elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                            raise NotImplementedError
+                        elif isinstance(event, anthropic_streaming._types.CitationEvent):
+                            raise NotImplementedError
+                        elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                            pass
+                        elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                            pass
+                        else:
+                            assert_never(event)
+
+            # Set output attributes after streaming completes
+            _set_output_attributes(span, accumulated_text, accumulated_tool_calls)
 
     def _build_anthropic_messages(
         self,
@@ -1606,8 +1739,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         provider: str = "google",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1668,9 +1799,15 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        from collections import defaultdict
+
         from google.genai import types
+        from opentelemetry.trace import NoOpTracer
+
+        _tracer = tracer or NoOpTracer()
 
         contents, system_prompt = self._build_google_messages(messages)
 
@@ -1685,35 +1822,66 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
         config = types.GenerateContentConfig.model_validate(config_dict)
 
-        async with self._client_factory() as client:
-            stream = await client.models.generate_content_stream(
-                model=f"models/{self.model_name}",
-                contents=contents,
-                config=config,
-            )
-            async for event in stream:
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                    }
-                )
+        # Build initial attributes
+        initial_attrs = _build_initial_span_attributes(
+            model_name=self.model_name,
+            provider=OpenInferenceLLMProviderValues.GOOGLE.value,
+            llm_system=OpenInferenceLLMSystemValues.VERTEXAI.value,
+            messages=messages,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+        )
 
-                if event.candidates:
-                    candidate = event.candidates[0]
-                    if candidate.content and candidate.content.parts:
-                        for part in candidate.content.parts:
-                            if function_call := part.function_call:
-                                yield ToolCallChunk(
-                                    id=function_call.id or "",
-                                    function=FunctionCallChunk(
-                                        name=function_call.name or "",
-                                        arguments=json.dumps(function_call.args or {}),
-                                    ),
-                                )
-                            elif text := part.text:
-                                yield TextChunk(content=text)
+        # Track accumulated output
+        accumulated_text: list[str] = []
+        accumulated_tool_calls: dict[str, list[ToolCallChunk]] = defaultdict(list)
+
+        with _tracer.start_as_current_span("ChatCompletion", attributes=initial_attrs) as span:
+            async with self._client_factory() as client:
+                stream = await client.models.generate_content_stream(
+                    model=f"models/{self.model_name}",
+                    contents=contents,
+                    config=config,
+                )
+                async for event in stream:
+                    # Set token counts on span
+                    if event.usage_metadata:
+                        if event.usage_metadata.prompt_token_count is not None:
+                            span.set_attribute(
+                                LLM_TOKEN_COUNT_PROMPT, event.usage_metadata.prompt_token_count
+                            )
+                        if event.usage_metadata.candidates_token_count is not None:
+                            span.set_attribute(
+                                LLM_TOKEN_COUNT_COMPLETION,
+                                event.usage_metadata.candidates_token_count,
+                            )
+                        if event.usage_metadata.total_token_count is not None:
+                            span.set_attribute(
+                                LLM_TOKEN_COUNT_TOTAL, event.usage_metadata.total_token_count
+                            )
+
+                    if event.candidates:
+                        candidate = event.candidates[0]
+                        if candidate.content and candidate.content.parts:
+                            for part in candidate.content.parts:
+                                if function_call := part.function_call:
+                                    tool_call_chunk = ToolCallChunk(
+                                        id=function_call.id or "",
+                                        function=FunctionCallChunk(
+                                            name=function_call.name or "",
+                                            arguments=json.dumps(function_call.args or {}),
+                                        ),
+                                    )
+                                    accumulated_tool_calls[function_call.id or ""].append(
+                                        tool_call_chunk
+                                    )
+                                    yield tool_call_chunk
+                                elif text := part.text:
+                                    accumulated_text.append(text)
+                                    yield TextChunk(content=text)
+
+            # Set output attributes after streaming completes
+            _set_output_attributes(span, accumulated_text, accumulated_tool_calls)
 
     def _build_google_messages(
         self,
@@ -1812,6 +1980,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Optional["OTelTracer"] = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
@@ -1839,7 +2008,9 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
                 "thinking_level": thinking_level.upper(),
             }
 
-        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+        async for chunk in super().chat_completion_create(
+            messages, tools, tracer=tracer, **invocation_parameters
+        ):
             yield chunk
 
 
@@ -1866,16 +2037,142 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    def __init__(self, wrapped: httpx.AsyncClient, attributes: MutableMapping[str, Any]):
-        super().__init__(wrapped)
-        self._self_attributes = attributes
+def _build_initial_span_attributes(
+    model_name: str,
+    provider: str,
+    llm_system: str,
+    messages: list[
+        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+    ],
+    tools: list[JSONScalarType],
+    invocation_parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """Build initial attributes for LLM span creation using OpenInference helpers."""
+    from openinference.instrumentation import (
+        get_llm_input_message_attributes,
+        get_llm_invocation_parameter_attributes,
+        get_llm_model_name_attributes,
+        get_llm_provider_attributes,
+        get_llm_system_attributes,
+        get_llm_tool_attributes,
+    )
+    from openinference.semconv.trace import OpenInferenceSpanKindValues
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
-        self._self_attributes["url.full"] = str(request.url)
-        self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
-        response = await self.__wrapped__.send(request, **kwargs)
-        return response
+    attrs: dict[str, Any] = {
+        SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.LLM.value,
+    }
+
+    # Use OpenInference helpers to build attributes
+    attrs.update(get_llm_provider_attributes(provider))
+    attrs.update(get_llm_system_attributes(llm_system))
+    attrs.update(get_llm_model_name_attributes(model_name))
+
+    if invocation_parameters:
+        attrs.update(get_llm_invocation_parameter_attributes(invocation_parameters))
+
+    if tools:
+        attrs.update(get_llm_tool_attributes(tools))
+
+    # Convert messages to format expected by helper
+    # The helper expects messages as dicts with 'role', 'content', optional 'tool_calls'
+    formatted_messages = []
+    for role, content, tool_call_id, tool_calls in messages:
+        msg: dict[str, Any] = {
+            "role": role.value.lower(),
+            "content": content,
+        }
+        if tool_call_id:
+            msg["tool_call_id"] = tool_call_id
+        if tool_calls:
+            msg["tool_calls"] = tool_calls
+        formatted_messages.append(msg)
+
+    attrs.update(get_llm_input_message_attributes(formatted_messages))
+
+    return attrs
+
+
+def _merge_tool_call_chunks(chunks_by_id: dict[str, list[ToolCallChunk]]) -> list[dict[str, Any]]:
+    """Merge tool call chunks into complete tool calls."""
+    merged = []
+    for tool_id, chunks in chunks_by_id.items():
+        if not chunks:
+            continue
+        merged_arguments = "".join(chunk.function.arguments for chunk in chunks)
+        merged.append(
+            {
+                "id": tool_id,
+                "function": {
+                    "name": chunks[0].function.name,
+                    "arguments": merged_arguments or "{}",
+                },
+            }
+        )
+    return merged
+
+
+def _set_output_attributes(
+    span: Any,  # OTel Span or NoOpSpan
+    accumulated_text: list[str],
+    accumulated_tool_calls: dict[str, list[ToolCallChunk]],
+) -> None:
+    """Set output attributes on span using OpenInference helpers."""
+    from openinference.instrumentation import (
+        get_llm_output_message_attributes,
+        get_output_attributes,
+    )
+
+    full_text = "".join(accumulated_text)
+    merged_tool_calls = _merge_tool_call_chunks(accumulated_tool_calls)
+
+    # Set output.value using helper
+    if full_text and merged_tool_calls:
+        output_value = {
+            "content": full_text,
+            "tool_calls": merged_tool_calls,
+        }
+        for key, value in get_output_attributes(output_value, mime_type="application/json").items():
+            span.set_attribute(key, value)
+    elif merged_tool_calls:
+        for key, value in get_output_attributes(
+            merged_tool_calls, mime_type="application/json"
+        ).items():
+            span.set_attribute(key, value)
+    elif full_text:
+        for key, value in get_output_attributes(full_text, mime_type="text/plain").items():
+            span.set_attribute(key, value)
+
+    # Build output message in expected format
+    output_message: dict[str, Any] = {
+        "role": "assistant",
+    }
+    if full_text:
+        output_message["content"] = full_text
+    if merged_tool_calls:
+        output_message["tool_calls"] = merged_tool_calls
+
+    # Set llm.output_messages using helper
+    for key, value in get_llm_output_message_attributes([output_message]).items():
+        span.set_attribute(key, value)
+
+
+class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    def __init__(self, wrapped: "httpx.AsyncClient", tracer: Any):
+        super().__init__(wrapped)
+        self._self_tracer = tracer
+
+    async def send(self, request: "httpx.Request", **kwargs: Any) -> Any:
+        with self._self_tracer.start_as_current_span(
+            "http.request",
+            attributes={
+                "url.full": str(request.url),
+                "url.path": request.url.path.removeprefix(self.base_url.path),
+                "http.request.method": request.method,
+            },
+        ) as span:
+            response = await self.__wrapped__.send(request, **kwargs)
+            span.set_attribute("http.response.status_code", response.status_code)
+            return response
 
 
 async def get_playground_client(

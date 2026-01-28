@@ -17,7 +17,6 @@ from typing import (
 )
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode
 from sqlalchemy import and_, insert, select
@@ -59,9 +58,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_spans import (
     get_db_experiment_run,
-    get_db_span,
-    get_db_trace,
-    streaming_llm_span,
 )
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
@@ -131,7 +127,6 @@ async def _stream_single_chat_completion(
         )
         for message in input.messages
     ]
-    attributes = None
     if template_options := input.template:
         messages = list(
             _formatted_messages(
@@ -140,78 +135,85 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-        attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes=attributes,
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    if span.status_message is not None:
-        yield ChatCompletionSubscriptionError(
-            message=span.status_message,
-            repetition_number=repetition_number,
-        )
 
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    await results.put((db_span, repetition_number))
+    # Create tracer for span capture
+    tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
-    if input.evaluators and span.status_code is StatusCode.OK:
-        context_dict: dict[str, Any] = {
-            "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
-            "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
-        }
-        for evaluator, evaluator_input in zip(evaluators, input.evaluators):
-            name = str(evaluator_input.name)
-            annotation_config_override = get_annotation_config_override(evaluator_input)
-            merged_config = apply_overrides_to_annotation_config(
-                annotation_config=evaluator.output_config,
-                annotation_config_override=annotation_config_override,
-                name=name,
-                description_override=evaluator_input.description,
-            )
+    try:
+        # Stream completion - client handles span creation and attribute management
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], tracer=tracer, **invocation_parameters
+        ):
+            chunk.repetition_number = repetition_number
+            yield chunk
+    finally:
+        # Persist spans to database
+        async with info.context.db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
 
-            result: EvaluationResult = await evaluator.evaluate(
-                context=context_dict,
-                input_mapping=evaluator_input.input_mapping,
-                name=name,
-                output_config=merged_config,
-            )
-            if result["error"] is not None:
-                yield EvaluationErrorChunk(
-                    evaluator_name=name,
-                    message=result["error"],
-                    dataset_example_id=None,
-                    repetition_number=repetition_number,
-                )
-                continue
-            annotation = ExperimentRunAnnotation.from_dict(
-                {
-                    "name": result["name"],
-                    "annotator_kind": result["annotator_kind"],
-                    "label": result["label"],
-                    "score": result["score"],
-                    "explanation": result["explanation"],
-                    "metadata": result["metadata"],
-                }
-            )
-            yield EvaluationChunk(
-                experiment_run_evaluation=annotation,
-                span_evaluation=None,
-                dataset_example_id=None,
-                repetition_number=repetition_number,
-            )
+            db_span = None
+            if db_traces and db_traces[0].spans:
+                db_span = db_traces[0].spans[0]
+
+                # Check for errors
+                if db_span.status_message:
+                    yield ChatCompletionSubscriptionError(
+                        message=db_span.status_message,
+                        repetition_number=repetition_number,
+                    )
+
+                await results.put((db_span, repetition_number))
+
+                # Run evaluators if no error
+                if input.evaluators and db_span.status_code == StatusCode.OK.name:
+                    context_dict: dict[str, Any] = {
+                        "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+                        "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                    }
+                    for evaluator, evaluator_input in zip(evaluators, input.evaluators):
+                        name = str(evaluator_input.name)
+                        annotation_config_override = get_annotation_config_override(evaluator_input)
+                        merged_config = apply_overrides_to_annotation_config(
+                            annotation_config=evaluator.output_config,
+                            annotation_config_override=annotation_config_override,
+                            name=name,
+                            description_override=evaluator_input.description,
+                        )
+
+                        result: EvaluationResult = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_config=merged_config,
+                        )
+                        if result["error"] is not None:
+                            yield EvaluationErrorChunk(
+                                evaluator_name=name,
+                                message=result["error"],
+                                dataset_example_id=None,
+                                repetition_number=repetition_number,
+                            )
+                            continue
+                        annotation = ExperimentRunAnnotation.from_dict(
+                            {
+                                "name": result["name"],
+                                "annotator_kind": result["annotator_kind"],
+                                "label": result["label"],
+                                "score": result["score"],
+                                "explanation": result["explanation"],
+                                "metadata": result["metadata"],
+                            }
+                        )
+                        yield EvaluationChunk(
+                            experiment_run_evaluation=annotation,
+                            span_evaluation=None,
+                            dataset_example_id=None,
+                            repetition_number=repetition_number,
+                        )
+            else:
+                # No span created - put None in results
+                await results.put((None, repetition_number))
 
 
 async def _chat_completion_span_result_payloads(
@@ -522,6 +524,7 @@ class Subscription:
                     repetition_number=repetition_number,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
+                    info=info,
                 ),
             )
             for revision in revisions
@@ -686,6 +689,7 @@ async def _stream_chat_completion_over_dataset_example(
     results: asyncio.Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
+    info: Info[Context, None],
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
@@ -751,38 +755,58 @@ async def _stream_chat_completion_over_dataset_example(
             )
         )
         return
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)},
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.dataset_example_id = example_id
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    db_run = get_db_experiment_run(
-        db_span,
-        db_trace,
-        experiment_id=experiment_id,
-        example_id=revision.dataset_example_id,
-        repetition_number=repetition_number,
-    )
-    await results.put((example_id, db_span, db_run))
-    if span.status_message is not None:
-        yield ChatCompletionSubscriptionError(
-            message=span.status_message,
-            dataset_example_id=example_id,
-            repetition_number=repetition_number,
-        )
+
+    # Create tracer for span capture
+    tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+
+    try:
+        # Stream completion - client handles span creation and attribute management
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], tracer=tracer, **invocation_parameters
+        ):
+            chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
+            yield chunk
+    finally:
+        # Persist spans to database
+        async with info.context.db() as session:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
+
+            if db_traces and db_traces[0].spans:
+                db_span = db_traces[0].spans[0]
+                db_trace = db_traces[0]
+
+                # Create experiment run
+                db_run = get_db_experiment_run(
+                    db_span,
+                    db_trace,
+                    experiment_id=experiment_id,
+                    example_id=revision.dataset_example_id,
+                    repetition_number=repetition_number,
+                )
+                await results.put((example_id, db_span, db_run))
+
+                # Check for errors
+                if db_span.status_message:
+                    yield ChatCompletionSubscriptionError(
+                        message=db_span.status_message,
+                        dataset_example_id=example_id,
+                        repetition_number=repetition_number,
+                    )
+            else:
+                # No span created - create error run
+                db_run = models.ExperimentRun(
+                    experiment_id=experiment_id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=None,
+                    output={},
+                    repetition_number=repetition_number,
+                    start_time=format_start_time,
+                    end_time=cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc)),
+                    error="Failed to create span",
+                    trace=None,
+                )
+                await results.put((example_id, None, db_run))
 
 
 async def _chat_completion_result_payloads(
