@@ -111,8 +111,8 @@ can you help with this json?
       {
         input: "{{#a}}{{/b}}",
         expected: {
-          errors: ["Unmatched closing tag: {{/b}}"],
-          warnings: ["Unclosed section tag: {{#a}}"],
+          errors: ["Unmatched closing tag: {{/b}} (expected {{/a}})"],
+          warnings: [],
         },
       },
     ] as const;

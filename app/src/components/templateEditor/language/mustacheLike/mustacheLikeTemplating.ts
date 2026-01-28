@@ -133,11 +133,17 @@ export const validateMustacheSections = (
       }
       const expectedName = sectionStack[sectionStack.length - 1];
       if (expectedName !== closingName) {
-        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
+        errors.push(
+          `Unmatched closing tag: {{/${closingName}}} (expected {{/${expectedName}}})`
+        );
         continue;
       }
       sectionStack.pop();
     }
+  }
+
+  if (errors.length > 0) {
+    return { errors, warnings: [] };
   }
 
   if (sectionStack.length > 0) {
