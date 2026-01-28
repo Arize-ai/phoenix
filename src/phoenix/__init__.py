@@ -1,3 +1,9 @@
+# The following line is needed to ensure that other modules using the
+# `phoenix.*` path can be discovered by Bazel. For details,
+# see: https://github.com/Arize-ai/openinference/issues/398
+# IMPORTANT: This must come BEFORE any imports that depend on namespace packages
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)
+
 import sys
 from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
@@ -36,11 +42,6 @@ Here are just a few of the things that phoenix does well:
   - Identify problematic embeddings cohorts using UMAP and clustering
   - Explore model performance, drift, and data quality metrics
 """
-
-# The following line is needed to ensure that other modules using the
-# `phoenix.*` path can be discovered by Bazel. For details,
-# see: https://github.com/Arize-ai/openinference/issues/398
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
 __all__ = [
     "__version__",
