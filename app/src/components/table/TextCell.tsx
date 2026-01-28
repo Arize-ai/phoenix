@@ -1,5 +1,7 @@
 import { CellContext } from "@tanstack/react-table";
 
+import { PrettyText } from "@phoenix/components/utility";
+
 const MAX_LENGTH = 100;
 
 /**
@@ -35,4 +37,17 @@ export function PreformattedTextCell<TData extends object, TValue>({
   const value = getValue();
   const str = value != null && typeof value === "string" ? value : "--";
   return <pre style={{ whiteSpace: "pre-wrap" }}>{str}</pre>;
+}
+
+/**
+ * A table cell that uses PrettyText to automatically detect and format JSON.
+ */
+export function PrettyTextCell<TData extends object, TValue>({
+  getValue,
+}: CellContext<TData, TValue>) {
+  const value = getValue();
+  if (value == null || typeof value !== "string") {
+    return <span>{"--"}</span>;
+  }
+  return <PrettyText>{value}</PrettyText>;
 }
