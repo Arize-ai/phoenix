@@ -52,7 +52,10 @@ import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
+  ConnectedExperimentAnnotationAggregates,
   ConnectedExperimentCostAndLatencySummary,
+  ExperimentAnnotationAggregates,
+  ExperimentAnnotationAggregatesSkeleton,
   ExperimentCostAndLatencySummary,
   ExperimentCostAndLatencySummarySkeleton,
   ExperimentInputCell,
@@ -1303,6 +1306,29 @@ export function PlaygroundDatasetExamplesTable({
             ) : (
               <ExperimentCostAndLatencySummary executionState="idle" />
             )}
+            {isRunning ? (
+              <ExperimentAnnotationAggregatesSkeleton
+                annotationConfigs={evaluatorOutputConfigs}
+              />
+            ) : experimentId != null ? (
+              <Suspense
+                fallback={
+                  <ExperimentAnnotationAggregatesSkeleton
+                    annotationConfigs={evaluatorOutputConfigs}
+                  />
+                }
+              >
+                <ConnectedExperimentAnnotationAggregates
+                  experimentId={experimentId}
+                  annotationConfigs={evaluatorOutputConfigs}
+                />
+              </Suspense>
+            ) : (
+              <ExperimentAnnotationAggregates
+                executionState="idle"
+                annotationConfigs={evaluatorOutputConfigs}
+              />
+            )}
           </Flex>
         ),
 
@@ -1342,38 +1368,59 @@ export function PlaygroundDatasetExamplesTable({
     evaluatorOutputConfigs,
   ]);
 
-  const columns: ColumnDef<TableRow>[] = [
-    {
-      header: "input",
-      accessorKey: "input",
-      cell: ({ row }) => (
-        <ExperimentInputCell
-          exampleId={row.original.id}
-          value={row.original.input}
-          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-          onExpand={() => {
-            setSearchParams((prev) => {
-              prev.set("exampleId", row.original.id);
-              return prev;
-            });
-          }}
-        />
-      ),
-      size: 200,
-    },
-    {
-      header: "reference output",
-      accessorKey: "output",
-      cell: ({ row }) => (
-        <ExperimentReferenceOutputCell
-          value={row.original.output}
-          height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-        />
-      ),
-      size: 200,
-    },
-    ...playgroundInstanceOutputColumns,
-  ];
+  const columns: ColumnDef<TableRow>[] = useMemo(
+    () => [
+      {
+        header: "input",
+        accessorKey: "input",
+        cell: ({ row }) => (
+          <ExperimentInputCell
+            exampleId={row.original.id}
+            value={row.original.input}
+            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+            onExpand={() => {
+              setSearchParams((prev) => {
+                prev.set("exampleId", row.original.id);
+                return prev;
+              });
+            }}
+          />
+        ),
+        size: 200,
+      },
+      {
+        header: () => (
+          <Flex direction="column" gap="size-50">
+            <span>reference output</span>
+            <ExperimentCostAndLatencySummary
+              executionState="idle"
+              isPlaceholder={true}
+            />
+            <ExperimentAnnotationAggregates
+              executionState="idle"
+              annotationConfigs={evaluatorOutputConfigs}
+              isPlaceholder={true}
+            />
+          </Flex>
+        ),
+        accessorKey: "output",
+        cell: ({ row }) => (
+          <ExperimentReferenceOutputCell
+            value={row.original.output}
+            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+          />
+        ),
+        size: 200,
+      },
+      ...playgroundInstanceOutputColumns,
+    ],
+    [
+      annotationListHeight,
+      evaluatorOutputConfigs,
+      playgroundInstanceOutputColumns,
+      setSearchParams,
+    ]
+  );
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
