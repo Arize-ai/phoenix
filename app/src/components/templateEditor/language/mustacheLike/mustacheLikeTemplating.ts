@@ -72,10 +72,32 @@ export const formatMustacheLike = ({
  * Extracts the variables from a Mustache-like template
  */
 export const extractVariablesFromMustacheLike = (text: string) => {
-  return extractVariables({
+  const allVariables = extractVariables({
     parser: MustacheLikeTemplatingLanguage.parser,
     text,
   });
+  const topLevelVariables: string[] = [];
+  let depth = 0;
+
+  for (const variable of allVariables) {
+    const trimmed = variable.trim();
+    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
+      if (depth === 0) {
+        topLevelVariables.push(trimmed.slice(1).trim());
+      }
+      depth += 1;
+      continue;
+    }
+    if (trimmed.startsWith("/")) {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth === 0) {
+      topLevelVariables.push(trimmed);
+    }
+  }
+
+  return topLevelVariables;
 };
 
 /**
