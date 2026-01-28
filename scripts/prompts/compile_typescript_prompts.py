@@ -6,7 +6,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import yaml
 from jinja2 import Template
@@ -24,6 +24,7 @@ class ClassificationEvaluatorConfig(BaseModel):
     optimization_direction: Literal["minimize", "maximize"]
     messages: list[PromptMessage]
     choices: dict[str, float]
+    formatters: Optional[dict[str, str]] = None  # placeholder -> formatter_name
 
 
 CLASSIFICATION_EVALUATOR_CONFIG_FILE_TEMPLATE = """\

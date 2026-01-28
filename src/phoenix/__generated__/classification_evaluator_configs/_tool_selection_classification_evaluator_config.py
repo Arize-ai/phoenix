@@ -14,4 +14,5 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         )
     ],
     choices={"correct": 1.0, "incorrect": 0.0},
+    formatters=None,
 )
