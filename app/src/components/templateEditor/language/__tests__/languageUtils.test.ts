@@ -3,7 +3,6 @@ import { extractVariables } from "../languageUtils";
 import {
   extractVariablesFromMustacheLike,
   formatMustacheLike,
-  MustacheLikeTemplatingLanguage,
 } from "../mustacheLike";
 
 describe("language utils", () => {
