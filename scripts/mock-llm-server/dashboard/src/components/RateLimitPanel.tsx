@@ -121,15 +121,14 @@ export function RateLimitPanel({ config, onUpdate }: Props) {
           {rateLimit.strategy === "random" && (
             <SliderControl
               label="Failure Probability"
-              value={Math.round(rateLimit.failProbability * 100)}
+              value={rateLimit.failProbability}
               min={0}
-              max={100}
-              step={5}
+              max={1}
+              step={0.05}
               unit="%"
+              displayMultiplier={100}
               accentColor="yellow"
-              onChange={(value) =>
-                updateRateLimit({ failProbability: value / 100 })
-              }
+              onChange={(value) => updateRateLimit({ failProbability: value })}
             />
           )}
         </div>
