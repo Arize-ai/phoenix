@@ -7,20 +7,15 @@ simple template placeholders into full Mustache blocks.
 
 import re
 from functools import lru_cache
-from pathlib import Path
+from importlib import resources
 from typing import Any
 
 import yaml
 
 
-def _get_formatters_path() -> Path:
-    """Get the path to the formatters YAML file."""
-    # Navigate from this file to the prompts/formatters directory
-    # This file: src/phoenix/server/api/helpers/formatters.py
-    # Target: prompts/formatters/common.yaml
-    current_dir = Path(__file__).parent
-    project_root = current_dir.parent.parent.parent.parent.parent
-    return project_root / "prompts" / "formatters" / "common.yaml"
+def _get_formatters_path() -> Any:
+    """Get the packaged formatters YAML resource."""
+    return resources.files(__package__).joinpath("formatters.yaml")
 
 
 @lru_cache(maxsize=1)
@@ -32,11 +27,10 @@ def load_formatters() -> dict[str, str]:
     Results are cached for performance.
     """
     formatters_path = _get_formatters_path()
-    if not formatters_path.exists():
+    if not formatters_path.is_file():
         return {}
 
-    with open(formatters_path, "r", encoding="utf-8") as f:
-        formatters = yaml.safe_load(f)
+    formatters = yaml.safe_load(formatters_path.read_text(encoding="utf-8"))
 
     return formatters if formatters else {}
 
