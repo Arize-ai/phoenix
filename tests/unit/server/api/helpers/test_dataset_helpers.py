@@ -8,6 +8,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
     ToolCallAttributes,
 )
 
@@ -15,6 +16,7 @@ from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
+    get_experiment_example_output,
 )
 from phoenix.trace.attributes import unflatten
 
@@ -385,8 +387,175 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             {"chain_output": "chain-output"},
             id="chain-span-with-json-output",
         ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
+            ),
+            {"messages": [{"content": "No tools here.", "role": "assistant"}]},
+            id="llm-span-without-tools",
+        ),
     ],
 )
 def test_get_dataset_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
     output_value = get_dataset_example_output(span)
+    assert expected_output_value == output_value
+
+
+@pytest.mark.parametrize(
+    "span, expected_output_value",
+    [
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I can help with weather."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                            json.dumps(
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "description": "Get current weather",
+                                        "parameters": {
+                                            "type": "object",
+                                            "properties": {"location": {"type": "string"}},
+                                            "required": ["location"],
+                                        },
+                                    },
+                                }
+                            ),
+                        ),
+                    )
+                ),
+            ),
+            {
+                "messages": [{"content": "I can help with weather.", "role": "assistant"}],
+                "available_tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "get_weather",
+                            "description": "Get current weather",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {"location": {"type": "string"}},
+                                "required": ["location"],
+                            },
+                        },
+                    }
+                ],
+            },
+            id="llm-span-with-output-messages-and-single-tool",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I have multiple tools."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                            json.dumps(
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "parameters": {"type": "object"},
+                                    },
+                                }
+                            ),
+                        ),
+                        (
+                            f"{SpanAttributes.LLM_TOOLS}.1.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                            json.dumps(
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "send_email",
+                                        "parameters": {"type": "object"},
+                                    },
+                                }
+                            ),
+                        ),
+                    )
+                ),
+            ),
+            {
+                "messages": [{"content": "I have multiple tools.", "role": "assistant"}],
+                "available_tools": [
+                    {
+                        "type": "function",
+                        "function": {"name": "get_weather", "parameters": {"type": "object"}},
+                    },
+                    {
+                        "type": "function",
+                        "function": {"name": "send_email", "parameters": {"type": "object"}},
+                    },
+                ],
+            },
+            id="llm-span-with-output-messages-and-multiple-tools",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
+            ),
+            {
+                "messages": [{"content": "No tools here.", "role": "assistant"}],
+                "available_tools": [],
+            },
+            id="llm-span-without-tools",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (
+                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
+                            json.dumps(
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "calculator",
+                                        "parameters": {"type": "object"},
+                                    },
+                                }
+                            ),
+                        ),
+                    )
+                ),
+            ),
+            {
+                "output": "plain-text-output",
+                "available_tools": [
+                    {
+                        "type": "function",
+                        "function": {"name": "calculator", "parameters": {"type": "object"}},
+                    }
+                ],
+            },
+            id="llm-span-with-plain-text-output-and-tools",
+        ),
+    ],
+)
+def test_get_experiment_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
+    output_value = get_experiment_example_output(span)
     assert expected_output_value == output_value

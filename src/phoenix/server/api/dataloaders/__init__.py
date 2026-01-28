@@ -11,6 +11,8 @@ from .average_experiment_repeated_run_group_latency import (
 )
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
+from .dataset_evaluators import DatasetEvaluatorsDataLoader
+from .dataset_evaluators_by_id import DatasetEvaluatorsByIdDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
 from .dataset_example_splits import DatasetExampleSplitsDataLoader
@@ -18,6 +20,7 @@ from .dataset_examples_and_versions_by_experiment_run import (
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
 )
 from .dataset_labels import DatasetLabelsDataLoader
+from .datasets_by_evaluator import DatasetsByEvaluatorDataLoader
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -39,6 +42,7 @@ from .experiment_runs_by_experiment_and_example import (
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
+from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
@@ -46,6 +50,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
@@ -91,6 +96,9 @@ __all__ = [
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
     "DatasetDatasetSplitsDataLoader",
+    "DatasetEvaluatorsByIdDataLoader",
+    "DatasetEvaluatorsDataLoader",
+    "DatasetsByEvaluatorDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DatasetExamplesAndVersionsByExperimentRunDataLoader",
@@ -109,6 +117,7 @@ __all__ = [
     "ExperimentRunsByExperimentAndExampleDataLoader",
     "ExperimentSequenceNumberDataLoader",
     "LastUsedTimesByGenerativeModelIdDataLoader",
+    "LatestPromptVersionIdDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
     "NumChildSpansDataLoader",
@@ -117,6 +126,7 @@ __all__ = [
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
+    "SecretsDataLoader",
     "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "./icon";
 
 export type ExternalLinkProps = {
   href: string;

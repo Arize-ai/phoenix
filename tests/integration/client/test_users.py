@@ -17,7 +17,6 @@ from phoenix.auth import (
 )
 from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 
 from .._helpers import _AppInfo, _httpx_client, _log_in
 
@@ -272,12 +271,15 @@ class TestClientForUsersAPI:
                     f"User {i} should not have password in response"
                 )
             elif created_user["auth_method"] == "LDAP":
-                # LDAP users should not have OAuth2 fields or password
+                # LDAP users should not have OAuth2 fields, ldap_unique_id, or password
                 assert "oauth2_client_id" not in created_user, (
                     f"User {i} LDAP user should not expose oauth2_client_id"
                 )
                 assert "oauth2_user_id" not in created_user, (
                     f"User {i} LDAP user should not expose oauth2_user_id"
+                )
+                assert "ldap_unique_id" not in created_user, (
+                    f"User {i} LDAP user should not expose ldap_unique_id"
                 )
                 assert "password" not in created_user, (
                     f"User {i} LDAP user should not have password in response"
@@ -431,44 +433,6 @@ class TestClientForUsersAPI:
             )
         assert "400" in str(exc_info.value), (
             f"Should receive 400 Bad Request when attempting to create {auth_method} SYSTEM user"
-        )
-
-    async def test_cannot_create_oauth2_with_ldap_marker(
-        self,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that OAuth2 users cannot be created with the LDAP marker or variations.
-
-        This prevents attackers from creating fake LDAP users via OAuth2 endpoint.
-        """
-        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
-
-        # Test exact marker
-        user_data = v1.OAuth2UserData(
-            email=f"{token_hex(8)}@example.com",
-            username=f"username_{token_hex(8)}",
-            role="ADMIN",
-            auth_method="OAUTH2",
-            oauth2_client_id=LDAP_CLIENT_ID_MARKER,  # Reserved for LDAP
-        )
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(user=user_data)
-        assert "400" in str(exc_info.value), (
-            "Should receive 400 Bad Request when OAuth2 user tries to use exact LDAP marker"
-        )
-
-        # Test marker with suffix (should also be blocked)
-        user_data = v1.OAuth2UserData(
-            email=f"{token_hex(8)}@example.com",
-            username=f"username_{token_hex(8)}",
-            role="ADMIN",
-            auth_method="OAUTH2",
-            oauth2_client_id=f"{LDAP_CLIENT_ID_MARKER}_custom",
-        )
-        with pytest.raises(Exception) as exc_info:
-            users_api.create(user=user_data)
-        assert "400" in str(exc_info.value), (
-            "Should receive 400 Bad Request when OAuth2 user tries to use LDAP marker with suffix"
         )
 
     async def test_list_pagination(

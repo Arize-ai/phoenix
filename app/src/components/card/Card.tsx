@@ -7,8 +7,9 @@ import {
   useState,
 } from "react";
 
-import { Heading, Icon, Icons } from "@phoenix/components";
-import { useStyleProps, viewStyleProps } from "@phoenix/components/utils";
+import { Heading } from "../content";
+import { Icon, Icons } from "../icon";
+import { useStyleProps, viewStyleProps } from "../utils";
 
 import { cardCSS } from "./styles";
 import { CardProps } from "./types";

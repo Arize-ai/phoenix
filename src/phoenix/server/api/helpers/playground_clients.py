@@ -7,10 +7,24 @@ import json
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
-from dataclasses import dataclass
+from contextlib import AbstractAsyncContextManager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterable,
+    Generic,
+    Hashable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    cast,
+)
 
+import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
@@ -18,11 +32,17 @@ from openinference.semconv.trace import (
     OpenInferenceLLMSystemValues,
     SpanAttributes,
 )
+from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
+from phoenix.db import models
+from phoenix.db.types.model_provider import (
+    GenerativeModelCustomerProviderConfig,
+)
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
     GenericType,
@@ -30,9 +50,14 @@ from phoenix.evals.models.rate_limiters import (
     RateLimiter,
     RateLimitError,
 )
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
-from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.input_types.GenerativeModelInput import (
+    GenerativeModelBuiltinProviderInput,
+    GenerativeModelCustomProviderInput,
+    GenerativeModelInput,
+)
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
     CanonicalParameterName,
@@ -52,30 +77,30 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import (
+    GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
+    GenerativeProviderKey,
+)
+from phoenix.server.api.types.node import from_global_id
 
 if TYPE_CHECKING:
     import httpx
+    from anthropic import AsyncAnthropic
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
-    from botocore.awsrequest import AWSPreparedRequest  # type: ignore[import-untyped]
+    from google.genai.client import AsyncClient as GoogleAsyncClient
     from google.generativeai.types import ContentType
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
     from opentelemetry.util.types import AttributeValue
+    from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
+
+# TypeVar for generic client type
+ClientT = TypeVar("ClientT")
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
-
-
-@dataclass
-class PlaygroundClientCredential:
-    """
-    Represents a credential for LLM providers.
-    """
-
-    env_var_name: str
-    value: str
+ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
 
 
 class Dependency:
@@ -180,14 +205,20 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
         return wrapper
 
 
-class PlaygroundStreamingClient(ABC):
+class PlaygroundStreamingClient(ABC, Generic[ClientT]):
+    _client_factory: Callable[[], AbstractAsyncContextManager[ClientT]]
+
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: Callable[[], AbstractAsyncContextManager[ClientT]],
+        model_name: str,
+        provider: str,
     ) -> None:
-        self._attributes: dict[str, AttributeValue] = dict()
-        self._credentials = credentials or []
+        self._attributes: dict[str, AttributeValue] = {LLM_PROVIDER: provider}
+        self.provider = provider
+        self.model_name = model_name
+        self._client_factory = client_factory
 
     @classmethod
     @abstractmethod
@@ -250,21 +281,25 @@ class PlaygroundStreamingClient(ABC):
         return self._attributes
 
 
-class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
+class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     def __init__(
         self,
         *,
-        client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        client_factory: Callable[[], AbstractAsyncContextManager["AsyncOpenAI"]],
+        model_name: str,
+        provider: str,
     ) -> None:
+        if not model_name:
+            raise BadRequest("A model name is required for OpenAI models")
         from openai import RateLimitError as OpenAIRateLimitError
 
-        super().__init__(model=model, credentials=credentials)
-        self.client = client
-        self.model_name = model.name
-        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
-        self.client._client = _HttpxClient(self.client._client, self._attributes)
+        super().__init__(
+            client_factory=client_factory,
+            provider=provider,
+            model_name=model_name,
+        )
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -282,9 +317,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 max_value=2.0,
             ),
             IntInvocationParameter(
-                invocation_name="max_tokens",
+                invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
+                label="Max Completion Tokens",
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
@@ -341,8 +376,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -352,43 +387,52 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=True,
-            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        ):
-            if (usage := chunk.usage) is not None:
-                token_usage = usage
-            if not chunk.choices:
-                # for Azure, initial chunk contains the content filter
-                continue
-            choice = chunk.choices[0]
-            delta = choice.delta
-            if choice.finish_reason is None:
-                if isinstance(chunk_content := delta.content, str):
-                    text_chunk = TextChunk(content=chunk_content)
-                    yield text_chunk
-                if (tool_calls := delta.tool_calls) is not None:
-                    for tool_call_index, tool_call in enumerate(tool_calls):
-                        tool_call_id = (
-                            tool_call.id
-                            if tool_call.id is not None
-                            else tool_call_ids[tool_call_index]
-                        )
-                        tool_call_ids[tool_call_index] = tool_call_id
-                        if (function := tool_call.function) is not None:
-                            tool_call_chunk = ToolCallChunk(
-                                id=tool_call_id,
-                                function=FunctionCallChunk(
-                                    name=function.name or "",
-                                    arguments=function.arguments or "",
-                                ),
+
+        async with self._client_factory() as client:
+            # Wrap httpx client for instrumentation (fresh client each request)
+            client._client = _HttpxClient(client._client, self._attributes)
+            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+            stream = cast(
+                AsyncIterable[chat.ChatCompletionChunk],
+                await throttled_create(
+                    messages=openai_messages,
+                    model=self.model_name,
+                    stream=True,
+                    stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
+                    tools=tools or omit,
+                    **invocation_parameters,
+                ),
+            )
+            async for chunk in stream:
+                if (usage := chunk.usage) is not None:
+                    token_usage = usage
+                if not chunk.choices:
+                    # for Azure, initial chunk contains the content filter
+                    continue
+                choice = chunk.choices[0]
+                delta = choice.delta
+                if choice.finish_reason is None:
+                    if isinstance(chunk_content := delta.content, str):
+                        text_chunk = TextChunk(content=chunk_content)
+                        yield text_chunk
+                    if (tool_calls := delta.tool_calls) is not None:
+                        for tool_call_index, tool_call in enumerate(tool_calls):
+                            tool_call_id = (
+                                tool_call.id
+                                if tool_call.id is not None
+                                else tool_call_ids[tool_call_index]
                             )
-                            yield tool_call_chunk
+                            tool_call_ids[tool_call_index] = tool_call_id
+                            if (function := tool_call.function) is not None:
+                                tool_call_chunk = ToolCallChunk(
+                                    id=tool_call_id,
+                                    function=FunctionCallChunk(
+                                        name=function.name or "",
+                                        arguments=function.arguments or "",
+                                    ),
+                                )
+                                yield tool_call_chunk
+
         if token_usage is not None:
             self._attributes.update(dict(self._llm_token_counts(token_usage)))
 
@@ -497,28 +541,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
-def _get_credential_value(
-    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str
-) -> Optional[str]:
-    """Helper function to extract credential value from credentials list."""
-    if not credentials:
-        return None
-    return next(
-        (credential.value for credential in credentials if credential.env_var_name == env_var_name),
-        None,
-    )
-
-
-def _require_credential(
-    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str, provider_name: str
-) -> str:
-    """Helper function to require a credential value, raising an exception if not found."""
-    value = _get_credential_value(credentials, env_var_name)
-    if value is None:
-        raise BadRequest(f"Missing required credential '{env_var_name}' for {provider_name}")
-    return value
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
@@ -528,35 +550,7 @@ def _require_credential(
     ],
 )
 class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("DEEPSEEK_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "DEEPSEEK_API_KEY") or getenv(
-            "DEEPSEEK_API_KEY"
-        )
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for DeepSeek models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://api.deepseek.com",
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "deepseek" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "deepseek"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+    pass
 
 
 @register_llm_client(
@@ -572,33 +566,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
     ],
 )
 class XAIStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("XAI_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "XAI_API_KEY") or getenv("XAI_API_KEY")
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for xAI models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://api.x.ai/v1",
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # xAI uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "xai" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "xai"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+    pass
 
 
 @register_llm_client(
@@ -619,27 +587,7 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
     ],
 )
 class OllamaStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("OLLAMA_BASE_URL")
-        if not base_url:
-            raise BadRequest("An Ollama base URL is required for Ollama models")
-        api_key = "ollama"
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # Ollama uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "ollama" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "ollama"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+    pass
 
 
 @register_llm_client(
@@ -682,57 +630,20 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockStreamingClient(PlaygroundStreamingClient):
+class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: Callable[[], AbstractAsyncContextManager["BedrockRuntimeClient"]],
+        model_name: str,
+        provider: str = "aws",
     ) -> None:
-        import boto3  # type: ignore[import-untyped]
-
-        super().__init__(model=model, credentials=credentials)
-        region = model.region or "us-east-1"
-        self.api = "converse"
-        custom_headers = model.custom_headers
-        aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
-            "AWS_ACCESS_KEY_ID"
-        )
-        aws_secret_access_key = _get_credential_value(
-            credentials, "AWS_SECRET_ACCESS_KEY"
-        ) or getenv("AWS_SECRET_ACCESS_KEY")
-        aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
-            "AWS_SESSION_TOKEN"
-        )
-        self.model_name = model.name
-        session = boto3.Session(
-            region_name=region,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-        )
-        client = session.client(service_name="bedrock-runtime")
-
-        # Add custom headers support via boto3 event system
-        if custom_headers:
-
-            def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-                request.headers.update(custom_headers)
-
-            client.meta.events.register("before-send.*", add_custom_headers)
-
-        self.client = client
-        self._attributes[LLM_PROVIDER] = "aws"
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self._attributes[LLM_SYSTEM] = "aws"
-
-    @staticmethod
-    def _setup_custom_headers(client: Any, custom_headers: Mapping[str, str]) -> None:
-        """Setup custom headers using boto3's event system."""
-        if not custom_headers:
-            return
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
-        return [Dependency(name="boto3")]
+        return [Dependency(name="aioboto3")]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -773,12 +684,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        if self.api == "invoke":
-            async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
-                yield chunk
-        else:
-            async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
-                yield chunk
+        async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
+            yield chunk
 
     async def _handle_converse_api(
         self,
@@ -838,98 +745,101 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
                         "name": invocation_parameters["tool_choice"]["name"],
                     }
 
-        # Make the streaming API call
-        response = self.client.converse_stream(**converse_params)
+        # Make the streaming API call using async context manager
+        async with self._client_factory() as client:
+            response = await client.converse_stream(**converse_params)
 
-        # Track active tool calls
-        active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
+            # Track active tool calls
+            active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
 
-        # Process the event stream
-        event_stream = response.get("stream")
+            # Process the event stream asynchronously
+            event_stream = response.get("stream")
+            if event_stream is None:
+                return
 
-        for event in event_stream:
-            # Handle content block start events
-            if "contentBlockStart" in event:
-                content_block_start = event["contentBlockStart"]
-                start_event = content_block_start.get("start", {})
-                block_index = content_block_start.get(
-                    "contentBlockIndex", 0
-                )  # Get the actual index
+            async for event in event_stream:
+                # Handle content block start events
+                if "contentBlockStart" in event:
+                    content_block_start = event["contentBlockStart"]
+                    start_event = content_block_start.get("start", {})
+                    block_index = content_block_start.get(
+                        "contentBlockIndex", 0
+                    )  # Get the actual index
 
-                if "toolUse" in start_event:
-                    tool_use = start_event["toolUse"]
-                    active_tool_calls[block_index] = {  # Use the actual block index
-                        "id": tool_use.get("toolUseId"),
-                        "name": tool_use.get("name"),
-                        "arguments_buffer": "",
-                    }
+                    if "toolUse" in start_event:
+                        tool_use = start_event["toolUse"]
+                        active_tool_calls[block_index] = {  # Use the actual block index
+                            "id": tool_use.get("toolUseId"),
+                            "name": tool_use.get("name"),
+                            "arguments_buffer": "",
+                        }
 
-                    # Yield initial tool call chunk
-                    yield ToolCallChunk(
-                        id=tool_use.get("toolUseId"),
-                        function=FunctionCallChunk(
-                            name=tool_use.get("name"),
-                            arguments="",
-                        ),
-                    )
-
-            # Handle content block delta events
-            elif "contentBlockDelta" in event:
-                content_delta = event["contentBlockDelta"]
-                delta = content_delta.get("delta", {})
-                delta_index = content_delta.get("contentBlockIndex", 0)
-
-                # Handle text delta
-                if "text" in delta:
-                    yield TextChunk(content=delta["text"])
-
-                # Handle tool use delta
-                elif "toolUse" in delta:
-                    tool_delta = delta["toolUse"]
-                    if "input" in tool_delta and delta_index in active_tool_calls:
-                        # Accumulate tool arguments
-                        json_chunk = tool_delta["input"]
-                        active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
-
-                        # Yield incremental argument update
+                        # Yield initial tool call chunk
                         yield ToolCallChunk(
-                            id=active_tool_calls[delta_index]["id"],
+                            id=tool_use.get("toolUseId"),
                             function=FunctionCallChunk(
-                                name=active_tool_calls[delta_index]["name"],
-                                arguments=json_chunk,
+                                name=tool_use.get("name"),
+                                arguments="",
                             ),
                         )
 
-            # Handle content block stop events
-            elif "contentBlockStop" in event:
-                stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
-                if stop_index in active_tool_calls:
-                    del active_tool_calls[stop_index]
+                # Handle content block delta events
+                elif "contentBlockDelta" in event:
+                    content_delta = event["contentBlockDelta"]
+                    delta = content_delta.get("delta", {})
+                    delta_index = content_delta.get("contentBlockIndex", 0)
 
-            elif "metadata" in event:
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
-                        .get("usage", {})
-                        .get("inputTokens", 0)
-                    }
-                )
+                    # Handle text delta
+                    if "text" in delta:
+                        yield TextChunk(content=delta["text"])
 
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
-                        .get("usage", {})
-                        .get("outputTokens", 0)
-                    }
-                )
+                    # Handle tool use delta
+                    elif "toolUse" in delta:
+                        tool_delta = delta["toolUse"]
+                        if "input" in tool_delta and delta_index in active_tool_calls:
+                            # Accumulate tool arguments
+                            json_chunk = tool_delta["input"]
+                            active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
 
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
-                        .get("usage", {})
-                        .get("totalTokens", 0)
-                    }
-                )
+                            # Yield incremental argument update
+                            yield ToolCallChunk(
+                                id=active_tool_calls[delta_index]["id"],
+                                function=FunctionCallChunk(
+                                    name=active_tool_calls[delta_index]["name"],
+                                    arguments=json_chunk,
+                                ),
+                            )
+
+                # Handle content block stop events
+                elif "contentBlockStop" in event:
+                    stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
+                    if stop_index in active_tool_calls:
+                        del active_tool_calls[stop_index]
+
+                elif "metadata" in event:
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
+                            .get("usage", {})
+                            .get("inputTokens", 0)
+                        }
+                    )
+
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
+                            .get("usage", {})
+                            .get("outputTokens", 0)
+                        }
+                    )
+
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
+                            .get("usage", {})
+                            .get("totalTokens", 0)
+                        }
+                    )
 
     async def _handle_invoke_api(
         self,
@@ -963,92 +873,96 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
         if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
             bedrock_params["top_p"] = invocation_parameters["top_p"]
 
-        response = self.client.invoke_model_with_response_stream(
-            modelId=self.model_name,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(bedrock_params),
-            trace="ENABLED_FULL",
-        )
+        # Use async context manager for client creation
+        async with self._client_factory() as client:
+            response = await client.invoke_model_with_response_stream(
+                modelId=self.model_name,
+                contentType="application/json",
+                accept="application/json",
+                body=json.dumps(bedrock_params),
+                trace="ENABLED_FULL",
+            )
 
-        # The response['body'] is an EventStream object
-        event_stream = response["body"]
+            # The response['body'] is an async EventStream object
+            event_stream = response["body"]
 
-        # Track active tool calls and their accumulating arguments
-        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
+            # Track active tool calls and their accumulating arguments
+            active_tool_calls: dict[
+                int, dict[str, Any]
+            ] = {}  # index -> {id, name, arguments_buffer}
 
-        for event in event_stream:
-            if "chunk" in event:
-                chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
+            async for event in event_stream:
+                if "chunk" in event:
+                    chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
 
-                # Handle text content
-                if chunk_data.get("type") == "content_block_delta":
-                    delta = chunk_data.get("delta", {})
-                    index = chunk_data.get("index", 0)
+                    # Handle text content
+                    if chunk_data.get("type") == "content_block_delta":
+                        delta = chunk_data.get("delta", {})
+                        index = chunk_data.get("index", 0)
 
-                    if delta.get("type") == "text_delta" and "text" in delta:
-                        yield TextChunk(content=delta["text"])
+                        if delta.get("type") == "text_delta" and "text" in delta:
+                            yield TextChunk(content=delta["text"])
 
-                    elif delta.get("type") == "input_json_delta":
-                        # Accumulate tool arguments
-                        if index in active_tool_calls:
-                            active_tool_calls[index]["arguments_buffer"] += delta.get(
-                                "partial_json", ""
-                            )
-                            # Yield incremental argument update
+                        elif delta.get("type") == "input_json_delta":
+                            # Accumulate tool arguments
+                            if index in active_tool_calls:
+                                active_tool_calls[index]["arguments_buffer"] += delta.get(
+                                    "partial_json", ""
+                                )
+                                # Yield incremental argument update
+                                yield ToolCallChunk(
+                                    id=active_tool_calls[index]["id"],
+                                    function=FunctionCallChunk(
+                                        name=active_tool_calls[index]["name"],
+                                        arguments=delta.get("partial_json", ""),
+                                    ),
+                                )
+
+                    # Handle tool call start
+                    elif chunk_data.get("type") == "content_block_start":
+                        content_block = chunk_data.get("content_block", {})
+                        index = chunk_data.get("index", 0)
+
+                        if content_block.get("type") == "tool_use":
+                            # Initialize tool call tracking
+                            active_tool_calls[index] = {
+                                "id": content_block.get("id"),
+                                "name": content_block.get("name"),
+                                "arguments_buffer": "",
+                            }
+
+                            # Yield initial tool call chunk
                             yield ToolCallChunk(
-                                id=active_tool_calls[index]["id"],
+                                id=content_block.get("id"),
                                 function=FunctionCallChunk(
-                                    name=active_tool_calls[index]["name"],
-                                    arguments=delta.get("partial_json", ""),
+                                    name=content_block.get("name"),
+                                    arguments="",  # Start with empty, will be filled by deltas
                                 ),
                             )
 
-                # Handle tool call start
-                elif chunk_data.get("type") == "content_block_start":
-                    content_block = chunk_data.get("content_block", {})
-                    index = chunk_data.get("index", 0)
+                    # Handle content block stop (tool call complete)
+                    elif chunk_data.get("type") == "content_block_stop":
+                        index = chunk_data.get("index", 0)
+                        if index in active_tool_calls:
+                            # Tool call is complete, clean up
+                            del active_tool_calls[index]
 
-                    if content_block.get("type") == "tool_use":
-                        # Initialize tool call tracking
-                        active_tool_calls[index] = {
-                            "id": content_block.get("id"),
-                            "name": content_block.get("name"),
-                            "arguments_buffer": "",
-                        }
-
-                        # Yield initial tool call chunk
-                        yield ToolCallChunk(
-                            id=content_block.get("id"),
-                            function=FunctionCallChunk(
-                                name=content_block.get("name"),
-                                arguments="",  # Start with empty, will be filled by deltas
-                            ),
+                    elif chunk_data.get("type") == "message_stop":
+                        self._attributes.update(
+                            {
+                                LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
+                                    "amazon-bedrock-invocationMetrics", {}
+                                ).get("outputTokenCount", 0)
+                            }
                         )
 
-                # Handle content block stop (tool call complete)
-                elif chunk_data.get("type") == "content_block_stop":
-                    index = chunk_data.get("index", 0)
-                    if index in active_tool_calls:
-                        # Tool call is complete, clean up
-                        del active_tool_calls[index]
-
-                elif chunk_data.get("type") == "message_stop":
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                                "amazon-bedrock-invocationMetrics", {}
-                            ).get("outputTokenCount", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                                "amazon-bedrock-invocationMetrics", {}
-                            ).get("inputTokenCount", 0)
-                        }
-                    )
+                        self._attributes.update(
+                            {
+                                LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
+                                    "amazon-bedrock-invocationMetrics", {}
+                                ).get("inputTokenCount", 0)
+                            }
+                        )
 
     def _build_bedrock_messages(
         self,
@@ -1160,35 +1074,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient):
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("OPENAI_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "OPENAI_API_KEY") or getenv("OPENAI_API_KEY")
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for OpenAI models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            default_headers=model.custom_headers or None,
-            timeout=30,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+    pass
 
 
-_OPENAI_REASONING_MODELS = [
+OPENAI_REASONING_MODELS = [
     "gpt-5.2",
     "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
@@ -1257,7 +1146,7 @@ class OpenAIReasoningReasoningModelsMixin:
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=_OPENAI_REASONING_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1327,54 +1216,19 @@ class OpenAIReasoningNonStreamingClient(
 class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ):
-        from openai import AsyncAzureOpenAI
-
-        if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
-            raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
-            raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "AZURE_OPENAI_API_KEY") or getenv(
-            "AZURE_OPENAI_API_KEY"
-        )
-
-        if api_key:
-            client = AsyncAzureOpenAI(
-                api_key=api_key,
-                azure_endpoint=endpoint,
-                api_version=api_version,
-                default_headers=model.custom_headers or None,
-            )
-        else:
-            try:
-                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
-            except ImportError:
-                raise BadRequest(
-                    "Provide an API key for Azure OpenAI models or use azure-identity, see. e.g. "
-                    "https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.environmentcredential?view=azure-python"  # noqa: E501
-                )
-
-            client = AsyncAzureOpenAI(
-                azure_ad_token_provider=get_bearer_token_provider(
-                    DefaultAzureCredential(),
-                    "https://cognitiveservices.azure.com/.default",
-                ),
-                azure_endpoint=endpoint,
-                api_version=api_version,
-                default_headers=model.custom_headers or None,
-            )
-        super().__init__(client=client, model=model, credentials=credentials)
+        *,
+        client_factory: Callable[[], AbstractAsyncContextManager["AsyncOpenAI"]],
+        model_name: str,
+        provider: str = "azure",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=_OPENAI_REASONING_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1389,7 +1243,8 @@ class AzureOpenAIReasoningNonStreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
+        from openai import omit
+        from openai.types import chat
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1398,14 +1253,20 @@ class AzureOpenAIReasoningNonStreamingClient(
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=False,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        )
+        async with self._client_factory() as client:
+            # Wrap httpx client for instrumentation (fresh client each request)
+            client._client = _HttpxClient(client._client, self._attributes)
+            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
+            response = cast(
+                chat.ChatCompletion,
+                await throttled_create(
+                    messages=openai_messages,
+                    model=self.model_name,
+                    stream=False,
+                    tools=tools or omit,
+                    **invocation_parameters,
+                ),
+            )
 
         if response.usage is not None:
             self._attributes.update(dict(self._llm_token_counts(response.usage)))
@@ -1416,13 +1277,18 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         if choice.message.tool_calls:
             for tool_call in choice.message.tool_calls:
-                yield ToolCallChunk(
-                    id=tool_call.id,
-                    function=FunctionCallChunk(
-                        name=tool_call.function.name,
-                        arguments=tool_call.function.arguments,
-                    ),
-                )
+                if tool_call.type == "function":
+                    yield ToolCallChunk(
+                        id=tool_call.id,
+                        function=FunctionCallChunk(
+                            name=tool_call.function.name,
+                            arguments=tool_call.function.arguments,
+                        ),
+                    )
+                elif tool_call.type == "custom":
+                    raise NotImplementedError("custom tool calls are not supported")
+                else:
+                    assert_never(tool_call.type)
 
     def to_openai_chat_completion_param(
         self,
@@ -1488,33 +1354,20 @@ class AzureOpenAIReasoningNonStreamingClient(
         "claude-3-haiku-20240307",
     ],
 )
-class AnthropicStreamingClient(PlaygroundStreamingClient):
+class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: Callable[[], AbstractAsyncContextManager["AsyncAnthropic"]],
+        model_name: str,
+        provider: str = "anthropic",
     ) -> None:
         import anthropic
 
-        super().__init__(model=model, credentials=credentials)
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "ANTHROPIC_API_KEY") or getenv(
-            "ANTHROPIC_API_KEY"
-        )
-
-        if not api_key:
-            raise BadRequest("An API key is required for Anthropic models")
-
-        self.client = anthropic.AsyncAnthropic(
-            api_key=api_key,
-            default_headers=model.custom_headers or None,
-        )
-        self.model_name = model.name
-        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
-        self.client._client = _HttpxClient(self.client._client, self._attributes)
+        self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1576,72 +1429,78 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "tools": tools,
             **invocation_parameters,
         }
-        throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
-        async with await throttled_stream(**anthropic_params) as stream:
-            async for event in stream:
-                if isinstance(event, anthropic_types.RawMessageStartEvent):
-                    usage = event.message.usage
 
-                    token_counts: dict[str, Any] = {}
-                    if prompt_tokens := (
-                        (usage.input_tokens or 0)
-                        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-                        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+        async with self._client_factory() as client:
+            # Wrap httpx client for instrumentation (fresh client each request)
+            client._client = _HttpxClient(client._client, self._attributes)
+            throttled_stream = self.rate_limiter._alimit(client.messages.stream)
+            async with await throttled_stream(**anthropic_params) as stream:
+                async for event in stream:
+                    if isinstance(event, anthropic_types.RawMessageStartEvent):
+                        usage = event.message.usage
+
+                        token_counts: dict[str, Any] = {}
+                        if prompt_tokens := (
+                            (usage.input_tokens or 0)
+                            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                        ):
+                            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+                        if cache_creation_tokens := getattr(
+                            usage, "cache_creation_input_tokens", None
+                        ):
+                            if cache_creation_tokens is not None:
+                                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
+                                    cache_creation_tokens
+                                )
+                        self._attributes.update(token_counts)
+                    elif isinstance(event, anthropic_streaming.TextEvent):
+                        yield TextChunk(content=event.text)
+                    elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                        usage = event.message.usage
+                        output_token_counts: dict[str, Any] = {}
+                        if usage.output_tokens:
+                            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                            if cache_read_tokens is not None:
+                                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                    cache_read_tokens
+                                )
+                        self._attributes.update(output_token_counts)
+                    elif (
+                        isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                        and event.content_block.type == "tool_use"
                     ):
-                        token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                    if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
-                        if cache_creation_tokens is not None:
-                            token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                                cache_creation_tokens
-                            )
-                    self._attributes.update(token_counts)
-                elif isinstance(event, anthropic_streaming.TextEvent):
-                    yield TextChunk(content=event.text)
-                elif isinstance(event, anthropic_streaming.MessageStopEvent):
-                    usage = event.message.usage
-                    output_token_counts: dict[str, Any] = {}
-                    if usage.output_tokens:
-                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                        if cache_read_tokens is not None:
-                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                                cache_read_tokens
-                            )
-                    self._attributes.update(output_token_counts)
-                elif (
-                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
-                    and event.content_block.type == "tool_use"
-                ):
-                    tool_call_chunk = ToolCallChunk(
-                        id=event.content_block.id,
-                        function=FunctionCallChunk(
-                            name=event.content_block.name,
-                            arguments=json.dumps(event.content_block.input),
+                        tool_call_chunk = ToolCallChunk(
+                            id=event.content_block.id,
+                            function=FunctionCallChunk(
+                                name=event.content_block.name,
+                                arguments=json.dumps(event.content_block.input),
+                            ),
+                        )
+                        yield tool_call_chunk
+                    elif isinstance(
+                        event,
+                        (
+                            anthropic_types.RawContentBlockStartEvent,
+                            anthropic_types.RawContentBlockDeltaEvent,
+                            anthropic_types.RawMessageDeltaEvent,
+                            anthropic_streaming.ContentBlockStopEvent,
+                            anthropic_streaming.InputJsonEvent,
                         ),
-                    )
-                    yield tool_call_chunk
-                elif isinstance(
-                    event,
-                    (
-                        anthropic_types.RawContentBlockStartEvent,
-                        anthropic_types.RawContentBlockDeltaEvent,
-                        anthropic_types.RawMessageDeltaEvent,
-                        anthropic_streaming.ContentBlockStopEvent,
-                        anthropic_streaming.InputJsonEvent,
-                    ),
-                ):
-                    # event types emitted by the stream that don't contain useful information
-                    pass
-                elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
-                    pass
-                elif isinstance(event, anthropic_streaming._types.SignatureEvent):
-                    pass
-                else:
-                    assert_never(event)
+                    ):
+                        # event types emitted by the stream that don't contain useful information
+                        pass
+                    elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                        raise NotImplementedError
+                    elif isinstance(event, anthropic_streaming._types.CitationEvent):
+                        raise NotImplementedError
+                    elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                        pass
+                    elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                        pass
+                    else:
+                        assert_never(event)
 
     def _build_anthropic_messages(
         self,
@@ -1689,24 +1548,27 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         return content
 
 
+ANTHROPIC_REASONING_MODELS = [
+    "claude-opus-4-5",
+    "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5",
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4-1",
+    "claude-opus-4-1-20250805",
+    "claude-sonnet-4-0",
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-0",
+    "claude-opus-4-20250514",
+    "claude-3-7-sonnet-latest",
+    "claude-3-7-sonnet-20250219",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
-    model_names=[
-        "claude-opus-4-5",
-        "claude-opus-4-5-20251101",
-        "claude-sonnet-4-5",
-        "claude-sonnet-4-5-20250929",
-        "claude-haiku-4-5",
-        "claude-haiku-4-5-20251001",
-        "claude-opus-4-1",
-        "claude-opus-4-1-20250805",
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-0",
-        "claude-opus-4-20250514",
-        "claude-3-7-sonnet-latest",
-        "claude-3-7-sonnet-20250219",
-    ],
+    model_names=ANTHROPIC_REASONING_MODELS,
 )
 class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     @classmethod
@@ -1735,31 +1597,17 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
         "gemini-1.0-pro",
     ],
 )
-class GoogleStreamingClient(PlaygroundStreamingClient):
+class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: Callable[[], AbstractAsyncContextManager["GoogleAsyncClient"]],
+        model_name: str,
+        provider: str = "google",
     ) -> None:
-        import google.genai as google_genai
-
-        super().__init__(model=model, credentials=credentials)
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = (
-            _get_credential_value(credentials, "GEMINI_API_KEY")
-            or _get_credential_value(credentials, "GOOGLE_API_KEY")
-            or getenv("GEMINI_API_KEY")
-            or getenv("GOOGLE_API_KEY")
-        )
-
-        if not api_key:
-            raise BadRequest("An API key is required for Gemini models")
-
-        self.client = google_genai.Client(api_key=api_key)
-        self.model_name = model.name
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1836,34 +1684,36 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
 
         config = types.GenerateContentConfig.model_validate(config_dict)
-        stream = await self.client.aio.models.generate_content_stream(
-            model=f"models/{self.model_name}",
-            contents=contents,
-            config=config,
-        )
-        async for event in stream:
-            self._attributes.update(
-                {
-                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                }
-            )
 
-            if event.candidates:
-                candidate = event.candidates[0]
-                if candidate.content and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        if function_call := part.function_call:
-                            yield ToolCallChunk(
-                                id=function_call.id or "",
-                                function=FunctionCallChunk(
-                                    name=function_call.name or "",
-                                    arguments=json.dumps(function_call.args or {}),
-                                ),
-                            )
-                        elif text := part.text:
-                            yield TextChunk(content=text)
+        async with self._client_factory() as client:
+            stream = await client.models.generate_content_stream(
+                model=f"models/{self.model_name}",
+                contents=contents,
+                config=config,
+            )
+            async for event in stream:
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                    }
+                )
+
+                if event.candidates:
+                    candidate = event.candidates[0]
+                    if candidate.content and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if function_call := part.function_call:
+                                yield ToolCallChunk(
+                                    id=function_call.id or "",
+                                    function=FunctionCallChunk(
+                                        name=function_call.name or "",
+                                        arguments=json.dumps(function_call.args or {}),
+                                    ),
+                                )
+                            elif text := part.text:
+                                yield TextChunk(content=text)
 
     def _build_google_messages(
         self,
@@ -2026,3 +1876,560 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
         self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
         response = await self.__wrapped__.send(request, **kwargs)
         return response
+
+
+async def get_playground_client(
+    *,
+    model: GenerativeModelInput,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+) -> "PlaygroundStreamingClient[Any]":
+    """
+    Create a playground streaming client for the given model configuration.
+
+    Resolves credentials from multiple sources in priority order:
+    1. Explicitly provided credentials in the input
+    2. Encrypted secrets stored in the database
+    3. Environment variables
+
+    Args:
+        model: The model configuration specifying either a builtin or custom provider.
+        db: Database session factory for loading secrets and custom provider configs.
+        decrypt: Function to decrypt encrypted values from the database.
+        credentials: Optional list of credentials to use for authentication.
+
+    Returns:
+        A configured PlaygroundStreamingClient ready for chat completions.
+
+    Raises:
+        BadRequest: If required credentials are missing or invalid.
+        NotFound: If a custom provider ID doesn't exist.
+    """
+    if builtin := model.builtin:
+        return await _get_builtin_provider_client(builtin, session, decrypt, credentials)
+    if custom := model.custom:
+        return await _get_custom_provider_client(custom, session, decrypt)
+    raise BadRequest("Model input must specify either a builtin or custom provider")
+
+
+async def _resolve_secrets(
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    *keys: str,
+) -> dict[str, str]:
+    """
+    Resolve secrets from the database.
+
+    Args:
+        db: Database session factory.
+        decrypt: Decryption function.
+        *keys: Secret keys to look up.
+
+    Returns:
+        Dictionary mapping key names to their decrypted values.
+        Keys not found in the database are omitted.
+
+    Raises:
+        BadRequest: If a secret exists but cannot be decrypted.
+    """
+    secrets = (
+        await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+    ).all()
+    result: dict[str, str] = {}
+    for secret in secrets:
+        try:
+            result[secret.key] = decrypt(secret.value).decode("utf-8")
+        except Exception:
+            raise BadRequest(f"Failed to decrypt secret: {secret.key}")
+    return result
+
+
+def _get_credential_from_input(
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    env_var_name: str,
+) -> str | None:
+    """Extract a credential value from the input credentials list."""
+    if not credentials:
+        return None
+    return next(
+        (str(c.value) for c in credentials if c.env_var_name == env_var_name),
+        None,
+    )
+
+
+async def _get_builtin_provider_client(
+    obj: GenerativeModelBuiltinProviderInput,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+) -> "PlaygroundStreamingClient[Any]":
+    """
+    Create a playground client from a builtin provider configuration.
+
+    Credentials are resolved in priority order:
+    1. Explicitly provided credentials
+    2. Encrypted secrets in the database
+    3. Environment variables
+    """
+    headers = dict(obj.custom_headers) if obj.custom_headers else None
+    provider_key = obj.provider_key
+    model_name = obj.name
+    provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
+
+    if provider_key == GenerativeProviderKey.OPENAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "OPENAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
+            or getenv("OPENAI_API_KEY")
+        )
+        base_url = obj.base_url or getenv("OPENAI_BASE_URL")
+
+        if not api_key:
+            if not base_url:
+                raise BadRequest(
+                    "An API key is required for OpenAI models. "
+                    "Set the OPENAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Some OpenAI-compatible APIs don't need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_openai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+                timeout=30,
+            )
+
+        client_factory: ClientFactory = create_openai_client
+        if model_name in OPENAI_REASONING_MODELS:
+            return OpenAIReasoningNonStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "AZURE_OPENAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "AZURE_OPENAI_API_KEY")).get(
+                "AZURE_OPENAI_API_KEY"
+            )
+            or getenv("AZURE_OPENAI_API_KEY")
+        )
+        endpoint = obj.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
+
+        if not endpoint:
+            raise BadRequest(
+                "An Azure endpoint is required for Azure OpenAI models. "
+                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
+            )
+
+        # Construct the v1 API base URL
+        endpoint = endpoint.rstrip("/")
+        base_url = (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
+
+        # Create factory that returns fresh Azure OpenAI client (native async context manager)
+        # Uses AsyncOpenAI with base_url (cleaner than AsyncAzureOpenAI)
+        if api_key:
+
+            def create_azure_client() -> AsyncOpenAI:
+                return AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                    default_headers=headers,
+                )
+
+            client_factory = create_azure_client
+        else:
+            try:
+                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+            except ImportError:
+                raise BadRequest(
+                    "Provide an API key for Azure OpenAI models or install azure-identity"
+                )
+            # Capture token provider in closure for fresh client creation
+            # Passing token_provider as api_key requires openai>=1.106.0
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default",
+            )
+
+            def create_client_with_token() -> AsyncOpenAI:
+                return AsyncOpenAI(
+                    api_key=token_provider,
+                    base_url=base_url,
+                    default_headers=headers,
+                )
+
+            client_factory = create_client_with_token
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIReasoningNonStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AzureOpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.ANTHROPIC:
+        try:
+            import anthropic
+        except ImportError:
+            raise BadRequest("Anthropic package not installed. Run: pip install anthropic")
+
+        api_key = (
+            _get_credential_from_input(credentials, "ANTHROPIC_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "ANTHROPIC_API_KEY")).get(
+                "ANTHROPIC_API_KEY"
+            )
+            or getenv("ANTHROPIC_API_KEY")
+        )
+        if not api_key:
+            raise BadRequest(
+                "An API key is required for Anthropic models. "
+                "Set the ANTHROPIC_API_KEY environment variable or use a custom provider."
+            )
+
+        # Create factory that returns fresh Anthropic client (native async context manager)
+        def create_anthropic_client() -> anthropic.AsyncAnthropic:
+            return anthropic.AsyncAnthropic(api_key=api_key, default_headers=headers)
+
+        client_factory = create_anthropic_client
+        if model_name in ANTHROPIC_REASONING_MODELS:
+            return AnthropicReasoningStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AnthropicStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.GOOGLE:
+        try:
+            from google.genai.client import Client as GoogleGenAIClient
+        except ImportError:
+            raise BadRequest("Google GenAI package not installed. Run: pip install google-genai")
+
+        # Try input credentials first
+        api_key = _get_credential_from_input(
+            credentials, "GEMINI_API_KEY"
+        ) or _get_credential_from_input(credentials, "GOOGLE_API_KEY")
+
+        # Fall back to database secrets
+        if not api_key:
+            secrets = await _resolve_secrets(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
+            api_key = secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
+
+        # Fall back to environment variables
+        if not api_key:
+            api_key = getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")
+
+        if not api_key:
+            raise BadRequest(
+                "An API key is required for Google GenAI models. "
+                "Set the GEMINI_API_KEY environment variable or use a custom provider."
+            )
+
+        # Create factory that returns fresh Google GenAI async client (native async context manager)
+        # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
+        def create_google_client() -> "GoogleAsyncClient":
+            return GoogleGenAIClient(api_key=api_key).aio
+
+        client_factory = create_google_client
+        return GoogleStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.AWS:
+        try:
+            import aioboto3  # type: ignore[import-untyped]
+        except ImportError:
+            raise BadRequest("aioboto3 package not installed. Run: pip install aioboto3")
+
+        region = obj.region or getenv("AWS_REGION") or "us-east-1"
+
+        # Collect credentials from input
+        aws_access_key_id = _get_credential_from_input(credentials, "AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = _get_credential_from_input(credentials, "AWS_SECRET_ACCESS_KEY")
+        aws_session_token = _get_credential_from_input(credentials, "AWS_SESSION_TOKEN")
+
+        # Fall back to database secrets for missing credentials
+        if not aws_access_key_id or not aws_secret_access_key:
+            secrets = await _resolve_secrets(
+                session, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
+            )
+            aws_access_key_id = aws_access_key_id or secrets.get("AWS_ACCESS_KEY_ID")
+            aws_secret_access_key = aws_secret_access_key or secrets.get("AWS_SECRET_ACCESS_KEY")
+            aws_session_token = aws_session_token or secrets.get("AWS_SESSION_TOKEN")
+
+        # Fall back to environment variables
+        aws_access_key_id = aws_access_key_id or getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = aws_secret_access_key or getenv("AWS_SECRET_ACCESS_KEY")
+        aws_session_token = aws_session_token or getenv("AWS_SESSION_TOKEN")
+
+        aioboto3_session = aioboto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            region_name=region,
+        )
+
+        # Create factory that returns aioboto3's ClientCreatorContext (async context manager)
+        def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
+            return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
+
+        client_factory = create_bedrock_client
+
+        return BedrockStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.DEEPSEEK:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "DEEPSEEK_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "DEEPSEEK_API_KEY")).get(
+                "DEEPSEEK_API_KEY"
+            )
+            or getenv("DEEPSEEK_API_KEY")
+        )
+        base_url = obj.base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
+
+        if not api_key:
+            if base_url == "https://api.deepseek.com":
+                raise BadRequest(
+                    "An API key is required for DeepSeek models. "
+                    "Set the DEEPSEEK_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_deepseek_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_deepseek_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.XAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "XAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
+            or getenv("XAI_API_KEY")
+        )
+        base_url = obj.base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.x.ai/v1":
+                raise BadRequest(
+                    "An API key is required for xAI models. "
+                    "Set the XAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_xai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_xai_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.OLLAMA:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        base_url = obj.base_url or getenv("OLLAMA_BASE_URL")
+        if not base_url:
+            raise BadRequest(
+                "A base URL is required for Ollama models. "
+                "Set the OLLAMA_BASE_URL environment variable (e.g., http://localhost:11434/v1) "
+                "or use a custom provider."
+            )
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_ollama_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key="ollama",
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_ollama_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    else:
+        assert_never(provider_key)
+
+
+async def _get_custom_provider_client(
+    obj: GenerativeModelCustomProviderInput,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> "PlaygroundStreamingClient[Any]":
+    """
+    Create a playground client from a custom provider stored in the database.
+
+    Loads the provider configuration, decrypts it, and creates the appropriate
+    SDK client based on the provider type.
+
+    Args:
+        obj: Custom provider input containing provider ID and model details.
+        session: Database session.
+        decrypt: Decryption function for the stored config.
+
+    Returns:
+        A configured PlaygroundStreamingClient.
+
+    Raises:
+        NotFound: If the provider ID doesn't exist.
+        BadRequest: If decryption or parsing fails, or client creation fails.
+    """
+
+    _, provider_id = from_global_id(obj.provider_id)
+
+    provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
+    if not provider_record:
+        raise NotFound(f"Custom provider with ID {obj.provider_id} not found")
+
+    try:
+        decrypted_data = decrypt(provider_record.config)
+    except Exception:
+        raise BadRequest("Failed to decrypt custom provider config")
+
+    try:
+        config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data)
+    except ValidationError:
+        raise BadRequest("Failed to parse custom provider config")
+
+    model_name = obj.model_name
+    provider = provider_record.provider
+    headers = dict(obj.extra_headers) if obj.extra_headers else None
+    cfg = config.root
+
+    if cfg.type == "openai":
+        try:
+            openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if model_name in OPENAI_REASONING_MODELS:
+            return OpenAIReasoningNonStreamingClient(
+                client_factory=openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return OpenAIStreamingClient(
+            client_factory=openai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "azure_openai":
+        try:
+            azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIReasoningNonStreamingClient(
+                client_factory=azure_openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AzureOpenAIStreamingClient(
+            client_factory=azure_openai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "anthropic":
+        try:
+            anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if model_name in ANTHROPIC_REASONING_MODELS:
+            return AnthropicReasoningStreamingClient(
+                client_factory=anthropic_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AnthropicStreamingClient(
+            client_factory=anthropic_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "aws_bedrock":
+        try:
+            aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        return BedrockStreamingClient(
+            client_factory=aws_bedrock_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "google_genai":
+        try:
+            google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        return GoogleStreamingClient(
+            client_factory=google_genai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    else:
+        assert_never(cfg)

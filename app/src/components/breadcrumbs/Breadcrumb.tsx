@@ -5,7 +5,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "../icon";
 
 interface BreadcrumbProps extends AriaBreadcrumbProps {}
 

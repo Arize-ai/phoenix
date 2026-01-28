@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3bc0248e0f25d923e935b829f0f9c4af>>
+ * @generated SignedSource<<bad3979f639994874b99bea8748bdea8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type NewPromptLabelDialogMutation$variables = {
 export type NewPromptLabelDialogMutation$data = {
   readonly createPromptLabel: {
     readonly promptLabels: ReadonlyArray<{
-      readonly color: string;
+      readonly color: string | null;
       readonly id: string;
       readonly name: string;
     }>;

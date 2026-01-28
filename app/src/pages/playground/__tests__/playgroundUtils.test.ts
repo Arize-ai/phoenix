@@ -1,3 +1,4 @@
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
@@ -22,9 +23,11 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { InvocationParameter } from "../InvocationParametersFormFields";
 import {
   areInvocationParamsEqual,
+  mergeInvocationParametersWithDefaults,
+} from "../invocationParameterUtils";
+import {
   areRequiredInvocationParametersConfigured,
   extractVariablesFromInstances,
   getAzureConfigFromAttributes,
@@ -37,7 +40,6 @@ import {
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
-  mergeInvocationParametersWithDefaults,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -51,7 +53,7 @@ import {
   spanAttributesWithInputMessages,
   SpanTool,
   SpanToolCall,
-  tesSpanAnthropicTool,
+  testSpanAnthropicTool,
   testSpanAnthropicToolDefinition,
   testSpanOpenAITool,
   testSpanOpenAIToolJsonSchema,
@@ -435,6 +437,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: testSpanOpenAIToolJsonSchema,
           },
         ],
@@ -1349,7 +1352,7 @@ describe("getToolsFromAttributes", () => {
   const ProviderToToolTestMap: ProviderToolTestMap = {
     ANTHROPIC: [
       "ANTHROPIC",
-      tesSpanAnthropicTool,
+      testSpanAnthropicTool,
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
@@ -1379,6 +1382,7 @@ describe("getToolsFromAttributes", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: toolDefinition,
           },
         ],
@@ -1673,7 +1677,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "gpt-4o-mini",
-      apiVersion: "2024-10-01-preview",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1688,7 +1691,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "my-azure-deployment",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1706,7 +1708,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: "2024-06-01",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1716,7 +1717,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: null,
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1734,7 +1734,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1748,7 +1747,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1765,7 +1763,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1779,7 +1776,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
   });

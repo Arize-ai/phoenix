@@ -51,6 +51,7 @@ import psycopg
 import testing.postgresql
 from alembic import command
 from alembic.config import Config
+from psycopg import sql
 from psycopg.rows import dict_row
 from sqlalchemy import URL, create_engine
 
@@ -139,7 +140,7 @@ class PostgreSQLDDLExtractor:
             self.conn.close()
 
     def _execute_query(
-        self, query: str, params: tuple[Any, ...], operation_name: str
+        self, query: sql.SQL | sql.Composed, params: tuple[Any, ...], operation_name: str
     ) -> list[dict[str, Any]]:
         """Execute database query with standardized error handling.
 
@@ -159,7 +160,7 @@ class PostgreSQLDDLExtractor:
 
     def extract_all_types_ddl(self, schema: str = DEFAULT_SCHEMA) -> list[TypeInfo]:
         """Extract DDL for all user-defined types (enums, etc.) in the specified schema."""
-        query = """
+        query = sql.SQL("""
             SELECT
                 t.typname as type_name,
                 t.typtype as type_type,
@@ -172,7 +173,7 @@ class PostgreSQLDDLExtractor:
             AND t.typname NOT LIKE 'pg_%%'  -- exclude system types
             GROUP BY t.typname, t.typtype
             ORDER BY t.typname
-        """
+        """)
         results = self._execute_query(
             query, (schema,), f"getting user-defined types for schema {schema}"
         )
@@ -307,7 +308,7 @@ class PostgreSQLDDLExtractor:
 
     def _get_columns(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get column information for a table."""
-        query = """
+        query = sql.SQL("""
             SELECT
                 c.column_name,
                 CASE
@@ -331,14 +332,14 @@ class PostgreSQLDDLExtractor:
             FROM information_schema.columns c
             WHERE c.table_schema = %s AND c.table_name = %s
             ORDER BY c.ordinal_position
-        """
+        """)
         return self._execute_query(
             query, (schema, table_name), f"getting columns for {schema}.{table_name}"
         )
 
     def _get_constraints(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get table constraints (PRIMARY KEY, UNIQUE, CHECK)."""
-        query = """
+        query = sql.SQL("""
             SELECT
                 tc.constraint_name,
                 tc.constraint_type,
@@ -354,14 +355,14 @@ class PostgreSQLDDLExtractor:
               AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE', 'CHECK')
             GROUP BY tc.constraint_name, tc.constraint_type, pgc.oid
             ORDER BY tc.constraint_type, tc.constraint_name
-        """
+        """)
         return self._execute_query(
             query, (schema, table_name), f"getting constraints for {schema}.{table_name}"
         )
 
     def _get_foreign_keys(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get foreign key constraints with full details."""
-        query = """
+        query = sql.SQL("""
             SELECT
                 tc.constraint_name,
                 array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
@@ -385,7 +386,7 @@ class PostgreSQLDDLExtractor:
             GROUP BY tc.constraint_name, kcu2.table_schema, kcu2.table_name,
                      rc.update_rule, rc.delete_rule
             ORDER BY tc.constraint_name
-        """
+        """)
         return self._execute_query(
             query, (schema, table_name), f"getting foreign keys for {schema}.{table_name}"
         )
@@ -399,7 +400,7 @@ class PostgreSQLDDLExtractor:
 
         Returns index metadata including name, uniqueness, and definition.
         """
-        query = """
+        query = sql.SQL("""
             SELECT DISTINCT
                 i.relname as index_name,
                 ix.indisunique as is_unique,
@@ -421,14 +422,14 @@ class PostgreSQLDDLExtractor:
               )
             GROUP BY i.relname, ix.indisunique, ix.indisprimary, i.oid
             ORDER BY i.relname
-        """
+        """)
         return self._execute_query(
             query, (table_name, schema), f"getting indexes for {schema}.{table_name}"
         )
 
     def _get_triggers(self, schema: str, table_name: str) -> list[dict[str, Any]]:
         """Get triggers for a table."""
-        query = """
+        query = sql.SQL("""
             SELECT
                 trigger_name,
                 action_timing,
@@ -438,7 +439,7 @@ class PostgreSQLDDLExtractor:
             WHERE event_object_schema = %s
               AND event_object_table = %s
             ORDER BY trigger_name
-        """
+        """)
         return self._execute_query(
             query, (schema, table_name), f"getting triggers for {schema}.{table_name}"
         )

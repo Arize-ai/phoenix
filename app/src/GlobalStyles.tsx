@@ -77,8 +77,10 @@ const staticCSS = css`
     // component sizing
     --ac-global-input-height-s: 30px;
     --ac-global-input-height-m: 38px;
+    --ac-global-input-height-l: 46px;
     --ac-global-button-height-s: var(--ac-global-input-height-s);
     --ac-global-button-height-m: var(--ac-global-input-height-m);
+    --ac-global-button-height-l: var(--ac-global-input-height-l);
   }
 `;
 
@@ -631,6 +633,7 @@ export const darkThemeCSS = css`
     --ac-global-color-danger-900: rgba(var(--ac-global-color-danger-rgb), 0.9);
     --ac-global-color-danger-700: rgba(var(--ac-global-color-danger-rgb), 0.7);
     --ac-global-color-danger-500: rgba(var(--ac-global-color-danger-rgb), 0.5);
+    --ac-global-color-danger-100: rgba(var(--ac-global-color-danger-rgb), 0.1);
     --ac-global-color-success-rgb: 126, 231, 135;
     --ac-global-color-success: rgb(var(--ac-global-color-success-rgb));
     --ac-global-color-success-900: rgba(
@@ -644,6 +647,10 @@ export const darkThemeCSS = css`
     --ac-global-color-success-500: rgba(
       var(--ac-global-color-success-rgb),
       0.5
+    );
+    --ac-global-color-success-100: rgba(
+      var(--ac-global-color-success-rgb),
+      0.1
     );
     --ac-global-color-warning-rgb: 230, 153, 88;
     --ac-global-color-warning: rgb(var(--ac-global-color-warning-rgb));
@@ -677,6 +684,20 @@ export const darkThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-200);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-300);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-success
+    );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-success-100
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-danger
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
+      --ac-global-color-danger-100
+    );
   }
 `;
 
@@ -904,9 +925,11 @@ export const lightThemeCSS = css`
     --ac-global-color-danger-900: rgba(218, 11, 0, 0.9);
     --ac-global-color-danger-700: rgba(218, 11, 0, 0.7);
     --ac-global-color-danger-500: rgba(218, 11, 0, 0.5);
+    --ac-global-color-danger-100: rgba(218, 11, 0, 0.1);
     --ac-global-color-success: rgb(26, 127, 55);
     --ac-global-color-success-700: rgba(26, 127, 55, 0.7);
     --ac-global-color-success-500: rgba(26, 127, 55, 0.5);
+    --ac-global-color-success-100: rgba(26, 127, 55, 0.1);
     --ac-global-color-warning: rgb(224, 102, 2);
     --ac-global-color-warning-900: rgba(224, 102, 2, 0.9);
     --ac-global-color-warning-700: rgba(224, 102, 2, 0.7);
@@ -927,6 +950,20 @@ export const lightThemeCSS = css`
     // Floating toolbar colors
     --ac-floating-toolbar-background-color: var(--ac-global-color-grey-75);
     --ac-floating-toolbar-border-color: var(--ac-global-color-grey-200);
+
+    // Optimization Direction Colors
+    --ac-global-color-optimization-direction-positive: var(
+      --ac-global-color-success
+    );
+    --ac-global-color-background-optimization-direction-positive: var(
+      --ac-global-color-success-100
+    );
+    --ac-global-color-optimization-direction-negative: var(
+      --ac-global-color-danger
+    );
+    --ac-global-color-background-optimization-direction-negative: var(
+      --ac-global-color-danger-100
+    );
   }
 `;
 
@@ -988,7 +1025,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-100);
-    --ac-hover-background: var(--ac-global-color-primary-50);
+    --ac-hover-background: var(--ac-global-color-grey-200);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
@@ -998,17 +1035,22 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-input-field-border-color: var(--ac-global-color-grey-400);
     --ac-global-input-field-border-color-hover: var(--ac-global-color-grey-300);
     --ac-global-input-field-border-color-active: var(--ac-global-color-primary);
-    --ac-global-input-field-background-color: var(--ac-global-color-grey-200);
+    --ac-global-input-field-background-color: var(--ac-global-color-grey-100);
+    --ac-global-input-field-background-color-hover: var(
+      --ac-global-color-grey-300
+    );
     --ac-global-input-field-background-color-active: var(
       --ac-global-color-grey-300
     );
 
     // Styles for menus
-    --ac-global-menu-border-color: var(--ac-global-color-grey-300);
+    --ac-global-menu-border-color: var(--ac-global-color-grey-100);
     --ac-global-menu-background-color: var(--ac-global-color-grey-50);
-    --ac-global-menu-item-background-color-hover: var(
-      --ac-global-color-grey-300
+    --ac-global-menu-item-background-color-hover: var(--ac-hover-background);
+    --ac-global-menu-split-item-content-gap: var(
+      --ac-global-dimension-static-size-300
     );
+    --ac-global-menu-item-gap: var(--ac-global-dimension-static-size-50);
 
     // Styles for buttons
     --ac-global-button-primary-background-color: var(
@@ -1100,13 +1142,6 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   }
 `;
 
-const opacitiesCSS = css`
-  :root,
-  .ac-theme {
-    --ac-opacity-disabled: 0.6;
-  }
-`;
-
 const appGlobalStylesCSS = css`
   body,
   input,
@@ -1195,7 +1230,7 @@ const appGlobalStylesCSS = css`
     --px-nav-collapsed-width: 52px;
     --px-nav-expanded-width: 230px;
 
-    --ac-global-opacity-disabled: 0.6;
+    --ac-global-opacity-disabled: 0.4;
 
     /* Text */
     --ac-global-font-size-xxs: 10px;
@@ -1219,8 +1254,8 @@ const appGlobalStylesCSS = css`
 
     /* Modal */
     --ac-global-modal-width-S: 500px;
-    --ac-global-modal-width-M: 700px;
-    --ac-global-modal-width-L: 900px;
+    --ac-global-modal-width-M: 750px;
+    --ac-global-modal-width-L: 1000px;
     --ac-global-modal-width-FULLSCREEN: calc(
       100vw - var(--ac-global-dimension-static-size-1700)
     );
@@ -1304,7 +1339,6 @@ export function GlobalStyles() {
         themeCSS,
         derivedCSS(theme),
         mediumRootCSS,
-        opacitiesCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         chartCSS,

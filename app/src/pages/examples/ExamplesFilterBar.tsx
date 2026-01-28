@@ -6,18 +6,11 @@ import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { AddDatasetExampleButton } from "@phoenix/pages/dataset/AddDatasetExampleButton";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
-import { ExamplesSplitMenu } from "@phoenix/pages/examples/ExamplesSplitMenu";
+import { ExamplesSplitsMenu } from "@phoenix/pages/examples/ExamplesSplitsMenu";
 
 export const ExamplesFilterBar = () => {
-  const {
-    setFilter,
-    filter,
-    selectedSplitIds,
-    setSelectedSplitIds,
-    selectedExampleIds,
-    setSelectedExampleIds,
-    examplesCache,
-  } = useExamplesFilterContext();
+  const { setFilter, filter, selectedSplitIds, setSelectedSplitIds } =
+    useExamplesFilterContext();
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
   const refreshLatestVersion = useDatasetContext(
@@ -46,12 +39,9 @@ export const ExamplesFilterBar = () => {
           placeholder="Search examples by input, output, or metadata"
           aria-label="Search examples"
         />
-        <ExamplesSplitMenu
+        <ExamplesSplitsMenu
           onSelectionChange={setSelectedSplitIds}
-          onExampleSelectionChange={setSelectedExampleIds}
           selectedSplitIds={selectedSplitIds}
-          selectedExampleIds={selectedExampleIds}
-          examplesCache={examplesCache}
         />
         <AddDatasetExampleButton
           datasetId={datasetId}

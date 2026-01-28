@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<275f7645a73151e39d530b4f1e95d9b6>>
+ * @generated SignedSource<<5ab6b49688dc39655255bdb43d228632>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -135,6 +135,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "evaluatorCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "DatasetLabel",
                     "kind": "LinkedField",
                     "name": "labels",
@@ -215,12 +222,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0bdf83ff96fd6bfc2dc513d5edbadc31",
+    "cacheID": "cfd4b610f5e90a38d75c90be0db685fe",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        evaluatorCount\n        labels {\n          id\n          name\n          color\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

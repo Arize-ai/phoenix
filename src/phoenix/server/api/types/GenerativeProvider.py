@@ -1,10 +1,15 @@
 from enum import Enum
-from typing import Any, ClassVar, Optional, Union
+from types import MappingProxyType
+from typing import Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
+from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.config import getenv
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -18,6 +23,73 @@ class GenerativeProviderKey(Enum):
     XAI = "xAI"
     OLLAMA = "Ollama"
     AWS = "AWS Bedrock"
+
+    @classmethod
+    def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
+        """Convert a ModelProvider to a GenerativeProviderKey."""
+
+        if model_provider is ModelProvider.OPENAI:
+            return cls.OPENAI
+        elif model_provider is ModelProvider.AZURE_OPENAI:
+            return cls.AZURE_OPENAI
+        elif model_provider is ModelProvider.ANTHROPIC:
+            return cls.ANTHROPIC
+        elif model_provider is ModelProvider.GOOGLE:
+            return cls.GOOGLE
+        elif model_provider is ModelProvider.DEEPSEEK:
+            return cls.DEEPSEEK
+        elif model_provider is ModelProvider.XAI:
+            return cls.XAI
+        elif model_provider is ModelProvider.OLLAMA:
+            return cls.OLLAMA
+        elif model_provider is ModelProvider.AWS:
+            return cls.AWS
+        assert_never(model_provider)
+
+    def to_model_provider(self) -> "ModelProvider":
+        if self is GenerativeProviderKey.OPENAI:
+            return ModelProvider.OPENAI
+        if self is GenerativeProviderKey.AZURE_OPENAI:
+            return ModelProvider.AZURE_OPENAI
+        if self is GenerativeProviderKey.ANTHROPIC:
+            return ModelProvider.ANTHROPIC
+        if self is GenerativeProviderKey.GOOGLE:
+            return ModelProvider.GOOGLE
+        if self is GenerativeProviderKey.AWS:
+            return ModelProvider.AWS
+        if self is GenerativeProviderKey.DEEPSEEK:
+            return ModelProvider.DEEPSEEK
+        if self is GenerativeProviderKey.XAI:
+            return ModelProvider.XAI
+        if self is GenerativeProviderKey.OLLAMA:
+            return ModelProvider.OLLAMA
+        assert_never(self)
+
+
+GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] = MappingProxyType(
+    {
+        GenerativeProviderKey.OPENAI: OpenInferenceLLMProviderValues.OPENAI.value,
+        GenerativeProviderKey.AZURE_OPENAI: OpenInferenceLLMProviderValues.AZURE.value,
+        GenerativeProviderKey.ANTHROPIC: OpenInferenceLLMProviderValues.ANTHROPIC.value,
+        GenerativeProviderKey.AWS: OpenInferenceLLMProviderValues.AWS.value,
+        GenerativeProviderKey.GOOGLE: OpenInferenceLLMProviderValues.GOOGLE.value,
+        GenerativeProviderKey.OLLAMA: "ollama",
+        GenerativeProviderKey.DEEPSEEK: OpenInferenceLLMProviderValues.DEEPSEEK.value,
+        GenerativeProviderKey.XAI: OpenInferenceLLMProviderValues.XAI.value,
+    }
+)
+
+assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProviderKey)
+
+CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
+    {
+        "openai": GenerativeProviderKey.OPENAI,
+        "azure_openai": GenerativeProviderKey.AZURE_OPENAI,
+        "anthropic": GenerativeProviderKey.ANTHROPIC,
+        "aws_bedrock": GenerativeProviderKey.AWS,
+        "google_genai": GenerativeProviderKey.GOOGLE,
+    }
+)
 
 
 @strawberry.type
@@ -126,12 +198,28 @@ class GenerativeProvider:
         return self.model_provider_to_credential_requirements_map[self.key]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
-    async def credentials_set(self) -> bool:
-        # Check if every required credential is set
-        return all(
-            getenv(credential_config.env_var_name) is not None or not credential_config.is_required
-            for credential_config in await self.credential_requirements()
-        )
+    async def credentials_set(self, info: Info[Context, None]) -> bool:
+        credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
+        if credential_requirements is None:
+            return True
+        secret_keys = []
+        for credential_config in credential_requirements:
+            if (
+                not credential_config.is_required
+                or getenv(credential_config.env_var_name) is not None
+            ):
+                continue
+            secret_keys.append(credential_config.env_var_name)
+        if not secret_keys:
+            return True
+        for secret in await info.context.data_loaders.secrets.load_many(secret_keys):
+            if secret is None:
+                return False
+            try:
+                info.context.decrypt(secret.value)
+            except Exception:
+                return False
+        return True
 
     @classmethod
     def _infer_model_provider_from_model_name(

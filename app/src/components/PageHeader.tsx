@@ -1,6 +1,8 @@
 import { type ReactNode } from "react";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import { Heading, Text } from "./content";
+import { Flex } from "./layout";
+import { View } from "./view";
 
 export type PageHeaderProps = {
   /**

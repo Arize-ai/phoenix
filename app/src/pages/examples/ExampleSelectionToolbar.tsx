@@ -26,6 +26,8 @@ import {
 import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
+import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExample {
@@ -39,6 +41,7 @@ interface SelectedExample {
 
 type ExampleSelectionToolbarProps = {
   selectedExamples: SelectedExample[];
+  examplesCache: ExamplesCache;
   onClearSelection: () => void;
   onExamplesDeleted: () => void;
 };
@@ -47,7 +50,12 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
-  const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
+  const {
+    selectedExamples,
+    examplesCache,
+    onExamplesDeleted,
+    onClearSelection,
+  } = props;
   const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
     useState(false);
   const notifySuccess = useNotifySuccess();
@@ -102,6 +110,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     notifyError,
   ]);
 
+  const selectedExampleIds = selectedExamples.map((example) => example.id);
+
   return (
     <FloatingToolbarContainer>
       <Toolbar>
@@ -120,6 +130,11 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           </Flex>
         </View>
+        <AssignExamplesToSplitMenu
+          selectedExampleIds={selectedExampleIds}
+          examplesCache={examplesCache}
+          size="M"
+        />
         <Button
           variant="danger"
           size="M"

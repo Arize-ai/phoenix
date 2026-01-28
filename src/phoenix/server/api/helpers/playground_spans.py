@@ -32,7 +32,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
+from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -76,10 +76,15 @@ class streaming_llm_span:
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
         self._attributes.update(dict(prompt_metadata(input.prompt_name)))
 
+        if input.model.builtin:
+            model_name = input.model.builtin.name
+        else:
+            assert input.model.custom
+            model_name = input.model.custom.model_name
         self._attributes.update(
             chain(
                 llm_span_kind(),
-                llm_model_name(input.model.name),
+                llm_model_name(model_name),
                 llm_tools(input.tools or []),
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
@@ -229,7 +234,7 @@ def get_db_experiment_run(
         dataset_example_id=example_id,
         trace_id=db_trace.trace_id,
         output=models.ExperimentRunOutput(
-            task_output=get_dataset_example_output(db_span),
+            task_output=get_experiment_example_output(db_span),
         ),
         repetition_number=repetition_number,
         start_time=db_span.start_time,

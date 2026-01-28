@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01d48bf23b5d1156ff5c9e0528527577>>
+ * @generated SignedSource<<a6480cf03d4217d0d3a9471f566a3838>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptsLabelMenuQuery$data = {
   readonly promptLabels: {
     readonly edges: ReadonlyArray<{
       readonly label: {
-        readonly color: string;
+        readonly color: string | null;
         readonly id: string;
         readonly name: string;
       };

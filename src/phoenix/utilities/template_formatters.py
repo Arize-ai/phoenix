@@ -4,6 +4,10 @@ from collections.abc import Iterable
 from string import Formatter
 from typing import Any
 
+from typing_extensions import assert_never
+
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
 
 class TemplateFormatter(ABC):
     @abstractmethod
@@ -83,9 +87,14 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         for variable_name in variable_names:
+            replacement = str(variables[variable_name])
+            # Use a lambda instead of passing the replacement string directly. When re.sub
+            # receives a string as `repl`, it interprets backslash escape sequences like \u, \n,
+            # \1, etc. This causes errors when the replacement contains JSON with Unicode escapes
+            # (e.g., \u2019). A callable `repl` returns the string literally without processing.
             template = re.sub(
                 pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=str(variables[variable_name]),
+                repl=lambda _: replacement,
                 string=template,
             )
         return template
@@ -97,3 +106,13 @@ class TemplateFormatterError(Exception):
     """
 
     pass
+
+
+def get_template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
+    if template_format is PromptTemplateFormat.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_format is PromptTemplateFormat.F_STRING:
+        return FStringTemplateFormatter()
+    if template_format is PromptTemplateFormat.NONE:
+        return NoOpFormatter()
+    assert_never(template_format)

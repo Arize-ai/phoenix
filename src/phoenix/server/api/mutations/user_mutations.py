@@ -162,7 +162,7 @@ class UserMutationMixin:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error))
-        if input.send_welcome_email and info.context.email_sender is not None:
+        if input.send_welcome_email and info.context.email_sender is not None and user.email:
             try:
                 await info.context.email_sender.send_welcome_email(user.email, user.username)
             except Exception as error:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c304598dc267903616dccdd0344e6055>>
+ * @generated SignedSource<<88bb4ef655e06546f7dfe18840ef91cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -200,6 +200,13 @@ return {
                                 "kind": "ScalarField",
                                 "name": "output",
                                 "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "metadata",
+                                "storageKey": null
                               }
                             ],
                             "storageKey": null
@@ -280,16 +287,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d1ad98fc50863a5054c66424fc70d51d",
+    "cacheID": "0f88be290ad768393018a53f569a578d",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6bde949dffba260d3af123877882200";
+(node as any).hash = "3bf2d20abbb5a73422290b8eb1d22a6e";
 
 export default node;

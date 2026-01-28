@@ -35,8 +35,6 @@ export const comboBoxCSS = css`
       box-sizing: border-box;
       padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
         var(--combobox-vertical-padding) var(--combobox-start-padding);
-      &:hover:not([disabled]) {
-        background-color: var(--ac-global-input-field-border-color-hover);
       }
     }
     .react-aria-Button {

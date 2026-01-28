@@ -25,6 +25,8 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
+  "jsonpath-ng",
+  "jsonschema",
   "starlette",
   "uvicorn",
   "psutil",
@@ -165,14 +167,14 @@ pg = [
   "psycopg[binary,pool]",
 ]
 aws = [
-  "boto3",
+  "aioboto3",
 ]
 container = [
   "anthropic>=0.49.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=1.0.0",
+  "openai>=2.14.0",
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
@@ -190,7 +192,7 @@ container = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
-  "boto3",
+  "aioboto3",
 ]
 test = [
 ]
@@ -310,6 +312,7 @@ module = [
   "authlib.*",
   "google.*",
   "mistralai.*",
+  "jsonpath_ng",
 ]
 ignore_missing_imports = true
 

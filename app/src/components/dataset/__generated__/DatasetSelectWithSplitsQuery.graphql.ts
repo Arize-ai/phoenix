@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d34e2ffd14a5041ca433c81314f755ba>>
+ * @generated SignedSource<<f7d7a1284fc69ca66e2b35905b6ff222>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type DatasetSelectWithSplitsQuery$data = {
         }>;
         readonly name: string;
         readonly splits: ReadonlyArray<{
+          readonly color: string;
           readonly id: string;
           readonly name: string;
         }>;
@@ -50,7 +51,18 @@ v1 = {
   "name": "name",
   "storageKey": null
 },
-v2 = {
+v2 = [
+  (v0/*: any*/),
+  (v1/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "color",
+    "storageKey": null
+  }
+],
+v3 = {
   "alias": "dataset",
   "args": null,
   "concreteType": "Dataset",
@@ -74,10 +86,7 @@ v2 = {
       "kind": "LinkedField",
       "name": "splits",
       "plural": true,
-      "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/)
-      ],
+      "selections": (v2/*: any*/),
       "storageKey": null
     },
     {
@@ -87,37 +96,27 @@ v2 = {
       "kind": "LinkedField",
       "name": "labels",
       "plural": true,
-      "selections": [
-        (v0/*: any*/),
-        (v1/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "color",
-          "storageKey": null
-        }
-      ],
+      "selections": (v2/*: any*/),
       "storageKey": null
     }
   ],
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "cursor",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "cursor",
   "storageKey": null
 },
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -142,7 +141,7 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = [
+v7 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -172,8 +171,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
               (v3/*: any*/),
+              (v4/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -182,14 +181,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v5/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -205,7 +204,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v7/*: any*/),
         "concreteType": "DatasetConnection",
         "kind": "LinkedField",
         "name": "datasets",
@@ -219,8 +218,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v2/*: any*/),
               (v3/*: any*/),
+              (v4/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -229,7 +228,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/),
+                  (v5/*: any*/),
                   (v0/*: any*/)
                 ],
                 "storageKey": null
@@ -237,13 +236,13 @@ return {
             ],
             "storageKey": null
           },
-          (v5/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": "datasets(first:100)"
       },
       {
         "alias": null,
-        "args": (v6/*: any*/),
+        "args": (v7/*: any*/),
         "filters": null,
         "handle": "connection",
         "key": "DatasetPickerWithSplits__datasets",
@@ -253,7 +252,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a1b63e1121cafd04473227264161a3fd",
+    "cacheID": "503acd64a4d082c873f59ab92110b8fb",
     "id": null,
     "metadata": {
       "connection": [
@@ -269,11 +268,11 @@ return {
     },
     "name": "DatasetSelectWithSplitsQuery",
     "operationKind": "query",
-    "text": "query DatasetSelectWithSplitsQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        splits {\n          id\n          name\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetSelectWithSplitsQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n        splits {\n          id\n          name\n          color\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7c2425f980a39012f8ca7f865ed9a4b9";
+(node as any).hash = "a195ca2787d978a1363e3163082ef776";
 
 export default node;

@@ -32,7 +32,6 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 from phoenix.server.types import DbSessionFactory
 
 
@@ -173,8 +172,10 @@ class TestEnsureStartupAdmins:
             )
         assert user is not None
         assert user.username == "LDAP Admin"
-        assert user.oauth2_client_id == LDAP_CLIENT_ID_MARKER
-        assert user.oauth2_user_id is None  # NULL until first LDAP login (then upgraded to DN)
+        assert user.auth_method == "LDAP"  # LDAP users have auth_method='LDAP'
+        assert user.oauth2_client_id is None  # LDAP users don't use oauth2 fields
+        assert user.oauth2_user_id is None  # LDAP users don't use oauth2 fields
+        assert user.ldap_unique_id is None  # NULL until first LDAP login (then set to unique_id)
         assert user.password_hash is None  # LDAP users don't have passwords
         assert user.password_salt is None
 
@@ -216,9 +217,8 @@ class TestEnsureStartupAdmins:
             )
         assert user is not None
         assert user.username == "OAuth2 Admin"
-        # OAuth2 user should NOT have LDAP marker
-        assert user.oauth2_client_id != LDAP_CLIENT_ID_MARKER
-        assert user.oauth2_client_id is None  # Generic OAuth2 user
+        assert user.auth_method == "OAUTH2"  # Should be OAUTH2, not LDAP
+        assert user.oauth2_client_id is None  # Generic OAuth2 user (no specific client)
         assert user.password_hash is None
         assert user.password_salt is None
 

@@ -16,7 +16,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
-import { JSONBlock } from "./SpanDetails";
+import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 
 type SpanEventsListProps = {
   spanId: string;
@@ -111,11 +111,11 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
             </DisclosureTrigger>
             {hasAttributes ? (
               <DisclosurePanel>
-                <JSONBlock
+                <ReadonlyJSONBlock
                   basicSetup={{ lineNumbers: false, foldGutter: false }}
                 >
                   {JSON.stringify(event.attributes, null, 2)}
-                </JSONBlock>
+                </ReadonlyJSONBlock>
               </DisclosurePanel>
             ) : null}
           </Disclosure>

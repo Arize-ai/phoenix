@@ -5,7 +5,9 @@ from strawberry.relay import GlobalID
 
 from .Experiment import Experiment
 from .ExperimentRun import ExperimentRun
+from .ExperimentRunAnnotation import ExperimentRunAnnotation
 from .Span import Span
+from .SpanAnnotation import SpanAnnotation
 
 
 @strawberry.interface
@@ -45,3 +47,15 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
 @strawberry.type
 class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     experiment: Experiment
+
+
+@strawberry.type
+class EvaluationChunk(ChatCompletionSubscriptionPayload):
+    experiment_run_evaluation: Optional[ExperimentRunAnnotation] = None
+    span_evaluation: Optional[SpanAnnotation] = None
+
+
+@strawberry.type
+class EvaluationErrorChunk(ChatCompletionSubscriptionPayload):
+    evaluator_name: str
+    message: str

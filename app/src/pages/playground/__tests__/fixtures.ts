@@ -170,7 +170,7 @@ export const testSpanAnthropicToolDefinition: AnthropicToolDefinition = {
   },
 };
 
-export const tesSpanAnthropicTool: SpanTool = {
+export const testSpanAnthropicTool: SpanTool = {
   tool: {
     json_schema: JSON.stringify(testSpanAnthropicToolDefinition),
   },

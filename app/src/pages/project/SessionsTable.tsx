@@ -71,6 +71,7 @@ const TableBody = <T extends { id: string }>({
 }: {
   table: Table<T>;
 }) => {
+  "use no memo";
   const navigate = useNavigate();
   return (
     <tbody>

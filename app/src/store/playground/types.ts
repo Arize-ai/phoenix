@@ -1,10 +1,11 @@
 import { z } from "zod";
 
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
-import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
+import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import {
   AnthropicToolChoice,
   GoogleToolChoice,
@@ -76,7 +77,6 @@ export type ModelConfig = {
   modelName: string | null;
   baseUrl?: string | null;
   endpoint?: string | null;
-  apiVersion?: string | null;
   /**
    * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
    */
@@ -85,6 +85,11 @@ export type ModelConfig = {
    * Custom headers to be sent with requests to the LLM provider
    */
   customHeaders?: Record<string, string> | null;
+  /**
+   * Reference to custom provider if using a custom provider configuration.
+   * When set, the request will use the custom provider instead of the built-in provider.
+   */
+  customProvider?: { id: string; name: string } | null;
   invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };
@@ -97,6 +102,7 @@ export type ModelInvocationParameterInput =
  */
 export type Tool = {
   id: number;
+  editorType: PhoenixToolEditorType;
   definition: LlmProviderToolDefinition;
 };
 
@@ -136,6 +142,36 @@ export type PlaygroundRepetition = {
 };
 
 /**
+ * Tracks progress of experiment runs over a dataset
+ */
+export type ExperimentRunProgress = {
+  /**
+   * Total number of experiment runs expected (exampleCount * repetitions)
+   */
+  totalRuns: number;
+  /**
+   * Number of runs completed successfully
+   */
+  runsCompleted: number;
+  /**
+   * Number of runs that failed with errors
+   */
+  runsFailed: number;
+  /**
+   * Total number of evaluations expected (exampleCount * repetitions * evaluatorCount)
+   */
+  totalEvals: number;
+  /**
+   * Number of evaluations completed
+   */
+  evalsCompleted: number;
+  /**
+   * Number of evaluations that failed
+   */
+  evalsFailed: number;
+};
+
+/**
  * A single instance of the playground that has
  * - a template
  * - tools
@@ -168,6 +204,10 @@ export interface PlaygroundInstance {
    * The selected repetition number for the instance
    */
   selectedRepetitionNumber: number;
+  /**
+   * Progress tracking for experiment runs over a dataset
+   */
+  experimentRunProgress?: ExperimentRunProgress | null;
 }
 
 /**
@@ -202,7 +242,7 @@ export interface PlaygroundProps {
   instances: Array<PlaygroundInstance>;
   /**
    * The current template format for all instances
-   * @default "mustache"
+   * @default "MUSTACHE"
    */
   templateFormat: TemplateFormat;
   /**
@@ -217,8 +257,35 @@ export interface PlaygroundProps {
   repetitions: number;
 }
 
+export const PlaygroundStateByDatasetIdSchema = z.record(
+  z.string(),
+  z.object({
+    /**
+     * Dot-notation path to messages in dataset example input to append to prompt.
+     * When set, messages at this path will be appended to the playground prompt
+     * after template variables are applied.
+     * @example "messages" or "input_messages"
+     * @default null
+     */
+    appendedMessagesPath: z.string().nullish(),
+    /**
+     * Dot-notation path prefix for template variables when running over a dataset.
+     * Default 'input' means {{query}} resolves to input.query of the dataset example.
+     * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
+     * @example "input" or "reference" or null
+     * @default "input"
+     */
+    templateVariablesPath: z.string().nullish(),
+  })
+);
+
+export type PlaygroundStateByDatasetId = z.infer<
+  typeof PlaygroundStateByDatasetIdSchema
+>;
+
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
+  datasetId?: string | null;
 };
 
 /**
@@ -258,6 +325,22 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * A map of instance id to whether the instance is dirty
    */
   dirtyInstances: Record<number, boolean>;
+
+  /**
+   * A map of dataset id to the playground state for that dataset
+   */
+  stateByDatasetId: PlaygroundStateByDatasetId;
+
+  /**
+   * The id of the dataset currently being used
+   * @default null
+   */
+  datasetId: string | null;
+  /**
+   * Setter for the dataset id
+   * @param datasetId the id of the dataset to set
+   */
+  setDatasetId: (datasetId: string | null) => void;
 
   /**
    * Setter for the invocation mode
@@ -390,6 +473,26 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setRepetitions: (repetitions: number) => void;
   /**
+   * Set the appended messages path
+   */
+  setAppendedMessagesPath: ({
+    path,
+    datasetId,
+  }: {
+    path: string | null;
+    datasetId: string;
+  }) => void;
+  /**
+   * Set the template variables path for dataset experiments
+   */
+  setTemplateVariablesPath: ({
+    templateVariablesPath,
+    datasetId,
+  }: {
+    templateVariablesPath: string | null;
+    datasetId: string;
+  }) => void;
+  /**
    * Set the dirty state of an instance
    */
   setDirty: (instanceId: number, dirty: boolean) => void;
@@ -454,4 +557,31 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Clears all repetitions for an instance
    */
   clearRepetitions: (instanceId: number) => void;
+  /**
+   * Initialize experiment run progress for an instance
+   */
+  initExperimentRunProgress: (
+    instanceId: number,
+    progress: ExperimentRunProgress
+  ) => void;
+  /**
+   * Increment the number of completed runs for an instance
+   */
+  incrementRunsCompleted: (instanceId: number) => void;
+  /**
+   * Increment the number of failed runs for an instance
+   */
+  incrementRunsFailed: (instanceId: number) => void;
+  /**
+   * Increment the number of completed evaluations for an instance
+   */
+  incrementEvalsCompleted: (instanceId: number) => void;
+  /**
+   * Increment the number of failed evaluations for an instance
+   */
+  incrementEvalsFailed: (instanceId: number) => void;
+  /**
+   * Clear experiment run progress for an instance
+   */
+  clearExperimentRunProgress: (instanceId: number) => void;
 }

@@ -25,10 +25,10 @@ function DragHandle(
       aria-roledescription="draggable"
       aria-pressed="false"
       aria-disabled="false"
-      className="button--reset"
+      className="button--reset drag-handle"
       css={css`
         cursor: grab;
-        background-color: var(--ac-global-color-grey-200);
+        background-color: var(--ac-global-input-field-background-color);
         border: 1px solid var(--ac-global-color-grey-400);
         color: var(--ac-global-text-color-900);
         display: flex;

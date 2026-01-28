@@ -2,7 +2,7 @@ import { PropsWithChildren, Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useParams, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
@@ -119,6 +119,7 @@ export function TraceDetails(props: TraceDetailsProps) {
       `}
     >
       <TraceHeader
+        projectId={projectId}
         rootSpan={rootSpan}
         latencyMs={traceLatencyMs}
         costSummary={costSummary}
@@ -169,13 +170,14 @@ function TraceHeader({
   latencyMs,
   costSummary,
   sessionId,
+  projectId,
 }: {
   rootSpan: RootSpan | null;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
+  projectId: string;
 }) {
-  const { projectId } = useParams();
   const { statusCode } = rootSpan ?? {
     statusCode: "UNSET",
   };

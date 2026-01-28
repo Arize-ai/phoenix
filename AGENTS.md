@@ -45,7 +45,7 @@ uv run pytest tests/unit/test_failed_unit_tests.py::test_failed_test  # Runs a p
 uv run pytest tests/integration -n auto                               # Runs integration tests in parallel
 ```
 
-Other commands can be managed through the 
+Other commands can be managed through tox
 
 ```bash
 tox run -e ruff                                          # Format and lint
@@ -119,6 +119,7 @@ phoenix/
 ## Code Style & Conventions
 
 ### Python Style
+
 - **Line length**: 100 characters
 - **Target version**: Python 3.10
 - **Type checking**: Strict mode with mypy
@@ -126,11 +127,13 @@ phoenix/
 - **Import style**: Multi-line imports allowed (not forced single-line)
 
 ### TypeScript Style
+
 - **Node version**: 22+
 - **GraphQL**: Uses Relay for data fetching
 - **Linting**: ESLint with TypeScript
 
 ### REST API Conventions
+
 - Resources are nouns (pluralized): `/datasets/:dataset_id` not `/getDataset/:id`
 - Use snake_case for query params and JSON payloads
 - Responses have `data` key, cursor-based pagination

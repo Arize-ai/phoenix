@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -18,6 +18,9 @@ from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
     get_raw_invocation_parameters,
 )
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+)
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
@@ -34,7 +37,9 @@ if TYPE_CHECKING:
 @strawberry.type
 class PromptVersion(Node):
     id_attr: NodeID[int]
+    prompt_id: strawberry.Private[int]
     user_id: strawberry.Private[Optional[int]]
+    custom_provider_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
@@ -66,6 +71,12 @@ class PromptVersion(Node):
         from .User import User
 
         return User(id=self.user_id)
+
+    @strawberry.field
+    async def custom_provider(self) -> Optional[GenerativeModelCustomProvider]:
+        if self.custom_provider_id is None:
+            return None
+        return GenerativeModelCustomProvider(id=self.custom_provider_id)
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
@@ -105,6 +116,15 @@ class PromptVersion(Node):
             self.cached_sequence_number = seq_num
         return self.cached_sequence_number
 
+    @strawberry.field
+    async def is_latest(self, info: Info[Context, None]) -> bool:
+        latest_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(
+            self.prompt_id
+        )
+        if latest_version_id is None:
+            return False
+        return latest_version_id == self.id_attr
+
 
 def to_gql_prompt_version(
     prompt_version: models.PromptVersion, sequence_number: Optional[int] = None
@@ -112,7 +132,7 @@ def to_gql_prompt_version(
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    tool_choice = None
+    tool_choice: dict[str, Any] = {}
     if prompt_version.tools is not None:
         tool_schemas, tool_choice = denormalize_tools(
             prompt_version.tools, prompt_version.model_provider
@@ -131,11 +151,12 @@ def to_gql_prompt_version(
         else None
     )
     invocation_parameters = get_raw_invocation_parameters(prompt_version.invocation_parameters)
-    if tool_choice is not None:
-        invocation_parameters["tool_choice"] = tool_choice
+    invocation_parameters.update(tool_choice)
     return PromptVersion(
         id_attr=prompt_version.id,
+        prompt_id=prompt_version.prompt_id,
         user_id=prompt_version.user_id,
+        custom_provider_id=prompt_version.custom_provider_id,
         description=prompt_version.description,
         template_type=prompt_template_type,
         template_format=prompt_template_format,

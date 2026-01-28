@@ -1,4 +1,12 @@
-import { Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Button,
+  ButtonProps,
+  DialogTrigger,
+  Icon,
+  Icons,
+  Modal,
+  ModalOverlay,
+} from "@phoenix/components";
 
 import {
   RunExperimentCodeDialogContent,
@@ -34,5 +42,37 @@ export function ExperimentCodeModal({
         />
       </Modal>
     </ModalOverlay>
+  );
+}
+
+export type RunExperimentButtonProps = RunExperimentCodeDialogProps &
+  Pick<ButtonProps, "variant" | "size">;
+
+/**
+ * A button that opens a dialog with code examples for running experiments
+ * on a dataset via the Python or TypeScript SDK.
+ */
+export function RunExperimentButton({
+  datasetName,
+  datasetId,
+  version,
+  variant = "default",
+  size = "S",
+}: RunExperimentButtonProps) {
+  return (
+    <DialogTrigger>
+      <Button
+        size={size}
+        variant={variant}
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+      >
+        Experiment
+      </Button>
+      <ExperimentCodeModal
+        datasetName={datasetName}
+        datasetId={datasetId}
+        version={version}
+      />
+    </DialogTrigger>
   );
 }

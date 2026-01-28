@@ -29,7 +29,7 @@ const jsonSchemaPropertiesSchema = z
 
 export const jsonSchemaZodSchema = z
   .object({
-    type: z.literal("object"),
+    type: z.enum(["object", "string", "number", "boolean"]),
     properties: z
       .record(
         z.union([
@@ -150,6 +150,11 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
   }
 );
 
+export type AnyProviderToolDefinition =
+  | OpenAIToolDefinition
+  | AnthropicToolDefinition
+  | AwsToolDefinition;
+
 /**
  * The zod schema for a Gemini tool definition
  */
@@ -220,7 +225,7 @@ export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
 export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
   (openai): AnthropicToolDefinition => ({
     name: openai.function.name,
-    description: openai.function.description ?? openai.function.name,
+    description: openai.function.description ?? "",
     input_schema: openai.function.parameters,
   })
 );

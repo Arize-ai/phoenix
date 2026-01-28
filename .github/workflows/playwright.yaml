@@ -4,12 +4,16 @@ permissions:
 
 on:
   push:
-    branches: [main, feat/annotations]
+    branches:
+      - main
+      - version-13
     paths:
       - "src/**"
       - "app/**"
   pull_request:
-    branches: [main, feat/annotations]
+    branches:
+      - main
+      - version-13
     paths:
       - "src/**"
       - "app/**"

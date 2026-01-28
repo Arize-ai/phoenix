@@ -1,9 +1,11 @@
 import {
+  type MouseEvent,
   startTransition,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -20,7 +22,11 @@ import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
@@ -28,6 +34,7 @@ import {
   useExamplesFilterContext,
 } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { Mutable } from "@phoenix/typeUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
@@ -35,6 +42,10 @@ import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
 
 export function ExamplesTable({
   dataset,
@@ -47,10 +58,14 @@ export function ExamplesTable({
     selectedExampleIds,
     setSelectedExampleIds,
     selectedSplitIds,
+    examplesCache,
     setExamplesCache,
   } = useExamplesFilterContext();
+  const navigate = useNavigate();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const lastSelectedRowIndexRef = useRef<number | null>(null);
+  const [columnSizing, setColumnSizing] = useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
@@ -168,10 +183,53 @@ export function ExamplesTable({
     [data]
   );
   type TableRow = (typeof tableData)[number];
+
+  // Reset the shift-click anchor when table data changes
+  // to prevent stale index references after refetch
+  useEffect(() => {
+    lastSelectedRowIndexRef.current = null;
+  }, [tableData]);
+
+  /**
+   * Shared row selection handler that handles both normal clicks and shift-clicks.
+   * - Always updates lastSelectedRowIndexRef to the current row index
+   * - If shift+click with a previous anchor, calls addRangeToSelection for range selection
+   * - Otherwise toggles the single row's selection
+   */
+  const handleRowSelection = useCallback(
+    (
+      event: MouseEvent,
+      rowIndex: number,
+      toggleSelected: (value?: boolean) => void
+    ) => {
+      if (event.shiftKey && lastSelectedRowIndexRef.current !== null) {
+        // Shift-click: select range from anchor to current row
+        setRowSelection((prev) =>
+          addRangeToSelection(
+            tableData,
+            lastSelectedRowIndexRef.current!,
+            rowIndex,
+            prev
+          )
+        );
+      } else {
+        // Normal click: toggle single row
+        toggleSelected();
+      }
+      // Always update the anchor point
+      lastSelectedRowIndexRef.current = rowIndex;
+    },
+    [setRowSelection, tableData]
+  );
+
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
         id: "select",
+        enableResizing: false,
+        size: 30,
+        minSize: 30,
+        maxSize: 30,
         header: ({ table }) => (
           <IndeterminateCheckboxCell
             {...{
@@ -181,20 +239,29 @@ export function ExamplesTable({
             }}
           />
         ),
-        cell: ({ row }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: row.getIsSelected(),
-              isDisabled: !row.getCanSelect(),
-              isIndeterminate: row.getIsSomeSelected(),
-              onChange: row.toggleSelected,
-            }}
-          />
-        ),
+        cell: ({ row, table }) => {
+          const rowIndex = table
+            .getRowModel()
+            .rows.findIndex((r) => r.id === row.id);
+          return (
+            <IndeterminateCheckboxCell
+              {...{
+                isSelected: row.getIsSelected(),
+                isDisabled: !row.getCanSelect(),
+                isIndeterminate: row.getIsSomeSelected(),
+                onChange: row.toggleSelected,
+                onCellClick: (event: React.MouseEvent) => {
+                  handleRowSelection(event, rowIndex, row.toggleSelected);
+                },
+              }}
+            />
+          );
+        },
       },
       {
         header: "example id",
         accessorKey: "id",
+        size: 180,
         cell: ({ getValue, row }) => {
           const exampleId = row.original.id;
           return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
@@ -203,39 +270,72 @@ export function ExamplesTable({
       {
         header: "input",
         accessorKey: "input",
+        size: 300,
         cell: CompactJSONCell,
       },
       {
         header: "output",
         accessorKey: "output",
+        size: 300,
         cell: CompactJSONCell,
       },
       {
         header: "metadata",
         accessorKey: "metadata",
+        size: 250,
         cell: CompactJSONCell,
       },
     ];
     cols.splice(2, 0, {
       header: "splits",
       accessorKey: "splits",
+      size: 150,
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
     return cols;
-  }, []);
+  }, [handleRowSelection]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
     state: {
       rowSelection,
+      columnSizing,
+      columnPinning: {
+        left: ["select"],
+      },
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     // ensure row IDs are the example IDs and not the index
     getRowId: (row) => row.id,
   });
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+
+  /**
+   * Calculate all column sizes at once as CSS variables for performance
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   const selectedRows = table.getSelectedRowModel().rows;
@@ -259,7 +359,6 @@ export function ExamplesTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -269,18 +368,45 @@ export function ExamplesTable({
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{
+                    ...getCommonPinningStyles(header.column),
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <>
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>
@@ -291,15 +417,30 @@ export function ExamplesTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => {
-                  navigate(`${row.original.id}`);
-                }}
-              >
+              <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
                 {row.getVisibleCells().map((cell) => {
+                  const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
                   return (
-                    <td key={cell.id}>
+                    <td
+                      key={cell.id}
+                      onClick={(e) => {
+                        // prevent the row click event from firing on the select cell
+                        if (cell.column.columnDef.id === "select") {
+                          e.stopPropagation();
+                          handleRowSelection(e, row.index, row.toggleSelected);
+                        }
+                      }}
+                      style={{
+                        ...getCommonPinningStyles(cell.column),
+                        width: `calc(var(${colSizeVar}) * 1px)`,
+                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                        // prevent text selection on the select cell
+                        userSelect:
+                          cell.column.columnDef.id === "select"
+                            ? "none"
+                            : undefined,
+                      }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -315,6 +456,7 @@ export function ExamplesTable({
       {selectedRows.length ? (
         <ExampleSelectionToolbar
           selectedExamples={selectedExamples}
+          examplesCache={examplesCache}
           onClearSelection={clearSelection}
           onExamplesDeleted={() => {
             refetch({}, { fetchPolicy: "store-and-network" });

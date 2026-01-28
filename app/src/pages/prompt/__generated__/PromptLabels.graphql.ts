@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52bf8bb325d7cdaa7ada60b3dae04ea2>>
+ * @generated SignedSource<<2861be20b415f446c2db3161f7569bc5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLabels$data = {
   readonly labels: ReadonlyArray<{
-    readonly color: string;
+    readonly color: string | null;
     readonly name: string;
   }>;
   readonly " $fragmentType": "PromptLabels";

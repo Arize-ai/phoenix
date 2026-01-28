@@ -108,6 +108,7 @@ const TableBody = <
 }: {
   table: Table<T>;
 }) => {
+  "use no memo";
   const navigate = useNavigate();
   const { traceId } = useParams();
   return (

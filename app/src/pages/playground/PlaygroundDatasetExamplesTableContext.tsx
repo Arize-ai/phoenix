@@ -19,9 +19,24 @@ type ToolCallChunk = Extract<
   { __typename: "ToolCallChunk" }
 >;
 
+export type ExperimentRunEvaluation = NonNullable<
+  Extract<
+    PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+    { __typename: "EvaluationChunk" }
+  >["experimentRunEvaluation"]
+>;
+
+export type EvaluationError = NonNullable<
+  Extract<
+    PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+    { __typename: "EvaluationErrorChunk" }
+  >
+>;
+
 export type ExampleRunData = {
   content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
+  evaluations?: (ExperimentRunEvaluation | EvaluationError)[];
   span?: Span | null;
   errorMessage?: string | null;
   experimentRunId?: string | null;
@@ -56,18 +71,37 @@ type PlaygroundDatasetExamplesTableActions = {
     repetitionNumber: RepetitionNumber;
     toolCallChunk: ToolCallChunk;
   }) => void;
+  appendExampleDataEvaluationChunk: (args: {
+    instanceId: InstanceId;
+    exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
+    evaluationChunk: ExperimentRunEvaluation | EvaluationError;
+  }) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
   }) => void;
   resetData: () => void;
   setRepetitions: (repetitions: number) => void;
+  setExpandedCell: (args: {
+    instanceId: InstanceId;
+    exampleId: ExampleId;
+    repetitionNumber: RepetitionNumber;
+    isExpanded: boolean;
+  }) => void;
 };
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
   repetitions: number;
+  expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
+
+export const makeExpandedCellKey = (
+  instanceId: InstanceId,
+  exampleId: ExampleId,
+  repetitionNumber: RepetitionNumber
+) => `${instanceId}-${exampleId}-${repetitionNumber}`;
 
 const createPlaygroundDatasetExamplesTableStore = () => {
   const playgroundDatasetExamplesTableStore: StateCreator<
@@ -75,6 +109,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
   > = (set, get) => ({
     exampleResponsesMap: {},
     repetitions: 1,
+    expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
@@ -132,8 +167,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       const exampleResponsesMap = get().exampleResponsesMap;
       const instance = exampleResponsesMap[instanceId] ?? {};
       const examplesByRepetitionNumber = instance[exampleId] ?? {};
-      const currentToolCalls =
-        examplesByRepetitionNumber[repetitionNumber]?.toolCalls ?? {};
+      const example = examplesByRepetitionNumber[repetitionNumber] ?? {};
+      const currentToolCalls = example.toolCalls ?? {};
       const { id, function: toolFunction } = toolCallChunk;
       const existingToolCall = currentToolCalls[id];
       const updatedToolCall: PartialOutputToolCall = {
@@ -156,10 +191,39 @@ const createPlaygroundDatasetExamplesTableStore = () => {
             [exampleId]: {
               ...examplesByRepetitionNumber,
               [repetitionNumber]: {
+                ...example,
                 toolCalls: {
                   ...currentToolCalls,
                   [id]: updatedToolCall,
                 },
+              },
+            },
+          },
+        },
+      });
+    },
+    appendExampleDataEvaluationChunk: ({
+      instanceId,
+      exampleId,
+      repetitionNumber,
+      evaluationChunk,
+    }) => {
+      const exampleResponsesMap = get().exampleResponsesMap;
+      const instance = exampleResponsesMap[instanceId] ?? {};
+      const examplesByRepetitionNumber = instance[exampleId] ?? {};
+      const example = examplesByRepetitionNumber[repetitionNumber] ?? {};
+      const currentEvaluations = example.evaluations ?? [];
+      const updatedEvaluations = [...currentEvaluations, evaluationChunk];
+      set({
+        exampleResponsesMap: {
+          ...exampleResponsesMap,
+          [instanceId]: {
+            ...instance,
+            [exampleId]: {
+              ...examplesByRepetitionNumber,
+              [repetitionNumber]: {
+                ...example,
+                evaluations: updatedEvaluations,
               },
             },
           },
@@ -176,10 +240,25 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       });
     },
     resetData: () => {
-      set({ exampleResponsesMap: {}, repetitions: 1 });
+      set({ exampleResponsesMap: {}, repetitions: 1, expandedCells: {} });
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });
+    },
+    setExpandedCell: ({
+      instanceId,
+      exampleId,
+      repetitionNumber,
+      isExpanded,
+    }) => {
+      const key = makeExpandedCellKey(instanceId, exampleId, repetitionNumber);
+      const expandedCells = get().expandedCells;
+      set({
+        expandedCells: {
+          ...expandedCells,
+          [key]: isExpanded,
+        },
+      });
     },
   });
   return create<PlaygroundDatasetExamplesTableState>()(

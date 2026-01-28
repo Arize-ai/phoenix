@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Optional, Union
 from pydantic import AfterValidator, Field, RootModel, model_validator
 from typing_extensions import Self, TypeAlias
 
-from .db_models import DBBaseModel
+from .db_helper_types import DBBaseModel
 
 
 class AnnotationType(Enum):
@@ -20,6 +20,7 @@ class OptimizationDirection(Enum):
 
 
 class _BaseAnnotationConfig(DBBaseModel):
+    name: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -66,9 +67,42 @@ class CategoricalAnnotationConfig(_BaseAnnotationConfig):
     ]
 
 
+class CategoricalAnnotationConfigOverride(DBBaseModel):
+    """Partial override for CategoricalAnnotationConfig. All fields optional."""
+
+    type: Literal[AnnotationType.CATEGORICAL.value] = AnnotationType.CATEGORICAL.value  # type: ignore[name-defined]
+    optimization_direction: Optional[OptimizationDirection] = None
+    values: Optional[
+        Annotated[
+            list[CategoricalAnnotationValue],
+            AfterValidator(_categorical_values_are_non_empty_list),
+            AfterValidator(_categorical_values_have_unique_labels),
+        ]
+    ] = None
+
+
 class ContinuousAnnotationConfig(_BaseAnnotationConfig):
     type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
     optimization_direction: OptimizationDirection
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+    @model_validator(mode="after")
+    def check_bounds(self) -> Self:
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound >= self.upper_bound
+        ):
+            raise ValueError("Lower bound must be strictly less than upper bound")
+        return self
+
+
+class ContinuousAnnotationConfigOverride(DBBaseModel):
+    """Partial override for ContinuousAnnotationConfig. All fields optional."""
+
+    type: Literal[AnnotationType.CONTINUOUS.value] = AnnotationType.CONTINUOUS.value  # type: ignore[name-defined]
+    optimization_direction: Optional[OptimizationDirection] = None
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
 
@@ -95,3 +129,13 @@ AnnotationConfigType: TypeAlias = Annotated[
 
 class AnnotationConfig(RootModel[AnnotationConfigType]):
     root: AnnotationConfigType
+
+
+AnnotationConfigOverrideType: TypeAlias = Annotated[
+    Union[CategoricalAnnotationConfigOverride, ContinuousAnnotationConfigOverride],
+    Field(..., discriminator="type"),
+]
+
+
+class AnnotationConfigOverride(RootModel[AnnotationConfigOverrideType]):
+    root: AnnotationConfigOverrideType

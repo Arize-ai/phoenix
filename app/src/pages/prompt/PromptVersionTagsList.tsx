@@ -31,7 +31,15 @@ export function PromptVersionTagsList({
   );
 }
 
-export function TagVersionLabel({ children }: { children: string }) {
+export function TagVersionLabel({
+  children,
+  maxWidth,
+  size = "M",
+}: {
+  children: string;
+  maxWidth?: TokenProps["maxWidth"];
+  size?: TokenProps["size"];
+}) {
   const color: TokenProps["color"] = useMemo(() => {
     switch (children) {
       case "production":
@@ -44,5 +52,9 @@ export function TagVersionLabel({ children }: { children: string }) {
         return "var(--ac-global-color-grey-900)";
     }
   }, [children]);
-  return <Token color={color}>{children}</Token>;
+  return (
+    <Token size={size} color={color} maxWidth={maxWidth} title={children}>
+      {children}
+    </Token>
+  );
 }
