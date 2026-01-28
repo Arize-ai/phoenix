@@ -277,6 +277,8 @@ CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
+CREATE INDEX ix_spans_session_id ON public.spans
+    USING btree ((CAST((attributes #>> '{session, id}') AS character varying)));
 CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
 
