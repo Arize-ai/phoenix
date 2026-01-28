@@ -674,116 +674,156 @@ async def _get_llm_evaluators(
 
 async def get_evaluators(
     *,
-    evaluator_node_ids: list[GlobalID],
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
 ) -> list[BaseEvaluator]:
     """
-    Get all evaluators for the given node IDs.
+    Get all evaluators for the given DatasetEvaluator node IDs.
 
     Returns a list of BaseEvaluator instances in the same order as the input node IDs.
     This ordering guarantee is important for correlating evaluators with their inputs.
+
+    For each DatasetEvaluator, resolves to the underlying LLM or BuiltIn evaluator.
+    Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
+    "Contains" evaluators with different names), and this function preserves that
+    multiplicity by returning separate evaluator instances for each.
     """
-    from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
-    # Parse node IDs and separate by type
-    llm_node_ids: list[GlobalID] = []
+    # Validate all IDs are DatasetEvaluator type and build mapping
+    dataset_evaluator_db_ids: list[int] = []
+    for datasetEvaluatorNodeId in dataset_evaluator_node_ids:
+        type_name, db_id = from_global_id(datasetEvaluatorNodeId)
+        if type_name != DatasetEvaluatorNode.__name__:
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{datasetEvaluatorNodeId}'"
+            )
+        dataset_evaluator_db_ids.append(db_id)
 
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
-        if type_name == LLMEvaluatorNode.__name__:
-            llm_node_ids.append(node_id)
-        elif type_name != BuiltInEvaluatorNode.__name__:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
-
-    # Fetch LLM evaluators (returned in order matching llm_node_ids)
-    llm_evaluators = await _get_llm_evaluators(
-        evaluator_node_ids=llm_node_ids,
-        session=session,
-        decrypt=decrypt,
-        credentials=credentials,
+    # Single batch query for all DatasetEvaluator records
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+        )
     )
-    llm_iter = iter(llm_evaluators)
+    dataset_evaluators_by_id: dict[int, models.DatasetEvaluators] = {
+        de.id: de for de in dataset_evaluators_result
+    }
 
-    # Build result list in original input order
+    # Validate all requested DatasetEvaluators were found
+    for idx, db_id in enumerate(dataset_evaluator_db_ids):
+        if db_id not in dataset_evaluators_by_id:
+            raise NotFound(
+                f"DatasetEvaluator with ID '{dataset_evaluator_node_ids[idx]}' not found"
+            )
+
+    # Collect unique LLM evaluator IDs that need to be fetched
+    llm_evaluator_db_ids: set[int] = set()
+    for db_id in dataset_evaluator_db_ids:
+        dataset_evaluator = dataset_evaluators_by_id[db_id]
+        if dataset_evaluator.evaluator_id is not None:
+            llm_evaluator_db_ids.add(dataset_evaluator.evaluator_id)
+
+    # Single batch query for all LLM evaluators (if any)
+    llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
+    if llm_evaluator_db_ids:
+        llm_node_ids = [
+            GlobalID(type_name=LLMEvaluatorNode.__name__, node_id=str(db_id))
+            for db_id in llm_evaluator_db_ids
+        ]
+        llm_evaluators_list = await _get_llm_evaluators(
+            evaluator_node_ids=llm_node_ids,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+        )
+        # Build mapping from db_id to evaluator
+        for llm_node_id, llm_evaluator in zip(llm_node_ids, llm_evaluators_list):
+            _, llm_db_id = from_global_id(llm_node_id)
+            llm_evaluators_by_id[llm_db_id] = llm_evaluator
+
+    # Build result list in original input order, preserving duplicates
     evaluators: list[BaseEvaluator] = []
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
+    for db_id in dataset_evaluator_db_ids:
+        dataset_evaluator = dataset_evaluators_by_id[db_id]
 
-        if type_name == LLMEvaluatorNode.__name__:
-            evaluators.append(next(llm_iter))
-        elif type_name == BuiltInEvaluatorNode.__name__:
-            builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+        if dataset_evaluator.evaluator_id is not None:
+            # LLM evaluator - get from cached lookup
+            resolved_llm_evaluator = llm_evaluators_by_id.get(dataset_evaluator.evaluator_id)
+            if resolved_llm_evaluator is None:
+                raise NotFound(
+                    f"LLM evaluator with ID '{dataset_evaluator.evaluator_id}' not found"
+                )
+            evaluators.append(resolved_llm_evaluator)
+        elif dataset_evaluator.builtin_evaluator_id is not None:
+            # Built-in evaluator - instantiate class (no DB query needed)
+            builtin_evaluator_cls = get_builtin_evaluator_by_id(
+                dataset_evaluator.builtin_evaluator_id
+            )
             if builtin_evaluator_cls is None:
-                raise NotFound(f"Built-in evaluator with ID '{node_id}' not found")
+                raise NotFound(
+                    f"Built-in evaluator with ID '{dataset_evaluator.builtin_evaluator_id}' "
+                    "not found"
+                )
             evaluators.append(builtin_evaluator_cls())
         else:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+            raise BadRequest(
+                f"DatasetEvaluator '{db_id}' has neither evaluator_id nor builtin_evaluator_id"
+            )
 
     return evaluators
 
 
 async def get_evaluator_project_ids(
-    evaluator_node_ids: list[GlobalID],
-    dataset_id: int,
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
 ) -> list[int]:
     """
-    Look up project IDs for evaluators from the DatasetEvaluators table.
+    Look up project IDs for DatasetEvaluators.
 
-    Returns a list of project IDs in the same order as the input evaluator_node_ids.
-    Raises NotFound if any evaluator doesn't have an associated project.
+    Returns a list of project IDs in the same order as the input dataset_evaluator_node_ids.
+    Raises NotFound if any DatasetEvaluator is not found.
     """
-    from phoenix.server.api.types.Evaluator import (
-        BuiltInEvaluator as BuiltInEvaluatorNode,
-    )
-    from phoenix.server.api.types.Evaluator import (
-        LLMEvaluator as LLMEvaluatorNode,
-    )
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
-    # Query DatasetEvaluators for project IDs
-    dataset_evaluators_result = await session.scalars(
-        select(models.DatasetEvaluators).where(models.DatasetEvaluators.dataset_id == dataset_id)
-    )
+    # Validate all IDs are DatasetEvaluator type and extract db IDs
+    dataset_evaluator_db_ids: list[int] = []
+    for datasetEvaluatorNodeId in dataset_evaluator_node_ids:
+        type_name, db_id = from_global_id(datasetEvaluatorNodeId)
+        if type_name != DatasetEvaluatorNode.__name__:
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{datasetEvaluatorNodeId}'"
+            )
+        dataset_evaluator_db_ids.append(db_id)
 
-    # Build mappings from evaluator db_id to project_id
-    llm_project_ids: dict[int, int] = {}
-    builtin_project_ids: dict[int, int] = {}
-    for de in dataset_evaluators_result:
-        if de.evaluator_id is not None:
-            llm_project_ids[de.evaluator_id] = de.project_id
-        if de.builtin_evaluator_id is not None:
-            builtin_project_ids[de.builtin_evaluator_id] = de.project_id
+    # Single batch query for all DatasetEvaluator records
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+        )
+    )
+    project_ids_by_de_id: dict[int, int] = {
+        de.id: de.project_id for de in dataset_evaluators_result
+    }
 
     # Build result list in input order
     result: list[int] = []
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
-        if type_name == LLMEvaluatorNode.__name__:
-            project_id = llm_project_ids.get(db_id)
-            if project_id is None:
-                raise NotFound(
-                    f"LLM evaluator '{node_id}' not found in dataset or has no associated project"
-                )
-            result.append(project_id)
-        elif type_name == BuiltInEvaluatorNode.__name__:
-            project_id = builtin_project_ids.get(db_id)
-            if project_id is None:
-                raise NotFound(
-                    f"Built-in evaluator '{node_id}' not found in dataset "
-                    "or has no associated project"
-                )
-            result.append(project_id)
-        else:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+    for idx, db_id in enumerate(dataset_evaluator_db_ids):
+        project_id = project_ids_by_de_id.get(db_id)
+        if project_id is None:
+            raise NotFound(
+                f"DatasetEvaluator with ID '{dataset_evaluator_node_ids[idx]}' not found"
+            )
+        result.append(project_id)
 
     return result
 

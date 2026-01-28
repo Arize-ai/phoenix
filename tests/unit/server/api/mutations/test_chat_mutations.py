@@ -13,6 +13,7 @@ from vcr.request import Request
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import (
     TEMPLATE_FORMATTED_MESSAGES,
     TEMPLATE_LITERAL_MAPPING,
@@ -24,7 +25,7 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -507,13 +508,38 @@ class TestChatCompletionMutationMixin:
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
-        llm_evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
-        )
+        # Create dataset and DatasetEvaluators
         contains_id = _generate_builtin_evaluator_id("Contains")
-        builtin_evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(contains_id))
-        )
+        async with db() as session:
+            dataset = models.Dataset(name="test-eval-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            llm_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=correctness_llm_evaluator.id,
+                name=Identifier("correctness"),
+                input_mapping={},
+                project=models.Project(name="correctness-project", description=""),
+            )
+            builtin_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=Identifier("contains-four"),
+                input_mapping={},
+                project=models.Project(name="contains-project", description=""),
+            )
+            session.add_all([llm_dataset_evaluator, builtin_dataset_evaluator])
+            await session.flush()
+
+            llm_evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
+            )
+            builtin_evaluator_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__, node_id=str(builtin_dataset_evaluator.id)
+                )
+            )
         query = """
           mutation ChatCompletion($input: ChatCompletionInput!) {
             chatCompletion(input: $input) {
@@ -636,9 +662,25 @@ class TestChatCompletionMutationMixin:
         db: DbSessionFactory,
     ) -> None:
         """Test that evaluators are not run when the chat completion errors out."""
-        evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(correctness_llm_evaluator.id))
-        )
+        # Create dataset and DatasetEvaluator
+        async with db() as session:
+            dataset = models.Dataset(name="test-error-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=correctness_llm_evaluator.id,
+                name=Identifier("correctness"),
+                input_mapping={},
+                project=models.Project(name="correctness-error-project", description=""),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
+            )
         query = """
           mutation ChatCompletion($input: ChatCompletionInput!) {
             chatCompletion(input: $input) {
@@ -734,17 +776,15 @@ class TestChatCompletionMutationMixin:
             single_example_dataset.id
         )
         llm_evaluator_gid = str(
-            GlobalID(
-                type_name=LLMEvaluator.__name__, node_id=str(llm_dataset_evaluator.evaluator_id)
-            )
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
         )
         builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
             single_example_dataset.id
         )
         builtin_evaluator_gid = str(
             GlobalID(
-                type_name=BuiltInEvaluator.__name__,
-                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
+                type_name=DatasetEvaluator.__name__,
+                node_id=str(builtin_dataset_evaluator.id),
             )
         )
 
@@ -1297,7 +1337,7 @@ class TestChatCompletionMutationMixin:
             single_example_dataset.id
         )
         evaluator_gid = str(
-            GlobalID(type_name=LLMEvaluator.__name__, node_id=str(dataset_evaluator.evaluator_id))
+            GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
         )
 
         async with db() as session:
@@ -1406,10 +1446,27 @@ class TestChatCompletionMutationMixin:
     ) -> None:
         """Test that builtin evaluators use the name for annotation names."""
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        evaluator_gid = str(
-            GlobalID(type_name=BuiltInEvaluator.__name__, node_id=str(exact_match_id))
-        )
         custom_name = "my-custom-exact-match"
+
+        # Create dataset and DatasetEvaluator
+        async with db() as session:
+            dataset = models.Dataset(name="test-builtin-name-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=exact_match_id,
+                name=Identifier(custom_name),
+                input_mapping={},
+                project=models.Project(name="builtin-name-project", description=""),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            evaluator_gid = str(
+                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
+            )
         query = """
           mutation ChatCompletion($input: ChatCompletionInput!) {
             chatCompletion(input: $input) {
@@ -1510,8 +1567,8 @@ class TestChatCompletionMutationMixin:
         )
         evaluator_gid = str(
             GlobalID(
-                type_name=BuiltInEvaluator.__name__,
-                node_id=str(builtin_dataset_evaluator.builtin_evaluator_id),
+                type_name=DatasetEvaluator.__name__,
+                node_id=str(builtin_dataset_evaluator.id),
             )
         )
         custom_name = "my-dataset-exact-match"

@@ -17,6 +17,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
     TEMPLATE_FORMATTED_MESSAGES,
@@ -63,8 +64,7 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
-from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
+from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
@@ -2883,18 +2883,53 @@ class TestGetEvaluators:
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         regex_id = _generate_builtin_evaluator_id("Regex")
 
-        input_node_ids = [
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
-            GlobalID(
-                type_name=LLMEvaluatorNode.__name__, node_id=str(correctness_llm_evaluator.id)
-            ),
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(exact_match_id)),
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(regex_id)),
-        ]
-
+        # Create a dataset and DatasetEvaluators
         async with db() as session:
+            dataset = models.Dataset(name="test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create DatasetEvaluators for each evaluator type
+            de_contains = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=Identifier("contains-eval"),
+                input_mapping={},
+                project=models.Project(name="contains-project", description=""),
+            )
+            de_llm = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=correctness_llm_evaluator.id,
+                name=Identifier("llm-eval"),
+                input_mapping={},
+                project=models.Project(name="llm-project", description=""),
+            )
+            de_exact_match = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=exact_match_id,
+                name=Identifier("exact-match-eval"),
+                input_mapping={},
+                project=models.Project(name="exact-match-project", description=""),
+            )
+            de_regex = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=regex_id,
+                name=Identifier("regex-eval"),
+                input_mapping={},
+                project=models.Project(name="regex-project", description=""),
+            )
+            session.add_all([de_contains, de_llm, de_exact_match, de_regex])
+            await session.flush()
+
+            input_node_ids = [
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_contains.id)),
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_llm.id)),
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_exact_match.id)),
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_regex.id)),
+            ]
+
             evaluators = await get_evaluators(
-                evaluator_node_ids=input_node_ids,
+                dataset_evaluator_node_ids=input_node_ids,
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,
@@ -2910,54 +2945,75 @@ class TestGetEvaluators:
         assert isinstance(evaluators[3], BuiltInEvaluator)
         assert evaluators[3].name == "Regex"
 
-    async def test_raises_value_error_for_missing_llm_evaluator(
+    async def test_raises_value_error_for_missing_dataset_evaluator(
         self,
         db: Any,
     ) -> None:
         non_existent_id = 999999
         input_node_ids = [
-            GlobalID(type_name=LLMEvaluatorNode.__name__, node_id=str(non_existent_id)),
+            GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(non_existent_id)),
         ]
 
         async with db() as session:
-            with pytest.raises(NotFound, match="LLM evaluator.*not found"):
+            with pytest.raises(NotFound, match="DatasetEvaluator.*not found"):
                 await get_evaluators(
-                    evaluator_node_ids=input_node_ids,
+                    dataset_evaluator_node_ids=input_node_ids,
                     session=session,
                     decrypt=lambda x: x,
                     credentials=None,
                 )
+
+    # Note: test_raises_value_error_for_missing_llm_evaluator was removed because
+    # the DatasetEvaluators.evaluator_id has a foreign key constraint to LLMEvaluators,
+    # making it impossible to have a DatasetEvaluator referencing a non-existent LLMEvaluator.
+    # The builtin_evaluator_id is NOT a FK (it's an integer referencing the Python registry),
+    # so that test case remains valid.
 
     async def test_raises_value_error_for_missing_builtin_evaluator(
         self,
         db: Any,
     ) -> None:
-        non_existent_id = 12345
-        input_node_ids = [
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(non_existent_id)),
-        ]
-
+        # Create a DatasetEvaluator that references a non-existent BuiltIn evaluator
+        non_existent_builtin_id = 12345
         async with db() as session:
+            dataset = models.Dataset(name="test-dataset-missing-builtin", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            de = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=non_existent_builtin_id,
+                name=Identifier("missing-builtin-eval"),
+                input_mapping={},
+                project=models.Project(name="missing-builtin-project", description=""),
+            )
+            session.add(de)
+            await session.flush()
+
+            input_node_ids = [
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de.id)),
+            ]
+
             with pytest.raises(NotFound, match="Built-in evaluator.*not found"):
                 await get_evaluators(
-                    evaluator_node_ids=input_node_ids,
+                    dataset_evaluator_node_ids=input_node_ids,
                     session=session,
                     decrypt=lambda x: x,
                     credentials=None,
                 )
 
-    async def test_raises_value_error_for_unknown_evaluator_type(
+    async def test_raises_value_error_for_non_dataset_evaluator_type(
         self,
         db: Any,
     ) -> None:
         input_node_ids = [
-            GlobalID(type_name="UnknownEvaluatorType", node_id="123"),
+            GlobalID(type_name="LLMEvaluator", node_id="123"),
         ]
 
         async with db() as session:
-            with pytest.raises(BadRequest, match="Unknown evaluator type"):
+            with pytest.raises(BadRequest, match="Expected DatasetEvaluator ID"):
                 await get_evaluators(
-                    evaluator_node_ids=input_node_ids,
+                    dataset_evaluator_node_ids=input_node_ids,
                     session=session,
                     decrypt=lambda x: x,
                     credentials=None,
@@ -2969,7 +3025,7 @@ class TestGetEvaluators:
     ) -> None:
         async with db() as session:
             evaluators = await get_evaluators(
-                evaluator_node_ids=[],
+                dataset_evaluator_node_ids=[],
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,
@@ -2984,15 +3040,44 @@ class TestGetEvaluators:
         levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
         json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
         contains_id = _generate_builtin_evaluator_id("Contains")
-        input_node_ids = [
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(levenshtein_id)),
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(json_distance_id)),
-            GlobalID(type_name=BuiltInEvaluatorNode.__name__, node_id=str(contains_id)),
-        ]
 
         async with db() as session:
+            dataset = models.Dataset(name="test-dataset-builtins", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            de_levenshtein = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=levenshtein_id,
+                name=Identifier("levenshtein-eval"),
+                input_mapping={},
+                project=models.Project(name="levenshtein-project", description=""),
+            )
+            de_json_distance = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=json_distance_id,
+                name=Identifier("json-distance-eval"),
+                input_mapping={},
+                project=models.Project(name="json-distance-project", description=""),
+            )
+            de_contains = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                builtin_evaluator_id=contains_id,
+                name=Identifier("contains-eval"),
+                input_mapping={},
+                project=models.Project(name="contains-project", description=""),
+            )
+            session.add_all([de_levenshtein, de_json_distance, de_contains])
+            await session.flush()
+
+            input_node_ids = [
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_levenshtein.id)),
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_json_distance.id)),
+                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_contains.id)),
+            ]
+
             evaluators = await get_evaluators(
-                evaluator_node_ids=input_node_ids,
+                dataset_evaluator_node_ids=input_node_ids,
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,
