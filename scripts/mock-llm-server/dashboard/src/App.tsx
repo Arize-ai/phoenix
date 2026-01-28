@@ -12,7 +12,7 @@ import { TimeRangeSelector } from "./components/TimeRangeSelector";
 import type { TimeRange } from "./utils/timeRange";
 
 function App() {
-  const [timeRange, setTimeRange] = useState<TimeRange>("10m");
+  const [timeRange, setTimeRange] = useState<TimeRange>("5m");
   const {
     connected,
     metrics,

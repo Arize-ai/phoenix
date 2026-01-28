@@ -78,12 +78,12 @@ export function handleNonStreaming(
   const createdAt = Date.now() / 1000;
 
   // Decide whether to make a tool call
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     req.tool_choice !== "none" &&
-    (req.tool_choice === "required" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   const output: ResponseOutputItem[] = [];
 
@@ -186,12 +186,12 @@ export async function handleStreaming(
   };
 
   // Decide whether to make a tool call
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     req.tool_choice !== "none" &&
-    (req.tool_choice === "required" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   // Create initial response object
   const initialResponse: ResponseObject = {

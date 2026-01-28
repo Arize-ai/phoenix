@@ -53,12 +53,12 @@ export function handleNonStreaming(
   const created = Math.floor(Date.now() / 1000);
 
   // Decide whether to make a tool call
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     req.tool_choice !== "none" &&
-    (req.tool_choice === "required" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   let content: string | null = null;
   let toolCalls: ChatCompletionMessageToolCall[] | undefined = undefined;
@@ -133,12 +133,12 @@ export async function handleStreaming(
   };
 
   // Decide whether to make a tool call
+  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     req.tool_choice !== "none" &&
-    (req.tool_choice === "required" ||
-      Math.random() < config.toolCallProbability);
+    Math.random() < config.toolCallProbability;
 
   if (shouldMakeToolCall && req.tools) {
     await streamToolCall(req, res, id, created, config, sendChunk);
