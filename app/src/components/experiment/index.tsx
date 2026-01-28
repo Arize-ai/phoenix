@@ -8,6 +8,7 @@ export * from "./ExperimentTokenCount";
 export * from "./ExperimentTokenCountDetails";
 export * from "./ExperimentAverageRunTokenCosts";
 export * from "./ExperimentCostAndLatencySummary";
+export * from "./ExperimentAnnotationAggregates";
 export * from "./ExperimentCodeModal";
 export * from "./RunExperimentCodeDialog";
 export * from "./ExperimentRunCellAnnotationsList";
