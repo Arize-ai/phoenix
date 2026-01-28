@@ -76,14 +76,14 @@ export const extractVariablesFromMustacheLike = (text: string) => {
     parser: MustacheLikeTemplatingLanguage.parser,
     text,
   });
-  const topLevelVariables: string[] = [];
+  const topLevelVariables = new Set<string>();
   let depth = 0;
 
   for (const variable of allVariables) {
     const trimmed = variable.trim();
     if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
       if (depth === 0) {
-        topLevelVariables.push(trimmed.slice(1).trim());
+        topLevelVariables.add(trimmed.slice(1).trim());
       }
       depth += 1;
       continue;
@@ -93,11 +93,11 @@ export const extractVariablesFromMustacheLike = (text: string) => {
       continue;
     }
     if (depth === 0) {
-      topLevelVariables.push(trimmed);
+      topLevelVariables.add(trimmed);
     }
   }
 
-  return topLevelVariables;
+  return Array.from(topLevelVariables);
 };
 
 /**
