@@ -115,7 +115,7 @@ export function PlaygroundDatasetSection({
       )
       .reduce(
         (acc, datasetEvaluator) => {
-          acc[datasetEvaluator.evaluator.id] = {
+          acc[datasetEvaluator.id] = {
             name: datasetEvaluator.name,
             inputMapping:
               datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
