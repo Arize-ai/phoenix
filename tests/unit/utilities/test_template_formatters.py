@@ -259,6 +259,82 @@ No tools available.
         result = formatter.format(template, **variables)
         assert "No tools available" in result
 
+    def test_mustache_tool_calls_from_messages_pattern(self) -> None:
+        """Test extracting tool calls from OpenAI-style messages."""
+        formatter = MustacheTemplateFormatter()
+        template = """{{#messages}}
+{{role}}: {{content}}
+{{#tool_calls}}
+- {{function.name}}({{function.arguments}})
+{{/tool_calls}}
+{{^tool_calls}}
+No tools called.
+{{/tool_calls}}
+{{/messages}}"""
+        variables = {
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "I'll help you with that.",
+                    "tool_calls": [
+                        {"function": {"name": "get_weather", "arguments": '{"city": "NYC"}'}},
+                        {"function": {"name": "get_time", "arguments": "{}"}},
+                    ],
+                }
+            ]
+        }
+        result = formatter.format(template, **variables)
+        assert "assistant: I'll help you with that." in result
+        assert '- get_weather({"city": "NYC"})' in result
+        assert "- get_time({})" in result
+        assert "No tools called" not in result
+
+    def test_mustache_tool_calls_multiple_messages(self) -> None:
+        """Test extracting tool calls from multiple messages."""
+        formatter = MustacheTemplateFormatter()
+        template = """{{#messages}}
+{{role}}: {{content}}
+{{#tool_calls}}
+- {{function.name}}({{function.arguments}})
+{{/tool_calls}}
+{{/messages}}"""
+        variables = {
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "First response",
+                    "tool_calls": [{"function": {"name": "tool1", "arguments": "{}"}}],
+                },
+                {
+                    "role": "assistant",
+                    "content": "Second response",
+                    "tool_calls": [{"function": {"name": "tool2", "arguments": "{}"}}],
+                },
+            ]
+        }
+        result = formatter.format(template, **variables)
+        assert "First response" in result
+        assert "Second response" in result
+        assert "- tool1({})" in result
+        assert "- tool2({})" in result
+
+    def test_mustache_message_without_tool_calls(self) -> None:
+        """Test message with no tool calls."""
+        formatter = MustacheTemplateFormatter()
+        template = """{{#messages}}
+{{role}}: {{content}}
+{{#tool_calls}}
+- {{function.name}}({{function.arguments}})
+{{/tool_calls}}
+{{^tool_calls}}
+No tools called.
+{{/tool_calls}}
+{{/messages}}"""
+        variables = {"messages": [{"role": "assistant", "content": "Just a text response"}]}
+        result = formatter.format(template, **variables)
+        assert "assistant: Just a text response" in result
+        assert "No tools called" in result
+
     def test_mustache_parse_only_extracts_top_level_variables(self) -> None:
         """Test that parse() only returns top-level variables, not nested ones."""
         formatter = MustacheTemplateFormatter()
