@@ -134,10 +134,14 @@
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && vite",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "source ./.env && pnpm run build:static && pnpm run build:relay && vite",
+<<<<<<< HEAD
     "dev:server": "source ./.env && uv run --with-requirements=../requirements/dev.txt python -Xfrozen_modules=off -m debugpy --listen 5678 -m phoenix.server.main --dev serve",
+=======
+    "dev:server": "source ./.env && uv run --compile python -Xfrozen_modules=off -m debugpy --listen 5678 -m phoenix.server.main --dev serve",
+>>>>>>> d52671432 (chore: make AGENTS.md the source of truth)
     "dev:server:offline": "python -m phoenix.server.main --dev serve",
     "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
-    "prod:server": "source ./.env && uv run --compile --with-requirements=../requirements/dev.txt phoenix serve",
+    "prod:server": "source ./.env && uv run --compile phoenix serve",
     "dev:server:embeddings": "pnpm dev:server --with-fixture=fashion_mnist",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:server:init": "pnpm dev:server --with-trace-fixtures=llama_index_rag --with-projects=SESSIONS-DEMO --force-fixture-ingestion",
