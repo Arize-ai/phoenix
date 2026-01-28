@@ -63,6 +63,9 @@ data:
   {{- if hasKey $provider_config "role_attribute_strict" }}
   PHOENIX_OAUTH2_{{ $provider_upper }}_ROLE_ATTRIBUTE_STRICT: {{ $provider_config.role_attribute_strict | quote }}
   {{- end }}
+  {{- if $provider_config.email_attribute_path }}
+  PHOENIX_OAUTH2_{{ $provider_upper }}_EMAIL_ATTRIBUTE_PATH: {{ $provider_config.email_attribute_path | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
   

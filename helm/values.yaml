@@ -538,6 +538,9 @@ auth:
       #   auto_login: false
       #   # Advanced: Request additional scopes beyond "openid email profile"
       #   scopes: "offline_access User.Read"  # Space-separated additional scopes
+      #   # Advanced: Extract email from alternative claim when 'email' is not available
+      #   # Use "preferred_username" for Azure AD when users don't have the mail attribute populated
+      #   email_attribute_path: "preferred_username"  # JMESPath expression to extract email from ID token
 
       # Example Keycloak with nested group path:
       # keycloak:
@@ -656,7 +659,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-12.32.0-nonroot
+  tag: version-12.33.0-nonroot
 
 # -- Resource configuration
 resources:
