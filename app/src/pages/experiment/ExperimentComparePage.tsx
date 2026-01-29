@@ -17,7 +17,10 @@ import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Alert, Flex, Loading, View } from "@phoenix/components";
-import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  ExperimentNameWithColorSwatch,
+  useExperimentColors,
+} from "@phoenix/components/experiment";
 import {
   ExperimentCompareViewMode,
   ExperimentCompareViewModeToggle,
@@ -35,7 +38,6 @@ import {
   ExperimentComparePageQueriesMultiSelectorQuery,
   ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
 } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
-import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type {
