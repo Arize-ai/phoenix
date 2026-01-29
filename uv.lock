@@ -379,6 +379,7 @@ pg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aiobotocore" },
     { name = "aiosqlite" },
     { name = "anthropic" },
     { name = "arize" },
@@ -397,6 +398,7 @@ dev = [
     { name = "grpcio" },
     { name = "httpx" },
     { name = "httpx-ws" },
+    { name = "hypothesis-jsonschema" },
     { name = "jsonpath-ng" },
     { name = "ldap3" },
     { name = "litellm" },
@@ -443,6 +445,7 @@ dev = [
     { name = "tenacity" },
     { name = "tiktoken" },
     { name = "ty" },
+    { name = "types-aiobotocore-bedrock-runtime" },
     { name = "types-beautifulsoup4" },
     { name = "types-cachetools" },
     { name = "types-jmespath" },
@@ -540,6 +543,7 @@ provides-extras = ["aws", "container", "embeddings", "evals", "experimental", "p
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aiobotocore", specifier = ">=3.1.1" },
     { name = "aiosqlite", specifier = "<0.22.0" },
     { name = "anthropic" },
     { name = "arize" },
@@ -558,6 +562,7 @@ dev = [
     { name = "grpcio" },
     { name = "httpx" },
     { name = "httpx-ws" },
+    { name = "hypothesis-jsonschema", specifier = ">=0.23.1" },
     { name = "jsonpath-ng" },
     { name = "ldap3" },
     { name = "litellm", specifier = ">1.61.15" },
@@ -603,6 +608,7 @@ dev = [
     { name = "tenacity" },
     { name = "tiktoken" },
     { name = "ty" },
+    { name = "types-aiobotocore-bedrock-runtime", specifier = ">=3.1.1" },
     { name = "types-beautifulsoup4" },
     { name = "types-cachetools" },
     { name = "types-jmespath" },
@@ -1970,6 +1976,32 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c4/fc/eb9bc06130e8bbda6a616e1b80a7aa127681c448d6b49806f61db2670b61/huggingface_hub-1.4.1.tar.gz", hash = "sha256:b41131ec35e631e7383ab26d6146b8d8972abc8b6309b963b306fbcca87f5ed5", size = 642156, upload-time = "2026-02-06T09:20:03.013Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d5/ae/2f6d96b4e6c5478d87d606a1934b5d436c4a2bce6bb7c6fdece891c128e3/huggingface_hub-1.4.1-py3-none-any.whl", hash = "sha256:9931d075fb7a79af5abc487106414ec5fba2c0ae86104c0c62fd6cae38873d18", size = 553326, upload-time = "2026-02-06T09:20:00.728Z" },
+]
+
+[[package]]
+name = "hypothesis"
+version = "6.151.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/00/5b/039c095977004f2316225559d591c5a4c62b2e4d7a429db2dd01d37c3ec2/hypothesis-6.151.6.tar.gz", hash = "sha256:755decfa326c8c97a4c8766fe40509985003396442138554b0ae824f9584318f", size = 475846, upload-time = "2026-02-11T04:42:06.891Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/70/42760b369723f8b5aa6a21e5fae58809f503ca7ebb6da13b99f4de36305a/hypothesis-6.151.6-py3-none-any.whl", hash = "sha256:4e6e933a98c6f606b3e0ada97a750e7fff12277a40260b9300a05e7a5c3c5e2e", size = 543324, upload-time = "2026-02-11T04:42:04.025Z" },
+]
+
+[[package]]
+name = "hypothesis-jsonschema"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "hypothesis" },
+    { name = "jsonschema" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4f/ad/2073dd29d8463a92c243d0c298370e50e0d4082bc67f156dc613634d0ec4/hypothesis-jsonschema-0.23.1.tar.gz", hash = "sha256:f4ac032024342a4149a10253984f5a5736b82b3fe2afb0888f3834a31153f215", size = 42896, upload-time = "2024-02-28T20:33:50.209Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/44/635a8d2add845c9a2d99a93a379df77f7e70829f0a1d7d5a6998b61f9d01/hypothesis_jsonschema-0.23.1-py3-none-any.whl", hash = "sha256:a4d74d9516dd2784fbbae82e009f62486c9104ac6f4e3397091d98a1d5ee94a2", size = 29200, upload-time = "2024-02-28T20:33:48.744Z" },
 ]
 
 [[package]]
@@ -4525,6 +4557,15 @@ wheels = [
 ]
 
 [[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
 name = "soupsieve"
 version = "2.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -4913,6 +4954,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/da/db/269f65fd3fbb6058b39ab1aa3ef3ffcd98bbba071dc4233083715e3053f9/typer_slim-0.22.0.tar.gz", hash = "sha256:99cabb4a601632a61cceb94ce044bbba7f13bf55c1cc9592b21a62dbf629a014", size = 4815, upload-time = "2026-02-11T11:00:13.484Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/fc/a2fe203a85b998556dfaca0704d3a76a1e39b3301a0ca7013d68b054d84c/typer_slim-0.22.0-py3-none-any.whl", hash = "sha256:7ed4786c26e98e8baad18591fc5387fe1fca1a6c555af56b9d3987a470097897", size = 3362, upload-time = "2026-02-11T11:00:15.478Z" },
+]
+
+[[package]]
+name = "types-aiobotocore-bedrock-runtime"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/dd/9dfe1d898af920affc526cd23f41a9f9cf4fa60e928c0ab18d014fb36c65/types_aiobotocore_bedrock_runtime-3.1.2.tar.gz", hash = "sha256:17448437f9e0329213a11c69b9f8d1cf59ed2d768ed84c7ed794f0c06941862c", size = 30033, upload-time = "2026-02-06T02:19:34.989Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/5e/1825d48eabce95e4fc7fcdf37b6f1924596c78f6665a5994b0aa95db84e7/types_aiobotocore_bedrock_runtime-3.1.2-py3-none-any.whl", hash = "sha256:97693ba3891d055c1de34e347cc9fc2d76acddbad674004eeffb35122ff406f3", size = 36606, upload-time = "2026-02-06T02:19:33.793Z" },
 ]
 
 [[package]]
