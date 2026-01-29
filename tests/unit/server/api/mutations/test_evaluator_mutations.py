@@ -2470,38 +2470,6 @@ async def empty_dataset(db: DbSessionFactory) -> AsyncIterator[models.Dataset]:
 
 
 @pytest.fixture
-async def code_evaluator(
-    db: DbSessionFactory, empty_dataset: models.Dataset
-) -> AsyncIterator[models.CodeEvaluator]:
-    """Inserts a code evaluator with dataset relationship."""
-    evaluator_name = IdentifierModel.model_validate(f"test-code-evaluator-{token_hex(4)}")
-    evaluator = models.CodeEvaluator(
-        name=evaluator_name,
-        description="test code evaluator",
-        kind="CODE",
-        dataset_evaluators=[
-            models.DatasetEvaluators(
-                dataset_id=empty_dataset.id,
-                name=evaluator_name,
-                input_mapping={},
-            )
-        ],
-        project=models.Project(
-            name=f"{empty_dataset.name}/{evaluator_name}",
-            description="Project for code evaluator",
-        ),
-    )
-    async with db() as session:
-        session.add(evaluator)
-
-    yield evaluator
-    async with db() as session:
-        await session.execute(
-            sa.delete(models.CodeEvaluator).where(models.CodeEvaluator.id == evaluator.id)
-        )
-
-
-@pytest.fixture
 async def llm_evaluator(
     db: DbSessionFactory, empty_dataset: models.Dataset
 ) -> AsyncIterator[models.LLMEvaluator]:
