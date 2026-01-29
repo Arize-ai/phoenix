@@ -3915,6 +3915,18 @@
               "title": "Include Experiment Projects"
             },
             "description": "Include experiment projects in the response. Experiment projects are created from running experiments."
+          },
+          {
+            "name": "include_dataset_evaluator_projects",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators.",
+              "default": false,
+              "title": "Include Dataset Evaluator Projects"
+            },
+            "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
           }
         ],
         "responses": {

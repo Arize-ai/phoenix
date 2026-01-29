@@ -27,6 +27,7 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
@@ -573,7 +574,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project)
+        projects_query = select(models.Project)
 
         if sort and sort.col is ProjectColumn.endTime:
             # For end time sorting, we need to use a correlated subquery
@@ -584,17 +585,22 @@ class Query:
                 .where(models.Trace.project_rowid == models.Project.id)
                 .scalar_subquery()
             )
-            stmt = stmt.order_by(
+            projects_query = projects_query.order_by(
                 end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
-            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+            projects_query = projects_query.order_by(
+                sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc()
+            )
         if filter:
-            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
-        stmt = exclude_experiment_projects(stmt)
+            projects_query = projects_query.where(
+                getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
+            )
+        projects_query = exclude_experiment_projects(projects_query)
+        projects_query = exclude_dataset_evaluator_projects(projects_query)
         async with info.context.db() as session:
-            projects = await session.stream_scalars(stmt)
+            projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
         return connection_from_list(data=data, args=args)
 

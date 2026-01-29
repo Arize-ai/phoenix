@@ -54,6 +54,38 @@ async def test_projects_omits_experiment_projects(
     }
 
 
+async def test_projects_omits_dataset_evaluator_projects(
+    gql_client: AsyncGraphQLClient,
+    projects_with_and_without_dataset_evaluators: Any,
+) -> None:
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {
+            "edges": [
+                {
+                    "project": {
+                        "id": str(GlobalID("Project", str(1))),
+                        "name": "non-dataset-evaluator-project-name",
+                    }
+                }
+            ]
+        }
+    }
+
+
 async def test_prompts_filter_by_name(
     gql_client: AsyncGraphQLClient,
     prompts_for_filtering: Any,
@@ -565,6 +597,52 @@ async def projects_with_and_without_experiments(
                 project_name="experiment-project-name",
             )
         )
+
+
+@pytest.fixture
+async def projects_with_and_without_dataset_evaluators(
+    db: DbSessionFactory,
+) -> None:
+    """
+    Insert two projects, one that is associated with a dataset evaluator and the other that is not.
+    """
+    async with db() as session:
+        non_dataset_evaluator_project = models.Project(
+            name="non-dataset-evaluator-project-name",
+            description="non-dataset-evaluator-project-description",
+        )
+        dataset_evaluator_project = models.Project(
+            name="dataset-evaluator-project-name",
+            description="dataset-evaluator-project-description",
+        )
+        session.add(non_dataset_evaluator_project)
+        session.add(dataset_evaluator_project)
+        await session.flush()
+
+        dataset = models.Dataset(
+            name="dataset-name",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        code_evaluator = models.CodeEvaluator(
+            name=Identifier(root="test-evaluator"),
+            description="Test evaluator",
+            metadata_={},
+        )
+        session.add(code_evaluator)
+        await session.flush()
+
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=code_evaluator.id,
+            name=Identifier(root="test-dataset-evaluator"),
+            input_mapping={},
+            project_id=dataset_evaluator_project.id,
+        )
+        session.add(dataset_evaluator)
+        await session.flush()
 
 
 async def test_experiment_run_metric_comparisons(
