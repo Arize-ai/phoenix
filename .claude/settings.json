@@ -45,7 +45,7 @@
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(contains(\"schemas/openapi.json\"))' | xargs -r sh -c 'cd js && pnpm i && pnpm build >&2' || { [ $? -eq 1 ] && exit 2; }"
+            "command": "jq -r '.tool_input.file_path | select(contains(\"schemas/openapi.json\"))' | xargs -r sh -c 'cd js && { pnpm i && pnpm build; } >&2' || { [ $? -eq 1 ] && exit 2; }"
           }
         ]
       }
