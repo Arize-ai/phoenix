@@ -47,7 +47,6 @@ from phoenix.server.api.helpers.annotation_configs import (
     apply_overrides_to_annotation_config,
     get_annotation_config_override,
 )
-from phoenix.server.api.helpers.cancellation import PlaygroundCancellationToken
 from phoenix.server.api.helpers.message_helpers import (
     ChatCompletionMessage,
     extract_and_convert_example_messages,
@@ -122,7 +121,6 @@ async def _stream_single_chat_completion(
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
     evaluators: list[BaseEvaluator],
-    cancellation_token: PlaygroundCancellationToken,
 ) -> ChatStream:
     messages = [
         (
@@ -154,12 +152,6 @@ async def _stream_single_chat_completion(
             async for chunk in llm_client.chat_completion_create(
                 messages=messages, tools=input.tools or [], **invocation_parameters
             ):
-                # Check for cancellation on each chunk
-                if cancellation_token.is_cancelled():
-                    reason = cancellation_token.reason
-                    span._status_code = StatusCode.ERROR
-                    span._status_message = f"Cancelled: {reason.reason if reason else 'Unknown'}"
-                    break
                 span.add_response_chunk(chunk)
                 chunk.repetition_number = repetition_number
                 yield chunk
@@ -175,19 +167,12 @@ async def _stream_single_chat_completion(
     db_span = get_db_span(span, db_trace)
     await results.put((db_span, repetition_number))
 
-    # Skip evaluators if cancelled
-    if cancellation_token.is_cancelled():
-        return
-
     if input.evaluators and span.status_code is StatusCode.OK:
         context_dict: dict[str, Any] = {
             "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
             "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
         }
         for evaluator, evaluator_input in zip(evaluators, input.evaluators):
-            # Check for cancellation before each evaluator
-            if cancellation_token.is_cancelled():
-                return
             name = str(evaluator_input.name)
             annotation_config_override = get_annotation_config_override(evaluator_input)
             merged_config = apply_overrides_to_annotation_config(
@@ -302,17 +287,7 @@ async def _cleanup_chat_completion_resources(
         if not task.done():
             task.cancel()
 
-    # 2. Wait with timeout for graceful cancellation
-    if in_progress:
-        tasks_to_wait = [task for _, _, task in in_progress]
-        try:
-            _, pending = await asyncio.wait(tasks_to_wait, timeout=5.0)
-            for task in pending:
-                task.cancel()
-        except Exception as e:
-            logger.error(f"Error waiting for task cancellation: {e}")
-
-    # 3. Close generator streams explicitly
+    # 2. Close generator streams explicitly (handles orphaned inner tasks)
     for _, stream, _ in in_progress:
         if inspect.isasyncgen(stream):
             try:
@@ -320,7 +295,7 @@ async def _cleanup_chat_completion_resources(
             except Exception as e:
                 logger.warning(f"Error closing stream: {e}")
 
-    # 4. Close not-started generators
+    # 3. Close not-started generators (prevents ResourceWarning)
     for _, stream in not_started:
         if inspect.isasyncgen(stream):
             try:
@@ -328,7 +303,7 @@ async def _cleanup_chat_completion_resources(
             except Exception as e:
                 logger.warning(f"Error closing not-started stream: {e}")
 
-    # 5. Flush results queue to database
+    # 4. Flush results queue to database (important for data integrity)
     if not results.empty():
         remaining: list[tuple[Optional[models.Span], int]] = []
         while not results.empty():
@@ -350,9 +325,6 @@ async def _cleanup_chat_completion_resources(
             except Exception as e:
                 logger.error(f"Error flushing results: {e}")
 
-    # 6. Clear collections
-    in_progress.clear()
-    not_started.clear()
     logger.info("Resource cleanup complete")
 
 
@@ -389,8 +361,6 @@ class Subscription:
                     )
                 )
 
-        cancellation_token = PlaygroundCancellationToken(operation_id="chat_completion")
-
         results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
         not_started: deque[tuple[int, ChatStream]] = deque(
             (
@@ -403,7 +373,6 @@ class Subscription:
                     results=results,
                     info=info,
                     evaluators=evaluators,
-                    cancellation_token=cancellation_token,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -422,28 +391,6 @@ class Subscription:
 
         try:
             while not_started or in_progress:
-                # CANCELLATION: When the frontend aborts the HTTP request (via
-                # AbortController), is_disconnected() returns True here. We then
-                # set the cancellation token, which causes all LLM streams to break.
-                # See: src/phoenix/server/api/helpers/cancellation.py for full architecture
-                if hasattr(info.context, "request"):
-                    request = info.context.request
-                    if request is not None and hasattr(request, "is_disconnected"):
-                        try:
-                            if await request.is_disconnected():
-                                logger.info("Client disconnected, cancelling operation")
-                                cancellation_token.cancel(
-                                    reason="Client disconnected",
-                                    cancelled_by="client_disconnect",
-                                )
-                        except Exception:
-                            pass  # Ignore errors checking disconnect status
-
-                # Check for cancellation at the start of each loop iteration
-                if cancellation_token.is_cancelled():
-                    logger.info(f"Cancellation requested: {cancellation_token.reason}")
-                    break
-
                 while not_started and len(in_progress) < max_in_progress:
                     rep_num, stream = not_started.popleft()
                     task = _create_task_with_timeout(stream)
@@ -500,18 +447,17 @@ class Subscription:
                         in_progress.append((None, result_payloads_stream, task))
                         last_write_time = datetime.now()
 
-            # Process remaining results if not cancelled
-            if not cancellation_token.is_cancelled():
-                if remaining_results := await _drain(results):
-                    async for result_payload in _chat_completion_span_result_payloads(
-                        db=info.context.db,
-                        results=remaining_results,
-                        span_cost_calculator=info.context.span_cost_calculator,
-                        on_span_insertion=lambda: info.context.event_queue.put(
-                            SpanInsertEvent(ids=(playground_project_id,))
-                        ),
-                    ):
-                        yield result_payload
+            # Process remaining results
+            if remaining_results := await _drain(results):
+                async for result_payload in _chat_completion_span_result_payloads(
+                    db=info.context.db,
+                    results=remaining_results,
+                    span_cost_calculator=info.context.span_cost_calculator,
+                    on_span_insertion=lambda: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(playground_project_id,))
+                    ),
+                ):
+                    yield result_payload
         finally:
             await _cleanup_chat_completion_resources(
                 in_progress=in_progress,
