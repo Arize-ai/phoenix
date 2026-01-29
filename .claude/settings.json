@@ -42,6 +42,10 @@
           {
             "type": "command",
             "command": "jq -r '.tool_input.file_path | select(endswith(\"pyproject.toml\") or endswith(\"uv.lock\"))' | xargs -r sh -c 'uv sync >&2' || { [ $? -eq 1 ] && exit 2; }"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path | select(contains(\"schemas/openapi.json\"))' | xargs -r sh -c 'cd js && { pnpm i && pnpm build; } >&2' || { [ $? -eq 1 ] && exit 2; }"
           }
         ]
       }
