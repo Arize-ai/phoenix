@@ -18,7 +18,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, Token, View } from "@phoenix/components";
+import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -201,7 +202,9 @@ export const EvaluatorsTable = ({
       {
         header: "kind",
         accessorKey: "kind",
-        cell: ({ getValue }) => <Token>{getValue() as string}</Token>,
+        cell: ({ getValue }) => (
+          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
+        ),
       },
       {
         header: "description",

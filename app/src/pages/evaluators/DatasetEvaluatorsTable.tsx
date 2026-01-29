@@ -17,7 +17,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link, Text, Token } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { formatBuiltinEvaluatorDisplayName } from "@phoenix/components/evaluators/utils";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -327,7 +328,9 @@ export const DatasetEvaluatorsTable = ({
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
         accessorFn: (row) => row.evaluator.kind,
-        cell: ({ getValue }) => <Token>{getValue() as string}</Token>,
+        cell: ({ getValue }) => (
+          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
+        ),
       },
       {
         header: "description",

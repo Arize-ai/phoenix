@@ -231,9 +231,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
           textAlign: "right" as const,
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
-          <Link to={`${row.original.id}/examples`}>
-            {row.original.exampleCount}
-          </Link>
+          <StopPropagation>
+            <Link to={`${row.original.id}/examples`}>
+              {row.original.exampleCount}
+            </Link>
+          </StopPropagation>
         ),
       },
       {
@@ -244,9 +246,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
           textAlign: "right" as const,
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
-          <Link to={`${row.original.id}/experiments`}>
-            {row.original.experimentCount}
-          </Link>
+          <StopPropagation>
+            <Link to={`${row.original.id}/experiments`}>
+              {row.original.experimentCount}
+            </Link>
+          </StopPropagation>
         ),
       },
       {
@@ -257,9 +261,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
           textAlign: "right" as const,
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
-          <Link to={`${row.original.id}/evaluators`}>
-            {row.original.evaluatorCount}
-          </Link>
+          <StopPropagation>
+            <Link to={`${row.original.id}/evaluators`}>
+              {row.original.evaluatorCount}
+            </Link>
+          </StopPropagation>
         ),
       },
       {
