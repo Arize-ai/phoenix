@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e0f426da28e092f0f5850ffb26343cf4>>
+ * @generated SignedSource<<3de334a1f81882dc93fb2180e3328099>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type EvaluatorKind = "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type AddEvaluatorMenu_codeEvaluatorTemplates$data = {
   readonly builtInEvaluators: ReadonlyArray<{
+    readonly description: string | null;
     readonly id: string;
     readonly kind: EvaluatorKind;
     readonly name: string;
@@ -56,6 +57,13 @@ const node: ReaderFragment = {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "description",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "kind",
           "storageKey": null
         }
@@ -67,6 +75,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "0e7d4cfb6410618b9cbafa5a8be13d2e";
+(node as any).hash = "840f576ed8c86c9583aac91526b1b0cb";
 
 export default node;

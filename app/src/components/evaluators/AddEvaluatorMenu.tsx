@@ -9,6 +9,7 @@ import { graphql, useFragment } from "react-relay";
 import z from "zod";
 
 import { Button, ButtonProps } from "@phoenix/components/button";
+import { Text } from "@phoenix/components/content";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
@@ -18,6 +19,7 @@ import { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
 import { Icon, Icons } from "@phoenix/components/icon";
+import { Flex } from "@phoenix/components/layout";
 import {
   Menu,
   MenuContainer,
@@ -25,6 +27,7 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -156,13 +159,6 @@ export const AddEvaluatorMenuContents = ({
       </MenuSection>
       <MenuSection>
         <MenuSectionTitle title="New code evaluator" />
-        <MenuItem
-          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
-          isDisabled
-          id="createCodeEvaluator"
-        >
-          Create new code evaluator
-        </MenuItem>
         <CodeEvaluatorTemplateSubmenu
           query={query}
           onAction={onSelectBuiltInCodeEvaluator}
@@ -197,6 +193,7 @@ const CodeEvaluatorTemplateSubmenu = ({
         builtInEvaluators {
           id
           name
+          description
           kind
         }
       }
@@ -217,8 +214,21 @@ const CodeEvaluatorTemplateSubmenu = ({
           onAction={(key) => onAction(key as string)}
         >
           {(evaluator) => (
-            <MenuItem key={evaluator.id} id={evaluator.id}>
-              {evaluator.name}
+            <MenuItem
+              key={evaluator.id}
+              id={evaluator.id}
+              textValue={`${evaluator.name}\n${evaluator.description ?? ""}`}
+            >
+              <Flex direction="column" gap="size-50">
+                <Text weight="heavy">{evaluator.name}</Text>
+                {evaluator.description && (
+                  <Truncate maxLines={2} title={evaluator.description}>
+                    <Text size="S" color="text-700">
+                      {evaluator.description}
+                    </Text>
+                  </Truncate>
+                )}
+              </Flex>
             </MenuItem>
           )}
         </Menu>
@@ -299,8 +309,21 @@ const LLMEvaluatorTemplateSubmenu = ({
           }}
         >
           {(evaluator) => (
-            <MenuItem key={evaluator.name} id={evaluator.name}>
-              {evaluator.name}
+            <MenuItem
+              key={evaluator.name}
+              id={evaluator.name}
+              textValue={`${evaluator.name}\n${evaluator.description ?? ""}`}
+            >
+              <Flex direction="column" gap="size-50">
+                <Text weight="heavy">{evaluator.name}</Text>
+                {evaluator.description && (
+                  <Truncate maxLines={2} title={evaluator.description}>
+                    <Text size="S" color="text-700">
+                      {evaluator.description}
+                    </Text>
+                  </Truncate>
+                )}
+              </Flex>
             </MenuItem>
           )}
         </Menu>
