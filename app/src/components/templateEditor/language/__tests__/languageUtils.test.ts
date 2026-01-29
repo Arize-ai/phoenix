@@ -1,8 +1,9 @@
 import { formatFString, FStringTemplatingLanguage } from "../fString";
 import { extractVariables } from "../languageUtils";
 import {
+  extractVariablesFromMustacheLike,
   formatMustacheLike,
-  MustacheLikeTemplatingLanguage,
+  validateMustacheSections,
 } from "../mustacheLike";
 
 describe("language utils", () => {
@@ -44,12 +45,104 @@ can you help with this json?
       },
     ] as const;
     tests.forEach(({ input, expected }) => {
-      expect(
-        extractVariables({
-          parser: MustacheLikeTemplatingLanguage.parser,
-          text: input,
-        })
-      ).toEqual(expected);
+      expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
+    });
+  });
+
+  it("should extract only top-level variables from mustache sections", () => {
+    const tests = [
+      { input: "{{#items}}{{name}}{{/items}}", expected: ["items"] },
+      {
+        input: "{{input}}{{#messages}}{{role}}{{/messages}}",
+        expected: ["input", "messages"],
+      },
+      {
+        input: "{{#outer}}{{#inner}}{{x}}{{/inner}}{{/outer}}",
+        expected: ["outer"],
+      },
+      { input: "{{^items}}No items{{/items}}", expected: ["items"] },
+      {
+        input: "{{#items}}{{name}}{{/items}}{{^items}}Empty{{/items}}",
+        expected: ["items"],
+      },
+      {
+        input: `{{#messages}}
+{{role}}: {{content}}
+{{#tool_calls}}
+- {{function.name}}({{function.arguments}})
+{{/tool_calls}}
+{{/messages}}`,
+        expected: ["messages"],
+      },
+      { input: "{{#a}}{{x}}{{/a}}{{#b}}{{y}}{{/b}}", expected: ["a", "b"] },
+      {
+        input: "{{simple}}{{#list}}{{item}}{{/list}}",
+        expected: ["simple", "list"],
+      },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
+    });
+  });
+
+  it("should validate mustache section tags", () => {
+    const tests = [
+      {
+        input: "{{#query}}\n{{#messages}}\n{{role}}\n{{/messages}}",
+        expected: {
+          errors: [],
+          warnings: ["Unclosed section tag: {{#query}}"],
+        },
+      },
+      {
+        input: "{{^available_tools}}\n{{name}}",
+        expected: {
+          errors: [],
+          warnings: ["Unclosed section tag: {{^available_tools}}"],
+        },
+      },
+      {
+        input: "{{/items}}",
+        expected: {
+          errors: ["Unmatched closing tag: {{/items}}"],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#items}}{{name}}{{/items}}",
+        expected: {
+          errors: [],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#a}}{{/b}}",
+        expected: {
+          errors: ["Unmatched closing tag: {{/b}}"],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#messages}}{{#tool_calls}}{{/messages}}",
+        expected: {
+          errors: [
+            "Missing closing tag for {{#tool_calls}} before {{/messages}}",
+          ],
+          warnings: [],
+        },
+      },
+      {
+        input: "{{#messages}}{{^tool_calls}}{{/messages}}",
+        expected: {
+          errors: [
+            "Missing closing tag for {{^tool_calls}} before {{/messages}}",
+          ],
+          warnings: [],
+        },
+      },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(validateMustacheSections(input)).toEqual(expected);
     });
   });
 
