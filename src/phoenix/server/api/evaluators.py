@@ -291,10 +291,10 @@ class LLMEvaluator(BaseEvaluator):
                             formatted_content = "".join(text_parts)
                         messages.append((role, formatted_content, None, None))
 
-                        formatted_messages = [
-                            oi.Message(role=role.value.lower(), content=content)
-                            for role, content, _, _ in messages
-                        ]
+                    formatted_messages = [
+                        oi.Message(role=role.value.lower(), content=content)
+                        for role, content, _, _ in messages
+                    ]
                     template_span.set_attributes(
                         _get_template_formatted_message_attributes(messages=formatted_messages)
                     )
