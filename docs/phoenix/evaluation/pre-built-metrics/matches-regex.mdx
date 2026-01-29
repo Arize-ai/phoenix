@@ -1,0 +1,219 @@
+---
+title: "Matches Regex"
+description: "Evaluate if output matches a regular expression pattern"
+---
+
+## Overview
+
+The **MatchesRegex** evaluator is a code-based evaluator that checks if the output contains substrings matching a specified regular expression pattern. It's useful for validating output format, detecting specific content patterns, or checking for required elements.
+
+### When to Use
+
+Use the MatchesRegex evaluator when you need to:
+
+- **Validate output format** - Check that responses follow expected patterns (URLs, emails, dates)
+- **Detect specific content** - Find phone numbers, IDs, or other structured data in outputs
+- **Enforce formatting rules** - Verify outputs contain required elements
+- **Pattern-based quality checks** - Check for presence of citations, code blocks, or other patterns
+
+<Info>
+This is a code-based evaluator using Python's `re` module. For exact string matching, use [exact_match](/docs/phoenix/evaluation/pre-built-metrics/exact-match) instead.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Evaluate any span output against regex patterns. |
+| **Trace** | Yes | Evaluate final trace output. |
+| **Session** | Yes | Evaluate individual responses in a session. |
+
+## Input Requirements
+
+The MatchesRegex evaluator requires one input:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `output` | `string` | The text to evaluate against the regex pattern |
+
+### Constructor Arguments
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `pattern` | `str` or `Pattern` | The regex pattern (string or compiled) |
+| `name` | `str` (optional) | Custom evaluator name (default: "matches_regex") |
+| `include_explanation` | `bool` (optional) | Include match details in explanation (default: True) |
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `score` | `1.0` or `0.0` | 1.0 if pattern matches, 0.0 if no match |
+| `explanation` | `string` | Number of matches found or "no match" message |
+| `kind` | `"code"` | Indicates this is a code-based evaluator |
+| `direction` | `"maximize"` | Higher scores are better |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    import re
+    from phoenix.evals.metrics import MatchesRegex
+
+    # Create evaluator with a URL detection pattern
+    url_pattern = re.compile(r"https?://[^\s]+")
+    contains_url = MatchesRegex(pattern=url_pattern)
+
+    # Inspect the evaluator's requirements
+    print(contains_url.describe())
+
+    # Evaluate output with a URL
+    eval_input = {"output": "Check out https://github.com/Arize-ai/phoenix!"}
+    scores = contains_url.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='matches_regex', score=1.0, explanation='There are 1 matches...', ...)
+
+    # Evaluate output without a URL
+    eval_input = {"output": "This text has no links."}
+    scores = contains_url.evaluate(eval_input)
+    print(scores[0].score)  # 0.0
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    <Note>
+    The MatchesRegex evaluator is currently only available in Python. For TypeScript, you can create a custom code evaluator:
+    </Note>
+
+    ```typescript
+    import { createEvaluator } from "@arizeai/phoenix-evals";
+
+    const urlPattern = /https?:\/\/[^\s]+/g;
+
+    const matchesUrlEvaluator = createEvaluator({
+      name: "matches_url",
+      kind: "code",
+      evaluate: (record: { output: string }) => {
+        const matches = record.output.match(urlPattern);
+        return {
+          score: matches ? 1 : 0,
+          explanation: matches
+            ? `Found ${matches.length} URL(s)`
+            : "No URLs found",
+        };
+      },
+    });
+
+    const result = await matchesUrlEvaluator.evaluate({
+      output: "Visit https://phoenix.arize.com for more info",
+    });
+    console.log(result); // { score: 1, explanation: "Found 1 URL(s)" }
+    ```
+  </Tab>
+</Tabs>
+
+### Common Pattern Examples
+
+```python
+import re
+from phoenix.evals.metrics import MatchesRegex
+
+# Email detection
+email_pattern = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+contains_email = MatchesRegex(pattern=email_pattern, name="contains_email")
+
+# Phone number detection (US format)
+phone_pattern = re.compile(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
+contains_phone = MatchesRegex(pattern=phone_pattern, name="contains_phone")
+
+# Code block detection (markdown)
+code_block_pattern = re.compile(r"```[\s\S]*?```")
+contains_code = MatchesRegex(pattern=code_block_pattern, name="contains_code_block")
+
+# JSON object detection
+json_pattern = re.compile(r"\{[^{}]*\}")
+contains_json = MatchesRegex(pattern=json_pattern, name="contains_json")
+```
+
+### Using String Patterns
+
+You can pass patterns as strings instead of compiled regex:
+
+```python
+from phoenix.evals.metrics import MatchesRegex
+
+# String pattern (will be compiled automatically)
+date_evaluator = MatchesRegex(
+    pattern=r"\d{4}-\d{2}-\d{2}",
+    name="contains_date"
+)
+
+eval_input = {"output": "The event is scheduled for 2024-03-15."}
+scores = date_evaluator.evaluate(eval_input)
+print(scores[0].score)  # 1.0
+```
+
+### Disabling Explanations
+
+For performance, you can disable explanations:
+
+```python
+from phoenix.evals.metrics import MatchesRegex
+
+evaluator = MatchesRegex(
+    pattern=r"\d+",
+    include_explanation=False
+)
+
+scores = evaluator.evaluate({"output": "Item 123"})
+print(scores[0].explanation)  # None
+```
+
+### Using Input Mapping
+
+When your data has different field names:
+
+```python
+from phoenix.evals.metrics import MatchesRegex
+
+evaluator = MatchesRegex(pattern=r"https?://[^\s]+")
+
+eval_input = {"response": "Visit https://example.com"}
+
+input_mapping = {"output": "response"}
+
+scores = evaluator.evaluate(eval_input, input_mapping)
+print(scores[0].score)  # 1.0
+```
+
+For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+
+## Configuration
+
+This is a code-based evaluator that requires no LLM configuration.
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+
+### Running Experiments
+
+Use the MatchesRegex evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [MatchesRegex](https://arize-phoenix-evals.readthedocs.io/en/latest/api/evals.html#built-in-metrics)
+
+## Related
+
+- [Exact Match Evaluator](/docs/phoenix/evaluation/pre-built-metrics/exact-match) - For exact string comparison
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For semantic correctness evaluation
