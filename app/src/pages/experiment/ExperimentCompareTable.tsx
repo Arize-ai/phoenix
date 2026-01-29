@@ -44,8 +44,10 @@ import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
+  ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
   ExperimentInputCell,
+  ExperimentNameWithColorSwatch,
   ExperimentOutputContent,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
@@ -59,7 +61,6 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
-import { ExperimentNameWithColorSwatch } from "@phoenix/pages/experiment/ExperimentNameWithColorSwatch";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
@@ -113,6 +114,16 @@ const tableWrapCSS = css`
   }
 `;
 
+/**
+ * We change the size of the action menu to make it align with  the other headers
+ */
+const actionMenuContainerCSS = css`
+  position: relative;
+  height: var(--ac-global-line-height-s);
+  height: & > button {
+    position: absolute;
+  }
+`;
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
@@ -232,6 +243,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     averageRunLatencyMs
                     runCount
                     repetitions
+                    annotationSummaries {
+                      annotationName
+                      meanScore
+                    }
                   }
                 }
               }
@@ -350,7 +365,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
       {
-        header: "reference output",
+        header: () => (
+          <Flex direction="column" gap="size-50" width="100%">
+            <span>reference output</span>
+            <ExperimentCostAndLatencySummary
+              executionState="idle"
+              isPlaceholder={true}
+            />
+            <ExperimentAnnotationAggregates
+              executionState="idle"
+              annotationConfigs={annotationConfigs}
+              isPlaceholder={true}
+            />
+          </Flex>
+        ),
         accessorKey: "referenceOutput",
         enableSorting: false,
         cell: ({ getValue }) => (
@@ -361,7 +389,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ),
       },
     ];
-  }, [baseExperiment?.datasetVersionId, cellContentHeight, setDialog]);
+  }, [
+    annotationConfigs,
+    baseExperiment?.datasetVersionId,
+    cellContentHeight,
+    setDialog,
+  ]);
 
   const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [baseExperimentId, ...compareExperimentIds].map(
@@ -383,11 +416,28 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               alignItems="center"
               justifyContent="space-between"
             >
-              <Flex direction="column" gap="size-50">
-                <ExperimentNameWithColorSwatch
-                  name={name}
-                  color={experimentColor}
-                />
+              <Flex direction="column" gap="size-50" width="100%">
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  wrap
+                  justifyContent="space-between"
+                  alignItems="start"
+                >
+                  <ExperimentNameWithColorSwatch
+                    name={name}
+                    color={experimentColor}
+                  />
+                  <div css={actionMenuContainerCSS}>
+                    <ExperimentActionMenu
+                      experimentId={experimentId}
+                      metadata={metadata}
+                      projectId={projectId}
+                      size="S"
+                      canDeleteExperiment={false}
+                    />
+                  </div>
+                </Flex>
                 <div>
                   {experiment && (
                     <ExperimentCostAndLatencySummary
@@ -396,18 +446,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     />
                   )}
                 </div>
-              </Flex>
-              <Flex
-                direction="row"
-                wrap
-                justifyContent="end"
-                alignItems="center"
-              >
-                <ExperimentActionMenu
-                  experimentId={experimentId}
-                  metadata={metadata}
-                  projectId={projectId}
-                  canDeleteExperiment={false}
+                <ExperimentAnnotationAggregates
+                  executionState="complete"
+                  annotationConfigs={annotationConfigs}
+                  annotationSummaries={experiment?.annotationSummaries ?? []}
                 />
               </Flex>
             </Flex>

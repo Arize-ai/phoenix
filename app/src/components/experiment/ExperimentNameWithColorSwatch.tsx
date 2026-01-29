@@ -15,10 +15,11 @@ export function ExperimentNameWithColorSwatch({
       <Text
         css={css`
           white-space: nowrap;
-          max-width: var(--ac-global-dimension-size-2000);
+          max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
         `}
+        weight="heavy"
         title={name}
         size="S"
       >
