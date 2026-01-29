@@ -43,7 +43,7 @@ const FIELD_CONFIG: {
     field: "input",
     label: "input",
     description:
-      "From the dataset example. This is the input that was passed to your task.",
+      "From the dataset example. This is the input that will be passed to your task.",
     tooltip:
       "This value comes from the selected dataset example's input field. When running experiments, your task will receive inputs like this.",
   },
@@ -59,9 +59,9 @@ const FIELD_CONFIG: {
     field: "reference",
     label: "reference",
     description:
-      "From the dataset example. The expected/ground-truth output used for comparison.",
+      "From the dataset example. An optional reference point for comparison.",
     tooltip:
-      "This value comes from the selected dataset example's output field. It represents the expected or 'correct' answer that your evaluator can compare against.",
+      "This value comes from the selected dataset example's output field. It can be used as a reference point for comparison, but is not always present or required.",
   },
 ];
 
