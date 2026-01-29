@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import pytest
 from openai import AsyncOpenAI
-from openinference.semconv.trace import MessageAttributes, SpanAttributes
+from openinference.semconv.trace import MessageAttributes, SpanAttributes, ToolCallAttributes
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay import GlobalID
 
@@ -2217,6 +2217,51 @@ class TestLLMEvaluator:
             assert isinstance(attributes.pop(key), int)
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
+        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+        raw_output_value = attributes.pop(OUTPUT_VALUE)
+        output_value = json.loads(raw_output_value)
+        messages = output_value.pop("messages")
+        assert not output_value
+        assert messages is not None
+        assert len(messages) == 1
+        message = messages[0]
+        assert message.pop("role") == "assistant"
+        tool_calls = message.pop("tool_calls")
+        assert not message
+        assert len(tool_calls) == 1
+        tool_call = tool_calls[0]
+        assert isinstance(tool_call.pop("id"), str)
+        function = tool_call.pop("function")
+        assert isinstance(function, dict)
+        assert function.pop("name") == "correctness_evaluator"
+        raw_arguments = function.pop("arguments")
+        assert isinstance(raw_arguments, str)
+        arguments = json.loads(raw_arguments)
+        assert arguments.pop("label") == "correct"
+        assert isinstance(arguments.pop("explanation"), str)
+        assert not arguments
+        assert not function
+        assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
+        assert isinstance(
+            attributes.pop(
+                f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_ID}"
+            ),
+            str,
+        )
+        assert (
+            attributes.pop(
+                f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}"
+            )
+            == "correctness_evaluator"
+        )
+        raw_arguments = attributes.pop(
+            f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS}"
+        )
+        assert isinstance(raw_arguments, str)
+        arguments = json.loads(raw_arguments)
+        assert arguments.pop("label") == "correct"
+        assert isinstance(arguments.pop("explanation"), str)
+        assert not arguments
         assert not attributes
 
         # chain span
@@ -3172,7 +3217,13 @@ LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+
+# tool call attributes
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
