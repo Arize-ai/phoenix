@@ -1,0 +1,392 @@
+---
+title: "Tool Invocation"
+description: "Evaluate whether LLM tool calls have correct arguments and formatting"
+---
+
+## Overview
+
+The **Tool Invocation** evaluator determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. This evaluator focuses on the *how* of tool calling - validating that the invocation itself is well-formed - rather than whether the right tool was selected.
+
+### When to Use
+
+Use the Tool Invocation evaluator when you need to:
+
+- **Validate tool call arguments** - Ensure all required parameters are present with correct values
+- **Check JSON formatting** - Verify tool calls are properly structured
+- **Detect hallucinated fields** - Identify when the LLM invents parameters not in the schema
+- **Audit for unsafe content** - Check that arguments don't contain PII or sensitive data
+- **Evaluate multi-tool invocations** - Validate when the LLM calls multiple tools at once
+
+<Info>
+This evaluator validates tool invocation correctness, not tool selection. For evaluating whether the right tool was chosen, use the [Tool Selection evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) instead.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Best for LLM spans that contain tool calls. Evaluate individual tool-calling decisions. |
+| **Trace** | Yes | Evaluate tool invocations across an entire agent trace. |
+| **Session** | Yes | Evaluate tool invocation patterns across a conversation session. |
+
+**Relevant span kinds:** LLM spans with tool calls, particularly in agentic applications.
+
+## Input Requirements
+
+The Tool Invocation evaluator requires three inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The conversation context (can include multi-turn history) |
+| `available_tools` | `string` | Tool schemas (JSON schema or human-readable format) |
+| `tool_selection` | `string` | The LLM's tool invocation(s) with arguments |
+
+<Note>
+In TypeScript, the fields use camelCase: `availableTools` and `toolSelection`.
+</Note>
+
+### Formatting Tips
+
+For best results:
+
+- **Include full conversation context** - The evaluator considers the entire conversation history to validate argument values
+- **Tool schemas can be JSON or human-readable** - Both formats are supported
+- **Multi-tool invocations are supported** - If the LLM calls multiple tools, include all invocations
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+
+**Criteria for Correct (1.0):**
+- JSON is properly structured (if applicable)
+- All required fields/parameters are present
+- No hallucinated or nonexistent fields
+- Argument values match user intent from the conversation
+- No unsafe content (PII, sensitive data) in arguments
+
+**Criteria for Incorrect (0.0):**
+- Missing required fields/parameters
+- Hallucinated fields not in the schema
+- Malformed JSON
+- Incorrect or mismatched argument values
+- Unsafe content in arguments
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolInvocationEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(tool_invocation_eval.describe())
+
+    # Example with JSON schema format
+    eval_input = {
+        "input": "User: Book a flight from NYC to LA for tomorrow",
+        "available_tools": """
+        {
+            "name": "book_flight",
+            "description": "Book a flight between two cities",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "origin": {"type": "string", "description": "Departure city code"},
+                    "destination": {"type": "string", "description": "Arrival city code"},
+                    "date": {"type": "string", "description": "Flight date in YYYY-MM-DD"}
+                },
+                "required": ["origin", "destination", "date"]
+            }
+        }
+        """,
+        "tool_selection": 'book_flight(origin="NYC", destination="LA", date="2024-01-15")'
+    }
+
+    scores = tool_invocation_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='tool_invocation', score=1.0, label='correct', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const toolInvocationEvaluator = createToolInvocationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate with JSON schema format
+    const result = await toolInvocationEvaluator.evaluate({
+      input: "User: Book a flight from NYC to LA for tomorrow",
+      availableTools: JSON.stringify({
+        name: "book_flight",
+        description: "Book a flight between two cities",
+        parameters: {
+          type: "object",
+          properties: {
+            origin: { type: "string", description: "Departure city code" },
+            destination: { type: "string", description: "Arrival city code" },
+            date: { type: "string", description: "Flight date in YYYY-MM-DD" },
+          },
+          required: ["origin", "destination", "date"],
+        },
+      }),
+      toolSelection: 'book_flight(origin="NYC", destination="LA", date="2024-01-15")',
+    });
+
+    console.log(result);
+    // { score: 1, label: "correct", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Human-Readable Tool Schemas
+
+You can also use human-readable format for tool schemas:
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolInvocationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
+
+    eval_input = {
+        "input": "User: What's the weather in San Francisco?",
+        "available_tools": """
+        WeatherTool:
+          Description: Get the current weather for a location
+          Parameters:
+            - location (required): The city name or coordinates
+            - units (optional): Temperature units (celsius or fahrenheit)
+        """,
+        "tool_selection": "WeatherTool(location='San Francisco', units='fahrenheit')"
+    }
+
+    scores = tool_invocation_eval.evaluate(eval_input)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const toolInvocationEvaluator = createToolInvocationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const result = await toolInvocationEvaluator.evaluate({
+      input: "User: What's the weather in San Francisco?",
+      availableTools: `
+        WeatherTool:
+          Description: Get the current weather for a location
+          Parameters:
+            - location (required): The city name or coordinates
+            - units (optional): Temperature units (celsius or fahrenheit)
+      `,
+      toolSelection: "WeatherTool(location='San Francisco', units='fahrenheit')",
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolInvocationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
+
+    eval_input = {
+        "conversation": "User: Search for hotels in Paris",
+        "tools_schema": '{"name": "search_hotels", "parameters": {...}}',
+        "llm_tool_call": "search_hotels(city='Paris')"
+    }
+
+    input_mapping = {
+        "input": "conversation",
+        "available_tools": "tools_schema",
+        "tool_selection": "llm_tool_call"
+    }
+
+    scores = tool_invocation_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const toolInvocationEvaluator = createToolInvocationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const boundEvaluator = bindEvaluator(toolInvocationEvaluator, {
+      inputMapping: {
+        input: "conversation",
+        availableTools: "toolsSchema",
+        toolSelection: "llmToolCall",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      conversation: "User: Search for hotels in Paris",
+      toolsSchema: '{"name": "search_hotels", "parameters": {...}}',
+      llmToolCall: "search_hotels(city='Paris')",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Viewing and Modifying the Prompt
+
+### Viewing the Prompt Template
+
+The default prompt template is available in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import ToolInvocationEvaluator
+    from phoenix.evals import LLM
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = ToolInvocationEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG } from "@arizeai/phoenix-evals";
+
+    console.log(TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG.template);
+    ```
+  </Tab>
+</Tabs>
+
+### Using a Custom Prompt
+
+To use a custom prompt template, create a new evaluator with your modified prompt:
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import create_classifier, LLM
+
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    custom_prompt = """
+    Evaluate if the tool invocation is correct.
+
+    Context: {input}
+    Available Tools: {available_tools}
+    Tool Call: {tool_selection}
+
+    Is this tool invocation correct or incorrect?
+    """
+
+    custom_evaluator = create_classifier(
+        name="tool_invocation",
+        prompt_template=custom_prompt,
+        llm=llm,
+        choices={"correct": 1.0, "incorrect": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const customPrompt = `
+    Evaluate if the tool invocation is correct.
+
+    Context: {{input}}
+    Available Tools: {{availableTools}}
+    Tool Call: {{toolSelection}}
+
+    Is this tool invocation correct or incorrect?
+    `;
+
+    const customEvaluator = createToolInvocationEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: customPrompt,
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+The prompt uses Mustache-style `{{variable}}` placeholders in TypeScript and f-string style `{variable}` in Python. The evaluator automatically substitutes your input values.
+</Info>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Tool Invocation evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+<Info>
+Benchmark results coming soon. We are establishing a formal CI/CD process for running and publishing benchmark results.
+</Info>
+
+## API Reference
+
+- **Python**: [ToolInvocationEvaluator](https://arize-phoenix-evals.readthedocs.io/en/latest/api/evals.html#built-in-metrics)
+- **TypeScript**: [createToolInvocationEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
+
+## Related
+
+- [Tool Selection Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) - For evaluating whether the right tool was chosen
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy
