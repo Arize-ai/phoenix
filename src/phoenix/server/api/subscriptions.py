@@ -295,15 +295,7 @@ async def _cleanup_chat_completion_resources(
             except Exception as e:
                 logger.warning(f"Error closing stream: {e}")
 
-    # 3. Close not-started generators (prevents ResourceWarning)
-    for _, stream in not_started:
-        if inspect.isasyncgen(stream):
-            try:
-                await stream.aclose()
-            except Exception as e:
-                logger.warning(f"Error closing not-started stream: {e}")
-
-    # 4. Flush results queue to database (important for data integrity)
+    # 3. Flush results queue to database (important for data integrity)
     if not results.empty():
         remaining: list[tuple[Optional[models.Span], int]] = []
         while not results.empty():

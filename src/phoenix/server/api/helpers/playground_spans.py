@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from collections import defaultdict
@@ -111,8 +112,6 @@ class streaming_llm_span:
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> bool:
-        import asyncio
-
         self._end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         self._status_code = StatusCode.OK
         propagate_exception = False
@@ -120,6 +119,7 @@ class streaming_llm_span:
         if exc_type is not None:
             self._status_code = StatusCode.ERROR
             if exc_type is asyncio.CancelledError:
+                # Propogate CancelledError to support task cancellation
                 propagate_exception = True
             else:
                 self._status_message = str(exc_value)
