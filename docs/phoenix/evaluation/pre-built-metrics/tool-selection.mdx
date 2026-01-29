@@ -22,6 +22,8 @@ This evaluator validates tool selection correctness, not invocation correctness.
 
 ## Supported Levels
 
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Best for LLM spans that contain tool calls. Evaluate individual tool selection decisions. |
@@ -74,6 +76,8 @@ The evaluator returns a `Score` object with the following properties:
 - The LLM selected a tool when none was needed
 - The LLM did not use a tool when one was required
 - The LLM chose a suboptimal or irrelevant tool
+
+The evaluator also returns metadata containing additional information such as the model name used for the evaluation.
 
 ## Usage Examples
 
@@ -251,59 +255,30 @@ When your data has different field names, use input mapping.
   </Tab>
 </Tabs>
 
-## Viewing and Modifying the Prompt
+## Configuration
 
-### Viewing the Prompt Template
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 
-The default prompt template is available in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them:
 
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
     from phoenix.evals.metrics import ToolSelectionEvaluator
-    from phoenix.evals import LLM
+    from phoenix.evals import LLM, ClassificationEvaluator
 
     llm = LLM(provider="openai", model="gpt-4o")
     evaluator = ToolSelectionEvaluator(llm=llm)
 
     # View the prompt template
     print(evaluator.prompt_template)
-    ```
-  </Tab>
 
-  <Tab title="TypeScript" icon="js">
-    ```typescript
-    import { TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG } from "@arizeai/phoenix-evals";
-
-    console.log(TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.template);
-    ```
-  </Tab>
-</Tabs>
-
-### Using a Custom Prompt
-
-To use a custom prompt template, create a new evaluator with your modified prompt:
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    ```python
-    from phoenix.evals import create_classifier, LLM
-
-    llm = LLM(provider="openai", model="gpt-4o")
-
-    custom_prompt = """
-    Evaluate if the correct tool was selected.
-
-    User Query: {input}
-    Available Tools: {available_tools}
-    Selected Tool: {tool_selection}
-
-    Is this tool selection correct or incorrect?
-    """
-
-    custom_evaluator = create_classifier(
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
         name="tool_selection",
-        prompt_template=custom_prompt,
+        prompt_template=evaluator.prompt_template,  # Modify as needed
         llm=llm,
         choices={"correct": 1.0, "incorrect": 0.0},
         direction="maximize",
@@ -313,34 +288,20 @@ To use a custom prompt template, create a new evaluator with your modified promp
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
+    import { TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG, createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const customPrompt = `
-    Evaluate if the correct tool was selected.
+    // View the prompt template
+    console.log(TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.template);
 
-    User Query: {{input}}
-    Available Tools: {{availableTools}}
-    Selected Tool: {{toolSelection}}
-
-    Is this tool selection correct or incorrect?
-    `;
-
+    // Create a custom evaluator with a modified template
     const customEvaluator = createToolSelectionEvaluator({
       model: openai("gpt-4o"),
-      promptTemplate: customPrompt,
+      promptTemplate: TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
     });
     ```
   </Tab>
 </Tabs>
-
-<Info>
-The prompt uses Mustache-style `{{variable}}` placeholders in TypeScript and f-string style `{variable}` in Python. The evaluator automatically substitutes your input values.
-</Info>
-
-## Configuration
-
-For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 
 ## Using with Phoenix
 
@@ -357,16 +318,10 @@ Use the Tool Selection evaluator in Phoenix experiments:
 
 - [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
 
-## Benchmarks
-
-<Info>
-Benchmark results coming soon. We are establishing a formal CI/CD process for running and publishing benchmark results.
-</Info>
-
 ## API Reference
 
-- **Python**: [ToolSelectionEvaluator](https://arize-phoenix-evals.readthedocs.io/en/latest/api/evals.html#built-in-metrics)
-- **TypeScript**: [createToolSelectionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
+- **Python**: [ToolSelectionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createToolSelectionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
 
 ## Related
 

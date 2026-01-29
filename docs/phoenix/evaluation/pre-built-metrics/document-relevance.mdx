@@ -22,6 +22,8 @@ This evaluator assesses individual document relevance to a query. For evaluating
 
 ## Supported Levels
 
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Best for retriever spans. Evaluate each retrieved document individually. |
@@ -65,6 +67,8 @@ The evaluator returns a `Score` object with the following properties:
 **Interpretation:**
 - **Relevant (1.0)**: The document contains information that can help answer the question
 - **Unrelated (0.0)**: The document does not contain relevant information for the question
+
+The evaluator also returns metadata containing additional information such as the model name used for the evaluation.
 
 ## Usage Examples
 
@@ -237,58 +241,30 @@ When your data has different field names, use input mapping.
   </Tab>
 </Tabs>
 
-## Viewing and Modifying the Prompt
+## Configuration
 
-### Viewing the Prompt Template
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 
-The default prompt template is available in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them:
 
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
     from phoenix.evals.metrics import DocumentRelevanceEvaluator
-    from phoenix.evals import LLM
+    from phoenix.evals import LLM, ClassificationEvaluator
 
     llm = LLM(provider="openai", model="gpt-4o")
     evaluator = DocumentRelevanceEvaluator(llm=llm)
 
     # View the prompt template
     print(evaluator.prompt_template)
-    ```
-  </Tab>
 
-  <Tab title="TypeScript" icon="js">
-    ```typescript
-    import { DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG } from "@arizeai/phoenix-evals";
-
-    console.log(DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template);
-    ```
-  </Tab>
-</Tabs>
-
-### Using a Custom Prompt
-
-To use a custom prompt template, create a new evaluator with your modified prompt:
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    ```python
-    from phoenix.evals import create_classifier, LLM
-
-    llm = LLM(provider="openai", model="gpt-4o")
-
-    custom_prompt = """
-    Determine if the document is relevant to the question.
-
-    Question: {input}
-    Document: {document_text}
-
-    Is this document relevant or unrelated to the question?
-    """
-
-    custom_evaluator = create_classifier(
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
         name="document_relevance",
-        prompt_template=custom_prompt,
+        prompt_template=evaluator.prompt_template,  # Modify as needed
         llm=llm,
         choices={"relevant": 1.0, "unrelated": 0.0},
         direction="maximize",
@@ -298,33 +274,20 @@ To use a custom prompt template, create a new evaluator with your modified promp
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG, createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const customPrompt = `
-    Determine if the document is relevant to the question.
+    // View the prompt template
+    console.log(DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template);
 
-    Question: {{input}}
-    Document: {{documentText}}
-
-    Is this document relevant or unrelated to the question?
-    `;
-
+    // Create a custom evaluator with a modified template
     const customEvaluator = createDocumentRelevanceEvaluator({
       model: openai("gpt-4o"),
-      promptTemplate: customPrompt,
+      promptTemplate: DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
     });
     ```
   </Tab>
 </Tabs>
-
-<Info>
-The prompt uses Mustache-style `{{variable}}` placeholders in TypeScript and f-string style `{variable}` in Python. The evaluator automatically substitutes your input values.
-</Info>
-
-## Configuration
-
-For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 
 ## Using with Phoenix
 
@@ -341,16 +304,10 @@ Use the Document Relevance evaluator in Phoenix experiments:
 
 - [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
 
-## Benchmarks
-
-<Info>
-Benchmark results coming soon. We are establishing a formal CI/CD process for running and publishing benchmark results.
-</Info>
-
 ## API Reference
 
-- **Python**: [DocumentRelevanceEvaluator](https://arize-phoenix-evals.readthedocs.io/en/latest/api/evals.html#built-in-metrics)
-- **TypeScript**: [createDocumentRelevanceEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)
+- **Python**: [DocumentRelevanceEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createDocumentRelevanceEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
 
 ## Related
 
