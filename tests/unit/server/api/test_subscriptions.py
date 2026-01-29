@@ -8,6 +8,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from sqlalchemy import select
@@ -2319,6 +2320,47 @@ class TestChatCompletionOverDatasetSubscription:
             ]
             for key in token_count_attribute_keys:
                 assert isinstance(attributes.pop(key), int)
+            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            raw_output_value = attributes.pop(OUTPUT_VALUE)
+            output_value = json.loads(raw_output_value)
+            messages = output_value.pop("messages")
+            assert not output_value
+            assert messages is not None
+            assert len(messages) == 1
+            message = messages[0]
+            assert message.pop("role") == "assistant"
+            tool_calls = message.pop("tool_calls")
+            assert not message
+            assert len(tool_calls) == 1
+            tool_call = tool_calls[0]
+            assert tool_call.pop("id") == "call_aABUz9QoikDpYXHXhUkahsNF"
+            function = tool_call.pop("function")
+            assert not tool_call
+            assert function.pop("name") == "evaluate_correctness"
+            tool_call_arguments = function.pop("arguments")
+            assert tool_call_arguments is not None
+            assert json.loads(tool_call_arguments) == {
+                "label": "incorrect",
+            }
+            assert not function
+            assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
+            assert isinstance(
+                attributes.pop(
+                    f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_ID}"
+                ),
+                str,
+            )
+            assert (
+                attributes.pop(
+                    f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}"
+                )
+                == "evaluate_correctness"
+            )
+            arguments = attributes.pop(
+                f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS}"
+            )
+            assert arguments is not None
+            assert json.loads(arguments) == {"label": "incorrect"}
             assert not attributes
 
             # span costs for evaluator trace
@@ -2743,3 +2785,8 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+
+# tool call attributes
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
