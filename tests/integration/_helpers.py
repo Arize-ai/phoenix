@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import ssl
@@ -8,7 +9,7 @@ import string
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import AsyncIterator, Iterable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
@@ -2332,3 +2333,120 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
 
 
 _ensure_endpoint_coverage_is_exhaustive()
+
+
+# =============================================================================
+# Apollo Multipart Subscription Helpers
+# =============================================================================
+
+
+async def _parse_apollo_multipart_response(
+    response: httpx.Response,
+) -> AsyncIterator[dict[str, Any]]:
+    """Parse Apollo multipart subscription response.
+
+    The Apollo multipart subscription protocol streams GraphQL subscription
+    results over HTTP using multipart/mixed content type.
+
+    The response format is:
+    --boundary
+    Content-Type: application/json
+
+    {"data": {...}}
+    --boundary
+    ...
+    --boundary--
+
+    Usage:
+        async with client.stream(
+            "POST",
+            "/graphql",
+            json={"query": subscription_query, "variables": variables},
+            headers={
+                "Accept": "multipart/mixed; deferSpec=20220824, application/json",
+                "Content-Type": "application/json",
+            },
+        ) as response:
+            async for payload in _parse_apollo_multipart_response(response):
+                # payload is a dict like {"data": {...}}
+                ...
+    """
+    content_type = response.headers.get("content-type", "")
+
+    # Handle regular JSON response (non-streaming)
+    if "application/json" in content_type and "multipart" not in content_type:
+        data: dict[str, Any] = json.loads(await response.aread())
+        yield data
+        return
+
+    # Handle multipart response
+    buffer = b""
+    boundary: bytes | None = None
+
+    # Extract boundary from content-type header
+    if "boundary=" in content_type:
+        boundary = content_type.split("boundary=")[1].split(";")[0].strip().encode()
+
+    async for chunk in response.aiter_bytes():
+        buffer += chunk
+
+        # Try to extract complete parts
+        while True:
+            if boundary is None:
+                # Try to detect boundary from first line
+                if b"\r\n" in buffer:
+                    first_line = buffer.split(b"\r\n")[0]
+                    if first_line.startswith(b"--"):
+                        boundary = first_line[2:]
+
+            if boundary is None:
+                break
+
+            # Look for complete parts
+            delimiter = b"--" + boundary
+            end_delimiter = delimiter + b"--"
+
+            if end_delimiter in buffer:
+                # Final part - process remaining
+                parts = buffer.split(delimiter)
+                for part in parts[1:]:  # Skip empty first part
+                    if part.strip() and not part.startswith(b"--"):
+                        json_data = _extract_json_from_multipart_part(part)
+                        if json_data:
+                            yield json_data
+                return
+
+            # Check if we have a complete part
+            parts = buffer.split(delimiter)
+            if len(parts) > 2:
+                # We have at least one complete part
+                for part in parts[1:-1]:  # Skip first empty and last incomplete
+                    json_data = _extract_json_from_multipart_part(part)
+                    if json_data:
+                        yield json_data
+                buffer = delimiter + parts[-1]
+            else:
+                break
+
+
+def _extract_json_from_multipart_part(part: bytes) -> dict[str, Any] | None:
+    """Extract JSON from a multipart part.
+
+    Skips HTTP headers in the part and parses the JSON body.
+    """
+    # Skip headers to find JSON body
+    if b"\r\n\r\n" in part:
+        _, body = part.split(b"\r\n\r\n", 1)
+    elif b"\n\n" in part:
+        _, body = part.split(b"\n\n", 1)
+    else:
+        body = part
+
+    body = body.strip()
+    if not body or body == b"--":
+        return None
+
+    try:
+        return cast(dict[str, Any], json.loads(body.decode("utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None

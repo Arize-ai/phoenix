@@ -1692,13 +1692,15 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 config=config,
             )
             async for event in stream:
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                    }
-                )
+                # Update token counts if usage_metadata is present
+                if event.usage_metadata:
+                    self._attributes.update(
+                        {
+                            LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                            LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                            LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                        }
+                    )
 
                 if event.candidates:
                     candidate = event.candidates[0]

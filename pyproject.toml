@@ -75,6 +75,7 @@ phoenix = "phoenix.server.main:main"
 
 [dependency-groups]
 dev = [
+  "aiobotocore>=3.1.1",
   "aiosqlite<0.22.0",  # new version is causing tests to hang
   "anthropic",
   "arize",
@@ -93,6 +94,7 @@ dev = [
   "grpcio",
   "httpx",
   "httpx-ws",
+  "hypothesis-jsonschema>=0.23.1",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15",
@@ -136,6 +138,7 @@ dev = [
   "syrupy",
   "tenacity",
   "tiktoken",
+  "types-aiobotocore-bedrock-runtime>=3.1.1",
   "types-beautifulsoup4",
   "types-cachetools",
   "types-jmespath",
