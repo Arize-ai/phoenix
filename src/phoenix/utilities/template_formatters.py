@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from string import Formatter
-from typing import Any
+from typing import Any, cast
 
 import pystache
 from typing_extensions import assert_never
@@ -149,8 +149,8 @@ class MustacheTemplateFormatter(TemplateFormatter):
         # Render with pystache (no HTML escaping)
         result = self._renderer.render(clean_template, variables)
         # Restore escaped sequences (without the backslash, keeping the braces)
-        result = result.replace(self._ESCAPED_PLACEHOLDER, r"\{{")
-        return result
+        rendered = result.replace(self._ESCAPED_PLACEHOLDER, r"\{{")
+        return cast(str, rendered)
 
 
 class TemplateFormatterError(Exception):
