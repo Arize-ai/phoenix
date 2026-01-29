@@ -570,11 +570,6 @@ type CodeEvaluator implements Evaluator & Node {
   user: User
 }
 
-type CodeEvaluatorMutationPayload {
-  evaluator: CodeEvaluator!
-  query: Query!
-}
-
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
@@ -642,12 +637,6 @@ input CreateChatPromptVersionInput {
   promptId: ID!
   promptVersion: ChatPromptVersionInput!
   tags: [SetPromptVersionTagInput!] = null
-}
-
-input CreateCodeEvaluatorInput {
-  datasetId: ID
-  name: Identifier!
-  description: String
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -2442,7 +2431,6 @@ type Mutation {
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
-  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
