@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Text } from "@phoenix/components";
+import { ContextualHelp, Flex, Text } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import {
   Disclosure,
@@ -37,21 +37,31 @@ const FIELD_CONFIG: {
   field: EvaluatorMappingSourceField;
   label: string;
   description: string;
+  tooltip: string;
 }[] = [
   {
     field: "input",
     label: "input",
-    description: "The input field in the dataset example",
+    description:
+      "From the dataset example. This is the input that was passed to your task.",
+    tooltip:
+      "This value comes from the selected dataset example's input field. When running experiments, your task will receive inputs like this.",
   },
   {
     field: "output",
     label: "output",
-    description: "Output of your task. Modify this to match your use case",
+    description:
+      "Sample task output (editable). Replace this with data matching your actual task's output format.",
+    tooltip:
+      "This represents what your task (e.g., your LLM application) produces when given the input. The default is a sample - edit it to match your actual output format so the evaluator can correctly extract values.",
   },
   {
     field: "reference",
     label: "reference",
-    description: "The output field in the dataset example",
+    description:
+      "From the dataset example. The expected/ground-truth output used for comparison.",
+    tooltip:
+      "This value comes from the selected dataset example's output field. It represents the expected or 'correct' answer that your evaluator can compare against.",
   },
 ];
 
@@ -85,12 +95,13 @@ export function EvaluatorMappingSourceEditor({
   }, [onFieldChange]);
   return (
     <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_KEYS}>
-      {FIELD_CONFIG.map(({ field, label, description }) => (
+      {FIELD_CONFIG.map(({ field, label, description, tooltip }) => (
         <EvaluatorMappingSourceFieldEditor
           key={field}
           field={field}
           label={label}
           description={description}
+          tooltip={tooltip}
           value={value[field]}
           onChange={fieldCallbacks[field]}
           editorKey={`${editorKeyPrefix}-${field}`}
@@ -104,6 +115,7 @@ type EvaluatorMappingSourceFieldEditorProps = {
   field: EvaluatorMappingSourceField;
   label: string;
   description: string;
+  tooltip: string;
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   editorKey: string;
@@ -119,6 +131,7 @@ function EvaluatorMappingSourceFieldEditor({
   field,
   label,
   description,
+  tooltip,
   value,
   onChange,
   editorKey,
@@ -141,9 +154,14 @@ function EvaluatorMappingSourceFieldEditor({
       `}
     >
       <DisclosureTrigger>
-        <Text weight="heavy" size="S">
-          {label}
-        </Text>
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <Text weight="heavy" size="S">
+            {label}
+          </Text>
+          <ContextualHelp variant="info">
+            <Text>{tooltip}</Text>
+          </ContextualHelp>
+        </Flex>
         <Text
           color="text-500"
           size="XS"
