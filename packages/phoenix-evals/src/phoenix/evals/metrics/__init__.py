@@ -4,6 +4,7 @@ from .exact_match import exact_match
 from .faithfulness import FaithfulnessEvaluator
 from .hallucination import HallucinationEvaluator  # Deprecated alias
 from .matches_regex import MatchesRegex
+from .pairwise import PairwiseEvaluator
 from .precision_recall import PrecisionRecallFScore
 from .tool_invocation import ToolInvocationEvaluator
 
@@ -14,6 +15,7 @@ __all__ = [
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",  # Deprecated: use FaithfulnessEvaluator
     "MatchesRegex",
+    "PairwiseEvaluator",
     "PrecisionRecallFScore",
     "ToolInvocationEvaluator",
 ]
