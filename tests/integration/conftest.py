@@ -227,6 +227,8 @@ def _env_ports(
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
+        # Disable error masking to see actual errors in tests
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
     }
 
 

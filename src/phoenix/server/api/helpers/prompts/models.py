@@ -623,7 +623,7 @@ def denormalize_tools(
     elif model_provider is ModelProvider.AWS:
         denormalized_tools = [_prompt_to_bedrock_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
-            tool_choice = {"tool_choice": OpenAIToolChoiceConversion.to_openai(tools.tool_choice)}
+            tool_choice = {"tool_choice": AwsToolChoiceConversion.to_aws(tools.tool_choice)}
     elif model_provider is ModelProvider.ANTHROPIC:
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
         if tools.tool_choice and tools.tool_choice.type != "none":
