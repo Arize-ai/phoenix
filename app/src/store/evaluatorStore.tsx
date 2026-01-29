@@ -104,12 +104,12 @@ export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
     messages: [
       {
         role: "assistant",
-        content: "I'll check the weather for you.",
+        content: "[SAMPLE] Replace this with your actual task output format",
         tool_calls: [
           {
             function: {
-              name: "get_weather",
-              arguments: '{"location": "San Francisco, CA"}',
+              name: "example_function",
+              arguments: '{"param": "example_value"}',
             },
           },
         ],
@@ -119,17 +119,17 @@ export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
       {
         type: "function",
         function: {
-          name: "get_weather",
-          description: "Get current weather for a location",
+          name: "example_function",
+          description: "[SAMPLE] Example tool definition",
           parameters: {
             type: "object",
             properties: {
-              location: {
+              param: {
                 type: "string",
-                description: "The city and state, e.g. San Francisco, CA",
+                description: "Example parameter",
               },
             },
-            required: ["location"],
+            required: ["param"],
           },
         },
       },
