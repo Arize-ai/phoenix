@@ -271,6 +271,16 @@ function MessageEditor({
 
   return (
     <TemplateEditorWrap>
+      {sectionValidation?.errors.length ? (
+        <Alert variant="danger" banner title="Invalid mustache sections">
+          {sectionValidation.errors.join(", ")}
+        </Alert>
+      ) : null}
+      {sectionValidation?.warnings.length ? (
+        <Alert variant="warning" banner title="Unclosed mustache sections">
+          {sectionValidation.warnings.join(", ")}
+        </Alert>
+      ) : null}
       <TemplateEditor
         height="100%"
         defaultValue={message.content || ""}
@@ -278,20 +288,6 @@ function MessageEditor({
         templateFormat={templateFormat}
         onChange={onChange}
       />
-      {sectionValidation?.errors.length ? (
-        <View paddingTop="size-100" paddingX="size-200">
-          <Alert variant="danger" title="Invalid mustache sections">
-            {sectionValidation.errors.join(", ")}
-          </Alert>
-        </View>
-      ) : null}
-      {sectionValidation?.warnings.length ? (
-        <View paddingTop="size-100" paddingX="size-200">
-          <Alert variant="warning" title="Unclosed mustache sections">
-            {sectionValidation.warnings.join(", ")}
-          </Alert>
-        </View>
-      ) : null}
     </TemplateEditorWrap>
   );
 }

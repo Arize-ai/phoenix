@@ -123,6 +123,16 @@ export const TemplateEditorWrap = ({
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
         }
+        // Override alert to use opaque background when used as banner in template editor
+        & .ac-alert[data-banner="true"] {
+          border-top: none;
+          --alert-bg-color: color-mix(
+            in oklch,
+            var(--alert-base-color) 25%,
+            var(--ac-global-background-color-dark)
+          );
+          backdrop-filter: none;
+        }
       `}
     >
       {children}
