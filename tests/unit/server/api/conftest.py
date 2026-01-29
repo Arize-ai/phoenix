@@ -939,6 +939,7 @@ async def assign_correctness_llm_evaluator_to_dataset(
 @pytest.fixture
 async def assign_exact_match_builtin_evaluator_to_dataset(
     db: DbSessionFactory,
+    synced_builtin_evaluators: None,
 ) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
     async def _assign_exact_match_builtin_evaluator_to_dataset(
         dataset_id: int,
@@ -946,7 +947,7 @@ async def assign_exact_match_builtin_evaluator_to_dataset(
         exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         dataset_evaluator = models.DatasetEvaluators(
             dataset_id=dataset_id,
-            builtin_evaluator_id=exact_match_id,
+            evaluator_id=exact_match_id,
             name=Identifier(root="exact-match"),
             input_mapping={},
             project=models.Project(

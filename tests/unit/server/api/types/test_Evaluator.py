@@ -395,7 +395,9 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
     """Tests for DatasetEvaluator.output_config with builtin evaluators."""
 
     @pytest.fixture
-    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+    async def _test_data(
+        self, db: DbSessionFactory, synced_builtin_evaluators: None
+    ) -> AsyncIterator[dict[str, Any]]:
         """Create test data: dataset with builtin evaluator assignments."""
         from phoenix.db.types.annotation_configs import (
             CategoricalAnnotationConfigOverride,
@@ -426,7 +428,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_categorical_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_evaluator_id,
+                evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project_id=project.id,
@@ -436,7 +438,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_categorical_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_evaluator_id,
+                evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_with_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 output_config_override=CategoricalAnnotationConfigOverride(
@@ -455,7 +457,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_continuous_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_evaluator_id,
+                evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_no_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 project_id=project.id,
@@ -465,7 +467,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_continuous_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_evaluator_id,
+                evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_with_override"),
                 input_mapping={"literal_mapping": {}, "path_mapping": {}},
                 output_config_override=ContinuousAnnotationConfigOverride(
