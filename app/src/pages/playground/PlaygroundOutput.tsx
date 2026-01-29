@@ -381,6 +381,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ]
   );
 
+  // CANCELLATION: When runInProgress becomes false (via cancelPlaygroundInstances),
+  // this effect's cleanup function runs, calling subscription.dispose(). This aborts
+  // the fetch request, causing the backend to detect disconnect and stop LLM streams.
+  // See: src/phoenix/server/api/helpers/cancellation.py for full architecture
   useEffect(() => {
     if (!runInProgress) {
       return;
