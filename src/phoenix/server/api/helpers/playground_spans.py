@@ -115,24 +115,13 @@ class streaming_llm_span:
 
         self._end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         self._status_code = StatusCode.OK
+        propagate_exception = False
 
         if exc_type is not None:
+            self._status_code = StatusCode.ERROR
             if exc_type is asyncio.CancelledError:
-                self._status_code = (
-                    StatusCode.CANCELLED if hasattr(StatusCode, "CANCELLED") else StatusCode.ERROR
-                )
-                self._status_message = "Request was cancelled"
-                # Aggregate any partial chunks before letting cancellation propagate
-                if self._text_chunks or self._tool_call_chunks:
-                    self._attributes.update(
-                        chain(
-                            _output_value_and_mime_type(self._text_chunks, self._tool_call_chunks),
-                            _llm_output_messages(self._text_chunks, self._tool_call_chunks),
-                        )
-                    )
-                return False  # Let CancelledError propagate
+                propagate_exception = True
             else:
-                self._status_code = StatusCode.ERROR
                 self._status_message = str(exc_value)
                 self._events.append(
                     SpanException(
@@ -152,7 +141,7 @@ class streaming_llm_span:
                     _llm_output_messages(self._text_chunks, self._tool_call_chunks),
                 )
             )
-        return True
+        return not propagate_exception
 
     def set_attributes(self, attributes: Mapping[str, Any]) -> None:
         self._attributes.update(attributes)
