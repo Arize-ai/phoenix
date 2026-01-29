@@ -311,6 +311,15 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
+def exclude_dataset_evaluator_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    return stmt.outerjoin(
+        models.DatasetEvaluators,
+        models.Project.id == models.DatasetEvaluators.project_id,
+    ).where(models.DatasetEvaluators.project_id.is_(None))
+
+
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
