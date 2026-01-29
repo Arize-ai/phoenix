@@ -1924,8 +1924,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         async with db() as session:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.builtin_evaluator_id == builtin_evaluator_id
-            assert db_dataset_evaluator.evaluator_id is None
+            assert db_dataset_evaluator.evaluator_id == builtin_evaluator_id
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
             assert db_dataset_evaluator.input_mapping == {
@@ -1975,7 +1974,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
                 evaluators = await session.scalars(
                     select(models.DatasetEvaluators).where(
                         models.DatasetEvaluators.dataset_id == empty_dataset.id,
-                        models.DatasetEvaluators.builtin_evaluator_id.isnot(None),
+                        models.DatasetEvaluators.evaluator_id.isnot(None),
                     )
                 )
                 assert len(evaluators.all()) >= 2
@@ -2614,8 +2613,7 @@ class TestDeleteDatasetEvaluators:
         async with db() as session:
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
-                builtin_evaluator_id=builtin_evaluator_id,
-                evaluator_id=None,
+                evaluator_id=builtin_evaluator_id,
                 name=IdentifierModel.model_validate("test-builtin-evaluator"),
                 input_mapping={},
                 project=models.Project(
@@ -2766,8 +2764,7 @@ class TestDeleteDatasetEvaluators:
         async with db() as session:
             builtin_dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
-                builtin_evaluator_id=builtin_evaluator_id,
-                evaluator_id=None,
+                evaluator_id=builtin_evaluator_id,
                 name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
                 input_mapping={},
                 project=models.Project(

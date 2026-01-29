@@ -161,7 +161,7 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     evaluator_types: dict[str, EvaluatorKind] = {
         LLMEvaluator.__name__: "LLM",
         CodeEvaluator.__name__: "CODE",
-        BuiltInEvaluator.__name__: "CODE",
+        BuiltInEvaluator.__name__: "BUILTIN",
     }
     if type_name not in evaluator_types:
         raise ValueError(
@@ -490,10 +490,19 @@ class EvaluatorMutationMixin:
             dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
             if dataset_evaluator is None:
                 raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
-            if dataset_evaluator.builtin_evaluator_id is not None:
-                raise BadRequest("Cannot update a built-in evaluator")
 
-            llm_evaluator = await session.get(models.LLMEvaluator, dataset_evaluator.evaluator_id)
+            # Check if this is a builtin evaluator by looking up the evaluator kind
+            if dataset_evaluator.evaluator_id is not None:
+                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+                if evaluator is not None and evaluator.kind == "BUILTIN":
+                    raise BadRequest("Cannot update a built-in evaluator")
+
+            # Use select instead of session.get to ensure all columns are properly loaded
+            llm_stmt = select(models.LLMEvaluator).where(
+                models.LLMEvaluator.id == dataset_evaluator.evaluator_id
+            )
+            llm_result = await session.execute(llm_stmt)
+            llm_evaluator = llm_result.scalar_one_or_none()
             if llm_evaluator is None:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
@@ -664,11 +673,9 @@ class EvaluatorMutationMixin:
         """
         Delete dataset evaluators by their IDs.
 
-        For built-in evaluators (those with builtin_evaluator_id set), only the
-        DatasetEvaluators row is deleted since no Evaluator record exists.
-
-        For custom LLM evaluators (those with evaluator_id set), the Evaluator record
-        is deleted, which cascades to delete both the LLMEvaluator and DatasetEvaluators rows.
+        All evaluator types (LLM, CODE, BUILTIN) use evaluator_id. The Evaluator record
+        is deleted, which cascades to delete both the specific evaluator type record and
+        DatasetEvaluators rows.
 
         If delete_associated_prompt is True (default), the associated prompt for LLM evaluators
         will also be deleted.
@@ -703,41 +710,30 @@ class EvaluatorMutationMixin:
             result = await session.execute(stmt)
             dataset_evaluators = list(result.scalars().all())
 
-            builtin_dataset_evaluator_ids: list[int] = []
-            custom_evaluator_ids: list[int] = []
+            evaluator_ids: list[int] = []
             project_ids_to_delete: list[int] = []
 
             for de in dataset_evaluators:
-                if de.builtin_evaluator_id is not None:
-                    builtin_dataset_evaluator_ids.append(de.id)
-                elif de.evaluator_id is not None:
-                    custom_evaluator_ids.append(de.evaluator_id)
-
+                if de.evaluator_id is not None:
+                    evaluator_ids.append(de.evaluator_id)
                 project_ids_to_delete.append(de.project_id)
                 deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(de.id)))
 
             prompt_ids_to_delete: list[int] = []
-            if input.delete_associated_prompt and custom_evaluator_ids:
+            if input.delete_associated_prompt and evaluator_ids:
                 llm_evaluator_stmt = select(models.LLMEvaluator).where(
-                    models.LLMEvaluator.id.in_(custom_evaluator_ids)
+                    models.LLMEvaluator.id.in_(evaluator_ids)
                 )
                 llm_result = await session.execute(llm_evaluator_stmt)
                 llm_evaluators = list(llm_result.scalars().all())
                 prompt_ids_to_delete = [e.prompt_id for e in llm_evaluators]
 
-            # Delete built-in dataset evaluators directly
-            if builtin_dataset_evaluator_ids:
-                delete_builtin_stmt = delete(models.DatasetEvaluators).where(
-                    models.DatasetEvaluators.id.in_(builtin_dataset_evaluator_ids)
+            # Delete evaluators (cascades to DatasetEvaluators)
+            if evaluator_ids:
+                delete_evaluators_stmt = delete(models.Evaluator).where(
+                    models.Evaluator.id.in_(evaluator_ids)
                 )
-                await session.execute(delete_builtin_stmt)
-
-            # Delete custom evaluators (cascades to DatasetEvaluators)
-            if custom_evaluator_ids:
-                delete_custom_stmt = delete(models.Evaluator).where(
-                    models.Evaluator.id.in_(custom_evaluator_ids)
-                )
-                await session.execute(delete_custom_stmt)
+                await session.execute(delete_evaluators_stmt)
 
             if prompt_ids_to_delete:
                 delete_prompts_stmt = delete(models.Prompt).where(
@@ -813,8 +809,7 @@ class EvaluatorMutationMixin:
                     dataset_id=dataset_rowid,
                     name=name,
                     input_mapping=input_mapping.to_dict(),
-                    builtin_evaluator_id=built_in_evaluator_id,
-                    evaluator_id=None,
+                    evaluator_id=built_in_evaluator_id,
                     output_config_override=output_config_override,
                     description=input.description,
                     user_id=user_id,
@@ -869,16 +864,19 @@ class EvaluatorMutationMixin:
                     raise NotFound(
                         f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
                     )
-                if dataset_evaluator.builtin_evaluator_id is None:
+
+                # Check if this is a builtin evaluator by looking up the evaluator kind
+                if dataset_evaluator.evaluator_id is None:
                     raise BadRequest("Cannot update a non-built-in evaluator")
 
-                builtin_evaluator = get_builtin_evaluator_by_id(
-                    dataset_evaluator.builtin_evaluator_id
-                )
+                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+                if evaluator is None or evaluator.kind != "BUILTIN":
+                    raise BadRequest("Cannot update a non-built-in evaluator")
+
+                builtin_evaluator = get_builtin_evaluator_by_id(dataset_evaluator.evaluator_id)
                 if builtin_evaluator is None:
                     raise NotFound(
-                        f"Built-in evaluator with id {dataset_evaluator.builtin_evaluator_id} "
-                        f"not found"
+                        f"Built-in evaluator with id {dataset_evaluator.evaluator_id} not found"
                     )
 
                 try:

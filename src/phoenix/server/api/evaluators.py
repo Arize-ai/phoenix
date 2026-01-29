@@ -712,7 +712,7 @@ async def get_evaluators(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
-) -> list[BaseEvaluator]:
+) -> list[BaseEvaluator | BuiltInEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator node IDs.
 
@@ -757,12 +757,26 @@ async def get_evaluators(
                 f"DatasetEvaluator with ID '{dataset_evaluator_node_ids[idx]}' not found"
             )
 
-    # Collect unique LLM evaluator IDs that need to be fetched
-    llm_evaluator_db_ids: set[int] = set()
+    # Collect unique evaluator IDs to look up their kinds
+    evaluator_db_ids: set[int] = set()
     for db_id in dataset_evaluator_db_ids:
         dataset_evaluator = dataset_evaluators_by_id[db_id]
-        if dataset_evaluator.evaluator_id is not None:
-            llm_evaluator_db_ids.add(dataset_evaluator.evaluator_id)
+        evaluator_db_ids.add(dataset_evaluator.evaluator_id)
+
+    # Batch query to get evaluator kinds
+    evaluator_kinds_by_id: dict[int, str] = {}
+    if evaluator_db_ids:
+        evaluators_result = await session.scalars(
+            select(models.Evaluator).where(models.Evaluator.id.in_(evaluator_db_ids))
+        )
+        for evaluator in evaluators_result:
+            evaluator_kinds_by_id[evaluator.id] = evaluator.kind
+
+    # Collect LLM evaluator IDs that need to be fetched
+    llm_evaluator_db_ids: set[int] = set()
+    for eval_id, kind in evaluator_kinds_by_id.items():
+        if kind == "LLM":
+            llm_evaluator_db_ids.add(eval_id)
 
     # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
@@ -783,32 +797,30 @@ async def get_evaluators(
             llm_evaluators_by_id[llm_db_id] = llm_evaluator
 
     # Build result list in original input order, preserving duplicates
-    evaluators: list[BaseEvaluator] = []
+    evaluators: list[BaseEvaluator | BuiltInEvaluator] = []
     for db_id in dataset_evaluator_db_ids:
         dataset_evaluator = dataset_evaluators_by_id[db_id]
+        evaluator_id = dataset_evaluator.evaluator_id
+        evaluator_kind = evaluator_kinds_by_id.get(evaluator_id)
 
-        if dataset_evaluator.evaluator_id is not None:
+        if evaluator_kind is None:
+            raise NotFound(f"Evaluator with ID '{evaluator_id}' not found")
+        elif evaluator_kind == "LLM":
             # LLM evaluator - get from cached lookup
-            resolved_llm_evaluator = llm_evaluators_by_id.get(dataset_evaluator.evaluator_id)
+            resolved_llm_evaluator = llm_evaluators_by_id.get(evaluator_id)
             if resolved_llm_evaluator is None:
-                raise NotFound(
-                    f"LLM evaluator with ID '{dataset_evaluator.evaluator_id}' not found"
-                )
+                raise NotFound(f"LLM evaluator with ID '{evaluator_id}' not found")
             evaluators.append(resolved_llm_evaluator)
-        elif dataset_evaluator.builtin_evaluator_id is not None:
-            # Built-in evaluator - instantiate class (no DB query needed)
-            builtin_evaluator_cls = get_builtin_evaluator_by_id(
-                dataset_evaluator.builtin_evaluator_id
-            )
+        elif evaluator_kind == "BUILTIN":
+            # Built-in evaluator - instantiate class from registry using evaluator_id
+            builtin_evaluator_cls = get_builtin_evaluator_by_id(evaluator_id)
             if builtin_evaluator_cls is None:
-                raise NotFound(
-                    f"Built-in evaluator with ID '{dataset_evaluator.builtin_evaluator_id}' "
-                    "not found"
-                )
+                raise NotFound(f"Built-in evaluator with ID '{evaluator_id}' not found")
             evaluators.append(builtin_evaluator_cls())
         else:
             raise BadRequest(
-                f"DatasetEvaluator '{db_id}' has neither evaluator_id nor builtin_evaluator_id"
+                f"DatasetEvaluator '{db_id}' references evaluator with "
+                f"unsupported kind: {evaluator_kind}"
             )
 
     return evaluators

@@ -906,7 +906,7 @@ class TestChatCompletionSubscription:
             )
             builtin_dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_id,
+                evaluator_id=contains_id,
                 name=Identifier("contains-four"),
                 input_mapping={},
                 project=models.Project(name="sub-contains-project", description=""),
@@ -1109,7 +1109,7 @@ class TestChatCompletionSubscription:
 
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=exact_match_id,
+                evaluator_id=exact_match_id,
                 name=Identifier(custom_name),
                 input_mapping={},
                 project=models.Project(name="sub-builtin-name-project", description=""),

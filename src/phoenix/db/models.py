@@ -167,7 +167,7 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
-EvaluatorKind: TypeAlias = Literal["LLM", "CODE"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -2226,7 +2226,7 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
-        CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
+        CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
         nullable=False,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
@@ -2318,7 +2318,7 @@ class CodeEvaluator(Evaluator):
     )
 
 
-class BuiltinEvaluator(Base):
+class BuiltinEvaluator(Evaluator):
     """
     Database reflection of the in-memory builtin evaluator registry.
 
@@ -2326,17 +2326,21 @@ class BuiltinEvaluator(Base):
     with the Python code definitions. The negative ID scheme is preserved
     for backwards compatibility with existing dataset_evaluators references.
 
-    Note: The in-memory registry remains the authoritative source for
-    evaluator behavior. This table provides database VISIBILITY only,
-    not referential integrity (no FK from dataset_evaluators).
+    Builtin evaluators are part of the polymorphic evaluator hierarchy,
+    allowing unified queries and FK references from dataset_evaluators.
     """
 
     __tablename__ = "builtin_evaluators"
 
     # Use the CRC32-generated negative ID as primary key (not auto-increment)
     id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    kind: Mapped[Literal["BUILTIN"]] = mapped_column(
+        CheckConstraint("kind = 'BUILTIN'", name="valid_builtin_evaluator_kind"),
+        server_default="BUILTIN",
+        nullable=False,
+    )
+    # name, description, metadata, user_id, created_at are inherited from Evaluator
+
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
 
     # Store output config details for inspection
@@ -2357,6 +2361,17 @@ class BuiltinEvaluator(Base):
         onupdate=func.now(),
     )
 
+    __mapper_args__ = {
+        "polymorphic_identity": "BUILTIN",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
 
 class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
@@ -2364,14 +2379,9 @@ class DatasetEvaluators(HasId):
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
     )
-    evaluator_id: Mapped[Optional[int]] = mapped_column(
+    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
+    evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("evaluators.id", ondelete="CASCADE"),
-        index=True,
-        nullable=True,
-    )
-    builtin_evaluator_id: Mapped[Optional[int]] = mapped_column(
-        _Integer,
-        nullable=True,
         index=True,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -2394,17 +2404,11 @@ class DatasetEvaluators(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
-    evaluator: Mapped[Optional["Evaluator"]] = relationship(
-        "Evaluator", back_populates="dataset_evaluators"
-    )
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
     user: Mapped[Optional["User"]] = relationship("User")
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
-        CheckConstraint(
-            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
-            name="evaluator_id_xor_builtin_evaluator_id",
-        ),
         UniqueConstraint(
             "dataset_id",
             "name",

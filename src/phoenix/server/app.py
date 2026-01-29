@@ -82,7 +82,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
-from phoenix.server.api.builtin_evaluator_sync import BuiltinEvaluatorSyncCallback
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
@@ -1050,7 +1049,6 @@ def create_app(
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
-    startup_callbacks_list.append(BuiltinEvaluatorSyncCallback(db=db))
     initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
