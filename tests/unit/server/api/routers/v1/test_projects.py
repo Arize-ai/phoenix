@@ -12,6 +12,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
@@ -761,6 +762,98 @@ class TestProjects:
         # Playground project should still be included (as always)
         assert any(id_ in returned_project_ids for id_ in playground_project_ids), (
             "Playground project should always be included - it's special and visibility isn't affected by parameters"
+        )
+
+    async def test_include_dataset_evaluator_projects_parameter(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test that dataset evaluator projects are excluded by default but can be included with a parameter.
+
+        This test verifies that:
+        1. Dataset evaluator projects are excluded by default from the response
+        2. Dataset evaluator projects are included when include_dataset_evaluator_projects=True
+        3. Regular projects are always included regardless of the parameter
+        """
+        # Create regular projects that will always be included
+        regular_projects = await self._insert_projects(db, 2)
+
+        async with db() as session:
+            dataset_evaluator_project = models.Project(
+                name="dataset-evaluator-project",
+                description="A project created from a dataset evaluator - should be filtered by default",
+            )
+            session.add(dataset_evaluator_project)
+            await session.flush()
+
+            dataset = models.Dataset(name="test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            code_evaluator = models.CodeEvaluator(
+                name=Identifier(root="test-evaluator"),
+                description="Test evaluator",
+                metadata_={},
+            )
+            session.add(code_evaluator)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_evaluator.id,
+                name=Identifier(root="test-dataset-evaluator"),
+                input_mapping={},
+                project_id=dataset_evaluator_project.id,
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+        # Test default behavior - should exclude dataset evaluator projects
+        url = "v1/projects"
+        response = await httpx_client.get(url)
+        assert response.status_code == 200, (
+            f"GET /projects failed with status code {response.status_code}: {response.text}"
+        )
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return only regular projects
+        expected_count = len(regular_projects)
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular only), got {len(returned_projects)}"
+        )
+
+        # Dataset evaluator project should be filtered out by default
+        dataset_evaluator_project_ids = [
+            str(GlobalID(Project.__name__, str(dataset_evaluator_project.id)))
+        ]
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert not any(id_ in returned_project_ids for id_ in dataset_evaluator_project_ids), (
+            "Dataset evaluator project should be excluded by default to reduce clutter"
+        )
+
+        # Test with include_dataset_evaluator_projects=True - should include all projects
+        response = await httpx_client.get(url, params={"include_dataset_evaluator_projects": True})
+        assert response.status_code == 200, (
+            f"GET /projects with include_dataset_evaluator_projects=True failed with status code {response.status_code}: {response.text}"
+        )
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return all projects when including dataset evaluator projects
+        expected_count = len(regular_projects) + 1
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular + dataset evaluator), got {len(returned_projects)}"
+        )
+
+        # Dataset evaluator project should now be included
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert any(id_ in returned_project_ids for id_ in dataset_evaluator_project_ids), (
+            "Dataset evaluator project should be included when explicitly requested"
         )
 
     @staticmethod
