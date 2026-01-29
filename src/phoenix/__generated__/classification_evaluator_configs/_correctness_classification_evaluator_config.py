@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="correctness",
     description="Assess factual accuracy and completeness of model outputs.",
     optimization_direction="maximize",
+    specification=EvaluatorSpecification(
+        use_cases=["general"],
+        measures="correctness",
+        requires=["input", "output"],
+        level=["span", "trace", "session"],
+        span_kind=["any"],
+    ),
     messages=[
         PromptMessage(
             role="user",

@@ -1,6 +1,13 @@
+# yaml-language-server: $schema=../schemas/classification_evaluator.schema.json
 name: tool_invocation
 description: For determining if a tool was invoked correctly with proper arguments, formatting, and safe content. Requires conversation context, available tool schemas, and the LLM's tool invocation(s).
 optimization_direction: maximize
+specification:
+  use_cases: [agent]
+  measures: tool_use
+  requires: [input, tools, tool_calls]
+  level: [span]
+  span_kind: [tool]
 messages:
   - role: user
     content: >-
