@@ -16,3 +16,4 @@ export * from "./ExperimentReferenceOutputCell";
 export * from "./ExperimentInputCell";
 export * from "./ExperimentOutputContent";
 export * from "./experimentTableUtils";
+export * from "./ExperimentNameWithColorSwatch";
