@@ -10,6 +10,7 @@ pytest-rerunfailures
 deepdiff==8.6.1
 anthropic==0.49.0
 openai>=2.14.0
+PyYAML
 aioboto3
 azure-identity
 ldap3

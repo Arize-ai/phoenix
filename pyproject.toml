@@ -27,6 +27,7 @@ dependencies = [
   "jinja2",
   "jsonpath-ng",
   "jsonschema",
+  "PyYAML",
   "starlette",
   "uvicorn",
   "psutil",
@@ -148,6 +149,7 @@ dev = [
   "types-setuptools",
   "types-tabulate",
   "types-tqdm",
+  "types-PyYAML",
   "typing-extensions",
   "umap-learn",
   "uvloop; platform_system != 'Windows'",
@@ -309,6 +311,7 @@ module = [
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
+  "pystache",
   "authlib.*",
   "google.*",
   "mistralai.*",
