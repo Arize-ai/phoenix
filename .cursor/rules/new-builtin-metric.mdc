@@ -325,6 +325,32 @@ export OPENAI_API_KEY="..."
 pnpm tsx src/{metric_name}_benchmark.ts
 ```
 
+## Step 8: Create Documentation
+
+Create documentation page at `docs/phoenix/evaluation/pre-built-metrics/{metric-name}.mdx`.
+
+**Follow the approved template structure:**
+
+1. **Overview** - When to use, what it measures
+2. **Supported Levels** - Span/trace/session, relevant span kinds
+3. **Input Requirements** - Required fields, formatting tips
+4. **Output Interpretation** - Labels, scores, direction
+5. **Usage Examples** - Python and TypeScript in tabs
+6. **Using Input Mapping** - With lambda example if applicable
+7. **Viewing/Modifying the Prompt** - Link to GitHub config, show custom prompt usage
+8. **Configuration** - Link to LLM config docs
+9. **Using with Phoenix** - Links to traces and experiments docs
+10. **Benchmarks** - "Coming soon" placeholder
+11. **API Reference** - Links to Python and TypeScript docs
+12. **Related** - Links to related evaluators
+
+**Reference file:** Use `docs/phoenix/evaluation/pre-built-metrics/faithfulness.mdx` as a template.
+
+**Update navigation:**
+
+1. Add the metric to the landing page card grid in `docs/phoenix/evaluation/pre-built-metrics.mdx`
+2. Add the URL to `docs/phoenix/sitemap.xml`
+
 ## Checklist
 
 - [ ] YAML config created with clear criteria
@@ -335,6 +361,9 @@ pnpm tsx src/{metric_name}_benchmark.ts
 - [ ] JS packages rebuilt (`pnpm build`)
 - [ ] Benchmark suite with diverse test cases
 - [ ] Benchmark run with acceptable accuracy (>80% target)
+- [ ] Documentation page created following template
+- [ ] Landing page updated with new metric card
+- [ ] Sitemap updated with new URL
 
 ## Tips for Good Prompts
 
