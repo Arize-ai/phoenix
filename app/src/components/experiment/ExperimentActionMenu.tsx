@@ -45,7 +45,7 @@ type ExperimentActionMenuProps =
       experimentId: string;
       metadata: unknown;
       canDeleteExperiment: true;
-      size: ButtonProps["size"];
+      size?: ButtonProps["size"];
       onExperimentDeleted: () => void;
     }
   | {
@@ -53,7 +53,7 @@ type ExperimentActionMenuProps =
       experimentId: string;
       metadata: unknown;
       canDeleteExperiment: false;
-      size: ButtonProps["size"];
+      size?: ButtonProps["size"];
       onExperimentDeleted?: undefined;
     };
 
