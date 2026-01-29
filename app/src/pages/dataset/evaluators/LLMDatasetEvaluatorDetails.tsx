@@ -4,7 +4,7 @@ import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, PageHeader, Text, View } from "@phoenix/components";
+import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
