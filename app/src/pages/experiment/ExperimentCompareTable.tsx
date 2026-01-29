@@ -120,7 +120,7 @@ const tableWrapCSS = css`
 const actionMenuContainerCSS = css`
   position: relative;
   height: var(--ac-global-line-height-s);
-  height: & > button {
+  & > button {
     position: absolute;
   }
 `;
