@@ -221,71 +221,67 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/faithfulness</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/toxicity</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/user-frustration</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-path-convergence</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-planning</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection</loc>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
