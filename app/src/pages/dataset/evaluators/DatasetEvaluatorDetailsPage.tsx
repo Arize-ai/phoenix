@@ -6,16 +6,14 @@ import { css } from "@emotion/react";
 
 import {
   Button,
-  Flex,
-  Heading,
   Icon,
   Icons,
   LazyTabPanel,
   Loading,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
-  Text,
   View,
 } from "@phoenix/components";
 import { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
@@ -75,17 +73,10 @@ function DatasetEvaluatorDetailsPageContent({
 
   return (
     <main css={mainCSS}>
-      <View
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-        padding="size-200"
-        flex="none"
-      >
-        <Flex justifyContent="space-between" alignItems="center">
-          <Flex direction="column" gap="size-50">
-            <Heading level={1}>Evaluator: {datasetEvaluator.name}</Heading>
-            <Text size="M">{evaluator.description}</Text>
-          </Flex>
+      <PageHeader
+        title={`Evaluator: ${datasetEvaluator.name}`}
+        subTitle={evaluator.description}
+        extra={
           <Button
             variant="primary"
             onPress={() => setIsEditSlideoverOpen(true)}
@@ -93,8 +84,8 @@ function DatasetEvaluatorDetailsPageContent({
           >
             Edit
           </Button>
-        </Flex>
-      </View>
+        }
+      />
       <Tabs defaultSelectedKey="configuration">
         <TabList>
           <Tab id="configuration">Configuration</Tab>
