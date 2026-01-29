@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -55,6 +55,7 @@ if TYPE_CHECKING:
 class EvaluatorKind(Enum):
     LLM = "LLM"
     CODE = "CODE"
+    BUILTIN = "BUILTIN"
 
 
 @strawberry.type
@@ -652,21 +653,18 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
-        if record.builtin_evaluator_id is not None:
-            return BuiltInEvaluator(id=record.builtin_evaluator_id)
-        elif record.evaluator_id is not None:
-            async with info.context.db() as session:
-                evaluator = await session.get(models.Evaluator, record.evaluator_id)
-                if evaluator is None:
-                    raise NotFound(f"Evaluator not found: {record.evaluator_id}")
-                if isinstance(evaluator, models.LLMEvaluator):
-                    return LLMEvaluator(id=evaluator.id)
-                elif isinstance(evaluator, models.CodeEvaluator):
-                    return CodeEvaluator(id=evaluator.id)
-                else:
-                    raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
-        else:
-            raise ValueError("DatasetEvaluator has no evaluator_id or builtin_evaluator_id")
+        async with info.context.db() as session:
+            evaluator = await session.get(models.Evaluator, record.evaluator_id)
+            if evaluator is None:
+                raise NotFound(f"Evaluator not found: {record.evaluator_id}")
+            if isinstance(evaluator, models.LLMEvaluator):
+                return LLMEvaluator(id=evaluator.id)
+            elif isinstance(evaluator, models.CodeEvaluator):
+                return CodeEvaluator(id=evaluator.id)
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                return BuiltInEvaluator(id=evaluator.id)
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
     @strawberry.field
     async def description(
@@ -681,15 +679,18 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
-        if record.builtin_evaluator_id is not None:
-            builtin = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
-            return builtin.description if builtin else None
-        if record.evaluator_id is not None:
-            base_description = await info.context.data_loaders.llm_evaluator_fields.load(
-                (record.evaluator_id, models.LLMEvaluator.description)
-            )
-            return cast(Optional[str], base_description)
-        return None
+        async with info.context.db() as session:
+            evaluator = await session.get(models.Evaluator, record.evaluator_id)
+            if evaluator is None:
+                return None
+            if isinstance(evaluator, models.BuiltinEvaluator):
+                builtin = get_builtin_evaluator_by_id(evaluator.id)
+                return builtin.description if builtin else None
+            elif isinstance(evaluator, models.LLMEvaluator):
+                return evaluator.description
+            elif isinstance(evaluator, models.CodeEvaluator):
+                return evaluator.description
+            return None
 
     @strawberry.field
     async def output_config(
@@ -700,75 +701,90 @@ class DatasetEvaluator(Node):
         Returns the effective output_config for this dataset evaluator.
         If an override is set, it's merged with the base config from the evaluator.
         Otherwise, returns the base config from the evaluator.
-        Works for both builtin evaluators and LLM evaluators.
+        Works for builtin evaluators, LLM evaluators, and code evaluators.
         """
-
         record = await self._get_record(info)
+        override = record.output_config_override
 
-        if record.builtin_evaluator_id is not None:
-            evaluator_class = get_builtin_evaluator_by_id(record.builtin_evaluator_id)
-            if evaluator_class is None:
+        async with info.context.db() as session:
+            # Use with_polymorphic to eagerly load all subclass columns
+            # This avoids lazy loading issues with async SQLAlchemy
+            poly_evaluator = sa.orm.with_polymorphic(
+                models.Evaluator,
+                [models.BuiltinEvaluator, models.LLMEvaluator, models.CodeEvaluator],
+            )
+            stmt = sa.select(poly_evaluator).where(poly_evaluator.id == record.evaluator_id)
+            result = await session.execute(stmt)
+            evaluator = result.scalar_one_or_none()
+            if evaluator is None:
                 return None
-            base_config = evaluator_class().output_config
-            override = record.output_config_override
-            if isinstance(base_config, CategoricalAnnotationConfigModel):
-                categorical_override = (
+
+            if isinstance(evaluator, models.BuiltinEvaluator):
+                evaluator_class = get_builtin_evaluator_by_id(evaluator.id)
+                if evaluator_class is None:
+                    return None
+                base_config = evaluator_class().output_config
+                if isinstance(base_config, CategoricalAnnotationConfigModel):
+                    categorical_override = (
+                        override
+                        if isinstance(override, CategoricalAnnotationConfigOverride)
+                        else None
+                    )
+                    effective_categorical_config = merge_categorical_annotation_config(
+                        base=base_config,
+                        override=categorical_override,
+                        name=record.name.root,
+                        description_override=record.description,
+                    )
+                    return _to_gql_categorical_annotation_config(
+                        config=effective_categorical_config,
+                        annotation_name=record.name.root,
+                        id_prefix="DatasetEvaluator",
+                        evaluator_id=self.id,
+                    )
+                else:
+                    continuous_override = (
+                        override
+                        if isinstance(override, ContinuousAnnotationConfigOverride)
+                        else None
+                    )
+                    effective_continuous_config = merge_continuous_annotation_config(
+                        base=base_config,
+                        override=continuous_override,
+                        name=record.name.root,
+                        description_override=record.description,
+                    )
+                    return _to_gql_continuous_annotation_config(
+                        config=effective_continuous_config,
+                        annotation_name=record.name.root,
+                        id_prefix="DatasetEvaluator",
+                        evaluator_id=self.id,
+                    )
+
+            elif isinstance(evaluator, models.LLMEvaluator):
+                llm_base_config = evaluator.output_config
+                if llm_base_config is None or not isinstance(
+                    llm_base_config, CategoricalAnnotationConfigModel
+                ):
+                    return None
+                llm_categorical_override = (
                     override if isinstance(override, CategoricalAnnotationConfigOverride) else None
                 )
-                effective_categorical_config = merge_categorical_annotation_config(
-                    base=base_config,
-                    override=categorical_override,
+                effective_llm_config = merge_categorical_annotation_config(
+                    base=llm_base_config,
+                    override=llm_categorical_override,
                     name=record.name.root,
                     description_override=record.description,
                 )
                 return _to_gql_categorical_annotation_config(
-                    config=effective_categorical_config,
-                    annotation_name=record.name.root,
-                    id_prefix="DatasetEvaluator",
-                    evaluator_id=self.id,
-                )
-            else:
-                continuous_override = (
-                    override if isinstance(override, ContinuousAnnotationConfigOverride) else None
-                )
-                effective_continuous_config = merge_continuous_annotation_config(
-                    base=base_config,
-                    override=continuous_override,
-                    name=record.name.root,
-                    description_override=record.description,
-                )
-                return _to_gql_continuous_annotation_config(
-                    config=effective_continuous_config,
+                    config=effective_llm_config,
                     annotation_name=record.name.root,
                     id_prefix="DatasetEvaluator",
                     evaluator_id=self.id,
                 )
 
-        if record.evaluator_id is None:
+            # CodeEvaluator doesn't have output_config
             return None
-        llm_base_config = await info.context.data_loaders.llm_evaluator_fields.load(
-            (record.evaluator_id, models.LLMEvaluator.output_config)
-        )
-        if llm_base_config is None or not isinstance(
-            llm_base_config, CategoricalAnnotationConfigModel
-        ):
-            return None
-        llm_override = record.output_config_override
-        llm_categorical_override = (
-            llm_override if isinstance(llm_override, CategoricalAnnotationConfigOverride) else None
-        )
-        effective_llm_config = merge_categorical_annotation_config(
-            base=llm_base_config,
-            override=llm_categorical_override,
-            name=record.name.root,
-            description_override=record.description,
-        )
-        return _to_gql_categorical_annotation_config(
-            config=effective_llm_config,
-            annotation_name=record.name.root,
-            id_prefix="DatasetEvaluator",
-            evaluator_id=self.id,
-        )
 
     @strawberry.field
     async def input_mapping(

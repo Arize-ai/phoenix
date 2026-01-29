@@ -181,6 +181,18 @@ def db(
 
 
 @pytest.fixture
+async def synced_builtin_evaluators(db: DbSessionFactory) -> None:
+    """Ensure builtin evaluators are synced to the database.
+
+    Tests that directly create DatasetEvaluators referencing builtin evaluators
+    should use this fixture to ensure the builtin evaluators exist in the database.
+    """
+    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+
+    await sync_builtin_evaluators(db)
+
+
+@pytest.fixture
 async def project(db: DbSessionFactory) -> None:
     project = models.Project(name="test_project")
     async with db() as session:
