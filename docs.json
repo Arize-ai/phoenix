@@ -242,6 +242,7 @@
                   "docs/phoenix/datasets-and-experiments/how-to-experiments",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
                 ]
@@ -1051,8 +1052,7 @@
               {
                 "group": "01.2026",
                 "pages": [
-                  "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging",
-                  "docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments"
+                  "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
                 ]
               },
               {
