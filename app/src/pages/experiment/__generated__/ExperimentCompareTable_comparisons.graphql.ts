@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddfee7516680426f99684aa637cb1e6f>>
+ * @generated SignedSource<<19c424e3dc59f3b21824121c1d6de30f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -89,6 +89,10 @@ export type ExperimentCompareTable_comparisons$data = {
     readonly experiments?: {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
+          readonly annotationSummaries: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly meanScore: number | null;
+          }>;
           readonly averageRunLatencyMs: number | null;
           readonly costSummary: {
             readonly total: {
@@ -131,7 +135,23 @@ v1 = {
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "annotationName",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "meanScore",
+    "storageKey": null
+  }
+],
+v3 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -156,49 +176,49 @@ v2 = {
   ],
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "tokens",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cost",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "metadata",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -365,22 +385,7 @@ return {
                       "kind": "LinkedField",
                       "name": "annotationSummaries",
                       "plural": true,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "annotationName",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "meanScore",
-                          "storageKey": null
-                        }
-                      ],
+                      "selections": (v2/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -427,7 +432,7 @@ return {
                           "name": "error",
                           "storageKey": null
                         },
-                        (v2/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -444,8 +449,8 @@ return {
                               "name": "total",
                               "plural": false,
                               "selections": [
-                                (v3/*: any*/),
-                                (v4/*: any*/)
+                                (v4/*: any*/),
+                                (v5/*: any*/)
                               ],
                               "storageKey": null
                             }
@@ -477,9 +482,9 @@ return {
                                   "plural": false,
                                   "selections": [
                                     (v1/*: any*/),
-                                    (v5/*: any*/),
                                     (v6/*: any*/),
                                     (v7/*: any*/),
+                                    (v8/*: any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -494,8 +499,8 @@ return {
                                       "name": "explanation",
                                       "storageKey": null
                                     },
-                                    (v8/*: any*/),
-                                    (v2/*: any*/)
+                                    (v9/*: any*/),
+                                    (v3/*: any*/)
                                   ],
                                   "storageKey": null
                                 }
@@ -619,7 +624,7 @@ return {
                       "plural": false,
                       "selections": [
                         (v1/*: any*/),
-                        (v5/*: any*/),
+                        (v6/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -627,7 +632,7 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
-                        (v8/*: any*/),
+                        (v9/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -663,8 +668,8 @@ return {
                               "name": "total",
                               "plural": false,
                               "selections": [
-                                (v4/*: any*/),
-                                (v3/*: any*/)
+                                (v5/*: any*/),
+                                (v4/*: any*/)
                               ],
                               "storageKey": null
                             }
@@ -690,6 +695,16 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "repetitions",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "ExperimentAnnotationSummary",
+                          "kind": "LinkedField",
+                          "name": "annotationSummaries",
+                          "plural": true,
+                          "selections": (v2/*: any*/),
                           "storageKey": null
                         }
                       ],
@@ -731,7 +746,7 @@ return {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v5/*: any*/),
+                        (v6/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -743,8 +758,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v5/*: any*/),
-                                (v9/*: any*/),
+                                (v6/*: any*/),
+                                (v10/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -753,8 +768,8 @@ return {
                                   "name": "values",
                                   "plural": true,
                                   "selections": [
-                                    (v7/*: any*/),
-                                    (v6/*: any*/)
+                                    (v8/*: any*/),
+                                    (v7/*: any*/)
                                   ],
                                   "storageKey": null
                                 }
@@ -765,8 +780,8 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v5/*: any*/),
-                                (v9/*: any*/),
+                                (v6/*: any*/),
+                                (v10/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -810,6 +825,6 @@ return {
 };
 })();
 
-(node as any).hash = "9eb023304dc20884e0ea1d2260bbe8e2";
+(node as any).hash = "b9b2e7f7b273b38ac6f267a4eb5e817f";
 
 export default node;
