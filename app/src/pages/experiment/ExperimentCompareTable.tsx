@@ -409,49 +409,41 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               ? baseExperimentColor
               : getExperimentColor(experimentIndex - 1);
           return (
-            <Flex
-              direction="row"
-              gap="size-100"
-              wrap
-              alignItems="center"
-              justifyContent="space-between"
-            >
-              <Flex direction="column" gap="size-50" width="100%">
-                <Flex
-                  direction="row"
-                  gap="size-100"
-                  wrap
-                  justifyContent="space-between"
-                  alignItems="start"
-                >
-                  <ExperimentNameWithColorSwatch
-                    name={name}
-                    color={experimentColor}
-                  />
-                  <div css={actionMenuContainerCSS}>
-                    <ExperimentActionMenu
-                      experimentId={experimentId}
-                      metadata={metadata}
-                      projectId={projectId}
-                      size="S"
-                      canDeleteExperiment={false}
-                    />
-                  </div>
-                </Flex>
-                <div>
-                  {experiment && (
-                    <ExperimentCostAndLatencySummary
-                      executionState="complete"
-                      experiment={experiment}
-                    />
-                  )}
-                </div>
-                <ExperimentAnnotationAggregates
-                  executionState="complete"
-                  annotationConfigs={annotationConfigs}
-                  annotationSummaries={experiment?.annotationSummaries ?? []}
+            <Flex direction="column" gap="size-50">
+              <Flex
+                direction="row"
+                gap="size-100"
+                wrap
+                justifyContent="space-between"
+                alignItems="start"
+              >
+                <ExperimentNameWithColorSwatch
+                  name={name}
+                  color={experimentColor}
                 />
+                <div css={actionMenuContainerCSS}>
+                  <ExperimentActionMenu
+                    experimentId={experimentId}
+                    metadata={metadata}
+                    projectId={projectId}
+                    size="S"
+                    canDeleteExperiment={false}
+                  />
+                </div>
               </Flex>
+              <div>
+                {experiment && (
+                  <ExperimentCostAndLatencySummary
+                    executionState="complete"
+                    experiment={experiment}
+                  />
+                )}
+              </div>
+              <ExperimentAnnotationAggregates
+                executionState="complete"
+                annotationConfigs={annotationConfigs}
+                annotationSummaries={experiment?.annotationSummaries ?? []}
+              />
             </Flex>
           );
         },
