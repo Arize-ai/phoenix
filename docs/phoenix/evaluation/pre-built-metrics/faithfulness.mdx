@@ -1,20 +1,19 @@
 ---
 title: "Faithfulness"
-description: "Evaluate whether LLM responses are faithful to the provided context"
+description: "Evaluate whether LLM responses are faithful to the provided context."
 ---
 
 ## Overview
 
-The **Faithfulness** evaluator determines whether an LLM's response is grounded in and faithful to the provided context. It detects when responses contain information that is not supported by or contradicts the reference context.
+The **Faithfulness** evaluator is a specialized hallucination-detection metric that determines whether an LLM's response is grounded in and faithful to the provided context. It detects when responses contain information that is not supported by or contradicts the reference context.
 
 ### When to Use
 
 Use the Faithfulness evaluator when you need to:
 
-- **Validate RAG (Retrieval-Augmented Generation) outputs** - Ensure answers are based on retrieved documents
+- **Validate RAG (Retrieval-Augmented Generation) outputs** - Ensure answers are based on retrieved documents or search results
 - **Detect hallucinations in grounded responses** - Identify when the LLM makes up information not present in the context
 - **Evaluate Q&A systems over private data** - Verify responses only contain information from your knowledge base
-- **Audit chatbot responses** - Check that customer-facing responses stick to approved content
 
 <Info>
 This evaluator is specifically designed for **grounded** responses where context is provided. It is not designed to validate general world knowledge or facts the LLM learned during training.
@@ -22,11 +21,10 @@ This evaluator is specifically designed for **grounded** responses where context
 
 ## Supported Levels
 
+
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Best for LLM spans with RAG context. Apply to spans where `input`, `output`, and retrieved `context` are available. |
-| **Trace** | Yes | Evaluate the final response against all context used in the trace. |
-| **Session** | Yes | Evaluate responses across a conversation session against accumulated context. |
 
 **Relevant span kinds:** LLM spans, particularly those in RAG pipelines where documents are retrieved and used as context.
 
@@ -45,7 +43,7 @@ The Faithfulness evaluator requires three inputs:
 For best results:
 
 - **Use human-readable strings** rather than raw JSON for all inputs
-- **For multi-turn conversations**, format as a readable conversation:
+- **For multi-turn conversations**, format the input as a readable conversation:
   ```
   User: What is the refund policy?
   Assistant: You can request a refund within 30 days.
