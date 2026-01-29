@@ -5379,6 +5379,8 @@ export interface operations {
                 limit?: number;
                 /** @description Include experiment projects in the response. Experiment projects are created from running experiments. */
                 include_experiment_projects?: boolean;
+                /** @description Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators. */
+                include_dataset_evaluator_projects?: boolean;
             };
             header?: never;
             path?: never;
