@@ -224,7 +224,7 @@ typecheck-python: ## Type check Python code
 
 typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
 	@echo -e "$(CYAN)Type checking Python with ty...$(NC)"
-	@$(UV) run python scripts/uv/type_check/type_check.py
+	@$(UV) run python scripts/uv/type-check/type_check.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 typecheck-frontend: ## Type check frontend (app/)
