@@ -14,5 +14,23 @@ This is a tricky module because / I am uncertain whether I took the right approa
 
 ```
 
-IMPORTANT: DO NOT MIGRATE MORE THAN ONE MODULE!
-IMPORTANT: COMMIT YOUR CHANGES ONCE AND ONLY ONCE BEFORE EXITING!
+- If you need information about a particular `ty` error (e.g., `index-out-of-bounds` or `invalid-generic-enum`, you can look it up in `TY_RULES.md`.
+- Avoid type ignore comments unless necessary, or unless the alternative introduces a great deal of complexity. Any time you use a type ignore comment, YOU MUST add a note to `NOTES.md`.
+- Before you start, ensure you have a clean git working tree.
+- DO NOT migrate more than one module! Migrate one module, commit, and exit.
+- Commit your changes once and only once before exiting!
+- DO NOT change the runtime behavior of any piece of code! Keep your diff as minimal as possible.
+- If you fail to successfully migrate the code and get all tests passing, DO NOT commit changes to the source code or to `scripts/uv/type_check/modules_with_type_errors.txt`! Instead, commit what you have tried and why it failed to LEARNINGS.md in the following format:
+
+
+```
+src/phoenix/__init__.py
+
+I tried xyz and it did not work because ...
+
+
+```
+
+
+- If you are stuck on a hard problem, grep through LEARNINGS.md to see if a previous Claude learned something useful.
+
