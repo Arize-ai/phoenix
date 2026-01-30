@@ -494,6 +494,7 @@ export function ExperimentsTable({
                 projectId={project?.id || null}
                 experimentId={row.original.id}
                 metadata={metadata}
+                size="S"
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
                   refetch({}, { fetchPolicy: "network-only" });
