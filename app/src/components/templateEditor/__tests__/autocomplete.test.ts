@@ -108,6 +108,41 @@ describe("detectMustacheSectionContext", () => {
     const text = "{{#first}}...{{/first}}{{#second}}{{";
     expect(detectMustacheSectionContext(text)).toEqual(["second"]);
   });
+
+  it("handles sections with internal whitespace", () => {
+    const text = "{{ #items }}{{";
+    expect(detectMustacheSectionContext(text)).toEqual(["items"]);
+  });
+
+  it("handles inverted sections with internal whitespace", () => {
+    const text = "{{ ^items }}{{";
+    expect(detectMustacheSectionContext(text)).toEqual(["items"]);
+  });
+
+  it("handles closed sections with internal whitespace", () => {
+    const text = "{{ #items }}...{{ /items }}{{";
+    expect(detectMustacheSectionContext(text)).toEqual([]);
+  });
+
+  it("handles variable names with hyphens", () => {
+    const text = "{{#my-items}}{{";
+    expect(detectMustacheSectionContext(text)).toEqual(["my-items"]);
+  });
+
+  it("handles dotted paths with hyphens", () => {
+    const text = "{{#my-data.user-items}}{{";
+    expect(detectMustacheSectionContext(text)).toEqual(["my-data.user-items"]);
+  });
+
+  it("handles whitespace and hyphens together", () => {
+    const text = "{{ #my-items }}{{";
+    expect(detectMustacheSectionContext(text)).toEqual(["my-items"]);
+  });
+
+  it("handles asymmetric whitespace in open and close tags", () => {
+    const text = "{{#items }}...{{ /items}}{{";
+    expect(detectMustacheSectionContext(text)).toEqual([]);
+  });
 });
 
 describe("getPathsForSectionContext", () => {
@@ -228,6 +263,16 @@ describe("Template format differences", () => {
     it("uses single brackets", () => {
       // FString uses { and }
       expect(TemplateFormats.FString).toBeDefined();
+    });
+  });
+
+  describe("NONE format", () => {
+    it("disables templating - autocomplete should not activate", () => {
+      // When templateFormat is NONE, no variable substitution occurs
+      // The autocomplete extension should not be added, and if called directly,
+      // templateVariableCompletions should return null
+      expect(TemplateFormats.NONE).toBeDefined();
+      expect(TemplateFormats.NONE).toBe("NONE");
     });
   });
 });

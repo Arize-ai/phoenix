@@ -77,8 +77,13 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
-    // Add autocomplete extension if available paths are provided
-    if (availablePaths && availablePaths.length > 0 && !readOnly) {
+    // Add autocomplete extension if available paths are provided and templating is enabled
+    if (
+      availablePaths &&
+      availablePaths.length > 0 &&
+      !readOnly &&
+      templateFormat !== TemplateFormats.NONE
+    ) {
       ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
     }
     return ext;
