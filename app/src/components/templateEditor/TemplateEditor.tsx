@@ -139,6 +139,10 @@ export const TemplateEditorWrap = ({
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
         }
+        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
+        & .cm-tooltip-autocomplete {
+          z-index: 100;
+        }
       `}
     >
       {children}

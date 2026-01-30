@@ -74,13 +74,13 @@ import { PlaygroundTools } from "./PlaygroundTools";
 import { createToolCallForProvider } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
-const MESSAGE_Z_INDEX = 1;
 /**
  * The z-index of the dragging message.
- * Must be higher than the z-index of the other messages. Otherwise when dragging
- * from top to bottom, the dragging message will be covered by the message below.
+ * Only applied when actively dragging to ensure the dragged message appears above others.
+ * Non-dragging messages should NOT have a z-index to avoid creating stacking contexts
+ * that would clip autocomplete dropdowns.
  */
-const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
+const DRAGGING_MESSAGE_Z_INDEX = 10;
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
@@ -361,7 +361,9 @@ function SortableMessageItem({
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
     transition,
-    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
+    // Only set z-index when dragging to avoid creating stacking contexts
+    // that would clip autocomplete dropdowns
+    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : undefined,
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
