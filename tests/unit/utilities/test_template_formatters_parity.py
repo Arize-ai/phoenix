@@ -111,21 +111,33 @@ class TestMustacheParserParity:
                 {"items"},
                 id="whitespace-in-section-tags",
             ),
-            # Nested properties (dot notation)
+            # Nested properties (dot notation) - only root variable is extracted
+            # Mustache uses dots to traverse nested objects (user.name means context["user"]["name"])
+            # For validation, we only need the root variable to exist
             pytest.param(
                 "{{user.name}}",
-                {"user.name"},
-                id="nested-property-simple",
+                {"user"},
+                id="nested-property-extracts-root-only",
             ),
             pytest.param(
                 "{{function.name}}: {{function.description}}",
-                {"function.name", "function.description"},
-                id="nested-property-multiple",
+                {"function"},
+                id="nested-property-multiple-same-root",
+            ),
+            pytest.param(
+                "{{user.name}} and {{account.id}}",
+                {"user", "account"},
+                id="nested-property-different-roots",
             ),
             pytest.param(
                 "{{#tool}}{{function.name}}{{/tool}}",
                 {"tool"},
                 id="nested-property-inside-section",
+            ),
+            pytest.param(
+                "{{#output.available_tools}}{{function.name}}{{/output.available_tools}}",
+                {"output"},
+                id="section-with-dotted-path-extracts-root",
             ),
             # Complex real-world patterns
             pytest.param(

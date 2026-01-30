@@ -85,6 +85,40 @@ can you help with this json?
     });
   });
 
+  it("should extract only root variable names from dotted paths", () => {
+    // Mustache uses dot notation to traverse nested objects (e.g., user.name
+    // means context["user"]["name"]). For validation, we only need the root.
+    const tests = [
+      { input: "{{user.name}}", expected: ["user"] },
+      { input: "{{user.name}} and {{user.email}}", expected: ["user"] },
+      {
+        input: "{{user.name}} and {{account.id}}",
+        expected: ["user", "account"],
+      },
+      {
+        input:
+          "{{#output.available_tools}}{{function.name}}{{/output.available_tools}}",
+        expected: ["output"],
+      },
+      {
+        input: `{{#output.available_tools}}
+- {{function.name}}: {{function.description}}
+{{/output.available_tools}}
+{{^output.available_tools}}
+No tools available.
+{{/output.available_tools}}`,
+        expected: ["output"],
+      },
+      {
+        input: "{{input}}{{#output.messages}}{{role}}{{/output.messages}}",
+        expected: ["input", "output"],
+      },
+    ] as const;
+    tests.forEach(({ input, expected }) => {
+      expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
+    });
+  });
+
   it("should validate mustache section tags", () => {
     const tests = [
       {

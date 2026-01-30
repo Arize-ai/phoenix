@@ -140,6 +140,22 @@ class MustacheTemplateFormatter(TemplateFormatter):
         # Create renderer with no HTML escaping
         self._renderer = pystache.Renderer(escape=lambda x: x)
 
+    @staticmethod
+    def _get_root_variable_name(variable_path: str) -> str:
+        """
+        Extract the root variable name from a dotted path.
+
+        Mustache uses dot notation to traverse nested properties (e.g., output.available_tools
+        means context["output"]["available_tools"]). For validation purposes, we only need
+        to check that the root variable exists.
+
+        Examples:
+            "output.available_tools" -> "output"
+            "user.name" -> "user"
+            "simple" -> "simple"
+        """
+        return variable_path.split(".")[0]
+
     def parse(self, template: str) -> set[str]:
         """
         Extract top-level variable names from mustache template.
@@ -147,6 +163,10 @@ class MustacheTemplateFormatter(TemplateFormatter):
         Only extracts variables at the top level, not those nested inside sections.
         This ensures validation only checks for required top-level inputs.
         Escaped sequences (\\{{) are ignored.
+
+        For dotted paths like {{output.available_tools}}, only the root variable
+        name (output) is extracted, since Mustache traverses nested properties
+        starting from the root.
 
         This implementation uses regex with depth tracking to match the TypeScript
         implementation in mustacheLikeTemplating.ts, avoiding private pystache APIs.
@@ -168,7 +188,8 @@ class MustacheTemplateFormatter(TemplateFormatter):
             # Section opener (# or ^) - only add variable if at top level
             if trimmed.startswith("#") or trimmed.startswith("^"):
                 if depth == 0:
-                    variables.add(trimmed[1:].strip())
+                    var_name = trimmed[1:].strip()
+                    variables.add(self._get_root_variable_name(var_name))
                 depth += 1
                 continue
 
@@ -179,7 +200,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
             # Regular variable - only add if at top level
             if depth == 0:
-                variables.add(trimmed)
+                variables.add(self._get_root_variable_name(trimmed))
 
         return variables
 
@@ -189,6 +210,10 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
         Section variables ({{#name}} or {{^name}}) are typed as "section".
         Regular variables ({{name}}) are typed as "string".
+
+        For dotted paths like {{output.available_tools}}, only the root variable
+        name (output) is extracted, since Mustache traverses nested properties
+        starting from the root.
         """
         clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
         matches = self._variable_regex.findall(clean_template)
@@ -203,7 +228,9 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
             if trimmed.startswith("#") or trimmed.startswith("^"):
                 if depth == 0:
-                    variables.add(ParsedVariable(name=trimmed[1:].strip(), variable_type="section"))
+                    var_name = trimmed[1:].strip()
+                    root_name = self._get_root_variable_name(var_name)
+                    variables.add(ParsedVariable(name=root_name, variable_type="section"))
                 depth += 1
                 continue
 
@@ -212,7 +239,8 @@ class MustacheTemplateFormatter(TemplateFormatter):
                 continue
 
             if depth == 0:
-                variables.add(ParsedVariable(name=trimmed, variable_type="string"))
+                root_name = self._get_root_variable_name(trimmed)
+                variables.add(ParsedVariable(name=root_name, variable_type="string"))
 
         return ParsedVariables(variables=frozenset(variables))
 

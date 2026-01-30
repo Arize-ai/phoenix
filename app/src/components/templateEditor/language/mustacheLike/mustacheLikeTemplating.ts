@@ -69,7 +69,27 @@ export const formatMustacheLike = ({
   });
 
 /**
- * Extracts the variables from a Mustache-like template
+ * Extract the root variable name from a dotted path.
+ *
+ * Mustache uses dot notation to traverse nested properties (e.g., output.available_tools
+ * means context["output"]["available_tools"]). For validation purposes, we only need
+ * to check that the root variable exists.
+ *
+ * @example
+ * getRootVariableName("output.available_tools") // => "output"
+ * getRootVariableName("user.name") // => "user"
+ * getRootVariableName("simple") // => "simple"
+ */
+const getRootVariableName = (variablePath: string): string => {
+  return variablePath.split(".")[0];
+};
+
+/**
+ * Extracts the variables from a Mustache-like template.
+ *
+ * For dotted paths like {{output.available_tools}}, only the root variable
+ * name (output) is extracted, since Mustache traverses nested properties
+ * starting from the root.
  */
 export const extractVariablesFromMustacheLike = (text: string) => {
   const allVariables = extractVariables({
@@ -83,7 +103,8 @@ export const extractVariablesFromMustacheLike = (text: string) => {
     const trimmed = variable.trim();
     if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
       if (depth === 0) {
-        topLevelVariables.add(trimmed.slice(1).trim());
+        const varName = trimmed.slice(1).trim();
+        topLevelVariables.add(getRootVariableName(varName));
       }
       depth += 1;
       continue;
@@ -93,7 +114,7 @@ export const extractVariablesFromMustacheLike = (text: string) => {
       continue;
     }
     if (depth === 0) {
-      topLevelVariables.add(trimmed);
+      topLevelVariables.add(getRootVariableName(trimmed));
     }
   }
 

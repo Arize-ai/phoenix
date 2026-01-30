@@ -400,13 +400,37 @@ class TestMustacheParseEdgeCases:
         variables = formatter.parse(template)
         assert variables == {"a", "b", "c", "d"}
 
-    def test_nested_property_at_top_level(self) -> None:
-        """Test that nested properties (dot notation) work at top level."""
+    def test_nested_property_extracts_root_only(self) -> None:
+        """Test that nested properties (dot notation) extract only root variable.
+
+        Mustache uses dot notation to traverse nested objects (e.g., user.name means
+        context["user"]["name"]). For validation, we only need to check that the
+        root variable exists.
+        """
         formatter = MustacheTemplateFormatter()
         template = "{{user.name}} and {{user.email}}"
         variables = formatter.parse(template)
-        assert "user.name" in variables
-        assert "user.email" in variables
+        # Should extract only "user", not the full dotted paths
+        assert variables == {"user"}
+        assert "user.name" not in variables
+        assert "user.email" not in variables
+
+    def test_section_with_dotted_path_extracts_root_only(self) -> None:
+        """Test that sections with dotted paths extract only root variable.
+
+        This is the pattern used by tool formatters like {{#output.available_tools}}.
+        """
+        formatter = MustacheTemplateFormatter()
+        template = """{{#output.available_tools}}
+- {{function.name}}: {{function.description}}
+{{/output.available_tools}}
+{{^output.available_tools}}
+No tools available.
+{{/output.available_tools}}"""
+        variables = formatter.parse(template)
+        # Should extract only "output", not "output.available_tools"
+        assert variables == {"output"}
+        assert "output.available_tools" not in variables
 
     def test_mixed_sections_and_variables(self) -> None:
         """Test complex template with mixed sections and variables."""
