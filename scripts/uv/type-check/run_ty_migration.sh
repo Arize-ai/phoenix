@@ -54,7 +54,7 @@ while true; do
     echo ""
     
     # Run claude with the migration plan (pass absolute path)
-    echo "$PLAN_FILE" | claude -p --dangerously-skip-permissions --output-format stream-json
+    echo "$PLAN_FILE" | claude -p --dangerously-skip-permissions --output-format stream-json --verbose
     
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
