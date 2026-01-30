@@ -27,8 +27,6 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Best for retriever spans. Evaluate each retrieved document individually. |
-| **Trace** | Yes | Evaluate documents retrieved across the entire trace. |
-| **Session** | Yes | Evaluate retrieval quality across a conversation session. |
 
 **Relevant span kinds:** Retriever spans, embedding spans, or any span that retrieves documents from a knowledge base.
 
@@ -312,4 +310,4 @@ Use the Document Relevance evaluator in Phoenix experiments:
 ## Related
 
 - [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - For evaluating response faithfulness to context
-- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating overall correctness
