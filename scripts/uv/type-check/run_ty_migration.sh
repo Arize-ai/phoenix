@@ -2,8 +2,32 @@
 
 # Script to run claude iteratively until modules_with_type_errors.txt is empty
 
-ERRORS_FILE="scripts/uv/type_check/modules_with_type_errors.txt"
-PLAN_FILE="TY_MIGRATION_PLAN.md"
+# Exit on error
+set -e
+
+# Get the directory where this script lives
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Navigate to repo root (3 levels up from scripts/uv/type-check/)
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Use absolute paths
+ERRORS_FILE="$REPO_ROOT/scripts/uv/type-check/modules_with_type_errors.txt"
+PLAN_FILE="$SCRIPT_DIR/TY_MIGRATION_PLAN.md"
+
+# Validate we're in the right place
+if [ ! -f "$ERRORS_FILE" ]; then
+    echo "Error: Could not find $ERRORS_FILE"
+    exit 1
+fi
+
+if [ ! -f "$PLAN_FILE" ]; then
+    echo "Error: Could not find $PLAN_FILE"
+    exit 1
+fi
+
+# Change to repo root
+cd "$REPO_ROOT"
 
 # ANSI color codes
 BRIGHT_CYAN='\033[1;96m'
@@ -29,7 +53,7 @@ while true; do
     echo -e "${BRIGHT_CYAN}════════════════════════════════════════════════════════════${RESET}"
     echo ""
     
-    # Run claude with the migration plan
+    # Run claude with the migration plan (pass absolute path)
     echo "$PLAN_FILE" | claude -p --dangerously-skip-permissions --output-format stream-json
     
     exit_code=$?
