@@ -381,10 +381,8 @@ function templateVariableCompletions(
             // If closing brackets exist, extend replacement range to include them
             const actualTo = hasClosingBrackets ? to + 2 : to;
 
-            // Build the insertion - don't duplicate }} if they already exist
-            const openTag = hasClosingBrackets
-              ? `#${varName}`
-              : `#${varName}}}`;
+            // Build the insertion - the insertion template adds }} after openTag
+            const openTag = `#${varName}`;
             const closeTag = `{{/${varName}}}`;
             const insertion = `${openTag}}}${closeTag}`;
             const cursorPos = from + openTag.length + 2; // Position after the opening tag's }}
@@ -421,10 +419,8 @@ function templateVariableCompletions(
             // If closing brackets exist, extend replacement range to include them
             const actualTo = hasClosingBrackets ? to + 2 : to;
 
-            // Build the insertion - don't duplicate }} if they already exist
-            const openTag = hasClosingBrackets
-              ? `^${varName}`
-              : `^${varName}}}`;
+            // Build the insertion - the insertion template adds }} after openTag
+            const openTag = `^${varName}`;
             const closeTag = `{{/${varName}}}`;
             const insertion = `${openTag}}}${closeTag}`;
             const cursorPos = from + openTag.length + 2; // Position after the opening tag's }}
