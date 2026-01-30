@@ -119,7 +119,7 @@ def render_subvalues_w_union(elem: SubValues, compiler: compiler.SQLCompiler, **
     """
     # omit rendering parenthesis, columns, "AS name", etc.
     kw.pop("asfrom", None)
-    return cast(str, compiler.visit_values(elem, **kw))  # type: ignore[no-untyped-call]
+    return cast(str, compiler.visit_values(elem, **kw))
 
 
 @compiles(Values, "sqlite")
@@ -143,7 +143,7 @@ def render_values_w_union(
     stmt = select(*(literal(val).label(col.key) for col, val in zip(elem.columns, first)))
     if rest:
         cols = [column(c.key, c.type) for c in elem.columns]
-        stmt = union_all(stmt, SubValues(*cols).data(rest))  # type: ignore[assignment]
+        stmt = union_all(stmt, SubValues(*cols).data(rest))
     subquery = stmt.subquery(elem.name)
     if from_linter:
         # replace all occurrences of elem with subquery so the from linter
@@ -189,10 +189,14 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
+    def process_bind_param(
+        self, value: Optional[dict[str, Any]], dialect: Dialect
+    ) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
-    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[dict[str, Any]]:
+    def process_result_value(
+        self, value: Optional[Any], dialect: Dialect
+    ) -> Optional[dict[str, Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, dict) and value else value
 
 
@@ -201,10 +205,10 @@ class JsonList(TypeDecorator[list[Any]]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
+    def process_bind_param(self, value: Optional[list[Any]], dialect: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
 
-    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
+    def process_result_value(self, value: Optional[Any], dialect: Dialect) -> Optional[list[Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
 
 
@@ -213,10 +217,10 @@ class UtcTimeStamp(TypeDecorator[datetime]):
     cache_ok = True
     impl = TIMESTAMP(timezone=True)
 
-    def process_bind_param(self, value: Optional[datetime], _: Dialect) -> Optional[datetime]:
+    def process_bind_param(self, value: Optional[datetime], dialect: Dialect) -> Optional[datetime]:
         return normalize_datetime(value)
 
-    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[datetime]:
+    def process_result_value(self, value: Optional[Any], dialect: Dialect) -> Optional[datetime]:
         return normalize_datetime(value, timezone.utc)
 
 
@@ -225,11 +229,11 @@ class _Identifier(TypeDecorator[Identifier]):
     cache_ok = True
     impl = String
 
-    def process_bind_param(self, value: Optional[Identifier], _: Dialect) -> Optional[str]:
+    def process_bind_param(self, value: Optional[Identifier], dialect: Dialect) -> Optional[str]:
         assert isinstance(value, Identifier) or value is None
         return None if value is None else value.root
 
-    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[Identifier]:
+    def process_result_value(self, value: Optional[str], dialect: Dialect) -> Optional[Identifier]:
         return None if value is None else Identifier.model_validate(value)
 
 
@@ -238,12 +242,14 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
     cache_ok = True
     impl = String
 
-    def process_bind_param(self, value: Optional[ModelProvider], _: Dialect) -> Optional[str]:
+    def process_bind_param(self, value: Optional[ModelProvider], dialect: Dialect) -> Optional[str]:
         if isinstance(value, str):
             return ModelProvider(value).value
         return None if value is None else value.value
 
-    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
+    def process_result_value(
+        self, value: Optional[str], dialect: Dialect
+    ) -> Optional[ModelProvider]:
         return None if value is None else ModelProvider(value)
 
 
@@ -253,7 +259,7 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[PromptInvocationParameters], _: Dialect
+        self, value: Optional[PromptInvocationParameters], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         assert is_prompt_invocation_parameters(value)
         invocation_parameters = value.model_dump()
@@ -261,7 +267,7 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
         return invocation_parameters
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[PromptInvocationParameters]:
         assert isinstance(value, dict)
         return PromptInvocationParametersRootModel.model_validate(value).root
@@ -273,13 +279,13 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[PromptTemplate], _: Dialect
+        self, value: Optional[PromptTemplate], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         assert is_prompt_template(value)
         return value.model_dump() if value is not None else None
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[PromptTemplate]:
         assert isinstance(value, dict)
         return PromptTemplateRootModel.model_validate(value).root
@@ -291,12 +297,12 @@ class _Tools(TypeDecorator[PromptTools]):
     impl = JSON
 
     def process_bind_param(
-        self, value: Optional[PromptTools], _: Dialect
+        self, value: Optional[PromptTools], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         return value.model_dump() if value is not None else None
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[PromptTools]:
         return PromptTools.model_validate(value) if value is not None else None
 
@@ -307,12 +313,12 @@ class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
     impl = JSON
 
     def process_bind_param(
-        self, value: Optional[PromptResponseFormat], _: Dialect
+        self, value: Optional[PromptResponseFormat], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         return value.model_dump() if value is not None else None
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[PromptResponseFormat]:
         return (
             PromptResponseFormatRootModel.model_validate(value).root if value is not None else None
@@ -324,13 +330,15 @@ class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
     cache_ok = True
     impl = String
 
-    def process_bind_param(self, value: Optional[PromptTemplateType], _: Dialect) -> Optional[str]:
+    def process_bind_param(
+        self, value: Optional[PromptTemplateType], dialect: Dialect
+    ) -> Optional[str]:
         if isinstance(value, str):
             return PromptTemplateType(value).value
         return None if value is None else value.value
 
     def process_result_value(
-        self, value: Optional[str], _: Dialect
+        self, value: Optional[str], dialect: Dialect
     ) -> Optional[PromptTemplateType]:
         return None if value is None else PromptTemplateType(value)
 
@@ -341,14 +349,14 @@ class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
     impl = String
 
     def process_bind_param(
-        self, value: Optional[PromptTemplateFormat], _: Dialect
+        self, value: Optional[PromptTemplateFormat], dialect: Dialect
     ) -> Optional[str]:
         if isinstance(value, str):
             return PromptTemplateFormat(value).value
         return None if value is None else value.value
 
     def process_result_value(
-        self, value: Optional[str], _: Dialect
+        self, value: Optional[str], dialect: Dialect
     ) -> Optional[PromptTemplateFormat]:
         return None if value is None else PromptTemplateFormat(value)
 
@@ -359,14 +367,14 @@ class _TraceRetentionCronExpression(TypeDecorator[TraceRetentionCronExpression])
     impl = String
 
     def process_bind_param(
-        self, value: Optional[TraceRetentionCronExpression], _: Dialect
+        self, value: Optional[TraceRetentionCronExpression], dialect: Dialect
     ) -> Optional[str]:
         assert isinstance(value, TraceRetentionCronExpression)
         assert isinstance(ans := value.model_dump(), str)
         return ans
 
     def process_result_value(
-        self, value: Optional[str], _: Dialect
+        self, value: Optional[str], dialect: Dialect
     ) -> Optional[TraceRetentionCronExpression]:
         assert value and isinstance(value, str)
         return TraceRetentionCronExpression.model_validate(value)
@@ -378,14 +386,14 @@ class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[TraceRetentionRule], _: Dialect
+        self, value: Optional[TraceRetentionRule], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         assert isinstance(value, TraceRetentionRule)
         assert isinstance(ans := value.model_dump(), dict)
         return ans
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[TraceRetentionRule]:
         assert value and isinstance(value, dict)
         return TraceRetentionRule.model_validate(value)
@@ -397,12 +405,12 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[AnnotationConfigType], _: Dialect
+        self, value: Optional[AnnotationConfigType], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         return AnnotationConfigModel(root=value).model_dump() if value is not None else None
 
     def process_result_value(
-        self, value: Optional[str], _: Dialect
+        self, value: Optional[str], dialect: Dialect
     ) -> Optional[AnnotationConfigType]:
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
@@ -413,12 +421,12 @@ class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
     impl = JSON
 
     def process_bind_param(
-        self, value: Optional[TokenPriceCustomization], _: Dialect
+        self, value: Optional[TokenPriceCustomization], dialect: Dialect
     ) -> Optional[dict[str, Any]]:
         return value.model_dump() if value is not None else None
 
     def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
+        self, value: Optional[dict[str, Any]], dialect: Dialect
     ) -> Optional[TokenPriceCustomization]:
         return TokenPriceCustomizationParser.parse(value)
 
@@ -428,7 +436,9 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
     cache_ok = True
     impl = String
 
-    def process_bind_param(self, value: Optional[re.Pattern[str]], _: Dialect) -> Optional[str]:
+    def process_bind_param(
+        self, value: Optional[re.Pattern[str]], dialect: Dialect
+    ) -> Optional[str]:
         if value is None:
             return None
         if not isinstance(value, re.Pattern):
@@ -438,7 +448,9 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
             raise ValueError(f"Expected a string, got {type(pattern)}")
         return pattern
 
-    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[re.Pattern[str]]:
+    def process_result_value(
+        self, value: Optional[str], dialect: Dialect
+    ) -> Optional[re.Pattern[str]]:
         if value is None:
             return None
         return re.compile(value)
@@ -452,14 +464,14 @@ class _HexColor(TypeDecorator[str]):
     cache_ok = True
     impl = String
 
-    def process_bind_param(self, value: Optional[str], _: Dialect) -> Optional[str]:
+    def process_bind_param(self, value: Optional[str], dialect: Dialect) -> Optional[str]:
         if value is None:
             return None
         if not _HEX_COLOR_PATTERN.match(value):
             raise ValueError(f"Expected a hex color, got {value}")
         return value
 
-    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[str]:
+    def process_result_value(self, value: Optional[str], dialect: Dialect) -> Optional[str]:
         if value is None:
             return None
         return value
