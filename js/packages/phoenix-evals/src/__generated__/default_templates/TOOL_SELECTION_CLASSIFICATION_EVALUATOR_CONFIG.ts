@@ -4,7 +4,7 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "tool_selection",
-  description: "For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the LLM's tool selections.",
+  description: "For determining if the correct tool was selected for a given context.",
   optimizationDirection: "MAXIMIZE",
   template: [
     {
@@ -13,9 +13,9 @@ export const TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvalu
 You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM selected the most appropriate tool or tools for the task.
 
 Your task: Determine whether the LLM's tool selection was correct or incorrect based on:
-- The conversation context
+- The conversation context (input)
 - The available tools
-- The LLM's tool invocation(s)
+- The LLM's output and tool invocation(s)
 
 Criteria
 Return "correct" only when ALL of the following are true:
@@ -41,17 +41,17 @@ Before providing your final judgment, explain your reasoning and consider:
 - Is there a better tool available that should have been chosen instead?
 
 <data>
-<context>
+<input>
 {{input}}
-</context>
+</input>
 
 <available_tools>
 {{availableTools}}
 </available_tools>
 
-<tool_selection>
+<output>
 {{toolSelection}}
-</tool_selection>
+</output>
 </data>
 
 Given the above data, is the tool selection correct or incorrect?

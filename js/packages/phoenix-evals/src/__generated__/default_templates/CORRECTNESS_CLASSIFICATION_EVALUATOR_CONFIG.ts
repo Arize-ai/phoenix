@@ -4,7 +4,7 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "correctness",
-  description: "Assess factual accuracy and completeness of model outputs.",
+  description: "Assess general correctness and completeness of model outputs.",
   optimizationDirection: "MAXIMIZE",
   template: [
     {
@@ -33,7 +33,6 @@ INCORRECT - The response contains any of:
 - Missing key information
 
 </rubric>
-
 
 <data>
 

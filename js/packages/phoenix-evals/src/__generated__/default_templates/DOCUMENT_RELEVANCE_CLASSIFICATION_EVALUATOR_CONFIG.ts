@@ -4,7 +4,7 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "document_relevance",
-  description: "A specialized evaluator for determining document relevance to a given question.",
+  description: "For determining if a document is relevant to a given question.",
   optimizationDirection: "MAXIMIZE",
   template: [
     {
