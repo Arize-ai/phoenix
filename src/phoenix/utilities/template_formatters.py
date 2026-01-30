@@ -1,13 +1,41 @@
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from string import Formatter
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import pystache
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
+
+@dataclass(frozen=True)
+class ParsedVariable:
+    """Represents a parsed template variable with type information."""
+
+    name: str
+    variable_type: Literal["string", "section"]
+
+
+@dataclass
+class ParsedVariables:
+    """Container for parsed variables with helper methods."""
+
+    variables: frozenset[ParsedVariable]
+
+    def names(self) -> set[str]:
+        """Return just the variable names (for backward compatibility)."""
+        return {v.name for v in self.variables}
+
+    def section_variables(self) -> set[str]:
+        """Return names of variables expecting structured data."""
+        return {v.name for v in self.variables if v.variable_type == "section"}
+
+    def string_variables(self) -> set[str]:
+        """Return names of variables expecting string data."""
+        return {v.name for v in self.variables if v.variable_type == "string"}
 
 
 class TemplateFormatter(ABC):
@@ -17,6 +45,18 @@ class TemplateFormatter(ABC):
         Parse the template and return a set of variable names.
         """
         raise NotImplementedError
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Parse the template and return variables with type information.
+
+        Default implementation treats all variables as string type.
+        Subclasses can override for richer type information.
+        """
+        names = self.parse(template)
+        return ParsedVariables(
+            variables=frozenset(ParsedVariable(name=name, variable_type="string") for name in names)
+        )
 
     def format(self, template: str, **variables: Any) -> str:
         """
@@ -142,6 +182,39 @@ class MustacheTemplateFormatter(TemplateFormatter):
                 variables.add(trimmed)
 
         return variables
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Extract top-level variable names with type info from mustache template.
+
+        Section variables ({{#name}} or {{^name}}) are typed as "section".
+        Regular variables ({{name}}) are typed as "string".
+        """
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+        matches = self._variable_regex.findall(clean_template)
+
+        variables: set[ParsedVariable] = set()
+        depth = 0
+
+        for variable in matches:
+            trimmed = variable.strip()
+            if not trimmed:
+                continue
+
+            if trimmed.startswith("#") or trimmed.startswith("^"):
+                if depth == 0:
+                    variables.add(ParsedVariable(name=trimmed[1:].strip(), variable_type="section"))
+                depth += 1
+                continue
+
+            if trimmed.startswith("/"):
+                depth = max(0, depth - 1)
+                continue
+
+            if depth == 0:
+                variables.add(ParsedVariable(name=trimmed, variable_type="string"))
+
+        return ParsedVariables(variables=frozenset(variables))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         # Temporarily replace escaped sequences before rendering
