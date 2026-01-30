@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -44,6 +45,21 @@ class ParsedVariables:
         return {v.name for v in self.variables if v.variable_type == "string"}
 
 
+def _serialize_value(value: Any) -> str:
+    """
+    Serialize a value for string output in f-string templates.
+
+    - Strings are returned as-is (no quotes)
+    - Other types are JSON serialized
+    """
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
+
+
 class DictWrapper:
     """
     Wraps a dict to support attribute access for f-string formatting.
@@ -80,6 +96,9 @@ class DictWrapper:
     def __repr__(self) -> str:
         return f"DictWrapper({self._data!r})"
 
+    def __str__(self) -> str:
+        return _serialize_value(self._data)
+
 
 class ListWrapper:
     """
@@ -100,6 +119,9 @@ class ListWrapper:
 
     def __repr__(self) -> str:
         return f"ListWrapper({self._data!r})"
+
+    def __str__(self) -> str:
+        return _serialize_value(self._data)
 
 
 def _wrap_value(value: Any) -> Any:

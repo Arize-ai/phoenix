@@ -866,6 +866,54 @@ class TestFStringPathVariables:
         result = formatter.format(template, **variables)
         assert result == "Alice is 30 years old"
 
+    def test_list_serializes_to_json_not_wrapper(self) -> None:
+        """Test that lists serialize to JSON, not wrapper class name."""
+        formatter = FStringTemplateFormatter()
+        template = "{input.messages}"
+        variables = {"input": {"messages": [{"role": "user", "content": "Hello"}]}}
+        result = formatter.format(template, **variables)
+        # Should be JSON, not "ListWrapper([...])"
+        assert "ListWrapper" not in result
+        assert '"role"' in result
+        assert '"user"' in result
+        assert '"content"' in result
+        assert '"Hello"' in result
+
+    def test_dict_serializes_to_json_not_wrapper(self) -> None:
+        """Test that dicts serialize to JSON, not wrapper class name."""
+        formatter = FStringTemplateFormatter()
+        template = "{user}"
+        variables = {"user": {"name": "Alice", "age": 30}}
+        result = formatter.format(template, **variables)
+        # Should be JSON, not "DictWrapper({...})"
+        assert "DictWrapper" not in result
+        assert '"name"' in result
+        assert '"Alice"' in result
+
+    def test_string_value_not_quoted(self) -> None:
+        """Test that string values are not wrapped in quotes."""
+        formatter = FStringTemplateFormatter()
+        template = "{user.name}"
+        variables = {"user": {"name": "Alice"}}
+        result = formatter.format(template, **variables)
+        # String should be plain, not JSON quoted
+        assert result == "Alice"
+        assert '"Alice"' not in result
+
+    def test_deeply_nested_list_serializes_correctly(self) -> None:
+        """Test deeply nested structure serializes correctly."""
+        formatter = FStringTemplateFormatter()
+        template = "{input.input.input.messages}"
+        variables = {
+            "input": {"input": {"input": {"messages": [{"role": "user", "content": "Hello"}]}}}
+        }
+        result = formatter.format(template, **variables)
+        # Should be JSON array
+        assert result.startswith("[")
+        assert result.endswith("]")
+        assert "ListWrapper" not in result
+        assert '"role"' in result
+
 
 class TestDictWrapper:
     """Tests for the DictWrapper class."""
@@ -914,6 +962,25 @@ class TestDictWrapper:
         assert "DictWrapper" in repr(wrapper)
         assert "name" in repr(wrapper)
 
+    def test_str_serializes_to_json(self) -> None:
+        """Test that str() serializes the dict to JSON."""
+        wrapper = DictWrapper({"name": "Alice", "age": 30})
+        result = str(wrapper)
+        assert '"name"' in result
+        assert '"Alice"' in result
+        assert '"age"' in result
+        assert "30" in result
+        # Should not contain wrapper class name
+        assert "DictWrapper" not in result
+
+    def test_str_nested_dict(self) -> None:
+        """Test that str() works with nested dicts."""
+        wrapper = DictWrapper({"user": {"name": "Alice"}})
+        result = str(wrapper)
+        assert '"user"' in result
+        assert '"name"' in result
+        assert '"Alice"' in result
+
 
 class TestListWrapper:
     """Tests for the ListWrapper class."""
@@ -940,3 +1007,21 @@ class TestListWrapper:
         """Test string representation."""
         wrapper = ListWrapper([1, 2, 3])
         assert "ListWrapper" in repr(wrapper)
+
+    def test_str_serializes_to_json(self) -> None:
+        """Test that str() serializes the list to JSON."""
+        wrapper = ListWrapper([1, 2, 3])
+        result = str(wrapper)
+        assert result == "[1, 2, 3]"
+        # Should not contain wrapper class name
+        assert "ListWrapper" not in result
+
+    def test_str_nested_dicts(self) -> None:
+        """Test that str() works with nested dicts in list."""
+        wrapper = ListWrapper([{"role": "user", "content": "Hello"}])
+        result = str(wrapper)
+        assert '"role"' in result
+        assert '"user"' in result
+        assert '"content"' in result
+        assert '"Hello"' in result
+        assert "ListWrapper" not in result
