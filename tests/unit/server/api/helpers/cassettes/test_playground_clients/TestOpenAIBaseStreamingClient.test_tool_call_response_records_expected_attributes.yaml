@@ -1,0 +1,47 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"How''s the weather in San Francisco?","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"tool_choice":"auto","tools":[{"type":"function","function":{"name":"get_current_weather","description":"Get
+      the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The
+      city name, e.g. San Francisco"}},"required":["location"]}}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_MwsHYejnC1rtsL2Vj8TSAC0w","type":"function","function":{"name":"get_current_weather","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"IwTx2zzOHmPt"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"kcz0vJnw200U1y"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"location"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"tg8T1Qami"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"FD5gGa5JfGxR"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"San"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"W1RFsxbFwbYHxs"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"
+        Francisco"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"OShvcCp"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"7jn2ZUJAaAoimb"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"usage":null,"obfuscation":"iZNV26moNOLA0GF"}
+
+
+        data: {"id":"chatcmpl-D3nAW72XEqQx50v2ohXRiFWpwUPqi","object":"chat.completion.chunk","created":1769796360,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_1590f93f9d","choices":[],"usage":{"prompt_tokens":66,"completion_tokens":16,"total_tokens":82,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"ST6AlAY8aY"}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1
