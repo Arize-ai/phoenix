@@ -6,6 +6,7 @@ import inspect
 import json
 import time
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager
 from functools import wraps
@@ -110,6 +111,7 @@ ClientT = TypeVar("ClientT")
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
+ToolCallID: TypeAlias = str
 
 
 class Dependency:
@@ -411,6 +413,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
 
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+
         async with self._client_factory() as client:
             with tracer_.start_as_current_span(
                 "Chat Completion",
@@ -441,6 +446,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     if choice.finish_reason is None:
                         if isinstance(chunk_content := delta.content, str):
                             text_chunk = TextChunk(content=chunk_content)
+                            text_chunks.append(text_chunk)
                             yield text_chunk
                         if (tool_calls := delta.tool_calls) is not None:
                             for tool_call_index, tool_call in enumerate(tool_calls):
@@ -458,12 +464,16 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                                             arguments=function.arguments or "",
                                         ),
                                     )
+                                    tool_call_chunks[tool_call_id].append(tool_call_chunk)
                                     yield tool_call_chunk
 
                 if token_usage is not None:
                     llm_token_count_attributes = dict(self._llm_token_counts(token_usage))
                     self._attributes.update(llm_token_count_attributes)
                     span.set_attributes(llm_token_count_attributes)
+
+                if text_chunks or tool_call_chunks:
+                    span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
 
     def to_openai_chat_completion_param(
         self,
@@ -2548,6 +2558,31 @@ def llm_input_messages(
                             f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
                             tool_call_id,
                         )
+
+
+def _llm_output_messages(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
+    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
+    if content := "".join(chunk.content for chunk in text_chunks):
+        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
+    for tool_call_index, (_tool_call_id, tool_call_chunks_) in enumerate(tool_call_chunks.items()):
+        if _tool_call_id:
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                _tool_call_id,
+            )
+        if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                name,
+            )
+        if arguments := "".join(chunk.function.arguments for chunk in tool_call_chunks_):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                arguments,
+            )
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
