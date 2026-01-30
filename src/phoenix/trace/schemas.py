@@ -34,6 +34,7 @@ class SpanKind(Enum):
     TOOL = "TOOL"
     CHAIN = "CHAIN"
     LLM = "LLM"
+    PROMPT = "PROMPT"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"

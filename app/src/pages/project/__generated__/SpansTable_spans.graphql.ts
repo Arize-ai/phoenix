@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<903fad585993583a9273b44db363e90a>>
+ * @generated SignedSource<<ce3723b6db1b60627a769f630d10e8b1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
