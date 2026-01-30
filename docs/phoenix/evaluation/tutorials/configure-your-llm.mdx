@@ -1,0 +1,102 @@
+---
+title: "Configure Your LLM"
+---
+
+## Why do Evals Matter?
+
+Evaluations let you measure how well an LLM application performs according to defined criteria, rather than relying on subjective judgment. Traces and raw outputs show what an LLM application produced during a run, but they don’t tell you whether the result meets your expectations. Without a way to score quality, such as relevance, correctness, or other task-specific criteria, it’s difficult to compare runs, detect regressions, or verify that changes actually improved behavior.
+
+Human labeling is the traditional approach, but it does not scale well across frequent iterations or large datasets. Phoenix Evals supports using an LLM as a judge to automate semantic quality assessments, making it possible to evaluate many outputs consistently. Evals in Phoenix are built from lightweight, composable Python components and are designed to work across multiple model providers via adapter layers.
+
+At its core, an LLM as a Judge eval combines three things:
+
+1. **The judge model**: the LLM that makes the judgment
+2. **A prompt template or rubric**: the criteria you want judged
+3. **Your data**: the examples you want to score
+
+Once you have defined what you want to evaluate and which data you want to run on, the next step is choosing and configuring the judge model. The model and its invocation settings directly affect how criteria are interpreted and how consistent your eval results are. 
+
+We’ll now walk through how to pick and configure that model using the Phoenix evals library!
+
+---
+
+## Option 1: Core LLM Setup
+
+Phoenix Evals is provider-agnostic. You can run evaluations using any supported LLM provider without changing how your evaluators are written.
+
+In the Python evals library, judge models are represented by the LLM class. An LLM describes a specific provider and model configuration and can be reused across multiple evaluators. Phoenix uses adapter layers to wrap provider SDKs so that different models can be used through the same interface.
+
+When you create an LLM, you specify how Phoenix connects to the model provider. This includes details such as the provider name, model identifier, credentials, and any SDK-specific client configuration. These settings are concerned only with connectivity and authentication.
+
+How the model behaves during evaluation is configured separately. Evaluators specify invocation parameters, such as sampling temperature or maximum token limits, that control how the judge model generates outputs for a particular eval. Keeping these concerns separate makes it easier to reuse the same judge model across different evals while tuning behavior per task.
+
+The example below illustrates this separation between model configuration and evaluator behavior:
+
+```python
+from phoenix.evals.llm import LLM
+from phoenix.evals import ClassificationEvaluator
+
+# Configure the judge model (connectivity)
+judge_llm = LLM(
+    provider="openai",
+    model="gpt-4o",
+    api_key="YOUR_API_KEY",
+    timeout=30.0,
+)
+
+# Configure the evaluator (invocation behavior)
+eval_for_relevance = ClassificationEvaluator(
+    name="relevance_eval",
+    prompt_template=(
+        "Is this answer relevant to the question?\n"
+        "Question: {input}\n"
+        "Answer: {output}"
+    ),
+    llm=judge_llm,
+    temperature=0.0,
+    max_tokens=150,
+    choices={"irrelevant": 0, "relevant": 1},
+)
+```
+
+In practice, this means you can change how a model is called for one eval without affecting others, while keeping provider configuration centralized.
+
+## Option 2: Custom Endpoint (Self-Hosted or OpenAI-Compatible)
+
+In addition to standard hosted providers, Phoenix also supports evaluating against **custom or self-**hosted endpoints that are compatible with an existing provider SDK.
+
+Any keyword arguments passed when creating an `LLM` are forwarded to the underlying client SDK. For OpenAI-compatible endpoints, this includes parameters such as `base_url`, `api_key`, and `api_version`. This allows Phoenix to connect to internal or private inference services that expose the same API surface.
+
+The same separation of concerns applies when using custom endpoints. Connectivity details live on the `LLM`, while generation behavior continues to be controlled by the evaluator. This makes it possible to reuse the same eval definitions regardless of where the judge model is hosted.
+
+A minimal example of configuring a custom OpenAI-compatible endpoint looks like this:
+
+```python
+from phoenix.evals.llm import LLM
+
+custom_llm = LLM(
+    provider="openai",
+    model="my-self-hosted",
+    api_key="MY_INTERNAL_KEY",
+    base_url="https://internal-inference.local/v1",
+    api_version="2025-01-01",
+)
+```
+
+With this setup, any evaluator that uses `custom_llm` will route judge requests to your custom endpoint while still respecting evaluator-level settings such as temperature and token limits.
+
+## **Best Practices for Judge Models**
+
+Judge models are not user-facing. Their role is to apply a rubric consistently, not to generate creative or varied responses. When configuring a judge model, prioritize stability and repeatability over expressiveness.
+
+### **Favor consistency over creativity**
+
+Judge models should produce the same judgment when given the same input. Variability makes it harder to compare results across runs or to detect regressions. In most cases, configure the judge with a sampling temperature of 0.0 (or as low as the provider allows) to minimize randomness and improve consistency.
+
+### **Prefer categorical judgments**
+
+For most evaluation tasks, categorical outputs are more reliable than numeric ratings. Asking a model to reason about scales or relative magnitudes introduces additional variability and tends to correlate less well with human judgment. Phoenix Evals recommends using categorical labels for judging outputs and mapping them to numeric values only if needed downstream.
+
+## **Next Steps**
+
+With the judge model configured, the next step is defining how that model should make judgments. In the following section, we’ll cover how to write a judge prompt or template, including how to express evaluation criteria clearly and structure outputs so they can be scored consistently.

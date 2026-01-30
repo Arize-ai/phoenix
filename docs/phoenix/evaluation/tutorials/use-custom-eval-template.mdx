@@ -1,0 +1,131 @@
+---
+title: "Create a Custom Eval Template"
+---
+
+## Why Define Your Own Eval Template?
+
+Built-in eval templates are designed to cover common evaluation patterns, but they cannot account for all application-specific requirements. When built-ins are insufficient, defining a custom eval template allows you to make evaluation criteria explicit and aligned with how success is defined in your system.
+
+Custom templates encode task constraints, domain knowledge, and product expectations directly into the evaluation logic. When evaluation criteria reflect real-world requirements, the resulting eval signal is more meaningful and easier to act on.
+
+This page focuses on defining a custom eval template: how to structure it, what information to include, and how to make judgments consistent.
+
+---
+
+## Structuring a Custom Eval Template
+
+Eval templates are most effective when they follow the same order in which a judge model processes information. In practice, this means establishing context first, defining the evaluation criteria, presenting the data to be evaluated, and specifying the allowed outcomes.
+
+The sections below walk through this structure.
+
+## Defining the Judge’s Role and Evaluation Criteria
+
+Eval templates typically begin by establishing who the judge is and what task it is performing. This sets the frame for how the rest of the prompt should be interpreted.
+
+For example, many templates start by positioning the judge as an expert reviewer or evaluator for a specific task. This is followed by a clear description of what should be evaluated and what criteria should be applied.
+
+A good eval prompt acts as a rubric, not a question. It should narrowly define what counts as correct, relevant, or acceptable for your use case. Vague or open-ended instructions make judgments harder to reproduce across runs.
+
+In practice, this means:
+
+- Stating the evaluation task clearly
+- Describing the criteria the judge should apply
+- Avoiding subjective or underspecified language
+
+The goal is to remove ambiguity so the same output is judged the same way every time.
+
+## Defining the Data the Judge Sees
+
+After defining the evaluation criteria, the template presents the data to be evaluated. This section determines what information the judge receives and how it is structured.
+
+In most cases, the judge needs:
+
+- The **input** that produced the output (for example, a user query)
+- The **output** being evaluated
+
+Some evaluations also require additional context, such as retrieved documents, reference material, or system instructions. This information should be included only when it is necessary for making a correct judgment.
+
+Inputs should be clearly labeled and consistently formatted. Many templates use a delimited block (for example, a `BEGIN DATA / END DATA` section) to make boundaries explicit and reduce ambiguity.
+
+## Choosing Evaluation Outputs
+
+Once the judge’s role, criteria, and inputs are defined, the final step is specifying what the evaluation should return.
+
+In Phoenix, most LLM-as-a-judge evals use **classification-style outputs**. These return a discrete label for each example, making results easy to compare, aggregate, and analyze across runs.
+
+Classification outputs work well when:
+
+- Outcomes can be expressed as a small set of categories
+- Judgments must remain consistent across many examples
+- Results will be used for filtering, comparisons, or experiments
+
+Common examples include:
+
+- `correct` / `incorrect`
+- `relevant` / `irrelevant`
+- `pass` / `fail`
+
+Other output formats are possible, but categorical labels tend to be the most stable and interpretable starting point. They also integrate cleanly with Phoenix’s tooling for logging, visualization, and comparison.
+
+## Best Practices for Eval Templates
+
+Eval templates are sensitive to wording. Small changes can significantly affect evaluation behavior, so templates should be written deliberately and kept focused.
+
+### Be explicit about criteria
+
+Avoid vague instructions such as “judge whether this is good” or “rate the quality.” Instead, specify exactly what the judge should evaluate and what should be ignored. If correctness depends on particular facts, constraints, or assumptions, include them directly in the template.
+
+Explicit criteria reduce ambiguity and improve consistency across runs.
+
+### Prefer categorical judgments
+
+For most evaluation tasks, categorical outcomes are more reliable than numeric scores. Labels such as `correct` / `incorrect` or `relevant` / `irrelevant` are easier for a judge to apply consistently and easier to interpret downstream.
+
+Numeric scoring introduces additional complexity by requiring the judge to reason about scale and relative magnitude. Numeric scores can be useful in limited cases, but only when each value has a clear, unambiguous definition. If numeric outputs are used, the template must explicitly describe what each score represents and how to choose between them. Without strict definitions, numeric scores tend to drift and become difficult to compare.
+
+## Example: A Complete Custom Eval Template
+
+The example below defines a classification-style eval template that determines whether an answer correctly addresses a user’s question. It follows the same structure described above.
+
+```python
+from phoenix.evals import ClassificationEvaluator
+
+correctness_template = """
+You are an expert evaluator assessing whether an answer correctly addresses a user's question.
+
+Apply the following criteria:
+- The answer must directly address the question. 
+- The answer must be factually consistent with the information provided. 
+- Irrelevant or partially correct answers should be marked as incorrect. 
+
+[BEGIN DATA]
+************
+[Question]:
+{input}
+
+************
+[Answer]:
+{output}
+************
+[END DATA]
+
+Return only one of the following labels:
+- correct
+- incorrect
+"""
+
+correctness_eval = ClassificationEvaluator(
+    name="correctness",
+    prompt_template=correctness_template,
+    choices={"incorrect": 0, "correct": 1},
+)
+```
+
+This template makes the evaluation logic explicit:
+
+- The judge’s role and task are clearly defined
+- Evaluation criteria are stated upfront
+- Inputs are structured and labeled
+- Outputs are constrained to a fixed set of labels
+
+Because the template is explicit and focused, the same output is likely to be judged consistently across runs. This makes eval results easier to trust, compare, and iterate on.
