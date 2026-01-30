@@ -118,8 +118,10 @@ class streaming_llm_span:
 
         if exc_type is not None:
             self._status_code = StatusCode.ERROR
-            if exc_type is asyncio.CancelledError:
-                # Propogate CancelledError to support task cancellation
+            # Propagate both CancelledError and GeneratorExit
+            # - CancelledError: Required for task cancellation
+            # - GeneratorExit: Required by Python's async generator protocol
+            if exc_type is asyncio.CancelledError or exc_type is GeneratorExit:
                 propagate_exception = True
             else:
                 self._status_message = str(exc_value)

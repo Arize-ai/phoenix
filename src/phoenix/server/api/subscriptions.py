@@ -282,20 +282,25 @@ async def _cleanup_chat_completion_resources(
 
     logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
 
-    # 1. Cancel all in-progress tasks
+    # 1. Cancel all in-progress tasks (no-op for done tasks)
     for _, _, task in in_progress:
-        if not task.done():
-            task.cancel()
+        task.cancel()
 
-    # 2. Close generator streams explicitly (handles orphaned inner tasks)
-    for _, stream, _ in in_progress:
-        if inspect.isasyncgen(stream):
-            try:
-                await stream.aclose()
-            except Exception as e:
-                logger.warning(f"Error closing stream: {e}")
+    # 2. Wait for all tasks to actually process the cancellation
+    if in_progress:
+        await asyncio.gather(
+            *[task for _, _, task in in_progress],
+            return_exceptions=True,  # Don't raise CancelledError
+        )
 
-    # 3. Flush results queue to database (important for data integrity)
+    # 3. NOW it's safe to close generators (tasks have released them)
+    if in_progress:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 4. Flush results queue to database (important for data integrity)
     if not results.empty():
         remaining: list[tuple[Optional[models.Span], int]] = []
         while not results.empty():
