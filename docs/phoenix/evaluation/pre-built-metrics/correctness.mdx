@@ -1,11 +1,11 @@
 ---
 title: "Correctness"
-description: "Evaluate whether LLM responses are factually accurate and complete"
+description: "Evaluate whether LLM responses are generally correct and complete."
 ---
 
 ## Overview
 
-The **Correctness** evaluator assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates the quality of answers without requiring external context.
+The **Correctness** evaluator assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates the quality of answers without requiring external context or reference responses.
 
 ### When to Use
 
@@ -15,9 +15,10 @@ Use the Correctness evaluator when you need to:
 - **Check answer completeness** - Verify responses address all parts of the question
 - **Detect logical inconsistencies** - Identify contradictions within responses
 - **Evaluate general knowledge responses** - Assess answers that don't rely on retrieved context
+- **Get a quick gut-check** - Capture a wide range of potential problems quickly
 
 <Info>
-For evaluating responses against retrieved documents, use the [Faithfulness evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) instead. Correctness is best suited for evaluating general knowledge or when you have a reference answer to compare against.
+For evaluating responses against retrieved documents, use the [Faithfulness evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) instead. Correctness is best suited for evaluating general knowledge.
 </Info>
 
 ## Supported Levels
@@ -30,7 +31,7 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 | **Trace** | Yes | Evaluate the final response of the entire trace. |
 | **Session** | Yes | Evaluate responses across a conversation session. |
 
-**Relevant span kinds:** LLM spans, particularly those generating factual or knowledge-based responses.
+**Relevant span kinds:** LLM spans, particularly ones where the LLM response is not grounded in retrieved context.
 
 ## Input Requirements
 
@@ -46,7 +47,7 @@ The Correctness evaluator requires two inputs:
 For best results:
 
 - **Use human-readable strings** rather than raw JSON for all inputs
-- **For multi-turn conversations**, format as a readable conversation:
+- **For multi-turn conversations**, format input as a readable conversation:
   ```
   User: What is the capital of France?
   Assistant: Paris is the capital of France.
@@ -250,4 +251,4 @@ Use the Correctness evaluator in Phoenix experiments:
 ## Related
 
 - [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - For evaluating responses against retrieved context
-- [Document Relevance Evaluator](/docs/phoenix/evaluation/pre-built-metrics/document-relevance) - For evaluating retrieved document relevance
+- [Tool Selection Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) - For evaluating LLM tool selection accuracy 
