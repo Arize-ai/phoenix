@@ -609,6 +609,107 @@ class TestChatCompletionMutationMixin:
             # metadata should be present (empty dict in this fixture)
             assert "metadata" in template_vars
 
+    async def test_chat_completion_over_dataset_with_nonempty_template_variables_path(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        single_example_dataset: models.Dataset,
+        custom_vcr: CustomVCR,
+    ) -> None:
+        """
+        Test that template_variables_path is respected when set to a non-empty value.
+
+        When templateVariablesPath is set to "input", the template should have access
+        only to the contents of the input field, not the full context (input, reference, metadata).
+
+        This means the template can reference {city} directly instead of {input.city}.
+
+        The single_example_dataset fixture has:
+        - input: {"city": "Paris"}
+        - output: {"country": "France"} (becomes "reference" in full context)
+        """
+        dataset_id = str(
+            GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
+        )
+        query = """
+          mutation ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
+            chatCompletionOverDataset(input: $input) {
+              datasetId
+              experimentId
+              examples {
+                datasetExampleId
+                experimentRunId
+                repetition {
+                  content
+                  errorMessage
+                  span {
+                    input {
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                    }
+                },
+                "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
+                "datasetId": dataset_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        # Using {city} directly, which is only accessible when
+                        # templateVariablesPath extracts the input contents
+                        "content": "What country is {city} in? Answer in one word.",
+                    },
+                ],
+                "templateFormat": "F_STRING",
+                # "input" means use the contents of the input field as template variables
+                # This makes {city} available directly instead of requiring {input.city}
+                "templateVariablesPath": "input",
+                "repetitions": 1,
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletionOverDataset")
+            assert not result.errors
+            assert (data := result.data)
+            assert (field := data["chatCompletionOverDataset"])
+            assert field["datasetId"] == dataset_id
+            assert (examples := field["examples"])
+            assert len(examples) == 1
+
+            example = examples[0]
+            repetition = example["repetition"]
+            # The template should have been formatted successfully without errors
+            assert repetition["errorMessage"] is None, (
+                f"Expected no error, but got: {repetition['errorMessage']}"
+            )
+            # Verify content was returned from the LLM
+            assert repetition["content"] is not None
+
+            # Verify the span input contains the correct template variables
+            # (only the input contents, not the full context)
+            assert repetition["span"]["input"]["value"]
+            span_input = json.loads(repetition["span"]["input"]["value"])
+
+            # Check that template variables contain only the input contents
+            # (not the full context with input/reference/metadata)
+            template_vars = span_input.get("template", {}).get("variables", {})
+            # Should have the city key directly, not nested under "input"
+            assert template_vars.get("city") == "Paris"
+            # Should NOT have the full context keys
+            assert "input" not in template_vars
+            assert "reference" not in template_vars
+            assert "metadata" not in template_vars
+
     async def test_evaluator_returns_evaluation_and_persists_span_annotation(
         self,
         gql_client: AsyncGraphQLClient,
