@@ -275,25 +275,35 @@ async def _cleanup_chat_completion_resources(
     on_span_insertion: Callable[[], None],
 ) -> None:
     """
-    Comprehensive cleanup of all resources on cancellation or error.
-    MUST be called in a finally block.
+    Cleanup all resources on cancellation or error. MUST be called in a finally block.
+
+    The cleanup sequence (cancel → await tasks → aclose generators) is critical and must
+    not be reordered. task.cancel() only *schedules* a CancelledError—it doesn't wait for
+    the task to process it. If we call stream.aclose() immediately, the task still "owns"
+    the generator and we get "async generator is already running". By awaiting all tasks
+    first, we let them process cancellation and release their generators.
+
+    We cancel all tasks uniformly (including done ones—it's a no-op) because a task being
+    "done" doesn't mean its generator is closed; it just completed one iteration. We use
+    explicit aclose() rather than relying on GC to ensure generators run their finally
+    blocks immediately, preventing data loss and resource leaks.
     """
     import inspect
 
     logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
 
-    # 1. Cancel all in-progress tasks (no-op for done tasks)
+    # 1. Cancel all tasks (no-op for done tasks)
     for _, _, task in in_progress:
         task.cancel()
 
-    # 2. Wait for all tasks to actually process the cancellation
+    # 2. Wait for tasks to process cancellation and release generators
     if in_progress:
         await asyncio.gather(
             *[task for _, _, task in in_progress],
-            return_exceptions=True,  # Don't raise CancelledError
+            return_exceptions=True,
         )
 
-    # 3. NOW it's safe to close generators (tasks have released them)
+    # 3. Now safe to close generators
     if in_progress:
         await asyncio.gather(
             *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
