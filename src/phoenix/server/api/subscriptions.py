@@ -49,8 +49,8 @@ from phoenix.server.api.helpers.annotation_configs import (
 )
 from phoenix.server.api.helpers.message_helpers import (
     ChatCompletionMessage,
+    build_template_variables,
     extract_and_convert_example_messages,
-    extract_value_from_path,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -699,19 +699,13 @@ async def _stream_chat_completion_over_dataset_example(
     ]
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        # Build the full context with input, reference (expected output), and metadata
-        full_context: dict[str, Any] = {
-            "input": revision.input,
-            "reference": revision.output,
-            "metadata": revision.metadata_,
-        }
-        # Resolve template variables based on the configured path
-        if input.template_variables_path:
-            template_variables = extract_value_from_path(
-                full_context, input.template_variables_path
-            )
-        else:
-            template_variables = full_context
+        # Build template variables using shared helper
+        template_variables = build_template_variables(
+            input_data=revision.input,
+            output_data=revision.output,
+            metadata=revision.metadata_,
+            template_variables_path=input.template_variables_path,
+        )
         messages = list(
             _formatted_messages(
                 messages=messages,
