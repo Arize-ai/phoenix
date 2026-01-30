@@ -7,6 +7,10 @@ description: "Evaluate if output exactly matches expected value"
 
 The **exact_match** evaluator is a simple code-based evaluator that checks if the output exactly equals the expected value. It performs a strict string comparison with no normalization.
 
+<Note>
+This evaluator is only available as a built-in for **Python**. For TypeScript, see the [usage example below](#usage-examples) showing how to create an equivalent evaluator using `createEvaluator`.
+</Note>
+
 ### When to Use
 
 Use the exact_match evaluator when you need to:
@@ -25,8 +29,6 @@ This is a code-based evaluator that performs direct string comparison. For seman
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Evaluate any span output against expected values. |
-| **Trace** | Yes | Evaluate final trace output. |
-| **Session** | Yes | Evaluate individual responses in a session. |
 
 ## Input Requirements
 
@@ -82,20 +84,19 @@ The evaluator returns a `Score` object with the following properties:
 
   <Tab title="TypeScript" icon="js">
     <Note>
-    The exact_match evaluator is currently only available in Python. For TypeScript, you can create a custom code evaluator using `createEvaluator`:
+    The exact_match evaluator is not available as a built-in for TypeScript. You can create an equivalent code evaluator using `createEvaluator`:
     </Note>
 
     ```typescript
     import { createEvaluator } from "@arizeai/phoenix-evals";
 
-    const exactMatchEvaluator = createEvaluator({
-      name: "exact_match",
-      kind: "code",
-      evaluate: (record: { output: string; expected: string }) => ({
+    const exactMatchEvaluator = createEvaluator(
+      (record: { output: string; expected: string }) => ({
         score: record.output === record.expected ? 1 : 0,
         label: record.output === record.expected ? "match" : "no_match",
       }),
-    });
+      { name: "exact_match", kind: "CODE" }
+    );
 
     const result = await exactMatchEvaluator.evaluate({
       output: "Paris",
@@ -105,31 +106,6 @@ The evaluator returns a `Score` object with the following properties:
     ```
   </Tab>
 </Tabs>
-
-### Using Input Mapping
-
-When your data has different field names, use input mapping:
-
-```python
-from phoenix.evals.metrics import exact_match
-
-# Data with different field names
-eval_input = {
-    "prediction": "yes",
-    "gold_label": "yes"
-}
-
-# Map fields to expected names
-input_mapping = {
-    "output": "prediction",
-    "expected": "gold_label"
-}
-
-scores = exact_match.evaluate(eval_input, input_mapping)
-print(scores[0].score)  # 1.0
-```
-
-For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
 
 ### Implementing Case-Insensitive Matching
 
@@ -160,10 +136,6 @@ def exact_match_normalized(output: str, expected: str) -> Score:
     return Score(score=float(correct))
 ```
 
-## Configuration
-
-This is a code-based evaluator that requires no LLM configuration.
-
 ## Using with Phoenix
 
 ### Evaluating Traces
@@ -185,4 +157,3 @@ Use the exact_match evaluator in Phoenix experiments:
 ## Related
 
 - [Matches Regex Evaluator](/docs/phoenix/evaluation/pre-built-metrics/matches-regex) - For pattern-based matching
-- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For semantic correctness evaluation

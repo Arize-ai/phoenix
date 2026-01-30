@@ -7,6 +7,10 @@ description: "Evaluate if output matches a regular expression pattern"
 
 The **MatchesRegex** evaluator is a code-based evaluator that checks if the output contains substrings matching a specified regular expression pattern. It's useful for validating output format, detecting specific content patterns, or checking for required elements.
 
+<Note>
+This evaluator is only available as a built-in for **Python**. For TypeScript, see the [usage example below](#usage-examples) showing how to create an equivalent evaluator using `createEvaluator`.
+</Note>
+
 ### When to Use
 
 Use the MatchesRegex evaluator when you need to:
@@ -25,8 +29,6 @@ This is a code-based evaluator using Python's `re` module. For exact string matc
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Evaluate any span output against regex patterns. |
-| **Trace** | Yes | Evaluate final trace output. |
-| **Session** | Yes | Evaluate individual responses in a session. |
 
 ## Input Requirements
 
@@ -85,7 +87,7 @@ The evaluator returns a `Score` object with the following properties:
 
   <Tab title="TypeScript" icon="js">
     <Note>
-    The MatchesRegex evaluator is currently only available in Python. For TypeScript, you can create a custom code evaluator:
+    The MatchesRegex evaluator is not available as a built-in for TypeScript. You can create an equivalent code evaluator using `createEvaluator`:
     </Note>
 
     ```typescript
@@ -93,10 +95,8 @@ The evaluator returns a `Score` object with the following properties:
 
     const urlPattern = /https?:\/\/[^\s]+/g;
 
-    const matchesUrlEvaluator = createEvaluator({
-      name: "matches_url",
-      kind: "code",
-      evaluate: (record: { output: string }) => {
+    const matchesUrlEvaluator = createEvaluator(
+      (record: { output: string }) => {
         const matches = record.output.match(urlPattern);
         return {
           score: matches ? 1 : 0,
@@ -105,7 +105,8 @@ The evaluator returns a `Score` object with the following properties:
             : "No URLs found",
         };
       },
-    });
+      { name: "matches_url", kind: "CODE" }
+    );
 
     const result = await matchesUrlEvaluator.evaluate({
       output: "Visit https://phoenix.arize.com for more info",
@@ -156,45 +157,6 @@ scores = date_evaluator.evaluate(eval_input)
 print(scores[0].score)  # 1.0
 ```
 
-### Disabling Explanations
-
-For performance, you can disable explanations:
-
-```python
-from phoenix.evals.metrics import MatchesRegex
-
-evaluator = MatchesRegex(
-    pattern=r"\d+",
-    include_explanation=False
-)
-
-scores = evaluator.evaluate({"output": "Item 123"})
-print(scores[0].explanation)  # None
-```
-
-### Using Input Mapping
-
-When your data has different field names:
-
-```python
-from phoenix.evals.metrics import MatchesRegex
-
-evaluator = MatchesRegex(pattern=r"https?://[^\s]+")
-
-eval_input = {"response": "Visit https://example.com"}
-
-input_mapping = {"output": "response"}
-
-scores = evaluator.evaluate(eval_input, input_mapping)
-print(scores[0].score)  # 1.0
-```
-
-For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
-
-## Configuration
-
-This is a code-based evaluator that requires no LLM configuration.
-
 ## Using with Phoenix
 
 ### Evaluating Traces
@@ -216,4 +178,3 @@ Use the MatchesRegex evaluator in Phoenix experiments:
 ## Related
 
 - [Exact Match Evaluator](/docs/phoenix/evaluation/pre-built-metrics/exact-match) - For exact string comparison
-- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For semantic correctness evaluation
