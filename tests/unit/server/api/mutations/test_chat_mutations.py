@@ -4,6 +4,7 @@ from typing import Awaitable, Callable
 
 from openinference.semconv.trace import (
     MessageAttributes,
+    OpenInferenceMimeTypeValues,
     SpanAttributes,
     ToolCallAttributes,
 )
@@ -16,13 +17,6 @@ from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.evaluators import (
-    TEMPLATE_FORMATTED_MESSAGES,
-    TEMPLATE_LITERAL_MAPPING,
-    TEMPLATE_MESSAGES,
-    TEMPLATE_PATH_MAPPING,
-    TEMPLATE_VARIABLES,
-)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -1141,34 +1135,39 @@ class TestChatCompletionMutationMixin:
                 )
             )
             llm_spans = evaluator_spans_result.scalars().all()
-            assert len(llm_spans) == 4
+            assert len(llm_spans) == 5
 
             # Parse LLM evaluator spans
             llm_evaluator_span = None
-            llm_template_span = None
+            llm_input_mapping_span = None
+            llm_prompt_span = None
             llm_llm_span = None
             llm_parse_span = None
             for span in llm_spans:
                 if span.span_kind == "EVALUATOR":
                     llm_evaluator_span = span
-                elif span.span_kind == "TEMPLATE":
-                    llm_template_span = span
+                elif span.span_kind == "CHAIN" and span.name == "Input Mapping":
+                    llm_input_mapping_span = span
+                elif span.span_kind == "PROMPT":
+                    llm_prompt_span = span
                 elif span.span_kind == "LLM":
                     llm_llm_span = span
-                elif span.span_kind == "CHAIN":
+                elif span.span_kind == "CHAIN" and span.name == "Parse Eval Result":
                     llm_parse_span = span
 
             assert llm_evaluator_span is not None
             assert llm_evaluator_span.parent_id is None
-            assert llm_template_span is not None
-            assert llm_template_span.parent_id == llm_evaluator_span.span_id
+            assert llm_input_mapping_span is not None
+            assert llm_input_mapping_span.parent_id == llm_evaluator_span.span_id
+            assert llm_prompt_span is not None
+            assert llm_prompt_span.parent_id == llm_evaluator_span.span_id
             assert llm_llm_span is not None
             assert llm_llm_span.parent_id == llm_evaluator_span.span_id
             assert llm_parse_span is not None
             assert llm_parse_span.parent_id == llm_evaluator_span.span_id
 
             # LLM evaluator span
-            assert llm_evaluator_span.name == "Evaluation: correctness-evaluator"
+            assert llm_evaluator_span.name == "Evaluator: correctness"
             assert llm_evaluator_span.span_kind == "EVALUATOR"
             attributes = dict(flatten(llm_evaluator_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "EVALUATOR"
@@ -1176,61 +1175,31 @@ class TestChatCompletionMutationMixin:
             assert raw_input_value is not None
             input_value = json.loads(raw_input_value)
             assert set(input_value.keys()) == {"input", "output", "reference"}
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
             output_value = json.loads(raw_output_value)
             assert set(output_value.keys()) == {"score", "label", "explanation"}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events
             assert llm_evaluator_span.status_code == "OK"
             assert not llm_evaluator_span.status_message
 
-            # template span
-            assert llm_template_span.name == "Apply template variables"
-            assert llm_template_span.span_kind == "TEMPLATE"
-            assert llm_template_span.status_code == "OK"
-            assert not llm_template_span.status_message
-            assert not llm_template_span.events
-            attributes = dict(flatten(llm_template_span.attributes, recurse_on_sequence=True))
-            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-            assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-            assert (
-                attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
-                == "You are an evaluator that assesses the correctness of outputs."
-            )
-            assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-            assert (
-                attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-                == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
-            )
-            assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {
-                "input": "$.input",
-                "output": "$.output",
-            }
-            assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-            assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
-                "input": {"city": "Paris"},
-                "output": {
-                    "available_tools": [],
-                    "messages": [{"content": "France", "role": "assistant"}],
-                },
-                "reference": {"country": "France"},
-            }
-            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-            assert (
-                attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
-                == "You are an evaluator that assesses the correctness of outputs."
-            )
-            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-            assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}") == (
-                "Input: {'city': 'Paris'}\n\n"
-                "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}\n\n"
-                "Is this output correct?"
-            )
+            # Input Mapping span
+            assert llm_input_mapping_span.name == "Input Mapping"
+            assert llm_input_mapping_span.span_kind == "CHAIN"
+            assert llm_input_mapping_span.status_code == "OK"
+            assert not llm_input_mapping_span.status_message
+            assert not llm_input_mapping_span.events
+            attributes = dict(flatten(llm_input_mapping_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             assert json.loads(attributes.pop(INPUT_VALUE)) == {
-                "variables": {
+                "input_mapping": {
+                    "path_mapping": {"input": "$.input", "output": "$.output"},
+                    "literal_mapping": {},
+                },
+                "template_variables": {
                     "input": {"city": "Paris"},
                     "output": {
                         "available_tools": [],
@@ -1238,12 +1207,28 @@ class TestChatCompletionMutationMixin:
                     },
                     "reference": {"country": "France"},
                 },
-                "input_mapping": {
-                    "path_mapping": {"input": "$.input", "output": "$.output"},
-                    "literal_mapping": {},
-                },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            output_value = json.loads(attributes.pop(OUTPUT_VALUE))
+            # Output contains only the mapped template variables (input and output, not reference)
+            assert set(output_value.keys()) == {"input", "output"}
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+            assert not attributes
+
+            # Prompt span
+            assert llm_prompt_span.name == "Prompt: correctness-prompt"
+            assert llm_prompt_span.span_kind == "PROMPT"
+            assert llm_prompt_span.status_code == "OK"
+            assert not llm_prompt_span.status_message
+            assert not llm_prompt_span.events
+            attributes = dict(flatten(llm_prompt_span.attributes, recurse_on_sequence=True))
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
+            input_value = json.loads(attributes.pop(INPUT_VALUE))
+            assert input_value == {
+                "input": "{'city': 'Paris'}",
+                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+            }
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "messages": [
                     {
@@ -1261,7 +1246,7 @@ class TestChatCompletionMutationMixin:
                     },
                 ]
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # llm span
@@ -1295,7 +1280,7 @@ class TestChatCompletionMutationMixin:
                 assert isinstance(attributes.pop(key), int)
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
             assert attributes.pop(URL_PATH) == "chat/completions"
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             output_value = json.loads(raw_output_value)
             messages = output_value.pop("messages")
@@ -1391,7 +1376,7 @@ class TestChatCompletionMutationMixin:
             assert output_detail.cost_per_token is not None
 
             # chain span
-            assert llm_parse_span.name == "Parse eval result"
+            assert llm_parse_span.name == "Parse Eval Result"
             assert llm_parse_span.span_kind == "CHAIN"
             assert llm_parse_span.status_code == "OK"
             assert not llm_parse_span.status_message
@@ -1410,13 +1395,13 @@ class TestChatCompletionMutationMixin:
                     {"label": "incorrect", "score": 0.0},
                 ]
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "label": "incorrect",
                 "score": 0.0,
                 "explanation": None,
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in evaluator traces
@@ -1439,33 +1424,33 @@ class TestChatCompletionMutationMixin:
 
             # Parse built-in evaluator spans
             builtin_evaluator_span = None
-            builtin_template_span = None
+            builtin_input_mapping_span = None
             builtin_execution_span = None
             builtin_parse_span = None
             for span in builtin_spans:
                 if span.span_kind == "EVALUATOR":
                     builtin_evaluator_span = span
-                elif span.span_kind == "TEMPLATE":
-                    builtin_template_span = span
                 elif span.span_kind == "CHAIN":
-                    if "Run" in span.name:
+                    if span.name == "Input Mapping":
+                        builtin_input_mapping_span = span
+                    elif span.name == "ExactMatch":
                         builtin_execution_span = span
-                    elif "Parse" in span.name:
+                    elif span.name == "Parse Eval Result":
                         builtin_parse_span = span
 
             assert builtin_evaluator_span is not None
-            assert builtin_template_span is not None
+            assert builtin_input_mapping_span is not None
             assert builtin_execution_span is not None
             assert builtin_parse_span is not None
 
             # Verify span hierarchy
             assert builtin_evaluator_span.parent_id is None
-            assert builtin_template_span.parent_id == builtin_evaluator_span.span_id
+            assert builtin_input_mapping_span.parent_id == builtin_evaluator_span.span_id
             assert builtin_execution_span.parent_id == builtin_evaluator_span.span_id
             assert builtin_parse_span.parent_id == builtin_evaluator_span.span_id
 
             # Built-in evaluator span
-            assert builtin_evaluator_span.name == "Evaluation: exact_match"
+            assert builtin_evaluator_span.name == "Evaluator: exact-match"
             assert builtin_evaluator_span.span_kind == "EVALUATOR"
             assert builtin_evaluator_span.status_code == "OK"
             assert not builtin_evaluator_span.status_message
@@ -1480,37 +1465,31 @@ class TestChatCompletionMutationMixin:
                 },
                 "reference": {"country": "France"},
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "label": "true",
                 "score": 1.0,
                 "explanation": "expected matches actual",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
-            # Built-in template span (Apply input mapping)
-            assert builtin_template_span.name == "Apply input mapping"
-            assert builtin_template_span.span_kind == "TEMPLATE"
-            assert builtin_template_span.status_code == "OK"
-            assert not builtin_template_span.status_message
-            assert not builtin_template_span.events
-            attributes = dict(flatten(builtin_template_span.attributes, recurse_on_sequence=True))
-            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-            assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {
-                "actual": "$.output.messages[0].content",
-            }
-            assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {"expected": "France"}
-            assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
-                "input": {"city": "Paris"},
-                "output": {
-                    "messages": [{"role": "assistant", "content": "France"}],
-                    "available_tools": [],
-                },
-                "reference": {"country": "France"},
-            }
+            # Built-in input mapping span
+            assert builtin_input_mapping_span.name == "Input Mapping"
+            assert builtin_input_mapping_span.span_kind == "CHAIN"
+            assert builtin_input_mapping_span.status_code == "OK"
+            assert not builtin_input_mapping_span.status_message
+            assert not builtin_input_mapping_span.events
+            attributes = dict(
+                flatten(builtin_input_mapping_span.attributes, recurse_on_sequence=True)
+            )
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             assert json.loads(attributes.pop(INPUT_VALUE)) == {
-                "variables": {
+                "input_mapping": {
+                    "path_mapping": {"actual": "$.output.messages[0].content"},
+                    "literal_mapping": {"expected": "France"},
+                },
+                "template_variables": {
                     "input": {"city": "Paris"},
                     "output": {
                         "messages": [{"role": "assistant", "content": "France"}],
@@ -1518,20 +1497,17 @@ class TestChatCompletionMutationMixin:
                     },
                     "reference": {"country": "France"},
                 },
-                "input_mapping": {
-                    "path_mapping": {"actual": "$.output.messages[0].content"},
-                    "literal_mapping": {"expected": "France"},
-                },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-                "inputs": {"expected": "France", "actual": "France"},
+                "expected": "France",
+                "actual": "France",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in execution span (Run exact_match)
-            assert builtin_execution_span.name == "Run exact_match"
+            assert builtin_execution_span.name == "exact_match"
             assert builtin_execution_span.span_kind == "CHAIN"
             assert builtin_execution_span.status_code == "OK"
             assert not builtin_execution_span.status_message
@@ -1543,28 +1519,22 @@ class TestChatCompletionMutationMixin:
                 "actual": "France",
                 "case_sensitive": True,
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-                "matched": True,
-                "explanation": "expected matches actual",
-            }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
-            # Built-in parse span (Parse eval result)
-            assert builtin_parse_span.name == "Parse eval result"
+            # Built-in parse span
+            assert builtin_parse_span.name == "Parse Eval Result"
             assert builtin_parse_span.span_kind == "CHAIN"
             assert not builtin_parse_span.status_message
             assert not builtin_parse_span.events
             attributes = dict(flatten(builtin_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
-            assert json.loads(attributes.pop(INPUT_VALUE)) == {
-                "matched": True,
-                "explanation": "expected matches actual",
-            }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(INPUT_VALUE)) is True
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
     async def test_evaluator_over_dataset_not_run_when_task_errors(
@@ -1950,3 +1920,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+
+# mime type values
+JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value

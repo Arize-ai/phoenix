@@ -13,6 +13,9 @@ export function SpanKindToken(props: {
       case "llm":
         color = "var(--ac-global-color-orange-500)";
         break;
+      case "prompt":
+        color = "var(--ac-global-color-orange-400)";
+        break;
       case "chain":
         color = "var(--ac-global-color-blue-500)";
         break;
