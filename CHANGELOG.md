@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.0...arize-phoenix-v12.33.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* **graphql:** access ORM attributes directly in asExampleRevision ([#11165](https://github.com/Arize-ai/phoenix/issues/11165)) ([0cd63c5](https://github.com/Arize-ai/phoenix/commit/0cd63c594f3659278efd1386f13b8d100be14035))
+
 ## [12.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.32.0...arize-phoenix-v12.33.0) (2026-01-28)
 
 
