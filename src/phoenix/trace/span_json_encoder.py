@@ -16,44 +16,44 @@ from phoenix.trace.schemas import (
 
 
 class SpanJSONEncoder(json.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, UUID):
-            return str(o)
-        elif isinstance(o, datetime):
-            return o.isoformat()
-        elif isinstance(o, Enum):
-            return o.value
-        elif isinstance(o, SpanContext):
-            return asdict(o)
-        elif isinstance(o, SpanEvent):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, UUID):
+            return str(obj)
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, SpanContext):
+            return asdict(obj)
+        elif isinstance(obj, SpanEvent):
             return {
-                "name": o.name,
-                "attributes": o.attributes,
-                "timestamp": o.timestamp.isoformat(),
+                "name": obj.name,
+                "attributes": obj.attributes,
+                "timestamp": obj.timestamp.isoformat(),
             }
-        elif isinstance(o, Span):
+        elif isinstance(obj, Span):
             return {
-                "name": o.name,
-                "context": o.context,
-                "span_kind": o.span_kind,
-                "parent_id": o.parent_id,
-                "start_time": o.start_time,
-                "end_time": o.end_time,
-                "status_code": o.status_code,
-                "status_message": o.status_message,
-                "attributes": o.attributes,
-                "events": [self.default(event) for event in o.events],
-                "conversation": o.conversation,
+                "name": obj.name,
+                "context": obj.context,
+                "span_kind": obj.span_kind,
+                "parent_id": obj.parent_id,
+                "start_time": obj.start_time,
+                "end_time": obj.end_time,
+                "status_code": obj.status_code,
+                "status_message": obj.status_message,
+                "attributes": obj.attributes,
+                "events": [self.default(event) for event in obj.events],
+                "conversation": obj.conversation,
             }
-        elif isinstance(o, SpanConversationAttributes):
-            return {"conversation_id": str(o.conversation_id)}
-        elif isinstance(o, np.ndarray):
-            return list(o)
-        elif isinstance(o, np.integer):
-            return int(o)
-        elif isinstance(o, np.floating):
-            return float(o)
-        return super().default(o)
+        elif isinstance(obj, SpanConversationAttributes):
+            return {"conversation_id": str(obj.conversation_id)}
+        elif isinstance(obj, np.ndarray):
+            return list(obj)
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        return super().default(obj)
 
 
 def span_to_json(span: Span) -> str:
