@@ -84,17 +84,20 @@ JSON_STRING_ATTRIBUTES = (
     TOOL_PARAMETERS,
 )
 
-SEMANTIC_CONVENTIONS: list[str] = sorted(
-    # e.g. "input.value", "llm.token_count.total", etc.
-    (
-        cast(str, getattr(klass, attr))
-        for name in dir(trace)
-        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
-        for attr in dir(klass)
-        if attr.isupper()
+SEMANTIC_CONVENTIONS: list[str] = cast(
+    list[str],
+    sorted(
+        # e.g. "input.value", "llm.token_count.total", etc.
+        (
+            cast(str, getattr(klass, attr))
+            for name in dir(trace)
+            if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+            for attr in dir(klass)
+            if attr.isupper()
+        ),
+        key=len,
+        reverse=True,
     ),
-    key=len,
-    reverse=True,
 )  # sorted so the longer strings go first
 
 
@@ -128,7 +131,7 @@ def flatten(
     """
     if isinstance(obj, Mapping):
         yield from _flatten_mapping(
-            obj,
+            cast(Mapping[str, Any], obj),
             prefix=prefix,
             recurse_on_sequence=recurse_on_sequence,
             json_string_attributes=json_string_attributes,
