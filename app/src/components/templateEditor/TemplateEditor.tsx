@@ -149,6 +149,10 @@ export const TemplateEditorWrap = ({
           );
           backdrop-filter: none;
         }
+        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
+        & .cm-tooltip-autocomplete {
+          z-index: 100;
+        }
       `}
     >
       {children}
