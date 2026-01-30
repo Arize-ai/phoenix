@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -28,6 +28,8 @@ class Undefined:
     can't natively distinguish between an undefined value and a value that is set to
     None.
     """
+
+    _instance: ClassVar["Undefined | None"]
 
     def __new__(cls) -> Any:
         if not hasattr(cls, "_instance"):

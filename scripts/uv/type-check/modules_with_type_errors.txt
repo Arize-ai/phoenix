@@ -1,4 +1,3 @@
-src/phoenix/db/types/db_models.py
 src/phoenix/server/api/helpers/prompts/conversions/openai.py
 src/phoenix/trace/attributes.py
 src/phoenix/trace/schemas.py
