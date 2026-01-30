@@ -2332,8 +2332,7 @@ class BuiltinEvaluator(Evaluator):
 
     __tablename__ = "builtin_evaluators"
 
-    # Use the CRC32-generated negative ID as primary key (not auto-increment)
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
+    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
     kind: Mapped[Literal["BUILTIN"]] = mapped_column(
         CheckConstraint("kind = 'BUILTIN'", name="valid_builtin_evaluator_kind"),
         server_default="BUILTIN",
@@ -2341,17 +2340,8 @@ class BuiltinEvaluator(Evaluator):
     )
     # name, description, metadata, user_id, created_at are inherited from Evaluator
 
+    key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-
-    # Store output config details for inspection
-    output_config_type: Mapped[str] = mapped_column(
-        String,
-        CheckConstraint(
-            "output_config_type IN ('CATEGORICAL', 'CONTINUOUS')",
-            name="valid_builtin_evaluator_output_config_type",
-        ),
-        nullable=False,
-    )
     output_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
 
     # Track when this was last synced from the registry

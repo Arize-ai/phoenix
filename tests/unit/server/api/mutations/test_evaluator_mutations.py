@@ -15,7 +15,6 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.evaluators import get_builtin_evaluator_ids
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptMessage,
@@ -1898,11 +1897,15 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
     ) -> None:
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
 
-        # Get a valid builtin evaluator ID
-        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        # Get valid builtin evaluator IDs from the database
+        async with db() as session:
+            builtin_evaluator_ids = list(
+                await session.scalars(select(models.BuiltinEvaluator.id).limit(2))
+            )
         assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
         builtin_evaluator_id = builtin_evaluator_ids[0]
         builtin_evaluator_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
@@ -2009,16 +2012,18 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         )
         assert result.errors and "not found" in result.errors[0].message.lower()
 
-        # Failure: Positive evaluator ID (builtin evaluator IDs must be negative)
-        positive_id = 123
-        positive_id_gid = str(GlobalID("BuiltInEvaluator", str(positive_id)))
+        # Failure: Nonexistent builtin evaluator ID (ID doesn't exist in database)
+        nonexistent_positive_id = 99999
+        nonexistent_positive_id_gid = str(
+            GlobalID("BuiltInEvaluator", str(nonexistent_positive_id))
+        )
         result = await self._create(
             gql_client,
             datasetId=dataset_id,
-            evaluatorId=positive_id_gid,
+            evaluatorId=nonexistent_positive_id_gid,
             name="test",
         )
-        assert result.errors and "Invalid built-in evaluator id" in result.errors[0].message
+        assert result.errors and "not found" in result.errors[0].message.lower()
 
         # Failure: Duplicate display name for same dataset
         result = await self._create(
@@ -2033,10 +2038,17 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         self,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
 
-        builtin_evaluator_ids = get_builtin_evaluator_ids()
+        # Get valid builtin evaluator IDs from the database
+        async with db() as session:
+            builtin_evaluator_ids = list(
+                await session.scalars(select(models.BuiltinEvaluator.id).limit(2))
+            )
+        assert len(builtin_evaluator_ids) >= 2, "Need at least 2 builtin evaluators for this test"
         first_builtin_evaluator_id = builtin_evaluator_ids[0]
         second_builtin_evaluator_id = builtin_evaluator_ids[1]
 
@@ -2068,19 +2080,24 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         self,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test that continuous output config override validates merged bounds.
 
         When only one bound is provided in the override, it should be validated
         against the base config's bounds to ensure the merged result is valid.
         """
-        from phoenix.server.api.evaluators import (
-            LevenshteinDistanceEvaluator,
-            _generate_builtin_evaluator_id,
-        )
+        # Look up the builtin evaluator ID by key from the database
+        async with db() as session:
+            levenshtein_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+        assert levenshtein_id is not None
 
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
-        levenshtein_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
         levenshtein_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_id)))
 
         result = await self._create(
@@ -2130,14 +2147,15 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test updating a builtin evaluator via its DatasetEvaluator assignment."""
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
 
-        # Get a valid builtin evaluator ID
-        builtin_evaluator_ids = get_builtin_evaluator_ids()
-        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
-        builtin_evaluator_id = builtin_evaluator_ids[0]
+        # Get a valid builtin evaluator ID from the database
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
         builtin_evaluator_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
 
         # First, create a builtin evaluator to update
@@ -2397,15 +2415,19 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test that update mutation validates merged bounds for continuous config override."""
-        from phoenix.server.api.evaluators import (
-            LevenshteinDistanceEvaluator,
-            _generate_builtin_evaluator_id,
-        )
+        # Look up the builtin evaluator ID by key from the database
+        async with db() as session:
+            levenshtein_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+        assert levenshtein_id is not None
 
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
-        levenshtein_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
         levenshtein_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_id)))
 
         create_result = await gql_client.execute(
@@ -2603,11 +2625,13 @@ class TestDeleteDatasetEvaluators:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test deleting a built-in evaluator removes the DatasetEvaluators row and project."""
-        builtin_evaluator_ids = get_builtin_evaluator_ids()
-        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
-        builtin_evaluator_id = builtin_evaluator_ids[0]
+        # Get a valid builtin evaluator ID from the database
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
 
         # Create a builtin dataset evaluator
         async with db() as session:
@@ -2754,11 +2778,13 @@ class TestDeleteDatasetEvaluators:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test deleting a mix of built-in and LLM evaluators in a single call."""
-        builtin_evaluator_ids = get_builtin_evaluator_ids()
-        assert len(builtin_evaluator_ids) > 0, "No builtin evaluators available for testing"
-        builtin_evaluator_id = builtin_evaluator_ids[0]
+        # Get a valid builtin evaluator ID from the database
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
 
         # Create a builtin dataset evaluator
         async with db() as session:

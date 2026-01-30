@@ -38,7 +38,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
     cast_template_variable_types,
-    get_builtin_evaluators,
     infer_input_schema_from_template,
     validate_template_variables,
 )
@@ -1345,8 +1344,10 @@ class Query:
             )
 
     @strawberry.field
-    async def built_in_evaluators(self) -> list[BuiltInEvaluator]:
-        return [BuiltInEvaluator(id=builtin_id) for builtin_id, _ in get_builtin_evaluators()]
+    async def built_in_evaluators(self, info: Info[Context, None]) -> list[BuiltInEvaluator]:
+        async with info.context.db() as session:
+            result = await session.execute(select(models.BuiltinEvaluator))
+            return [BuiltInEvaluator(id=row.id) for row in result.scalars()]
 
     @strawberry.field
     async def evaluators(

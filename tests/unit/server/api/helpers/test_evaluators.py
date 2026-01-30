@@ -27,7 +27,6 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_VARIABLES,
     BuiltInEvaluator,
     LLMEvaluator,
-    _generate_builtin_evaluator_id,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -2925,9 +2924,24 @@ class TestGetEvaluators:
         openai_api_key: str,
         synced_builtin_evaluators: None,
     ) -> None:
-        contains_id = _generate_builtin_evaluator_id("Contains")
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        regex_id = _generate_builtin_evaluator_id("Regex")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            regex_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "regex")
+            )
+        assert contains_id is not None
+        assert exact_match_id is not None
+        assert regex_id is not None
 
         # Create a dataset and DatasetEvaluators
         async with db() as session:
@@ -3045,9 +3059,26 @@ class TestGetEvaluators:
         db: Any,
         synced_builtin_evaluators: None,
     ) -> None:
-        levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
-        json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
-        contains_id = _generate_builtin_evaluator_id("Contains")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            levenshtein_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+            json_distance_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "json_distance"
+                )
+            )
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+        assert levenshtein_id is not None
+        assert json_distance_id is not None
+        assert contains_id is not None
 
         async with db() as session:
             dataset = models.Dataset(name="test-dataset-builtins", metadata_={})

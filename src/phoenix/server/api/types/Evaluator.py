@@ -23,7 +23,6 @@ from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_id
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.annotation_configs import (
     merge_categorical_annotation_config,
@@ -446,35 +445,53 @@ class LLMEvaluator(Evaluator, Node):
 class BuiltInEvaluator(Evaluator, Node):
     id: NodeID[int]
 
+    async def _get_evaluator_class(self, info: Info[Context, None]) -> object:
+        """Helper to fetch builtin evaluator class from DB key."""
+        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
+        async with info.context.db() as session:
+            builtin = await session.get(models.BuiltinEvaluator, self.id)
+            if builtin is None:
+                raise NotFound(f"Built-in evaluator not found: {self.id}")
+            evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+            if evaluator_class is None:
+                raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+            return evaluator_class
+
+    @strawberry.field
+    async def key(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        async with info.context.db() as session:
+            builtin = await session.get(models.BuiltinEvaluator, self.id)
+            if builtin is None:
+                raise NotFound(f"Built-in evaluator not found: {self.id}")
+            return builtin.key
+
     @strawberry.field
     async def name(
         self,
         info: Info[Context, None],
     ) -> Identifier:
-        evaluator_class = get_builtin_evaluator_by_id(self.id)
-        if evaluator_class is None:
-            raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_class.name
+        evaluator_class = await self._get_evaluator_class(info)
+        return evaluator_class.name  # type: ignore[attr-defined]
 
     @strawberry.field
     async def description(
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        evaluator_class = get_builtin_evaluator_by_id(self.id)
-        if evaluator_class is None:
-            raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_class.description
+        evaluator_class = await self._get_evaluator_class(info)
+        return str(evaluator_class.description) if evaluator_class.description else None  # type: ignore[attr-defined]
 
     @strawberry.field
     async def metadata(
         self,
         info: Info[Context, None],
     ) -> JSON:
-        evaluator_class = get_builtin_evaluator_by_id(self.id)
-        if evaluator_class is None:
-            raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_class.metadata
+        evaluator_class = await self._get_evaluator_class(info)
+        return evaluator_class.metadata  # type: ignore[attr-defined]
 
     @strawberry.field
     async def kind(
@@ -502,10 +519,8 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[JSON]:
-        evaluator_class = get_builtin_evaluator_by_id(self.id)
-        if evaluator_class is None:
-            raise NotFound(f"Built-in evaluator not found: {self.id}")
-        return evaluator_class().input_schema
+        evaluator_class = await self._get_evaluator_class(info)
+        return evaluator_class().input_schema  # type: ignore[operator]
 
     @strawberry.field
     async def user(
@@ -518,12 +533,13 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> "BuiltInEvaluatorOutputConfig":
-        evaluator_class = get_builtin_evaluator_by_id(self.id)
-        if evaluator_class is None:
-            raise NotFound(f"Built-in evaluator not found: {self.id}")
-        base_config = evaluator_class().output_config
+        evaluator_class = await self._get_evaluator_class(info)
+        base_config = evaluator_class().output_config  # type: ignore[operator]
         return _to_gql_builtin_output_config(
-            base_config, evaluator_class.name, id_prefix="Evaluator", evaluator_id=self.id
+            base_config,
+            evaluator_class.name,  # type: ignore[attr-defined]
+            id_prefix="Evaluator",
+            evaluator_id=self.id,
         )
 
     @strawberry.field
@@ -676,6 +692,8 @@ class DatasetEvaluator(Node):
         If an override is set on the dataset evaluator, returns that.
         Otherwise, returns the base evaluator's description.
         """
+        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
@@ -684,7 +702,7 @@ class DatasetEvaluator(Node):
             if evaluator is None:
                 return None
             if isinstance(evaluator, models.BuiltinEvaluator):
-                builtin = get_builtin_evaluator_by_id(evaluator.id)
+                builtin = get_builtin_evaluator_by_key(evaluator.key)
                 return builtin.description if builtin else None
             elif isinstance(evaluator, models.LLMEvaluator):
                 return evaluator.description
@@ -720,7 +738,9 @@ class DatasetEvaluator(Node):
                 return None
 
             if isinstance(evaluator, models.BuiltinEvaluator):
-                evaluator_class = get_builtin_evaluator_by_id(evaluator.id)
+                from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
+                evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
                 if evaluator_class is None:
                     return None
                 base_config = evaluator_class().output_config

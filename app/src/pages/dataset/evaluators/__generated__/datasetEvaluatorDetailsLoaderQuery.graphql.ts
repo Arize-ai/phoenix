@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7593096a554284fbe479d70d72b78731>>
+ * @generated SignedSource<<80c8c0871c791c3cb0b9b642f56cca54>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluatorKind = "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type TimeRange = {
   end?: string | null;
   start?: string | null;

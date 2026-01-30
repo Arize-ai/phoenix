@@ -244,7 +244,7 @@ def upgrade() -> None:
     # name, description, metadata, user_id, created_at are inherited from base evaluators table.
     op.create_table(
         "builtin_evaluators",
-        sa.Column("id", _Integer, primary_key=True),  # Negative CRC32 IDs
+        sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "kind",
             sa.String,
@@ -252,8 +252,8 @@ def upgrade() -> None:
             server_default="BUILTIN",
             nullable=False,
         ),
+        sa.Column("key", sa.String, nullable=False, unique=True),
         sa.Column("input_schema", JSON_, nullable=False),
-        sa.Column("output_config_type", sa.String(), nullable=False),
         sa.Column("output_config", JSON_, nullable=False),
         sa.Column(
             "synced_at",
@@ -265,10 +265,6 @@ def upgrade() -> None:
             ["kind", "id"],
             ["evaluators.kind", "evaluators.id"],
             ondelete="CASCADE",
-        ),
-        sa.CheckConstraint(
-            "output_config_type IN ('CATEGORICAL', 'CONTINUOUS')",
-            name="valid_builtin_evaluator_output_config_type",
         ),
     )
 

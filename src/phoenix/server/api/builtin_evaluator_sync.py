@@ -6,19 +6,15 @@ the in-memory registry defined in `evaluators.py`. Called on application
 startup via the lifespan callbacks.
 
 Since BuiltinEvaluator inherits from Evaluator (polymorphic hierarchy),
-we must upsert into both the base `evaluators` table and the subclass
-`builtin_evaluators` table.
+we use SQLAlchemy ORM to properly handle the joined table inheritance.
 """
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -29,9 +25,8 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
     Synchronize the in-memory builtin evaluator registry to the database.
 
     This function:
-    1. Upserts all current builtin evaluators into base evaluators table
-    2. Upserts corresponding records into builtin_evaluators subclass table
-    3. Removes any stale evaluators no longer in the registry
+    1. Creates or updates builtin evaluators using ORM (handles inheritance)
+    2. Removes any stale evaluators no longer in the registry
 
     Safe to call multiple times (idempotent).
     """
@@ -39,89 +34,66 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
     from phoenix.server.api.evaluators import get_builtin_evaluators
 
     async with db() as session:
-        current_ids: set[int] = set()
+        current_keys: set[str] = set()
         now = datetime.now(timezone.utc)
 
-        # Records for base evaluators table
-        base_records: list[dict[str, Any]] = []
-        # Records for builtin_evaluators subclass table
-        subclass_records: list[dict[str, Any]] = []
-
-        for evaluator_id, evaluator_cls in get_builtin_evaluators():
-            current_ids.add(evaluator_id)
+        for key, evaluator_cls in get_builtin_evaluators():
+            current_keys.add(key)
 
             evaluator = evaluator_cls()
             output_cfg = evaluator.output_config
 
-            # Base evaluator record
-            # Convert PascalCase name to lowercase identifier (e.g., "Contains" -> "contains")
-            # The Identifier type requires lowercase names matching ^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$
-            identifier_name = evaluator_cls._stable_name.lower()
-            base_records.append(
-                {
-                    "id": evaluator_id,
-                    "kind": "BUILTIN",
-                    "name": Identifier(identifier_name),
-                    "description": evaluator_cls.description,
-                    "metadata_": {},
-                    "user_id": None,
-                }
+            # Check if this evaluator already exists by key
+            existing = await session.scalar(
+                select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == key)
             )
 
-            # Subclass builtin_evaluator record
-            subclass_records.append(
-                {
-                    "id": evaluator_id,
-                    "kind": "BUILTIN",
-                    "input_schema": evaluator.input_schema,
-                    "output_config_type": output_cfg.type,
-                    "output_config": output_cfg.model_dump(),
-                    "synced_at": now,
-                }
-            )
+            if existing:
+                # Update existing record
+                existing.name = Identifier(key)
+                existing.description = evaluator_cls.description
+                existing.input_schema = evaluator.input_schema
+                existing.output_config = output_cfg.model_dump()
+                existing.synced_at = now
+            else:
+                # Create new record using ORM (handles polymorphic inheritance)
+                new_evaluator = models.BuiltinEvaluator(
+                    name=Identifier(key),
+                    description=evaluator_cls.description,
+                    metadata_={},
+                    user_id=None,
+                    key=key,
+                    input_schema=evaluator.input_schema,
+                    output_config=output_cfg.model_dump(),
+                    synced_at=now,
+                )
+                session.add(new_evaluator)
 
-        if base_records:
-            # First upsert into base evaluators table
-            base_stmt = insert_on_conflict(
-                *base_records,
-                table=models.Evaluator,
-                dialect=db.dialect,
-                unique_by=["id"],
-                on_conflict=OnConflict.DO_UPDATE,
-                constraint_name="pk_evaluators"
-                if db.dialect is SupportedSQLDialect.POSTGRESQL
-                else None,
-            )
-            await session.execute(base_stmt)
-
-            # Then upsert into builtin_evaluators subclass table
-            subclass_stmt = insert_on_conflict(
-                *subclass_records,
-                table=models.BuiltinEvaluator,
-                dialect=db.dialect,
-                unique_by=["id"],
-                on_conflict=OnConflict.DO_UPDATE,
-                constraint_name="pk_builtin_evaluators"
-                if db.dialect is SupportedSQLDialect.POSTGRESQL
-                else None,
-            )
-            await session.execute(subclass_stmt)
+        # Flush to ensure all evaluators are created before checking for stale ones
+        await session.flush()
 
         # Remove stale evaluators no longer in registry
-        # Deleting from base evaluators table will CASCADE to builtin_evaluators
-        if current_ids:
-            delete_stmt = delete(models.Evaluator).where(
-                models.Evaluator.kind == "BUILTIN",
-                models.Evaluator.id.notin_(current_ids),
+        if current_keys:
+            # Find builtin evaluators with keys not in the current registry
+            stale_ids_stmt = select(models.BuiltinEvaluator.id).where(
+                models.BuiltinEvaluator.key.notin_(current_keys)
             )
-            result = await session.execute(delete_stmt)
-            if result.rowcount and result.rowcount > 0:  # type: ignore[attr-defined]
-                logger.warning(
-                    f"Removed {result.rowcount} stale builtin evaluator(s) "  # type: ignore[attr-defined]
-                    "from database"
-                )
+            stale_ids_result = await session.execute(stale_ids_stmt)
+            stale_ids = [row[0] for row in stale_ids_result.fetchall()]
 
-        logger.info(f"Synced {len(current_ids)} builtin evaluators to database")
+            if stale_ids:
+                delete_stmt = delete(models.Evaluator).where(
+                    models.Evaluator.kind == "BUILTIN",
+                    models.Evaluator.id.in_(stale_ids),
+                )
+                result = await session.execute(delete_stmt)
+                if result.rowcount and result.rowcount > 0:  # type: ignore[attr-defined]
+                    logger.warning(
+                        f"Removed {result.rowcount} stale builtin evaluator(s) "  # type: ignore[attr-defined]
+                        "from database"
+                    )
+
+        logger.info(f"Synced {len(current_keys)} builtin evaluators to database")
 
 
 class BuiltinEvaluatorSyncCallback:

@@ -30,7 +30,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_id, get_builtin_evaluator_ids
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
@@ -649,7 +649,15 @@ class EvaluatorMutationMixin:
                 raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
             evaluator_rowids.add(evaluator_rowid)
 
-        builtin_evaluator_ids = set(get_builtin_evaluator_ids())
+        # Query DB to find which evaluators are builtins (can't be deleted)
+        async with info.context.db() as session:
+            builtin_ids_result = await session.execute(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.id.in_(evaluator_rowids)
+                )
+            )
+            builtin_evaluator_ids = set(builtin_ids_result.scalars().all())
+
         filtered_rowids: list[int] = []
         filtered_gids: list[GlobalID] = []
         for gid, rowid in zip(input.evaluator_ids, evaluator_rowids):
@@ -779,26 +787,30 @@ class EvaluatorMutationMixin:
             input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
         )
 
-        if built_in_evaluator_id >= 0:  # built-in evaluator IDs are always negative
-            raise BadRequest(f"Invalid built-in evaluator id: {input.evaluator_id}")
-
-        builtin_evaluator = get_builtin_evaluator_by_id(built_in_evaluator_id)
-        if builtin_evaluator is None:
-            raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
         try:
             name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
-        base_config = builtin_evaluator().output_config
-        output_config_override = _validate_and_convert_builtin_override(
-            override_input=input.output_config_override,
-            base_config=base_config,
-            evaluator_name=builtin_evaluator.name,
-        )
-
         try:
             async with info.context.db() as session:
+                # Look up the builtin evaluator from DB to get its key
+                builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
+                if builtin_db is None:
+                    raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+
+                # Get the evaluator class from registry using the key
+                builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
+                if builtin_evaluator is None:
+                    raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
+
+                base_config = builtin_evaluator().output_config
+                output_config_override = _validate_and_convert_builtin_override(
+                    override_input=input.output_config_override,
+                    base_config=base_config,
+                    evaluator_name=builtin_evaluator.name,
+                )
+
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
                 )
@@ -869,15 +881,15 @@ class EvaluatorMutationMixin:
                 if dataset_evaluator.evaluator_id is None:
                     raise BadRequest("Cannot update a non-built-in evaluator")
 
-                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
-                if evaluator is None or evaluator.kind != "BUILTIN":
+                builtin_db = await session.get(
+                    models.BuiltinEvaluator, dataset_evaluator.evaluator_id
+                )
+                if builtin_db is None:
                     raise BadRequest("Cannot update a non-built-in evaluator")
 
-                builtin_evaluator = get_builtin_evaluator_by_id(dataset_evaluator.evaluator_id)
+                builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
                 if builtin_evaluator is None:
-                    raise NotFound(
-                        f"Built-in evaluator with id {dataset_evaluator.evaluator_id} not found"
-                    )
+                    raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
 
                 try:
                     name = IdentifierModel.model_validate(input.name)

@@ -21,7 +21,6 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_MESSAGES,
     TEMPLATE_PATH_MAPPING,
     TEMPLATE_VARIABLES,
-    _generate_builtin_evaluator_id,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -508,10 +507,16 @@ class TestChatCompletionMutationMixin:
         correctness_llm_evaluator: models.LLMEvaluator,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         # Create dataset and DatasetEvaluators
-        contains_id = _generate_builtin_evaluator_id("Contains")
         async with db() as session:
+            # Look up the builtin evaluator ID by key
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            assert contains_id is not None
+
             dataset = models.Dataset(name="test-eval-dataset", metadata_={})
             session.add(dataset)
             await session.flush()
@@ -1485,13 +1490,21 @@ class TestChatCompletionMutationMixin:
         openai_api_key: str,
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test that builtin evaluators use the name for annotation names."""
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
         custom_name = "my-custom-exact-match"
 
         # Create dataset and DatasetEvaluator
         async with db() as session:
+            # Look up the builtin evaluator ID by key
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None
+
             dataset = models.Dataset(name="test-builtin-name-dataset", metadata_={})
             session.add(dataset)
             await session.flush()
