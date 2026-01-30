@@ -3,7 +3,7 @@ description: For determining if a tool was invoked correctly with proper argumen
 optimization_direction: maximize
 messages:
   - role: user
-    content: >-
+    content: |-
       You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM invoked a tool (or tools) correctly with valid arguments and proper formatting.
 
       Your task: Determine whether the LLM's tool invocation(s) were correct or incorrect based on:
