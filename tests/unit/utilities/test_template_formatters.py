@@ -3,12 +3,15 @@ from typing import Any
 import pytest
 
 from phoenix.utilities.template_formatters import (
+    DictWrapper,
     FStringTemplateFormatter,
+    ListWrapper,
     MustacheTemplateFormatter,
     ParsedVariable,
     ParsedVariables,
     TemplateFormatter,
     TemplateFormatterError,
+    _extract_root_variable,
 )
 
 
@@ -660,3 +663,280 @@ class TestParsedVariablesDataclass:
         var = ParsedVariable(name="test", variable_type="string")
         with pytest.raises(AttributeError):
             var.name = "changed"  # type: ignore[misc]
+
+
+class TestMustachePathVariables:
+    """Tests for Mustache path variable support (e.g., {{reference.label}})."""
+
+    def test_simple_path_variable_with_dict(self) -> None:
+        """Test that path variables work with nested dicts."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{reference.label}}"
+        variables = {"reference": {"label": "correct"}}
+        result = formatter.format(template, **variables)
+        assert result == "correct"
+
+    def test_multi_level_path_variable(self) -> None:
+        """Test deeply nested path variables."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{user.address.city}}"
+        variables = {"user": {"address": {"city": "New York"}}}
+        result = formatter.format(template, **variables)
+        assert result == "New York"
+
+    def test_multiple_path_variables_same_root(self) -> None:
+        """Test multiple path variables with the same root object."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{user.name}} lives in {{user.city}}"
+        variables = {"user": {"name": "Alice", "city": "Boston"}}
+        result = formatter.format(template, **variables)
+        assert result == "Alice lives in Boston"
+
+    def test_path_variable_with_other_variables(self) -> None:
+        """Test path variables mixed with simple variables."""
+        formatter = MustacheTemplateFormatter()
+        template = "Hello {{name}}, your label is {{reference.label}}"
+        variables = {"name": "Bob", "reference": {"label": "A"}}
+        result = formatter.format(template, **variables)
+        assert result == "Hello Bob, your label is A"
+
+    def test_path_variable_validation_passes_with_root(self) -> None:
+        """Test that validation passes when root variable is provided."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{reference.label}}"
+        # Should not raise - 'reference' is provided
+        result = formatter.format(template, reference={"label": "value"})
+        assert result == "value"
+
+    def test_path_variable_validation_fails_without_root(self) -> None:
+        """Test that validation fails when root variable is missing."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{reference.label}}"
+        with pytest.raises(
+            TemplateFormatterError, match=r"Missing template variable\(s\): reference"
+        ):
+            formatter.format(template)
+
+    def test_full_context_pattern(self) -> None:
+        """Test the full_context pattern used in playground."""
+        formatter = MustacheTemplateFormatter()
+        template = "Input: {{input.question}}\nExpected: {{reference.label}}"
+        full_context = {
+            "input": {"question": "What is 2+2?"},
+            "reference": {"label": "4"},
+            "metadata": {},
+        }
+        result = formatter.format(template, **full_context)
+        assert result == "Input: What is 2+2?\nExpected: 4"
+
+    def test_path_variable_inside_section(self) -> None:
+        """Test path variables inside sections."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{#items}}{{data.value}}{{/items}}"
+        variables = {"items": [{"data": {"value": "a"}}, {"data": {"value": "b"}}]}
+        result = formatter.format(template, **variables)
+        assert result == "ab"
+
+
+class TestExtractRootVariable:
+    """Tests for the _extract_root_variable helper function."""
+
+    def test_simple_variable(self) -> None:
+        """Test extracting root from simple variable name."""
+        assert _extract_root_variable("name") == "name"
+
+    def test_single_dot_path(self) -> None:
+        """Test extracting root from single-level path."""
+        assert _extract_root_variable("reference.label") == "reference"
+
+    def test_multi_level_path(self) -> None:
+        """Test extracting root from multi-level path."""
+        assert _extract_root_variable("user.address.city") == "user"
+
+    def test_bracket_notation(self) -> None:
+        """Test extracting root from bracket notation."""
+        assert _extract_root_variable("reference[label]") == "reference"
+
+    def test_numeric_index(self) -> None:
+        """Test extracting root from numeric index."""
+        assert _extract_root_variable("items[0]") == "items"
+
+    def test_mixed_notation(self) -> None:
+        """Test extracting root from mixed dot and bracket notation."""
+        assert _extract_root_variable("user.addresses[0].city") == "user"
+
+    def test_bracket_then_dot(self) -> None:
+        """Test extracting root from bracket followed by dot notation."""
+        assert _extract_root_variable("items[0].name") == "items"
+
+
+class TestFStringPathVariables:
+    """Tests for F-string path variable support with dict wrapping."""
+
+    def test_simple_path_variable_with_dict(self) -> None:
+        """Test that path variables work with nested dicts."""
+        formatter = FStringTemplateFormatter()
+        template = "{reference.label}"
+        variables = {"reference": {"label": "correct"}}
+        result = formatter.format(template, **variables)
+        assert result == "correct"
+
+    def test_multi_level_path_variable(self) -> None:
+        """Test deeply nested path variables."""
+        formatter = FStringTemplateFormatter()
+        template = "{user.address.city}"
+        variables = {"user": {"address": {"city": "New York"}}}
+        result = formatter.format(template, **variables)
+        assert result == "New York"
+
+    def test_multiple_path_variables_same_root(self) -> None:
+        """Test multiple path variables with the same root object."""
+        formatter = FStringTemplateFormatter()
+        template = "{user.name} lives in {user.city}"
+        variables = {"user": {"name": "Alice", "city": "Boston"}}
+        result = formatter.format(template, **variables)
+        assert result == "Alice lives in Boston"
+
+    def test_path_variable_with_other_variables(self) -> None:
+        """Test path variables mixed with simple variables."""
+        formatter = FStringTemplateFormatter()
+        template = "Hello {name}, your label is {reference.label}"
+        variables = {"name": "Bob", "reference": {"label": "A"}}
+        result = formatter.format(template, **variables)
+        assert result == "Hello Bob, your label is A"
+
+    def test_path_variable_validation_passes_with_root(self) -> None:
+        """Test that validation passes when root variable is provided."""
+        formatter = FStringTemplateFormatter()
+        template = "{reference.label}"
+        # Should not raise - 'reference' is provided
+        result = formatter.format(template, reference={"label": "value"})
+        assert result == "value"
+
+    def test_path_variable_validation_fails_without_root(self) -> None:
+        """Test that validation fails when root variable is missing."""
+        formatter = FStringTemplateFormatter()
+        template = "{reference.label}"
+        with pytest.raises(
+            TemplateFormatterError, match=r"Missing template variable\(s\): reference"
+        ):
+            formatter.format(template)
+
+    def test_bracket_notation_with_dict(self) -> None:
+        """Test bracket notation for dict access."""
+        formatter = FStringTemplateFormatter()
+        template = "{reference[label]}"
+        variables = {"reference": {"label": "bracket_value"}}
+        result = formatter.format(template, **variables)
+        assert result == "bracket_value"
+
+    def test_numeric_index_with_list(self) -> None:
+        """Test numeric index access with lists."""
+        formatter = FStringTemplateFormatter()
+        template = "{items[0]}"
+        variables = {"items": ["first", "second"]}
+        result = formatter.format(template, **variables)
+        assert result == "first"
+
+    def test_mixed_list_and_dict_access(self) -> None:
+        """Test accessing dict inside list."""
+        formatter = FStringTemplateFormatter()
+        template = "{items[0].name}"
+        variables = {"items": [{"name": "Alice"}, {"name": "Bob"}]}
+        result = formatter.format(template, **variables)
+        assert result == "Alice"
+
+    def test_full_context_pattern(self) -> None:
+        """Test the full_context pattern used in playground."""
+        formatter = FStringTemplateFormatter()
+        template = "Input: {input.question}\nExpected: {reference.label}"
+        full_context = {
+            "input": {"question": "What is 2+2?"},
+            "reference": {"label": "4"},
+            "metadata": {},
+        }
+        result = formatter.format(template, **full_context)
+        assert result == "Input: What is 2+2?\nExpected: 4"
+
+    def test_non_dict_values_unchanged(self) -> None:
+        """Test that non-dict values pass through unchanged."""
+        formatter = FStringTemplateFormatter()
+        template = "{name} is {age} years old"
+        variables = {"name": "Alice", "age": 30}
+        result = formatter.format(template, **variables)
+        assert result == "Alice is 30 years old"
+
+
+class TestDictWrapper:
+    """Tests for the DictWrapper class."""
+
+    def test_attribute_access(self) -> None:
+        """Test attribute access on wrapped dict."""
+        wrapper = DictWrapper({"name": "Alice"})
+        assert wrapper.name == "Alice"
+
+    def test_nested_attribute_access(self) -> None:
+        """Test nested attribute access returns wrapped dict."""
+        wrapper = DictWrapper({"user": {"name": "Alice"}})
+        assert wrapper.user.name == "Alice"
+
+    def test_key_access(self) -> None:
+        """Test key access on wrapped dict."""
+        wrapper = DictWrapper({"name": "Alice"})
+        assert wrapper["name"] == "Alice"
+
+    def test_nested_key_access(self) -> None:
+        """Test nested key access."""
+        wrapper = DictWrapper({"user": {"name": "Alice"}})
+        assert wrapper["user"]["name"] == "Alice"
+
+    def test_mixed_access(self) -> None:
+        """Test mixed attribute and key access."""
+        wrapper = DictWrapper({"user": {"name": "Alice"}})
+        assert wrapper.user["name"] == "Alice"
+        assert wrapper["user"].name == "Alice"
+
+    def test_missing_key_raises_attribute_error(self) -> None:
+        """Test that missing key raises AttributeError for attribute access."""
+        wrapper = DictWrapper({"name": "Alice"})
+        with pytest.raises(AttributeError):
+            _ = wrapper.missing
+
+    def test_missing_key_raises_key_error_for_bracket(self) -> None:
+        """Test that missing key raises KeyError for bracket access."""
+        wrapper = DictWrapper({"name": "Alice"})
+        with pytest.raises(KeyError):
+            _ = wrapper["missing"]
+
+    def test_repr(self) -> None:
+        """Test string representation."""
+        wrapper = DictWrapper({"name": "Alice"})
+        assert "DictWrapper" in repr(wrapper)
+        assert "name" in repr(wrapper)
+
+
+class TestListWrapper:
+    """Tests for the ListWrapper class."""
+
+    def test_index_access(self) -> None:
+        """Test index access on wrapped list."""
+        wrapper = ListWrapper(["a", "b", "c"])
+        assert wrapper[0] == "a"
+        assert wrapper[1] == "b"
+
+    def test_nested_dict_in_list(self) -> None:
+        """Test dict inside list is wrapped."""
+        wrapper = ListWrapper([{"name": "Alice"}, {"name": "Bob"}])
+        assert wrapper[0].name == "Alice"
+        assert wrapper[1].name == "Bob"
+
+    def test_nested_list_in_list(self) -> None:
+        """Test list inside list is wrapped."""
+        wrapper = ListWrapper([[1, 2], [3, 4]])
+        assert wrapper[0][0] == 1
+        assert wrapper[1][1] == 4
+
+    def test_repr(self) -> None:
+        """Test string representation."""
+        wrapper = ListWrapper([1, 2, 3])
+        assert "ListWrapper" in repr(wrapper)

@@ -63,3 +63,104 @@ export function getValueAtPath(obj: unknown, path: string): unknown {
 
   return current;
 }
+
+/**
+ * Recursively extracts all paths from an object.
+ *
+ * For nested objects, generates dot-notation paths.
+ * For arrays, generates indexed paths like "items[0]".
+ *
+ * @param obj - The object to extract paths from
+ * @param prefix - Optional prefix for the current path level
+ * @param maxDepth - Maximum depth to traverse (default: 10)
+ * @returns An array of all paths in the object
+ *
+ * @example
+ * extractPathsFromObject({ user: { name: "Alice", tags: ["a", "b"] } })
+ * // Returns: ["user", "user.name", "user.tags", "user.tags[0]", "user.tags[1]"]
+ */
+export function extractPathsFromObject(
+  obj: unknown,
+  prefix = "",
+  maxDepth = 10
+): string[] {
+  if (maxDepth <= 0) {
+    return prefix ? [prefix] : [];
+  }
+
+  const paths: string[] = [];
+
+  if (Array.isArray(obj)) {
+    // For arrays, add paths for each element
+    obj.forEach((item, index) => {
+      const arrayPath = `${prefix}[${index}]`;
+      paths.push(arrayPath);
+      if (isStringKeyedObject(item) || Array.isArray(item)) {
+        paths.push(...extractPathsFromObject(item, arrayPath, maxDepth - 1));
+      }
+    });
+  } else if (isStringKeyedObject(obj)) {
+    // For objects, add paths for each key
+    for (const key of Object.keys(obj)) {
+      const currentPath = prefix ? `${prefix}.${key}` : key;
+      paths.push(currentPath);
+      const value = obj[key];
+      if (isStringKeyedObject(value) || Array.isArray(value)) {
+        paths.push(...extractPathsFromObject(value, currentPath, maxDepth - 1));
+      }
+    }
+  }
+
+  return paths;
+}
+
+/**
+ * Extracts all unique paths from multiple dataset examples.
+ *
+ * @param examples - Array of dataset examples to extract paths from
+ * @param templateVariablesPath - Optional path prefix that scopes the variables.
+ *   When set (e.g., "input"), paths are extracted relative to that prefix.
+ *   When null/empty, paths are extracted from the full context (input, reference, metadata).
+ * @param maxExamples - Maximum number of examples to process (to limit computation)
+ * @returns A deduplicated array of all paths found across examples
+ */
+export function extractPathsFromDatasetExamples(
+  examples: Array<{ input: unknown; output: unknown; metadata: unknown }>,
+  templateVariablesPath: string | null | undefined,
+  maxExamples = 10
+): string[] {
+  const allPaths = new Set<string>();
+
+  // Process only up to maxExamples to limit computation
+  const examplesToProcess = examples.slice(0, maxExamples);
+
+  for (const example of examplesToProcess) {
+    // Build the template variables context matching the backend mapping
+    // (output is renamed to reference)
+    const templateContext: Record<string, unknown> = {
+      input: example.input,
+      reference: example.output,
+      metadata: example.metadata,
+    };
+
+    // Determine the target object based on templateVariablesPath
+    let targetObject: unknown;
+    if (templateVariablesPath) {
+      // Get the scoped object (e.g., if path is "input", get templateContext.input)
+      targetObject = getValueAtPath(templateContext, templateVariablesPath);
+    } else {
+      // No path prefix - use full context
+      targetObject = templateContext;
+    }
+
+    if (targetObject != null) {
+      const paths = extractPathsFromObject(targetObject);
+      for (const path of paths) {
+        allPaths.add(path);
+      }
+    }
+  }
+
+  // Sort paths alphabetically for consistent ordering
+  return Array.from(allPaths).sort();
+}

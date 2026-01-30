@@ -44,6 +44,88 @@ class ParsedVariables:
         return {v.name for v in self.variables if v.variable_type == "string"}
 
 
+class DictWrapper:
+    """
+    Wraps a dict to support attribute access for f-string formatting.
+
+    This allows f-string templates like `{reference.label}` to work with
+    dict variables like `{"reference": {"label": "value"}}`.
+
+    Examples:
+
+    >>> wrapper = DictWrapper({"user": {"name": "Alice"}})
+    >>> wrapper.user.name
+    'Alice'
+    >>> wrapper["user"]["name"]
+    'Alice'
+    """
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        # Use object.__setattr__ to avoid triggering __getattr__
+        object.__setattr__(self, "_data", data)
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        try:
+            value = self._data[name]
+        except KeyError:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return _wrap_value(value)
+
+    def __getitem__(self, key: Any) -> Any:
+        value = self._data[key]
+        return _wrap_value(value)
+
+    def __repr__(self) -> str:
+        return f"DictWrapper({self._data!r})"
+
+
+class ListWrapper:
+    """
+    Wraps a list to support indexed access with recursive wrapping.
+
+    This allows f-string templates like `{items[0].name}` to work with
+    list variables containing dicts.
+    """
+
+    _data: list[Any]
+
+    def __init__(self, data: list[Any]) -> None:
+        self._data = data
+
+    def __getitem__(self, key: Any) -> Any:
+        value = self._data[key]
+        return _wrap_value(value)
+
+    def __repr__(self) -> str:
+        return f"ListWrapper({self._data!r})"
+
+
+def _wrap_value(value: Any) -> Any:
+    """Recursively wrap dicts and lists for attribute access."""
+    if isinstance(value, dict):
+        return DictWrapper(value)
+    if isinstance(value, list):
+        return ListWrapper(value)
+    return value
+
+
+def _extract_root_variable(path: str) -> str:
+    """
+    Extract the root variable name from a path expression.
+
+    Examples:
+        - "reference.label" -> "reference"
+        - "reference[label]" -> "reference"
+        - "user.address.city" -> "user"
+        - "items[0].name" -> "items"
+        - "simple" -> "simple"
+    """
+    match = re.match(r"^([^.\[]+)", path)
+    return match.group(1) if match else path
+
+
 class TemplateFormatter(ABC):
     @abstractmethod
     def parse(self, template: str) -> set[str]:
@@ -69,9 +151,11 @@ class TemplateFormatter(ABC):
         Formats the template with the given variables.
         """
         template_variable_names = self.parse(template)
-        if missing_template_variables := template_variable_names - set(variables.keys()):
+        # Extract root variable names from paths (e.g., "reference.label" -> "reference")
+        required_root_variables = {_extract_root_variable(var) for var in template_variable_names}
+        if missing_root_variables := required_root_variables - set(variables.keys()):
             raise TemplateFormatterError(
-                f"Missing template variable(s): {', '.join(missing_template_variables)}"
+                f"Missing template variable(s): {', '.join(sorted(missing_root_variables))}"
             )
         return self._format(template, template_variable_names, **variables)
 
@@ -102,18 +186,25 @@ class FStringTemplateFormatter(TemplateFormatter):
     """
     Regular f-string template formatter.
 
+    Supports path variables like `{reference.label}` with dict variables.
+    Dicts are automatically wrapped to support attribute access.
+
     Examples:
 
     >>> formatter = FStringTemplateFormatter()
     >>> formatter.format("{hello}", hello="world")
     'world'
+    >>> formatter.format("{user.name}", user={"name": "Alice"})
+    'Alice'
     """
 
     def parse(self, template: str) -> set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
-        return template.format(**variables)
+        # Wrap dict and list variables to support attribute access (e.g., {user.name})
+        wrapped_variables = {key: _wrap_value(value) for key, value in variables.items()}
+        return template.format(**wrapped_variables)
 
 
 class MustacheTemplateFormatter(TemplateFormatter):

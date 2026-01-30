@@ -91,7 +91,10 @@ import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
 } from "@phoenix/utils/errorUtils";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
+import {
+  extractPathsFromDatasetExamples,
+  getValueAtPath,
+} from "@phoenix/utils/objectUtils";
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
@@ -124,9 +127,21 @@ import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
-import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
+import {
+  denormalizePlaygroundInstance,
+  extractRootVariable,
+  extractVariablesFromInstance,
+  getChatCompletionOverDatasetInput,
+} from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+
+/**
+ * Maximum number of dataset examples to sample for extracting available paths
+ * for template variable autocomplete. Higher values provide more complete
+ * autocomplete suggestions but increase computation time.
+ */
+const MAX_EXAMPLES_FOR_PATH_EXTRACTION = 10;
 
 const outputContentCSS = css`
   flex: none;
@@ -329,8 +344,11 @@ function EmptyExampleOutput({
   }, [datasetExample, templateVariablesPath]);
 
   const missingVariables = useMemo(() => {
+    // Extract root variable from paths (e.g., "input.input.messages" -> "input")
+    // and check if the root variable exists in the target object
     return instanceVariables.filter((variable) => {
-      return targetObject[variable] == null;
+      const rootVariable = extractRootVariable(variable);
+      return targetObject[rootVariable] == null;
     });
   }, [targetObject, instanceVariables]);
 
@@ -355,7 +373,7 @@ function EmptyExampleOutput({
           ", "
         )}.${
           possibleVariables.length > 0
-            ? ` Possible inputs are: ${possibleVariables.join(", ")}`
+            ? ` Possible inputs start with: ${possibleVariables.join(", ")}`
             : " No inputs found in dataset example."
         }`}
       </PlaygroundErrorWrap>
@@ -735,6 +753,9 @@ export function PlaygroundDatasetExamplesTable({
     datasetId ? state.stateByDatasetId[datasetId] : null
   );
   const { templateVariablesPath } = playgroundDatasetState ?? {};
+  const setAvailablePaths = usePlaygroundContext(
+    (state) => state.setAvailablePaths
+  );
   const numEnabledEvaluators = evaluatorOutputConfigs.length;
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
@@ -1247,6 +1268,24 @@ export function PlaygroundDatasetExamplesTable({
   const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
   }, [tableData]);
+
+  // Compute and cache available paths for template autocomplete when examples are loaded
+  // or when templateVariablesPath changes (which scopes the paths)
+  useEffect(() => {
+    if (tableData.length > 0) {
+      const examples = tableData.map((row) => ({
+        input: row.input,
+        output: row.output,
+        metadata: row.metadata,
+      }));
+      const paths = extractPathsFromDatasetExamples(
+        examples,
+        templateVariablesPath,
+        MAX_EXAMPLES_FOR_PATH_EXTRACTION
+      );
+      setAvailablePaths({ availablePaths: paths, datasetId });
+    }
+  }, [tableData, datasetId, templateVariablesPath, setAvailablePaths]);
 
   // We assume that the experiments were run on the latest version of the dataset.
   // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
