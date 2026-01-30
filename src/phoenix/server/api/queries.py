@@ -153,6 +153,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
 
@@ -1773,10 +1774,10 @@ class Query:
         elif isinstance(raw_variables, str):
             parsed = json.loads(raw_variables)
             if not isinstance(parsed, dict):
-                raise ValueError("Variables JSON string must parse to a dictionary")
+                raise BadRequest("Variables JSON string must parse to a dictionary")
             variables = parsed
         else:
-            raise ValueError("Variables must be a dictionary or a string")
+            raise BadRequest("Variables must be a dictionary or a string")
 
         if input_mapping:
             input_schema = infer_input_schema_from_template(
@@ -1812,7 +1813,10 @@ class Query:
             for part in msg.content:
                 if part.text is not UNSET:
                     assert part.text is not None
-                    formatted_text = formatter.format(part.text.text, **variables)
+                    try:
+                        formatted_text = formatter.format(part.text.text, **variables)
+                    except TemplateFormatterError as error:
+                        raise BadRequest(str(error))
                     content_parts.append(
                         TextContentPart(text=TextContentValue(text=formatted_text))
                     )

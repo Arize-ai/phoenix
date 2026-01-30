@@ -689,16 +689,19 @@ class TestEnsureBuiltinEvaluators:
             f"Expected {expected_count} builtin evaluator records, got {len(builtin_evaluators)}"
         )
 
-        # Verify that all registry evaluator IDs are present in the database
-        registry_ids = {evaluator_id for evaluator_id, _ in registry_evaluators}
+        # Verify that all registry keys are present in the database
+        registry_keys = {key for key, _ in registry_evaluators}
+        db_builtin_keys = {e.key for e in builtin_evaluators}
+
+        assert registry_keys == db_builtin_keys, (
+            f"Builtin evaluator keys mismatch: registry={registry_keys}, db={db_builtin_keys}"
+        )
+
+        # Verify that base evaluators and builtin evaluators have matching IDs
         db_base_ids = {e.id for e in base_evaluators}
         db_builtin_ids = {e.id for e in builtin_evaluators}
-
-        assert registry_ids == db_base_ids, (
-            f"Base evaluator IDs mismatch: registry={registry_ids}, db={db_base_ids}"
-        )
-        assert registry_ids == db_builtin_ids, (
-            f"Builtin evaluator IDs mismatch: registry={registry_ids}, db={db_builtin_ids}"
+        assert db_base_ids == db_builtin_ids, (
+            f"Base and builtin evaluator IDs should match: base={db_base_ids}, builtin={db_builtin_ids}"
         )
 
     async def test_ensure_builtin_evaluators_is_idempotent(
