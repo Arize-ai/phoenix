@@ -37,6 +37,7 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
+    BuiltInEvaluator,
     EvaluationResult,
     evaluation_result_to_model,
     get_evaluator_project_ids,
@@ -120,7 +121,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
-    evaluators: list[BaseEvaluator],
+    evaluators: list["BaseEvaluator | BuiltInEvaluator"],
 ) -> ChatStream:
     messages = [
         (
