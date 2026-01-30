@@ -21,8 +21,9 @@ This is a tricky module because / I am uncertain whether I took the right approa
 - Commit your changes once and only once before exiting!
 - DO NOT change the runtime behavior of any piece of code! Keep your diff as minimal as possible.
 - If you fail to successfully migrate the code and get all tests passing, DO NOT commit changes to the source code or to `scripts/uv/type-check/modules_with_type_errors.txt`! Instead, write what you have tried and why it failed to `scripts/uv/type-check/LEARNINGS.md` and commit with a `fix(ty): failed to migrate <module>` error message. Your note in `LEARNINGS.md` should be of the form:
-- Avoid using `cast`.
-- Avoid renaming variables unnecessarily.
+- AVOID using `cast`.
+- AVOID renaming variables unnecessarily.
+- DO NOT relax types! For example, don't go from a specific type to `Any` just to pass type checks. That is cheating.
 
 
 ```
