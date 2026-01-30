@@ -61,12 +61,11 @@ The evaluator returns a `Score` object with the following properties:
 | `score` | `1.0` or `0.0` | Numeric score (1.0 = relevant, 0.0 = unrelated) |
 | `explanation` | `string` | LLM-generated reasoning for the classification |
 | `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
 
 **Interpretation:**
 - **Relevant (1.0)**: The document contains information that can help answer the question
 - **Unrelated (0.0)**: The document does not contain relevant information for the question
-
-The evaluator also returns metadata containing additional information such as the model name used for the evaluation.
 
 ## Usage Examples
 
@@ -245,7 +244,7 @@ For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/ev
 
 ### Viewing and Modifying the Prompt
 
-You can view the latest versions of our prompt templates in the [classification evaluator configs on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them:
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
 
 <Tabs>
   <Tab title="Python" icon="python">
