@@ -1,0 +1,39 @@
+# Named mustache snippets for transforming structured OpenAI-style tool data
+# These formatters handle known output structures (tool definitions and tool calls)
+
+available_tools_descriptions: |
+  {{#output.available_tools}}
+  - {{function.name}}: {{function.description}}
+  {{/output.available_tools}}
+  {{^output.available_tools}}
+  No tools available.
+  {{/output.available_tools}}
+
+available_tools_parameters: |
+  {{#output.available_tools}}
+  Tool: {{function.name}}
+  {{#function.description}}Description: {{function.description}}{{/function.description}}
+  {{#function.parameters}}
+  Parameters:
+  {{#required}}  - {{.}} (required)
+  {{/required}}
+  Properties: {{{properties}}}
+  {{/function.parameters}}
+
+  {{/output.available_tools}}
+  {{^output.available_tools}}
+  No tools available.
+  {{/output.available_tools}}
+
+tool_calls_to_string: |
+  {{#output.messages}}
+  Message:
+  {{role}}: {{content}}
+  Tool Calls:
+  {{#tool_calls}}
+  - {{function.name}}({{function.arguments}})
+  {{/tool_calls}}
+  {{^tool_calls}}
+  No tools called.
+  {{/tool_calls}}
+  {{/output.messages}}

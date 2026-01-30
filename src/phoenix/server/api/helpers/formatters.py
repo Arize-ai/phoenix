@@ -3,6 +3,9 @@ Formatter expansion logic for classification evaluator templates.
 
 This module provides functions to load formatter definitions and expand
 simple template placeholders into full Mustache blocks.
+
+Formatters are loaded from formatters/server.yaml which is copied from
+prompts/formatters/server.yaml by the compile_prompts tox command.
 """
 
 import logging
@@ -18,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def _get_formatters_path() -> Any:
     """Get the packaged formatters YAML resource."""
-    return resources.files(__package__).joinpath("formatters.yaml")
+    return resources.files(__package__).joinpath("formatters", "server.yaml")
 
 
 @lru_cache(maxsize=1)
@@ -63,7 +66,7 @@ def expand_template_placeholders(
         if formatter_name not in formatters:
             logger.warning(
                 f"Formatter '{formatter_name}' referenced by placeholder "
-                f"'{placeholder}' not found in formatters.yaml"
+                f"'{placeholder}' not found in server.yaml"
             )
             continue
 
