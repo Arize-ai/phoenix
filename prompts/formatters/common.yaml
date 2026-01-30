@@ -2,15 +2,28 @@
 # These formatters handle known output structures (tool definitions and tool calls)
 
 available_tools_descriptions: |
-  {{#available_tools}}
+  {{#output.available_tools}}
   - {{function.name}}: {{function.description}}
-  {{/available_tools}}
+  {{/output.available_tools}}
   {{^available_tools}}
   No tools available.
-  {{/available_tools}}
+  {{/output.available_tools}}
+
+available_tools_parameters: |
+  {{#output.available_tools}}
+  - {{function.name}}: {{function.description}}
+  {{#function.parameters}}
+  Parameters ({{type}}):
+  {{#required}}  Required: {{#required}}{{.}}, {{/required}}
+  {{/required}}  Properties: {{properties}}
+  {{/function.parameters}}
+  {{/output.available_tools}}
+  {{^output.available_tools}}
+  No tools available.
+  {{/output.available_tools}}
 
 tool_calls_to_string: |
-  {{#messages}}
+  {{#output.messages}}
   {{role}}: {{content}}
   {{#tool_calls}}
   - {{function.name}}({{function.arguments}})
@@ -18,4 +31,4 @@ tool_calls_to_string: |
   {{^tool_calls}}
   No tools called.
   {{/tool_calls}}
-  {{/messages}}
+  {{/output.messages}}

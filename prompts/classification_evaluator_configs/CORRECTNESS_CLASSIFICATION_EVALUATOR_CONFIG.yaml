@@ -1,5 +1,5 @@
 name: correctness
-description: Assess factual accuracy and completeness of model outputs.
+description: Assess general correctness and completeness of model outputs.
 optimization_direction: maximize
 messages:
   - role: user

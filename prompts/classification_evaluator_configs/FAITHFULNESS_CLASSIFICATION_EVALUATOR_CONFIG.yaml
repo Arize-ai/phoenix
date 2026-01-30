@@ -1,5 +1,5 @@
 name: faithfulness
-description: A specialized evaluator for detecting faithfulness in grounded LLM responses.
+description: For determining if a response is faithful to the context.
 optimization_direction: maximize
 messages:
   - role: user
