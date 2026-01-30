@@ -197,12 +197,14 @@ function MessageEditor({
   templateFormat,
   playgroundInstanceId,
   messageMode,
+  availablePaths,
 }: {
   playgroundInstanceId: number;
   message: ChatMessage;
   templateFormat: TemplateFormat;
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
+  availablePaths?: string[];
 }) {
   const onChange = useCallback(
     (val: string) => {
@@ -287,6 +289,7 @@ function MessageEditor({
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
+        availablePaths={availablePaths}
       />
     </TemplateEditorWrap>
   );
@@ -331,6 +334,12 @@ function SortableMessageItem({
     [messageId]
   );
   const message = usePlaygroundContext(messageSelector);
+  // Get available paths for autocomplete from the dataset state
+  const availablePaths = usePlaygroundContext((state) => {
+    const datasetId = state.datasetId;
+    if (!datasetId) return undefined;
+    return state.stateByDatasetId[datasetId]?.availablePaths;
+  });
   const messageCardStyles = useChatMessageStyles(message.role);
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
@@ -483,6 +492,7 @@ function SortableMessageItem({
             playgroundInstanceId={playgroundInstanceId}
             templateFormat={templateFormat}
             updateMessage={onMessageUpdate}
+            availablePaths={availablePaths}
           />
         </div>
       </Card>

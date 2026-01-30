@@ -851,6 +851,28 @@ export const extractVariablesFromInstances = ({
   );
 };
 
+/**
+ * Extracts the root variable name from a path expression.
+ *
+ * @example
+ * extractRootVariable("reference.label") // => "reference"
+ * extractRootVariable("user.address.city") // => "user"
+ * extractRootVariable("items[0].name") // => "items"
+ * extractRootVariable("simple") // => "simple"
+ */
+export const extractRootVariable = (path: string): string => {
+  const match = path.match(/^([^.[\]]+)/);
+  return match ? match[1] : path;
+};
+
+/**
+ * Extracts the root variable names from a list of paths.
+ * Returns unique root variable names.
+ */
+export const extractRootVariables = (paths: string[]): string[] => {
+  return Array.from(new Set(paths.map(extractRootVariable)));
+};
+
 export const getVariablesMapFromInstances = ({
   instances,
   templateFormat,
