@@ -54,7 +54,10 @@ from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_ou
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
-from phoenix.server.api.helpers.message_helpers import extract_and_convert_example_messages
+from phoenix.server.api.helpers.message_helpers import (
+    extract_and_convert_example_messages,
+    extract_value_from_path,
+)
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -316,6 +319,23 @@ class ChatCompletionMutationMixin:
                     # If extraction fails, store empty list; error will surface when processing
                     appended_messages_by_revision[revision.id] = []
 
+        # Pre-compute template variables for each revision based on template_variables_path
+        template_variables_by_revision: dict[int, dict[str, Any]] = {}
+        for revision in revisions:
+            # Build the full context with input, reference (expected output), and metadata
+            full_context: dict[str, Any] = {
+                "input": revision.input,
+                "reference": revision.output,
+                "metadata": revision.metadata_,
+            }
+            # Resolve template variables based on the configured path
+            if input.template_variables_path:
+                template_variables_by_revision[revision.id] = extract_value_from_path(
+                    full_context, input.template_variables_path
+                )
+            else:
+                template_variables_by_revision[revision.id] = full_context
+
         for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
                 *(
@@ -329,7 +349,7 @@ class ChatCompletionMutationMixin:
                             invocation_parameters=input.invocation_parameters,
                             template=PromptTemplateOptions(
                                 format=input.template_format,
-                                variables=revision.input,
+                                variables=template_variables_by_revision[revision.id],
                             ),
                             prompt_name=input.prompt_name,
                             repetitions=repetition_number,
