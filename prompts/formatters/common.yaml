@@ -5,18 +5,21 @@ available_tools_descriptions: |
   {{#output.available_tools}}
   - {{function.name}}: {{function.description}}
   {{/output.available_tools}}
-  {{^available_tools}}
+  {{^output.available_tools}}
   No tools available.
   {{/output.available_tools}}
 
 available_tools_parameters: |
   {{#output.available_tools}}
-  - {{function.name}}: {{function.description}}
+  Tool: {{function.name}}
+  {{#function.description}}Description: {{function.description}}{{/function.description}}
   {{#function.parameters}}
-  Parameters ({{type}}):
-  {{#required}}  Required: {{#required}}{{.}}, {{/required}}
-  {{/required}}  Properties: {{properties}}
+  Parameters:
+  {{#required}}  - {{.}} (required)
+  {{/required}}
+  Properties: {{{properties}}}
   {{/function.parameters}}
+
   {{/output.available_tools}}
   {{^output.available_tools}}
   No tools available.
@@ -24,7 +27,9 @@ available_tools_parameters: |
 
 tool_calls_to_string: |
   {{#output.messages}}
+  Message:
   {{role}}: {{content}}
+  Tool Calls:
   {{#tool_calls}}
   - {{function.name}}({{function.arguments}})
   {{/tool_calls}}
