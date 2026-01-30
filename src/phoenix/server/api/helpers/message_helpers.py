@@ -6,7 +6,7 @@ users to specify a path to conversation messages within dataset examples that
 should be appended to prompt templates when running experiments.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
@@ -159,3 +159,48 @@ def extract_and_convert_example_messages(
         messages.append(convert_openai_message_to_internal(msg))
 
     return messages
+
+
+class DatasetRevision(Protocol):
+    """Protocol for dataset revision objects that have input, output, and metadata."""
+
+    input: dict[str, Any]
+    output: Any
+    metadata_: dict[str, Any]
+
+
+def build_template_variables(
+    revision: DatasetRevision,
+    template_variables_path: Optional[str],
+) -> dict[str, Any]:
+    """
+    Build template variables for a dataset revision based on the configured path.
+
+    This function constructs the full context dictionary with input, reference (output),
+    and metadata, then extracts the appropriate subset based on the template_variables_path
+    configuration.
+
+    Args:
+        revision: Dataset revision with input, output, and metadata
+        template_variables_path: Dot-notation path to extract variables from context,
+                                or empty string/None to use the full context
+
+    Returns:
+        Dictionary of template variables to use for prompt formatting
+
+    Raises:
+        KeyError: If the path doesn't exist in the context
+        TypeError: If the path traverses through a non-dict value
+    """
+    # Build the full context with input, reference (expected output), and metadata
+    full_context: dict[str, Any] = {
+        "input": revision.input,
+        "reference": revision.output,
+        "metadata": revision.metadata_,
+    }
+
+    # Resolve template variables based on the configured path
+    if template_variables_path:
+        return extract_value_from_path(full_context, template_variables_path)
+    else:
+        return full_context

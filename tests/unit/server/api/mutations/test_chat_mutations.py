@@ -561,7 +561,10 @@ class TestChatCompletionMutationMixin:
                 "messages": [
                     {
                         "role": "SYSTEM",
-                        "content": "You are a helpful assistant. The expected answer is: {reference}",
+                        "content": (
+                            "You are a helpful assistant. "
+                            "The expected answer is: {reference}"
+                        ),
                     },
                     {
                         "role": "USER",
@@ -569,7 +572,8 @@ class TestChatCompletionMutationMixin:
                     },
                 ],
                 "templateFormat": "F_STRING",
-                # Empty string means use the root of the example context (input, reference, metadata)
+                # Empty string means use the root of the example context
+                # (input, reference, metadata)
                 "templateVariablesPath": "",
                 "repetitions": 1,
             }

@@ -55,8 +55,8 @@ from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
 from phoenix.server.api.helpers.message_helpers import (
+    build_template_variables,
     extract_and_convert_example_messages,
-    extract_value_from_path,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -322,19 +322,13 @@ class ChatCompletionMutationMixin:
         # Pre-compute template variables for each revision based on template_variables_path
         template_variables_by_revision: dict[int, dict[str, Any]] = {}
         for revision in revisions:
-            # Build the full context with input, reference (expected output), and metadata
-            full_context: dict[str, Any] = {
-                "input": revision.input,
-                "reference": revision.output,
-                "metadata": revision.metadata_,
-            }
-            # Resolve template variables based on the configured path
-            if input.template_variables_path:
-                template_variables_by_revision[revision.id] = extract_value_from_path(
-                    full_context, input.template_variables_path
+            try:
+                template_variables_by_revision[revision.id] = build_template_variables(
+                    revision, input.template_variables_path
                 )
-            else:
-                template_variables_by_revision[revision.id] = full_context
+            except (KeyError, TypeError, ValueError):
+                # If extraction fails, store empty dict; error will surface when formatting
+                template_variables_by_revision[revision.id] = {}
 
         for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
