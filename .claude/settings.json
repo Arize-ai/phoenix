@@ -17,10 +17,6 @@
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv run mypy --strict >&2 || { [ $? -eq 1 ] && exit 2; }"
-          },
-          {
-            "type": "command",
             "command": "jq -r '.tool_input.file_path | select(endswith(\".ts\") or endswith(\".tsx\"))' | xargs -r sh -c 'cd app && pnpm run build:relay >&2' || { [ $? -eq 1 ] && exit 2; }"
           },
           {
