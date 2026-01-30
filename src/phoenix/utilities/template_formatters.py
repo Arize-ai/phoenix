@@ -1,3 +1,4 @@
+import json
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
@@ -8,6 +9,21 @@ import pystache
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
+
+def _serialize_value(value: Any) -> str:
+    """
+    Serialize a value for string output in f-string templates.
+
+    - Strings are returned as-is (no quotes)
+    - Other types are JSON serialized
+    """
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
 
 
 class DictWrapper:
@@ -46,6 +62,9 @@ class DictWrapper:
     def __repr__(self) -> str:
         return f"DictWrapper({self._data!r})"
 
+    def __str__(self) -> str:
+        return _serialize_value(self._data)
+
 
 class ListWrapper:
     """
@@ -66,6 +85,9 @@ class ListWrapper:
 
     def __repr__(self) -> str:
         return f"ListWrapper({self._data!r})"
+
+    def __str__(self) -> str:
+        return _serialize_value(self._data)
 
 
 def _wrap_value(value: Any) -> Any:
