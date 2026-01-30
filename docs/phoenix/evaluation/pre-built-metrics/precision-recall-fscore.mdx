@@ -22,11 +22,11 @@ This is a code-based evaluator that computes standard classification metrics. Bo
 
 ## Supported Levels
 
-| Level | Supported | Notes |
-|-------|-----------|-------|
-| **Span** | Yes | Evaluate label predictions from any span. |
-| **Trace** | Yes | Evaluate final label predictions. |
-| **Session** | Yes | Evaluate classification decisions across a session. |
+This evaluator is not tied to specific tracing levels. It operates on lists of predicted and expected labels, making it useful for:
+
+- Comparing model predictions against ground truth labels
+- Evaluating classification outputs at any level where you have paired label sequences
+- Batch evaluation of classification tasks in experiments
 
 ## Input Requirements
 
@@ -38,6 +38,10 @@ The PrecisionRecallFScore evaluator requires two inputs:
 | `output` | `List[str \| int]` | List of predicted labels |
 
 Both sequences must have the same length and contain at least one element.
+
+<Note>
+For numeric labels `{0, 1}`, the evaluator automatically treats `1` as the positive class.
+</Note>
 
 ### Constructor Arguments
 
@@ -62,7 +66,9 @@ All scores have:
 - `direction` = `"maximize"` (higher is better)
 - `kind` = `"code"` (code-based evaluator)
 
-### Averaging Strategies
+### Averaging Strategies 
+
+For multi-class classification. 
 
 | Strategy | Description |
 |----------|-------------|
@@ -127,116 +133,6 @@ for score in scores:
 # recall: 0.667     (2 TP / 3 actual spam)
 # f1: 0.667
 ```
-
-### Using Different Beta Values
-
-Adjust beta to weight precision vs recall differently:
-
-```python
-from phoenix.evals.metrics import PrecisionRecallFScore
-
-# F0.5 - weights precision higher than recall
-precision_focused = PrecisionRecallFScore(beta=0.5)
-
-# F2 - weights recall higher than precision
-recall_focused = PrecisionRecallFScore(beta=2.0)
-
-eval_input = {
-    "expected": ["positive", "negative", "positive", "positive"],
-    "output": ["positive", "positive", "negative", "positive"]
-}
-
-# Compare F-scores
-scores_f05 = precision_focused.evaluate(eval_input)
-scores_f2 = recall_focused.evaluate(eval_input)
-
-print(f"F0.5: {scores_f05[2].score:.3f}")  # Favors precision
-print(f"F2: {scores_f2[2].score:.3f}")      # Favors recall
-```
-
-### Micro and Weighted Averaging
-
-```python
-from phoenix.evals.metrics import PrecisionRecallFScore
-
-# Micro averaging - treats all instances equally
-micro_evaluator = PrecisionRecallFScore(average="micro")
-
-# Weighted averaging - weights by class support
-weighted_evaluator = PrecisionRecallFScore(average="weighted")
-
-eval_input = {
-    "expected": ["A", "A", "A", "B", "C"],  # A appears 3 times
-    "output": ["A", "A", "B", "B", "C"]
-}
-
-# Micro averaging
-micro_scores = micro_evaluator.evaluate(eval_input)
-print(f"Precision (micro): {micro_scores[0].score:.3f}")
-# Note: metric names include suffix for non-default averaging
-# e.g., "precision_micro", "recall_micro", "f1_micro"
-
-# Weighted averaging
-weighted_scores = weighted_evaluator.evaluate(eval_input)
-print(f"Precision (weighted): {weighted_scores[0].score:.3f}")
-```
-
-### Automatic Binary Detection
-
-For numeric labels {0, 1}, the evaluator automatically treats 1 as the positive class:
-
-```python
-from phoenix.evals.metrics import PrecisionRecallFScore
-
-evaluator = PrecisionRecallFScore()
-
-eval_input = {
-    "expected": [1, 0, 1, 0, 1],
-    "output": [1, 1, 0, 0, 1]
-}
-
-scores = evaluator.evaluate(eval_input)
-# Automatically uses 1 as positive label
-```
-
-### Using Input Mapping
-
-When your data has different field names:
-
-```python
-from phoenix.evals.metrics import PrecisionRecallFScore
-
-evaluator = PrecisionRecallFScore()
-
-eval_input = {
-    "ground_truth": ["cat", "dog", "cat"],
-    "predictions": ["cat", "cat", "cat"]
-}
-
-input_mapping = {
-    "expected": "ground_truth",
-    "output": "predictions"
-}
-
-scores = evaluator.evaluate(eval_input, input_mapping)
-```
-
-For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
-
-## Score Naming Convention
-
-The evaluator uses a consistent naming convention:
-
-| Configuration | Precision | Recall | F-Score |
-|--------------|-----------|--------|---------|
-| Default (beta=1.0, macro) | `precision` | `recall` | `f1` |
-| beta=0.5, macro | `precision` | `recall` | `f0_5` |
-| beta=2.0, micro | `precision_micro` | `recall_micro` | `f2_micro` |
-| beta=1.0, weighted | `precision_weighted` | `recall_weighted` | `f1_weighted` |
-
-## Configuration
-
-This is a code-based evaluator that requires no LLM configuration.
 
 ## Using with Phoenix
 
