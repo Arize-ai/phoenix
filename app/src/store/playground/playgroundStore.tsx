@@ -959,6 +959,29 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }
       );
     },
+    setAvailablePaths: ({
+      availablePaths,
+      datasetId,
+    }: {
+      availablePaths: string[];
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              availablePaths,
+            },
+          },
+        },
+        false,
+        {
+          type: "setAvailablePaths",
+        }
+      );
+    },
     updateInstanceModelInvocationParameters: ({
       instanceId,
       invocationParameters,
@@ -1454,7 +1477,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   return create(
     persist(devtools(playgroundStore, { name: "playgroundStore" }), {
       name: "arize-phoenix-playground",
-      partialize: (state) => state.stateByDatasetId,
+      partialize: (state) => {
+        // Exclude availablePaths from persistence - it's computed at runtime
+        const filteredState: typeof state.stateByDatasetId = {};
+        for (const [datasetId, datasetState] of Object.entries(
+          state.stateByDatasetId
+        )) {
+          const { availablePaths: _, ...rest } = datasetState;
+          filteredState[datasetId] = rest;
+        }
+        return filteredState;
+      },
       merge: (persistedState, currentState) => {
         try {
           const parsedPersistedState =
