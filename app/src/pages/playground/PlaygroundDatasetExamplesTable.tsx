@@ -1284,6 +1284,9 @@ export function PlaygroundDatasetExamplesTable({
         MAX_EXAMPLES_FOR_PATH_EXTRACTION
       );
       setAvailablePaths({ availablePaths: paths, datasetId });
+    } else {
+      // Clear paths when dataset becomes empty to avoid stale autocomplete suggestions
+      setAvailablePaths({ availablePaths: [], datasetId });
     }
   }, [tableData, datasetId, templateVariablesPath, setAvailablePaths]);
 
