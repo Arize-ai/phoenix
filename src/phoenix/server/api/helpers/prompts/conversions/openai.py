@@ -29,10 +29,6 @@ class OpenAIToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
         ],
     ) -> ChatCompletionToolChoiceOptionParam:
-        from phoenix.server.api.helpers.prompts.models import (
-            PromptToolChoiceSpecificFunctionTool,
-        )
-
         if obj.type == "none":
             return "none"
         if obj.type == "zero_or_more":
@@ -82,4 +78,4 @@ class OpenAIToolChoiceConversion:
                 )
                 return choice_function_tool
             raise ValueError(f"Unsupported OpenAI tool choice type: {obj['type']}")
-        raise ValueError(f"Unsupported OpenAI tool choice: {obj}")
+        assert_never(obj)
