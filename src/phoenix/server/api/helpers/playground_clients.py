@@ -32,6 +32,7 @@ from openinference.semconv.trace import (
     OpenInferenceLLMSystemValues,
     SpanAttributes,
 )
+from opentelemetry.trace import Tracer
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry import UNSET
@@ -237,6 +238,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # a yield statement is needed to satisfy the type-checker
@@ -374,6 +376,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -682,6 +685,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
@@ -1241,6 +1245,7 @@ class AzureOpenAIReasoningNonStreamingClient(
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -1416,6 +1421,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
@@ -1668,6 +1674,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from google.genai import types
@@ -1814,6 +1821,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
@@ -1841,7 +1849,9 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
                 "thinking_level": thinking_level.upper(),
             }
 
-        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+        async for chunk in super().chat_completion_create(
+            messages, tools, tracer=tracer, **invocation_parameters
+        ):
             yield chunk
 
 
