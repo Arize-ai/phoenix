@@ -499,7 +499,7 @@ function ExampleOutputContent({
             {content != null ? (
               <DynamicContent value={content} key="content" />
             ) : null}
-            {toolCalls != null ? (
+            {toolCalls != null && Object.keys(toolCalls).length > 0 ? (
               <DynamicContent value={toolCalls} key="tool-calls-wrap" />
             ) : null}
           </Flex>
