@@ -200,13 +200,16 @@ const createExampleResponsesForInstance = (
             span,
             content,
             errorMessage,
-            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-              (map, toolCall) => {
-                map[toolCall.id] = toolCall;
-                return map;
-              },
-              {}
-            ),
+            toolCalls:
+              toolCalls.length > 0
+                ? toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+                    (map, toolCall) => {
+                      map[toolCall.id] = toolCall;
+                      return map;
+                    },
+                    {}
+                  )
+                : undefined,
             evaluations: successfulEvaluations,
           },
         },
@@ -499,7 +502,7 @@ function ExampleOutputContent({
             {content != null ? (
               <DynamicContent value={content} key="content" />
             ) : null}
-            {toolCalls != null && Object.keys(toolCalls).length > 0 ? (
+            {toolCalls != null ? (
               <DynamicContent value={toolCalls} key="tool-calls-wrap" />
             ) : null}
           </Flex>
