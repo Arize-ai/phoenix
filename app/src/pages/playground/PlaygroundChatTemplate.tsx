@@ -1,4 +1,10 @@
-import { PropsWithChildren, useCallback, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -206,12 +212,22 @@ function MessageEditor({
   messageMode: MessageMode;
   availablePaths?: string[];
 }) {
+  // Track whether to show validation alerts - becomes true on first blur
+  // and stays true so errors remain visible until fixed
+  const [showValidation, setShowValidation] = useState(false);
+
+  // Reset validation state when switching to a different message or template format
+  useEffect(() => {
+    setShowValidation(false);
+  }, [message.id, templateFormat]);
+
   const onChange = useCallback(
     (val: string) => {
       updateMessage({ content: val });
     },
     [updateMessage]
   );
+  const onBlur = useCallback(() => setShowValidation(true), []);
   const sectionValidation = useMemo(() => {
     if (templateFormat !== TemplateFormats.Mustache) {
       return null;
@@ -273,9 +289,14 @@ function MessageEditor({
 
   return (
     <TemplateEditorWrap>
-      {sectionValidation?.errors.length ? (
+      {showValidation && sectionValidation?.errors.length ? (
         <Alert variant="danger" banner title="Invalid mustache sections">
           {sectionValidation.errors.join(", ")}
+        </Alert>
+      ) : null}
+      {showValidation && sectionValidation?.warnings.length ? (
+        <Alert variant="warning" banner title="Unclosed mustache sections">
+          {sectionValidation.warnings.join(", ")}
         </Alert>
       ) : null}
       <TemplateEditor
@@ -284,6 +305,7 @@ function MessageEditor({
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
+        onBlur={onBlur}
         availablePaths={availablePaths}
       />
     </TemplateEditorWrap>
