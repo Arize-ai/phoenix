@@ -56,10 +56,11 @@ export function detectMustacheSectionContext(text: string): string[] {
   const sectionStack: string[] = [];
 
   // Find all section opens and closes
-  // {{#varName}} or {{^varName}} opens a section
-  // {{/varName}} closes a section
-  const sectionOpenRegex = /\{\{[#^](\w+(?:\.\w+)*)\}\}/g;
-  const sectionCloseRegex = /\{\{\/(\w+(?:\.\w+)*)\}\}/g;
+  // {{#varName}} or {{^varName}} opens a section (with optional whitespace)
+  // {{/varName}} closes a section (with optional whitespace)
+  // Variable names can contain word characters and hyphens (e.g., my-items, user-data)
+  const sectionOpenRegex = /\{\{\s*[#^]\s*([\w-]+(?:\.[\w-]+)*)\s*\}\}/g;
+  const sectionCloseRegex = /\{\{\s*\/\s*([\w-]+(?:\.[\w-]+)*)\s*\}\}/g;
 
   // Track positions of opens and closes
   const events: Array<{
@@ -198,6 +199,11 @@ function templateVariableCompletions(
     return null;
   }
 
+  // No autocomplete when templating is disabled
+  if (templateFormat === TemplateFormats.NONE) {
+    return null;
+  }
+
   // Determine the template syntax based on format
   const isMustache = templateFormat === TemplateFormats.Mustache;
 
@@ -276,8 +282,12 @@ function templateVariableCompletions(
       );
 
       // If we found section-specific paths, use them; otherwise fall back to regular paths
-      if (sectionPaths.length > 0) {
-        contextualPaths = sectionPaths;
+      // Filter out bracket notation paths since Mustache doesn't support that syntax
+      const filteredSectionPaths = sectionPaths.filter(
+        (path) => !path.includes("[")
+      );
+      if (filteredSectionPaths.length > 0) {
+        contextualPaths = filteredSectionPaths;
         inSectionContext = true;
       } else {
         // Section variable doesn't match any known paths - fall back to regular paths
