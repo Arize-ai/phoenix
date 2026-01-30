@@ -6,7 +6,7 @@ users to specify a path to conversation messages within dataset examples that
 should be appended to prompt templates when running experiments.
 """
 
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
@@ -161,18 +161,13 @@ def extract_and_convert_example_messages(
     return messages
 
 
-class DatasetRevision(Protocol):
-    """Protocol for dataset revision objects that have input, output, and metadata."""
-
-    input: dict[str, Any]
-    output: Any
-    metadata_: dict[str, Any]
-
-
 def build_template_variables(
-    revision: DatasetRevision,
+    *,
+    input_data: dict[str, Any],
+    output_data: Any,
+    metadata: dict[str, Any],
     template_variables_path: Optional[str],
-) -> dict[str, Any]:
+) -> Any:
     """
     Build template variables for a dataset revision based on the configured path.
 
@@ -181,7 +176,9 @@ def build_template_variables(
     configuration.
 
     Args:
-        revision: Dataset revision with input, output, and metadata
+        input_data: The dataset example input dictionary
+        output_data: The dataset example expected output (reference)
+        metadata: The dataset example metadata dictionary
         template_variables_path: Dot-notation path to extract variables from context,
                                 or empty string/None to use the full context
 
@@ -194,9 +191,9 @@ def build_template_variables(
     """
     # Build the full context with input, reference (expected output), and metadata
     full_context: dict[str, Any] = {
-        "input": revision.input,
-        "reference": revision.output,
-        "metadata": revision.metadata_,
+        "input": input_data,
+        "reference": output_data,
+        "metadata": metadata,
     }
 
     # Resolve template variables based on the configured path

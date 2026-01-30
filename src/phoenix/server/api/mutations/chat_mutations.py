@@ -324,7 +324,10 @@ class ChatCompletionMutationMixin:
         for revision in revisions:
             try:
                 template_variables_by_revision[revision.id] = build_template_variables(
-                    revision, input.template_variables_path
+                    input_data=revision.input,
+                    output_data=revision.output,
+                    metadata=revision.metadata_,
+                    template_variables_path=input.template_variables_path,
                 )
             except (KeyError, TypeError, ValueError):
                 # If extraction fails, store empty dict; error will surface when formatting

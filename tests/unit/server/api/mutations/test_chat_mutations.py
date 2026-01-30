@@ -562,8 +562,7 @@ class TestChatCompletionMutationMixin:
                     {
                         "role": "SYSTEM",
                         "content": (
-                            "You are a helpful assistant. "
-                            "The expected answer is: {reference}"
+                            "You are a helpful assistant. The expected answer is: {reference}"
                         ),
                     },
                     {

@@ -700,7 +700,12 @@ async def _stream_chat_completion_over_dataset_example(
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         # Build template variables using shared helper
-        template_variables = build_template_variables(revision, input.template_variables_path)
+        template_variables = build_template_variables(
+            input_data=revision.input,
+            output_data=revision.output,
+            metadata=revision.metadata_,
+            template_variables_path=input.template_variables_path,
+        )
         messages = list(
             _formatted_messages(
                 messages=messages,
