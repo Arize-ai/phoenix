@@ -304,6 +304,170 @@ class TestCleanupChatCompletionResources:
             on_span_insertion=mock_on_span_insertion,
         )
 
+    async def test_not_started_generators_closed(self) -> None:
+        """
+        Verify not_started generators are explicitly closed during cleanup.
+
+        Generators in not_started have been created but never iterated. We should
+        still call aclose() on them rather than relying on GC, consistent with
+        our approach for in_progress generators.
+        """
+        tracker1 = AsyncGenTracker()
+        tracker2 = AsyncGenTracker()
+
+        # Create generators that would be queued but not yet started
+        mock_gen1 = create_tracked_async_gen(
+            chunks=[TextChunk(content="1"), TextChunk(content="1b")],
+            tracker=tracker1,
+            name="gen1",
+        )
+        mock_gen2 = create_tracked_async_gen(
+            chunks=[TextChunk(content="2"), TextChunk(content="2b")],
+            tracker=tracker2,
+            name="gen2",
+        )
+
+        # Start generators so finally blocks will execute on aclose
+        await mock_gen1.asend(None)
+        await mock_gen2.asend(None)
+
+        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
+        not_started: deque[tuple[int, ChatStream]] = deque(
+            [
+                (1, mock_gen1),
+                (2, mock_gen2),
+            ]
+        )
+        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+
+        mock_db = MagicMock()
+        mock_span_cost_calculator = MagicMock()
+        mock_on_span_insertion = MagicMock()
+
+        await _cleanup_chat_completion_resources(
+            in_progress=in_progress,
+            not_started=not_started,
+            results=results,
+            db=mock_db,
+            span_cost_calculator=mock_span_cost_calculator,
+            on_span_insertion=mock_on_span_insertion,
+        )
+
+        # Both not_started generators should be closed
+        assert tracker1.aclose_called
+        assert tracker2.aclose_called
+
+    async def test_not_started_aclose_errors_dont_prevent_other_cleanups(self) -> None:
+        """
+        Verify that an error in one not_started aclose() doesn't prevent
+        other not_started generators from being closed.
+        """
+        tracker1 = AsyncGenTracker()
+        tracker2 = AsyncGenTracker()
+
+        # Make gen1's aclose raise an error
+        mock_gen1 = create_tracked_async_gen(
+            chunks=[TextChunk(content="1")],
+            tracker=tracker1,
+            name="gen1",
+            aclose_error=Exception("aclose failed for not_started"),
+        )
+        mock_gen2 = create_tracked_async_gen(
+            chunks=[TextChunk(content="2")],
+            tracker=tracker2,
+            name="gen2",
+        )
+
+        # Start generators so finally blocks will execute
+        await mock_gen1.asend(None)
+        await mock_gen2.asend(None)
+
+        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
+        not_started: deque[tuple[int, ChatStream]] = deque(
+            [
+                (1, mock_gen1),
+                (2, mock_gen2),
+            ]
+        )
+        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+
+        mock_db = MagicMock()
+        mock_span_cost_calculator = MagicMock()
+        mock_on_span_insertion = MagicMock()
+
+        # Should not raise even though gen1's aclose fails
+        await _cleanup_chat_completion_resources(
+            in_progress=in_progress,
+            not_started=not_started,
+            results=results,
+            db=mock_db,
+            span_cost_calculator=mock_span_cost_calculator,
+            on_span_insertion=mock_on_span_insertion,
+        )
+
+        # Both generators should have had aclose called
+        assert tracker1.aclose_called
+        assert tracker2.aclose_called
+
+    async def test_mixed_in_progress_and_not_started_all_cleaned(self) -> None:
+        """
+        Verify both in_progress and not_started generators are cleaned up.
+        """
+        tracker_in_progress = AsyncGenTracker()
+        tracker_not_started = AsyncGenTracker()
+
+        # In-progress generator
+        mock_gen_in_progress = create_tracked_async_gen(
+            chunks=[TextChunk(content="in_progress")],
+            tracker=tracker_in_progress,
+            name="in_progress",
+        )
+
+        # Not-started generator
+        mock_gen_not_started = create_tracked_async_gen(
+            chunks=[TextChunk(content="not_started")],
+            tracker=tracker_not_started,
+            name="not_started",
+        )
+
+        # Start both generators so finally blocks will execute
+        await mock_gen_in_progress.asend(None)
+        await mock_gen_not_started.asend(None)
+
+        # Create a task for the in-progress generator
+        async def completed_task() -> ChatCompletionSubscriptionPayload:
+            return TextChunk(content="done")
+
+        task = asyncio.create_task(completed_task())
+        await task
+
+        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
+            (0, mock_gen_in_progress, task),
+        ]
+        not_started: deque[tuple[int, ChatStream]] = deque(
+            [
+                (1, mock_gen_not_started),
+            ]
+        )
+        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+
+        mock_db = MagicMock()
+        mock_span_cost_calculator = MagicMock()
+        mock_on_span_insertion = MagicMock()
+
+        await _cleanup_chat_completion_resources(
+            in_progress=in_progress,
+            not_started=not_started,
+            results=results,
+            db=mock_db,
+            span_cost_calculator=mock_span_cost_calculator,
+            on_span_insertion=mock_on_span_insertion,
+        )
+
+        # Both in_progress and not_started generators should be closed
+        assert tracker_in_progress.aclose_called
+        assert tracker_not_started.aclose_called
+
 
 @pytest.mark.asyncio
 class TestStreamingLlmSpanCancellation:

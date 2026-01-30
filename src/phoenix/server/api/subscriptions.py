@@ -310,7 +310,14 @@ async def _cleanup_chat_completion_resources(
             return_exceptions=True,
         )
 
-    # 4. Flush results queue to database (important for data integrity)
+    # 4. Close not-started generators (no tasks to cancel, just close directly)
+    if not_started:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 5. Flush results queue to database (important for data integrity)
     if not results.empty():
         remaining: list[tuple[Optional[models.Span], int]] = []
         while not results.empty():
@@ -384,7 +391,14 @@ async def _cleanup_chat_completion_over_dataset_resources(
             return_exceptions=True,
         )
 
-    # 4. Flush results queue to database (important for data integrity)
+    # 4. Close not-started generators (no tasks to cancel, just close directly)
+    if not_started:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 5. Flush results queue to database (important for data integrity)
     if not results.empty():
         remaining: list[ChatCompletionResult] = []
         while not results.empty():
