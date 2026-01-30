@@ -29,6 +29,10 @@ class OpenAIToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
         ],
     ) -> ChatCompletionToolChoiceOptionParam:
+        from phoenix.server.api.helpers.prompts.models import (
+            PromptToolChoiceSpecificFunctionTool,
+        )
+
         if obj.type == "none":
             return "none"
         if obj.type == "zero_or_more":
@@ -36,6 +40,7 @@ class OpenAIToolChoiceConversion:
         if obj.type == "one_or_more":
             return "required"
         if obj.type == "specific_function":
+            assert isinstance(obj, PromptToolChoiceSpecificFunctionTool)
             choice_tool: ChatCompletionNamedToolChoiceParam = {
                 "type": "function",
                 "function": {"name": obj.function_name},
@@ -68,11 +73,13 @@ class OpenAIToolChoiceConversion:
         if obj == "required":
             choice_one_or_more = PromptToolChoiceOneOrMore(type="one_or_more")
             return choice_one_or_more
-        if obj["type"] == "function":
-            function: Function = obj["function"]
-            choice_function_tool = PromptToolChoiceSpecificFunctionTool(
-                type="specific_function",
-                function_name=function["name"],
-            )
-            return choice_function_tool
-        assert_never(obj["type"])
+        if isinstance(obj, dict):
+            if obj["type"] == "function":
+                function: Function = obj["function"]
+                choice_function_tool = PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function",
+                    function_name=function["name"],
+                )
+                return choice_function_tool
+            raise ValueError(f"Unsupported OpenAI tool choice type: {obj['type']}")
+        raise ValueError(f"Unsupported OpenAI tool choice: {obj}")
