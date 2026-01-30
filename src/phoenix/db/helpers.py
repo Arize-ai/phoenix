@@ -34,10 +34,10 @@ class SupportedSQLDialect(Enum):
     POSTGRESQL = "postgresql"
 
     @classmethod
-    def _missing_(cls, value: object) -> Any:
-        if isinstance(value, str) and value and value.isascii() and not value.islower():
-            return cls(value.lower())
-        raise ValueError(f"`{value}` is not a supported SQL backend/dialect.")
+    def _missing_(cls, v: object) -> Any:
+        if isinstance(v, str) and v and v.isascii() and not v.islower():
+            return cls(v.lower())
+        raise ValueError(f"`{v}` is not a supported SQL backend/dialect.")
 
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
