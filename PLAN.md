@@ -73,4 +73,4 @@ The topology of the traces needs to change.
   - `PromptVersion` class (line 1956): Stores prompt versions
   - `LLMEvaluator` class (line 2258): LLM evaluator database model
 
-Ensure all unit tests pass.
+Break this plan into tasks and execute each in turn. Ensure all unit tests pass.
