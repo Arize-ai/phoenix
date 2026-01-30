@@ -27,8 +27,6 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 | Level | Supported | Notes |
 |-------|-----------|-------|
 | **Span** | Yes | Best for LLM spans that contain tool calls. Evaluate individual tool selection decisions. |
-| **Trace** | Yes | Evaluate tool selections across an entire agent trace. |
-| **Session** | Yes | Evaluate tool selection patterns across a conversation session. |
 
 **Relevant span kinds:** LLM spans with tool calls, particularly in agentic applications.
 
@@ -48,11 +46,33 @@ In TypeScript, the fields use camelCase: `availableTools` and `toolSelection`.
 
 ### Formatting Tips
 
-For best results:
+While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
 
-- **Provide clear tool descriptions** - Include what each tool does so the evaluator can assess if the selection is appropriate
-- **List all available tools** - The evaluator needs to know what alternatives existed
-- **Include the selected tool name** - Arguments are optional; the focus is on the selection itself
+**`input` (conversation context adapted from input `messages`):**
+```
+User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available
+```
+
+**`available_tools` (tool descriptions adapted by JSON schemas):**
+```
+book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.
+```
+<Note>
+Tool argument descriptions are optional; the focus is on the selection itself so tool names and descriptions are sufficient.
+</Note>
+
+**`tool_selection` (the LLM's tool selection adapted from `tool_calls` in the output):**
+```
+book_flight
+```
+<Note>
+If the LLM did not produce any tool calls, you can put "No tools called" as the `tool_selection` input. 
+</Note>
 
 ## Output Interpretation
 
@@ -95,15 +115,16 @@ The evaluator returns a `Score` object with the following properties:
     # Inspect the evaluator's requirements
     print(tool_selection_eval.describe())
 
-    # Evaluate a tool selection
+    # Evaluate a tool selection using human-readable format
     eval_input = {
-        "input": "User: What is the weather in San Francisco?",
-        "available_tools": """
-        WeatherTool: Get the current weather for a location.
-        NewsTool: Stay connected to global events with our up-to-date news.
-        MusicTool: Create playlists, search for music, and check music trends.
-        """,
-        "tool_selection": "WeatherTool"
+        "input": """User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available""",
+        "available_tools": """book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.""",
+        "tool_selection": "book_flight"
     }
 
     scores = tool_selection_eval.evaluate(eval_input)
@@ -122,15 +143,16 @@ The evaluator returns a `Score` object with the following properties:
       model: openai("gpt-4o"),
     });
 
-    // Evaluate a tool selection
+    // Evaluate a tool selection using human-readable format
     const result = await toolSelectionEvaluator.evaluate({
-      input: "User: What is the weather in San Francisco?",
-      availableTools: `
-        WeatherTool: Get the current weather for a location.
-        NewsTool: Stay connected to global events with our up-to-date news.
-        MusicTool: Create playlists, search for music, and check music trends.
-      `,
-      toolSelection: "WeatherTool",
+      input: `User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available`,
+      availableTools: `book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.`,
+      toolSelection: "book_flight",
     });
 
     console.log(result);
@@ -139,61 +161,6 @@ The evaluator returns a `Score` object with the following properties:
   </Tab>
 </Tabs>
 
-### Detecting Incorrect Tool Selection
-
-The evaluator can identify when the wrong tool is selected:
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    ```python
-    from phoenix.evals import LLM
-    from phoenix.evals.metrics import ToolSelectionEvaluator
-
-    llm = LLM(provider="openai", model="gpt-4o")
-    tool_selection_eval = ToolSelectionEvaluator(llm=llm)
-
-    # Example of incorrect tool selection
-    eval_input = {
-        "input": "User: What is the weather in San Francisco?",
-        "available_tools": """
-        WeatherTool: Get the current weather for a location.
-        NewsTool: Stay connected to global events with our up-to-date news.
-        MusicTool: Create playlists, search for music, and check music trends.
-        """,
-        "tool_selection": "MusicTool"  # Wrong tool for weather query
-    }
-
-    scores = tool_selection_eval.evaluate(eval_input)
-    print(scores[0].label)  # "incorrect"
-    print(scores[0].explanation)  # Explains why MusicTool was wrong
-    ```
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-    ```typescript
-    import { createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
-    import { openai } from "@ai-sdk/openai";
-
-    const toolSelectionEvaluator = createToolSelectionEvaluator({
-      model: openai("gpt-4o"),
-    });
-
-    // Example of incorrect tool selection
-    const result = await toolSelectionEvaluator.evaluate({
-      input: "User: What is the weather in San Francisco?",
-      availableTools: `
-        WeatherTool: Get the current weather for a location.
-        NewsTool: Stay connected to global events with our up-to-date news.
-        MusicTool: Create playlists, search for music, and check music trends.
-      `,
-      toolSelection: "MusicTool", // Wrong tool for weather query
-    });
-
-    console.log(result.label); // "incorrect"
-    console.log(result.explanation); // Explains why MusicTool was wrong
-    ```
-  </Tab>
-</Tabs>
 
 ### Using Input Mapping
 
@@ -209,13 +176,17 @@ When your data has different field names, use input mapping.
     tool_selection_eval = ToolSelectionEvaluator(llm=llm)
 
     eval_input = {
-        "user_query": "Search for flights to Paris",
-        "tools_available": "FlightSearch, HotelSearch, CarRental",
-        "selected_tool": "FlightSearch"
+        "conversation": """User: I want to search for flights to Paris
+Assistant: Sure, I can help with that. When are you planning to travel?
+User: Next weekend""",
+        "tools_available": """flight_search: Search for available flights by destination and date.
+hotel_search: Search for hotel accommodations.
+car_rental: Search for rental car options.""",
+        "selected_tool": "flight_search"
     }
 
     input_mapping = {
-        "input": "user_query",
+        "input": "conversation",
         "available_tools": "tools_available",
         "tool_selection": "selected_tool"
     }
@@ -237,16 +208,20 @@ When your data has different field names, use input mapping.
 
     const boundEvaluator = bindEvaluator(toolSelectionEvaluator, {
       inputMapping: {
-        input: "userQuery",
+        input: "conversation",
         availableTools: "toolsAvailable",
         toolSelection: "selectedTool",
       },
     });
 
     const result = await boundEvaluator.evaluate({
-      userQuery: "Search for flights to Paris",
-      toolsAvailable: "FlightSearch, HotelSearch, CarRental",
-      selectedTool: "FlightSearch",
+      conversation: `User: I want to search for flights to Paris
+Assistant: Sure, I can help with that. When are you planning to travel?
+User: Next weekend`,
+      toolsAvailable: `flight_search: Search for available flights by destination and date.
+hotel_search: Search for hotel accommodations.
+car_rental: Search for rental car options.`,
+      selectedTool: "flight_search",
     });
     ```
 

@@ -27,11 +27,9 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 
 | Level | Supported | Notes |
 |-------|-----------|-------|
-| **Span** | Yes | Best for LLM spans that contain tool calls. Evaluate individual tool-calling decisions. |
-| **Trace** | Yes | Evaluate tool invocations across an entire agent trace. |
-| **Session** | Yes | Evaluate tool invocation patterns across a conversation session. |
+| **Span** | Yes | For LLM spans that contain tool calls. Evaluate individual tool-calling decisions. |
 
-**Relevant span kinds:** LLM spans with tool calls, particularly in agentic applications.
+**Relevant span kinds:** Tool spans or LLM spans with tool calls, particularly in agentic applications.
 
 ## Input Requirements
 
@@ -49,11 +47,37 @@ In TypeScript, the fields use camelCase: `availableTools` and `toolSelection`.
 
 ### Formatting Tips
 
-For best results:
+While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**. 
 
+**`input` (conversation context adapted from input `messages`):**
+```
+User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available
+```
+
+**`available_tools` (tool descriptions adapted by JSON schemas):**
+```
+book_flight: Book a flight between two cities
+  - origin (required): Departure city code (e.g., "JFK", "LAX")
+  - destination (required): Arrival city code
+  - date (required): Flight date in YYYY-MM-DD format
+  - time_preference (optional): "morning", "afternoon", or "evening"
+
+search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format
+```
+
+**`tool_selection` (the LLM's tool invocation adapted from `tool_calls` in the output):**
+```
+book_flight(origin="JFK", destination="LAX", date="2024-01-15", time_preference="morning")
+```
+
+Additional tips:
 - **Include full conversation context** - The evaluator considers the entire conversation history to validate argument values
-- **Tool schemas can be JSON or human-readable** - Both formats are supported
-- **Multi-tool invocations are supported** - If the LLM calls multiple tools, include all invocations
+- **Multi-tool invocations are supported** - If the LLM calls multiple tools, include all invocations in the `tool_selection` field
 
 ## Output Interpretation
 
@@ -66,20 +90,6 @@ The evaluator returns a `Score` object with the following properties:
 | `explanation` | `string` | LLM-generated reasoning for the classification |
 | `direction` | `"maximize"` | Higher scores are better |
 | `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
-
-**Criteria for Correct (1.0):**
-- JSON is properly structured (if applicable)
-- All required fields/parameters are present
-- No hallucinated or nonexistent fields
-- Argument values match user intent from the conversation
-- No unsafe content (PII, sensitive data) in arguments
-
-**Criteria for Incorrect (0.0):**
-- Missing required fields/parameters
-- Hallucinated fields not in the schema
-- Malformed JSON
-- Incorrect or mismatched argument values
-- Unsafe content in arguments
 
 ## Usage Examples
 
@@ -98,25 +108,22 @@ The evaluator returns a `Score` object with the following properties:
     # Inspect the evaluator's requirements
     print(tool_invocation_eval.describe())
 
-    # Example with JSON schema format
+    # Evaluate a tool invocation using human-readable format
     eval_input = {
-        "input": "User: Book a flight from NYC to LA for tomorrow",
-        "available_tools": """
-        {
-            "name": "book_flight",
-            "description": "Book a flight between two cities",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "origin": {"type": "string", "description": "Departure city code"},
-                    "destination": {"type": "string", "description": "Arrival city code"},
-                    "date": {"type": "string", "description": "Flight date in YYYY-MM-DD"}
-                },
-                "required": ["origin", "destination", "date"]
-            }
-        }
-        """,
-        "tool_selection": 'book_flight(origin="NYC", destination="LA", date="2024-01-15")'
+        "input": """User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available""",
+        "available_tools": """book_flight: Book a flight between two cities
+  - origin (required): Departure city code (e.g., "JFK", "LAX")
+  - destination (required): Arrival city code
+  - date (required): Flight date in YYYY-MM-DD format
+  - time_preference (optional): "morning", "afternoon", or "evening"
+
+search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format""",
+        "tool_selection": 'book_flight(origin="JFK", destination="LAX", date="2024-01-15", time_preference="morning")'
     }
 
     scores = tool_invocation_eval.evaluate(eval_input)
@@ -135,80 +142,26 @@ The evaluator returns a `Score` object with the following properties:
       model: openai("gpt-4o"),
     });
 
-    // Evaluate with JSON schema format
+    // Evaluate a tool invocation using human-readable format
     const result = await toolInvocationEvaluator.evaluate({
-      input: "User: Book a flight from NYC to LA for tomorrow",
-      availableTools: JSON.stringify({
-        name: "book_flight",
-        description: "Book a flight between two cities",
-        parameters: {
-          type: "object",
-          properties: {
-            origin: { type: "string", description: "Departure city code" },
-            destination: { type: "string", description: "Arrival city code" },
-            date: { type: "string", description: "Flight date in YYYY-MM-DD" },
-          },
-          required: ["origin", "destination", "date"],
-        },
-      }),
-      toolSelection: 'book_flight(origin="NYC", destination="LA", date="2024-01-15")',
+      input: `User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available`,
+      availableTools: `book_flight: Book a flight between two cities
+  - origin (required): Departure city code (e.g., "JFK", "LAX")
+  - destination (required): Arrival city code
+  - date (required): Flight date in YYYY-MM-DD format
+  - time_preference (optional): "morning", "afternoon", or "evening"
+
+search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format`,
+      toolSelection: 'book_flight(origin="JFK", destination="LAX", date="2024-01-15", time_preference="morning")',
     });
 
     console.log(result);
     // { score: 1, label: "correct", explanation: "..." }
-    ```
-  </Tab>
-</Tabs>
-
-### Human-Readable Tool Schemas
-
-You can also use human-readable format for tool schemas:
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    ```python
-    from phoenix.evals import LLM
-    from phoenix.evals.metrics import ToolInvocationEvaluator
-
-    llm = LLM(provider="openai", model="gpt-4o")
-    tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
-
-    eval_input = {
-        "input": "User: What's the weather in San Francisco?",
-        "available_tools": """
-        WeatherTool:
-          Description: Get the current weather for a location
-          Parameters:
-            - location (required): The city name or coordinates
-            - units (optional): Temperature units (celsius or fahrenheit)
-        """,
-        "tool_selection": "WeatherTool(location='San Francisco', units='fahrenheit')"
-    }
-
-    scores = tool_invocation_eval.evaluate(eval_input)
-    ```
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-    ```typescript
-    import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
-    import { openai } from "@ai-sdk/openai";
-
-    const toolInvocationEvaluator = createToolInvocationEvaluator({
-      model: openai("gpt-4o"),
-    });
-
-    const result = await toolInvocationEvaluator.evaluate({
-      input: "User: What's the weather in San Francisco?",
-      availableTools: `
-        WeatherTool:
-          Description: Get the current weather for a location
-          Parameters:
-            - location (required): The city name or coordinates
-            - units (optional): Temperature units (celsius or fahrenheit)
-      `,
-      toolSelection: "WeatherTool(location='San Francisco', units='fahrenheit')",
-    });
     ```
   </Tab>
 </Tabs>
@@ -227,9 +180,14 @@ When your data has different field names, use input mapping.
     tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
 
     eval_input = {
-        "conversation": "User: Search for hotels in Paris",
-        "tools_schema": '{"name": "search_hotels", "parameters": {...}}',
-        "llm_tool_call": "search_hotels(city='Paris')"
+        "conversation": """User: Search for hotels in Paris
+Assistant: I can help you find hotels. What are your check-in and check-out dates?
+User: March 15th to March 20th""",
+        "tools_schema": """search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format""",
+        "llm_tool_call": 'search_hotels(city="Paris", check_in="2024-03-15", check_out="2024-03-20")'
     }
 
     input_mapping = {
@@ -262,9 +220,14 @@ When your data has different field names, use input mapping.
     });
 
     const result = await boundEvaluator.evaluate({
-      conversation: "User: Search for hotels in Paris",
-      toolsSchema: '{"name": "search_hotels", "parameters": {...}}',
-      llmToolCall: "search_hotels(city='Paris')",
+      conversation: `User: Search for hotels in Paris
+Assistant: I can help you find hotels. What are your check-in and check-out dates?
+User: March 15th to March 20th`,
+      toolsSchema: `search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format`,
+      llmToolCall: 'search_hotels(city="Paris", check_in="2024-03-15", check_out="2024-03-20")',
     });
     ```
 
