@@ -2,6 +2,7 @@ import { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts/ThemeContext";
+import { classNames } from "@phoenix/utils";
 
 import { Text } from "../content";
 import { CloseOutline, Icon } from "../icon";
@@ -10,6 +11,7 @@ import { SeverityLevel } from "../types";
 import { getSeverityIcon } from "./getSeverityIcon";
 
 export interface AlertProps {
+  className?: string;
   variant: SeverityLevel;
   children?: ReactNode;
   /**
@@ -140,6 +142,7 @@ export const Alert = ({
   onDismissClick,
   banner = false,
   extra,
+  className,
   ...otherProps
 }: AlertProps) => {
   const { theme } = useTheme();
@@ -151,6 +154,7 @@ export const Alert = ({
   return (
     <div
       {...otherProps}
+      className={classNames("ac-alert", className)}
       css={alertCSS}
       data-variant={variant}
       data-banner={banner}

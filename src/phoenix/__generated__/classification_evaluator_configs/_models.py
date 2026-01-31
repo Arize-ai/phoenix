@@ -1,6 +1,6 @@
 # This file is generated. Do not edit by hand.
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -16,3 +16,4 @@ class ClassificationEvaluatorConfig(BaseModel):
     optimization_direction: Literal["minimize", "maximize"]
     messages: list[PromptMessage]
     choices: dict[str, float]
+    formatters: Optional[dict[str, str]] = None  # placeholder -> formatter_name

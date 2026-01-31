@@ -178,23 +178,36 @@ class LLMEvaluator(BaseEvaluator):
     @property
     def input_schema(self) -> dict[str, Any]:
         formatter = get_template_formatter(self._template_format)
-        variables: set[str] = set()
+        section_vars: set[str] = set()
+        string_vars: set[str] = set()
 
         for msg in self._template.messages:
             if isinstance(msg.content, str):
-                variables.update(formatter.parse(msg.content))
+                parsed = formatter.parse_with_types(msg.content)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
             elif isinstance(msg.content, list):
                 for part in msg.content:
                     if isinstance(part, TextContentPart):
-                        variables.update(formatter.parse(part.text))
+                        parsed = formatter.parse_with_types(part.text)
+                        section_vars.update(parsed.section_variables())
+                        string_vars.update(parsed.string_variables())
             else:
                 assert_never(msg.content)
 
-        properties = {var: {"type": "string"} for var in variables}
+        # Section vars get empty schema (accepts any type), string vars get type: string
+        properties: dict[str, dict[str, Any]] = {}
+        for var in section_vars:
+            properties[var] = {}  # Empty schema accepts any JSON type
+        for var in string_vars:
+            if var not in section_vars:  # Section type takes precedence
+                properties[var] = {"type": "string"}
+
+        all_vars = section_vars | string_vars
         return {
             "type": "object",
             "properties": properties,
-            "required": list(variables),
+            "required": list(all_vars),
         }
 
     async def evaluate(
@@ -853,6 +866,9 @@ def apply_input_mapping(
     # apply path mappings
     if hasattr(input_mapping, "path_mapping"):
         for key, path_expr in input_mapping.path_mapping.items():
+            # Skip empty or non-string path expressions
+            if not path_expr or not isinstance(path_expr, str):
+                continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
             except Exception as e:
@@ -912,17 +928,30 @@ def infer_input_schema_from_template(
     template_format: PromptTemplateFormat,
 ) -> dict[str, Any]:
     formatter = get_template_formatter(template_format)
-    variables: set[str] = set()
+    section_vars: set[str] = set()
+    string_vars: set[str] = set()
+
     for msg in template.messages:
         content = msg.content
         for part in content:
             if isinstance(part.text, TextContentValueInput):
-                variables.update(formatter.parse(part.text.text))
+                parsed = formatter.parse_with_types(part.text.text)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
 
+    # Section vars get empty schema (accepts any type), string vars get type: string
+    properties: dict[str, dict[str, Any]] = {}
+    for var in section_vars:
+        properties[var] = {}  # Empty schema accepts any JSON type
+    for var in string_vars:
+        if var not in section_vars:  # Section type takes precedence
+            properties[var] = {"type": "string"}
+
+    all_vars = section_vars | string_vars
     return {
         "type": "object",
-        "properties": {var: {} for var in variables},
-        "required": list(variables),
+        "properties": properties,
+        "required": list(all_vars),
     }
 
 

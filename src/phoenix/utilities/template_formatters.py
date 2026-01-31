@@ -1,12 +1,41 @@
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from string import Formatter
-from typing import Any
+from typing import Any, Literal, cast
 
+import pystache
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
+
+@dataclass(frozen=True)
+class ParsedVariable:
+    """Represents a parsed template variable with type information."""
+
+    name: str
+    variable_type: Literal["string", "section"]
+
+
+@dataclass
+class ParsedVariables:
+    """Container for parsed variables with helper methods."""
+
+    variables: frozenset[ParsedVariable]
+
+    def names(self) -> set[str]:
+        """Return just the variable names (for backward compatibility)."""
+        return {v.name for v in self.variables}
+
+    def section_variables(self) -> set[str]:
+        """Return names of variables expecting structured data."""
+        return {v.name for v in self.variables if v.variable_type == "section"}
+
+    def string_variables(self) -> set[str]:
+        """Return names of variables expecting string data."""
+        return {v.name for v in self.variables if v.variable_type == "string"}
 
 
 class TemplateFormatter(ABC):
@@ -16,6 +45,18 @@ class TemplateFormatter(ABC):
         Parse the template and return a set of variable names.
         """
         raise NotImplementedError
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Parse the template and return variables with type information.
+
+        Default implementation treats all variables as string type.
+        Subclasses can override for richer type information.
+        """
+        names = self.parse(template)
+        return ParsedVariables(
+            variables=frozenset(ParsedVariable(name=name, variable_type="string") for name in names)
+        )
 
     def format(self, template: str, **variables: Any) -> str:
         """
@@ -71,7 +112,13 @@ class FStringTemplateFormatter(TemplateFormatter):
 
 class MustacheTemplateFormatter(TemplateFormatter):
     """
-    Mustache template formatter.
+    Mustache template formatter using pystache.
+
+    Supports full Mustache syntax including sections ({{#list}}...{{/list}}),
+    inverted sections ({{^field}}...{{/field}}), and nested properties.
+
+    Escaped sequences (\\{{ ... }}) are preserved and not replaced.
+    HTML escaping is disabled - values are rendered as-is.
 
     Examples:
 
@@ -80,24 +127,131 @@ class MustacheTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
+    # Pattern to find escaped mustache sequences (backslash before {{)
+    _ESCAPED_PATTERN = r"\\(\{\{)"
+    # Placeholder that won't appear in normal templates
+    _ESCAPED_PLACEHOLDER = "\x00ESCAPED_BRACE\x00"
+    # Pattern to extract all {{...}} sequences
+    _VARIABLE_PATTERN = r"\{\{\s*([^}]+?)\s*\}\}"
+
+    def __init__(self) -> None:
+        self._escape_regex = re.compile(self._ESCAPED_PATTERN)
+        self._variable_regex = re.compile(self._VARIABLE_PATTERN)
+        # Create renderer with no HTML escaping
+        self._renderer = pystache.Renderer(escape=lambda x: x)
+
+    @staticmethod
+    def _get_root_variable_name(variable_path: str) -> str:
+        """
+        Extract the root variable name from a dotted path.
+
+        Mustache uses dot notation to traverse nested properties (e.g., output.available_tools
+        means context["output"]["available_tools"]). For validation purposes, we only need
+        to check that the root variable exists.
+
+        Examples:
+            "output.available_tools" -> "output"
+            "user.name" -> "user"
+            "simple" -> "simple"
+        """
+        return variable_path.split(".")[0]
 
     def parse(self, template: str) -> set[str]:
-        return set(match for match in re.findall(self.PATTERN, template))
+        """
+        Extract top-level variable names from mustache template.
+
+        Only extracts variables at the top level, not those nested inside sections.
+        This ensures validation only checks for required top-level inputs.
+        Escaped sequences (\\{{) are ignored.
+
+        For dotted paths like {{output.available_tools}}, only the root variable
+        name (output) is extracted, since Mustache traverses nested properties
+        starting from the root.
+
+        This implementation uses regex with depth tracking to match the TypeScript
+        implementation in mustacheLikeTemplating.ts, avoiding private pystache APIs.
+        """
+        # Temporarily remove escaped sequences before parsing
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+
+        # Find all {{...}} patterns
+        matches = self._variable_regex.findall(clean_template)
+
+        variables: set[str] = set()
+        depth = 0
+
+        for variable in matches:
+            trimmed = variable.strip()
+            if not trimmed:
+                continue
+
+            # Section opener (# or ^) - only add variable if at top level
+            if trimmed.startswith("#") or trimmed.startswith("^"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    variables.add(self._get_root_variable_name(var_name))
+                depth += 1
+                continue
+
+            # Section closer (/)
+            if trimmed.startswith("/"):
+                depth = max(0, depth - 1)
+                continue
+
+            # Regular variable - only add if at top level
+            if depth == 0:
+                variables.add(self._get_root_variable_name(trimmed))
+
+        return variables
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Extract top-level variable names with type info from mustache template.
+
+        Section variables ({{#name}} or {{^name}}) are typed as "section".
+        Regular variables ({{name}}) are typed as "string".
+
+        For dotted paths like {{output.available_tools}}, only the root variable
+        name (output) is extracted, since Mustache traverses nested properties
+        starting from the root.
+        """
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+        matches = self._variable_regex.findall(clean_template)
+
+        variables: set[ParsedVariable] = set()
+        depth = 0
+
+        for variable in matches:
+            trimmed = variable.strip()
+            if not trimmed:
+                continue
+
+            if trimmed.startswith("#") or trimmed.startswith("^"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    root_name = self._get_root_variable_name(var_name)
+                    variables.add(ParsedVariable(name=root_name, variable_type="section"))
+                depth += 1
+                continue
+
+            if trimmed.startswith("/"):
+                depth = max(0, depth - 1)
+                continue
+
+            if depth == 0:
+                root_name = self._get_root_variable_name(trimmed)
+                variables.add(ParsedVariable(name=root_name, variable_type="string"))
+
+        return ParsedVariables(variables=frozenset(variables))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
-        for variable_name in variable_names:
-            replacement = str(variables[variable_name])
-            # Use a lambda instead of passing the replacement string directly. When re.sub
-            # receives a string as `repl`, it interprets backslash escape sequences like \u, \n,
-            # \1, etc. This causes errors when the replacement contains JSON with Unicode escapes
-            # (e.g., \u2019). A callable `repl` returns the string literally without processing.
-            template = re.sub(
-                pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=lambda _: replacement,
-                string=template,
-            )
-        return template
+        # Temporarily replace escaped sequences before rendering
+        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
+        # Render with pystache (no HTML escaping)
+        result = self._renderer.render(clean_template, variables)
+        # Restore escaped sequences (without the backslash, keeping the braces)
+        rendered = result.replace(self._ESCAPED_PLACEHOLDER, r"\{{")
+        return cast(str, rendered)
 
 
 class TemplateFormatterError(Exception):
