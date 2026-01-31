@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 def _get_formatters_path() -> Any:
     """Get the packaged formatters YAML resource."""
-    return resources.files(__package__).joinpath("formatters", "server.yaml")
+    # Chain joinpath calls for Python 3.10 compatibility (single argument only)
+    return resources.files(__package__).joinpath("formatters").joinpath("server.yaml")
 
 
 @lru_cache(maxsize=1)
