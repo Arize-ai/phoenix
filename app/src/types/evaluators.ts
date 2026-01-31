@@ -123,7 +123,7 @@ export type ContinuousEvaluatorAnnotationConfig = {
 /**
  * The kind of evaluator
  */
-export type EvaluatorKind = "LLM" | "CODE";
+export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
 /**
  * The source data for evaluator input mappings.

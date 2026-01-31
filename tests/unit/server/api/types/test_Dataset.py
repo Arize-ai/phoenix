@@ -966,7 +966,6 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
 
         # Create two evaluators
         evaluator_1 = models.LLMEvaluator(
-            id=1,
             name=Identifier("evaluator-1"),
             description="First evaluator",
             output_config=CategoricalAnnotationConfig(
@@ -982,7 +981,6 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             prompt_id=prompt.id,
         )
         evaluator_2 = models.LLMEvaluator(
-            id=2,
             name=Identifier("evaluator-2"),
             description="Second evaluator",
             output_config=CategoricalAnnotationConfig(

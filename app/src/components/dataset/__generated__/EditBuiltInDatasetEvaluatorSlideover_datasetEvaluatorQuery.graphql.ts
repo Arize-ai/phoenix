@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e771662faa59f9b0f6bb7866156401c5>>
+ * @generated SignedSource<<c61dc6ca1b65b46517bffd431436478a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type EvaluatorKind = "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;

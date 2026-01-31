@@ -318,6 +318,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  key: String!
   user: User
   outputConfig: BuiltInEvaluatorOutputConfig!
 }
@@ -1665,6 +1666,7 @@ input EvaluatorInputMappingInput {
 enum EvaluatorKind {
   LLM
   CODE
+  BUILTIN
 }
 
 input EvaluatorPreviewInput @oneOf {

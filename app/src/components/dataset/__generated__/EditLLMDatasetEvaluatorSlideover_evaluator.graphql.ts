@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2caab054257ef8ce2bddaba4a41a26ba>>
+ * @generated SignedSource<<8835b19a7d7c8abae335262ea0f81812>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {

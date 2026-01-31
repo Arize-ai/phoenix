@@ -32,7 +32,7 @@ export function DatasetEvaluatorActionMenu({
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
-  evaluatorKind: "LLM" | "CODE";
+  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
   isBuiltIn: boolean;
   updateConnectionIds?: string[];

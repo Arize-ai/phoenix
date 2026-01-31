@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, NamedTuple
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -12,7 +12,6 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptMessage,
@@ -939,22 +938,30 @@ async def assign_correctness_llm_evaluator_to_dataset(
 @pytest.fixture
 async def assign_exact_match_builtin_evaluator_to_dataset(
     db: DbSessionFactory,
+    synced_builtin_evaluators: None,
 ) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
     async def _assign_exact_match_builtin_evaluator_to_dataset(
         dataset_id: int,
     ) -> models.DatasetEvaluators:
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        dataset_evaluator = models.DatasetEvaluators(
-            dataset_id=dataset_id,
-            builtin_evaluator_id=exact_match_id,
-            name=Identifier(root="exact-match"),
-            input_mapping={},
-            project=models.Project(
-                name="exact-match-evaluator-project",
-                description="Project for builtin evaluator",
-            ),
-        )
         async with db() as session:
+            # Look up the builtin evaluator ID by key from the database
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None, "ExactMatch builtin evaluator not found in database"
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                evaluator_id=exact_match_id,
+                name=Identifier(root="exact-match"),
+                input_mapping={},
+                project=models.Project(
+                    name="exact-match-evaluator-project",
+                    description="Project for builtin evaluator",
+                ),
+            )
             session.add(dataset_evaluator)
         return dataset_evaluator
 

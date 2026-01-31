@@ -29,7 +29,7 @@ import { DeleteDatasetEvaluatorDialogMutation } from "./__generated__/DeleteData
 export type DeleteDatasetEvaluatorDialogProps = {
   datasetEvaluatorId: string;
   evaluatorName: string;
-  evaluatorKind: "LLM" | "CODE";
+  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
