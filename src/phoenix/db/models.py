@@ -2323,8 +2323,8 @@ class BuiltinEvaluator(Evaluator):
     Database reflection of the in-memory builtin evaluator registry.
 
     This table is synchronized on application startup to stay in sync
-    with the Python code definitions. The negative ID scheme is preserved
-    for backwards compatibility with existing dataset_evaluators references.
+    with the Python code definitions. IDs are auto-generated positive
+    integers by the database.
 
     Builtin evaluators are part of the polymorphic evaluator hierarchy,
     allowing unified queries and FK references from dataset_evaluators.

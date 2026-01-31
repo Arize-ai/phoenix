@@ -181,11 +181,11 @@ export const EvaluatorOutputPreview = () => {
   const helpTextByEvaluatorKind: Record<string, string> = {
     LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
     CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
-    BUILTIN:
-      "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
   };
   const helpText =
-    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.LLM;
+    helpTextByEvaluatorKind[evaluatorKind] ??
+    helpTextByEvaluatorKind.CODE ??
+    helpTextByEvaluatorKind.LLM;
   return (
     <>
       {isShowingPreview && (

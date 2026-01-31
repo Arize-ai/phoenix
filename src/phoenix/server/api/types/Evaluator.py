@@ -498,7 +498,7 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> EvaluatorKind:
-        return EvaluatorKind.CODE
+        return EvaluatorKind.BUILTIN
 
     @strawberry.field
     async def created_at(
