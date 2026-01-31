@@ -16,6 +16,11 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
         ? "--ac-global-color-orange-1000"
         : "--ac-global-color-orange-500";
       break;
+    case "prompt":
+      color = isDark
+        ? "--ac-global-color-orange-1100"
+        : "--ac-global-color-orange-400";
+      break;
     case "chain":
       color = isDark
         ? "--ac-global-color-blue-1000"
@@ -55,11 +60,6 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
       color = isDark
         ? "--ac-global-color-fuchsia-1200"
         : "--ac-global-color-fuchsia-500";
-      break;
-    case "prompt":
-      color = isDark
-        ? "--ac-global-color-orange-1100"
-        : "--ac-global-color-orange-400";
       break;
   }
   return `var(${color})`;

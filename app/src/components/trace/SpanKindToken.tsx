@@ -14,7 +14,7 @@ export function SpanKindToken(props: {
         color = "var(--ac-global-color-orange-500)";
         break;
       case "prompt":
-        color = "var(--ac-global-color-orange-300)";
+        color = "var(--ac-global-color-orange-400)";
         break;
       case "chain":
         color = "var(--ac-global-color-blue-500)";
