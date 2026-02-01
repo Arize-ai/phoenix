@@ -1,0 +1,52 @@
+---
+title: "MLflow"
+sidebarTitle: "Overview"
+description: MLflow is an open-source platform for managing the end-to-end machine learning lifecycle, including experiment tracking, model versioning, and deployment.
+---
+
+<Card title="MLflow" href="https://mlflow.org/" icon="globe" horizontal>
+  [](https://mlflow.org/)
+</Card>
+
+MLflow's GenAI evaluation framework now includes native support for Phoenix evaluators, allowing you to use Phoenix's battle-tested LLM evaluation metrics directly within your MLflow workflows.
+
+<Columns cols={2}>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/mlflow-phoenix-integration.png">
+    [**Using Phoenix Evaluators in MLflow**](/docs/phoenix/integrations/platforms/mlflow/phoenix-evaluators)
+  </Card>
+</Columns>
+
+## Why Use Phoenix Evaluators with MLflow?
+
+- **Unified Workflow**: Evaluate your models using Phoenix metrics while keeping all results in MLflow's experiment tracking
+- **Battle-Tested Metrics**: Access Phoenix's comprehensive suite of LLM evaluators including hallucination detection, relevance scoring, and toxicity checks
+- **Flexible Model Support**: Use OpenAI, Anthropic, or any LiteLLM-supported provider as the judge model
+- **Production Ready**: Metrics that have been validated across thousands of production LLM applications
+
+## Available Phoenix Evaluators
+
+| Evaluator | What it measures |
+|-----------|------------------|
+| `Hallucination` | Detects when outputs contain fabricated information |
+| `QACorrectness` | Measures answer accuracy against reference |
+| `Relevance` | Assesses if the response addresses the input |
+| `Toxicity` | Identifies harmful or inappropriate content |
+| `Summarization` | Evaluates summary quality and faithfulness |
+
+## Quick Start
+
+```python
+from mlflow.genai.scorers.phoenix import Hallucination, Relevance
+import mlflow
+
+# Use Phoenix evaluators in MLflow evaluation
+results = mlflow.genai.evaluate(
+    data=eval_dataset,
+    scorers=[
+        Hallucination(model="openai:/gpt-4o"),
+        Relevance(model="openai:/gpt-4o"),
+    ],
+)
+```
+
+See the [detailed guide](/docs/phoenix/integrations/platforms/mlflow/phoenix-evaluators) for complete examples and configuration options.

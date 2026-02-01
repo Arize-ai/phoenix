@@ -675,6 +675,13 @@
                       "docs/phoenix/integrations/platforms/prompt-flow",
                       "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
                     ]
+                  },
+                  {
+                    "group": "MLflow",
+                    "pages": [
+                      "docs/phoenix/integrations/platforms/mlflow",
+                      "docs/phoenix/integrations/platforms/mlflow/phoenix-evaluators"
+                    ]
                   }
                 ]
               },

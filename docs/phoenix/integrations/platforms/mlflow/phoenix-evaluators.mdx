@@ -1,0 +1,259 @@
+---
+title: "Phoenix Evaluators in MLflow"
+sidebarTitle: "Phoenix Evaluators"
+description: Use Phoenix's LLM evaluation metrics natively within MLflow's GenAI evaluation framework.
+---
+
+Starting with MLflow 3.9.0, Phoenix evaluators are available as first-class scorers in MLflow's GenAI evaluation framework. This integration was contributed by [Debu Sinha](https://github.com/debu-sinha) in [PR #19473](https://github.com/mlflow/mlflow/pull/19473).
+
+## Installation
+
+Install MLflow with the Phoenix integration:
+
+```bash
+pip install 'mlflow>=3.9.0' 'arize-phoenix-evals>=0.17.0'
+```
+
+## Available Evaluators
+
+Phoenix provides a comprehensive suite of LLM evaluators:
+
+| Evaluator | Description | Use Case |
+|-----------|-------------|----------|
+| `Hallucination` | Detects fabricated or unsupported information in outputs | RAG systems, chatbots |
+| `QACorrectness` | Measures answer accuracy against a reference | Question answering |
+| `Relevance` | Assesses if the response addresses the query | Search, retrieval |
+| `Toxicity` | Identifies harmful or inappropriate content | Content moderation |
+| `Summarization` | Evaluates summary quality and faithfulness | Document summarization |
+
+## Basic Usage
+
+### Direct Scorer Calls
+
+You can call Phoenix scorers directly to evaluate individual outputs:
+
+```python
+from mlflow.genai.scorers.phoenix import Hallucination
+
+scorer = Hallucination(model="openai:/gpt-4o")
+
+feedback = scorer(
+    inputs="What is the capital of France?",
+    outputs="The capital of France is Paris, which has been the capital since 987 AD.",
+    expectations={"context": "Paris is the capital and largest city of France."},
+)
+
+print(feedback.value)  # "factual" or "hallucinated"
+print(feedback.rationale)  # Explanation from the judge
+```
+
+### Batch Evaluation with mlflow.genai.evaluate
+
+For evaluating entire datasets, use `mlflow.genai.evaluate`:
+
+```python
+import mlflow
+from mlflow.genai.scorers.phoenix import Hallucination, Relevance, QACorrectness
+
+# Prepare your evaluation dataset
+eval_dataset = [
+    {
+        "inputs": {"question": "What is MLflow?"},
+        "outputs": "MLflow is an open-source platform for ML lifecycle management.",
+        "expectations": {
+            "context": "MLflow is an open-source platform for managing the end-to-end machine learning lifecycle."
+        },
+    },
+    {
+        "inputs": {"question": "What is Phoenix?"},
+        "outputs": "Phoenix is an AI observability platform by Arize.",
+        "expectations": {
+            "context": "Phoenix is an open-source AI observability platform for experimentation, evaluation, and troubleshooting."
+        },
+    },
+]
+
+# Run evaluation with Phoenix scorers
+results = mlflow.genai.evaluate(
+    data=eval_dataset,
+    scorers=[
+        Hallucination(model="openai:/gpt-4o"),
+        Relevance(model="openai:/gpt-4o"),
+        QACorrectness(model="openai:/gpt-4o"),
+    ],
+)
+
+# View results in MLflow UI
+print(results.tables["eval_results"])
+```
+
+## Model Configuration
+
+Phoenix scorers support multiple LLM providers through the `model` parameter:
+
+### OpenAI
+
+```python
+from mlflow.genai.scorers.phoenix import Hallucination
+
+scorer = Hallucination(model="openai:/gpt-4o")
+```
+
+### Anthropic
+
+```python
+scorer = Hallucination(model="anthropic:/claude-3-5-sonnet")
+```
+
+### Azure OpenAI
+
+```python
+scorer = Hallucination(model="azure:/my-deployment-name")
+```
+
+### Any LiteLLM Provider
+
+```python
+# Bedrock
+scorer = Hallucination(model="bedrock:/anthropic.claude-3-sonnet")
+
+# Google Vertex
+scorer = Hallucination(model="vertex_ai:/gemini-pro")
+```
+
+## Configuration Options
+
+Each Phoenix scorer accepts additional configuration through keyword arguments that are passed to the underlying Phoenix evaluator:
+
+```python
+from mlflow.genai.scorers.phoenix import Hallucination
+
+scorer = Hallucination(
+    model="openai:/gpt-4o",
+    # Additional kwargs passed to Phoenix HallucinationEvaluator
+)
+```
+
+Refer to the [Phoenix Evals documentation](https://docs.arize.com/phoenix/evaluation/how-to-evals) for evaluator-specific parameters.
+
+## Using with MLflow Tracing
+
+Phoenix scorers integrate seamlessly with MLflow's tracing infrastructure. When you have traced LLM calls, you can evaluate them:
+
+```python
+import mlflow
+from mlflow.genai.scorers.phoenix import Relevance
+
+# Enable MLflow tracing
+mlflow.openai.autolog()
+
+# Your traced LLM application
+@mlflow.trace
+def my_rag_app(question: str) -> str:
+    # Your RAG logic here
+    return response
+
+# Evaluate traced outputs
+scorer = Relevance(model="openai:/gpt-4o")
+feedback = scorer(
+    inputs=question,
+    outputs=response,
+    trace=mlflow.get_current_active_span(),
+)
+```
+
+## Dynamic Scorer Creation
+
+Use `get_scorer` to create scorers dynamically by name:
+
+```python
+from mlflow.genai.scorers.phoenix import get_scorer
+
+# Create scorer by name
+hallucination_scorer = get_scorer("Hallucination", model="openai:/gpt-4o")
+relevance_scorer = get_scorer("Relevance", model="openai:/gpt-4o")
+
+# Use in evaluation
+results = mlflow.genai.evaluate(
+    data=eval_dataset,
+    scorers=[hallucination_scorer, relevance_scorer],
+)
+```
+
+## Viewing Results
+
+After running evaluation, results are automatically logged to MLflow:
+
+1. **MLflow UI**: Navigate to your experiment to see evaluation metrics and individual feedback
+2. **Programmatic Access**: Use `results.tables["eval_results"]` to access the DataFrame
+3. **Metrics Summary**: Use `results.metrics` for aggregate statistics
+
+```python
+# Access detailed results
+df = results.tables["eval_results"]
+print(df[["inputs", "outputs", "Hallucination", "Relevance"]])
+
+# Access aggregate metrics
+print(results.metrics)
+```
+
+## Best Practices
+
+### 1. Choose the Right Evaluator
+
+| Goal | Recommended Evaluator |
+|------|----------------------|
+| Detect made-up facts | `Hallucination` |
+| Check answer accuracy | `QACorrectness` |
+| Verify query relevance | `Relevance` |
+| Content safety | `Toxicity` |
+| Summary quality | `Summarization` |
+
+### 2. Provide Context
+
+For evaluators like `Hallucination` and `QACorrectness`, always provide context in expectations:
+
+```python
+{
+    "expectations": {
+        "context": "The retrieved documents or ground truth...",
+        "expected_response": "The ideal answer (for QACorrectness)...",
+    }
+}
+```
+
+### 3. Use Appropriate Judge Models
+
+- **GPT-4o** or **Claude 3.5 Sonnet**: Best accuracy for complex evaluations
+- **GPT-4o-mini**: Good balance of cost and quality for simpler checks
+- **GPT-3.5-turbo**: Budget-friendly for high-volume, simpler evaluations
+
+## Troubleshooting
+
+### Missing Dependencies
+
+```
+ModuleNotFoundError: No module named 'phoenix.evals'
+```
+
+Install the Phoenix evals package:
+
+```bash
+pip install 'arize-phoenix-evals>=0.17.0'
+```
+
+### API Key Issues
+
+Ensure your API key is set for the chosen provider:
+
+```bash
+export OPENAI_API_KEY="your-key"
+# or
+export ANTHROPIC_API_KEY="your-key"
+```
+
+## Related Resources
+
+- [MLflow GenAI Evaluation Docs](https://mlflow.org/docs/latest/llms/llm-evaluate/index.html)
+- [Phoenix Evals Documentation](https://docs.arize.com/phoenix/evaluation/how-to-evals)
+- [MLflow PR #19473](https://github.com/mlflow/mlflow/pull/19473) - Original integration PR
