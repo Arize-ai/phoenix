@@ -12,7 +12,6 @@ from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
-    SpanAttributes,
 )
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
@@ -269,7 +268,7 @@ class LLMEvaluator(BaseEvaluator):
                 with tracer_.start_as_current_span(
                     f"Prompt: {self._prompt_name}",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "PROMPT",
+                        **oi.get_span_kind_attributes("prompt"),
                         **oi.get_input_attributes(template_variables),
                     },
                 ) as prompt_span:
