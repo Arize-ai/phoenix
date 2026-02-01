@@ -4,6 +4,7 @@ from typing import Awaitable, Callable
 
 from openinference.semconv.trace import (
     MessageAttributes,
+    OpenInferenceMimeTypeValues,
     SpanAttributes,
     ToolCallAttributes,
 )
@@ -973,12 +974,12 @@ class TestChatCompletionMutationMixin:
             assert raw_input_value is not None
             input_value = json.loads(raw_input_value)
             assert set(input_value.keys()) == {"input", "output", "reference"}
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
             output_value = json.loads(raw_output_value)
             assert set(output_value.keys()) == {"score", "label", "explanation"}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events
             assert llm_evaluator_span.status_code == "OK"
@@ -1006,11 +1007,11 @@ class TestChatCompletionMutationMixin:
                     "reference": {"country": "France"},
                 },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             # Output contains only the mapped template variables (input and output, not reference)
             assert set(output_value.keys()) == {"input", "output"}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Prompt span
@@ -1026,7 +1027,7 @@ class TestChatCompletionMutationMixin:
                 "input": "{'city': 'Paris'}",
                 "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "messages": [
                     {
@@ -1044,7 +1045,7 @@ class TestChatCompletionMutationMixin:
                     },
                 ]
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # llm span
@@ -1078,7 +1079,7 @@ class TestChatCompletionMutationMixin:
                 assert isinstance(attributes.pop(key), int)
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
             assert attributes.pop(URL_PATH) == "chat/completions"
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             output_value = json.loads(raw_output_value)
             messages = output_value.pop("messages")
@@ -1193,13 +1194,13 @@ class TestChatCompletionMutationMixin:
                     {"label": "incorrect", "score": 0.0},
                 ]
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "label": "incorrect",
                 "score": 0.0,
                 "explanation": None,
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in evaluator traces
@@ -1263,13 +1264,13 @@ class TestChatCompletionMutationMixin:
                 },
                 "reference": {"country": "France"},
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "label": "true",
                 "score": 1.0,
                 "explanation": "expected matches actual",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in input mapping span
@@ -1296,12 +1297,12 @@ class TestChatCompletionMutationMixin:
                     "reference": {"country": "France"},
                 },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "expected": "France",
                 "actual": "France",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in execution span
@@ -1317,9 +1318,9 @@ class TestChatCompletionMutationMixin:
                 "actual": "France",
                 "case_sensitive": True,
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"result": True}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in parse span
@@ -1329,10 +1330,10 @@ class TestChatCompletionMutationMixin:
             assert not builtin_parse_span.events
             attributes = dict(flatten(builtin_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
-            assert json.loads(attributes.pop(INPUT_VALUE)) == {"result": True}
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(INPUT_VALUE)) is True
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
     async def test_evaluator_over_dataset_not_run_when_task_errors(
@@ -1722,3 +1723,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+
+# mime type values
+JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value

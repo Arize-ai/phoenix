@@ -2198,12 +2198,12 @@ class TestChatCompletionOverDatasetSubscription:
             assert raw_input_value is not None
             input_value = json.loads(raw_input_value)
             assert set(input_value.keys()) == {"input", "output", "reference"}
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
             output_value = json.loads(raw_output_value)
             assert set(output_value.keys()) == {"score", "label", "explanation"}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events
             assert llm_evaluator_span.status_code == "OK"
@@ -2232,13 +2232,13 @@ class TestChatCompletionOverDatasetSubscription:
                     "reference": {"country": "France"},
                 },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {
                 "input": "{'city': 'Paris'}",
                 "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Prompt span
@@ -2254,7 +2254,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "input": "{'city': 'Paris'}",
                 "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {
                 "messages": [
@@ -2273,7 +2273,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                 ]
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # llm span
@@ -2307,7 +2307,7 @@ class TestChatCompletionOverDatasetSubscription:
             ]
             for key in token_count_attribute_keys:
                 assert isinstance(attributes.pop(key), int)
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             output_value = json.loads(raw_output_value)
             messages = output_value.pop("messages")
@@ -2422,10 +2422,10 @@ class TestChatCompletionOverDatasetSubscription:
                     {"label": "incorrect", "score": 0.0},
                 ]
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {"label": "incorrect", "score": 0.0, "explanation": None}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # built-in evaluator spans
@@ -2471,13 +2471,13 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "reference": {"country": "France"},
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "label": "true",
                 "score": 1.0,
                 "explanation": "expected matches actual",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in input mapping span
@@ -2504,12 +2504,12 @@ class TestChatCompletionOverDatasetSubscription:
                     "reference": {"country": "France"},
                 },
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
                 "expected": "France",
                 "actual": "France",
             }
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in execution span (ExactMatch)
@@ -2525,9 +2525,9 @@ class TestChatCompletionOverDatasetSubscription:
                 "actual": "France",
                 "case_sensitive": True,
             }
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"result": True}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
             # Built-in parse span (Parse Eval Result)
@@ -2537,10 +2537,10 @@ class TestChatCompletionOverDatasetSubscription:
             assert not builtin_parse_span.events
             attributes = dict(flatten(builtin_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
-            assert json.loads(attributes.pop(INPUT_VALUE)) == {"result": True}
-            assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
-            assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+            assert json.loads(attributes.pop(INPUT_VALUE)) is True
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
     async def test_evaluator_not_emitted_when_task_errors(
@@ -2762,3 +2762,6 @@ PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+
+# mime type values
+JSON = OpenInferenceMimeTypeValues.JSON.value

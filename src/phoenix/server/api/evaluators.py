@@ -10,7 +10,10 @@ from typing import Any, Callable, Optional, TypeAlias, TypeVar
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
-from openinference.semconv.trace import MessageAttributes, SpanAttributes
+from openinference.semconv.trace import (
+    MessageAttributes,
+    SpanAttributes,
+)
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from sqlalchemy import select
@@ -1135,25 +1138,24 @@ class ContainsEvaluator(BuiltInEvaluator):
                         found_or_not = "found" if matched else "not found"
                         explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
 
-                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes({"result": matched}),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1327,25 +1329,24 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 
                     explanation = f"expected {'matches' if matched else 'does not match'} actual"
 
-                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes({"result": matched}),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1533,14 +1534,18 @@ class RegexEvaluator(BuiltInEvaluator):
                             f"pattern {'matched' if matched else 'did not match'} ({match_type})"
                         )
 
-                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                    )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes({"result": matched}),
+                        **oi.get_input_attributes(
+                            json.dumps(matched), mime_type="application/json"
+                        ),
                     },
                 ) as parse_span:
                     if error:
@@ -1549,12 +1554,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1739,26 +1739,23 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
 
                     explanation = f"edit distance between expected and actual is {distance}"
 
-                    execution_span.set_attributes(oi.get_output_attributes({"result": distance}))
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(distance, mime_type="application/json")
+                    )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes({"result": distance}),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
                     },
                 ) as parse_span:
                     label = None
                     score = float(distance)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(distance, mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1950,14 +1947,16 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         error = f"Invalid JSON: {e}"
                         explanation = error
 
-                    execution_span.set_attributes(oi.get_output_attributes({"result": distance}))
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(distance, mime_type="application/json")
+                    )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes({"result": distance}),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
                     },
                 ) as parse_span:
                     label = None
@@ -1968,6 +1967,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                             {
                                 "label": label,
                                 "score": score,
+                                "explanation": explanation,
                             }
                         )
                     )
