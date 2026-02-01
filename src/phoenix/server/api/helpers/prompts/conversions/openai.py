@@ -29,6 +29,8 @@ class OpenAIToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
         ],
     ) -> ChatCompletionToolChoiceOptionParam:
+        from typing import cast
+
         if obj.type == "none":
             return "none"
         if obj.type == "zero_or_more":
@@ -36,9 +38,11 @@ class OpenAIToolChoiceConversion:
         if obj.type == "one_or_more":
             return "required"
         if obj.type == "specific_function":
+            # Type is narrowed to PromptToolChoiceSpecificFunctionTool here
+            obj_specific = cast(PromptToolChoiceSpecificFunctionTool, obj)
             choice_tool: ChatCompletionNamedToolChoiceParam = {
                 "type": "function",
-                "function": {"name": obj.function_name},
+                "function": {"name": obj_specific.function_name},
             }
             return choice_tool
         assert_never(obj)
@@ -75,4 +79,5 @@ class OpenAIToolChoiceConversion:
                 function_name=function["name"],
             )
             return choice_function_tool
-        assert_never(obj["type"])
+        # Handle unsupported tool choice types (allowed_tools, custom)
+        raise ValueError(f"Unsupported tool choice type: {obj['type']}")
