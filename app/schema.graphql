@@ -3600,6 +3600,7 @@ enum SpanKind {
   chain
   tool
   llm
+  prompt
   retriever
   embedding
   agent

@@ -66,6 +66,7 @@ class SpanKind(Enum):
     chain = "CHAIN"
     tool = "TOOL"
     llm = "LLM"
+    prompt = "PROMPT"
     retriever = "RETRIEVER"
     embedding = "EMBEDDING"
     agent = "AGENT"

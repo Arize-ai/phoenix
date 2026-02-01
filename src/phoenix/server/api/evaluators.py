@@ -10,7 +10,9 @@ from typing import Any, Callable, Optional, TypeAlias, TypeVar
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
-from openinference.semconv.trace import MessageAttributes, SpanAttributes
+from openinference.semconv.trace import (
+    MessageAttributes,
+)
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from sqlalchemy import select
@@ -152,6 +154,7 @@ class LLMEvaluator(BaseEvaluator):
         model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient[Any],
         output_config: CategoricalAnnotationConfig,
+        prompt_name: str,
     ):
         self._name = name
         self._description = description
@@ -162,6 +165,7 @@ class LLMEvaluator(BaseEvaluator):
         self._model_provider = model_provider
         self._llm_client = llm_client
         self._output_config = output_config
+        self._prompt_name = prompt_name
 
     @property
     def name(self) -> str:
@@ -218,7 +222,7 @@ class LLMEvaluator(BaseEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self._name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -230,33 +234,21 @@ class LLMEvaluator(BaseEvaluator):
             )
 
             try:
-                with (
-                    tracer_.start_as_current_span(
-                        "Apply template variables",
-                        attributes={
-                            SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",  # todo: use `get_openinference_span_kind_attributes` once the "TEMPLATE" type is added  # noqa: E501
-                            **_get_template_message_attributes(
-                                messages=_get_messages_from_template(self._template)
-                            ),
-                            **_get_template_path_mapping_attributes(
-                                path_mapping=input_mapping.path_mapping or {}
-                            ),
-                            **_get_template_literal_mapping_attributes(
-                                literal_mapping=input_mapping.literal_mapping or {}
-                            ),
-                            **_get_template_variables_attributes(variables=context),
-                            **oi.get_input_attributes(
-                                {
-                                    "variables": context,
-                                    "input_mapping": {
-                                        "path_mapping": input_mapping.path_mapping or {},
-                                        "literal_mapping": input_mapping.literal_mapping or {},
-                                    },
-                                }
-                            ),
-                        },
-                    ) as template_span
-                ):
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as input_mapping_span:
                     template_variables = apply_input_mapping(
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
@@ -270,6 +262,16 @@ class LLMEvaluator(BaseEvaluator):
                         template_variables=template_variables,
                         input_schema=self.input_schema,
                     )
+                    input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    f"Prompt: {self._prompt_name}",
+                    attributes={
+                        **oi.get_span_kind_attributes("prompt"),
+                        **oi.get_input_attributes(template_variables),
+                    },
+                ) as prompt_span:
                     template_formatter = get_template_formatter(self._template_format)
                     messages: list[
                         tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
@@ -295,10 +297,7 @@ class LLMEvaluator(BaseEvaluator):
                         oi.Message(role=role.value.lower(), content=content)
                         for role, content, _, _ in messages
                     ]
-                    template_span.set_attributes(
-                        _get_template_formatted_message_attributes(messages=formatted_messages)
-                    )
-                    template_span.set_attributes(
+                    prompt_span.set_attributes(
                         oi.get_output_attributes(
                             {
                                 "messages": [
@@ -308,7 +307,7 @@ class LLMEvaluator(BaseEvaluator):
                             }
                         )
                     )
-                    template_span.set_status(Status(StatusCode.OK))
+                    prompt_span.set_status(Status(StatusCode.OK))
 
                 denormalized_tools, denormalized_tool_choice = denormalize_tools(
                     self._tools, self._model_provider
@@ -375,7 +374,7 @@ class LLMEvaluator(BaseEvaluator):
                         llm_span.set_attributes(self._llm_client.attributes)
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -605,6 +604,11 @@ async def _get_llm_evaluators(
         if prompt_version is None:
             raise NotFound(f"Prompt version not found for LLM evaluator '{llm_evaluator_node_id}'")
 
+        # Get the prompt to access its name
+        prompt = await session.get(models.Prompt, prompt_id)
+        if prompt is None:
+            raise NotFound(f"Prompt not found for LLM evaluator '{llm_evaluator_node_id}'")
+
         # Create model input based on whether a custom provider is configured
         if prompt_version.custom_provider_id is not None:
             # Use custom provider - construct GlobalID for the provider
@@ -674,6 +678,7 @@ async def _get_llm_evaluators(
             model_provider=prompt_version.model_provider,
             llm_client=llm_client,
             output_config=llm_evaluator_orm.output_config,
+            prompt_name=prompt.name.root,
         )
 
     # Return in original input order, raising if any are missing
@@ -993,6 +998,7 @@ def create_llm_evaluator_from_inline(
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
         output_config=output_config,
+        prompt_name="preview-prompt",
     )
 
 
@@ -1054,7 +1060,7 @@ class ContainsEvaluator(BuiltInEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self.name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -1067,23 +1073,16 @@ class ContainsEvaluator(BuiltInEvaluator):
 
             try:
                 with tracer_.start_as_current_span(
-                    "Apply input mapping",
+                    "Input Mapping",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
-                        **_get_template_path_mapping_attributes(
-                            path_mapping=input_mapping.path_mapping or {}
-                        ),
-                        **_get_template_literal_mapping_attributes(
-                            literal_mapping=input_mapping.literal_mapping or {}
-                        ),
-                        **_get_template_variables_attributes(variables=context),
+                        **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "variables": context,
                                 "input_mapping": {
                                     "path_mapping": input_mapping.path_mapping or {},
                                     "literal_mapping": input_mapping.literal_mapping or {},
                                 },
+                                "template_variables": context,
                             }
                         ),
                     },
@@ -1101,7 +1100,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
                 words = [word.strip() for word in inputs.get("words", "").split(",")]
@@ -1110,7 +1109,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                 require_all = inputs.get("require_all", False)
 
                 with tracer_.start_as_current_span(
-                    f"Run {self.name}",
+                    self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -1139,36 +1138,23 @@ class ContainsEvaluator(BuiltInEvaluator):
                         explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
 
                     execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
+                            json.dumps(matched), mime_type="application/json"
                         ),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1275,7 +1261,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self.name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -1288,23 +1274,16 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 
             try:
                 with tracer_.start_as_current_span(
-                    "Apply input mapping",
+                    "Input Mapping",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
-                        **_get_template_path_mapping_attributes(
-                            path_mapping=input_mapping.path_mapping or {}
-                        ),
-                        **_get_template_literal_mapping_attributes(
-                            literal_mapping=input_mapping.literal_mapping or {}
-                        ),
-                        **_get_template_variables_attributes(variables=context),
+                        **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "variables": context,
                                 "input_mapping": {
                                     "path_mapping": input_mapping.path_mapping or {},
                                     "literal_mapping": input_mapping.literal_mapping or {},
                                 },
+                                "template_variables": context,
                             }
                         ),
                     },
@@ -1322,7 +1301,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected = inputs.get("expected", "")
@@ -1330,7 +1309,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 case_sensitive = inputs.get("case_sensitive", True)
 
                 with tracer_.start_as_current_span(
-                    f"Run {self.name}",
+                    self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -1350,36 +1329,23 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     explanation = f"expected {'matches' if matched else 'does not match'} actual"
 
                     execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
+                            json.dumps(matched), mime_type="application/json"
                         ),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1488,7 +1454,7 @@ class RegexEvaluator(BuiltInEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self.name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -1501,23 +1467,16 @@ class RegexEvaluator(BuiltInEvaluator):
 
             try:
                 with tracer_.start_as_current_span(
-                    "Apply input mapping",
+                    "Input Mapping",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
-                        **_get_template_path_mapping_attributes(
-                            path_mapping=input_mapping.path_mapping or {}
-                        ),
-                        **_get_template_literal_mapping_attributes(
-                            literal_mapping=input_mapping.literal_mapping or {}
-                        ),
-                        **_get_template_variables_attributes(variables=context),
+                        **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "variables": context,
                                 "input_mapping": {
                                     "path_mapping": input_mapping.path_mapping or {},
                                     "literal_mapping": input_mapping.literal_mapping or {},
                                 },
+                                "template_variables": context,
                             }
                         ),
                     },
@@ -1535,7 +1494,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
                 pattern = inputs.get("pattern", "")
@@ -1543,7 +1502,7 @@ class RegexEvaluator(BuiltInEvaluator):
                 full_match = inputs.get("full_match", False)
 
                 with tracer_.start_as_current_span(
-                    f"Run {self.name}",
+                    self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -1575,26 +1534,16 @@ class RegexEvaluator(BuiltInEvaluator):
                         )
 
                     execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "error": error,
-                                "explanation": explanation,
-                            }
+                            json.dumps(matched), mime_type="application/json"
                         ),
                     },
                 ) as parse_span:
@@ -1604,12 +1553,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1727,7 +1671,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self.name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -1740,23 +1684,16 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
 
             try:
                 with tracer_.start_as_current_span(
-                    "Apply input mapping",
+                    "Input Mapping",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
-                        **_get_template_path_mapping_attributes(
-                            path_mapping=input_mapping.path_mapping or {}
-                        ),
-                        **_get_template_literal_mapping_attributes(
-                            literal_mapping=input_mapping.literal_mapping or {}
-                        ),
-                        **_get_template_variables_attributes(variables=context),
+                        **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "variables": context,
                                 "input_mapping": {
                                     "path_mapping": input_mapping.path_mapping or {},
                                     "literal_mapping": input_mapping.literal_mapping or {},
                                 },
+                                "template_variables": context,
                             }
                         ),
                     },
@@ -1774,7 +1711,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected = inputs.get("expected", "")
@@ -1782,7 +1719,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 case_sensitive = inputs.get("case_sensitive", True)
 
                 with tracer_.start_as_current_span(
-                    f"Run {self.name}",
+                    self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -1802,37 +1739,22 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     explanation = f"edit distance between expected and actual is {distance}"
 
                     execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "distance": distance,
-                                "explanation": explanation,
-                            }
-                        )
+                        oi.get_output_attributes(distance, mime_type="application/json")
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "distance": distance,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
                     },
                 ) as parse_span:
                     label = None
                     score = float(distance)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "label": label,
-                                "score": score,
-                            }
-                        )
+                        oi.get_output_attributes(distance, mime_type="application/json")
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1956,7 +1878,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         tracer_ = tracer or NoOpTracer()
 
         with tracer_.start_as_current_span(
-            f"Evaluation: {self.name}",
+            f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
@@ -1968,23 +1890,16 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             )
             try:
                 with tracer_.start_as_current_span(
-                    "Apply input mapping",
+                    "Input Mapping",
                     attributes={
-                        SpanAttributes.OPENINFERENCE_SPAN_KIND: "TEMPLATE",
-                        **_get_template_path_mapping_attributes(
-                            path_mapping=input_mapping.path_mapping or {}
-                        ),
-                        **_get_template_literal_mapping_attributes(
-                            literal_mapping=input_mapping.literal_mapping or {}
-                        ),
-                        **_get_template_variables_attributes(variables=context),
+                        **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "variables": context,
                                 "input_mapping": {
                                     "path_mapping": input_mapping.path_mapping or {},
                                     "literal_mapping": input_mapping.literal_mapping or {},
                                 },
+                                "template_variables": context,
                             }
                         ),
                     },
@@ -2002,14 +1917,14 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected_str = inputs.get("expected", "")
                 actual_str = inputs.get("actual", "")
 
                 with tracer_.start_as_current_span(
-                    f"Run {self.name}",
+                    self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
@@ -2032,27 +1947,15 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         explanation = error
 
                     execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "distance": distance,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        )
+                        oi.get_output_attributes(distance, mime_type="application/json")
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
-                    "Parse eval result",
+                    "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "distance": distance,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes(distance, mime_type="application/json"),
                     },
                 ) as parse_span:
                     label = None
@@ -2063,6 +1966,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                             {
                                 "label": label,
                                 "score": score,
+                                "explanation": explanation,
                             }
                         )
                     )
