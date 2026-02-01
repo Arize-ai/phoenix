@@ -11,7 +11,7 @@ Starting with MLflow 3.9.0, Phoenix evaluators are available as first-class scor
 Install MLflow with the Phoenix integration:
 
 ```bash
-pip install 'mlflow>=3.9.0' 'arize-phoenix-evals>=0.17.0'
+pip install 'mlflow>=3.9.0' arize-phoenix-evals
 ```
 
 ## Available Evaluators
@@ -21,7 +21,7 @@ Phoenix provides a comprehensive suite of LLM evaluators:
 | Evaluator | Description | Use Case |
 |-----------|-------------|----------|
 | `Hallucination` | Detects fabricated or unsupported information in outputs | RAG systems, chatbots |
-| `QACorrectness` | Measures answer accuracy against a reference | Question answering |
+| `QA` | Measures answer accuracy against a reference | Question answering |
 | `Relevance` | Assesses if the response addresses the query | Search, retrieval |
 | `Toxicity` | Identifies harmful or inappropriate content | Content moderation |
 | `Summarization` | Evaluates summary quality and faithfulness | Document summarization |
@@ -43,8 +43,9 @@ feedback = scorer(
     expectations={"context": "Paris is the capital and largest city of France."},
 )
 
-print(feedback.value)  # "factual" or "hallucinated"
+print(feedback.value)  # "yes" (factual) or "no" (hallucinated)
 print(feedback.rationale)  # Explanation from the judge
+print(feedback.metadata)  # Contains score and label details
 ```
 
 ### Batch Evaluation with mlflow.genai.evaluate
@@ -53,7 +54,7 @@ For evaluating entire datasets, use `mlflow.genai.evaluate`:
 
 ```python
 import mlflow
-from mlflow.genai.scorers.phoenix import Hallucination, Relevance, QACorrectness
+from mlflow.genai.scorers.phoenix import Hallucination, Relevance, QA
 
 # Prepare your evaluation dataset
 eval_dataset = [
@@ -79,7 +80,7 @@ results = mlflow.genai.evaluate(
     scorers=[
         Hallucination(model="openai:/gpt-4o"),
         Relevance(model="openai:/gpt-4o"),
-        QACorrectness(model="openai:/gpt-4o"),
+        QA(model="openai:/gpt-4o"),
     ],
 )
 
@@ -204,20 +205,19 @@ print(results.metrics)
 | Goal | Recommended Evaluator |
 |------|----------------------|
 | Detect made-up facts | `Hallucination` |
-| Check answer accuracy | `QACorrectness` |
+| Check answer accuracy | `QA` |
 | Verify query relevance | `Relevance` |
 | Content safety | `Toxicity` |
 | Summary quality | `Summarization` |
 
 ### 2. Provide Context
 
-For evaluators like `Hallucination` and `QACorrectness`, always provide context in expectations:
+For evaluators like `Hallucination` and `QA`, provide context in expectations:
 
 ```python
 {
     "expectations": {
         "context": "The retrieved documents or ground truth...",
-        "expected_response": "The ideal answer (for QACorrectness)...",
     }
 }
 ```
@@ -239,7 +239,7 @@ ModuleNotFoundError: No module named 'phoenix.evals'
 Install the Phoenix evals package:
 
 ```bash
-pip install 'arize-phoenix-evals>=0.17.0'
+pip install arize-phoenix-evals
 ```
 
 ### API Key Issues

@@ -27,11 +27,11 @@ MLflow's GenAI evaluation framework now includes native support for Phoenix eval
 
 | Evaluator | What it measures |
 |-----------|------------------|
-| `Hallucination` | Detects when outputs contain fabricated information |
-| `QACorrectness` | Measures answer accuracy against reference |
-| `Relevance` | Assesses if the response addresses the input |
+| `Hallucination` | Detects when outputs contain fabricated information not in context |
+| `QA` | Evaluates question-answering correctness |
+| `Relevance` | Assesses if retrieved context is relevant to the query |
 | `Toxicity` | Identifies harmful or inappropriate content |
-| `Summarization` | Evaluates summary quality and faithfulness |
+| `Summarization` | Evaluates summary quality and faithfulness to source |
 
 ## Quick Start
 
