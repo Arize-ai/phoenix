@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.1...arize-phoenix-v12.34.0) (2026-02-01)
+
+
+### Features
+
+* **evals:** add missing tool_selection evaluator to both libraries ([#11167](https://github.com/Arize-ai/phoenix/issues/11167)) ([d6d1953](https://github.com/Arize-ai/phoenix/commit/d6d19530e319e215695e418c99e706d2c270dc4a))
+
 ## [12.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.0...arize-phoenix-v12.33.1) (2026-01-30)
 
 
