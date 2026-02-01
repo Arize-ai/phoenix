@@ -144,6 +144,15 @@
                 "group": "Evaluation",
                 "icon": "clipboard-check",
                 "pages": [
+                  {
+                    "group": "Tutorial",
+                    "pages": [
+                      "docs/phoenix/evaluation/tutorials/configure-your-llm",
+                      "docs/phoenix/evaluation/tutorials/use-pre-build-eval-template", 
+                      "docs/phoenix/evaluation/tutorials/use-custom-eval-template", 
+                      "docs/phoenix/evaluation/tutorials/run-your-evals"
+                    ]
+                  },
                   "docs/phoenix/evaluation/typescript-quickstart",
                   "docs/phoenix/evaluation/python-quickstart",
                   {
@@ -1218,8 +1227,7 @@
               }
             ]
           }
-        ]
-    ,
+        ],
     "global": {
       "anchors": []
     }
