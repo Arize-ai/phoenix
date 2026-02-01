@@ -2,6 +2,45 @@
 title: "Q&A on Retrieved Data"
 ---
 
+<Warning>
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and is not available as a built-in metric in evals 2.0. You can still use these templates with older versions of the library (see [API Reference](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/)), or migrate them to custom evaluators as shown below.
+</Warning>
+
+<Accordion title="Using this template with evals 2.0">
+You can use the legacy template with a custom `ClassificationEvaluator`:
+
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+QA_TEMPLATE = """You are given a question, an answer and reference text. You must determine whether the
+given answer correctly answers the question based on the reference text. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {question}
+    ************
+    [Reference]: {context}
+    ************
+    [Answer]: {sampled_answer}
+    [END DATA]
+"correct" means that the question is correctly and fully answered by the answer.
+"incorrect" means that the question is not correctly or only partially answered by the answer."""
+
+qa_evaluator = ClassificationEvaluator(
+    name="qa_correctness",
+    prompt_template=QA_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices={"incorrect": 0, "correct": 1},
+)
+
+result = qa_evaluator.evaluate({
+    "question": "What is the capital of France?",
+    "context": "Paris is the capital and largest city of France.",
+    "sampled_answer": "The capital of France is Paris."
+})
+```
+</Accordion>
+
 ## When To Use Q\&A Eval Template
 
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.

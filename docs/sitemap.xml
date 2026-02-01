@@ -356,88 +356,67 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals</loc>
-    <lastmod>2025-12-04T18:28:13.321Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-path-convergence</loc>
-    <lastmod>2025-12-04T18:28:13.322Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-planning</loc>
-    
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection</loc>
-    
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth</loc>
-    <lastmod>2025-12-12T01:23:03.108Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection</loc>
-    
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval</loc>
-    <lastmod>2025-12-04T18:28:13.323Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics</loc>
-    
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/faithfulness</loc>
-    <lastmod>2025-12-06T04:05:59.191Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data</loc>
-    <lastmod>2025-12-06T04:05:59.190Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals</loc>
-    <lastmod>2025-12-06T04:05:59.188Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance</loc>
-    <lastmod>2025-12-06T04:05:59.194Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval</loc>
-    <lastmod>2025-12-12T01:23:03.140Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval</loc>
-    <lastmod>2025-12-06T04:05:59.200Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval</loc>
-    <lastmod>2025-12-12T01:23:03.591Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection</loc>
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/toxicity</loc>
-    <lastmod>2025-12-06T04:05:59.199Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/running-pre-tested-evals/user-frustration</loc>
-    <lastmod>2025-12-06T04:05:59.197Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity</loc>
   </url>
 
   <url>

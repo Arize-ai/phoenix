@@ -1,0 +1,312 @@
+---
+title: "Document Relevance"
+description: "Evaluate whether retrieved documents are relevant to user queries"
+---
+
+## Overview
+
+The **Document Relevance** evaluator determines whether a retrieved document contains information relevant to answering a specific question. This is essential for evaluating RAG (Retrieval-Augmented Generation) systems where document quality directly impacts response quality.
+
+### When to Use
+
+Use the Document Relevance evaluator when you need to:
+
+- **Evaluate RAG retrieval quality** - Assess whether your retrieval system is returning useful documents
+- **Debug poor RAG responses** - Identify if issues stem from retrieval vs generation
+- **Compare retrieval strategies** - Test different embedding models, chunking strategies, or search algorithms
+- **Monitor retrieval in production** - Track document relevance over time
+
+<Info>
+This evaluator assesses individual document relevance to a query. For evaluating whether a response is faithful to its context, use the [Faithfulness evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) instead.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Best for retriever spans. Evaluate each retrieved document individually. |
+
+**Relevant span kinds:** Retriever spans, embedding spans, or any span that retrieves documents from a knowledge base.
+
+## Input Requirements
+
+The Document Relevance evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user's query or question |
+| `document_text` | `string` | The document text to evaluate for relevance |
+
+<Note>
+In TypeScript, the field is named `documentText` (camelCase) instead of `document_text` (snake_case).
+</Note>
+
+### Formatting Tips
+
+For best results:
+
+- **Evaluate one document at a time** - Run the evaluator separately for each retrieved document
+- **Use the full document chunk** - Include the complete text that was retrieved, not just snippets
+- **Include metadata if helpful** - Document titles or sources can provide useful context
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"relevant"` or `"unrelated"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = relevant, 0.0 = unrelated) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Relevant (1.0)**: The document contains information that can help answer the question
+- **Unrelated (0.0)**: The document does not contain relevant information for the question
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(relevance_eval.describe())
+
+    # Evaluate a single document
+    eval_input = {
+        "input": "What is the capital of France?",
+        "document_text": "Paris is the capital and largest city of France."
+    }
+
+    scores = relevance_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='document_relevance', score=1.0, label='relevant', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate a document
+    const result = await relevanceEvaluator.evaluate({
+      input: "What is the capital of France?",
+      documentText: "Paris is the capital and largest city of France.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "relevant", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Evaluating Multiple Documents
+
+To evaluate all documents returned by a retriever, iterate over each document:
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+
+    query = "What are the symptoms of COVID-19?"
+    retrieved_documents = [
+        "COVID-19 symptoms include fever, cough, and fatigue.",
+        "The history of coronaviruses dates back to the 1960s.",
+        "Treatment options for COVID-19 include antiviral medications."
+    ]
+
+    # Evaluate each document
+    for i, doc in enumerate(retrieved_documents):
+        scores = relevance_eval.evaluate({
+            "input": query,
+            "document_text": doc
+        })
+        print(f"Document {i+1}: {scores[0].label} ({scores[0].score})")
+
+    # Document 1: relevant (1.0)
+    # Document 2: unrelated (0.0)
+    # Document 3: unrelated (0.0)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const query = "What are the symptoms of COVID-19?";
+    const retrievedDocuments = [
+      "COVID-19 symptoms include fever, cough, and fatigue.",
+      "The history of coronaviruses dates back to the 1960s.",
+      "Treatment options for COVID-19 include antiviral medications.",
+    ];
+
+    // Evaluate each document
+    for (const [i, doc] of retrievedDocuments.entries()) {
+      const result = await relevanceEvaluator.evaluate({
+        input: query,
+        documentText: doc,
+      });
+      console.log(`Document ${i + 1}: ${result.label} (${result.score})`);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+
+    # Example with different field names
+    eval_input = {
+        "query": "What is machine learning?",
+        "chunk": "Machine learning is a subset of AI that enables systems to learn from data."
+    }
+
+    # Use input mapping to match expected field names
+    input_mapping = {
+        "input": "query",
+        "document_text": "chunk"
+    }
+
+    scores = relevance_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(relevanceEvaluator, {
+      inputMapping: {
+        input: "query",
+        documentText: "chunk",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      query: "What is machine learning?",
+      chunk: "Machine learning is a subset of AI that enables systems to learn from data.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = DocumentRelevanceEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="document_relevance",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"relevant": 1.0, "unrelated": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG, createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createDocumentRelevanceEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Document Relevance evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [DocumentRelevanceEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createDocumentRelevanceEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - For evaluating response faithfulness to context
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating overall correctness

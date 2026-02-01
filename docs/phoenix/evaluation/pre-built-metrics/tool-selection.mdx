@@ -1,0 +1,303 @@
+---
+title: "Tool Selection"
+description: "Evaluate whether LLMs select the correct tools for given tasks"
+---
+
+## Overview
+
+The **Tool Selection** evaluator determines whether an LLM selected the most appropriate tool (or tools) for a given task. This evaluator focuses on the *what* of tool calling - validating that the right tool was chosen - rather than whether the invocation arguments were correct.
+
+### When to Use
+
+Use the Tool Selection evaluator when you need to:
+
+- **Validate tool choice decisions** - Ensure the LLM picks the most appropriate tool for the task
+- **Detect hallucinated tools** - Identify when the LLM tries to use tools that don't exist
+- **Evaluate tool necessity** - Check if the LLM correctly determines when tools are (or aren't) needed
+- **Assess multi-tool selection** - Validate when the LLM needs to select multiple tools for complex tasks
+
+<Info>
+This evaluator validates tool selection correctness, not invocation correctness. For evaluating whether tool arguments are properly formatted, use the [Tool Invocation evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation) instead.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Best for LLM spans that contain tool calls. Evaluate individual tool selection decisions. |
+
+**Relevant span kinds:** LLM spans with tool calls, particularly in agentic applications.
+
+## Input Requirements
+
+The Tool Selection evaluator requires three inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The conversation context or user query |
+| `available_tools` | `string` | List of available tools and their descriptions |
+| `tool_selection` | `string` | The tool(s) selected by the LLM |
+
+<Note>
+In TypeScript, the fields use camelCase: `availableTools` and `toolSelection`.
+</Note>
+
+### Formatting Tips
+
+While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
+
+**`input` (conversation context adapted from input `messages`):**
+```
+User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available
+```
+
+**`available_tools` (tool descriptions adapted by JSON schemas):**
+```
+book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.
+```
+<Note>
+Tool argument descriptions are optional; the focus is on the selection itself so tool names and descriptions are sufficient.
+</Note>
+
+**`tool_selection` (the LLM's tool selection adapted from `tool_calls` in the output):**
+```
+book_flight
+```
+<Note>
+If the LLM did not produce any tool calls, you can put "No tools called" as the `tool_selection` input. 
+</Note>
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Criteria for Correct (1.0):**
+- The LLM chose the best available tool for the user query
+- The tool name exists in the available tools list
+- The tool selection is safe and appropriate
+- The correct number of tools were selected for the task
+
+**Criteria for Incorrect (0.0):**
+- The LLM used a hallucinated or nonexistent tool
+- The LLM selected a tool when none was needed
+- The LLM did not use a tool when one was required
+- The LLM chose a suboptimal or irrelevant tool
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolSelectionEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    tool_selection_eval = ToolSelectionEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(tool_selection_eval.describe())
+
+    # Evaluate a tool selection using human-readable format
+    eval_input = {
+        "input": """User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available""",
+        "available_tools": """book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.""",
+        "tool_selection": "book_flight"
+    }
+
+    scores = tool_selection_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='tool_selection', score=1.0, label='correct', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const toolSelectionEvaluator = createToolSelectionEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate a tool selection using human-readable format
+    const result = await toolSelectionEvaluator.evaluate({
+      input: `User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available`,
+      availableTools: `book_flight: Book a flight between two cities. Requires origin, destination, and date.
+search_hotels: Search for hotel accommodations by city and dates.
+get_weather: Get current weather conditions for a location.
+cancel_booking: Cancel an existing flight or hotel reservation.`,
+      toolSelection: "book_flight",
+    });
+
+    console.log(result);
+    // { score: 1, label: "correct", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+
+### Using Input Mapping
+
+When your data has different field names, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolSelectionEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    tool_selection_eval = ToolSelectionEvaluator(llm=llm)
+
+    eval_input = {
+        "conversation": """User: I want to search for flights to Paris
+Assistant: Sure, I can help with that. When are you planning to travel?
+User: Next weekend""",
+        "tools_available": """flight_search: Search for available flights by destination and date.
+hotel_search: Search for hotel accommodations.
+car_rental: Search for rental car options.""",
+        "selected_tool": "flight_search"
+    }
+
+    input_mapping = {
+        "input": "conversation",
+        "available_tools": "tools_available",
+        "tool_selection": "selected_tool"
+    }
+
+    scores = tool_selection_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const toolSelectionEvaluator = createToolSelectionEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const boundEvaluator = bindEvaluator(toolSelectionEvaluator, {
+      inputMapping: {
+        input: "conversation",
+        availableTools: "toolsAvailable",
+        toolSelection: "selectedTool",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      conversation: `User: I want to search for flights to Paris
+Assistant: Sure, I can help with that. When are you planning to travel?
+User: Next weekend`,
+      toolsAvailable: `flight_search: Search for available flights by destination and date.
+hotel_search: Search for hotel accommodations.
+car_rental: Search for rental car options.`,
+      selectedTool: "flight_search",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import ToolSelectionEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = ToolSelectionEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="tool_selection",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"correct": 1.0, "incorrect": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG, createToolSelectionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createToolSelectionEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Tool Selection evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [ToolSelectionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createToolSelectionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Tool Invocation Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation) - For evaluating tool invocation correctness
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy

@@ -2,6 +2,46 @@
 title: "Retrieval (RAG) Relevance"
 ---
 
+<Warning>
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and is not available as a built-in metric in evals 2.0. For RAG evaluation, consider using the [Document Relevance](/docs/phoenix/evaluation/pre-built-metrics/document-relevance) evaluator instead. You can still use these templates with older versions of the library (see [API Reference](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/)), or migrate them to custom evaluators as shown below.
+</Warning>
+
+<Accordion title="Using this template with evals 2.0">
+You can use the legacy template with a custom `ClassificationEvaluator`:
+
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+RAG_RELEVANCY_TEMPLATE = """You are comparing a reference text to a question and trying to determine if the reference text
+contains information relevant to answering the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {query}
+    ************
+    [Reference text]: {reference}
+    [END DATA]
+
+Compare the Question above to the Reference text. You must determine whether the Reference text
+contains information that can answer the Question. Please focus on whether the very specific
+question can be answered by the information in the Reference text.
+"unrelated" means that the reference text does not contain an answer to the Question.
+"relevant" means the reference text contains an answer to the Question."""
+
+rag_relevance_evaluator = ClassificationEvaluator(
+    name="rag_relevance",
+    prompt_template=RAG_RELEVANCY_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices={"unrelated": 0, "relevant": 1},
+)
+
+result = rag_relevance_evaluator.evaluate({
+    "query": "What is the capital of France?",
+    "reference": "Paris is the capital and largest city of France."
+})
+```
+</Accordion>
+
 ## When To Use RAG Eval Template
 
 This Eval evaluates whether a retrieved chunk contains an answer to the query. It's extremely useful for evaluating retrieval systems.

@@ -1,0 +1,158 @@
+---
+title: "Precision / Recall / F-Score"
+description: "Compute precision, recall, and F-beta scores for classification tasks"
+---
+
+## Overview
+
+The **PrecisionRecallFScore** evaluator computes precision, recall, and F-beta scores for comparing predicted labels against expected labels. It supports both binary and multi-class classification with various averaging strategies.
+
+### When to Use
+
+Use the PrecisionRecallFScore evaluator when you need to:
+
+- **Evaluate classification performance** - Measure how well your model predicts correct labels
+- **Compare label sequences** - Assess predicted vs expected labels for multi-item outputs
+- **Binary classification metrics** - Compute metrics for spam/ham, positive/negative, etc.
+- **Multi-class evaluation** - Evaluate across multiple categories with different averaging strategies
+
+<Info>
+This is a code-based evaluator that computes standard classification metrics. Both `expected` and `output` should be sequences of labels (strings or integers).
+</Info>
+
+## Supported Levels
+
+This evaluator is not tied to specific tracing levels. It operates on lists of predicted and expected labels, making it useful for:
+
+- Comparing model predictions against ground truth labels
+- Evaluating classification outputs at any level where you have paired label sequences
+- Batch evaluation of classification tasks in experiments
+
+## Input Requirements
+
+The PrecisionRecallFScore evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expected` | `List[str \| int]` | List of expected/true labels |
+| `output` | `List[str \| int]` | List of predicted labels |
+
+Both sequences must have the same length and contain at least one element.
+
+<Note>
+For numeric labels `{0, 1}`, the evaluator automatically treats `1` as the positive class.
+</Note>
+
+### Constructor Arguments
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `beta` | `float` | `1.0` | Weight of recall relative to precision (F1 by default) |
+| `average` | `str` | `"macro"` | Averaging strategy: `"macro"`, `"micro"`, or `"weighted"` |
+| `positive_label` | `str \| int` | `None` | For binary classification, specify the positive class |
+| `zero_division` | `float` | `0.0` | Value to use when a metric is undefined (0/0) |
+
+## Output Interpretation
+
+The evaluator returns three `Score` objects:
+
+| Score Name | Description |
+|------------|-------------|
+| `precision` | Ratio of true positives to predicted positives |
+| `recall` | Ratio of true positives to actual positives |
+| `f1` (or `f{beta}`) | Harmonic mean of precision and recall |
+
+All scores have:
+- `direction` = `"maximize"` (higher is better)
+- `kind` = `"code"` (code-based evaluator)
+
+### Averaging Strategies 
+
+For multi-class classification. 
+
+| Strategy | Description |
+|----------|-------------|
+| `macro` | Calculate metrics for each class, then average (treats all classes equally) |
+| `micro` | Calculate metrics globally by counting total TP, FP, FN |
+| `weighted` | Average weighted by class support (number of true instances) |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import PrecisionRecallFScore
+
+    # Create evaluator with default settings (F1, macro averaging)
+    evaluator = PrecisionRecallFScore()
+
+    # Inspect the evaluator's requirements
+    print(evaluator.describe())
+
+    # Multi-class evaluation
+    eval_input = {
+        "expected": ["cat", "dog", "cat", "bird", "dog"],
+        "output": ["cat", "cat", "cat", "bird", "dog"]
+    }
+
+    scores = evaluator.evaluate(eval_input)
+    for score in scores:
+        print(f"{score.name}: {score.score:.3f}")
+    # precision: 0.889
+    # recall: 0.833
+    # f1: 0.833
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    <Note>
+    The PrecisionRecallFScore evaluator is currently only available in Python.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Binary Classification
+
+For binary classification, specify the positive label:
+
+```python
+from phoenix.evals.metrics import PrecisionRecallFScore
+
+# Binary classification for spam detection
+evaluator = PrecisionRecallFScore(positive_label="spam")
+
+eval_input = {
+    "expected": ["spam", "ham", "spam", "ham", "spam"],
+    "output": ["spam", "spam", "ham", "ham", "spam"]
+}
+
+scores = evaluator.evaluate(eval_input)
+for score in scores:
+    print(f"{score.name}: {score.score:.3f}")
+# precision: 0.667  (2 TP / 3 predicted spam)
+# recall: 0.667     (2 TP / 3 actual spam)
+# f1: 0.667
+```
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+
+### Running Experiments
+
+Use the PrecisionRecallFScore evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [PrecisionRecallFScore](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+
+## Related
+
+- [Exact Match Evaluator](/docs/phoenix/evaluation/pre-built-metrics/exact-match) - For exact string comparison
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For semantic correctness evaluation

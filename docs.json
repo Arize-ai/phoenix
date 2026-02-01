@@ -172,25 +172,24 @@
                     ]
                   },
                   {
-                    "group": "Pre-Built Evals",
+                    "group": "Pre-Built Metrics",
                     "pages": [
-                      "docs/phoenix/evaluation/running-pre-tested-evals",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/faithfulness",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/toxicity",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/user-frustration",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/agent-path-convergence",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/agent-planning",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
-                      "docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection"
+                      "docs/phoenix/evaluation/pre-built-metrics",
+                      "docs/phoenix/evaluation/pre-built-metrics/faithfulness",
+                      "docs/phoenix/evaluation/pre-built-metrics/correctness",
+                      "docs/phoenix/evaluation/pre-built-metrics/document-relevance",
+                      "docs/phoenix/evaluation/pre-built-metrics/tool-selection",
+                      "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
+                      "docs/phoenix/evaluation/pre-built-metrics/hallucination",
+                      "docs/phoenix/evaluation/pre-built-metrics/exact-match",
+                      "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
+                      "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",
+                      "docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
+                      "docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
+                      "docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
+                      "docs/phoenix/evaluation/pre-built-metrics/toxicity",
+                      "docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval",
+                      "docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval"
                     ]
                   }
                 ]
@@ -1790,6 +1789,78 @@
     {
       "source": "/docs/phoenix/settings/phoenix-to-arize-ax-migration",
       "destination": "/docs/phoenix/resources/phoenix-to-arize-ax-migration"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/faithfulness",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/summarization-eval"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/toxicity",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/toxicity"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/hallucination"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/code-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/code-generation-eval"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/ai-vs-human-groundtruth"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/reference-link-evals"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/user-frustration",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/user-frustration"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-path-convergence",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-path-convergence"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-planning",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-planning"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-reflection"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection",
+      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/audio-emotion-detection"
     }
   ]
 }

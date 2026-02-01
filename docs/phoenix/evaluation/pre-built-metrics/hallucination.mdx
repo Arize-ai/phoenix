@@ -1,0 +1,122 @@
+---
+title: "Hallucination (Deprecated)"
+description: "Deprecated evaluator for detecting hallucinations - use Faithfulness instead"
+---
+
+<Warning>
+**Deprecated:** The Hallucination evaluator is deprecated and will be removed in a future version. Please use the [Faithfulness evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) instead.
+</Warning>
+
+## Migration Guide
+
+The Hallucination evaluator has been superseded by the Faithfulness evaluator, which uses clearer terminology and a more intuitive scoring direction.
+
+### Key Differences
+
+| Aspect | Hallucination (Deprecated) | Faithfulness (Recommended) |
+|--------|---------------------------|---------------------------|
+| **Labels** | `factual` / `hallucinated` | `faithful` / `unfaithful` |
+| **Score direction** | Minimize (0.0 = good) | Maximize (1.0 = good) |
+| **Score meaning** | 0.0 = factual, 1.0 = hallucinated | 1.0 = faithful, 0.0 = unfaithful |
+
+### Migration Example
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    **Before (deprecated):**
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import HallucinationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    # This will emit a deprecation warning
+    hallucination_eval = HallucinationEvaluator(llm=llm)
+
+    scores = hallucination_eval.evaluate({
+        "input": "What is the capital of France?",
+        "output": "Paris is the capital of France.",
+        "context": "Paris is the capital and largest city of France."
+    })
+    # score=0.0 means factual (good), score=1.0 means hallucinated (bad)
+    ```
+
+    **After (recommended):**
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import FaithfulnessEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    faithfulness_eval = FaithfulnessEvaluator(llm=llm)
+
+    scores = faithfulness_eval.evaluate({
+        "input": "What is the capital of France?",
+        "output": "Paris is the capital of France.",
+        "context": "Paris is the capital and largest city of France."
+    })
+    # score=1.0 means faithful (good), score=0.0 means unfaithful (bad)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    **Before (deprecated):**
+    ```typescript
+    import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Deprecated
+    const hallucinationEvaluator = createHallucinationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const result = await hallucinationEvaluator.evaluate({
+      input: "What is the capital of France?",
+      output: "Paris is the capital of France.",
+      context: "Paris is the capital and largest city of France.",
+    });
+    // score=0 means factual (good), score=1 means hallucinated (bad)
+    ```
+
+    **After (recommended):**
+    ```typescript
+    import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const faithfulnessEvaluator = createFaithfulnessEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const result = await faithfulnessEvaluator.evaluate({
+      input: "What is the capital of France?",
+      output: "Paris is the capital of France.",
+      context: "Paris is the capital and largest city of France.",
+    });
+    // score=1 means faithful (good), score=0 means unfaithful (bad)
+    ```
+  </Tab>
+</Tabs>
+
+### Updating Score Interpretation
+
+If you have existing code that interprets hallucination scores, you'll need to update your logic:
+
+```python
+# Old: Hallucination score (minimize - lower is better)
+if hallucination_score < 0.5:
+    print("Response is factual")
+
+# New: Faithfulness score (maximize - higher is better)
+if faithfulness_score > 0.5:
+    print("Response is faithful")
+```
+
+## Why the Change?
+
+The Faithfulness evaluator provides several improvements:
+
+1. **Intuitive scoring**: Higher scores = better outcomes, which aligns with most evaluation metrics
+2. **Clearer terminology**: "Faithful/unfaithful" more accurately describes the relationship between response and context
+3. **Consistency**: Aligns with other evaluators that use maximize direction
+
+## See Also
+
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - The recommended replacement

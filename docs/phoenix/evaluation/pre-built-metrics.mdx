@@ -1,0 +1,76 @@
+---
+title: "Pre-Built Metrics"
+description: "Ready-to-use evaluation metrics for measuring LLM application quality"
+sidebarTitle: "Overview"
+---
+
+Phoenix provides pre-built evaluation metrics that can be used out of the box to assess LLM application quality. These metrics are available in both Python and TypeScript and are designed to work seamlessly with Phoenix's tracing and experiment infrastructure.
+
+All LLM evaluation templates are tested against golden datasets and achieve an F1 score of 85% or higher on benchmarks.
+
+## LLM Evaluators
+
+LLM evaluators use a judge model to assess the quality of outputs. These are useful for subjective or nuanced evaluations where simple rules don't suffice.
+
+<CardGroup cols={2}>
+  <Card title="Faithfulness" icon="check-double" href="/docs/phoenix/evaluation/pre-built-metrics/faithfulness">
+    Measures whether a response is faithful to (grounded in) the provided context. Detects hallucinations and unsupported claims.
+  </Card>
+  <Card title="Correctness" icon="circle-check" href="/docs/phoenix/evaluation/pre-built-metrics/correctness">
+    Evaluates the general correctness of an LLM response.
+  </Card>
+  <Card title="Document Relevance" icon="file-magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/document-relevance">
+    Assesses whether retrieved documents are relevant to the input query. Useful for RAG evaluation.
+  </Card>
+  <Card title="Tool Selection" icon="toolbox" href="/docs/phoenix/evaluation/pre-built-metrics/tool-selection">
+    Determines whether the correct tool was selected for a given context from the available options.
+  </Card>
+  <Card title="Tool Invocation" icon="wrench" href="/docs/phoenix/evaluation/pre-built-metrics/tool-invocation">
+    Checks if a tool was invoked correctly with proper arguments, formatting, and safe content.
+  </Card>
+</CardGroup>
+
+## Code Evaluators
+
+Code evaluators use deterministic logic for evaluation. These are faster, cheaper, and provide consistent results for objective criteria.
+
+<CardGroup cols={2}>
+  <Card title="Exact Match" icon="equals" href="/docs/phoenix/evaluation/pre-built-metrics/exact-match">
+    Checks if the output exactly matches an expected value. Supports optional normalization.
+  </Card>
+  <Card title="Matches Regex" icon="code" href="/docs/phoenix/evaluation/pre-built-metrics/matches-regex">
+    Validates that output matches a specified regular expression pattern.
+  </Card>
+  <Card title="Precision / Recall / F-Score" icon="chart-simple" href="/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore">
+    Computes precision, recall, and F1 scores for comparing predicted vs actual values.
+  </Card>
+</CardGroup>
+
+## Legacy Evaluators
+
+Legacy evaluators are template-based evaluators from earlier versions of Phoenix. They remain available for backwards compatibility but we recommend using the modern evaluators above for new projects.
+
+<CardGroup cols={2}>
+  <Card title="Q&A Evaluation" icon="comments-question" href="/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data">
+    Evaluates Q&A correctness using legacy templates.
+  </Card>
+  <Card title="Retrieval / RAG Relevance" icon="magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance">
+    Legacy document relevance evaluation for RAG systems.
+  </Card>
+  <Card title="Summarization" icon="file-lines" href="/docs/phoenix/evaluation/pre-built-metrics/summarization-eval">
+    Evaluates summary quality using legacy templates.
+  </Card>
+  <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
+    Legacy toxicity detection evaluation.
+  </Card>
+  <Card title="SQL Generation" icon="database" href="/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval">
+    Evaluates SQL query correctness using legacy templates.
+  </Card>
+  <Card title="Tool Calling (Legacy)" icon="gear" href="/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval">
+    Legacy tool calling evaluation. Consider using Tool Invocation and Tool Selection instead.
+  </Card>
+</CardGroup>
+
+<Info>
+Looking to create custom evaluators? See the [Building Custom Evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) guide.
+</Info>
