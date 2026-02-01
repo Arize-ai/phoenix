@@ -2526,10 +2526,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "case_sensitive": True,
             }
             assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-                "matched": True,
-                "explanation": "expected matches actual",
-            }
+            assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"result": True}
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
 
@@ -2540,10 +2537,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert not builtin_parse_span.events
             attributes = dict(flatten(builtin_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
-            assert json.loads(attributes.pop(INPUT_VALUE)) == {
-                "matched": True,
-                "explanation": "expected matches actual",
-            }
+            assert json.loads(attributes.pop(INPUT_VALUE)) == {"result": True}
             assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {"label": "true", "score": 1.0}
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"

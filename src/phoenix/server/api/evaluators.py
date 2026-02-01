@@ -1135,26 +1135,14 @@ class ContainsEvaluator(BuiltInEvaluator):
                         found_or_not = "found" if matched else "not found"
                         explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
 
-                    execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        )
-                    )
+                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes({"result": matched}),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
@@ -1339,26 +1327,14 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 
                     explanation = f"expected {'matches' if matched else 'does not match'} actual"
 
-                    execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        )
-                    )
+                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes({"result": matched}),
                     },
                 ) as parse_span:
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
@@ -1557,28 +1533,14 @@ class RegexEvaluator(BuiltInEvaluator):
                             f"pattern {'matched' if matched else 'did not match'} ({match_type})"
                         )
 
-                    execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "matched": matched,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        )
-                    )
+                    execution_span.set_attributes(oi.get_output_attributes({"result": matched}))
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "matched": matched,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes({"result": matched}),
                     },
                 ) as parse_span:
                     if error:
@@ -1777,26 +1739,14 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
 
                     explanation = f"edit distance between expected and actual is {distance}"
 
-                    execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "distance": distance,
-                                "explanation": explanation,
-                            }
-                        )
-                    )
+                    execution_span.set_attributes(oi.get_output_attributes({"result": distance}))
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "distance": distance,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes({"result": distance}),
                     },
                 ) as parse_span:
                     label = None
@@ -2000,28 +1950,14 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         error = f"Invalid JSON: {e}"
                         explanation = error
 
-                    execution_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "distance": distance,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        )
-                    )
+                    execution_span.set_attributes(oi.get_output_attributes({"result": distance}))
                     execution_span.set_status(Status(StatusCode.OK))
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "distance": distance,
-                                "error": error,
-                                "explanation": explanation,
-                            }
-                        ),
+                        **oi.get_input_attributes({"result": distance}),
                     },
                 ) as parse_span:
                     label = None
