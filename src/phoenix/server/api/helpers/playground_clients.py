@@ -39,7 +39,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.trace import NoOpTracer, Tracer
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.trace import Span as OTelSpan
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -467,6 +467,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                                     tool_call_chunks[tool_call_id].append(tool_call_chunk)
                                     yield tool_call_chunk
 
+                span.set_status(Status(StatusCode.OK))
                 if token_usage is not None:
                     llm_token_count_attributes = dict(self._llm_token_counts(token_usage))
                     self._attributes.update(llm_token_count_attributes)

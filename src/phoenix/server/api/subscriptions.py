@@ -761,14 +761,15 @@ async def _stream_chat_completion_over_dataset_example(
 
     tracer = Tracer(span_cost_calculator=span_cost_calculator)
     try:
-        with tracer.start_as_current_span("ChatCompletion") as span:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.dataset_example_id = example_id
-                chunk.repetition_number = repetition_number
-                yield chunk
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages,
+            tools=input.tools or [],
+            tracer=tracer,
+            **invocation_parameters,
+        ):
+            chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
+            yield chunk
     except Exception as error:
         yield ChatCompletionSubscriptionError(
             message=str(error),
