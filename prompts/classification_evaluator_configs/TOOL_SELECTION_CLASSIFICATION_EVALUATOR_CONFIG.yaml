@@ -1,6 +1,13 @@
+# yaml-language-server: $schema=../schemas/classification_evaluator.schema.json
 name: tool_selection
 description: For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the LLM's tool selections.
 optimization_direction: maximize
+specification:
+  use_cases: [agent]
+  measures: tool_use
+  requires: [input, tools, tool_calls]
+  level: [span]
+  span_kind: [tool]
 messages:
   - role: user
     content: >-

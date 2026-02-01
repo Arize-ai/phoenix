@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="faithfulness",
     description="A specialized evaluator for detecting faithfulness in grounded LLM responses.",
     optimization_direction="maximize",
+    specification=EvaluatorSpecification(
+        use_cases=["rag", "chat", "agent"],
+        measures="grounding",
+        requires=["input", "output", "context"],
+        level=["span"],
+        span_kind=["llm"],
+    ),
     messages=[
         PromptMessage(
             role="user",
