@@ -105,9 +105,14 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-DatasetExampleID: TypeAlias = GlobalID
+RepetitionNumber: TypeAlias = int
+DatasetExampleNodeID: TypeAlias = GlobalID
+DatasetExampleRowID: TypeAlias = int
 ChatCompletionResult: TypeAlias = tuple[
-    DatasetExampleID, Optional[models.Span], models.ExperimentRun
+    DatasetExampleRowID,
+    RepetitionNumber,
+    Optional[Tracer],
+    Optional[models.ExperimentRun],
 ]
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 
@@ -510,7 +515,7 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
+        not_started: list[tuple[DatasetExampleNodeID, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
@@ -519,8 +524,8 @@ class Subscription:
                     revision=revision,
                     results=results,
                     repetition_number=repetition_number,
+                    span_cost_calculator=info.context.span_cost_calculator,
                     experiment_id=experiment.id,
-                    project_id=playground_project_id,
                 ),
             )
             for revision in revisions
@@ -530,7 +535,7 @@ class Subscription:
         ]
         in_progress: list[
             tuple[
-                Optional[DatasetExampleID],
+                Optional[DatasetExampleNodeID],
                 ChatStream,
                 asyncio.Task[ChatCompletionSubscriptionPayload],
             ]
@@ -584,8 +589,9 @@ class Subscription:
                 ):
                     result_payloads_stream = _chat_completion_result_payloads(
                         db=info.context.db,
+                        experiment_id=experiment.id,
                         results=_drain_no_wait(results),
-                        span_cost_calculator=info.context.span_cost_calculator,
+                        project_id=playground_project_id,
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
                     in_progress.append((None, result_payloads_stream, task))
@@ -593,8 +599,9 @@ class Subscription:
         if remaining_results := await _drain(results):
             async for result_payload in _chat_completion_result_payloads(
                 db=info.context.db,
+                experiment_id=experiment.id,
                 results=remaining_results,
-                span_cost_calculator=info.context.span_cost_calculator,
+                project_id=playground_project_id,
             ):
                 yield result_payload
 
@@ -683,8 +690,8 @@ async def _stream_chat_completion_over_dataset_example(
     revision: models.DatasetExampleRevision,
     repetition_number: int,
     results: asyncio.Queue[ChatCompletionResult],
+    span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
-    project_id: int,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
@@ -734,7 +741,8 @@ async def _stream_chat_completion_over_dataset_example(
         )
         await results.put(
             (
-                example_id,
+                revision.dataset_example_id,
+                repetition_number,
                 None,
                 models.ExperimentRun(
                     experiment_id=experiment_id,
@@ -750,73 +758,77 @@ async def _stream_chat_completion_over_dataset_example(
             )
         )
         return
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)},
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.dataset_example_id = example_id
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    db_run = get_db_experiment_run(
-        db_span,
-        db_trace,
-        experiment_id=experiment_id,
-        example_id=revision.dataset_example_id,
-        repetition_number=repetition_number,
-    )
-    await results.put((example_id, db_span, db_run))
-    if span.status_message is not None:
+
+    tracer = Tracer(span_cost_calculator=span_cost_calculator)
+    try:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages,
+            tools=input.tools or [],
+            tracer=tracer,
+            **invocation_parameters,
+        ):
+            chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message,
+            message=str(error),
             dataset_example_id=example_id,
             repetition_number=repetition_number,
         )
+    await results.put((revision.dataset_example_id, repetition_number, tracer, None))
 
 
 async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
+    project_id: int,
+    experiment_id: int,
     results: Sequence[ChatCompletionResult],
-    span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
     if not results:
         return
+    example_ids: list[int] = []
+    repetition_numbers: list[int] = []
+    db_spans: list[models.Span | None] = []
+    db_runs: list[models.ExperimentRun] = []
     async with db() as session:
-        for _, span, run in results:
-            if span:
-                session.add(span)
-                await session.flush()
-                try:
-                    span_cost = span_cost_calculator.calculate_cost(
-                        start_time=span.start_time,
-                        attributes=span.attributes,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                    span_cost = None
-                if span_cost:
-                    span_cost.span_rowid = span.id
-                    span_cost.trace_rowid = span.trace_rowid
-                    session.add(span_cost)
-            session.add(run)
+        for example_id, repetition_number, tracer, run in results:
+            if tracer is not None:
+                db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
+                if not db_traces:
+                    continue
+                db_trace = db_traces[0]
+                if not db_trace.spans:
+                    continue
+                db_span = db_trace.spans[0]
+                db_run = get_db_experiment_run(
+                    db_span,
+                    db_trace,
+                    experiment_id=experiment_id,
+                    example_id=example_id,
+                    repetition_number=repetition_number,
+                )
+                session.add(db_run)
+                example_ids.append(example_id)
+                repetition_numbers.append(repetition_number)
+                db_spans.append(db_span)
+                db_runs.append(db_run)
+            elif run is not None:
+                session.add(run)
+                example_ids.append(example_id)
+                repetition_numbers.append(repetition_number)
+                db_spans.append(None)
+                db_runs.append(run)
         await session.flush()
-    for example_id, span, run in results:
+    for example_id, repetition_number, maybe_db_span, db_run in zip(
+        example_ids, repetition_numbers, db_spans, db_runs
+    ):
         yield ChatCompletionSubscriptionResult(
-            span=Span(id=span.id, db_record=span) if span else None,
-            experiment_run=ExperimentRun(id=run.id, db_record=run),
-            dataset_example_id=example_id,
-            repetition_number=run.repetition_number,
+            span=Span(id=maybe_db_span.id, db_record=maybe_db_span) if maybe_db_span else None,
+            experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
+            dataset_example_id=GlobalID(DatasetExample.__name__, str(example_id)),
+            repetition_number=repetition_number,
         )
 
 
@@ -936,8 +948,4 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
 
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
