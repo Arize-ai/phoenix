@@ -159,3 +159,45 @@ def extract_and_convert_example_messages(
         messages.append(convert_openai_message_to_internal(msg))
 
     return messages
+
+
+def build_template_variables(
+    *,
+    input_data: dict[str, Any],
+    output_data: Any,
+    metadata: dict[str, Any],
+    template_variables_path: Optional[str],
+) -> Any:
+    """
+    Build template variables for a dataset revision based on the configured path.
+
+    This function constructs the full context dictionary with input, reference (output),
+    and metadata, then extracts the appropriate subset based on the template_variables_path
+    configuration.
+
+    Args:
+        input_data: The dataset example input dictionary
+        output_data: The dataset example expected output (reference)
+        metadata: The dataset example metadata dictionary
+        template_variables_path: Dot-notation path to extract variables from context,
+                                or empty string/None to use the full context
+
+    Returns:
+        Dictionary of template variables to use for prompt formatting
+
+    Raises:
+        KeyError: If the path doesn't exist in the context
+        TypeError: If the path traverses through a non-dict value
+    """
+    # Build the full context with input, reference (expected output), and metadata
+    full_context: dict[str, Any] = {
+        "input": input_data,
+        "reference": output_data,
+        "metadata": metadata,
+    }
+
+    # Resolve template variables based on the configured path
+    if template_variables_path:
+        return extract_value_from_path(full_context, template_variables_path)
+    else:
+        return full_context
