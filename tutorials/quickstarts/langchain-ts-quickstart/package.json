@@ -1,0 +1,22 @@
+{
+  "name": "langchain-ts-quickstart",
+  "version": "1.0.0",
+  "description": "Simple LangChain TypeScript application with Phoenix tracing",
+  "type": "module",
+  "scripts": {
+    "start": "npx tsx src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-otel": "^0.3.0",
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "langchain": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.30",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
