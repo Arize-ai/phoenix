@@ -190,6 +190,7 @@ def main() -> None:
     )
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
+    parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
@@ -446,6 +447,7 @@ def main() -> None:
         corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
+        dev_vite_port=args.dev_vite_port,
         serve_ui=not args.no_ui,
         read_only=read_only,
         enable_prometheus=enable_prometheus,

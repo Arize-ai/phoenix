@@ -290,6 +290,8 @@ class AppConfig(NamedTuple):
     """ Whether the database has a threshold for usage """
     allow_external_resources: bool = True
     """ Whether to allow external resources like Google Fonts in the web interface """
+    dev_vite_port: int = 5173
+    """ Port the Vite dev server runs on. Only used in development mode. """
 
 
 class Static(StaticFiles):
@@ -343,6 +345,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
+                    "vite_port": self._app_config.dev_vite_port,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
@@ -1014,6 +1017,7 @@ def create_app(
     corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
+    dev_vite_port: int = 5173,
     read_only: bool = False,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
@@ -1233,6 +1237,7 @@ def create_app(
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
+                    dev_vite_port=dev_vite_port,
                 ),
             ),
             name="static",
