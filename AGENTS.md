@@ -124,6 +124,7 @@ phoenix/
 - **Type checking**: Strict mode with mypy
 - **Linting**: Ruff (replaces black, isort, flake8)
 - **Import style**: Multi-line imports allowed (not forced single-line)
+- All imports MUST be included at the top of each module rather than inside functions or methods, unless doing so causes circular import issues or unless the imported dependencies belong to an extra (e.g., `openai` belongs to the `container` extra in `pyproject.toml`). If you must import a module inside a function or method, include a brief **inline** comment explaining why the import is necessary (e.g., `# avoids circular import`).
 
 ### TypeScript Style
 - **Node version**: 22+
