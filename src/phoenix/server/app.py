@@ -70,6 +70,7 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
+    get_env_vite_port,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
 )
@@ -343,6 +344,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
+                    "vite_port": get_env_vite_port(),
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,

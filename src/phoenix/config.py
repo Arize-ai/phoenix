@@ -50,6 +50,11 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
+ENV_PHOENIX_VITE_PORT = "PHOENIX_VITE_PORT"
+"""
+The port the Vite dev server is running on. Only used in development mode.
+Defaults to 5173.
+"""
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
@@ -2474,6 +2479,8 @@ GRPC_PORT = 4317
 """The port the gRPC server will run on after launch_app is called.
 The default network port for OTLP/gRPC is 4317.
 See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
+VITE_PORT = 5173
+"""The port the Vite dev server runs on. Only used in development mode."""
 GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 """The prefix of datasets that are auto-assigned a name."""
 WORKING_DIR = get_working_dir()
@@ -2697,6 +2704,17 @@ def get_env_grpc_port() -> int:
         return int(port)
     raise ValueError(
         f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"{port}. Value must be an integer."
+    )
+
+
+def get_env_vite_port() -> int:
+    if not (port := getenv(ENV_PHOENIX_VITE_PORT)):
+        return VITE_PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_VITE_PORT}: "
         f"{port}. Value must be an integer."
     )
 
