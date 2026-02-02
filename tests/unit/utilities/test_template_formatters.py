@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 
 from phoenix.utilities.template_formatters import (
-    DictWrapper,
+    DotDict,
     FStringTemplateFormatter,
     ListWrapper,
     MustacheTemplateFormatter,
@@ -885,8 +885,8 @@ class TestFStringPathVariables:
         template = "{user}"
         variables = {"user": {"name": "Alice", "age": 30}}
         result = formatter.format(template, **variables)
-        # Should be JSON, not "DictWrapper({...})"
-        assert "DictWrapper" not in result
+        # Should be JSON, not "DotDict(...)"
+        assert "DotDict" not in result
         assert '"name"' in result
         assert '"Alice"' in result
 
@@ -915,68 +915,68 @@ class TestFStringPathVariables:
         assert '"role"' in result
 
 
-class TestDictWrapper:
-    """Tests for the DictWrapper class."""
+class TestDotDict:
+    """Tests for the DotDict class."""
 
     def test_attribute_access(self) -> None:
-        """Test attribute access on wrapped dict."""
-        wrapper = DictWrapper({"name": "Alice"})
-        assert wrapper.name == "Alice"
+        """Test attribute access on DotDict."""
+        dd = DotDict.from_dict({"name": "Alice"})
+        assert dd.name == "Alice"
 
     def test_nested_attribute_access(self) -> None:
-        """Test nested attribute access returns wrapped dict."""
-        wrapper = DictWrapper({"user": {"name": "Alice"}})
-        assert wrapper.user.name == "Alice"
+        """Test nested attribute access returns DotDict."""
+        dd = DotDict.from_dict({"user": {"name": "Alice"}})
+        assert dd.user.name == "Alice"
 
     def test_key_access(self) -> None:
-        """Test key access on wrapped dict."""
-        wrapper = DictWrapper({"name": "Alice"})
-        assert wrapper["name"] == "Alice"
+        """Test key access on DotDict."""
+        dd = DotDict.from_dict({"name": "Alice"})
+        assert dd["name"] == "Alice"
 
     def test_nested_key_access(self) -> None:
         """Test nested key access."""
-        wrapper = DictWrapper({"user": {"name": "Alice"}})
-        assert wrapper["user"]["name"] == "Alice"
+        dd = DotDict.from_dict({"user": {"name": "Alice"}})
+        assert dd["user"]["name"] == "Alice"
 
     def test_mixed_access(self) -> None:
         """Test mixed attribute and key access."""
-        wrapper = DictWrapper({"user": {"name": "Alice"}})
-        assert wrapper.user["name"] == "Alice"
-        assert wrapper["user"].name == "Alice"
+        dd = DotDict.from_dict({"user": {"name": "Alice"}})
+        assert dd.user["name"] == "Alice"
+        assert dd["user"].name == "Alice"
 
     def test_missing_key_raises_attribute_error(self) -> None:
         """Test that missing key raises AttributeError for attribute access."""
-        wrapper = DictWrapper({"name": "Alice"})
+        dd = DotDict.from_dict({"name": "Alice"})
         with pytest.raises(AttributeError):
-            _ = wrapper.missing
+            _ = dd.missing
 
     def test_missing_key_raises_key_error_for_bracket(self) -> None:
         """Test that missing key raises KeyError for bracket access."""
-        wrapper = DictWrapper({"name": "Alice"})
+        dd = DotDict.from_dict({"name": "Alice"})
         with pytest.raises(KeyError):
-            _ = wrapper["missing"]
+            _ = dd["missing"]
 
     def test_repr(self) -> None:
         """Test string representation."""
-        wrapper = DictWrapper({"name": "Alice"})
-        assert "DictWrapper" in repr(wrapper)
-        assert "name" in repr(wrapper)
+        dd = DotDict.from_dict({"name": "Alice"})
+        assert "DotDict" in repr(dd)
+        assert "name" in repr(dd)
 
     def test_str_serializes_to_json(self) -> None:
         """Test that str() serializes the dict to JSON."""
-        wrapper = DictWrapper({"name": "Alice", "age": 30})
-        result = str(wrapper)
+        dd = DotDict.from_dict({"name": "Alice", "age": 30})
+        result = str(dd)
         assert '"name"' in result
         assert '"Alice"' in result
         assert '"age"' in result
         assert "30" in result
         # Should not contain wrapper class name
-        assert "DictWrapper" not in result
+        assert "DotDict" not in result
 
     def test_str_nested_dict(self) -> None:
         """Test that str() works with nested dicts."""
-        wrapper = DictWrapper({"user": {"name": "Alice"}})
-        result = str(wrapper)
+        dd = DotDict.from_dict({"user": {"name": "Alice"}})
+        result = str(dd)
         assert '"user"' in result
         assert '"name"' in result
         assert '"Alice"' in result

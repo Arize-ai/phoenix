@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from argparse import Namespace
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from string import Formatter
 from typing import Any, Literal, cast
@@ -60,44 +61,73 @@ def _serialize_value(value: Any) -> str:
         return str(value)
 
 
-class DictWrapper:
+class DotDict(Namespace):
     """
-    Wraps a dict to support attribute access for f-string formatting.
+    A simple class that builds upon `argparse.Namespace`
+    in order to make chained attributes possible.
 
     This allows f-string templates like `{reference.label}` to work with
     dict variables like `{"reference": {"label": "value"}}`.
 
     Examples:
 
-    >>> wrapper = DictWrapper({"user": {"name": "Alice"}})
-    >>> wrapper.user.name
+    >>> dd = DotDict.from_dict({"user": {"name": "Alice"}})
+    >>> dd.user.name
     'Alice'
-    >>> wrapper["user"]["name"]
+    >>> dd["user"]["name"]
     'Alice'
     """
 
-    def __init__(self, data: dict[str, Any]) -> None:
-        # Use object.__setattr__ to avoid triggering __getattr__
-        object.__setattr__(self, "_data", data)
+    def __init__(self) -> None:
+        self._data: dict[str, Any] = {}
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DotDict):
+            return NotImplemented
+        return vars(self) == vars(other)
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
             raise AttributeError(name)
-        try:
-            value = self._data[name]
-        except KeyError:
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        return _wrap_value(value)
+        raise AttributeError(f"No attribute '{name}'")
 
     def __getitem__(self, key: Any) -> Any:
         value = self._data[key]
         return _wrap_value(value)
 
     def __repr__(self) -> str:
-        return f"DictWrapper({self._data!r})"
+        item_keys = [k for k in self.__dict__ if not k.startswith("_")]
+
+        if len(item_keys) == 0:
+            return "DotDict()"
+        elif len(item_keys) == 1:
+            key = item_keys[0]
+            val = self.__dict__[key]
+            return f"DotDict({key}={val!r})"
+        else:
+            items = ", ".join(
+                f"{key}={val!r}" for key, val in self.__dict__.items() if not key.startswith("_")
+            )
+            return f"DotDict({items})"
 
     def __str__(self) -> str:
         return _serialize_value(self._data)
+
+    @classmethod
+    def from_dict(cls, original: Mapping[str, Any]) -> "DotDict":
+        """Create a DotDict from a (possibly nested) dict `original`.
+        Warning: this method should not be used on very deeply nested inputs,
+        since it's recursively traversing the nested dictionary values.
+        """
+        dd = DotDict()
+        dd._data = dict(original)  # Store original data for bracket access and str()
+        for key, value in original.items():
+            if isinstance(value, Mapping):
+                value = cls.from_dict(value)
+            elif isinstance(value, list):
+                value = ListWrapper(value)
+            setattr(dd, key, value)
+        return dd
 
 
 class ListWrapper:
@@ -127,7 +157,7 @@ class ListWrapper:
 def _wrap_value(value: Any) -> Any:
     """Recursively wrap dicts and lists for attribute access."""
     if isinstance(value, dict):
-        return DictWrapper(value)
+        return DotDict.from_dict(value)
     if isinstance(value, list):
         return ListWrapper(value)
     return value
@@ -211,6 +241,16 @@ class FStringTemplateFormatter(TemplateFormatter):
     Supports path variables like `{reference.label}` with dict variables.
     Dicts are automatically wrapped to support attribute access.
 
+    Supported syntax:
+        - Dot notation for dict access: `{user.name}`, `{input.messages}`
+        - Bracket notation for integer indices: `{items[0]}`, `{messages[0].content}`
+        - Combinations: `{input.messages[0].content}`
+
+    NOT supported (Python format string limitation):
+        - Quoted string keys in brackets: `{user['name']}` or `{input["key"]}`
+        - Python's format mini-language only allows unquoted identifiers or integers
+          in brackets, not string literals
+
     Examples:
 
     >>> formatter = FStringTemplateFormatter()
@@ -218,6 +258,8 @@ class FStringTemplateFormatter(TemplateFormatter):
     'world'
     >>> formatter.format("{user.name}", user={"name": "Alice"})
     'Alice'
+    >>> formatter.format("{items[0].value}", items=[{"value": "first"}])
+    'first'
     """
 
     def parse(self, template: str) -> set[str]:
