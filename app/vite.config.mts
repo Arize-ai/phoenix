@@ -50,6 +50,9 @@ export default defineConfig(() => {
     root: resolve(__dirname, "src"),
     plugins,
     publicDir: resolve(__dirname, "static"),
+    server: {
+      port: parseInt(process.env.VITE_PORT || "5173"),
+    },
     preview: {
       port: 6006,
     },
