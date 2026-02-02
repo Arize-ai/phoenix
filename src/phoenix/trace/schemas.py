@@ -19,10 +19,10 @@ class SpanStatusCode(Enum):
         return self.value
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
-        if v and isinstance(v, str) and not v.isupper():
-            return cls(v.upper())
-        return None if v else cls.UNSET
+    def _missing_(cls, value: object) -> Any:
+        if value and isinstance(value, str) and not value.isupper():
+            return cls(value.upper())
+        return None if value else cls.UNSET
 
 
 class SpanKind(Enum):
@@ -46,9 +46,9 @@ class SpanKind(Enum):
         return self.value
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        if v and isinstance(v, str) and v.isascii() and not v.isupper():
-            return cls(v.upper())
+    def _missing_(cls, value: object) -> Any:
+        if value and isinstance(value, str) and value.isascii() and not value.isupper():
+            return cls(value.upper())
         return cls.UNKNOWN
 
 
@@ -183,8 +183,8 @@ class MimeType(Enum):
     JSON = "application/json"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.TEXT
+    def _missing_(cls, value: object) -> Any:
+        return None if value else cls.TEXT
 
 
 @dataclass(frozen=True)
