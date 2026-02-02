@@ -1,8 +1,9 @@
 import {
   memo,
   PropsWithChildren,
+  RefObject,
   useCallback,
-  useLayoutEffect,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -24,7 +25,8 @@ const contentCSS = css`
 
   // When collapsed, prevent all nested elements from scrolling
   &:not([data-expanded="true"]) {
-    * {
+    // need to exclude CodeMirror selection layer so text selection UI remains visible
+    *:not(.cm-selectionLayer) {
       overflow: hidden !important;
     }
   }
@@ -90,22 +92,12 @@ export const OverflowCell = memo(function OverflowCell({
 }: OverflowCellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // NB: need to figure out why calculation is incorrect
-  const [isOverflowing, setIsOverflowing] = useState(true);
+  const isOverflowing = useIsOverflowing(contentRef, containerRef);
   const [internalExpanded, setInternalExpanded] = useState(false);
 
   // Use controlled value if provided, otherwise use internal state
   const isControlled = controlledExpanded !== undefined;
   const isExpanded = isControlled ? controlledExpanded : internalExpanded;
-
-  useLayoutEffect(() => {
-    const content = contentRef.current;
-    const container = containerRef.current;
-    if (content && container) {
-      // Compare content's natural height against container's actual height
-      setIsOverflowing(content.scrollHeight > container.clientHeight);
-    }
-  }, [children, height]);
 
   const handleExpand = useCallback(() => {
     if (!isControlled) {
@@ -138,3 +130,35 @@ export const OverflowCell = memo(function OverflowCell({
     </div>
   );
 });
+
+/**
+ * Hook to detect if content overflows its container.
+ * Uses ResizeObserver to handle asynchronously-rendered content (e.g., CodeMirror).
+ */
+function useIsOverflowing(
+  contentRef: RefObject<HTMLElement | null>,
+  containerRef: RefObject<HTMLElement | null>
+): boolean {
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    const container = containerRef.current;
+    if (!content || !container) return;
+
+    const checkOverflow = () => {
+      setIsOverflowing(content.scrollHeight > container.clientHeight);
+    };
+
+    checkOverflow();
+
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(content);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [contentRef, containerRef]);
+
+  return isOverflowing;
+}
