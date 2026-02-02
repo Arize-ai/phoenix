@@ -257,7 +257,169 @@ def _is_span_result_payloads_stream(
     Checks if the given generator was instantiated from
     `_chat_completion_span_result_payloads`
     """
-    return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore
+    return stream.ag_code == _chat_completion_span_result_payloads.__code__  # type: ignore[attr-defined,no-any-return,unused-ignore]
+
+
+async def _cleanup_chat_completion_resources(
+    in_progress: list[
+        tuple[
+            Optional[int],
+            ChatStream,
+            asyncio.Task[ChatCompletionSubscriptionPayload],
+        ]
+    ],
+    not_started: deque[tuple[int, ChatStream]],
+    results: asyncio.Queue[tuple[Optional[models.Span], int]],
+    db: DbSessionFactory,
+    span_cost_calculator: SpanCostCalculator,
+    on_span_insertion: Callable[[], None],
+) -> None:
+    """
+    Cleanup all resources on cancellation or error. MUST be called in a finally block.
+
+    The cleanup sequence (cancel → await tasks → aclose generators) is critical and must
+    not be reordered. task.cancel() only *schedules* a CancelledError—it doesn't wait for
+    the task to process it. If we call stream.aclose() immediately, the task still "owns"
+    the generator and we get "async generator is already running". By awaiting all tasks
+    first, we let them process cancellation and release their generators.
+
+    We cancel all tasks uniformly (including done ones—it's a no-op) because a task being
+    "done" doesn't mean its generator is closed; it just completed one iteration. We use
+    explicit aclose() rather than relying on GC to ensure generators run their finally
+    blocks immediately, preventing data loss and resource leaks.
+    """
+    import inspect
+
+    logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
+
+    # 1. Cancel all tasks (no-op for done tasks)
+    for _, _, task in in_progress:
+        task.cancel()
+
+    # 2. Wait for tasks to process cancellation and release generators
+    if in_progress:
+        await asyncio.gather(
+            *[task for _, _, task in in_progress],
+            return_exceptions=True,
+        )
+
+    # 3. Now safe to close generators
+    if in_progress:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 4. Close not-started generators (no tasks to cancel, just close directly)
+    if not_started:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 5. Flush results queue to database (important for data integrity)
+    if not results.empty():
+        remaining: list[tuple[Optional[models.Span], int]] = []
+        while not results.empty():
+            try:
+                remaining.append(results.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+
+        if remaining:
+            logger.info(f"Flushing {len(remaining)} remaining spans to database")
+            try:
+                async for _ in _chat_completion_span_result_payloads(
+                    db=db,
+                    results=remaining,
+                    span_cost_calculator=span_cost_calculator,
+                    on_span_insertion=on_span_insertion,
+                ):
+                    pass
+            except Exception as e:
+                logger.error(f"Error flushing results: {e}")
+
+    logger.info("Resource cleanup complete")
+
+
+async def _cleanup_chat_completion_over_dataset_resources(
+    in_progress: list[
+        tuple[
+            Optional[DatasetExampleID],
+            ChatStream,
+            asyncio.Task[ChatCompletionSubscriptionPayload],
+        ]
+    ],
+    not_started: list[tuple[DatasetExampleID, ChatStream]],
+    results: asyncio.Queue[ChatCompletionResult],
+    db: DbSessionFactory,
+    span_cost_calculator: SpanCostCalculator,
+) -> None:
+    """
+    Cleanup all resources on cancellation or error. MUST be called in a finally block.
+
+    The cleanup sequence (cancel → await tasks → aclose generators) is critical and must
+    not be reordered. task.cancel() only *schedules* a CancelledError—it doesn't wait for
+    the task to process it. If we call stream.aclose() immediately, the task still "owns"
+    the generator and we get "async generator is already running". By awaiting all tasks
+    first, we let them process cancellation and release their generators.
+
+    We cancel all tasks uniformly (including done ones—it's a no-op) because a task being
+    "done" doesn't mean its generator is closed; it just completed one iteration. We use
+    explicit aclose() rather than relying on GC to ensure generators run their finally
+    blocks immediately, preventing data loss and resource leaks.
+    """
+    import inspect
+
+    logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
+
+    # 1. Cancel all tasks (no-op for done tasks)
+    for _, _, task in in_progress:
+        task.cancel()
+
+    # 2. Wait for tasks to process cancellation and release generators
+    if in_progress:
+        await asyncio.gather(
+            *[task for _, _, task in in_progress],
+            return_exceptions=True,
+        )
+
+    # 3. Now safe to close generators
+    if in_progress:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 4. Close not-started generators (no tasks to cancel, just close directly)
+    if not_started:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 5. Flush results queue to database (important for data integrity)
+    if not results.empty():
+        remaining: list[ChatCompletionResult] = []
+        while not results.empty():
+            try:
+                remaining.append(results.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+
+        if remaining:
+            logger.info(f"Flushing {len(remaining)} remaining results to database")
+            try:
+                async for _ in _chat_completion_result_payloads(
+                    db=db,
+                    results=remaining,
+                    span_cost_calculator=span_cost_calculator,
+                ):
+                    pass
+            except Exception as e:
+                logger.error(f"Error flushing results: {e}")
+
+    logger.info("Resource cleanup complete")
 
 
 @strawberry.type
@@ -320,72 +482,87 @@ class Subscription:
         write_batch_size = 10
         write_interval = timedelta(seconds=10)
         last_write_time = datetime.now()
-        while not_started or in_progress:
-            while not_started and len(in_progress) < max_in_progress:
-                rep_num, stream = not_started.popleft()
-                task = _create_task_with_timeout(stream)
-                in_progress.append((rep_num, stream, task))
-            async_tasks_to_run = [task for _, _, task in in_progress]
-            completed_tasks, _ = await asyncio.wait(
-                async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
-            )
-            for completed_task in completed_tasks:
-                idx = [task for _, _, task in in_progress].index(completed_task)
-                repetition_number, stream, _ = in_progress[idx]
-                try:
-                    yield completed_task.result()
-                except StopAsyncIteration:
-                    del in_progress[idx]  # removes exhausted stream
-                except asyncio.TimeoutError:
-                    del in_progress[idx]  # removes timed-out stream
-                    if repetition_number is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="Playground task timed out",
-                            repetition_number=repetition_number,
-                        )
-                except Exception as error:
-                    del in_progress[idx]  # removes failed stream
-                    if repetition_number is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="An unexpected error occurred",
-                            repetition_number=repetition_number,
-                        )
-                    logger.exception(error)
-                else:
-                    task = _create_task_with_timeout(stream)
-                    in_progress[idx] = (repetition_number, stream, task)
 
-                exceeded_write_batch_size = results.qsize() >= write_batch_size
-                exceeded_write_interval = datetime.now() - last_write_time > write_interval
-                write_already_in_progress = any(
-                    _is_span_result_payloads_stream(stream) for _, stream, _ in in_progress
+        try:
+            while not_started or in_progress:
+                while not_started and len(in_progress) < max_in_progress:
+                    rep_num, stream = not_started.popleft()
+                    task = _create_task_with_timeout(stream)
+                    in_progress.append((rep_num, stream, task))
+                async_tasks_to_run = [task for _, _, task in in_progress]
+                completed_tasks, _ = await asyncio.wait(
+                    async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
                 )
-                if (
-                    not results.empty()
-                    and (exceeded_write_batch_size or exceeded_write_interval)
-                    and not write_already_in_progress
-                ):
-                    result_payloads_stream = _chat_completion_span_result_payloads(
-                        db=info.context.db,
-                        results=_drain_no_wait(results),
-                        span_cost_calculator=info.context.span_cost_calculator,
-                        on_span_insertion=lambda: info.context.event_queue.put(
-                            SpanInsertEvent(ids=(playground_project_id,))
-                        ),
+                for completed_task in completed_tasks:
+                    idx = [task for _, _, task in in_progress].index(completed_task)
+                    repetition_number, stream, _ = in_progress[idx]
+                    try:
+                        yield completed_task.result()
+                    except StopAsyncIteration:
+                        del in_progress[idx]  # removes exhausted stream
+                    except asyncio.TimeoutError:
+                        del in_progress[idx]  # removes timed-out stream
+                        if repetition_number is not None:
+                            yield ChatCompletionSubscriptionError(
+                                message="Playground task timed out",
+                                repetition_number=repetition_number,
+                            )
+                    except Exception as error:
+                        del in_progress[idx]  # removes failed stream
+                        if repetition_number is not None:
+                            yield ChatCompletionSubscriptionError(
+                                message="An unexpected error occurred",
+                                repetition_number=repetition_number,
+                            )
+                        logger.exception(error)
+                    else:
+                        task = _create_task_with_timeout(stream)
+                        in_progress[idx] = (repetition_number, stream, task)
+
+                    exceeded_write_batch_size = results.qsize() >= write_batch_size
+                    exceeded_write_interval = datetime.now() - last_write_time > write_interval
+                    write_already_in_progress = any(
+                        _is_span_result_payloads_stream(stream) for _, stream, _ in in_progress
                     )
-                    task = _create_task_with_timeout(result_payloads_stream)
-                    in_progress.append((None, result_payloads_stream, task))
-                    last_write_time = datetime.now()
-        if remaining_results := await _drain(results):
-            async for result_payload in _chat_completion_span_result_payloads(
+                    if (
+                        not results.empty()
+                        and (exceeded_write_batch_size or exceeded_write_interval)
+                        and not write_already_in_progress
+                    ):
+                        result_payloads_stream = _chat_completion_span_result_payloads(
+                            db=info.context.db,
+                            results=_drain_no_wait(results),
+                            span_cost_calculator=info.context.span_cost_calculator,
+                            on_span_insertion=lambda: info.context.event_queue.put(
+                                SpanInsertEvent(ids=(playground_project_id,))
+                            ),
+                        )
+                        task = _create_task_with_timeout(result_payloads_stream)
+                        in_progress.append((None, result_payloads_stream, task))
+                        last_write_time = datetime.now()
+
+            # Process remaining results
+            if remaining_results := await _drain(results):
+                async for result_payload in _chat_completion_span_result_payloads(
+                    db=info.context.db,
+                    results=remaining_results,
+                    span_cost_calculator=info.context.span_cost_calculator,
+                    on_span_insertion=lambda: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(playground_project_id,))
+                    ),
+                ):
+                    yield result_payload
+        finally:
+            await _cleanup_chat_completion_resources(
+                in_progress=in_progress,
+                not_started=not_started,
+                results=results,
                 db=info.context.db,
-                results=remaining_results,
                 span_cost_calculator=info.context.span_cost_calculator,
                 on_span_insertion=lambda: info.context.event_queue.put(
                     SpanInsertEvent(ids=(playground_project_id,))
                 ),
-            ):
-                yield result_payload
+            )
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
@@ -539,64 +716,76 @@ class Subscription:
         write_batch_size = 10
         write_interval = timedelta(seconds=10)
         last_write_time = datetime.now()
-        while not_started or in_progress:
-            while not_started and len(in_progress) < max_in_progress:
-                ex_id, stream = not_started.pop()
-                task = _create_task_with_timeout(stream)
-                in_progress.append((ex_id, stream, task))
-            async_tasks_to_run = [task for _, _, task in in_progress]
-            completed_tasks, _ = await asyncio.wait(
-                async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
-            )
-            for completed_task in completed_tasks:
-                idx = [task for _, _, task in in_progress].index(completed_task)
-                example_id, stream, _ = in_progress[idx]
-                try:
-                    yield completed_task.result()
-                except StopAsyncIteration:
-                    del in_progress[idx]  # removes exhausted stream
-                except asyncio.TimeoutError:
-                    del in_progress[idx]  # removes timed-out stream
-                    if example_id is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="Playground task timed out", dataset_example_id=example_id
-                        )
-                except Exception as error:
-                    del in_progress[idx]  # removes failed stream
-                    if example_id is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="An unexpected error occurred", dataset_example_id=example_id
-                        )
-                    logger.exception(error)
-                else:
+        try:
+            while not_started or in_progress:
+                while not_started and len(in_progress) < max_in_progress:
+                    ex_id, stream = not_started.pop()
                     task = _create_task_with_timeout(stream)
-                    in_progress[idx] = (example_id, stream, task)
-
-                exceeded_write_batch_size = results.qsize() >= write_batch_size
-                exceeded_write_interval = datetime.now() - last_write_time > write_interval
-                write_already_in_progress = any(
-                    _is_result_payloads_stream(stream) for _, stream, _ in in_progress
+                    in_progress.append((ex_id, stream, task))
+                async_tasks_to_run = [task for _, _, task in in_progress]
+                completed_tasks, _ = await asyncio.wait(
+                    async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
                 )
-                if (
-                    not results.empty()
-                    and (exceeded_write_batch_size or exceeded_write_interval)
-                    and not write_already_in_progress
-                ):
-                    result_payloads_stream = _chat_completion_result_payloads(
-                        db=info.context.db,
-                        results=_drain_no_wait(results),
-                        span_cost_calculator=info.context.span_cost_calculator,
+                for completed_task in completed_tasks:
+                    idx = [task for _, _, task in in_progress].index(completed_task)
+                    example_id, stream, _ = in_progress[idx]
+                    try:
+                        yield completed_task.result()
+                    except StopAsyncIteration:
+                        del in_progress[idx]  # removes exhausted stream
+                    except asyncio.TimeoutError:
+                        del in_progress[idx]  # removes timed-out stream
+                        if example_id is not None:
+                            yield ChatCompletionSubscriptionError(
+                                message="Playground task timed out", dataset_example_id=example_id
+                            )
+                    except Exception as error:
+                        del in_progress[idx]  # removes failed stream
+                        if example_id is not None:
+                            yield ChatCompletionSubscriptionError(
+                                message="An unexpected error occurred",
+                                dataset_example_id=example_id,
+                            )
+                        logger.exception(error)
+                    else:
+                        task = _create_task_with_timeout(stream)
+                        in_progress[idx] = (example_id, stream, task)
+
+                    exceeded_write_batch_size = results.qsize() >= write_batch_size
+                    exceeded_write_interval = datetime.now() - last_write_time > write_interval
+                    write_already_in_progress = any(
+                        _is_result_payloads_stream(stream) for _, stream, _ in in_progress
                     )
-                    task = _create_task_with_timeout(result_payloads_stream)
-                    in_progress.append((None, result_payloads_stream, task))
-                    last_write_time = datetime.now()
-        if remaining_results := await _drain(results):
-            async for result_payload in _chat_completion_result_payloads(
+                    if (
+                        not results.empty()
+                        and (exceeded_write_batch_size or exceeded_write_interval)
+                        and not write_already_in_progress
+                    ):
+                        result_payloads_stream = _chat_completion_result_payloads(
+                            db=info.context.db,
+                            results=_drain_no_wait(results),
+                            span_cost_calculator=info.context.span_cost_calculator,
+                        )
+                        task = _create_task_with_timeout(result_payloads_stream)
+                        in_progress.append((None, result_payloads_stream, task))
+                        last_write_time = datetime.now()
+
+            # Process remaining results
+            if remaining_results := await _drain(results):
+                async for result_payload in _chat_completion_result_payloads(
+                    db=info.context.db,
+                    results=remaining_results,
+                    span_cost_calculator=info.context.span_cost_calculator,
+                ):
+                    yield result_payload
+        finally:
+            await _cleanup_chat_completion_over_dataset_resources(
+                in_progress=in_progress,
+                not_started=not_started,
+                results=results,
                 db=info.context.db,
-                results=remaining_results,
                 span_cost_calculator=info.context.span_cost_calculator,
-            ):
-                yield result_payload
+            )
 
         if input.evaluators:
             for revision in revisions:
@@ -821,7 +1010,7 @@ def _is_result_payloads_stream(
     Checks if the given generator was instantiated from
     `_chat_completion_result_payloads`
     """
-    return stream.ag_code == _chat_completion_result_payloads.__code__  # type: ignore
+    return stream.ag_code == _chat_completion_result_payloads.__code__  # type: ignore[attr-defined,no-any-return,unused-ignore]
 
 
 def _create_task_with_timeout(
