@@ -112,7 +112,7 @@ export function PlaygroundEvaluatorSelect(
           Evaluators{" "}
           {selectedIds.length > 0 && <Counter>{selectedIds.length}</Counter>}
         </Button>
-        <MenuContainer placement="top end" shouldFlip={true} minHeight="auto">
+        <MenuContainer placement="top end" shouldFlip={true} minHeight="0">
           {evaluators.length > 0 && (
             <>
               <GridList

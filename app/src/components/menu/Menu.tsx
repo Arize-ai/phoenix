@@ -220,6 +220,8 @@ const MenuItemContent = ({
 
 const menuContainerCss = css`
   overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
 `;
 
 /**
