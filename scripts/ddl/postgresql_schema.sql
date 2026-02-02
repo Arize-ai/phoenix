@@ -674,7 +674,8 @@ CREATE TABLE public.evaluators (
         UNIQUE (name),
     CHECK (((kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
-            'CODE'::character varying
+            'CODE'::character varying,
+            'BUILTIN'::character varying
         ])::text[]))),
     CONSTRAINT fk_evaluators_user_id_users FOREIGN KEY
         (user_id)
@@ -684,6 +685,26 @@ CREATE TABLE public.evaluators (
 
 CREATE INDEX ix_evaluators_user_id ON public.evaluators
     USING btree (user_id);
+
+
+-- Table: builtin_evaluators
+-- -------------------------
+CREATE TABLE public.builtin_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'BUILTIN'::character varying,
+    key VARCHAR NOT NULL,
+    input_schema JSONB NOT NULL,
+    output_config JSONB NOT NULL,
+    synced_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_builtin_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_builtin_evaluators_key
+        UNIQUE (key),
+    CHECK (((kind)::text = 'BUILTIN'::text)),
+    CONSTRAINT fk_builtin_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: code_evaluators
@@ -706,9 +727,8 @@ CREATE TABLE public.code_evaluators (
 CREATE TABLE public.dataset_evaluators (
     id bigserial NOT NULL,
     dataset_id BIGINT NOT NULL,
-    evaluator_id BIGINT,
-    builtin_evaluator_id BIGINT,
-    display_name VARCHAR NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    name VARCHAR NOT NULL,
     description VARCHAR,
     output_config JSONB,
     input_mapping JSONB NOT NULL,
@@ -717,9 +737,8 @@ CREATE TABLE public.dataset_evaluators (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_display_name
-        UNIQUE (dataset_id, display_name),
-    CHECK (((evaluator_id IS NOT NULL) <> (builtin_evaluator_id IS NOT NULL))),
+    CONSTRAINT uq_dataset_evaluators_dataset_id_name
+        UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
@@ -738,8 +757,6 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_evaluators_builtin_evaluator_id ON public.dataset_evaluators
-    USING btree (builtin_evaluator_id);
 CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
     USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
