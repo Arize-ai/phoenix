@@ -113,6 +113,7 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [Pydantic AI](https://arize.com/docs/phoenix/integrations/pydantic) | `openinference-instrumentation-pydantic-ai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-pydantic-ai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-pydantic-ai) |
 | [Autogen AgentChat](https://arize.com/docs/phoenix/integrations/frameworks/autogen/autogen-tracing) | `openinference-instrumentation-autogen-agentchat` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-autogen-agentchat.svg)](https://pypi.python.org/pypi/openinference-instrumentation-autogen-agentchat) |
 | [Portkey](https://arize.com/docs/phoenix/integrations/portkey) | `openinference-instrumentation-portkey` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-portkey.svg)](https://pypi.python.org/pypi/openinference-instrumentation-portkey) |
+| [Agent Spec](https://arize.com/docs/phoenix/tracing/integrations-tracing/agentspec) | `openinference-instrumentation-agentspec` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agentspec.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agentspec) |
 
 ## Span Processors
 
