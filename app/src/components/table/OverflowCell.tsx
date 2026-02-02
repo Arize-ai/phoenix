@@ -133,7 +133,9 @@ export const OverflowCell = memo(function OverflowCell({
 
 /**
  * Hook to detect if content overflows its container.
- * Uses ResizeObserver to handle asynchronously-rendered content (e.g., CodeMirror).
+ * Uses both ResizeObserver and MutationObserver to handle:
+ * - Asynchronously-rendered content (e.g., CodeMirror, images)
+ * - Streaming content where text is appended incrementally
  */
 function useIsOverflowing(
   contentRef: RefObject<HTMLElement | null>,
@@ -152,11 +154,23 @@ function useIsOverflowing(
 
     checkOverflow();
 
+    // ResizeObserver: handles element size changes (images loading, CodeMirror init)
     const resizeObserver = new ResizeObserver(checkOverflow);
     resizeObserver.observe(content);
 
+    // MutationObserver: handles streaming content where DOM nodes/text are appended
+    // This is needed because ResizeObserver only fires on element box size changes,
+    // not when scrollHeight changes due to content being added within a fixed-height container
+    const mutationObserver = new MutationObserver(checkOverflow);
+    mutationObserver.observe(content, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
     return () => {
       resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
   }, [contentRef, containerRef]);
 
