@@ -444,30 +444,38 @@ class LLMEvaluator(Evaluator, Node):
 @strawberry.type
 class BuiltInEvaluator(Evaluator, Node):
     id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.BuiltinEvaluator]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("Evaluator ID mismatch")
+
+    async def _get_db_record(self, info: Info[Context, None]) -> models.BuiltinEvaluator:
+        """Helper to fetch the builtin evaluator record from DB, with caching."""
+        if self.db_record is not None:
+            return self.db_record
+        async with info.context.db() as session:
+            builtin = await session.get(models.BuiltinEvaluator, self.id)
+            if builtin is None:
+                raise NotFound(f"Built-in evaluator not found: {self.id}")
+            return builtin
 
     async def _get_evaluator_class(self, info: Info[Context, None]) -> object:
         """Helper to fetch builtin evaluator class from DB key."""
-        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+        from phoenix.server.api.evaluators import (
+            get_builtin_evaluator_by_key,
+            get_builtin_evaluator_from_orm,
+        )
 
-        async with info.context.db() as session:
-            builtin = await session.get(models.BuiltinEvaluator, self.id)
-            if builtin is None:
-                raise NotFound(f"Built-in evaluator not found: {self.id}")
-            evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+        if self.db_record is not None:
+            # Use cached record to avoid extra DB call
+            evaluator_class = get_builtin_evaluator_by_key(self.db_record.key)
             if evaluator_class is None:
-                raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+                raise NotFound(f"Built-in evaluator class not found for key: {self.db_record.key}")
             return evaluator_class
-
-    @strawberry.field
-    async def key(
-        self,
-        info: Info[Context, None],
-    ) -> str:
+        # Fall back to helper that fetches from DB
         async with info.context.db() as session:
-            builtin = await session.get(models.BuiltinEvaluator, self.id)
-            if builtin is None:
-                raise NotFound(f"Built-in evaluator not found: {self.id}")
-            return builtin.key
+            return await get_builtin_evaluator_from_orm(session, self.id)
 
     @strawberry.field
     async def name(
@@ -505,14 +513,16 @@ class BuiltInEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> datetime:
-        return datetime.fromtimestamp(0)
+        builtin = await self._get_db_record(info)
+        return builtin.created_at
 
     @strawberry.field
     async def updated_at(
         self,
         info: Info[Context, None],
     ) -> datetime:
-        return datetime.fromtimestamp(0)
+        builtin = await self._get_db_record(info)
+        return builtin.synced_at
 
     @strawberry.field
     async def input_schema(

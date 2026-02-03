@@ -721,11 +721,11 @@ class EvaluatorMutationMixin:
             evaluator_ids: list[int] = []
             project_ids_to_delete: list[int] = []
 
-            for de in dataset_evaluators:
-                if de.evaluator_id is not None:
-                    evaluator_ids.append(de.evaluator_id)
-                project_ids_to_delete.append(de.project_id)
-                deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(de.id)))
+            for dataset_evaluator in dataset_evaluators:
+                if dataset_evaluator.evaluator_id is not None:
+                    evaluator_ids.append(dataset_evaluator.evaluator_id)
+                project_ids_to_delete.append(dataset_evaluator.project_id)
+                deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(dataset_evaluator.id)))
 
             prompt_ids_to_delete: list[int] = []
             if input.delete_associated_prompt and evaluator_ids:

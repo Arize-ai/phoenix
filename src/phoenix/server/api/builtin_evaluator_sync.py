@@ -10,11 +10,12 @@ we use SQLAlchemy ORM to properly handle the joined table inheritance.
 """
 
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,9 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
 
     Safe to call multiple times (idempotent).
     """
-    from phoenix.db.types.identifier import Identifier
-    from phoenix.server.api.evaluators import get_builtin_evaluators
 
     async with db() as session:
         current_keys: set[str] = set()
-        now = datetime.now(timezone.utc)
 
         for key, evaluator_cls in get_builtin_evaluators():
             current_keys.add(key)
@@ -49,23 +47,22 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
             )
 
             if existing:
-                # Update existing record
-                existing.name = Identifier(key)
+                # Update existing record (synced_at auto-updates via onupdate)
+                existing.name = Identifier(evaluator_cls.name)
                 existing.description = evaluator_cls.description
                 existing.input_schema = evaluator.input_schema
                 existing.output_config = output_cfg.model_dump()
-                existing.synced_at = now
             else:
                 # Create new record using ORM (handles polymorphic inheritance)
+                # synced_at uses server_default=sa.func.now()
                 new_evaluator = models.BuiltinEvaluator(
-                    name=Identifier(key),
+                    name=Identifier(evaluator_cls.name),
                     description=evaluator_cls.description,
                     metadata_={},
                     user_id=None,
                     key=key,
                     input_schema=evaluator.input_schema,
                     output_config=output_cfg.model_dump(),
-                    synced_at=now,
                 )
                 session.add(new_evaluator)
 
@@ -94,17 +91,3 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     )
 
         logger.info(f"Synced {len(current_keys)} builtin evaluators to database")
-
-
-class BuiltinEvaluatorSyncCallback:
-    """
-    Startup callback for builtin evaluator synchronization.
-
-    Implements the _Callback protocol expected by _lifespan().
-    """
-
-    def __init__(self, db: DbSessionFactory) -> None:
-        self._db = db
-
-    async def __call__(self) -> None:
-        await sync_builtin_evaluators(self._db)

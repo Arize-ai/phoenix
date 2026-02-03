@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, TypeAlias, TypeVar, Union
+from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
@@ -92,27 +92,36 @@ EvaluatorOutputConfig: TypeAlias = CategoricalAnnotationConfig | ContinuousAnnot
 
 
 class BaseEvaluator(ABC):
+    """
+    Base interface for all evaluators that attach annotations to tasks.
+
+    This is the unified ABC that both LLMEvaluator (instance-based) and
+    BuiltInEvaluator (class-based with registry) implement.
+    """
+
     @property
     @abstractmethod
     def name(self) -> str:
-        raise NotImplementedError
+        """The display name of this evaluator."""
+        ...
 
     @property
     @abstractmethod
     def description(self) -> Optional[str]:
-        raise NotImplementedError
+        """Optional description of what this evaluator does."""
+        ...
 
     @property
     @abstractmethod
     def input_schema(self) -> dict[str, Any]:
-        raise NotImplementedError
+        """Returns the JSON schema describing the input format for this evaluator."""
+        ...
 
     @property
     @abstractmethod
-    def output_config(
-        self,
-    ) -> EvaluatorOutputConfig:
-        raise NotImplementedError
+    def output_config(self) -> EvaluatorOutputConfig:
+        """Returns the output configuration for this evaluator."""
+        ...
 
     @abstractmethod
     async def evaluate(
@@ -136,7 +145,7 @@ class BaseEvaluator(ABC):
                    If provided, the caller is responsible for managing the tracer
                    and retrieving any recorded spans after evaluation.
         """
-        raise NotImplementedError
+        ...
 
 
 class LLMEvaluator(BaseEvaluator):
@@ -465,16 +474,23 @@ class LLMEvaluator(BaseEvaluator):
         return result
 
 
-BuiltInEvaluatorOutputConfig: TypeAlias = Union[
-    CategoricalAnnotationConfig, ContinuousAnnotationConfig
-]
+class BuiltInEvaluator(BaseEvaluator):
+    """
+    Base class for built-in evaluators with registry support.
 
+    Built-in evaluators are class-based (instantiated fresh for each evaluation)
+    and registered via the @register_builtin_evaluator decorator.
 
-class BuiltInEvaluator(ABC):
+    Note: BuiltInEvaluator uses class-level `name` and `description` attributes
+    which satisfy the BaseEvaluator ABC's abstract property requirements.
+    """
+
     # _key is a unique identifier for this evaluator used for registry lookups.
     # It should be lowercase snake_case and should NEVER change once an evaluator
     # is released to ensure stable references.
     _key: str
+    # Class-level attributes that define the evaluator's identity
+    # These satisfy the abstract properties from the BaseEvaluator ABC
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
@@ -483,13 +499,13 @@ class BuiltInEvaluator(ABC):
     @abstractmethod
     def input_schema(self) -> dict[str, Any]:
         """Returns the JSON schema describing the input format for this evaluator."""
-        raise NotImplementedError
+        ...
 
     @property
     @abstractmethod
     def output_config(self) -> EvaluatorOutputConfig:
         """Returns the base output config for this evaluator (before any overrides are applied)."""
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def evaluate(
@@ -500,8 +516,7 @@ class BuiltInEvaluator(ABC):
         name: str,
         output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
-    ) -> EvaluationResult:
-        raise NotImplementedError
+    ) -> EvaluationResult: ...
 
     def _map_boolean_to_label_and_score(
         self,
@@ -543,6 +558,32 @@ def get_builtin_evaluators() -> list[tuple[str, type[BuiltInEvaluator]]]:
 
 def get_builtin_evaluator_by_key(key: str) -> Optional[type[BuiltInEvaluator]]:
     return _BUILTIN_EVALUATORS_BY_KEY.get(key)
+
+
+async def get_builtin_evaluator_from_orm(
+    session: AsyncSession,
+    evaluator_id: int,
+) -> type[BuiltInEvaluator]:
+    """
+    Fetch a builtin evaluator class from the database by evaluator ID.
+
+    Args:
+        session: SQLAlchemy async session
+        evaluator_id: The ID of the BuiltinEvaluator record
+
+    Returns:
+        The evaluator class registered for this builtin evaluator
+
+    Raises:
+        NotFound: If the evaluator doesn't exist or its key isn't registered
+    """
+    builtin = await session.get(models.BuiltinEvaluator, evaluator_id)
+    if builtin is None:
+        raise NotFound(f"Built-in evaluator not found: {evaluator_id}")
+    evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+    if evaluator_class is None:
+        raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+    return evaluator_class
 
 
 async def _get_llm_evaluators(
@@ -697,7 +738,7 @@ async def get_evaluators(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
-) -> list[BaseEvaluator | BuiltInEvaluator]:
+) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator node IDs.
 
@@ -796,7 +837,7 @@ async def get_evaluators(
             builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
 
     # Build result list in original input order, preserving duplicates
-    evaluators: list[BaseEvaluator | BuiltInEvaluator] = []
+    evaluators: list[BaseEvaluator] = []
     for db_id in dataset_evaluator_db_ids:
         dataset_evaluator = dataset_evaluators_by_id[db_id]
         evaluator_id = dataset_evaluator.evaluator_id

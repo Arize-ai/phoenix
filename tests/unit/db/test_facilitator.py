@@ -136,6 +136,7 @@ class TestEnsureStartupAdmins:
         user = users.pop("benjamin@example.com")
         assert not users, "There should be no other users in the database"
         assert user.username == "Franklin, Benjamin"
+        assert admin_role_id is not None
         assert user.user_role_id == admin_role_id
         assert user.reset_password
 

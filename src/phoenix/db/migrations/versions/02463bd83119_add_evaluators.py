@@ -195,7 +195,6 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
         sa.Column(
             "evaluator_id",
             _Integer,
@@ -248,7 +247,7 @@ def upgrade() -> None:
         sa.Column(
             "kind",
             sa.String,
-            sa.CheckConstraint("kind = 'BUILTIN'", name="valid_builtin_evaluator_kind"),
+            sa.CheckConstraint("kind = 'BUILTIN'", name="valid_evaluator_kind"),
             server_default="BUILTIN",
             nullable=False,
         ),
@@ -259,6 +258,7 @@ def upgrade() -> None:
             "synced_at",
             sa.TIMESTAMP(timezone=True),
             server_default=sa.func.now(),
+            onupdate=sa.func.now(),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(

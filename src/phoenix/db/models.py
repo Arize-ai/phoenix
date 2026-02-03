@@ -2334,11 +2334,10 @@ class BuiltinEvaluator(Evaluator):
 
     id: Mapped[int] = mapped_column(_Integer, primary_key=True)
     kind: Mapped[Literal["BUILTIN"]] = mapped_column(
-        CheckConstraint("kind = 'BUILTIN'", name="valid_builtin_evaluator_kind"),
+        CheckConstraint("kind = 'BUILTIN'", name="valid_evaluator_kind"),
         server_default="BUILTIN",
         nullable=False,
     )
-    # name, description, metadata, user_id, created_at are inherited from Evaluator
 
     key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)

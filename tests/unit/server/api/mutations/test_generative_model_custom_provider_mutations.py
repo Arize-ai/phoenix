@@ -124,9 +124,6 @@ class TestGenerativeModelCustomProviderMutations:
       }
     """
 
-    @pytest.mark.skip(
-        reason="Strawberry oneOf input validation errors are not captured in GraphQL errors array"
-    )
     async def test_all_provider_mutations_comprehensive(
         self,
         gql_client: AsyncGraphQLClient,
