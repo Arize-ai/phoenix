@@ -1,3 +1,4 @@
+import { ComponentType, ReactNode } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
@@ -12,15 +13,216 @@ import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evalu
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
+// --- Types ---
+
 type OutputConfig = {
   name: string;
   optimizationDirection?: string | null;
-  // Categorical
   values?: Array<{ label?: string | null; score?: number | null }> | null;
-  // Continuous
   lowerBound?: number | null;
   upperBound?: number | null;
 };
+
+type Mapping = Record<string, unknown> | undefined;
+
+type FieldConfig = {
+  label: string;
+  pathKey?: string;
+  literalKey?: string;
+  type?: "boolean" | "string";
+  defaultValue?: boolean;
+  fallback?: string;
+  suffix?: string;
+};
+
+type EvaluatorConfig = {
+  fields: FieldConfig[];
+  CodeBlock: ComponentType;
+};
+
+// --- Evaluator configurations ---
+
+const EVALUATOR_CONFIGS: Record<string, EvaluatorConfig> = {
+  contains: {
+    fields: [
+      { label: "Text", pathKey: "text", literalKey: "text" },
+      {
+        label: "Words",
+        pathKey: "words",
+        literalKey: "words",
+        fallback: "Not set",
+      },
+      {
+        label: "Case sensitive",
+        literalKey: "case_sensitive",
+        type: "boolean",
+      },
+      {
+        label: "Require all words",
+        literalKey: "require_all",
+        type: "boolean",
+        suffix: "(not implemented!)",
+      },
+    ],
+    CodeBlock: ContainsEvaluatorCodeBlock,
+  },
+  exactmatch: {
+    fields: [
+      { label: "Expected", pathKey: "expected", literalKey: "expected" },
+      { label: "Actual", pathKey: "actual", literalKey: "actual" },
+      {
+        label: "Case sensitive",
+        literalKey: "case_sensitive",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+    CodeBlock: ExactMatchEvaluatorCodeBlock,
+  },
+  regex: {
+    fields: [
+      { label: "Text", pathKey: "text", literalKey: "text" },
+      { label: "Pattern", literalKey: "pattern", fallback: "Not set" },
+      { label: "Full match", literalKey: "full_match", type: "boolean" },
+    ],
+    CodeBlock: RegexEvaluatorCodeBlock,
+  },
+  levenshteindistance: {
+    fields: [
+      { label: "Expected", pathKey: "expected", literalKey: "expected" },
+      { label: "Actual", pathKey: "actual", literalKey: "actual" },
+      {
+        label: "Case sensitive",
+        literalKey: "case_sensitive",
+        type: "boolean",
+        defaultValue: true,
+      },
+    ],
+    CodeBlock: LevenshteinDistanceEvaluatorCodeBlock,
+  },
+  jsondistance: {
+    fields: [
+      { label: "Expected", pathKey: "expected", literalKey: "expected" },
+      { label: "Actual", pathKey: "actual", literalKey: "actual" },
+    ],
+    CodeBlock: JSONDistanceEvaluatorCodeBlock,
+  },
+};
+
+// --- Helper functions ---
+
+function formatFieldValue(
+  field: FieldConfig,
+  path: Mapping,
+  literal: Mapping
+): string {
+  if (field.type === "boolean") {
+    const value = literal?.[field.literalKey!] as boolean | string | undefined;
+    const bool =
+      value === true || value === "true"
+        ? true
+        : value === false || value === "false"
+          ? false
+          : (field.defaultValue ?? false);
+    return bool ? "Yes" : "No";
+  }
+  const pathVal = field.pathKey ? (path?.[field.pathKey] as string) : undefined;
+  const litVal = field.literalKey
+    ? (literal?.[field.literalKey] as string)
+    : undefined;
+  if (pathVal) return pathVal;
+  if (litVal != null) return `"${litVal}"`;
+  return field.fallback ?? "Not mapped";
+}
+
+function formatOptimizationDirection(direction?: string | null): string {
+  if (!direction) return "None";
+  return direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase();
+}
+
+// --- UI Components ---
+
+const boxCSS = css`
+  background-color: var(--ac-global-background-color-dark);
+  border-radius: var(--ac-global-rounding-medium);
+  padding: var(--ac-global-dimension-static-size-200);
+  margin-top: var(--ac-global-dimension-static-size-50);
+  border: 1px solid var(--ac-global-border-color-default);
+`;
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <Text size="S">
+      <Text weight="heavy">{label}:</Text> {value}
+    </Text>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Flex direction="column" gap="size-100">
+      <Heading level={2}>{title}</Heading>
+      <div css={boxCSS}>
+        <Flex direction="column" gap="size-100">
+          {children}
+        </Flex>
+      </div>
+    </Flex>
+  );
+}
+
+function OutputConfigDisplay({ config }: { config: OutputConfig | null }) {
+  if (!config) return null;
+  const isCategorical = config.values != null;
+
+  return (
+    <Section title="Evaluator Annotation">
+      <Row label="Name" value={config.name} />
+      {config.optimizationDirection && (
+        <Row
+          label="Optimization Direction"
+          value={formatOptimizationDirection(config.optimizationDirection)}
+        />
+      )}
+      {isCategorical && config.values && config.values.length > 0 && (
+        <Text>
+          <Text size="S" weight="heavy">
+            Values:{" "}
+          </Text>
+          {config.values.map((v, i, arr) => (
+            <Text key={i} size="S">
+              {v.label}
+              {v.score != null ? ` (${v.score})` : ""}
+              {i < arr.length - 1 ? ", " : ""}
+            </Text>
+          ))}
+        </Text>
+      )}
+      {!isCategorical && (
+        <>
+          <Row
+            label="Lower Bound"
+            value={
+              config.lowerBound != null
+                ? String(config.lowerBound)
+                : "Unbounded"
+            }
+          />
+          <Row
+            label="Upper Bound"
+            value={
+              config.upperBound != null
+                ? String(config.upperBound)
+                : "Unbounded"
+            }
+          />
+        </>
+      )}
+    </Section>
+  );
+}
+
+// --- Main component ---
 
 export function BuiltInDatasetEvaluatorDetails({
   datasetEvaluatorRef,
@@ -33,9 +235,8 @@ export function BuiltInDatasetEvaluatorDetails({
   isEditSlideoverOpen: boolean;
   onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
-  // this is so evaluator name updates are reflected in the breadcrumbs
   const { revalidate } = useRevalidator();
-  const datasetEvaluator = useFragment(
+  const data = useFragment(
     graphql`
       fragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
         id
@@ -89,474 +290,48 @@ export function BuiltInDatasetEvaluatorDetails({
     datasetEvaluatorRef
   );
 
-  // Use datasetEvaluator's outputConfig if set, otherwise fall back to evaluator's default
-  const outputConfig = (datasetEvaluator.outputConfig ??
-    datasetEvaluator.evaluator.outputConfig) as OutputConfig | null;
-
-  const evaluator = datasetEvaluator.evaluator;
-  const inputMapping = datasetEvaluator.inputMapping;
-
-  if (evaluator.kind !== "CODE") {
-    throw new Error(
-      "BuiltInDatasetEvaluatorDetails called for non-CODE evaluator"
-    );
+  const evaluator = data.evaluator;
+  if (evaluator.kind !== "CODE" || !evaluator.isBuiltin || !evaluator.name) {
+    throw new Error("Invalid evaluator for BuiltInDatasetEvaluatorDetails");
   }
 
-  if (evaluator.isBuiltin && evaluator.name) {
-    const editSlideover = (
+  const config = EVALUATOR_CONFIGS[evaluator.name.toLowerCase()];
+  if (!config) {
+    throw new Error(`Unknown built-in evaluator: ${evaluator.name}`);
+  }
+
+  const outputConfig = (data.outputConfig ??
+    evaluator.outputConfig) as OutputConfig | null;
+  const path = data.inputMapping?.pathMapping as Mapping;
+  const literal = data.inputMapping?.literalMapping as Mapping;
+
+  return (
+    <>
+      <View padding="size-200" overflow="auto">
+        <Flex direction="column" gap="size-200">
+          <Section title="Input Mapping">
+            {config.fields.map((field) => {
+              const value = formatFieldValue(field, path, literal);
+              return (
+                <Row
+                  key={field.label}
+                  label={field.label}
+                  value={field.suffix ? `${value} ${field.suffix}` : value}
+                />
+              );
+            })}
+          </Section>
+          <OutputConfigDisplay config={outputConfig} />
+          <config.CodeBlock />
+        </Flex>
+      </View>
       <EditBuiltInDatasetEvaluatorSlideover
-        datasetEvaluatorId={datasetEvaluator.id}
+        datasetEvaluatorId={data.id}
         datasetId={datasetId}
         isOpen={isEditSlideoverOpen}
         onOpenChange={onEditSlideoverOpenChange}
         onUpdate={() => revalidate()}
       />
-    );
-
-    switch (evaluator.name.toLowerCase()) {
-      case "contains": {
-        return (
-          <>
-            <ContainsEvaluatorDetails
-              inputMapping={inputMapping}
-              outputConfig={outputConfig}
-            />
-            {editSlideover}
-          </>
-        );
-      }
-      case "exactmatch": {
-        return (
-          <>
-            <ExactMatchEvaluatorDetails
-              inputMapping={inputMapping}
-              outputConfig={outputConfig}
-            />
-            {editSlideover}
-          </>
-        );
-      }
-      case "regex": {
-        return (
-          <>
-            <RegexEvaluatorDetails
-              inputMapping={inputMapping}
-              outputConfig={outputConfig}
-            />
-            {editSlideover}
-          </>
-        );
-      }
-      case "levenshteindistance": {
-        return (
-          <>
-            <LevenshteinDistanceEvaluatorDetails
-              inputMapping={inputMapping}
-              outputConfig={outputConfig}
-            />
-            {editSlideover}
-          </>
-        );
-      }
-      case "jsondistance": {
-        return (
-          <>
-            <JSONDistanceEvaluatorDetails
-              inputMapping={inputMapping}
-              outputConfig={outputConfig}
-            />
-            {editSlideover}
-          </>
-        );
-      }
-    }
-  }
-
-  throw new Error(
-    "Unknown built-in evaluator or code evaluator not implemented"
-  );
-}
-
-const inputMappingBoxCSS = css`
-  background-color: var(--ac-global-background-color-dark);
-  border-radius: var(--ac-global-rounding-medium);
-  padding: var(--ac-global-dimension-static-size-200);
-  margin-top: var(--ac-global-dimension-static-size-50);
-  border: 1px solid var(--ac-global-border-color-default);
-`;
-
-function formatOptimizationDirection(direction?: string | null): string {
-  if (!direction) return "None";
-  switch (direction.toLowerCase()) {
-    case "maximize":
-      return "Maximize";
-    case "minimize":
-      return "Minimize";
-    default:
-      return direction;
-  }
-}
-
-function OutputConfigDisplay({
-  outputConfig,
-}: {
-  outputConfig: OutputConfig | null;
-}) {
-  if (!outputConfig) {
-    return null;
-  }
-
-  const isCategorical = outputConfig.values != null;
-
-  return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={2}>Evaluator Annotation</Heading>
-      <div css={inputMappingBoxCSS}>
-        <Flex direction="column" gap="size-100">
-          <Text size="S">
-            <Text weight="heavy">Name:</Text> {outputConfig.name}
-          </Text>
-          {outputConfig.optimizationDirection && (
-            <Text size="S">
-              <Text weight="heavy">Optimization Direction:</Text>{" "}
-              {formatOptimizationDirection(outputConfig.optimizationDirection)}
-            </Text>
-          )}
-          {isCategorical &&
-            outputConfig.values &&
-            outputConfig.values.length > 0 && (
-              <Text>
-                <Text size="S" weight="heavy">
-                  Values:{" "}
-                </Text>
-                {outputConfig.values.map((v, idx, arr) => (
-                  <Text key={idx} size="S">
-                    {v.label}
-                    {v.score != null ? ` (${v.score})` : ""}
-                    {idx < arr.length - 1 ? ", " : ""}
-                  </Text>
-                ))}
-              </Text>
-            )}
-          {!isCategorical && (
-            <>
-              <Text size="S">
-                <Text weight="heavy">Lower Bound:</Text>{" "}
-                {outputConfig.lowerBound != null
-                  ? outputConfig.lowerBound
-                  : "Unbounded"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Upper Bound:</Text>{" "}
-                {outputConfig.upperBound != null
-                  ? outputConfig.upperBound
-                  : "Unbounded"}
-              </Text>
-            </>
-          )}
-        </Flex>
-      </div>
-    </Flex>
-  );
-}
-
-function ContainsEvaluatorDetails({
-  inputMapping,
-  outputConfig,
-}: {
-  inputMapping: {
-    literalMapping?: {
-      text?: string | null;
-      words?: string | null;
-      case_sensitive?: boolean | string | null;
-      require_all?: boolean | string | null;
-    } | null;
-    pathMapping?: {
-      text?: string | null;
-      words?: string | null;
-    } | null;
-  } | null;
-  outputConfig: OutputConfig | null;
-}) {
-  const textPath = inputMapping?.pathMapping?.text;
-  const textLiteral = inputMapping?.literalMapping?.text;
-  const wordsPath = inputMapping?.pathMapping?.words;
-  const wordsLiteral = inputMapping?.literalMapping?.words;
-  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
-  const requireAll = inputMapping?.literalMapping?.require_all;
-
-  return (
-    <View padding="size-200" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2}>Input Mapping</Heading>
-          <div css={inputMappingBoxCSS}>
-            <Flex direction="column" gap="size-100">
-              <Text size="S">
-                <Text weight="heavy">Text:</Text>{" "}
-                {textPath
-                  ? textPath
-                  : textLiteral != null
-                    ? `"${textLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Words:</Text>{" "}
-                {wordsPath
-                  ? wordsPath
-                  : wordsLiteral
-                    ? String(wordsLiteral)
-                    : "Not set"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Case sensitive:</Text>{" "}
-                {caseSensitive === true || caseSensitive === "true"
-                  ? "Yes"
-                  : "No"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Require all words:</Text>{" "}
-                {requireAll === true || requireAll === "true" ? "Yes" : "No"}{" "}
-                (not implemented!)
-              </Text>
-            </Flex>
-          </div>
-        </Flex>
-        <OutputConfigDisplay outputConfig={outputConfig} />
-        <ContainsEvaluatorCodeBlock />
-      </Flex>
-    </View>
-  );
-}
-
-function ExactMatchEvaluatorDetails({
-  inputMapping,
-  outputConfig,
-}: {
-  inputMapping: {
-    literalMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-      case_sensitive?: boolean | string | null;
-    } | null;
-    pathMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-    } | null;
-  } | null;
-  outputConfig: OutputConfig | null;
-}) {
-  const expectedPath = inputMapping?.pathMapping?.expected;
-  const expectedLiteral = inputMapping?.literalMapping?.expected;
-  const actualPath = inputMapping?.pathMapping?.actual;
-  const actualLiteral = inputMapping?.literalMapping?.actual;
-  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
-
-  return (
-    <View padding="size-200" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2}>Input Mapping</Heading>
-          <div css={inputMappingBoxCSS}>
-            <Flex direction="column" gap="size-100">
-              <Text size="S">
-                <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath
-                  ? expectedPath
-                  : expectedLiteral != null
-                    ? `"${expectedLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Actual:</Text>{" "}
-                {actualPath
-                  ? actualPath
-                  : actualLiteral != null
-                    ? `"${actualLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Case sensitive:</Text>{" "}
-                {caseSensitive === false || caseSensitive === "false"
-                  ? "No"
-                  : "Yes"}
-              </Text>
-            </Flex>
-          </div>
-        </Flex>
-        <OutputConfigDisplay outputConfig={outputConfig} />
-        <ExactMatchEvaluatorCodeBlock />
-      </Flex>
-    </View>
-  );
-}
-
-function RegexEvaluatorDetails({
-  inputMapping,
-  outputConfig,
-}: {
-  inputMapping: {
-    literalMapping?: {
-      text?: string | null;
-      pattern?: string | null;
-      full_match?: boolean | string | null;
-    } | null;
-    pathMapping?: {
-      text?: string | null;
-    } | null;
-  } | null;
-  outputConfig: OutputConfig | null;
-}) {
-  const textPath = inputMapping?.pathMapping?.text;
-  const textLiteral = inputMapping?.literalMapping?.text;
-  const pattern = inputMapping?.literalMapping?.pattern;
-  const fullMatch = inputMapping?.literalMapping?.full_match;
-
-  return (
-    <View padding="size-200" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2}>Input Mapping</Heading>
-          <div css={inputMappingBoxCSS}>
-            <Flex direction="column" gap="size-100">
-              <Text size="S">
-                <Text weight="heavy">Text:</Text>{" "}
-                {textPath
-                  ? textPath
-                  : textLiteral != null
-                    ? `"${textLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Pattern:</Text>{" "}
-                {pattern ? String(pattern) : "Not set"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Full match:</Text>{" "}
-                {fullMatch === true || fullMatch === "true" ? "Yes" : "No"}
-              </Text>
-            </Flex>
-          </div>
-        </Flex>
-        <OutputConfigDisplay outputConfig={outputConfig} />
-        <RegexEvaluatorCodeBlock />
-      </Flex>
-    </View>
-  );
-}
-
-function LevenshteinDistanceEvaluatorDetails({
-  inputMapping,
-  outputConfig,
-}: {
-  inputMapping: {
-    literalMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-      case_sensitive?: boolean | string | null;
-    } | null;
-    pathMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-    } | null;
-  } | null;
-  outputConfig: OutputConfig | null;
-}) {
-  const expectedPath = inputMapping?.pathMapping?.expected;
-  const expectedLiteral = inputMapping?.literalMapping?.expected;
-  const actualPath = inputMapping?.pathMapping?.actual;
-  const actualLiteral = inputMapping?.literalMapping?.actual;
-  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
-
-  return (
-    <View padding="size-200" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2}>Input Mapping</Heading>
-          <div css={inputMappingBoxCSS}>
-            <Flex direction="column" gap="size-100">
-              <Text size="S">
-                <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath
-                  ? expectedPath
-                  : expectedLiteral != null
-                    ? `"${expectedLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Actual:</Text>{" "}
-                {actualPath
-                  ? actualPath
-                  : actualLiteral != null
-                    ? `"${actualLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Case sensitive:</Text>{" "}
-                {caseSensitive === false || caseSensitive === "false"
-                  ? "No"
-                  : "Yes"}
-              </Text>
-            </Flex>
-          </div>
-        </Flex>
-        <OutputConfigDisplay outputConfig={outputConfig} />
-        <LevenshteinDistanceEvaluatorCodeBlock />
-      </Flex>
-    </View>
-  );
-}
-
-function JSONDistanceEvaluatorDetails({
-  inputMapping,
-  outputConfig,
-}: {
-  inputMapping: {
-    literalMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-    } | null;
-    pathMapping?: {
-      expected?: string | null;
-      actual?: string | null;
-    } | null;
-  } | null;
-  outputConfig: OutputConfig | null;
-}) {
-  const expectedPath = inputMapping?.pathMapping?.expected;
-  const expectedLiteral = inputMapping?.literalMapping?.expected;
-  const actualPath = inputMapping?.pathMapping?.actual;
-  const actualLiteral = inputMapping?.literalMapping?.actual;
-
-  return (
-    <View padding="size-200" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2}>Input Mapping</Heading>
-          <div css={inputMappingBoxCSS}>
-            <Flex direction="column" gap="size-100">
-              <Text size="S">
-                <Text weight="heavy">Expected:</Text>{" "}
-                {expectedPath
-                  ? expectedPath
-                  : expectedLiteral != null
-                    ? `"${expectedLiteral}"`
-                    : "Not mapped"}
-              </Text>
-              <Text size="S">
-                <Text weight="heavy">Actual:</Text>{" "}
-                {actualPath
-                  ? actualPath
-                  : actualLiteral != null
-                    ? `"${actualLiteral}"`
-                    : "Not mapped"}
-              </Text>
-            </Flex>
-          </div>
-        </Flex>
-        <OutputConfigDisplay outputConfig={outputConfig} />
-        <JSONDistanceEvaluatorCodeBlock />
-      </Flex>
-    </View>
+    </>
   );
 }
