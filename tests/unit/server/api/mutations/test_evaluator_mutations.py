@@ -13,6 +13,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import get_builtin_evaluator_ids
@@ -185,10 +186,9 @@ class TestDatasetLLMEvaluatorMutations:
                 models.LLMEvaluator, db_dataset_evaluator.evaluator_id
             )
             assert llm_evaluator and llm_evaluator.kind == "LLM"
-            assert db_dataset_evaluator.input_mapping == {
-                "literal_mapping": {},
-                "path_mapping": {},
-            }
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={}, path_mapping={}
+            )
             assert db_dataset_evaluator.description == "test description"
             assert db_dataset_evaluator.output_config_override is None
             assert llm_evaluator.output_config is not None
@@ -1928,10 +1928,9 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator.evaluator_id is None
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
-            assert db_dataset_evaluator.input_mapping == {
-                "literal_mapping": {},
-                "path_mapping": {},
-            }
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={}, path_mapping={}
+            )
 
         # Success: Create builtin evaluator with custom input_mapping
         result = await self._create(
@@ -1952,10 +1951,10 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         async with db() as session:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.input_mapping == {
-                "literal_mapping": {"key": "value"},
-                "path_mapping": {"input": "context.input"},
-            }
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={"key": "value"},
+                path_mapping={"input": "context.input"},
+            )
 
         # Success: Multiple builtin evaluators for same dataset
         if len(builtin_evaluator_ids) > 1:
@@ -2196,7 +2195,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.name.root == "updated-name"
             # Input mapping should revert to default value when not provided
-            assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_dict()
+            assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_orm()
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
 
@@ -2221,10 +2220,10 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 models.DatasetEvaluators, dataset_evaluator_rowid
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.input_mapping == {
-                "literal_mapping": {"new_key": "new_value"},
-                "path_mapping": {"output": "context.output"},
-            }
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={"new_key": "new_value"},
+                path_mapping={"output": "context.output"},
+            )
 
         # Update both display name and input_mapping
         result = await gql_client.execute(
@@ -2251,10 +2250,10 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             )
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.name.root == "final-name"
-            assert db_dataset_evaluator.input_mapping == {
-                "literal_mapping": {"final": "value"},
-                "path_mapping": {},
-            }
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={"final": "value"},
+                path_mapping={},
+            )
 
         # Failure: Nonexistent dataset evaluator
         nonexistent_id = str(GlobalID("DatasetEvaluator", "999999"))
@@ -2312,7 +2311,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     name=llm_evaluator_name,
                     description="test description",
                     output_config_override=None,
-                    input_mapping={},
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     project=models.Project(
                         name=f"{empty_dataset.name}/{llm_evaluator_name}",
                         description="Project for llm evaluator",
@@ -2552,7 +2551,7 @@ async def llm_evaluator(
                 name=evaluator_name,
                 description="correctness description",
                 output_config_override=None,
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/{evaluator_name}",
                     description="Project for evaluator",
@@ -2617,7 +2616,7 @@ class TestDeleteDatasetEvaluators:
                 builtin_evaluator_id=builtin_evaluator_id,
                 evaluator_id=None,
                 name=IdentifierModel.model_validate("test-builtin-evaluator"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/test-builtin-evaluator",
                     description="Project for builtin evaluator",
@@ -2710,7 +2709,7 @@ class TestDeleteDatasetEvaluators:
                         name=evaluator_name,
                         description="test description",
                         output_config_override=None,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
                             description="Project for llm evaluator deletion",
@@ -2769,7 +2768,7 @@ class TestDeleteDatasetEvaluators:
                 builtin_evaluator_id=builtin_evaluator_id,
                 evaluator_id=None,
                 name=IdentifierModel.model_validate("test-builtin-for-batch-delete"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/test-builtin-for-batch-delete",
                     description="Project for builtin batch delete",
@@ -2833,7 +2832,7 @@ class TestDeleteDatasetEvaluators:
                         name=evaluator_name,
                         description="test description",
                         output_config_override=None,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
                             description="Project for batch delete llm evaluator",
@@ -2992,7 +2991,7 @@ class TestDeleteDatasetEvaluators:
                         name=evaluator_name,
                         description="test description",
                         output_config_override=None,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
                             description="Project for llm evaluator with prompt deletion",
@@ -3102,7 +3101,7 @@ class TestDeleteDatasetEvaluators:
                         name=evaluator_name,
                         description="test description",
                         output_config_override=None,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
                             description="Project for llm evaluator without prompt deletion",

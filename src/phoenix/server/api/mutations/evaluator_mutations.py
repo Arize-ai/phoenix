@@ -27,6 +27,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfigOverride as ContinuousAnnotationConfigOverrideModel,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -349,9 +350,9 @@ class EvaluatorMutationMixin:
                     name=validated_name,
                     description=input.description if input.description is not UNSET else None,
                     output_config_override=None,
-                    input_mapping=input.input_mapping.to_dict()
+                    input_mapping=input.input_mapping.to_orm()
                     if input.input_mapping is not None
-                    else {"literal_mapping": {}, "path_mapping": {}},
+                    else InputMapping(literal_mapping={}, path_mapping={}),
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
@@ -565,12 +566,9 @@ class EvaluatorMutationMixin:
             )
             dataset_evaluator.output_config_override = None
             dataset_evaluator.input_mapping = (
-                input.input_mapping.to_dict()
+                input.input_mapping.to_orm()
                 if input.input_mapping is not None
-                else {
-                    "literal_mapping": {},
-                    "path_mapping": {},
-                }
+                else InputMapping(literal_mapping={}, path_mapping={})
             )
             dataset_evaluator.user_id = user_id
 
@@ -812,7 +810,7 @@ class EvaluatorMutationMixin:
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
                     name=name,
-                    input_mapping=input_mapping.to_dict(),
+                    input_mapping=input_mapping.to_orm(),
                     builtin_evaluator_id=built_in_evaluator_id,
                     evaluator_id=None,
                     output_config_override=output_config_override,
@@ -886,7 +884,7 @@ class EvaluatorMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(f"Invalid evaluator name: {error}")
                 dataset_evaluator.name = name
-                dataset_evaluator.input_mapping = input_mapping.to_dict()
+                dataset_evaluator.input_mapping = input_mapping.to_orm()
                 dataset_evaluator.updated_at = datetime.now(timezone.utc)
                 dataset_evaluator.user_id = user_id
 

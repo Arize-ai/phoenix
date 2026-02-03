@@ -17,6 +17,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
@@ -2939,28 +2940,28 @@ class TestGetEvaluators:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="contains-project", description=""),
             )
             de_llm = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=correctness_llm_evaluator.id,
                 name=Identifier("llm-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="llm-project", description=""),
             )
             de_exact_match = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=exact_match_id,
                 name=Identifier("exact-match-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="exact-match-project", description=""),
             )
             de_regex = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=regex_id,
                 name=Identifier("regex-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="regex-project", description=""),
             )
             session.add_all([de_contains, de_llm, de_exact_match, de_regex])
@@ -3029,7 +3030,7 @@ class TestGetEvaluators:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=non_existent_builtin_id,
                 name=Identifier("missing-builtin-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="missing-builtin-project", description=""),
             )
             session.add(de)
@@ -3095,21 +3096,21 @@ class TestGetEvaluators:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=levenshtein_id,
                 name=Identifier("levenshtein-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="levenshtein-project", description=""),
             )
             de_json_distance = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=json_distance_id,
                 name=Identifier("json-distance-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="json-distance-project", description=""),
             )
             de_contains = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="contains-project", description=""),
             )
             session.add_all([de_levenshtein, de_json_distance, de_contains])

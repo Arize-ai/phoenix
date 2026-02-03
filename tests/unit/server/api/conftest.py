@@ -10,6 +10,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import _generate_builtin_evaluator_id
@@ -922,7 +923,7 @@ async def assign_correctness_llm_evaluator_to_dataset(
             dataset_id=dataset_id,
             evaluator_id=correctness_llm_evaluator.id,
             name=correctness_llm_evaluator.name,
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             output_config_override=None,
             project=models.Project(
                 name="correctness-evaluator-project",
@@ -948,7 +949,7 @@ async def assign_exact_match_builtin_evaluator_to_dataset(
             dataset_id=dataset_id,
             builtin_evaluator_id=exact_match_id,
             name=Identifier(root="exact-match"),
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             project=models.Project(
                 name="exact-match-evaluator-project",
                 description="Project for builtin evaluator",

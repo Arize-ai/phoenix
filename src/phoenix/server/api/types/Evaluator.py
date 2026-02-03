@@ -776,10 +776,10 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> EvaluatorInputMapping:
         record = await self._get_record(info)
-        input_mapping = record.input_mapping or {}
+        input_mapping = record.input_mapping
         return EvaluatorInputMapping(
-            literal_mapping=input_mapping.get("literal_mapping", {}),
-            path_mapping=input_mapping.get("path_mapping", {}),
+            literal_mapping=input_mapping.literal_mapping,
+            path_mapping=input_mapping.path_mapping,
         )
 
     @strawberry.field

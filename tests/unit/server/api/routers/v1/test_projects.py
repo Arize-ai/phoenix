@@ -12,6 +12,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
@@ -804,7 +805,7 @@ class TestProjects:
                 dataset_id=dataset.id,
                 evaluator_id=code_evaluator.id,
                 name=Identifier(root="test-dataset-evaluator"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=dataset_evaluator_project.id,
             )
             session.add(dataset_evaluator)

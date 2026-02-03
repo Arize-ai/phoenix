@@ -10,6 +10,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -177,7 +178,7 @@ class TestDatasetEvaluatorDescriptionFallback:
                 evaluator_id=llm_evaluator.id,
                 name=Identifier("eval_with_desc"),
                 description="Dataset evaluator override description",
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{dataset.name}/eval_with_desc",
                     description="Project for dataset evaluator with description",
@@ -191,7 +192,7 @@ class TestDatasetEvaluatorDescriptionFallback:
                 evaluator_id=llm_evaluator.id,
                 name=Identifier("eval_no_desc"),
                 description=None,
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{dataset.name}/eval_no_desc",
                     description="Project for dataset evaluator without description",
@@ -230,7 +231,7 @@ class TestDatasetEvaluatorDescriptionFallback:
                 evaluator_id=llm_evaluator_no_desc.id,
                 name=Identifier("eval_both_null"),
                 description=None,
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=project_both_null.id,
             )
             session.add(dataset_evaluator_both_null)
@@ -428,7 +429,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_no_override"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=project.id,
             )
             session.add(dataset_eval_categorical_no_override)
@@ -438,7 +439,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_with_override"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_override=CategoricalAnnotationConfigOverride(
                     type="CATEGORICAL",
                     optimization_direction=OptimizationDirection.MINIMIZE,
@@ -457,7 +458,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_no_override"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=project.id,
             )
             session.add(dataset_eval_continuous_no_override)
@@ -467,7 +468,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 dataset_id=dataset.id,
                 builtin_evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_with_override"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_override=ContinuousAnnotationConfigOverride(
                     type="CONTINUOUS",
                     optimization_direction=OptimizationDirection.MINIMIZE,
