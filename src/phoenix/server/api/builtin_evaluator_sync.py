@@ -10,6 +10,7 @@ we use SQLAlchemy ORM to properly handle the joined table inheritance.
 """
 
 import logging
+import re
 
 from sqlalchemy import delete, select
 
@@ -19,6 +20,12 @@ from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+
+def _camel_to_snake(name: str) -> str:
+    """Convert CamelCase to snake_case for identifier compatibility."""
+    # Insert underscore before uppercase letters and convert to lowercase
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
@@ -46,9 +53,12 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                 select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == key)
             )
 
+            # Convert CamelCase display name to snake_case identifier
+            identifier_name = _camel_to_snake(evaluator_cls.name)
+
             if existing:
                 # Update existing record (synced_at auto-updates via onupdate)
-                existing.name = Identifier(evaluator_cls.name)
+                existing.name = Identifier(identifier_name)
                 existing.description = evaluator_cls.description
                 existing.input_schema = evaluator.input_schema
                 existing.output_config = output_cfg.model_dump()
@@ -56,7 +66,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                 # Create new record using ORM (handles polymorphic inheritance)
                 # synced_at uses server_default=sa.func.now()
                 new_evaluator = models.BuiltinEvaluator(
-                    name=Identifier(evaluator_cls.name),
+                    name=Identifier(identifier_name),
                     description=evaluator_cls.description,
                     metadata_={},
                     user_id=None,
