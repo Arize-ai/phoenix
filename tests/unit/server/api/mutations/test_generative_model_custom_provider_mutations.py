@@ -1,7 +1,6 @@
 from secrets import token_hex
 from typing import Any
 
-import pytest
 from strawberry.relay.types import GlobalID
 
 from tests.unit.graphql import AsyncGraphQLClient
