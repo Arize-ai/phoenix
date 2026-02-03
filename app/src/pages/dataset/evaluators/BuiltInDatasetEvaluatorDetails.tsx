@@ -1,4 +1,4 @@
-import { ComponentType, ReactNode } from "react";
+import { ReactNode } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
@@ -7,140 +7,16 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
+import { ContainsEvaluatorDetails } from "@phoenix/components/evaluators/ContainsEvaluatorDetails";
 import { ExactMatchEvaluatorCodeBlock } from "@phoenix/components/evaluators/ExactMatchEvaluatorCodeBlock";
+import { ExactMatchEvaluatorDetails } from "@phoenix/components/evaluators/ExactMatchEvaluatorDetails";
 import { JSONDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/JSONDistanceEvaluatorCodeBlock";
+import { JSONDistanceEvaluatorDetails } from "@phoenix/components/evaluators/JSONDistanceEvaluatorDetails";
 import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/LevenshteinDistanceEvaluatorCodeBlock";
+import { LevenshteinDistanceEvaluatorDetails } from "@phoenix/components/evaluators/LevenshteinDistanceEvaluatorDetails";
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
+import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvaluatorDetails";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
-
-// --- Types ---
-
-type OutputConfig = {
-  name: string;
-  optimizationDirection?: string | null;
-  values?: Array<{ label?: string | null; score?: number | null }> | null;
-  lowerBound?: number | null;
-  upperBound?: number | null;
-};
-
-type Mapping = Record<string, unknown> | undefined;
-
-type FieldConfig = {
-  label: string;
-  pathKey?: string;
-  literalKey?: string;
-  type?: "boolean" | "string";
-  defaultValue?: boolean;
-  fallback?: string;
-  suffix?: string;
-};
-
-type EvaluatorConfig = {
-  fields: FieldConfig[];
-  CodeBlock: ComponentType;
-};
-
-// --- Evaluator configurations ---
-
-const EVALUATOR_CONFIGS: Record<string, EvaluatorConfig> = {
-  contains: {
-    fields: [
-      { label: "Text", pathKey: "text", literalKey: "text" },
-      {
-        label: "Words",
-        pathKey: "words",
-        literalKey: "words",
-        fallback: "Not set",
-      },
-      {
-        label: "Case sensitive",
-        literalKey: "case_sensitive",
-        type: "boolean",
-      },
-      {
-        label: "Require all words",
-        literalKey: "require_all",
-        type: "boolean",
-        suffix: "(not implemented!)",
-      },
-    ],
-    CodeBlock: ContainsEvaluatorCodeBlock,
-  },
-  exactmatch: {
-    fields: [
-      { label: "Expected", pathKey: "expected", literalKey: "expected" },
-      { label: "Actual", pathKey: "actual", literalKey: "actual" },
-      {
-        label: "Case sensitive",
-        literalKey: "case_sensitive",
-        type: "boolean",
-        defaultValue: true,
-      },
-    ],
-    CodeBlock: ExactMatchEvaluatorCodeBlock,
-  },
-  regex: {
-    fields: [
-      { label: "Text", pathKey: "text", literalKey: "text" },
-      { label: "Pattern", literalKey: "pattern", fallback: "Not set" },
-      { label: "Full match", literalKey: "full_match", type: "boolean" },
-    ],
-    CodeBlock: RegexEvaluatorCodeBlock,
-  },
-  levenshteindistance: {
-    fields: [
-      { label: "Expected", pathKey: "expected", literalKey: "expected" },
-      { label: "Actual", pathKey: "actual", literalKey: "actual" },
-      {
-        label: "Case sensitive",
-        literalKey: "case_sensitive",
-        type: "boolean",
-        defaultValue: true,
-      },
-    ],
-    CodeBlock: LevenshteinDistanceEvaluatorCodeBlock,
-  },
-  jsondistance: {
-    fields: [
-      { label: "Expected", pathKey: "expected", literalKey: "expected" },
-      { label: "Actual", pathKey: "actual", literalKey: "actual" },
-    ],
-    CodeBlock: JSONDistanceEvaluatorCodeBlock,
-  },
-};
-
-// --- Helper functions ---
-
-function formatFieldValue(
-  field: FieldConfig,
-  path: Mapping,
-  literal: Mapping
-): string {
-  if (field.type === "boolean") {
-    const value = literal?.[field.literalKey!] as boolean | string | undefined;
-    const bool =
-      value === true || value === "true"
-        ? true
-        : value === false || value === "false"
-          ? false
-          : (field.defaultValue ?? false);
-    return bool ? "Yes" : "No";
-  }
-  const pathVal = field.pathKey ? (path?.[field.pathKey] as string) : undefined;
-  const litVal = field.literalKey
-    ? (literal?.[field.literalKey] as string)
-    : undefined;
-  if (pathVal) return pathVal;
-  if (litVal != null) return `"${litVal}"`;
-  return field.fallback ?? "Not mapped";
-}
-
-function formatOptimizationDirection(direction?: string | null): string {
-  if (!direction) return "None";
-  return direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase();
-}
-
-// --- UI Components ---
 
 const boxCSS = css`
   background-color: var(--ac-global-background-color-dark);
@@ -150,79 +26,70 @@ const boxCSS = css`
   border: 1px solid var(--ac-global-border-color-default);
 `;
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <Text size="S">
-      <Text weight="heavy">{label}:</Text> {value}
-    </Text>
-  );
-}
-
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Flex direction="column" gap="size-100">
       <Heading level={2}>{title}</Heading>
-      <div css={boxCSS}>
-        <Flex direction="column" gap="size-100">
-          {children}
-        </Flex>
-      </div>
+      <div css={boxCSS}>{children}</div>
     </Flex>
   );
 }
 
-function OutputConfigDisplay({ config }: { config: OutputConfig | null }) {
+type OutputConfig = {
+  name: string;
+  optimizationDirection?: string | null;
+  values?: Array<{ label?: string | null; score?: number | null }> | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
+};
+
+function OutputConfigSection({ config }: { config: OutputConfig | null }) {
   if (!config) return null;
   const isCategorical = config.values != null;
+  const direction = config.optimizationDirection
+    ? config.optimizationDirection.charAt(0).toUpperCase() +
+      config.optimizationDirection.slice(1).toLowerCase()
+    : null;
 
   return (
     <Section title="Evaluator Annotation">
-      <Row label="Name" value={config.name} />
-      {config.optimizationDirection && (
-        <Row
-          label="Optimization Direction"
-          value={formatOptimizationDirection(config.optimizationDirection)}
-        />
-      )}
-      {isCategorical && config.values && config.values.length > 0 && (
-        <Text>
-          <Text size="S" weight="heavy">
-            Values:{" "}
-          </Text>
-          {config.values.map((v, i, arr) => (
-            <Text key={i} size="S">
-              {v.label}
-              {v.score != null ? ` (${v.score})` : ""}
-              {i < arr.length - 1 ? ", " : ""}
-            </Text>
-          ))}
+      <Flex direction="column" gap="size-100">
+        <Text size="S">
+          <Text weight="heavy">Name:</Text> {config.name}
         </Text>
-      )}
-      {!isCategorical && (
-        <>
-          <Row
-            label="Lower Bound"
-            value={
-              config.lowerBound != null
+        {direction && (
+          <Text size="S">
+            <Text weight="heavy">Optimization Direction:</Text> {direction}
+          </Text>
+        )}
+        {isCategorical && config.values && config.values.length > 0 && (
+          <Text size="S">
+            <Text weight="heavy">Values:</Text>{" "}
+            {config.values
+              .map((v) => `${v.label}${v.score != null ? ` (${v.score})` : ""}`)
+              .join(", ")}
+          </Text>
+        )}
+        {!isCategorical && (
+          <>
+            <Text size="S">
+              <Text weight="heavy">Lower Bound:</Text>{" "}
+              {config.lowerBound != null
                 ? String(config.lowerBound)
-                : "Unbounded"
-            }
-          />
-          <Row
-            label="Upper Bound"
-            value={
-              config.upperBound != null
+                : "Unbounded"}
+            </Text>
+            <Text size="S">
+              <Text weight="heavy">Upper Bound:</Text>{" "}
+              {config.upperBound != null
                 ? String(config.upperBound)
-                : "Unbounded"
-            }
-          />
-        </>
-      )}
+                : "Unbounded"}
+            </Text>
+          </>
+        )}
+      </Flex>
     </Section>
   );
 }
-
-// --- Main component ---
 
 export function BuiltInDatasetEvaluatorDetails({
   datasetEvaluatorRef,
@@ -295,34 +162,50 @@ export function BuiltInDatasetEvaluatorDetails({
     throw new Error("Invalid evaluator for BuiltInDatasetEvaluatorDetails");
   }
 
-  const config = EVALUATOR_CONFIGS[evaluator.name.toLowerCase()];
-  if (!config) {
-    throw new Error(`Unknown built-in evaluator: ${evaluator.name}`);
-  }
-
   const outputConfig = (data.outputConfig ??
     evaluator.outputConfig) as OutputConfig | null;
-  const path = data.inputMapping?.pathMapping as Mapping;
-  const literal = data.inputMapping?.literalMapping as Mapping;
+  const inputMapping = data.inputMapping;
+  const name = evaluator.name.toLowerCase();
+
+  let DetailsComponent: React.ComponentType<{
+    inputMapping: typeof inputMapping;
+  }>;
+  let CodeBlockComponent: React.ComponentType;
+
+  switch (name) {
+    case "contains":
+      DetailsComponent = ContainsEvaluatorDetails;
+      CodeBlockComponent = ContainsEvaluatorCodeBlock;
+      break;
+    case "exactmatch":
+      DetailsComponent = ExactMatchEvaluatorDetails;
+      CodeBlockComponent = ExactMatchEvaluatorCodeBlock;
+      break;
+    case "regex":
+      DetailsComponent = RegexEvaluatorDetails;
+      CodeBlockComponent = RegexEvaluatorCodeBlock;
+      break;
+    case "levenshteindistance":
+      DetailsComponent = LevenshteinDistanceEvaluatorDetails;
+      CodeBlockComponent = LevenshteinDistanceEvaluatorCodeBlock;
+      break;
+    case "jsondistance":
+      DetailsComponent = JSONDistanceEvaluatorDetails;
+      CodeBlockComponent = JSONDistanceEvaluatorCodeBlock;
+      break;
+    default:
+      throw new Error(`Unknown built-in evaluator: ${evaluator.name}`);
+  }
 
   return (
     <>
       <View padding="size-200" overflow="auto">
         <Flex direction="column" gap="size-200">
           <Section title="Input Mapping">
-            {config.fields.map((field) => {
-              const value = formatFieldValue(field, path, literal);
-              return (
-                <Row
-                  key={field.label}
-                  label={field.label}
-                  value={field.suffix ? `${value} ${field.suffix}` : value}
-                />
-              );
-            })}
+            <DetailsComponent inputMapping={inputMapping} />
           </Section>
-          <OutputConfigDisplay config={outputConfig} />
-          <config.CodeBlock />
+          <OutputConfigSection config={outputConfig} />
+          <CodeBlockComponent />
         </Flex>
       </View>
       <EditBuiltInDatasetEvaluatorSlideover
