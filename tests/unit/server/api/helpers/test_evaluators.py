@@ -654,6 +654,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"output": "Hello, world!"}
 
@@ -672,6 +673,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"text": "deep content"}
 
@@ -690,6 +692,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"key": "literal_value"}
 
@@ -711,6 +714,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"input": "user input", "output": "model output"}
 
@@ -730,9 +734,10 @@ class TestApplyInputMapping:
                 input_schema=input_schema,
                 input_mapping=input_mapping,
                 context=context,
+                allow_missing_as_none=False,
             )
 
-    def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
+    def test_raises_when_jsonpath_has_no_matches(self) -> None:
         input_schema = {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -743,13 +748,17 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"other": "value", "key": "fallback"}
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Falls back to context since jsonpath has no matches
-        assert result == {"key": "fallback"}
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.nonexistent\.path' for key 'key' "
+            r"did not match any values in the context",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+                allow_missing_as_none=False,
+            )
 
     def test_inserts_none_when_jsonpath_has_no_matches_and_allow_missing_as_none(self) -> None:
         input_schema = {
@@ -770,12 +779,7 @@ class TestApplyInputMapping:
         )
         assert result == {"key": None}
 
-    def test_omits_key_when_jsonpath_has_no_matches_and_not_in_context(self) -> None:
-        """Test that key is omitted when path doesn't match and it's not in context.
-
-        This is the default behavior (allow_missing_as_none=False) for built-in evaluators,
-        which will cause validation to fail if the key is required.
-        """
+    def test_raises_when_jsonpath_has_no_matches_and_not_in_context(self) -> None:
         input_schema = {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -786,13 +790,50 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"other": "value"}  # No "key" in context
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-            allow_missing_as_none=False,
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.nonexistent\.path' for key 'key' "
+            r"did not match any values in the context",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+                allow_missing_as_none=False,
+            )
+
+    def test_error_message_includes_path_and_key_for_failed_mapping(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "answer": {"type": "string"},
+            },
+            "required": ["question", "answer"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "question": "$.input.query",  # This will match
+                "answer": "$.output.response.text",  # This won't match
+            },
+            literal_mapping={},
         )
-        assert "key" not in result
+        context = {
+            "input": {"query": "What is 2+2?"},
+            "output": {"content": "4"},  # Missing "response.text" path
+        }
+        with pytest.raises(ValueError) as exc_info:
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+                allow_missing_as_none=False,
+            )
+        # Verify the error message includes the specific path and key that failed
+        error_message = str(exc_info.value)
+        assert "$.output.response.text" in error_message
+        assert "answer" in error_message
+        assert "did not match any values" in error_message
 
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
@@ -809,6 +850,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         # Only keys in schema are included
         assert result == {"a": "value_a", "b": "value_b"}
@@ -832,6 +874,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {
             "from_path": "path_result",
@@ -854,6 +897,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"item": ["first", "second", "third"]}
 
@@ -877,6 +921,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"list": [1, 2, 3]}
 
@@ -903,6 +948,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"obj": {"a": 1, "b": 2}}
 
@@ -936,6 +982,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"content": "4"}
 
@@ -962,6 +1009,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"messages": ["Hello", "Hi there!", "How are you?"]}
 
@@ -998,6 +1046,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {
             "question": "What is the capital of France?",
@@ -1006,13 +1055,6 @@ class TestApplyInputMapping:
         }
 
     def test_path_mapping_cannot_traverse_stringified_json(self) -> None:
-        """Test that JSONPath cannot traverse into stringified JSON values.
-
-        This validates the importance of NOT using json.dumps on context values -
-        if values are strings, deep path expressions will not match.
-        """
-        import json
-
         input_schema = {
             "type": "object",
             "properties": {"content": {"type": "string"}},
@@ -1026,17 +1068,19 @@ class TestApplyInputMapping:
             path_mapping={"content": "$.output[0].message.content"},
             literal_mapping={},
         )
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Path doesn't match because output is a string, not an object
-        # Falls back to context which also doesn't have "content" key
-        assert "content" not in result
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.output\[0\]\.message\.content' for key 'content' "
+            r"did not match any values in the context",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+                allow_missing_as_none=False,
+            )
 
     def test_path_mapping_with_complex_nested_tool_calls(self) -> None:
-        """Test path access into complex tool call structures."""
         input_schema = {
             "type": "object",
             "properties": {"function_name": {"type": "string"}},
@@ -1072,6 +1116,7 @@ class TestApplyInputMapping:
             input_schema=input_schema,
             input_mapping=input_mapping,
             context=context,
+            allow_missing_as_none=False,
         )
         assert result == {"function_name": "get_weather"}
 
