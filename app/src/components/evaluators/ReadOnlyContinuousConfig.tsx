@@ -68,23 +68,11 @@ export const ReadOnlyContinuousConfig = ({
         </Flex>
         {hasBounds && (
           <Flex direction="row" gap="size-200" alignItems="end">
-            <NumberField
-              isDisabled
-              value={lowerBound ?? undefined}
-              css={css`
-                width: fit-content;
-              `}
-            >
+            <NumberField isDisabled value={lowerBound ?? undefined}>
               <Label>Lower bound</Label>
               <Input placeholder={hasLowerBound ? undefined : "unbounded"} />
             </NumberField>
-            <NumberField
-              isDisabled
-              value={upperBound ?? undefined}
-              css={css`
-                width: fit-content;
-              `}
-            >
+            <NumberField isDisabled value={upperBound ?? undefined}>
               <Label>Upper bound</Label>
               <Input placeholder={hasUpperBound ? undefined : "unbounded"} />
             </NumberField>
