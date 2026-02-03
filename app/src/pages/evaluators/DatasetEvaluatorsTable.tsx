@@ -346,6 +346,7 @@ export const DatasetEvaluatorsTable = ({
           <PromptCell
             prompt={row.original.evaluator.prompt}
             promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+            wrapWidth={200}
           />
         ),
       },

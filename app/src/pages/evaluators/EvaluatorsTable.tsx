@@ -220,6 +220,7 @@ export const EvaluatorsTable = ({
           <PromptCell
             prompt={row.original.prompt}
             promptVersionTag={row.original.promptVersionTag?.name}
+            wrapWidth={200}
           />
         ),
       },
