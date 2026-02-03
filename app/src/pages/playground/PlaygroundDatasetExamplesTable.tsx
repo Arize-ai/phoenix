@@ -109,7 +109,11 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
-  type EvaluationChunk,
+  InstanceVariablesProvider,
+  useInstanceVariables,
+} from "./InstanceVariablesContext";
+import {
+  EvaluationChunk,
   ExampleRunData,
   InstanceResponses,
   makeExpandedCellKey,
@@ -120,11 +124,7 @@ import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
-import {
-  denormalizePlaygroundInstance,
-  extractVariablesFromInstance,
-  getChatCompletionOverDatasetInput,
-} from "./playgroundUtils";
+import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
 
@@ -540,7 +540,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
-  instanceVariables,
   datasetExample,
   templateVariablesPath,
   onViewExperimentRunDetailsPress,
@@ -550,7 +549,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   instanceId: number;
   exampleId: string;
   isRunning: boolean;
-  instanceVariables: string[];
   datasetExample: { input: unknown; output: unknown; metadata: unknown };
   templateVariablesPath: string | null;
   onViewExperimentRunDetailsPress: () => void;
@@ -561,6 +559,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   ) => void;
   evaluatorOutputConfigs: AnnotationConfig[];
 }) {
+  const instanceVariables = useInstanceVariables(instanceId);
   const [repetitionNumber, setRepetitionNumber] = useState(1);
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.repetitions
@@ -732,10 +731,6 @@ export function PlaygroundDatasetExamplesTable({
     projectId: string;
     evaluatorName?: string;
   } | null>(null);
-  const allInstanceMessages = usePlaygroundContext(
-    (state) => state.allInstanceMessages
-  );
-  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const playgroundDatasetState = usePlaygroundContext((state) =>
     datasetId ? state.stateByDatasetId[datasetId] : null
   );
@@ -1262,14 +1257,6 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
-      const enrichedInstance = denormalizePlaygroundInstance(
-        instance,
-        allInstanceMessages
-      );
-      const instanceVariables = extractVariablesFromInstance({
-        instance: enrichedInstance,
-        templateFormat,
-      });
       const isRunning = instance.activeRunId !== null;
       const experimentId = instance.experimentId;
       return {
@@ -1332,7 +1319,6 @@ export function PlaygroundDatasetExamplesTable({
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={hasSomeRunIds}
-              instanceVariables={instanceVariables}
               datasetExample={{
                 input: row.original.input,
                 output: row.original.output,
@@ -1355,9 +1341,7 @@ export function PlaygroundDatasetExamplesTable({
   }, [
     hasSomeRunIds,
     instances,
-    templateFormat,
     templateVariablesPath,
-    allInstanceMessages,
     setSelectedExampleIndex,
     evaluatorOutputConfigs,
   ]);
@@ -1469,140 +1453,142 @@ export function PlaygroundDatasetExamplesTable({
   ]);
 
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-        height: 100%;
-      `}
-      ref={tableContainerCallbackRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-    >
-      <table
-        css={css(tableCSS, borderedTableCSS)}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+    <InstanceVariablesProvider>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+          height: 100%;
+        `}
+        ref={tableContainerCallbackRef}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                  }}
-                >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
-                  <div
-                    {...{
-                      onMouseDown: header.getResizeHandler(),
-                      onTouchStart: header.getResizeHandler(),
-                      className: `resizer ${
-                        header.column.getIsResizing() ? "isResizing" : ""
-                      }`,
+        <table
+          css={css(tableCSS, borderedTableCSS)}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    style={{
+                      width: `calc(var(--header-${header?.id}-size) * 1px)`,
                     }}
-                  />
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody
-            table={table}
-            tableContainerRef={tableContainerRef}
-            estimatedRowHeight={estimatedRowHeight}
-          />
-        ) : (
-          <TableBody
-            table={table}
-            tableContainerRef={tableContainerRef}
-            estimatedRowHeight={estimatedRowHeight}
-          />
-        )}
-      </table>
-      <ModalOverlay
-        isOpen={selectedExampleIndex !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setSelectedExampleIndex(null);
-          }
-        }}
-      >
-        <Modal variant="slideover" size="fullscreen">
-          {selectedExampleIndex !== null &&
-            exampleIds[selectedExampleIndex] &&
-            baseExperimentId != null &&
-            isStringArray(compareExperimentIds) && (
-              <ExperimentCompareDetailsDialog
-                datasetId={datasetId}
-                datasetVersionId={datasetVersionId}
-                selectedExampleIndex={selectedExampleIndex}
-                selectedExampleId={exampleIds[selectedExampleIndex]}
-                baseExperimentId={baseExperimentId}
-                compareExperimentIds={compareExperimentIds}
-                exampleIds={exampleIds}
-                onExampleChange={(exampleIndex) => {
-                  if (
-                    exampleIndex === exampleIds.length - 1 &&
-                    !isLoadingNext &&
-                    hasNext
-                  ) {
-                    loadNext(PAGE_SIZE);
-                  }
-                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
-                    setSelectedExampleIndex(exampleIndex);
-                  }
-                }}
-                openTraceDialog={(traceId, projectId) => {
-                  setSelectedTraceInfo({ traceId, projectId });
-                }}
-              />
-            )}
-        </Modal>
-      </ModalOverlay>
-      <ModalOverlay
-        isOpen={selectedTraceInfo !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setSelectedTraceInfo(null);
-            setSearchParams(
-              (prev) => {
-                const newParams = new URLSearchParams(prev);
-                newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                return newParams;
-              },
-              { replace: true }
-            );
-          }
-        }}
-      >
-        <Modal variant="slideover" size="fullscreen">
-          {selectedTraceInfo && (
-            <PlaygroundRunTraceDetailsDialog
-              traceId={selectedTraceInfo.traceId}
-              projectId={selectedTraceInfo.projectId}
-              title={
-                selectedTraceInfo.evaluatorName
-                  ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
-                  : "Experiment Run Trace"
-              }
+                  >
+                    <div>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </div>
+                    <div
+                      {...{
+                        onMouseDown: header.getResizeHandler(),
+                        onTouchStart: header.getResizeHandler(),
+                        className: `resizer ${
+                          header.column.getIsResizing() ? "isResizing" : ""
+                        }`,
+                      }}
+                    />
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : table.getState().columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody
+              table={table}
+              tableContainerRef={tableContainerRef}
+              estimatedRowHeight={estimatedRowHeight}
+            />
+          ) : (
+            <TableBody
+              table={table}
+              tableContainerRef={tableContainerRef}
+              estimatedRowHeight={estimatedRowHeight}
             />
           )}
-        </Modal>
-      </ModalOverlay>
-    </div>
+        </table>
+        <ModalOverlay
+          isOpen={selectedExampleIndex !== null}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setSelectedExampleIndex(null);
+            }
+          }}
+        >
+          <Modal variant="slideover" size="fullscreen">
+            {selectedExampleIndex !== null &&
+              exampleIds[selectedExampleIndex] &&
+              baseExperimentId != null &&
+              isStringArray(compareExperimentIds) && (
+                <ExperimentCompareDetailsDialog
+                  datasetId={datasetId}
+                  datasetVersionId={datasetVersionId}
+                  selectedExampleIndex={selectedExampleIndex}
+                  selectedExampleId={exampleIds[selectedExampleIndex]}
+                  baseExperimentId={baseExperimentId}
+                  compareExperimentIds={compareExperimentIds}
+                  exampleIds={exampleIds}
+                  onExampleChange={(exampleIndex) => {
+                    if (
+                      exampleIndex === exampleIds.length - 1 &&
+                      !isLoadingNext &&
+                      hasNext
+                    ) {
+                      loadNext(PAGE_SIZE);
+                    }
+                    if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                      setSelectedExampleIndex(exampleIndex);
+                    }
+                  }}
+                  openTraceDialog={(traceId, projectId) => {
+                    setSelectedTraceInfo({ traceId, projectId });
+                  }}
+                />
+              )}
+          </Modal>
+        </ModalOverlay>
+        <ModalOverlay
+          isOpen={selectedTraceInfo !== null}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setSelectedTraceInfo(null);
+              setSearchParams(
+                (prev) => {
+                  const newParams = new URLSearchParams(prev);
+                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                  return newParams;
+                },
+                { replace: true }
+              );
+            }
+          }}
+        >
+          <Modal variant="slideover" size="fullscreen">
+            {selectedTraceInfo && (
+              <PlaygroundRunTraceDetailsDialog
+                traceId={selectedTraceInfo.traceId}
+                projectId={selectedTraceInfo.projectId}
+                title={
+                  selectedTraceInfo.evaluatorName
+                    ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
+                    : "Experiment Run Trace"
+                }
+              />
+            )}
+          </Modal>
+        </ModalOverlay>
+      </div>
+    </InstanceVariablesProvider>
   );
 }
 
