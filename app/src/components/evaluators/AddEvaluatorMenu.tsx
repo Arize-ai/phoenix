@@ -276,7 +276,12 @@ const LLMEvaluatorTemplateSubmenu = ({
   return (
     <SubmenuTrigger {...props}>
       {children}
-      <MenuContainer shouldFlip placement="start top" maxWidth={350}>
+      <MenuContainer
+        shouldFlip
+        placement="start top"
+        maxWidth={350}
+        minHeight="auto"
+      >
         <Menu
           items={llmEvaluatorTemplates}
           onAction={(key) => {
