@@ -184,36 +184,17 @@ const createExampleResponsesForInstance = (
       const { errorMessage, content, span, toolCalls, evaluations } =
         repetition;
       // Transform mutation response evaluations to unified EvaluationChunk format
-      const transformedEvaluations: EvaluationChunk[] = evaluations
-        .filter(
-          (e): e is Exclude<typeof e, { __typename: "%other" }> =>
-            e.__typename !== "%other"
-        )
-        .map((e) => {
-          if (e.__typename === "EvaluationSuccess") {
-            const annotation = e.annotation;
-            return {
-              __typename: "EvaluationChunk" as const,
-              datasetExampleId,
-              repetitionNumber,
-              evaluatorName: annotation.name,
-              experimentRunEvaluation: annotation,
-              trace: annotation.trace,
-              error: null,
-            };
-          } else {
-            // EvaluationError
-            return {
-              __typename: "EvaluationChunk" as const,
-              datasetExampleId,
-              repetitionNumber,
-              evaluatorName: e.evaluatorName,
-              experimentRunEvaluation: null,
-              trace: null,
-              error: e.message,
-            };
-          }
-        });
+      const transformedEvaluations: EvaluationChunk[] = evaluations.map((e) => {
+        return {
+          __typename: "EvaluationChunk" as const,
+          datasetExampleId,
+          repetitionNumber,
+          evaluatorName: e.evaluatorName,
+          experimentRunEvaluation: e.annotation,
+          trace: e.trace,
+          error: e.error,
+        };
+      });
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -982,27 +963,22 @@ export function PlaygroundDatasetExamplesTable({
                 }
               }
               evaluations {
-                __typename
-                ... on EvaluationSuccess {
-                  annotation {
-                    id
-                    name
-                    label
-                    score
-                    annotatorKind
-                    explanation
-                    metadata
-                    startTime
-                    trace {
-                      traceId
-                      projectId
-                    }
-                  }
+                evaluatorName
+                annotation {
+                  id
+                  name
+                  label
+                  score
+                  annotatorKind
+                  explanation
+                  metadata
+                  startTime
                 }
-                ... on EvaluationError {
-                  evaluatorName
-                  message
+                trace {
+                  traceId
+                  projectId
                 }
+                error
               }
             }
           }
