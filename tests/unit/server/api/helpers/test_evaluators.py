@@ -751,6 +751,49 @@ class TestApplyInputMapping:
         # Falls back to context since jsonpath has no matches
         assert result == {"key": "fallback"}
 
+    def test_inserts_none_when_jsonpath_has_no_matches_and_allow_missing_as_none(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"key": "$.nonexistent.path"},
+            literal_mapping={},
+        )
+        context = {"other": "value"}  # No "key" in context
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+            allow_missing_as_none=True,
+        )
+        assert result == {"key": None}
+
+    def test_omits_key_when_jsonpath_has_no_matches_and_not_in_context(self) -> None:
+        """Test that key is omitted when path doesn't match and it's not in context.
+
+        This is the default behavior (allow_missing_as_none=False) for built-in evaluators,
+        which will cause validation to fail if the key is required.
+        """
+        input_schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string"}},
+            "required": ["key"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={"key": "$.nonexistent.path"},
+            literal_mapping={},
+        )
+        context = {"other": "value"}  # No "key" in context
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping,
+            context=context,
+            allow_missing_as_none=False,
+        )
+        assert "key" not in result
+
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
             "type": "object",

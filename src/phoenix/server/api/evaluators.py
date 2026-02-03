@@ -261,6 +261,7 @@ class LLMEvaluator(BaseEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
+                        allow_missing_as_none=True,
                     )
                     template_variables = cast_template_variable_types(
                         template_variables=template_variables,
@@ -848,6 +849,7 @@ def apply_input_mapping(
     input_schema: dict[str, Any],
     input_mapping: "EvaluatorInputMappingInput",
     context: dict[str, Any],
+    allow_missing_as_none: bool = False,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     # apply path mappings
@@ -863,6 +865,8 @@ def apply_input_mapping(
                     result[key] = matches[0].value
                 else:
                     result[key] = [match.value for match in matches]
+            elif allow_missing_as_none:
+                result[key] = None
 
     # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):
