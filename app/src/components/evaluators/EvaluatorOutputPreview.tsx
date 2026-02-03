@@ -183,9 +183,7 @@ export const EvaluatorOutputPreview = () => {
     CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
   };
   const helpText =
-    helpTextByEvaluatorKind[evaluatorKind] ??
-    helpTextByEvaluatorKind.CODE ??
-    helpTextByEvaluatorKind.LLM;
+    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.CODE;
   return (
     <>
       {isShowingPreview && (

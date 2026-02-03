@@ -1921,7 +1921,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
         builtin_evaluator_data = dataset_evaluator["evaluator"]
         assert dataset_evaluator["name"] == "test-builtin-evaluator"
-        assert builtin_evaluator_data["kind"] == "CODE"
+        assert builtin_evaluator_data["kind"] == "BUILTIN"
 
         dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
         async with db() as session:
@@ -2202,7 +2202,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         updated_evaluator = result.data["updateDatasetBuiltinEvaluator"]["evaluator"]
         assert updated_evaluator["name"] == "updated-name"
         builtin_data = updated_evaluator["evaluator"]
-        assert builtin_data["kind"] == "CODE"
+        assert builtin_data["kind"] == "BUILTIN"
 
         # Verify database state
         dataset_evaluator_rowid = int(GlobalID.from_id(dataset_evaluator_id).node_id)
