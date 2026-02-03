@@ -202,6 +202,7 @@ export const EvaluatorsTable = ({
       {
         header: "kind",
         accessorKey: "kind",
+        size: 80,
         cell: ({ getValue }) => (
           <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
         ),
@@ -211,6 +212,7 @@ export const EvaluatorsTable = ({
         accessorKey: "description",
         cell: TextCell,
         enableSorting: false,
+        size: 320,
       },
       {
         header: "prompt",
@@ -340,7 +342,13 @@ export const EvaluatorsTable = ({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    minWidth: header.column.columnDef.size,
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{

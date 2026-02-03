@@ -328,6 +328,7 @@ export const DatasetEvaluatorsTable = ({
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
         accessorFn: (row) => row.evaluator.kind,
+        size: 80,
         cell: ({ getValue }) => (
           <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
         ),
@@ -337,6 +338,7 @@ export const DatasetEvaluatorsTable = ({
         accessorKey: "evaluator.description",
         cell: TextCell,
         enableSorting: false,
+        size: 320,
       },
       {
         header: "prompt",
@@ -458,7 +460,13 @@ export const DatasetEvaluatorsTable = ({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    minWidth: header.column.columnDef.size,
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
