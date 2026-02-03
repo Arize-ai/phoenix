@@ -27,7 +27,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export const AddEvaluatorMenu = ({
   size,
