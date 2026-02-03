@@ -12,6 +12,16 @@ import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evalu
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
+type OutputConfig = {
+  name: string;
+  optimizationDirection?: string | null;
+  // Categorical
+  values?: Array<{ label?: string | null; score?: number | null }> | null;
+  // Continuous
+  lowerBound?: number | null;
+  upperBound?: number | null;
+};
+
 export function BuiltInDatasetEvaluatorDetails({
   datasetEvaluatorRef,
   datasetId,
@@ -33,15 +43,55 @@ export function BuiltInDatasetEvaluatorDetails({
           literalMapping
           pathMapping
         }
+        outputConfig {
+          ... on AnnotationConfigBase {
+            name
+          }
+          ... on CategoricalAnnotationConfig {
+            optimizationDirection
+            values {
+              label
+              score
+            }
+          }
+          ... on ContinuousAnnotationConfig {
+            optimizationDirection
+            lowerBound
+            upperBound
+          }
+        }
         evaluator {
           kind
           name
           isBuiltin
+          ... on BuiltInEvaluator {
+            outputConfig {
+              ... on AnnotationConfigBase {
+                name
+              }
+              ... on CategoricalAnnotationConfig {
+                optimizationDirection
+                values {
+                  label
+                  score
+                }
+              }
+              ... on ContinuousAnnotationConfig {
+                optimizationDirection
+                lowerBound
+                upperBound
+              }
+            }
+          }
         }
       }
     `,
     datasetEvaluatorRef
   );
+
+  // Use datasetEvaluator's outputConfig if set, otherwise fall back to evaluator's default
+  const outputConfig = (datasetEvaluator.outputConfig ??
+    datasetEvaluator.evaluator.outputConfig) as OutputConfig | null;
 
   const evaluator = datasetEvaluator.evaluator;
   const inputMapping = datasetEvaluator.inputMapping;
@@ -67,7 +117,10 @@ export function BuiltInDatasetEvaluatorDetails({
       case "contains": {
         return (
           <>
-            <ContainsEvaluatorDetails inputMapping={inputMapping} />
+            <ContainsEvaluatorDetails
+              inputMapping={inputMapping}
+              outputConfig={outputConfig}
+            />
             {editSlideover}
           </>
         );
@@ -75,7 +128,10 @@ export function BuiltInDatasetEvaluatorDetails({
       case "exactmatch": {
         return (
           <>
-            <ExactMatchEvaluatorDetails inputMapping={inputMapping} />
+            <ExactMatchEvaluatorDetails
+              inputMapping={inputMapping}
+              outputConfig={outputConfig}
+            />
             {editSlideover}
           </>
         );
@@ -83,7 +139,10 @@ export function BuiltInDatasetEvaluatorDetails({
       case "regex": {
         return (
           <>
-            <RegexEvaluatorDetails inputMapping={inputMapping} />
+            <RegexEvaluatorDetails
+              inputMapping={inputMapping}
+              outputConfig={outputConfig}
+            />
             {editSlideover}
           </>
         );
@@ -91,7 +150,10 @@ export function BuiltInDatasetEvaluatorDetails({
       case "levenshteindistance": {
         return (
           <>
-            <LevenshteinDistanceEvaluatorDetails inputMapping={inputMapping} />
+            <LevenshteinDistanceEvaluatorDetails
+              inputMapping={inputMapping}
+              outputConfig={outputConfig}
+            />
             {editSlideover}
           </>
         );
@@ -99,7 +161,10 @@ export function BuiltInDatasetEvaluatorDetails({
       case "jsondistance": {
         return (
           <>
-            <JSONDistanceEvaluatorDetails inputMapping={inputMapping} />
+            <JSONDistanceEvaluatorDetails
+              inputMapping={inputMapping}
+              outputConfig={outputConfig}
+            />
             {editSlideover}
           </>
         );
@@ -120,8 +185,84 @@ const inputMappingBoxCSS = css`
   border: 1px solid var(--ac-global-border-color-default);
 `;
 
+function formatOptimizationDirection(direction?: string | null): string {
+  if (!direction) return "None";
+  switch (direction.toLowerCase()) {
+    case "maximize":
+      return "Maximize";
+    case "minimize":
+      return "Minimize";
+    default:
+      return direction;
+  }
+}
+
+function OutputConfigDisplay({
+  outputConfig,
+}: {
+  outputConfig: OutputConfig | null;
+}) {
+  if (!outputConfig) {
+    return null;
+  }
+
+  const isCategorical = outputConfig.values != null;
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <Heading level={2}>Evaluator Annotation</Heading>
+      <div css={inputMappingBoxCSS}>
+        <Flex direction="column" gap="size-100">
+          <Text size="S">
+            <Text weight="heavy">Name:</Text> {outputConfig.name}
+          </Text>
+          {outputConfig.optimizationDirection && (
+            <Text size="S">
+              <Text weight="heavy">Optimization Direction:</Text>{" "}
+              {formatOptimizationDirection(outputConfig.optimizationDirection)}
+            </Text>
+          )}
+          {isCategorical &&
+            outputConfig.values &&
+            outputConfig.values.length > 0 && (
+              <Text>
+                <Text size="S" weight="heavy">
+                  Values:{" "}
+                </Text>
+                {outputConfig.values.map((v, idx, arr) => (
+                  <Text key={idx} size="S">
+                    {v.label}
+                    {v.score != null ? ` (${v.score})` : ""}
+                    {idx < arr.length - 1 ? ", " : ""}
+                  </Text>
+                ))}
+              </Text>
+            )}
+          {!isCategorical && (
+            <>
+              <Text size="S">
+                <Text weight="heavy">Lower Bound:</Text>{" "}
+                {outputConfig.lowerBound != null
+                  ? outputConfig.lowerBound
+                  : "Unbounded"}
+              </Text>
+              <Text size="S">
+                <Text weight="heavy">Upper Bound:</Text>{" "}
+                {outputConfig.upperBound != null
+                  ? outputConfig.upperBound
+                  : "Unbounded"}
+              </Text>
+            </>
+          )}
+        </Flex>
+      </div>
+    </Flex>
+  );
+}
+
 function ContainsEvaluatorDetails({
   inputMapping,
+  outputConfig,
 }: {
   inputMapping: {
     literalMapping?: {
@@ -135,6 +276,7 @@ function ContainsEvaluatorDetails({
       words?: string | null;
     } | null;
   } | null;
+  outputConfig: OutputConfig | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text;
   const textLiteral = inputMapping?.literalMapping?.text;
@@ -180,6 +322,7 @@ function ContainsEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <OutputConfigDisplay outputConfig={outputConfig} />
         <ContainsEvaluatorCodeBlock />
       </Flex>
     </View>
@@ -188,6 +331,7 @@ function ContainsEvaluatorDetails({
 
 function ExactMatchEvaluatorDetails({
   inputMapping,
+  outputConfig,
 }: {
   inputMapping: {
     literalMapping?: {
@@ -200,6 +344,7 @@ function ExactMatchEvaluatorDetails({
       actual?: string | null;
     } | null;
   } | null;
+  outputConfig: OutputConfig | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
   const expectedLiteral = inputMapping?.literalMapping?.expected;
@@ -239,6 +384,7 @@ function ExactMatchEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <OutputConfigDisplay outputConfig={outputConfig} />
         <ExactMatchEvaluatorCodeBlock />
       </Flex>
     </View>
@@ -247,6 +393,7 @@ function ExactMatchEvaluatorDetails({
 
 function RegexEvaluatorDetails({
   inputMapping,
+  outputConfig,
 }: {
   inputMapping: {
     literalMapping?: {
@@ -258,6 +405,7 @@ function RegexEvaluatorDetails({
       text?: string | null;
     } | null;
   } | null;
+  outputConfig: OutputConfig | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text;
   const textLiteral = inputMapping?.literalMapping?.text;
@@ -290,6 +438,7 @@ function RegexEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <OutputConfigDisplay outputConfig={outputConfig} />
         <RegexEvaluatorCodeBlock />
       </Flex>
     </View>
@@ -298,6 +447,7 @@ function RegexEvaluatorDetails({
 
 function LevenshteinDistanceEvaluatorDetails({
   inputMapping,
+  outputConfig,
 }: {
   inputMapping: {
     literalMapping?: {
@@ -310,6 +460,7 @@ function LevenshteinDistanceEvaluatorDetails({
       actual?: string | null;
     } | null;
   } | null;
+  outputConfig: OutputConfig | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
   const expectedLiteral = inputMapping?.literalMapping?.expected;
@@ -349,6 +500,7 @@ function LevenshteinDistanceEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <OutputConfigDisplay outputConfig={outputConfig} />
         <LevenshteinDistanceEvaluatorCodeBlock />
       </Flex>
     </View>
@@ -357,6 +509,7 @@ function LevenshteinDistanceEvaluatorDetails({
 
 function JSONDistanceEvaluatorDetails({
   inputMapping,
+  outputConfig,
 }: {
   inputMapping: {
     literalMapping?: {
@@ -368,6 +521,7 @@ function JSONDistanceEvaluatorDetails({
       actual?: string | null;
     } | null;
   } | null;
+  outputConfig: OutputConfig | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected;
   const expectedLiteral = inputMapping?.literalMapping?.expected;
@@ -400,6 +554,7 @@ function JSONDistanceEvaluatorDetails({
             </Flex>
           </div>
         </Flex>
+        <OutputConfigDisplay outputConfig={outputConfig} />
         <JSONDistanceEvaluatorCodeBlock />
       </Flex>
     </View>
