@@ -362,6 +362,7 @@ dev = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "openai" },
+    { name = "openinference-instrumentation" },
     { name = "openinference-semantic-conventions" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-fastapi" },
@@ -519,7 +520,8 @@ dev = [
     { name = "nest-asyncio" },
     { name = "numpy" },
     { name = "openai" },
-    { name = "openinference-semantic-conventions" },
+    { name = "openinference-instrumentation", specifier = ">=0.1.44" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.26" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-grpc" },
@@ -600,7 +602,7 @@ requires-dist = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "2.8.0"
+version = "2.9.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
@@ -2739,7 +2741,7 @@ wheels = [
 
 [[package]]
 name = "openinference-instrumentation"
-version = "0.1.43"
+version = "0.1.44"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "openinference-semantic-conventions" },
@@ -2747,18 +2749,18 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/65/f979c42c35406eed5568530bb779a5c34540a42af563bd9049392ecf050e/openinference_instrumentation-0.1.43.tar.gz", hash = "sha256:fa9e8c84f63bb579b48b3e4cea21c10fa5a78961a6db349057ebcd7a33b541dd", size = 23956, upload-time = "2026-01-26T09:10:28.32Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/d9/c0d3040c0b5dc2b97ad20c35fb3fc1e3f2006bb4b08741ff325efcf3a96a/openinference_instrumentation-0.1.44.tar.gz", hash = "sha256:141953d2da33d54d428dfba2bfebb27ce0517dc43d52e1449a09db72ec7d318e", size = 23959, upload-time = "2026-02-01T01:45:55.88Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/a3/61cb41c04ce05fa86654edac1e6e2c037d1caa828a4bc5bc3cd7a656fb62/openinference_instrumentation-0.1.43-py3-none-any.whl", hash = "sha256:f8b13f39da15202a50823733b245bb296147bb417eb873000c891164c9e68935", size = 30089, upload-time = "2026-01-26T09:10:27.231Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/6d/6a19587b26ffa273eb27ba7dd2482013afe3b47c8d9f1f39295216975f9f/openinference_instrumentation-0.1.44-py3-none-any.whl", hash = "sha256:86b2a8931e0f39ecfb739901f8987c654961da03baf3cfa5d5b4f45a96897b2d", size = 30093, upload-time = "2026-02-01T01:45:54.932Z" },
 ]
 
 [[package]]
 name = "openinference-semantic-conventions"
-version = "0.1.25"
+version = "0.1.26"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/68/81c8a0b90334ff11e4f285e4934c57f30bea3ef0c0b9f99b65e7b80fae3b/openinference_semantic_conventions-0.1.25.tar.gz", hash = "sha256:f0a8c2cfbd00195d1f362b4803518341e80867d446c2959bf1743f1894fce31d", size = 12767, upload-time = "2025-11-05T01:37:45.89Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/91/f67c1971deaf5b75dea84731393bca2042ff4a46acae9a727dfe267dd568/openinference_semantic_conventions-0.1.26.tar.gz", hash = "sha256:34dae06b40743fb7b846a36fd402810a554b2ec4ee96b9dd8b820663aee4a1f1", size = 12782, upload-time = "2026-02-01T01:09:46.095Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/3d/dd14ee2eb8a3f3054249562e76b253a1545c76adbbfd43a294f71acde5c3/openinference_semantic_conventions-0.1.25-py3-none-any.whl", hash = "sha256:3814240f3bd61f05d9562b761de70ee793d55b03bca1634edf57d7a2735af238", size = 10395, upload-time = "2025-11-05T01:37:43.697Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/ca/bb4b9cbd96f72600abec5280cf8ed67bcd849ed19b8bec919aec97adb61c/openinference_semantic_conventions-0.1.26-py3-none-any.whl", hash = "sha256:35b4f487d18ac7d016125c428c0d950dd290e18dafb99787880a9b2e05745f42", size = 10401, upload-time = "2026-02-01T01:09:44.781Z" },
 ]
 
 [[package]]
