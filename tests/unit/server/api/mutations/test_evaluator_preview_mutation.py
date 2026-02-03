@@ -16,18 +16,14 @@ class TestEvaluatorPreviewMutation:
       mutation($input: EvaluatorPreviewsInput!) {
         evaluatorPreviews(input: $input) {
           results {
-            ... on EvaluationSuccess {
-              annotation {
-                name
-                label
-                score
-                explanation
-                annotatorKind
-              }
-            }
-            ... on EvaluationError {
-              evaluatorName
-              message
+            evaluatorName
+            error
+            annotation {
+              name
+              label
+              score
+              explanation
+              annotatorKind
             }
           }
         }
