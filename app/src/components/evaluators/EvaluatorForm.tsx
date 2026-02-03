@@ -122,7 +122,7 @@ export const EvaluatorForm = () => {
   return (
     <PanelGroup direction="horizontal" style={{ flex: 1, minHeight: 0 }}>
       <Panel
-        defaultSize={35}
+        defaultSize={50}
         style={panelStyle}
         css={css`
           display: flex;
@@ -148,7 +148,7 @@ export const EvaluatorForm = () => {
       </Panel>
       <PanelResizeHandle css={compactResizeHandleCSS} />
       <Panel
-        defaultSize={65}
+        defaultSize={50}
         style={panelStyle}
         css={css`
           display: flex;
