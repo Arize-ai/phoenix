@@ -199,7 +199,7 @@ export function BuiltInDatasetEvaluatorDetails({
 
   return (
     <>
-      <View padding="size-200" overflow="auto">
+      <View padding="size-200" overflow="auto" maxWidth={1000}>
         <Flex direction="column" gap="size-200">
           <Section title="Input Mapping">
             <DetailsComponent inputMapping={inputMapping} />
