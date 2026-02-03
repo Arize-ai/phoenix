@@ -261,7 +261,6 @@ class LLMEvaluator(BaseEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=True,
                     )
                     template_variables = cast_template_variable_types(
                         template_variables=template_variables,
@@ -849,7 +848,6 @@ def apply_input_mapping(
     input_schema: dict[str, Any],
     input_mapping: "EvaluatorInputMappingInput",
     context: dict[str, Any],
-    allow_missing_as_none: bool,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     # apply path mappings
@@ -865,8 +863,6 @@ def apply_input_mapping(
                     result[key] = matches[0].value
                 else:
                     result[key] = [match.value for match in matches]
-            elif allow_missing_as_none:
-                result[key] = None
             else:
                 raise ValueError(
                     f"JSONPath expression '{path_expr}' for key '{key}' "
@@ -1101,7 +1097,6 @@ class ContainsEvaluator(BuiltInEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=False,
                     )
                     inputs = cast_template_variable_types(
                         template_variables=inputs,
@@ -1323,7 +1318,6 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=False,
                     )
                     inputs = cast_template_variable_types(
                         template_variables=inputs,
@@ -1537,7 +1531,6 @@ class RegexEvaluator(BuiltInEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=False,
                     )
                     inputs = cast_template_variable_types(
                         template_variables=inputs,
@@ -1777,7 +1770,6 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=False,
                     )
                     inputs = cast_template_variable_types(
                         template_variables=inputs,
@@ -2006,7 +1998,6 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         input_schema=self.input_schema,
                         input_mapping=input_mapping,
                         context=context,
-                        allow_missing_as_none=False,
                     )
                     inputs = cast_template_variable_types(
                         template_variables=inputs,
