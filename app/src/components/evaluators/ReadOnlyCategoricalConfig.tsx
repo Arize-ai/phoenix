@@ -1,7 +1,8 @@
+import { PropsWithChildren } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { css } from "@emotion/react";
 
-import { Flex, Input, Label, TextField, Token } from "@phoenix/components";
+import { Flex, Input, Label, Text, TextField } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
@@ -18,7 +19,7 @@ export type ReadOnlyCategoricalConfigProps = {
 /**
  * A display component for categorical evaluator output configuration that pulls
  * values from the EvaluatorStore.
- * Displays name as a borderless disabled input and choices as score tokens.
+ * Displays name and choices as disabled form fields matching the LLM evaluator style.
  * Optimization direction can be editable or read-only based on `isReadOnly` prop.
  */
 export const ReadOnlyCategoricalConfig = ({
@@ -40,35 +41,71 @@ export const ReadOnlyCategoricalConfig = ({
   const { name, values } = outputConfig;
 
   return (
-    <Flex direction="column" gap="size-200">
-      <Flex direction="row" gap="size-200" alignItems="last baseline">
-        <TextField
-          isDisabled
-          value={name}
-          css={css`
-            width: fit-content;
-          `}
-        >
-          <Label>Name</Label>
-          <Input />
-        </TextField>
-        <Flex direction="row" gap="size-100" alignItems="end">
-          {values.map((value, index) => {
-            const hasLabel = value.label != null && value.label !== "";
-            const hasScore = value.score != null;
-            // Format: "label, score: X" or just "score: X"
-            const tokenContent = hasLabel
-              ? hasScore
-                ? `${value.label}, score: ${value.score}`
-                : value.label
-              : hasScore
-                ? `score: ${value.score}`
-                : "";
-            return <Token key={index}>{tokenContent}</Token>;
-          })}
+    <div
+      css={css`
+        background-color: var(--ac-global-background-color-dark);
+        border-radius: var(--ac-global-rounding-medium);
+        padding: var(--ac-global-dimension-static-size-200);
+        margin-top: var(--ac-global-dimension-static-size-50);
+        border: 1px solid var(--ac-global-border-color-default);
+      `}
+    >
+      <Flex direction="column" gap="size-200">
+        <Flex alignItems="center" justifyContent="space-between" gap="size-200">
+          <TextField isDisabled value={name}>
+            <Label>Name</Label>
+            <Input placeholder="e.g. correctness" />
+          </TextField>
+          <OptimizationDirectionField isReadOnly={isReadOnly} />
+        </Flex>
+        <Flex direction="column" gap="size-100">
+          <GridRow>
+            <Text>Choice</Text>
+            <Text>Score</Text>
+          </GridRow>
+          {values.map((value, index) => (
+            <GridRow key={index}>
+              <TextField
+                isDisabled
+                value={value.label ?? ""}
+                aria-label={`Choice ${index + 1}`}
+                css={css`
+                  flex: 1 1 auto;
+                  flex-shrink: 1;
+                `}
+              >
+                <Input />
+              </TextField>
+              <TextField
+                isDisabled
+                value={value.score != null ? String(value.score) : ""}
+                aria-label={`Score ${index + 1}`}
+                css={css`
+                  width: 100%;
+                `}
+              >
+                <Input />
+              </TextField>
+            </GridRow>
+          ))}
         </Flex>
       </Flex>
-      <OptimizationDirectionField isReadOnly={isReadOnly} />
-    </Flex>
+    </div>
+  );
+};
+
+const GridRow = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        width: 100%;
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: var(--ac-global-dimension-static-size-100);
+        align-items: start;
+      `}
+    >
+      {children}
+    </div>
   );
 };

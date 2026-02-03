@@ -1,4 +1,4 @@
-import { Card, View } from "@phoenix/components";
+import { Flex, Heading, Text, View } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
 import { ReadOnlyCategoricalConfig } from "./ReadOnlyCategoricalConfig";
@@ -19,14 +19,20 @@ export const BuiltInEvaluatorOutputConfig = () => {
   const isCategorical = "values" in outputConfig;
 
   return (
-    <Card title="Evaluator Annotation" backgroundColor="grey-100">
-      <View padding="size-200">
+    <View marginBottom="size-200" flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Evaluator Annotation
+        </Heading>
+        <Text color="text-500">
+          The annotation that this evaluator will create.
+        </Text>
         {isCategorical ? (
           <ReadOnlyCategoricalConfig />
         ) : (
           <ReadOnlyContinuousConfig />
         )}
-      </View>
-    </Card>
+      </Flex>
+    </View>
   );
 };
