@@ -20,9 +20,9 @@
     "dependencies": {
         "fastify": "^5.7.3",
         "jose": "^5.1.3",
-        "@fastify/cors": "^8.4.0",
-        "@fastify/formbody": "^7.4.0",
-        "@fastify/static": "^6.12.0",
+        "@fastify/cors": "^10.0.0",
+        "@fastify/formbody": "^8.0.0",
+        "@fastify/static": "^8.0.0",
         "pg": "^8.11.0",
         "yaml": "^2.3.4"
     },
