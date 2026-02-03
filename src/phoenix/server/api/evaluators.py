@@ -865,8 +865,7 @@ def apply_input_mapping(
                     result[key] = [match.value for match in matches]
             else:
                 raise ValueError(
-                    f"JSONPath expression '{path_expr}' for key '{key}' "
-                    "did not match any values in the context"
+                    f"JSONPath expression '{path_expr}' for key '{key}' did not match any values"
                 )
 
     # literal mappings take priority over path mappings

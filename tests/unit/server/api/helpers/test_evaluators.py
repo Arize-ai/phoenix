@@ -746,7 +746,7 @@ class TestApplyInputMapping:
         with pytest.raises(
             ValueError,
             match=r"JSONPath expression '\$\.nonexistent\.path' for key 'key' "
-            r"did not match any values in the context",
+            r"did not match any values",
         ):
             apply_input_mapping(
                 input_schema=input_schema,
@@ -982,7 +982,7 @@ class TestApplyInputMapping:
         with pytest.raises(
             ValueError,
             match=r"JSONPath expression '\$\.output\[0\]\.message\.content' for key 'content' "
-            r"did not match any values in the context",
+            r"did not match any values",
         ):
             apply_input_mapping(
                 input_schema=input_schema,
