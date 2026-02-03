@@ -12,7 +12,10 @@ export function ContainsEvaluatorDetails({
 }) {
   const textPath = inputMapping?.pathMapping?.text as string | undefined;
   const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
-  const words = inputMapping?.literalMapping?.words as string | undefined;
+  const wordsPath = inputMapping?.pathMapping?.words as string | undefined;
+  const wordsLiteral = inputMapping?.literalMapping?.words as
+    | string
+    | undefined;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
 
   return (
@@ -22,7 +25,8 @@ export function ContainsEvaluatorDetails({
         {textPath || (textLiteral ? `"${textLiteral}"` : "Not mapped")}
       </Text>
       <Text size="S">
-        <Text weight="heavy">Words:</Text> {words ? `"${words}"` : "Not set"}
+        <Text weight="heavy">Words:</Text>{" "}
+        {wordsPath || (wordsLiteral ? `"${wordsLiteral}"` : "Not set")}
       </Text>
       <Text size="S">
         <Text weight="heavy">Case sensitive:</Text>{" "}

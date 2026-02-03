@@ -12,14 +12,17 @@ export function RegexEvaluatorDetails({
 }) {
   const textPath = inputMapping?.pathMapping?.text as string | undefined;
   const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
-  const pattern = inputMapping?.literalMapping?.pattern as string | undefined;
+  const patternPath = inputMapping?.pathMapping?.pattern as string | undefined;
+  const patternLiteral = inputMapping?.literalMapping?.pattern as
+    | string
+    | undefined;
   const fullMatch = inputMapping?.literalMapping?.full_match;
 
   return (
     <Flex direction="column" gap="size-100">
       <Text size="S">
         <Text weight="heavy">Pattern:</Text>{" "}
-        {pattern ? `"${pattern}"` : "Not set"}
+        {patternPath || (patternLiteral ? `"${patternLiteral}"` : "Not set")}
       </Text>
       <Text size="S">
         <Text weight="heavy">Text:</Text>{" "}
