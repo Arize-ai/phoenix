@@ -8,7 +8,7 @@ The TypeScript implementation is in app/src/components/templateEditor/language/m
 Both implementations should:
 1. Extract only top-level variables (depth 0)
 2. Track section depth using # and ^ as openers, / as closers
-3. Ignore escaped sequences (\\{{)
+3. Treat backslash-prefixed tags (\\{{) as normal tags
 4. Strip whitespace from variable names
 5. Extract section names (the part after # or ^) when at top level
 """
@@ -74,21 +74,21 @@ class TestMustacheParserParity:
                 {"header", "list", "footer"},
                 id="mixed-variables-and-sections",
             ),
-            # Escaped sequences
+            # Backslash-prefixed tags are treated as normal tags
             pytest.param(
                 r"\{{escaped}}",
-                set(),
-                id="escaped-variable-not-extracted",
+                {"escaped"},
+                id="backslash-prefixed-variable-extracted",
             ),
             pytest.param(
                 r"\{{escaped}} but {{real}}",
-                {"real"},
-                id="escaped-and-real-variable",
+                {"escaped", "real"},
+                id="backslash-prefixed-and-real-variable",
             ),
             pytest.param(
                 r"\{{a}} \{{b}} {{c}}",
-                {"c"},
-                id="multiple-escaped-one-real",
+                {"a", "b", "c"},
+                id="multiple-backslash-prefixed-and-real",
             ),
             # Whitespace handling
             pytest.param(

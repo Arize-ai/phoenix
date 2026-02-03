@@ -117,7 +117,6 @@ class MustacheTemplateFormatter(TemplateFormatter):
     Supports full Mustache syntax including sections ({{#list}}...{{/list}}),
     inverted sections ({{^field}}...{{/field}}), and nested properties.
 
-    Escaped sequences (\\{{ ... }}) are preserved and not replaced.
     HTML escaping is disabled - values are rendered as-is.
 
     Examples:
@@ -127,18 +126,23 @@ class MustacheTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    # Pattern to find escaped mustache sequences (backslash before {{)
-    _ESCAPED_PATTERN = r"\\(\{\{)"
-    # Placeholder that won't appear in normal templates
-    _ESCAPED_PLACEHOLDER = "\x00ESCAPED_BRACE\x00"
-    # Pattern to extract all {{...}} sequences
-    _VARIABLE_PATTERN = r"\{\{\s*([^}]+?)\s*\}\}"
-
     def __init__(self) -> None:
-        self._escape_regex = re.compile(self._ESCAPED_PATTERN)
-        self._variable_regex = re.compile(self._VARIABLE_PATTERN)
         # Create renderer with no HTML escaping
         self._renderer = pystache.Renderer(escape=lambda x: x)
+        self._fallback_regex = re.compile(r"\{\{\s*([^}]+?)\s*\}\}")
+
+    @staticmethod
+    def _get_parse_tree(template: str) -> list[Any]:
+        parsed = pystache.parse(template)
+        parse_tree = getattr(parsed, "_parse_tree", None)
+        if parse_tree is None:
+            if isinstance(parsed, list):
+                parse_tree = parsed
+            else:
+                raise TemplateFormatterError("Unable to access pystache parse tree.")
+        if not isinstance(parse_tree, list):
+            raise TemplateFormatterError("Unexpected pystache parse tree format.")
+        return parse_tree
 
     @staticmethod
     def _get_root_variable_name(variable_path: str) -> str:
@@ -154,7 +158,16 @@ class MustacheTemplateFormatter(TemplateFormatter):
             "user.name" -> "user"
             "simple" -> "simple"
         """
+        if variable_path == ".":
+            return variable_path
         return variable_path.split(".")[0]
+
+    @staticmethod
+    def _extract_key(node: Any) -> str | None:
+        key = getattr(node, "key", None)
+        if not isinstance(key, str) or not key:
+            return None
+        return key
 
     def parse(self, template: str) -> set[str]:
         """
@@ -162,46 +175,55 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
         Only extracts variables at the top level, not those nested inside sections.
         This ensures validation only checks for required top-level inputs.
-        Escaped sequences (\\{{) are ignored.
-
         For dotted paths like {{output.available_tools}}, only the root variable
         name (output) is extracted, since Mustache traverses nested properties
         starting from the root.
-
-        This implementation uses regex with depth tracking to match the TypeScript
-        implementation in mustacheLikeTemplating.ts, avoiding private pystache APIs.
         """
-        # Temporarily remove escaped sequences before parsing
-        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
-
-        # Find all {{...}} patterns
-        matches = self._variable_regex.findall(clean_template)
-
-        variables: set[str] = set()
+        fallback_variables: set[str] = set()
         depth = 0
-
-        for variable in matches:
-            trimmed = variable.strip()
+        for match in self._fallback_regex.findall(template):
+            trimmed = match.strip()
             if not trimmed:
                 continue
-
-            # Section opener (# or ^) - only add variable if at top level
+            if trimmed.startswith("!") or trimmed.startswith(">") or trimmed.startswith("="):
+                continue
+            if trimmed.startswith("&"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    if var_name:
+                        fallback_variables.add(self._get_root_variable_name(var_name))
+                continue
+            if trimmed.startswith("{"):
+                continue
             if trimmed.startswith("#") or trimmed.startswith("^"):
                 if depth == 0:
                     var_name = trimmed[1:].strip()
-                    variables.add(self._get_root_variable_name(var_name))
+                    fallback_variables.add(self._get_root_variable_name(var_name))
                 depth += 1
                 continue
-
-            # Section closer (/)
             if trimmed.startswith("/"):
                 depth = max(0, depth - 1)
                 continue
-
-            # Regular variable - only add if at top level
             if depth == 0:
-                variables.add(self._get_root_variable_name(trimmed))
-
+                fallback_variables.add(self._get_root_variable_name(trimmed))
+        if depth > 0:
+            return fallback_variables
+        variables: set[str] = set(fallback_variables)
+        try:
+            parse_tree = self._get_parse_tree(template)
+            for node in parse_tree:
+                node_type = type(node).__name__
+                if node_type in {"_SectionNode", "_InvertedNode"}:
+                    key = self._extract_key(node)
+                    if key:
+                        variables.add(self._get_root_variable_name(key))
+                    continue
+                if node_type in {"_EscapeNode", "_LiteralNode"}:
+                    key = self._extract_key(node)
+                    if key:
+                        variables.add(self._get_root_variable_name(key))
+        except Exception:
+            return fallback_variables
         return variables
 
     def parse_with_types(self, template: str) -> ParsedVariables:
@@ -215,43 +237,70 @@ class MustacheTemplateFormatter(TemplateFormatter):
         name (output) is extracted, since Mustache traverses nested properties
         starting from the root.
         """
-        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
-        matches = self._variable_regex.findall(clean_template)
-
-        variables: set[ParsedVariable] = set()
+        fallback_variables: dict[str, Literal["string", "section"]] = {}
         depth = 0
-
-        for variable in matches:
-            trimmed = variable.strip()
+        for match in self._fallback_regex.findall(template):
+            trimmed = match.strip()
             if not trimmed:
                 continue
-
+            if trimmed.startswith("!") or trimmed.startswith(">") or trimmed.startswith("="):
+                continue
+            if trimmed.startswith("&"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    if var_name:
+                        root_name = self._get_root_variable_name(var_name)
+                        fallback_variables.setdefault(root_name, "string")
+                continue
+            if trimmed.startswith("{"):
+                continue
             if trimmed.startswith("#") or trimmed.startswith("^"):
                 if depth == 0:
                     var_name = trimmed[1:].strip()
                     root_name = self._get_root_variable_name(var_name)
-                    variables.add(ParsedVariable(name=root_name, variable_type="section"))
+                    fallback_variables[root_name] = "section"
                 depth += 1
                 continue
-
             if trimmed.startswith("/"):
                 depth = max(0, depth - 1)
                 continue
-
             if depth == 0:
                 root_name = self._get_root_variable_name(trimmed)
-                variables.add(ParsedVariable(name=root_name, variable_type="string"))
-
-        return ParsedVariables(variables=frozenset(variables))
+                fallback_variables.setdefault(root_name, "string")
+        if depth > 0:
+            parsed = {
+                ParsedVariable(name=name, variable_type=var_type)
+                for name, var_type in fallback_variables.items()
+            }
+            return ParsedVariables(variables=frozenset(parsed))
+        variables: dict[str, Literal["string", "section"]] = dict(fallback_variables)
+        try:
+            parse_tree = self._get_parse_tree(template)
+            for node in parse_tree:
+                node_type = type(node).__name__
+                if node_type in {"_SectionNode", "_InvertedNode"}:
+                    key = self._extract_key(node)
+                    if key:
+                        root_name = self._get_root_variable_name(key)
+                        variables[root_name] = "section"
+                    continue
+                if node_type in {"_EscapeNode", "_LiteralNode"}:
+                    key = self._extract_key(node)
+                    if key:
+                        root_name = self._get_root_variable_name(key)
+                        variables.setdefault(root_name, "string")
+        except Exception:
+            variables = fallback_variables
+        parsed = {
+            ParsedVariable(name=name, variable_type=var_type)
+            for name, var_type in variables.items()
+        }
+        return ParsedVariables(variables=frozenset(parsed))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
-        # Temporarily replace escaped sequences before rendering
-        clean_template = self._escape_regex.sub(self._ESCAPED_PLACEHOLDER, template)
         # Render with pystache (no HTML escaping)
-        result = self._renderer.render(clean_template, variables)
-        # Restore escaped sequences (without the backslash, keeping the braces)
-        rendered = result.replace(self._ESCAPED_PLACEHOLDER, r"\{{")
-        return cast(str, rendered)
+        result = self._renderer.render(template, variables)
+        return cast(str, result)
 
 
 class TemplateFormatterError(Exception):

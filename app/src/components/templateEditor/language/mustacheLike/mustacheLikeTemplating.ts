@@ -1,7 +1,6 @@
 import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
-
-import { extractVariables, format } from "../languageUtils";
+import Mustache from "mustache";
 
 import { parser } from "./mustacheLikeTemplating.syntax.grammar";
 
@@ -57,16 +56,21 @@ export const debugParser = (text: string) => {
 export const formatMustacheLike = ({
   text,
   variables,
-}: Omit<Parameters<typeof format>[0], "parser" | "postFormat">) =>
-  format({
-    parser: MustacheLikeTemplatingLanguage.parser,
-    text,
-    variables,
-    postFormat: (text) => {
-      // replace escaped double braces with double brace
-      return text.replaceAll("\\{{", "{{");
-    },
-  });
+}: {
+  text: string;
+  variables: Record<string, string | number | boolean | undefined>;
+}) => {
+  if (!text) {
+    return "";
+  }
+  try {
+    return Mustache.render(text, variables, undefined, {
+      escape: (value) => value,
+    });
+  } catch {
+    return text;
+  }
+};
 
 /**
  * Extract the root variable name from a dotted path.
@@ -81,6 +85,9 @@ export const formatMustacheLike = ({
  * getRootVariableName("simple") // => "simple"
  */
 const getRootVariableName = (variablePath: string): string => {
+  if (variablePath === ".") {
+    return variablePath;
+  }
   return variablePath.split(".")[0];
 };
 
@@ -92,30 +99,68 @@ const getRootVariableName = (variablePath: string): string => {
  * starting from the root.
  */
 export const extractVariablesFromMustacheLike = (text: string) => {
-  const allVariables = extractVariables({
-    parser: MustacheLikeTemplatingLanguage.parser,
-    text,
-  });
-  const topLevelVariables = new Set<string>();
-  let depth = 0;
-
-  for (const variable of allVariables) {
-    const trimmed = variable.trim();
-    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-      if (depth === 0) {
-        const varName = trimmed.slice(1).trim();
-        topLevelVariables.add(getRootVariableName(varName));
+  let tokens: unknown;
+  try {
+    tokens = Mustache.parse(text);
+  } catch {
+    const fallbackVariables = new Set<string>();
+    const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
+    let depth = 0;
+    for (const match of text.matchAll(tagRegex)) {
+      const trimmed = match[1]?.trim() ?? "";
+      if (
+        !trimmed ||
+        trimmed.startsWith("!") ||
+        trimmed.startsWith(">") ||
+        trimmed.startsWith("=")
+      ) {
+        continue;
       }
-      depth += 1;
-      continue;
+      if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
+        if (depth === 0) {
+          const varName = trimmed.slice(1).trim();
+          fallbackVariables.add(getRootVariableName(varName));
+        }
+        depth += 1;
+        continue;
+      }
+      if (trimmed.startsWith("/")) {
+        depth = Math.max(0, depth - 1);
+        continue;
+      }
+      if (depth === 0) {
+        fallbackVariables.add(getRootVariableName(trimmed));
+      }
     }
-    if (trimmed.startsWith("/")) {
-      depth = Math.max(0, depth - 1);
-      continue;
+    return Array.from(fallbackVariables);
+  }
+  const topLevelVariables = new Set<string>();
+
+  const walkTokens = (tokenList: unknown[], depth: number) => {
+    for (const token of tokenList) {
+      if (!Array.isArray(token)) {
+        continue;
+      }
+      const [type, value, _start, _end, children] = token;
+      if (type === "#" || type === "^") {
+        if (depth === 0 && typeof value === "string") {
+          topLevelVariables.add(getRootVariableName(value.trim()));
+        }
+        if (Array.isArray(children)) {
+          walkTokens(children, depth + 1);
+        }
+        continue;
+      }
+      if ((type === "name" || type === "&" || type === "{") && depth === 0) {
+        if (typeof value === "string") {
+          topLevelVariables.add(getRootVariableName(value.trim()));
+        }
+      }
     }
-    if (depth === 0) {
-      topLevelVariables.add(getRootVariableName(trimmed));
-    }
+  };
+
+  if (Array.isArray(tokens)) {
+    walkTokens(tokens, 0);
   }
 
   return Array.from(topLevelVariables);
@@ -129,62 +174,71 @@ export type MustacheSectionValidation = {
 export const validateMustacheSections = (
   text: string
 ): MustacheSectionValidation => {
-  const allVariables = extractVariables({
-    parser: MustacheLikeTemplatingLanguage.parser,
-    text,
-  });
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
+  try {
+    Mustache.parse(text);
+    return { errors: [], warnings: [] };
+  } catch {
+    const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
 
-  for (const variable of allVariables) {
-    const trimmed = variable.trim();
-    if (!trimmed) {
-      continue;
-    }
-    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-      const opener = trimmed.startsWith("#") ? "#" : "^";
-      sectionStack.push({ name: trimmed.slice(1).trim(), opener });
-      continue;
-    }
-    if (trimmed.startsWith("/")) {
-      const closingName = trimmed.slice(1).trim();
-      if (sectionStack.length === 0) {
-        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
+    for (const match of text.matchAll(tagRegex)) {
+      const trimmed = match[1]?.trim() ?? "";
+      if (!trimmed) {
         continue;
       }
-      const expectedEntry = sectionStack[sectionStack.length - 1];
-      const expectedName = expectedEntry.name;
-      if (expectedName !== closingName) {
-        const closingIndex = sectionStack
-          .map((entry) => entry.name)
-          .lastIndexOf(closingName);
-        if (closingIndex === -1) {
+      if (
+        trimmed.startsWith("!") ||
+        trimmed.startsWith(">") ||
+        trimmed.startsWith("=")
+      ) {
+        continue;
+      }
+      if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
+        const opener = trimmed.startsWith("#") ? "#" : "^";
+        sectionStack.push({ name: trimmed.slice(1).trim(), opener });
+        continue;
+      }
+      if (trimmed.startsWith("/")) {
+        const closingName = trimmed.slice(1).trim();
+        if (sectionStack.length === 0) {
           errors.push(`Unmatched closing tag: {{/${closingName}}}`);
           continue;
         }
-        errors.push(
-          `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
-            `before {{/${closingName}}}`
-        );
-        sectionStack.length = closingIndex;
-        continue;
+        const expectedEntry = sectionStack[sectionStack.length - 1];
+        const expectedName = expectedEntry.name;
+        if (expectedName !== closingName) {
+          const closingIndex = sectionStack
+            .map((entry) => entry.name)
+            .lastIndexOf(closingName);
+          if (closingIndex === -1) {
+            errors.push(`Unmatched closing tag: {{/${closingName}}}`);
+            continue;
+          }
+          errors.push(
+            `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
+              `before {{/${closingName}}}`
+          );
+          sectionStack.length = closingIndex;
+          continue;
+        }
+        sectionStack.pop();
       }
-      sectionStack.pop();
     }
-  }
 
-  if (errors.length > 0) {
-    return { errors, warnings: [] };
-  }
+    if (errors.length > 0) {
+      return { errors, warnings: [] };
+    }
 
-  if (sectionStack.length > 0) {
-    sectionStack.forEach(({ name, opener }) => {
-      warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
-    });
-  }
+    if (sectionStack.length > 0) {
+      sectionStack.forEach(({ name, opener }) => {
+        warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
+      });
+    }
 
-  return { errors, warnings };
+    return { errors, warnings };
+  }
 };
 
 /**

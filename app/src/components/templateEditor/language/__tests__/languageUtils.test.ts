@@ -10,8 +10,7 @@ describe("language utils", () => {
   it("should extract variable names from a mustache-like template", () => {
     const tests = [
       { input: "{{name}}", expected: ["name"] },
-      // TODO: add support for triple mustache escaping or at least use the inner most mustache as value
-      // { input: "{{name}} {{{age}}}", expected: ["name"] },
+      { input: "{{name}} {{{age}}}", expected: ["name", "age"] },
       {
         input:
           "Hi I'm {{name}} and I'm {{age}} years old and I live in {{city}}",
@@ -33,11 +32,11 @@ can you help with this json?
       },
       {
         input: `{"name": "\\{{name}}", "age": \\{{age}}}`,
-        expected: [],
+        expected: ["name", "age"],
       },
       {
         input: `{"name": "{{{name}}}"}`,
-        expected: ["{name}"],
+        expected: ["name"],
       },
       {
         input: `{"name": "{{  name  }}"}`,
@@ -221,7 +220,7 @@ can you help with this json?
       {
         input: "Hi {{name}}, this is bad syntax {{}}",
         variables: { name: "John", age: 30 },
-        expected: "Hi John, this is bad syntax {{}}",
+        expected: "Hi John, this is bad syntax ",
       },
       {
         input: "{{name}} {{age}}",
@@ -254,11 +253,6 @@ can you help with this json?
         input: `{"name": "{{name}}", "age": {{age}}}`,
         variables: { name: "John", age: 30 },
         expected: `{"name": "John", "age": 30}`,
-      },
-      {
-        input: `{"name": "\\{{name}}", "age": "{{age\\}}"}`,
-        variables: { name: "John", age: 30 },
-        expected: `{"name": "{{name}}", "age": "{{age\\}}"}`,
       },
       {
         input: `{"name": "{{  name  }}"}`,

@@ -45,13 +45,6 @@ from phoenix.utilities.template_formatters import (
         ),
         pytest.param(
             MustacheTemplateFormatter,
-            r"\{{ hello }}",
-            {"hello": "world"},
-            r"\{{ hello }}",
-            id="mustache-does-not-replace-escaped-sequences",
-        ),
-        pytest.param(
-            MustacheTemplateFormatter,
             "{{ hello }}, {{ world }}",
             {"hello": "1", "world": "2"},
             "1, 2",
@@ -387,11 +380,11 @@ class TestMustacheParseEdgeCases:
         assert "deep" not in variables
 
     def test_multiple_escaped_sequences(self) -> None:
-        """Test multiple escaped sequences are all ignored."""
+        """Test escaped sequences are treated as tags."""
         formatter = MustacheTemplateFormatter()
         template = r"\{{a}} and \{{b}} but {{real}}"
         variables = formatter.parse(template)
-        assert variables == {"real"}
+        assert variables == {"a", "b", "real"}
 
     def test_whitespace_variations(self) -> None:
         """Test various whitespace patterns in variables."""
@@ -453,12 +446,16 @@ No tools available.
     def test_triple_braces_handled(self) -> None:
         """Test that triple braces (unescaped HTML in Mustache) extract variable."""
         formatter = MustacheTemplateFormatter()
-        # Triple braces {{{var}}} are for unescaped HTML in Mustache
-        # Our regex should still extract the variable name
         template = "{{{unescaped}}}"
         variables = formatter.parse(template)
-        # The regex will match {unescaped} from the middle
-        assert "unescaped" in variables or "{unescaped" in variables
+        assert "unescaped" in variables
+
+    def test_ampersand_unescaped_handled(self) -> None:
+        """Test that ampersand tags extract variable."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{& unescaped}}"
+        variables = formatter.parse(template)
+        assert variables == {"unescaped"}
 
     def test_adjacent_sections(self) -> None:
         """Test adjacent sections both get extracted."""
@@ -492,10 +489,7 @@ No tools available.
         formatter = MustacheTemplateFormatter()
         template = "{{! This is a comment }}{{real}}"
         variables = formatter.parse(template)
-        # The regex extracts the content but it starts with "!"
-        # Since we don't have special handling for comments, it may be in variables
-        # This test documents current behavior
-        assert "real" in variables
+        assert variables == {"real"}
 
 
 class TestMustacheParseWithTypes:
@@ -569,13 +563,13 @@ class TestMustacheParseWithTypes:
         assert parsed.string_variables() == set()
 
     def test_escaped_sequences_ignored(self) -> None:
-        """Test that escaped sequences (\\{{) are ignored."""
+        """Test that escaped sequences (\\{{) are treated as tags."""
         formatter = MustacheTemplateFormatter()
         template = r"\{{escaped}} and {{real}}"
         parsed = formatter.parse_with_types(template)
 
-        assert parsed.names() == {"real"}
-        assert parsed.string_variables() == {"real"}
+        assert parsed.names() == {"escaped", "real"}
+        assert parsed.string_variables() == {"escaped", "real"}
 
     def test_section_and_inverted_section_same_variable(self) -> None:
         """Test variable used as both section and inverted section."""
