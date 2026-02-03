@@ -174,71 +174,76 @@ export type MustacheSectionValidation = {
 export const validateMustacheSections = (
   text: string
 ): MustacheSectionValidation => {
-  try {
-    Mustache.parse(text);
-    return { errors: [], warnings: [] };
-  } catch {
-    const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
+  const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
+  let errors: string[] = [];
+  let warnings: string[] = [];
+  const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
 
-    for (const match of text.matchAll(tagRegex)) {
-      const trimmed = match[1]?.trim() ?? "";
-      if (!trimmed) {
+  for (const match of text.matchAll(tagRegex)) {
+    const trimmed = match[1]?.trim() ?? "";
+    if (!trimmed) {
+      continue;
+    }
+    if (
+      trimmed.startsWith("!") ||
+      trimmed.startsWith(">") ||
+      trimmed.startsWith("=")
+    ) {
+      continue;
+    }
+    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
+      const opener = trimmed.startsWith("#") ? "#" : "^";
+      sectionStack.push({ name: trimmed.slice(1).trim(), opener });
+      continue;
+    }
+    if (trimmed.startsWith("/")) {
+      const closingName = trimmed.slice(1).trim();
+      if (sectionStack.length === 0) {
+        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
         continue;
       }
-      if (
-        trimmed.startsWith("!") ||
-        trimmed.startsWith(">") ||
-        trimmed.startsWith("=")
-      ) {
-        continue;
-      }
-      if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-        const opener = trimmed.startsWith("#") ? "#" : "^";
-        sectionStack.push({ name: trimmed.slice(1).trim(), opener });
-        continue;
-      }
-      if (trimmed.startsWith("/")) {
-        const closingName = trimmed.slice(1).trim();
-        if (sectionStack.length === 0) {
+      const expectedEntry = sectionStack[sectionStack.length - 1];
+      const expectedName = expectedEntry.name;
+      if (expectedName !== closingName) {
+        const closingIndex = sectionStack
+          .map((entry) => entry.name)
+          .lastIndexOf(closingName);
+        if (closingIndex === -1) {
           errors.push(`Unmatched closing tag: {{/${closingName}}}`);
           continue;
         }
-        const expectedEntry = sectionStack[sectionStack.length - 1];
-        const expectedName = expectedEntry.name;
-        if (expectedName !== closingName) {
-          const closingIndex = sectionStack
-            .map((entry) => entry.name)
-            .lastIndexOf(closingName);
-          if (closingIndex === -1) {
-            errors.push(`Unmatched closing tag: {{/${closingName}}}`);
-            continue;
-          }
-          errors.push(
-            `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
-              `before {{/${closingName}}}`
-          );
-          sectionStack.length = closingIndex;
-          continue;
-        }
-        sectionStack.pop();
+        errors.push(
+          `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
+            `before {{/${closingName}}}`
+        );
+        sectionStack.length = closingIndex;
+        continue;
       }
+      sectionStack.pop();
     }
-
-    if (errors.length > 0) {
-      return { errors, warnings: [] };
-    }
-
-    if (sectionStack.length > 0) {
-      sectionStack.forEach(({ name, opener }) => {
-        warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
-      });
-    }
-
-    return { errors, warnings };
   }
+
+  if (errors.length > 0) {
+    return { errors, warnings: [] };
+  }
+
+  if (sectionStack.length > 0) {
+    sectionStack.forEach(({ name, opener }) => {
+      warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
+    });
+  }
+
+  if (errors.length === 0 && warnings.length === 0) {
+    try {
+      Mustache.parse(text);
+    } catch (error) {
+      const message = error instanceof Error ? `: ${error.message}` : "";
+      errors = [`Invalid mustache template${message}`];
+      warnings = [];
+    }
+  }
+
+  return { errors, warnings };
 };
 
 /**
