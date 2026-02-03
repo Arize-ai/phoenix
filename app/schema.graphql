@@ -1582,7 +1582,6 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
   experimentRunEvaluation: ExperimentRunAnnotation
-  spanEvaluation: SpanAnnotation
 }
 
 type EvaluationError {

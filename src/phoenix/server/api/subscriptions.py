@@ -208,7 +208,6 @@ async def _stream_single_chat_completion(
             )
             yield EvaluationChunk(
                 experiment_run_evaluation=annotation,
-                span_evaluation=None,
                 dataset_example_id=None,
                 repetition_number=repetition_number,
             )
@@ -858,7 +857,6 @@ class Subscription:
                                 id=annotation_model.id,
                                 db_record=annotation_model,
                             ),
-                            span_evaluation=None,
                             dataset_example_id=example_id,
                             repetition_number=repetition_number,
                         )

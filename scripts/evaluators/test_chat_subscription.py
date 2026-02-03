@@ -33,12 +33,6 @@ subscription PlaygroundOutputSubscription($input: ChatCompletionInput!) {
       message
     }
     ... on EvaluationChunk {
-      spanEvaluation {
-        id
-        name
-        label
-        score
-      }
       experimentRunEvaluation {
         name
         label
