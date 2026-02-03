@@ -103,6 +103,7 @@ export const extractVariablesFromMustacheLike = (text: string) => {
   try {
     tokens = Mustache.parse(text);
   } catch {
+    // Fallback: best-effort extraction when native parser fails
     const fallbackVariables = new Set<string>();
     const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
     let depth = 0;
@@ -112,8 +113,21 @@ export const extractVariablesFromMustacheLike = (text: string) => {
         !trimmed ||
         trimmed.startsWith("!") ||
         trimmed.startsWith(">") ||
-        trimmed.startsWith("=")
+        trimmed.startsWith("=") ||
+        // Skip malformed triple braces captured as `{name` (the regex captures
+        // the inner content of `{{{name}}}` as `{name` due to brace overlap)
+        trimmed.startsWith("{")
       ) {
+        continue;
+      }
+      // Skip unescaped variables that start with & (e.g., {{& name}})
+      if (trimmed.startsWith("&")) {
+        if (depth === 0) {
+          const varName = trimmed.slice(1).trim();
+          if (varName) {
+            fallbackVariables.add(getRootVariableName(varName));
+          }
+        }
         continue;
       }
       if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
@@ -171,12 +185,17 @@ export type MustacheSectionValidation = {
   warnings: string[];
 };
 
-export const validateMustacheSections = (
+/**
+ * Runs a regex-based stack scan to produce descriptive section mismatch errors.
+ * This is used as a fallback when the native Mustache parser throws, so we can
+ * give users helpful messages like "Missing closing tag for {{#x}} before {{/y}}".
+ */
+const getDescriptiveSectionErrors = (
   text: string
 ): MustacheSectionValidation => {
   const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
-  let errors: string[] = [];
-  let warnings: string[] = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
   const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
 
   for (const match of text.matchAll(tagRegex)) {
@@ -184,6 +203,7 @@ export const validateMustacheSections = (
     if (!trimmed) {
       continue;
     }
+    // Skip comments, partials, and delimiter changes
     if (
       trimmed.startsWith("!") ||
       trimmed.startsWith(">") ||
@@ -233,17 +253,44 @@ export const validateMustacheSections = (
     });
   }
 
-  if (errors.length === 0 && warnings.length === 0) {
-    try {
-      Mustache.parse(text);
-    } catch (error) {
-      const message = error instanceof Error ? `: ${error.message}` : "";
-      errors = [`Invalid mustache template${message}`];
-      warnings = [];
-    }
-  }
-
   return { errors, warnings };
+};
+
+/**
+ * Validates Mustache section tags for proper nesting and closure.
+ *
+ * Uses a native-first approach: tries the native Mustache parser first for
+ * spec-consistent validation. If the parser throws, falls back to a regex-based
+ * stack scan to produce descriptive error messages about section mismatches.
+ */
+export const validateMustacheSections = (
+  text: string
+): MustacheSectionValidation => {
+  // Try native parser first for spec-consistent validation
+  try {
+    Mustache.parse(text);
+    // If parse succeeds, the template is valid
+    return { errors: [], warnings: [] };
+  } catch (parseError) {
+    // Native parser failed - run descriptive fallback for section errors
+    const descriptiveResult = getDescriptiveSectionErrors(text);
+
+    // If we found descriptive section errors, return those
+    if (
+      descriptiveResult.errors.length > 0 ||
+      descriptiveResult.warnings.length > 0
+    ) {
+      return descriptiveResult;
+    }
+
+    // No section errors found, but parse still failed - return generic error
+    const message =
+      parseError instanceof Error ? `: ${parseError.message}` : "";
+    return {
+      errors: [`Invalid mustache template${message}`],
+      warnings: [],
+    };
+  }
 };
 
 /**

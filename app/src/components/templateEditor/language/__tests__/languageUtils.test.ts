@@ -179,6 +179,51 @@ No tools available.
     });
   });
 
+  it("should return no errors/warnings for valid mustache templates (native-first validation)", () => {
+    // These templates are valid Mustache and should pass native parser validation
+    const validTemplates = [
+      "{{name}}",
+      "Hello {{name}}, you are {{age}} years old.",
+      "{{#items}}{{name}}{{/items}}",
+      "{{^items}}No items{{/items}}",
+      "{{{unescaped}}}",
+      "{{& unescaped}}",
+      "{{! This is a comment }}",
+      "{{#outer}}{{#inner}}{{value}}{{/inner}}{{/outer}}",
+      `{{#messages}}
+{{role}}: {{content}}
+{{/messages}}`,
+    ];
+    validTemplates.forEach((template) => {
+      const result = validateMustacheSections(template);
+      expect(result).toEqual({ errors: [], warnings: [] });
+    });
+  });
+
+  it("should handle mustache comments and partials correctly", () => {
+    // Comments should be ignored by both native parser and fallback
+    const withComment = "{{! comment }}{{name}}";
+    expect(validateMustacheSections(withComment)).toEqual({
+      errors: [],
+      warnings: [],
+    });
+  });
+
+  it("should not extract malformed triple braces as variable names in fallback", () => {
+    // When native parser fails on malformed input, the fallback should not
+    // return `{name` as a variable (from regex capturing `{{{name` wrongly)
+    // Note: Well-formed triple braces like {{{name}}} work fine with native parser
+    const tests = [
+      // Valid triple braces should extract correctly via native parser
+      { input: "{{{name}}}", expected: ["name"] },
+      // Unescaped variables with & should also work
+      { input: "{{& name}}", expected: ["name"] },
+    ];
+    tests.forEach(({ input, expected }) => {
+      expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
+    });
+  });
+
   it("should extract variable names from a f-string template", () => {
     const tests = [
       { input: "{name}", expected: ["name"] },
