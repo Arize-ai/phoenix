@@ -49,6 +49,8 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
+  type AnnotationError,
+  type AnnotationWithTrace,
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
@@ -107,9 +109,8 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
-  type EvaluationError,
+  type EvaluationChunk,
   ExampleRunData,
-  type ExperimentRunEvaluation,
   InstanceResponses,
   makeExpandedCellKey,
   type Span,
@@ -182,13 +183,36 @@ const createExampleResponsesForInstance = (
       } = example;
       const { errorMessage, content, span, toolCalls, evaluations } =
         repetition;
-      const successfulEvaluations = evaluations
-        .filter((e) => e.__typename === "EvaluationSuccess")
+      // Transform mutation response evaluations to unified EvaluationChunk format
+      const transformedEvaluations: EvaluationChunk[] = evaluations
+        .filter(
+          (e): e is Exclude<typeof e, { __typename: "%other" }> =>
+            e.__typename !== "%other"
+        )
         .map((e) => {
-          if (e.__typename !== "EvaluationSuccess") {
-            throw new Error("Unexpected evaluation type");
+          if (e.__typename === "EvaluationSuccess") {
+            const annotation = e.annotation;
+            return {
+              __typename: "EvaluationChunk" as const,
+              datasetExampleId,
+              repetitionNumber,
+              evaluatorName: annotation.name,
+              experimentRunEvaluation: annotation,
+              trace: annotation.trace,
+              error: null,
+            };
+          } else {
+            // EvaluationError
+            return {
+              __typename: "EvaluationChunk" as const,
+              datasetExampleId,
+              repetitionNumber,
+              evaluatorName: e.evaluatorName,
+              experimentRunEvaluation: null,
+              trace: null,
+              error: e.message,
+            };
           }
-          return e.annotation;
         });
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
@@ -210,7 +234,7 @@ const createExampleResponsesForInstance = (
                     {}
                   )
                 : undefined,
-            evaluations: successfulEvaluations,
+            evaluations: transformedEvaluations,
           },
         },
       };
@@ -468,14 +492,22 @@ function ExampleOutputContent({
   ]);
 
   const { successfulEvaluations, evaluationErrors } = useMemo(() => {
-    const successful: ExperimentRunEvaluation[] = [];
-    const errors: EvaluationError[] = [];
+    const successful: AnnotationWithTrace[] = [];
+    const errors: AnnotationError[] = [];
 
     for (const e of evaluations ?? []) {
-      if ("__typename" in e && e.__typename === "EvaluationErrorChunk") {
-        errors.push(e);
-      } else {
-        successful.push(e as ExperimentRunEvaluation);
+      if (e.error != null) {
+        errors.push({
+          evaluatorName: e.evaluatorName,
+          message: e.error,
+          trace: e.trace,
+        });
+      } else if (e.experimentRunEvaluation != null) {
+        const evaluation = e.experimentRunEvaluation;
+        successful.push({
+          ...evaluation,
+          trace: e.trace,
+        });
       }
     }
 
@@ -880,23 +912,6 @@ export function PlaygroundDatasetExamplesTable({
             break;
           }
           case "EvaluationChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            const evaluation = chatCompletion.experimentRunEvaluation;
-            if (evaluation == null) {
-              return;
-            }
-            appendExampleDataEvaluationChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              evaluationChunk: evaluation,
-            });
-            incrementEvalsCompleted(instanceId);
-            break;
-          }
-          case "EvaluationErrorChunk": {
             if (chatCompletion.datasetExampleId == null) {
               return;
             }
@@ -1672,6 +1687,7 @@ graphql`
       ... on EvaluationChunk {
         datasetExampleId
         repetitionNumber
+        evaluatorName
         experimentRunEvaluation {
           id
           name
@@ -1681,17 +1697,12 @@ graphql`
           explanation
           metadata
           startTime
-          trace {
-            traceId
-            projectId
-          }
         }
-      }
-      ... on EvaluationErrorChunk {
-        datasetExampleId
-        repetitionNumber
-        evaluatorName
-        message
+        trace {
+          traceId
+          projectId
+        }
+        error
       }
     }
   }

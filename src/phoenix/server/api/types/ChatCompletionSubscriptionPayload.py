@@ -7,6 +7,7 @@ from .Experiment import Experiment
 from .ExperimentRun import ExperimentRun
 from .ExperimentRunAnnotation import ExperimentRunAnnotation
 from .Span import Span
+from .Trace import Trace
 
 
 @strawberry.interface
@@ -50,10 +51,7 @@ class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
 
 @strawberry.type
 class EvaluationChunk(ChatCompletionSubscriptionPayload):
-    experiment_run_evaluation: Optional[ExperimentRunAnnotation] = None
-
-
-@strawberry.type
-class EvaluationErrorChunk(ChatCompletionSubscriptionPayload):
     evaluator_name: str
-    message: str
+    experiment_run_evaluation: Optional[ExperimentRunAnnotation] = None
+    trace: Optional[Trace] = None
+    error: Optional[str] = None
