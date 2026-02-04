@@ -21,7 +21,7 @@ import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { formatBuiltinEvaluatorDisplayName } from "@phoenix/components/evaluators/utils";
 import { TextCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -328,6 +328,7 @@ export const DatasetEvaluatorsTable = ({
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
         accessorFn: (row) => row.evaluator.kind,
+        size: 80,
         cell: ({ getValue }) => (
           <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
         ),
@@ -337,6 +338,7 @@ export const DatasetEvaluatorsTable = ({
         accessorKey: "evaluator.description",
         cell: TextCell,
         enableSorting: false,
+        size: 320,
       },
       {
         header: "prompt",
@@ -346,6 +348,7 @@ export const DatasetEvaluatorsTable = ({
           <PromptCell
             prompt={row.original.evaluator.prompt}
             promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+            wrapWidth={200}
           />
         ),
       },
@@ -452,12 +455,18 @@ export const DatasetEvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    minWidth: header.column.columnDef.size,
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{

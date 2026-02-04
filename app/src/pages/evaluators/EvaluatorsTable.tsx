@@ -21,7 +21,7 @@ import { css } from "@emotion/react";
 import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { TextCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
@@ -202,6 +202,7 @@ export const EvaluatorsTable = ({
       {
         header: "kind",
         accessorKey: "kind",
+        size: 80,
         cell: ({ getValue }) => (
           <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
         ),
@@ -211,6 +212,7 @@ export const EvaluatorsTable = ({
         accessorKey: "description",
         cell: TextCell,
         enableSorting: false,
+        size: 320,
       },
       {
         header: "prompt",
@@ -220,6 +222,7 @@ export const EvaluatorsTable = ({
           <PromptCell
             prompt={row.original.prompt}
             promptVersionTag={row.original.promptVersionTag?.name}
+            wrapWidth={200}
           />
         ),
       },
@@ -334,12 +337,18 @@ export const EvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    minWidth: header.column.columnDef.size,
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
