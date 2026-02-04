@@ -597,6 +597,36 @@ class TestMustacheParseWithTypes:
         assert all_names == {"simple", "section"}
         assert all_names == parsed.section_variables() | parsed.string_variables()
 
+    def test_unescaped_triple_brace_is_string_type(self) -> None:
+        """Test that triple-brace unescaped variables ({{{name}}}) are typed as string."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{{unescaped}}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"unescaped"}
+        assert parsed.string_variables() == {"unescaped"}
+        assert parsed.section_variables() == set()
+
+    def test_unescaped_ampersand_is_string_type(self) -> None:
+        """Test that ampersand unescaped variables ({{& name}}) are typed as string."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{& unescaped}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"unescaped"}
+        assert parsed.string_variables() == {"unescaped"}
+        assert parsed.section_variables() == set()
+
+    def test_mixed_escaped_and_unescaped_all_string_type(self) -> None:
+        """Test that all variable syntaxes (escaped and unescaped) are typed as string."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{escaped}} {{{triple}}} {{& ampersand}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"escaped", "triple", "ampersand"}
+        assert parsed.string_variables() == {"escaped", "triple", "ampersand"}
+        assert parsed.section_variables() == set()
+
 
 class TestFStringParseWithTypes:
     """Tests for FStringTemplateFormatter.parse_with_types() (default implementation)."""

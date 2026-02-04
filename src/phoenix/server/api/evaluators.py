@@ -204,10 +204,11 @@ class LLMEvaluator(BaseEvaluator):
                 assert_never(msg.content)
 
         # Section vars get empty schema (accepts any type), string vars get type: string
+        # Sort iteration order for deterministic key ordering in the resulting dict
         properties: dict[str, dict[str, Any]] = {}
-        for var in section_vars:
+        for var in sorted(section_vars):
             properties[var] = {}  # Empty schema accepts any JSON type
-        for var in string_vars:
+        for var in sorted(string_vars):
             if var not in section_vars:  # Section type takes precedence
                 properties[var] = {"type": "string"}
 
@@ -215,7 +216,7 @@ class LLMEvaluator(BaseEvaluator):
         return {
             "type": "object",
             "properties": properties,
-            "required": list(all_vars),
+            "required": sorted(all_vars),
         }
 
     async def evaluate(
@@ -1022,10 +1023,11 @@ def infer_input_schema_from_template(
                 string_vars.update(parsed.string_variables())
 
     # Section vars get empty schema (accepts any type), string vars get type: string
+    # Sort iteration order for deterministic key ordering in the resulting dict
     properties: dict[str, dict[str, Any]] = {}
-    for var in section_vars:
+    for var in sorted(section_vars):
         properties[var] = {}  # Empty schema accepts any JSON type
-    for var in string_vars:
+    for var in sorted(string_vars):
         if var not in section_vars:  # Section type takes precedence
             properties[var] = {"type": "string"}
 
@@ -1033,7 +1035,7 @@ def infer_input_schema_from_template(
     return {
         "type": "object",
         "properties": properties,
-        "required": list(all_vars),
+        "required": sorted(all_vars),
     }
 
 

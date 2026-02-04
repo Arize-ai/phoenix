@@ -171,7 +171,10 @@ class MustacheTemplateFormatter(TemplateFormatter):
         Extract top-level variable names with type info from a pystache parse tree.
 
         Section variables ({{#name}} or {{^name}}) are typed as "section".
-        Regular variables ({{name}}) are typed as "string".
+        Regular variables are typed as "string", including:
+          - Escaped variables: {{name}}
+          - Unescaped triple-brace: {{{name}}}
+          - Unescaped ampersand: {{& name}}
         """
         variables: dict[str, Literal["string", "section"]] = {}
         for node in parse_tree:
@@ -205,7 +208,10 @@ class MustacheTemplateFormatter(TemplateFormatter):
         raise TemplateFormatterError.
 
         Section variables ({{#name}} or {{^name}}) are typed as "section".
-        Regular variables ({{name}}) are typed as "string".
+        Regular variables are typed as "string", including:
+          - Escaped variables: {{name}}
+          - Unescaped triple-brace: {{{name}}}
+          - Unescaped ampersand: {{& name}}
 
         For dotted paths like {{output.available_tools}}, only the root variable
         name (output) is extracted, since Mustache traverses nested properties
