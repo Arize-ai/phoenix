@@ -120,7 +120,7 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Optional[models.Span], int]],
     info: Info[Context, None],
-    evaluators: list[BaseEvaluator],
+    evaluators: list["BaseEvaluator"],
 ) -> ChatStream:
     messages = [
         (
