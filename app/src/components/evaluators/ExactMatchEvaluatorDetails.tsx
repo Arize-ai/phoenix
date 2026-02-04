@@ -1,14 +1,10 @@
 import { Flex, Text } from "@phoenix/components";
-
-type InputMapping = {
-  pathMapping?: Record<string, unknown> | null;
-  literalMapping?: Record<string, unknown> | null;
-};
+import { EvaluatorInputMapping } from "@phoenix/types";
 
 export function ExactMatchEvaluatorDetails({
   inputMapping,
 }: {
-  inputMapping: InputMapping | null;
+  inputMapping: EvaluatorInputMapping | null;
 }) {
   const expectedPath = inputMapping?.pathMapping?.expected as
     | string

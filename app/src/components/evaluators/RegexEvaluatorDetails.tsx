@@ -1,14 +1,10 @@
 import { Flex, Text } from "@phoenix/components";
-
-type InputMapping = {
-  pathMapping?: Record<string, unknown> | null;
-  literalMapping?: Record<string, unknown> | null;
-};
+import { EvaluatorInputMapping } from "@phoenix/types";
 
 export function RegexEvaluatorDetails({
   inputMapping,
 }: {
-  inputMapping: InputMapping | null;
+  inputMapping: EvaluatorInputMapping | null;
 }) {
   const textPath = inputMapping?.pathMapping?.text as string | undefined;
   const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
