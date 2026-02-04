@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
@@ -11,6 +11,97 @@ import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
+
+/**
+ * Validates that a value is a valid regular expression.
+ * Returns true if valid, or an error message if invalid.
+ */
+const validateRegex = (value: string | number | boolean): true | string => {
+  const pattern = String(value ?? "");
+  if (!pattern) {
+    return "Pattern is required";
+  }
+  try {
+    new RegExp(pattern);
+    return true;
+  } catch (e) {
+    return e instanceof Error ? e.message : "Invalid regular expression";
+  }
+};
+
+const VALIDATION_DISPLAY_DELAY_MS = 750;
+
+/**
+ * Debounces field error display to provide a grace period while typing (prevents
+ * opening a bracket and immediately turning red). Underlying validation is immediate,
+ * so the form can't be snipe-submitted with an invalid state.
+ */
+const useDebouncedError = (error: string | undefined) => {
+  const [displayedError, setDisplayedError] = useState(error);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    if (error) {
+      timeoutRef.current = setTimeout(() => {
+        setDisplayedError(error);
+      }, VALIDATION_DISPLAY_DELAY_MS);
+    } else {
+      setDisplayedError(undefined);
+    }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [error]);
+
+  // Pending = there's an error but we haven't shown it yet
+  const isPending = error != null && displayedError == null;
+
+  return { displayedError, isPending };
+};
+
+/**
+ * Wrapper around RegexField that debounces error display.
+ */
+const DebouncedRegexField = ({
+  field,
+  error,
+  description,
+  label,
+  placeholder,
+}: {
+  field: {
+    value: unknown;
+    onChange: (value: string) => void;
+    onBlur: () => void;
+    name: string;
+  };
+  error: string | undefined;
+  description: string;
+  label: string;
+  placeholder: string;
+}) => {
+  const { displayedError, isPending } = useDebouncedError(error);
+
+  return (
+    <RegexField
+      {...field}
+      value={String(field.value ?? "")}
+      isInvalid={!!displayedError}
+      isPending={isPending}
+      error={displayedError}
+      description={description}
+      label={label}
+      placeholder={placeholder}
+    />
+  );
+};
 
 const useRegexEvaluatorForm = () => {
   const store = useEvaluatorStoreInstance();
@@ -58,11 +149,12 @@ export const RegexEvaluatorForm = () => {
         <Controller
           control={control}
           name="literalMapping.pattern"
+          rules={{
+            validate: validateRegex,
+          }}
           render={({ field, fieldState: { error } }) => (
-            <RegexField
-              {...field}
-              value={String(field.value ?? "")}
-              isInvalid={!!error}
+            <DebouncedRegexField
+              field={field}
               error={error?.message}
               description="The regex pattern to match against the text. e.g. ^[0-9]+$"
               label="Pattern*"
