@@ -559,44 +559,41 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
             # Handle text streaming: yield TextChunk for every delta
             if event_type == "response.output_text.delta":
-                # Access text from event.delta.text
+                # Treat event.delta as a string directly
                 delta = getattr(event, "delta", None)
-                if delta:
-                    text = getattr(delta, "text", None)
-                    if text:
-                        # Ensure text is a string
-                        text_str = text if isinstance(text, str) else str(text)
-                        yield TextChunk(content=text_str)
+                if delta and isinstance(delta, str) and delta:
+                    yield TextChunk(content=delta)
             # Don't duplicate text on .done - just skip it
             elif event_type == "response.output_text.done":
                 pass
 
             # Handle tool call streaming: accumulate arguments across deltas
             elif event_type == "response.output_tool_call.delta":
-                # Access delta from event
+                # Read tool call metadata from the event itself
+                tool_call_id = getattr(event, "id", None)
+                function_name = getattr(event, "name", None)
+                # Only read incremental arguments from event.delta.arguments
                 delta = getattr(event, "delta", None)
+                arguments_delta = None
                 if delta:
-                    # Get tool call ID and function name from the delta
-                    tool_call_id = getattr(delta, "id", None)
-                    function_name = getattr(delta, "name", None)
                     arguments_delta = getattr(delta, "arguments", None)
 
-                    if tool_call_id:
-                        # Initialize tool call tracking if not already present
-                        if tool_call_id not in active_tool_calls:
-                            active_tool_calls[tool_call_id] = {
-                                "name": function_name or "",
-                                "arguments_buffer": "",
-                            }
-                        # Accumulate arguments (ensure it's a string)
-                        if arguments_delta:
-                            arguments_str = (
-                                arguments_delta if isinstance(arguments_delta, str) else str(arguments_delta)
-                            )
-                            active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
-                        # Update function name if provided
-                        if function_name:
-                            active_tool_calls[tool_call_id]["name"] = function_name
+                if tool_call_id:
+                    # Initialize tool call tracking if not already present
+                    if tool_call_id not in active_tool_calls:
+                        active_tool_calls[tool_call_id] = {
+                            "name": function_name or "",
+                            "arguments_buffer": "",
+                        }
+                    # Accumulate arguments (ensure it's a string)
+                    if arguments_delta:
+                        arguments_str = (
+                            arguments_delta if isinstance(arguments_delta, str) else str(arguments_delta)
+                        )
+                        active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
+                    # Update function name if provided
+                    if function_name:
+                        active_tool_calls[tool_call_id]["name"] = function_name
 
             # Emit ToolCallChunk only when the tool call is complete
             elif event_type == "response.output_tool_call.done":
@@ -618,6 +615,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 usage = getattr(event, "usage", None)
                 if usage is not None:
                     token_usage = usage
+            # Skip unknown event types silently
 
         # Update _llm_token_counts exactly once after streaming ends
         if token_usage is not None:
