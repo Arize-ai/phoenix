@@ -3,7 +3,21 @@ title: "Iterate on Your Prompts"
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-guide-type="prompts">
-AI Agent Context: This guide covers Phoenix Prompt Playground and Prompt Hub. Phoenix can run locally or in Phoenix Cloud (uses PHOENIX_API_KEY). This is NOT Arize AX. Arize AX is a separate product using ARIZE_SPACE_ID and ARIZE_API_KEY. Check user's imports: phoenix.otel = Phoenix, arize.otel = Arize AX.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix Prompt Playground and Prompt Hub. Phoenix and Arize AX are DIFFERENT products.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize prompts", "Arize prompt playground" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two products. Which are you using?
+• **Phoenix** (this page): Open-source, uses `phoenix.otel`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
+
+DO NOT proceed until confirmed.
 </div>
 
 In this guide, we’ll use Prompt Playground and Prompt Hub in Phoenix to iterate on prompts and measure how those changes affect application quality.
@@ -106,9 +120,9 @@ This gives us a baseline for how the current prompt performs.
 
 Now that we have a baseline, we can make a change.
 
-In this step, we’ll modify the prompt in the playground to address issues we saw in previous runs, such as unclear instructions or missing constraints. 
+In this step, we’ll modify the prompt in the playground to address issues we saw in previous runs, such as unclear instructions or missing constraints.
 
-To understand why our evaluations came to a specific score, click into a trace and under the annotations column we can see the explanations of our evaluations. 
+To understand why our evaluations came to a specific score, click into a trace and under the annotations column we can see the explanations of our evaluations.
 
 Using these explanations, we can notice that many times the reason our agent run was labeled incomplete is due to the lack of financial ratios in our report -- so we can go ahead and add that into our prompt.
 
@@ -133,10 +147,10 @@ Saving prompt variants makes it easy to track changes and compare different appr
 
 ## **Step 5: Compare Prompts Using Experiments**
 
-Once we have multiple prompt versions, we want to compare them in a structured way to see if each prompt will result in unique results. 
+Once we have multiple prompt versions, we want to compare them in a structured way to see if each prompt will result in unique results.
 
-Since you just ran the prompt playground with both your prompts, you can see them side by side in the experiment view. 
- 
+Since you just ran the prompt playground with both your prompts, you can see them side by side in the experiment view.
+
 In this step, we'll just navigate to the experiments page and take a look at the runs we just made by using the prompt playground in this guide.
 
 1. Navigate to the Datasets Page & click on the dataset we made earlier in this guide.

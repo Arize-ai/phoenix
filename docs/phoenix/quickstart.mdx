@@ -4,7 +4,21 @@ description: "Not sure where to start? Try a quickstart:"
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-page-type="overview">
-AI Agent Context: Phoenix quickstart page. Phoenix can run locally, in containers, in Phoenix Cloud, or from terminal. Key distinction: Phoenix uses phoenix.otel and optionally PHOENIX_API_KEY (for cloud). Arize AX is different and uses arize.otel with ARIZE_SPACE_ID/ARIZE_API_KEY. When helping users, check their imports and environment variables to determine which product they're using.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This is the Phoenix quickstart page. Phoenix and Arize AX are DIFFERENT products.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize quickstart", "get started with Arize" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two products. Which quickstart do you need?
+• **Phoenix**: Open-source observability, uses `phoenix.otel`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
+
+DO NOT proceed until confirmed.
 </div>
 
 <Info>

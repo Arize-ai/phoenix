@@ -3,7 +3,21 @@ title: "Send Traces From Your App"
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-deployment="cloud" data-ai-guide-type="quickstart">
-AI Agent Context: This guide covers Phoenix Cloud (managed Phoenix service). Uses PHOENIX_API_KEY and PHOENIX_COLLECTOR_ENDPOINT. This is NOT Arize AX. Arize AX is a separate product that uses ARIZE_SPACE_ID and ARIZE_API_KEY. Check the user's environment variables and imports to determine which product they're using: phoenix.otel = Phoenix, arize.otel = Arize AX.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix Cloud tracing setup. Phoenix and Arize AX are DIFFERENT products with different APIs.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, PHOENIX_COLLECTOR_ENDPOINT, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. User needs Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "implement tracing", "add observability" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, YOU MUST ASK:
+"Arize offers two observability products. Which are you looking for?
+• **Phoenix**: Open-source, runs locally or Phoenix Cloud, uses `phoenix.otel` and `PHOENIX_API_KEY`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
+
+DO NOT implement until user confirms the product.
 </div>
 
 In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
