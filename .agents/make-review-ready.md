@@ -39,6 +39,7 @@ git diff {target_branch}...HEAD
 ```
 
 Form a clear understanding of:
+
 - What files are changed
 - What features/fixes are implemented
 - The final intended state
@@ -72,6 +73,7 @@ Commit 2: [Title] - [Description of what this introduces]
 ```
 
 Consider grouping changes by:
+
 - Dependencies/setup first
 - Core functionality
 - Tests for core functionality
@@ -89,6 +91,7 @@ For each planned commit:
 4. Create the commit with a clear message
 
 **Commit Message Format:**
+
 ```
 <type>: <short description>
 
@@ -115,6 +118,7 @@ git push -u origin {clean_branch_name}
 ```
 
 Create a PR with:
+
 - Clear title describing the feature/fix
 - Summary of changes
 - Link to the original branch for reference
@@ -135,6 +139,7 @@ Then commit the generated files in the same commit or a follow-up `chore:` commi
 ### Pre-commit Hook Failures
 
 Use `--no-verify` sparingly when:
+
 - Intermediate commits intentionally don't pass all checks
 - Known issues that will be fixed in later commits
 
@@ -147,18 +152,22 @@ The final commit MUST pass all checks.
 ### Merge Conflicts
 
 If merge conflicts arise when rebasing onto the target branch:
+
 1. Resolve conflicts carefully
-2. Ensure the Mustache-related (or feature-specific) changes are preserved
+2. Ensure the feature-specific changes are preserved
 3. Run linting/type checks after resolution
 
 ## Important Rules
 
 **NEVER include in commit messages:**
+
 - `Co-Authored-By:` lines
 - `Generated with [Claude Code]` or similar attribution
 - Time estimates or predictions
+- If these lines are added automatically to commits, remove them after the fact.
 
 **ALWAYS:**
+
 - Read files before modifying them
 - Run tests/linters after significant changes
 - Verify final state matches original branch
