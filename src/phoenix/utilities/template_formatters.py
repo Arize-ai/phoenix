@@ -1,4 +1,3 @@
-import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -6,6 +5,13 @@ from string import Formatter
 from typing import Any, Literal, cast
 
 import pystache
+from pystache.parser import (  # type: ignore[import-untyped]
+    ParsingError,
+    _EscapeNode,
+    _InvertedNode,
+    _LiteralNode,
+    _SectionNode,
+)
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
@@ -119,9 +125,8 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     HTML escaping is disabled - values are rendered as-is.
 
-    Uses a native-parser-first approach: tries pystache.parse() first for
-    spec-consistent parsing. Falls back to regex-based extraction only when
-    the native parser fails.
+    Uses a native-parser-first approach: relies on pystache.parse() for
+    spec-consistent parsing. Invalid templates raise errors.
 
     Examples:
 
@@ -133,20 +138,6 @@ class MustacheTemplateFormatter(TemplateFormatter):
     def __init__(self) -> None:
         # Create renderer with no HTML escaping
         self._renderer = pystache.Renderer(escape=lambda x: x)
-        self._fallback_regex = re.compile(r"\{\{\s*([^}]+?)\s*\}\}")
-
-    @staticmethod
-    def _get_parse_tree(template: str) -> list[Any]:
-        parsed = pystache.parse(template)
-        parse_tree = getattr(parsed, "_parse_tree", None)
-        if parse_tree is None:
-            if isinstance(parsed, list):
-                parse_tree = parsed
-            else:
-                raise TemplateFormatterError("Unable to access pystache parse tree.")
-        if not isinstance(parse_tree, list):
-            raise TemplateFormatterError("Unexpected pystache parse tree format.")
-        return parse_tree
 
     @staticmethod
     def _get_root_variable_name(variable_path: str) -> str:
@@ -184,67 +175,18 @@ class MustacheTemplateFormatter(TemplateFormatter):
         """
         variables: dict[str, Literal["string", "section"]] = {}
         for node in parse_tree:
-            node_type = type(node).__name__
-            if node_type in {"_SectionNode", "_InvertedNode"}:
+            if isinstance(node, (_SectionNode, _InvertedNode)):
                 key = self._extract_key(node)
                 if key:
                     root_name = self._get_root_variable_name(key)
                     variables[root_name] = "section"
                 continue
-            if node_type in {"_EscapeNode", "_LiteralNode"}:
+            if isinstance(node, (_EscapeNode, _LiteralNode)):
                 key = self._extract_key(node)
                 if key:
                     root_name = self._get_root_variable_name(key)
                     variables.setdefault(root_name, "string")
         return variables
-
-    def _fallback_extract_variables_with_types(
-        self, template: str
-    ) -> tuple[dict[str, Literal["string", "section"]], int]:
-        """
-        Regex-based fallback for variable extraction with types when native parser fails.
-
-        Returns:
-            A tuple of (variables, final_depth) where final_depth > 0 indicates
-            unclosed sections.
-        """
-        variables: dict[str, Literal["string", "section"]] = {}
-        depth = 0
-        for match in self._fallback_regex.findall(template):
-            trimmed = match.strip()
-            if not trimmed:
-                continue
-            # Skip comments, partials, delimiter changes
-            if trimmed.startswith("!") or trimmed.startswith(">") or trimmed.startswith("="):
-                continue
-            # Handle unescaped variables ({{& name}})
-            if trimmed.startswith("&"):
-                if depth == 0:
-                    var_name = trimmed[1:].strip()
-                    if var_name:
-                        root_name = self._get_root_variable_name(var_name)
-                        variables.setdefault(root_name, "string")
-                continue
-            # Skip malformed triple braces captured as `{name`
-            if trimmed.startswith("{"):
-                continue
-            # Handle sections
-            if trimmed.startswith("#") or trimmed.startswith("^"):
-                if depth == 0:
-                    var_name = trimmed[1:].strip()
-                    root_name = self._get_root_variable_name(var_name)
-                    variables[root_name] = "section"
-                depth += 1
-                continue
-            # Handle section closers
-            if trimmed.startswith("/"):
-                depth = max(0, depth - 1)
-                continue
-            # Regular variables at top level
-            if depth == 0:
-                root_name = self._get_root_variable_name(trimmed)
-                variables.setdefault(root_name, "string")
-        return variables, depth
 
     def parse(self, template: str) -> set[str]:
         """
@@ -259,11 +201,8 @@ class MustacheTemplateFormatter(TemplateFormatter):
         """
         Extract top-level variable names with type info from mustache template.
 
-        Uses native-parser-first approach: tries pystache.parse() first for
-        spec-consistent parsing. Falls back to regex-based extraction when:
-        - The native parser fails with an exception
-        - The template has unclosed sections (depth > 0), since pystache may
-          produce unexpected results for malformed templates
+        Uses native parsing for spec-consistent extraction. Invalid templates
+        raise TemplateFormatterError.
 
         Section variables ({{#name}} or {{^name}}) are typed as "section".
         Regular variables ({{name}}) are typed as "string".
@@ -272,19 +211,21 @@ class MustacheTemplateFormatter(TemplateFormatter):
         name (output) is extracted, since Mustache traverses nested properties
         starting from the root.
         """
-        # First, do a quick regex scan to check for unclosed sections
-        fallback_vars, depth = self._fallback_extract_variables_with_types(template)
-        if depth > 0:
-            # Template has unclosed sections - use regex result
-            variables = fallback_vars
-        else:
-            # Template is well-formed (sections balanced), try native parser
-            try:
-                parse_tree = self._get_parse_tree(template)
-                variables = self._extract_variables_from_parse_tree_with_types(parse_tree)
-            except Exception:
-                # Fall back to regex-based extraction
-                variables = fallback_vars
+        try:
+            parsed = pystache.parse(template, raise_on_mismatch=True)
+        except ParsingError as exc:
+            raise TemplateFormatterError(str(exc)) from exc
+
+        parse_tree = getattr(parsed, "_parse_tree", None)
+        if parse_tree is None:
+            if isinstance(parsed, list):
+                parse_tree = parsed
+            else:
+                raise TemplateFormatterError("Unable to access pystache parse tree.")
+        if not isinstance(parse_tree, list):
+            raise TemplateFormatterError("Unexpected pystache parse tree format.")
+
+        variables = self._extract_variables_from_parse_tree_with_types(parse_tree)
 
         parsed = {
             ParsedVariable(name=name, variable_type=var_type)

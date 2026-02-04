@@ -464,25 +464,21 @@ No tools available.
         variables = formatter.parse(template)
         assert variables == {"a", "b"}
 
-    def test_unclosed_section_still_extracts(self) -> None:
-        """Test that unclosed sections still extract the section name."""
+    def test_unclosed_section_raises(self) -> None:
+        """Test that unclosed sections raise a parsing error."""
         formatter = MustacheTemplateFormatter()
         # Malformed template - unclosed section
         template = "{{#items}}{{name}}"
-        variables = formatter.parse(template)
-        # Should still extract items as top-level
-        assert "items" in variables
-        # name is nested, should not be extracted
-        assert "name" not in variables
+        with pytest.raises(TemplateFormatterError):
+            formatter.parse(template)
 
     def test_unmatched_closing_tag(self) -> None:
-        """Test template with unmatched closing tag."""
+        """Test template with unmatched closing tag raises an error."""
         formatter = MustacheTemplateFormatter()
         # Malformed template - closing tag without opener
         template = "{{/orphan}}{{valid}}"
-        variables = formatter.parse(template)
-        # valid should be extracted, orphan closing tag is ignored
-        assert "valid" in variables
+        with pytest.raises(TemplateFormatterError):
+            formatter.parse(template)
 
     def test_comment_syntax_ignored(self) -> None:
         """Test that Mustache comments ({{! comment }}) don't add variables."""
