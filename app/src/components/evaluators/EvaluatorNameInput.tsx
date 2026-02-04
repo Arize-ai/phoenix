@@ -8,6 +8,11 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
+import {
+  IDENTIFIER_ERROR_MESSAGES,
+  validateIdentifierAllowedChars,
+  validateIdentifierLeadingTrailing,
+} from "@phoenix/utils/identifierUtils";
 
 /**
  * Transforms an evaluator name by lowercasing, converting spaces to dashes,
@@ -18,34 +23,6 @@ const transformEvaluatorName = (value: string) =>
     .toLowerCase()
     .replace(/ /g, "-")
     .replace(/[^_a-z0-9-]/g, "");
-
-const ALLOWED_CHARS_REGEX = /^[_a-z0-9-]*$/;
-const LEADING_TRAILING_ALPHANUMERIC_REGEX = /^([a-z0-9](.*[a-z0-9])?)?$/;
-
-/**
- * Validates identifier on change (immediate feedback).
- * Only checks for empty and allowed characters.
- */
-const validateIdentifierOnChange = (value: string): ValidateResult => {
-  if (value.trim() === "") {
-    return "Cannot be empty";
-  }
-  if (!ALLOWED_CHARS_REGEX.test(value)) {
-    return "Must have only lowercase alphanumeric characters, dashes, and underscores";
-  }
-  return true;
-};
-
-/**
- * Validates identifier on blur (deferred feedback).
- * Checks start/end character requirements.
- */
-const validateIdentifierOnBlur = (value: string): ValidateResult => {
-  if (!LEADING_TRAILING_ALPHANUMERIC_REGEX.test(value)) {
-    return "Must start and end with lowercase alphanumeric characters";
-  }
-  return true;
-};
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -103,11 +80,11 @@ export const EvaluatorNameInput = ({
   // Always validate fully so form submission is blocked for invalid values.
   // Display of blur-specific errors is handled separately in render.
   const validate = (value: string): ValidateResult => {
-    const onChangeResult = validateIdentifierOnChange(value);
-    if (onChangeResult !== true) {
-      return onChangeResult;
+    const allowedCharsResult = validateIdentifierAllowedChars(value);
+    if (allowedCharsResult !== true) {
+      return allowedCharsResult;
     }
-    return validateIdentifierOnBlur(value);
+    return validateIdentifierLeadingTrailing(value);
   };
 
   return (
@@ -117,11 +94,10 @@ export const EvaluatorNameInput = ({
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {
         // Only show blur-specific errors after the field has been blurred
-        const blurErrorMessage =
-          "Must start and end with lowercase alphanumeric characters";
         const shouldShowError =
           error?.message &&
-          (hasBlurredRef.current || error.message !== blurErrorMessage);
+          (hasBlurredRef.current ||
+            error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
         const displayedError = shouldShowError ? error.message : undefined;
 
         const handleChange = (value: string) => {
