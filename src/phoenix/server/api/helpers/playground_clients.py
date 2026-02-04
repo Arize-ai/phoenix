@@ -1290,7 +1290,19 @@ class OpenAIResponseStreamingClient(
             elif role is ChatCompletionMessageRole.USER:
                 input_parts.append(f"User: {content}")
             elif role is ChatCompletionMessageRole.AI:
-                input_parts.append(f"Assistant: {content}")
+                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
+                if tool_calls:
+                    tool_call_parts = []
+                    for tool_call in tool_calls:
+                        tool_id = tool_call.get("id", "")
+                        function = tool_call.get("function", {})
+                        function_name = function.get("name", "")
+                        function_args = function.get("arguments", "")
+                        tool_call_parts.append(
+                            f"Tool Call ({tool_id}): {function_name}({function_args})"
+                        )
+                    assistant_msg += "\n" + "\n".join(tool_call_parts)
+                input_parts.append(assistant_msg)
             elif role is ChatCompletionMessageRole.TOOL:
                 input_parts.append(f"Tool ({tool_call_id}): {content}")
 
@@ -1498,7 +1510,19 @@ class AzureOpenAIGPT51_52StreamingClient(
             elif role is ChatCompletionMessageRole.USER:
                 input_parts.append(f"User: {content}")
             elif role is ChatCompletionMessageRole.AI:
-                input_parts.append(f"Assistant: {content}")
+                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
+                if tool_calls:
+                    tool_call_parts = []
+                    for tool_call in tool_calls:
+                        tool_id = tool_call.get("id", "")
+                        function = tool_call.get("function", {})
+                        function_name = function.get("name", "")
+                        function_args = function.get("arguments", "")
+                        tool_call_parts.append(
+                            f"Tool Call ({tool_id}): {function_name}({function_args})"
+                        )
+                    assistant_msg += "\n" + "\n".join(tool_call_parts)
+                input_parts.append(assistant_msg)
             elif role is ChatCompletionMessageRole.TOOL:
                 input_parts.append(f"Tool ({tool_call_id}): {content}")
 
