@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<33c5d086901ec4de1ffbbb634bfdc3dc>>
+ * @generated SignedSource<<03c89d40ca4e1eb859ae896f69ba7f53>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
