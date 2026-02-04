@@ -200,7 +200,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     | ClassificationEvaluatorAnnotationConfig
   >;
   const initialState = useMemo(() => {
-    if (evaluatorKind === "CODE") {
+    if (evaluatorKind === "CODE" || evaluatorKind === "BUILTIN") {
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
@@ -218,7 +218,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           globalName: evaluatorGlobalName ?? "",
           name: name ?? "",
           description: evaluatorDescription ?? "",
-          kind: evaluatorKind,
+          kind: "CODE",
           isBuiltin: true,
           inputMapping,
         },

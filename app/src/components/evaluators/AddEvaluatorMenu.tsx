@@ -201,8 +201,10 @@ const CodeEvaluatorTemplateSubmenu = ({
   );
   const builtInCodeEvaluators = useMemo(
     () =>
-      data.builtInEvaluators.filter((evaluator) => evaluator.kind === "CODE"),
-    [data.builtInEvaluators]
+      data.builtInEvaluators.filter(
+        (evaluator) => evaluator.kind === "BUILTIN"
+      ),
+    [data]
   );
   return (
     <SubmenuTrigger {...props}>

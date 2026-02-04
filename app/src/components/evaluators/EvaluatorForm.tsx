@@ -144,7 +144,9 @@ export const EvaluatorForm = () => {
           </Flex>
         </View>
         {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
-        {evaluatorKind === "CODE" && <CodeEvaluatorForm />}
+        {(evaluatorKind === "CODE" || evaluatorKind === "BUILTIN") && (
+          <CodeEvaluatorForm />
+        )}
       </Panel>
       <PanelResizeHandle css={compactResizeHandleCSS} />
       <Panel

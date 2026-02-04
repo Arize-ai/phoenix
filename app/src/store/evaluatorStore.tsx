@@ -202,7 +202,7 @@ export const createEvaluatorStore = (
           props.evaluator.kind === "LLM"
             ? DEFAULT_LLM_EVALUATOR_STORE_VALUES
             : {},
-          props.evaluator.kind === "CODE"
+          props.evaluator.kind === "CODE" || props.evaluator.kind === "BUILTIN"
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
           props

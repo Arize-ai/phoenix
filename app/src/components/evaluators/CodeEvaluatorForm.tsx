@@ -16,8 +16,10 @@ export const CodeEvaluatorForm = () => {
       evaluatorMappingSource: state.evaluatorMappingSource,
     }))
   );
-  if (evaluatorKind !== "CODE") {
-    throw new Error("CodeEvaluatorForm called for non-CODE evaluator");
+  if (evaluatorKind !== "CODE" && evaluatorKind !== "BUILTIN") {
+    throw new Error(
+      "CodeEvaluatorForm called for non-CODE or non-BUILTIN evaluator"
+    );
   }
   if (isBuiltin && builtInEvaluatorName) {
     switch (builtInEvaluatorName.toLowerCase()) {
