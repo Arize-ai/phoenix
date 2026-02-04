@@ -12,7 +12,7 @@ export function EvaluatorKindToken(props: {
     switch (kind) {
       case "LLM":
         return "var(--ac-global-color-orange-500)";
-      case "CODE":
+      case "BUILTIN":
         return "var(--ac-global-color-blue-500)";
       default:
         return "var(--ac-global-color-grey-300)";

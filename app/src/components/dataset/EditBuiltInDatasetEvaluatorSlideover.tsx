@@ -104,6 +104,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
               datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {
                 id
                 name
+                description
                 ... on DatasetEvaluator {
                   outputConfig {
                     ... on AnnotationConfigBase {
@@ -192,7 +193,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const inputMapping = datasetEvaluator.inputMapping;
   const evaluatorKind = evaluator.kind;
   const evaluatorGlobalName = evaluator.name;
-  const evaluatorDescription = evaluator.description;
+  const evaluatorDescription = datasetEvaluator.description;
   const evaluatorId = evaluator.id;
   const evaluatorOutputConfig = (datasetEvaluator.outputConfig ??
     evaluator.outputConfig) as Mutable<
@@ -200,7 +201,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     | ClassificationEvaluatorAnnotationConfig
   >;
   const initialState = useMemo(() => {
-    if (evaluatorKind === "CODE") {
+    if (evaluatorKind === "BUILTIN") {
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
@@ -247,11 +248,12 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      evaluator: { inputMapping, name },
+      evaluator: { inputMapping, name, description },
       outputConfig,
     } = store.getState();
 
     const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+    const normalizedDescription = description.trim();
 
     updateDatasetBuiltinEvaluator({
       variables: {
@@ -260,6 +262,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           name,
           inputMapping,
           outputConfigOverride,
+          description: normalizedDescription,
         },
         connectionIds: updateConnectionIds ?? [],
       },

@@ -27,14 +27,12 @@ export function DatasetEvaluatorActionMenu({
   datasetEvaluatorId,
   evaluatorKind,
   evaluatorName,
-  isBuiltIn,
   updateConnectionIds,
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
-  isBuiltIn: boolean;
   updateConnectionIds?: string[];
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -60,19 +58,17 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            {(evaluatorKind === "LLM" || isBuiltIn) && (
-              <MenuItem id={DatasetEvaluatorAction.EDIT}>
-                <Flex
-                  direction="row"
-                  gap="size-75"
-                  justifyContent="start"
-                  alignItems="center"
-                >
-                  <Icon svg={<Icons.Edit2Outline />} />
-                  <Text>Edit</Text>
-                </Flex>
-              </MenuItem>
-            )}
+            <MenuItem id={DatasetEvaluatorAction.EDIT}>
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.Edit2Outline />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
             <MenuItem id={DatasetEvaluatorAction.DELETE}>
               <Flex
                 direction="row"
@@ -87,7 +83,7 @@ export function DatasetEvaluatorActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      {isBuiltIn ? (
+      {evaluatorKind === "BUILTIN" ? (
         <EditBuiltInDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
