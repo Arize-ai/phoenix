@@ -103,7 +103,7 @@ export function BuiltInDatasetEvaluatorDetails({
   onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
   const { revalidate } = useRevalidator();
-  const data = useFragment(
+  const datasetEvaluator = useFragment(
     graphql`
       fragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
         id
@@ -157,14 +157,15 @@ export function BuiltInDatasetEvaluatorDetails({
     datasetEvaluatorRef
   );
 
-  const evaluator = data.evaluator;
+  const evaluator = datasetEvaluator.evaluator;
   if (evaluator.kind !== "CODE" || !evaluator.isBuiltin || !evaluator.name) {
     throw new Error("Invalid evaluator for BuiltInDatasetEvaluatorDetails");
   }
 
-  const outputConfig = (data.outputConfig ??
+  // Prefer overridden values from datasetEvaluator, fall back to evaluator defaults
+  const outputConfig = (datasetEvaluator.outputConfig ??
     evaluator.outputConfig) as OutputConfig | null;
-  const inputMapping = data.inputMapping;
+  const inputMapping = datasetEvaluator.inputMapping;
   const name = evaluator.name.toLowerCase();
 
   let DetailsComponent: React.ComponentType<{
@@ -209,7 +210,7 @@ export function BuiltInDatasetEvaluatorDetails({
         </Flex>
       </View>
       <EditBuiltInDatasetEvaluatorSlideover
-        datasetEvaluatorId={data.id}
+        datasetEvaluatorId={datasetEvaluator.id}
         datasetId={datasetId}
         isOpen={isEditSlideoverOpen}
         onOpenChange={onEditSlideoverOpenChange}
