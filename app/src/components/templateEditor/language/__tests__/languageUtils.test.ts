@@ -209,10 +209,8 @@ No tools available.
     });
   });
 
-  it("should not extract malformed triple braces as variable names in fallback", () => {
-    // When native parser fails on malformed input, the fallback should not
-    // return `{name` as a variable (from regex capturing `{{{name` wrongly)
-    // Note: Well-formed triple braces like {{{name}}} work fine with native parser
+  it("should extract unescaped mustache variables", () => {
+    // Well-formed triple braces like {{{name}}} work fine with the native parser.
     const tests = [
       // Valid triple braces should extract correctly via native parser
       { input: "{{{name}}}", expected: ["name"] },

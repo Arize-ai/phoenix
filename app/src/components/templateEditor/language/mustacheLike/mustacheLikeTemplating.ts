@@ -103,50 +103,7 @@ export const extractVariablesFromMustacheLike = (text: string) => {
   try {
     tokens = Mustache.parse(text);
   } catch {
-    // Fallback: best-effort extraction when native parser fails
-    const fallbackVariables = new Set<string>();
-    const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
-    let depth = 0;
-    for (const match of text.matchAll(tagRegex)) {
-      const trimmed = match[1]?.trim() ?? "";
-      if (
-        !trimmed ||
-        trimmed.startsWith("!") ||
-        trimmed.startsWith(">") ||
-        trimmed.startsWith("=") ||
-        // Skip malformed triple braces captured as `{name` (the regex captures
-        // the inner content of `{{{name}}}` as `{name` due to brace overlap)
-        trimmed.startsWith("{")
-      ) {
-        continue;
-      }
-      // Skip unescaped variables that start with & (e.g., {{& name}})
-      if (trimmed.startsWith("&")) {
-        if (depth === 0) {
-          const varName = trimmed.slice(1).trim();
-          if (varName) {
-            fallbackVariables.add(getRootVariableName(varName));
-          }
-        }
-        continue;
-      }
-      if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-        if (depth === 0) {
-          const varName = trimmed.slice(1).trim();
-          fallbackVariables.add(getRootVariableName(varName));
-        }
-        depth += 1;
-        continue;
-      }
-      if (trimmed.startsWith("/")) {
-        depth = Math.max(0, depth - 1);
-        continue;
-      }
-      if (depth === 0) {
-        fallbackVariables.add(getRootVariableName(trimmed));
-      }
-    }
-    return Array.from(fallbackVariables);
+    return [];
   }
   const topLevelVariables = new Set<string>();
 
@@ -187,8 +144,7 @@ export type MustacheSectionValidation = {
 
 /**
  * Runs a regex-based stack scan to produce descriptive section mismatch errors.
- * This is used as a fallback when the native Mustache parser throws, so we can
- * give users helpful messages like "Missing closing tag for {{#x}} before {{/y}}".
+ * Regex validation is used ONLY for descriptive UI error messages during template editing.
  */
 const getDescriptiveSectionErrors = (
   text: string
