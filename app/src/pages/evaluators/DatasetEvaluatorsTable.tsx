@@ -205,6 +205,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
       fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
         id
         name
+        description
         updatedAt
         user {
           username
@@ -214,10 +215,8 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           id
           name
           kind
-          description
           createdAt
           updatedAt
-          isBuiltin
           ... on LLMEvaluator {
             prompt {
               id
@@ -330,12 +329,12 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 80,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
+          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
         ),
       },
       {
         header: "description",
-        accessorKey: "evaluator.description",
+        accessorKey: "description",
         cell: TextCell,
         enableSorting: false,
         size: 320,
@@ -389,7 +388,6 @@ export const DatasetEvaluatorsTable = ({
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
-            isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
         ),

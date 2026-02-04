@@ -158,7 +158,7 @@ export function BuiltInDatasetEvaluatorDetails({
   );
 
   const evaluator = datasetEvaluator.evaluator;
-  if (evaluator.kind !== "CODE" || !evaluator.isBuiltin || !evaluator.name) {
+  if (evaluator.kind !== "BUILTIN" || !evaluator.isBuiltin || !evaluator.name) {
     throw new Error("Invalid evaluator for BuiltInDatasetEvaluatorDetails");
   }
 
