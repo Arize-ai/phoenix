@@ -506,6 +506,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         Shared implementation for unified responses.create endpoint used by GPT 5.1 and 5.2 models.
+        Uses event-driven streaming with the Responses API.
         Converts messages to input string format and handles streaming responses.
         """
         from openai import NOT_GIVEN
@@ -537,57 +538,88 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
         input_text = "\n\n".join(input_parts)
 
-        tool_call_ids: dict[int, str] = {}
+        # Track active tool calls: tool_call_id -> {name, arguments_buffer}
+        active_tool_calls: dict[str, dict[str, str]] = {}
         token_usage: Optional["CompletionUsage"] = None
 
         # Use responses.create instead of chat.completions.create for unified endpoint
         # The unified endpoint uses 'input' parameter instead of 'messages'
         throttled_create = self.rate_limiter._alimit(self.client.responses.create)
-        async for chunk in await throttled_create(
+        async for event in await throttled_create(
             input=input_text,
             model=self.model_name,
             stream=True,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         ):
-            # Handle usage information if present
-            if hasattr(chunk, "usage") and chunk.usage is not None:
-                token_usage = chunk.usage
+            # Parse events using event.type for event-driven streaming
+            event_type = getattr(event, "type", None)
+            if not event_type:
+                continue
 
-            # Handle streaming chunks - unified endpoint may have different structure
-            # Check for choices format (similar to chat.completions)
-            if hasattr(chunk, "choices") and chunk.choices:
-                choice = chunk.choices[0]
-                if hasattr(choice, "delta"):
-                    delta = choice.delta
-                    if hasattr(delta, "content") and isinstance(delta.content, str):
-                        yield TextChunk(content=delta.content)
-                    if hasattr(delta, "tool_calls") and delta.tool_calls is not None:
-                        for tool_call_index, tool_call in enumerate(delta.tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if hasattr(tool_call, "id") and tool_call.id is not None
-                                else tool_call_ids.get(tool_call_index)
+            # Handle text streaming: yield TextChunk for every delta
+            if event_type == "response.output_text.delta":
+                # Access text from event.delta.text
+                delta = getattr(event, "delta", None)
+                if delta:
+                    text = getattr(delta, "text", None)
+                    if text:
+                        # Ensure text is a string
+                        text_str = text if isinstance(text, str) else str(text)
+                        yield TextChunk(content=text_str)
+            # Don't duplicate text on .done - just skip it
+            elif event_type == "response.output_text.done":
+                pass
+
+            # Handle tool call streaming: accumulate arguments across deltas
+            elif event_type == "response.output_tool_call.delta":
+                # Access delta from event
+                delta = getattr(event, "delta", None)
+                if delta:
+                    # Get tool call ID and function name from the delta
+                    tool_call_id = getattr(delta, "id", None)
+                    function_name = getattr(delta, "name", None)
+                    arguments_delta = getattr(delta, "arguments", None)
+
+                    if tool_call_id:
+                        # Initialize tool call tracking if not already present
+                        if tool_call_id not in active_tool_calls:
+                            active_tool_calls[tool_call_id] = {
+                                "name": function_name or "",
+                                "arguments_buffer": "",
+                            }
+                        # Accumulate arguments (ensure it's a string)
+                        if arguments_delta:
+                            arguments_str = (
+                                arguments_delta if isinstance(arguments_delta, str) else str(arguments_delta)
                             )
-                            if tool_call_id:
-                                tool_call_ids[tool_call_index] = tool_call_id
-                            if hasattr(tool_call, "function") and tool_call.function is not None:
-                                function = tool_call.function
-                                yield ToolCallChunk(
-                                    id=tool_call_id or "",
-                                    function=FunctionCallChunk(
-                                        name=getattr(function, "name", "") or "",
-                                        arguments=getattr(function, "arguments", "") or "",
-                                    ),
-                                )
-            # Fallback: check for output_text format (unified endpoint format)
-            elif hasattr(chunk, "output_text") and chunk.output_text:
-                yield TextChunk(content=chunk.output_text)
-            elif hasattr(chunk, "delta") and chunk.delta:
-                delta = chunk.delta
-                if hasattr(delta, "output_text") and delta.output_text:
-                    yield TextChunk(content=delta.output_text)
+                            active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
+                        # Update function name if provided
+                        if function_name:
+                            active_tool_calls[tool_call_id]["name"] = function_name
 
+            # Emit ToolCallChunk only when the tool call is complete
+            elif event_type == "response.output_tool_call.done":
+                tool_call_id = getattr(event, "id", None)
+                if tool_call_id and tool_call_id in active_tool_calls:
+                    tool_call_data = active_tool_calls[tool_call_id]
+                    yield ToolCallChunk(
+                        id=tool_call_id,
+                        function=FunctionCallChunk(
+                            name=tool_call_data["name"],
+                            arguments=tool_call_data["arguments_buffer"],
+                        ),
+                    )
+                    # Clean up completed tool call
+                    del active_tool_calls[tool_call_id]
+
+            # Extract usage only from response.completed
+            elif event_type == "response.completed":
+                usage = getattr(event, "usage", None)
+                if usage is not None:
+                    token_usage = usage
+
+        # Update _llm_token_counts exactly once after streaming ends
         if token_usage is not None:
             self._attributes.update(dict(self._llm_token_counts(token_usage)))
 
