@@ -185,7 +185,7 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
   ...DEFAULT_STORE_VALUES,
   evaluator: {
     ...DEFAULT_STORE_VALUES.evaluator,
-    kind: "CODE",
+    kind: "BUILTIN",
     isBuiltin: true,
   },
 } satisfies EvaluatorStoreProps;
@@ -202,7 +202,7 @@ export const createEvaluatorStore = (
           props.evaluator.kind === "LLM"
             ? DEFAULT_LLM_EVALUATOR_STORE_VALUES
             : {},
-          props.evaluator.kind === "CODE"
+          props.evaluator.kind === "BUILTIN"
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
           props

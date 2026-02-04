@@ -217,7 +217,6 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           kind
           createdAt
           updatedAt
-          isBuiltin
           ... on LLMEvaluator {
             prompt {
               id
@@ -330,7 +329,7 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 80,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
+          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
         ),
       },
       {
@@ -389,7 +388,6 @@ export const DatasetEvaluatorsTable = ({
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
-            isBuiltIn={row.original.evaluator.isBuiltin}
             updateConnectionIds={updateConnectionIds}
           />
         ),

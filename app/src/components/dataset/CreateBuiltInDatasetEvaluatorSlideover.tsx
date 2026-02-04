@@ -160,7 +160,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
 
   const initialState = useMemo(() => {
     invariant(evaluator.name, "evaluator name is required");
-    if (evaluator.kind === "CODE") {
+    if (evaluator.kind === "BUILTIN") {
       const name = formatBuiltinEvaluatorDisplayName(evaluator.name) ?? "";
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
