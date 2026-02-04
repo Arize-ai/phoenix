@@ -53,20 +53,15 @@ export const EvaluatorOutputPreview = () => {
       mutation EvaluatorOutputPreviewMutation($input: EvaluatorPreviewsInput!) {
         evaluatorPreviews(input: $input) {
           results {
-            __typename
-            ... on EvaluationSuccess {
-              annotation {
-                explanation
-                label
-                score
-                name
-                id
-              }
+            evaluatorName
+            annotation {
+              explanation
+              label
+              score
+              name
+              id
             }
-            ... on EvaluationError {
-              evaluatorName
-              message
-            }
+            error
           }
         }
       }
@@ -136,33 +131,30 @@ export const EvaluatorOutputPreview = () => {
           setError(errorMessage);
         } else {
           const results: EvaluationPreviewResult[] =
-            response.evaluatorPreviews.results
-              .filter(
-                (
-                  result
-                ): result is Exclude<typeof result, { __typename: "%other" }> =>
-                  result.__typename !== "%other"
-              )
-              .map((result) => {
-                if (result.__typename === "EvaluationSuccess") {
-                  return {
-                    kind: "success" as const,
-                    annotation: {
-                      id: result.annotation.id,
-                      name: result.annotation.name,
-                      label: result.annotation.label,
-                      score: result.annotation.score,
-                      explanation: result.annotation.explanation,
-                    },
-                  };
-                } else {
-                  return {
-                    kind: "error" as const,
-                    evaluatorName: result.evaluatorName,
-                    message: result.message,
-                  };
-                }
-              });
+            response.evaluatorPreviews.results.map((result) => {
+              if (result.error != null) {
+                return {
+                  kind: "error" as const,
+                  evaluatorName: result.evaluatorName,
+                  message: result.error,
+                };
+              } else if (result.annotation != null) {
+                return {
+                  kind: "success" as const,
+                  annotation: {
+                    id: result.annotation.id,
+                    name: result.annotation.name,
+                    label: result.annotation.label,
+                    score: result.annotation.score,
+                    explanation: result.annotation.explanation,
+                  },
+                };
+              } else {
+                throw new Error(
+                  "Unknown error: no annotation or error returned"
+                );
+              }
+            });
           setPreviewResults(results);
         }
       },

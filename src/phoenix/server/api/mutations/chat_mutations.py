@@ -4,7 +4,7 @@ from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain, islice
 from traceback import format_exc
-from typing import Annotated, Any, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -37,7 +37,9 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
-    EvaluationResult,
+    EvaluationResult as EvaluationResultDict,
+)
+from phoenix.server.api.evaluators import (
     create_llm_evaluator_from_inline,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
@@ -106,6 +108,7 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeMod
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.trace.attributes import get_attribute_value, unflatten
@@ -136,20 +139,11 @@ class ChatCompletionToolCall:
 
 
 @strawberry.type
-class EvaluationSuccess:
-    annotation: ExperimentRunAnnotation
-
-
-@strawberry.type
-class EvaluationError:
+class EvaluationResult:
     evaluator_name: str
-    message: str
-
-
-EvaluationResultUnion: TypeAlias = Annotated[
-    Union[EvaluationSuccess, EvaluationError],
-    strawberry.union("EvaluationResultUnion"),
-]
+    annotation: Optional[ExperimentRunAnnotation] = None
+    trace: Optional[Trace] = None
+    error: Optional[str] = None
 
 
 @strawberry.type
@@ -159,7 +153,7 @@ class ChatCompletionRepetition:
     tool_calls: list[ChatCompletionToolCall]
     span: Optional[Span]
     error_message: Optional[str]
-    evaluations: list[EvaluationResultUnion] = field(default_factory=list)
+    evaluations: list[EvaluationResult] = field(default_factory=list)
 
 
 @strawberry.type
@@ -185,10 +179,10 @@ class ChatCompletionOverDatasetMutationPayload:
 
 @strawberry.type
 class EvaluatorPreviewsPayload:
-    results: list[EvaluationResultUnion]
+    results: list[EvaluationResult]
 
 
-def _to_annotation(eval_result: EvaluationResult) -> ExperimentRunAnnotation:
+def _to_annotation(eval_result: EvaluationResultDict) -> ExperimentRunAnnotation:
     return ExperimentRunAnnotation.from_dict(
         {
             "name": eval_result["name"],
@@ -205,17 +199,21 @@ def _to_annotation(eval_result: EvaluationResult) -> ExperimentRunAnnotation:
     )
 
 
-def _to_evaluation_result_union(
-    eval_result: EvaluationResult,
+def _to_evaluation_result(
+    eval_result: EvaluationResultDict,
     evaluator_name: str,
-) -> EvaluationResultUnion:
+    trace: Optional[Trace] = None,
+) -> EvaluationResult:
     if eval_result["error"] is not None:
-        return EvaluationError(
+        return EvaluationResult(
             evaluator_name=evaluator_name,
-            message=eval_result["error"],
+            error=eval_result["error"],
+            trace=trace,
         )
-    return EvaluationSuccess(
+    return EvaluationResult(
+        evaluator_name=evaluator_name,
         annotation=_to_annotation(eval_result),
+        trace=trace,
     )
 
 
@@ -401,7 +399,7 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
-        evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResultUnion]] = {}
+        evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResult]] = {}
         if input.evaluators:
             dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
             async with info.context.db() as session:
@@ -445,7 +443,7 @@ class ChatCompletionMutationMixin:
                         if input.tracing_enabled:
                             tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
-                        eval_result: EvaluationResult = await evaluator.evaluate(
+                        eval_result: EvaluationResultDict = await evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
@@ -453,11 +451,15 @@ class ChatCompletionMutationMixin:
                             tracer=tracer,
                         )
 
+                        trace: Trace | None = None
                         if tracer is not None:
-                            traces = await tracer.save_db_traces(
+                            db_traces = await tracer.save_db_traces(
                                 session=session, project_id=project_id
                             )
-                            eval_result["trace_id"] = traces[0].trace_id
+                            if db_traces:
+                                db_trace = db_traces[0]
+                                trace = Trace(id=db_trace.id, db_record=db_trace)
+                                eval_result["trace_id"] = db_trace.trace_id
 
                         if eval_result["error"] is None:
                             annotation_model = evaluation_result_to_model(
@@ -467,7 +469,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations[evaluation_key].append(
-                            _to_evaluation_result_union(eval_result, name)
+                            _to_evaluation_result(eval_result, name, trace=trace)
                         )
 
         for (revision, repetition_number), experiment_run, result in zip(
@@ -528,7 +530,7 @@ class ChatCompletionMutationMixin:
             results.extend(batch_results)
 
         # Run evaluations if evaluators are specified
-        evaluations_by_repetition: dict[int, list[EvaluationResultUnion]] = {}
+        evaluations_by_repetition: dict[int, list[EvaluationResult]] = {}
         if input.evaluators:
             async with info.context.db() as session:
                 evaluators = await get_evaluators(
@@ -559,7 +561,7 @@ class ChatCompletionMutationMixin:
                             name=name,
                             description_override=evaluator_input.description,
                         )
-                        eval_result: EvaluationResult = await evaluator.evaluate(
+                        eval_result: EvaluationResultDict = await evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
@@ -574,7 +576,7 @@ class ChatCompletionMutationMixin:
                             session.add(annotation_model)
                             await session.flush()
                         evaluations_by_repetition[repetition_number].append(
-                            _to_evaluation_result_union(eval_result, name)
+                            _to_evaluation_result(eval_result, name)
                         )
 
         repetitions: list[ChatCompletionRepetition] = []
@@ -602,7 +604,7 @@ class ChatCompletionMutationMixin:
     async def evaluator_previews(
         cls, info: Info[Context, None], input: EvaluatorPreviewsInput
     ) -> EvaluatorPreviewsPayload:
-        all_results: list[EvaluationResultUnion] = []
+        all_results: list[EvaluationResult] = []
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
@@ -633,7 +635,7 @@ class ChatCompletionMutationMixin:
                     name=builtin_evaluator.name,
                     output_config=builtin_evaluator.output_config,
                 )
-                context_result = _to_evaluation_result_union(eval_result, builtin_evaluator.name)
+                context_result = _to_evaluation_result(eval_result, builtin_evaluator.name)
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 prompt_version = inline_llm_evaluator.prompt_version
                 model_name = prompt_version.model_name
@@ -723,7 +725,7 @@ class ChatCompletionMutationMixin:
                     name=inline_llm_evaluator.output_config.name,
                     output_config=output_config,
                 )
-                context_result = _to_evaluation_result_union(
+                context_result = _to_evaluation_result(
                     eval_result, inline_llm_evaluator.output_config.name
                 )
 

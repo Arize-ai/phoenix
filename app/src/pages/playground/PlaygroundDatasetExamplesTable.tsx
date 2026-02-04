@@ -49,6 +49,8 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
+  type AnnotationError,
+  type AnnotationWithTrace,
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
@@ -107,9 +109,8 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
-  type EvaluationError,
+  type EvaluationChunk,
   ExampleRunData,
-  type ExperimentRunEvaluation,
   InstanceResponses,
   makeExpandedCellKey,
   type Span,
@@ -182,14 +183,18 @@ const createExampleResponsesForInstance = (
       } = example;
       const { errorMessage, content, span, toolCalls, evaluations } =
         repetition;
-      const successfulEvaluations = evaluations
-        .filter((e) => e.__typename === "EvaluationSuccess")
-        .map((e) => {
-          if (e.__typename !== "EvaluationSuccess") {
-            throw new Error("Unexpected evaluation type");
-          }
-          return e.annotation;
-        });
+      // Transform mutation response evaluations to unified EvaluationChunk format
+      const transformedEvaluations: EvaluationChunk[] = evaluations.map((e) => {
+        return {
+          __typename: "EvaluationChunk" as const,
+          datasetExampleId,
+          repetitionNumber,
+          evaluatorName: e.evaluatorName,
+          experimentRunEvaluation: e.annotation,
+          trace: e.trace,
+          error: e.error,
+        };
+      });
       const updatedInstanceResponses: InstanceResponses = {
         ...instanceResponses,
         [datasetExampleId]: {
@@ -210,7 +215,7 @@ const createExampleResponsesForInstance = (
                     {}
                   )
                 : undefined,
-            evaluations: successfulEvaluations,
+            evaluations: transformedEvaluations,
           },
         },
       };
@@ -468,14 +473,22 @@ function ExampleOutputContent({
   ]);
 
   const { successfulEvaluations, evaluationErrors } = useMemo(() => {
-    const successful: ExperimentRunEvaluation[] = [];
-    const errors: EvaluationError[] = [];
+    const successful: AnnotationWithTrace[] = [];
+    const errors: AnnotationError[] = [];
 
     for (const e of evaluations ?? []) {
-      if ("__typename" in e && e.__typename === "EvaluationErrorChunk") {
-        errors.push(e);
-      } else {
-        successful.push(e as ExperimentRunEvaluation);
+      if (e.error != null) {
+        errors.push({
+          evaluatorName: e.evaluatorName,
+          message: e.error,
+          trace: e.trace,
+        });
+      } else if (e.experimentRunEvaluation != null) {
+        const evaluation = e.experimentRunEvaluation;
+        successful.push({
+          ...evaluation,
+          trace: e.trace,
+        });
       }
     }
 
@@ -883,23 +896,6 @@ export function PlaygroundDatasetExamplesTable({
             if (chatCompletion.datasetExampleId == null) {
               return;
             }
-            const evaluation = chatCompletion.experimentRunEvaluation;
-            if (evaluation == null) {
-              return;
-            }
-            appendExampleDataEvaluationChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              evaluationChunk: evaluation,
-            });
-            incrementEvalsCompleted(instanceId);
-            break;
-          }
-          case "EvaluationErrorChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
             appendExampleDataEvaluationChunk({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
@@ -967,27 +963,22 @@ export function PlaygroundDatasetExamplesTable({
                 }
               }
               evaluations {
-                __typename
-                ... on EvaluationSuccess {
-                  annotation {
-                    id
-                    name
-                    label
-                    score
-                    annotatorKind
-                    explanation
-                    metadata
-                    startTime
-                    trace {
-                      traceId
-                      projectId
-                    }
-                  }
+                evaluatorName
+                annotation {
+                  id
+                  name
+                  label
+                  score
+                  annotatorKind
+                  explanation
+                  metadata
+                  startTime
                 }
-                ... on EvaluationError {
-                  evaluatorName
-                  message
+                trace {
+                  traceId
+                  projectId
                 }
+                error
               }
             }
           }
@@ -1672,6 +1663,7 @@ graphql`
       ... on EvaluationChunk {
         datasetExampleId
         repetitionNumber
+        evaluatorName
         experimentRunEvaluation {
           id
           name
@@ -1681,17 +1673,12 @@ graphql`
           explanation
           metadata
           startTime
-          trace {
-            traceId
-            projectId
-          }
         }
-      }
-      ... on EvaluationErrorChunk {
-        datasetExampleId
-        repetitionNumber
-        evaluatorName
-        message
+        trace {
+          traceId
+          projectId
+        }
+        error
       }
     }
   }
