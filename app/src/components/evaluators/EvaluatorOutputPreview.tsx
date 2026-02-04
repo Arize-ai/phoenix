@@ -53,20 +53,15 @@ export const EvaluatorOutputPreview = () => {
       mutation EvaluatorOutputPreviewMutation($input: EvaluatorPreviewsInput!) {
         evaluatorPreviews(input: $input) {
           results {
-            __typename
-            ... on EvaluationSuccess {
-              annotation {
-                explanation
-                label
-                score
-                name
-                id
-              }
+            evaluatorName
+            annotation {
+              explanation
+              label
+              score
+              name
+              id
             }
-            ... on EvaluationError {
-              evaluatorName
-              message
-            }
+            error
           }
         }
       }
@@ -136,33 +131,30 @@ export const EvaluatorOutputPreview = () => {
           setError(errorMessage);
         } else {
           const results: EvaluationPreviewResult[] =
-            response.evaluatorPreviews.results
-              .filter(
-                (
-                  result
-                ): result is Exclude<typeof result, { __typename: "%other" }> =>
-                  result.__typename !== "%other"
-              )
-              .map((result) => {
-                if (result.__typename === "EvaluationSuccess") {
-                  return {
-                    kind: "success" as const,
-                    annotation: {
-                      id: result.annotation.id,
-                      name: result.annotation.name,
-                      label: result.annotation.label,
-                      score: result.annotation.score,
-                      explanation: result.annotation.explanation,
-                    },
-                  };
-                } else {
-                  return {
-                    kind: "error" as const,
-                    evaluatorName: result.evaluatorName,
-                    message: result.message,
-                  };
-                }
-              });
+            response.evaluatorPreviews.results.map((result) => {
+              if (result.error != null) {
+                return {
+                  kind: "error" as const,
+                  evaluatorName: result.evaluatorName,
+                  message: result.error,
+                };
+              } else if (result.annotation != null) {
+                return {
+                  kind: "success" as const,
+                  annotation: {
+                    id: result.annotation.id,
+                    name: result.annotation.name,
+                    label: result.annotation.label,
+                    score: result.annotation.score,
+                    explanation: result.annotation.explanation,
+                  },
+                };
+              } else {
+                throw new Error(
+                  "Unknown error: no annotation or error returned"
+                );
+              }
+            });
           setPreviewResults(results);
         }
       },
@@ -178,12 +170,12 @@ export const EvaluatorOutputPreview = () => {
   };
   const isShowingPreview =
     isLoadingEvaluatorPreview || previewResults.length > 0 || error != null;
-  const helpTextByEvaluatorKind = {
-    LLM: "Test your evaluator with sample data. The input and reference fields are populated from your dataset example. The output field is a sample of what your task would produce - edit it to match your actual output format. Use these fields to map variables in your evaluator prompt.",
-    CODE: "Test your evaluator with sample data. The input and reference fields are populated from your dataset example. The output field is a sample of what your task would produce - edit it to match your actual output format. Use these fields to map values to your evaluator function arguments.",
+  const helpTextByEvaluatorKind: Record<string, string> = {
+    LLM: "Test your evaluator using an example from your dataset. Use the selected example to map variables in the evaluator prompt to the inputs, outputs, and reference outputs of your dataset and task output.",
+    CODE: "Test your evaluator using an example from your dataset. Use the selected example to map values of the evaluator function arguments to the inputs, outputs, and reference outputs of your dataset and task output.",
   };
   const helpText =
-    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.LLM;
+    helpTextByEvaluatorKind[evaluatorKind] ?? helpTextByEvaluatorKind.CODE;
   return (
     <>
       {isShowingPreview && (

@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import zlib
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -101,27 +100,36 @@ EvaluatorOutputConfig: TypeAlias = CategoricalAnnotationConfig | ContinuousAnnot
 
 
 class BaseEvaluator(ABC):
+    """
+    Base interface for all evaluators that attach annotations to tasks.
+
+    This is the unified ABC that both LLMEvaluator (instance-based) and
+    BuiltInEvaluator (class-based with registry) implement.
+    """
+
     @property
     @abstractmethod
     def name(self) -> str:
-        raise NotImplementedError
+        """The display name of this evaluator."""
+        ...
 
     @property
     @abstractmethod
     def description(self) -> Optional[str]:
-        raise NotImplementedError
+        """Optional description of what this evaluator does."""
+        ...
 
     @property
     @abstractmethod
     def input_schema(self) -> dict[str, Any]:
-        raise NotImplementedError
+        """Returns the JSON schema describing the input format for this evaluator."""
+        ...
 
     @property
     @abstractmethod
-    def output_config(
-        self,
-    ) -> EvaluatorOutputConfig:
-        raise NotImplementedError
+    def output_config(self) -> EvaluatorOutputConfig:
+        """Returns the output configuration for this evaluator."""
+        ...
 
     @abstractmethod
     async def evaluate(
@@ -145,7 +153,7 @@ class BaseEvaluator(ABC):
                    If provided, the caller is responsible for managing the tracer
                    and retrieving any recorded spans after evaluation.
         """
-        raise NotImplementedError
+        ...
 
 
 class LLMEvaluator(BaseEvaluator):
@@ -464,16 +472,38 @@ class LLMEvaluator(BaseEvaluator):
         return result
 
 
-class BuiltInEvaluator(BaseEvaluator, ABC):
+class BuiltInEvaluator(BaseEvaluator):
+    """
+    Base class for built-in evaluators with registry support.
+
+    Built-in evaluators are class-based (instantiated fresh for each evaluation)
+    and registered via the @register_builtin_evaluator decorator.
+
+    Note: BuiltInEvaluator uses class-level `name` and `description` attributes
+    which satisfy the BaseEvaluator ABC's abstract property requirements.
+    """
+
+    # _key is a unique identifier for this evaluator used for registry lookups.
+    # It should be lowercase snake_case and should NEVER change once an evaluator
+    # is released to ensure stable references.
+    _key: str
+    # Class-level attributes that define the evaluator's identity
+    # These satisfy the abstract properties from the BaseEvaluator ABC
     name: str
     description: Optional[str] = None
     metadata: dict[str, Any] = {}
 
     @property
     @abstractmethod
+    def input_schema(self) -> dict[str, Any]:
+        """Returns the JSON schema describing the input format for this evaluator."""
+        ...
+
+    @property
+    @abstractmethod
     def output_config(self) -> EvaluatorOutputConfig:
         """Returns the base output config for this evaluator (before any overrides are applied)."""
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     async def evaluate(
@@ -484,8 +514,7 @@ class BuiltInEvaluator(BaseEvaluator, ABC):
         name: str,
         output_config: EvaluatorOutputConfig,
         tracer: Optional[Tracer] = None,
-    ) -> EvaluationResult:
-        raise NotImplementedError
+    ) -> EvaluationResult: ...
 
     def _map_boolean_to_label_and_score(
         self,
@@ -509,34 +538,50 @@ class BuiltInEvaluator(BaseEvaluator, ABC):
 
 
 _BUILTIN_EVALUATORS: dict[str, type[BuiltInEvaluator]] = {}
-_BUILTIN_EVALUATORS_BY_ID: dict[int, type[BuiltInEvaluator]] = {}
+_BUILTIN_EVALUATORS_BY_KEY: dict[str, type[BuiltInEvaluator]] = {}
 
 T = TypeVar("T", bound=BuiltInEvaluator)
 
 
-def _generate_builtin_evaluator_id(name: str) -> int:
-    """Generate a stable negative ID using CRC32 checksum."""
-    return -abs(zlib.crc32(name.encode("utf-8")))
-
-
 def register_builtin_evaluator(cls: type[T]) -> type[T]:
-    evaluator_id = _generate_builtin_evaluator_id(cls.name)
     _BUILTIN_EVALUATORS[cls.name] = cls
-    _BUILTIN_EVALUATORS_BY_ID[evaluator_id] = cls
+    _BUILTIN_EVALUATORS_BY_KEY[cls._key] = cls
     return cls
 
 
-def get_builtin_evaluators() -> list[tuple[int, type[BuiltInEvaluator]]]:
-    """Returns list of (id, evaluator_class) tuples."""
-    return [(_generate_builtin_evaluator_id(cls.name), cls) for cls in _BUILTIN_EVALUATORS.values()]
+def get_builtin_evaluators() -> list[tuple[str, type[BuiltInEvaluator]]]:
+    """Returns list of (key, evaluator_class) tuples."""
+    return [(cls._key, cls) for cls in _BUILTIN_EVALUATORS.values()]
 
 
-def get_builtin_evaluator_ids() -> list[int]:
-    return list(_BUILTIN_EVALUATORS_BY_ID.keys())
+def get_builtin_evaluator_by_key(key: str) -> Optional[type[BuiltInEvaluator]]:
+    return _BUILTIN_EVALUATORS_BY_KEY.get(key)
 
 
-def get_builtin_evaluator_by_id(evaluator_id: int) -> Optional[type[BuiltInEvaluator]]:
-    return _BUILTIN_EVALUATORS_BY_ID.get(evaluator_id)
+async def get_builtin_evaluator_from_orm(
+    session: AsyncSession,
+    evaluator_id: int,
+) -> type[BuiltInEvaluator]:
+    """
+    Fetch a builtin evaluator class from the database by evaluator ID.
+
+    Args:
+        session: SQLAlchemy async session
+        evaluator_id: The ID of the BuiltinEvaluator record
+
+    Returns:
+        The evaluator class registered for this builtin evaluator
+
+    Raises:
+        NotFound: If the evaluator doesn't exist or its key isn't registered
+    """
+    builtin = await session.get(models.BuiltinEvaluator, evaluator_id)
+    if builtin is None:
+        raise NotFound(f"Built-in evaluator not found: {evaluator_id}")
+    evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+    if evaluator_class is None:
+        raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+    return evaluator_class
 
 
 async def _get_llm_evaluators(
@@ -722,22 +767,88 @@ async def get_evaluators(
         credentials=credentials,
     )
     llm_iter = iter(llm_evaluators)
+    # Collect unique evaluator IDs to look up their kinds
+    evaluator_db_ids: set[int] = set()
+    for db_id in dataset_evaluator_db_ids:
+        dataset_evaluator = dataset_evaluators_by_id[db_id]
+        evaluator_db_ids.add(dataset_evaluator.evaluator_id)
 
-    # Build result list in original input order
+    # Batch query to get evaluator kinds
+    evaluator_kinds_by_id: dict[int, str] = {}
+    if evaluator_db_ids:
+        evaluators_result = await session.scalars(
+            select(models.Evaluator).where(models.Evaluator.id.in_(evaluator_db_ids))
+        )
+        for evaluator in evaluators_result:
+            evaluator_kinds_by_id[evaluator.id] = evaluator.kind
+
+    # Collect LLM and BUILTIN evaluator IDs that need to be fetched
+    llm_evaluator_db_ids: set[int] = set()
+    builtin_evaluator_db_ids: set[int] = set()
+    for eval_id, kind in evaluator_kinds_by_id.items():
+        if kind == "LLM":
+            llm_evaluator_db_ids.add(eval_id)
+        elif kind == "BUILTIN":
+            builtin_evaluator_db_ids.add(eval_id)
+
+    # Single batch query for all LLM evaluators (if any)
+    llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
+    if llm_evaluator_db_ids:
+        llm_node_ids = [
+            GlobalID(type_name=LLMEvaluatorNode.__name__, node_id=str(db_id))
+            for db_id in llm_evaluator_db_ids
+        ]
+        llm_evaluators_list = await _get_llm_evaluators(
+            evaluator_node_ids=llm_node_ids,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+        )
+        # Build mapping from db_id to evaluator
+        for llm_node_id, llm_evaluator in zip(llm_node_ids, llm_evaluators_list):
+            _, llm_db_id = from_global_id(llm_node_id)
+            llm_evaluators_by_id[llm_db_id] = llm_evaluator
+
+    # Single batch query for all BUILTIN evaluators (if any) to get their keys
+    builtin_evaluator_keys_by_id: dict[int, str] = {}
+    if builtin_evaluator_db_ids:
+        builtin_evaluators_result = await session.scalars(
+            select(models.BuiltinEvaluator).where(
+                models.BuiltinEvaluator.id.in_(builtin_evaluator_db_ids)
+            )
+        )
+        for builtin_evaluator in builtin_evaluators_result:
+            builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
+
+    # Build result list in original input order, preserving duplicates
     evaluators: list[BaseEvaluator] = []
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
+    for db_id in dataset_evaluator_db_ids:
+        dataset_evaluator = dataset_evaluators_by_id[db_id]
+        evaluator_id = dataset_evaluator.evaluator_id
+        evaluator_kind = evaluator_kinds_by_id.get(evaluator_id)
 
-        if type_name == LLMEvaluatorNode.__name__:
-            evaluators.append(next(llm_iter))
-        elif type_name == BuiltInEvaluatorNode.__name__:
-            builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
+        if evaluator_kind is None:
+            raise NotFound(f"Evaluator with ID '{evaluator_id}' not found")
+        elif evaluator_kind == "LLM":
+            # LLM evaluator - get from cached lookup
+            resolved_llm_evaluator = llm_evaluators_by_id.get(evaluator_id)
+            if resolved_llm_evaluator is None:
+                raise NotFound(f"LLM evaluator with ID '{evaluator_id}' not found")
+            evaluators.append(resolved_llm_evaluator)
+        elif evaluator_kind == "BUILTIN":
+            # Built-in evaluator - instantiate class from registry using key
+            builtin_key = builtin_evaluator_keys_by_id.get(evaluator_id)
+            if builtin_key is None:
+                raise NotFound(f"Built-in evaluator with ID '{evaluator_id}' not found in database")
+            builtin_evaluator_cls = get_builtin_evaluator_by_key(builtin_key)
             if builtin_evaluator_cls is None:
-                raise NotFound(f"Built-in evaluator with ID '{node_id}' not found")
+                raise NotFound(f"Built-in evaluator with key '{builtin_key}' not found in registry")
             evaluators.append(builtin_evaluator_cls())
         else:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
-
+            raise BadRequest(
+                f"DatasetEvaluator '{db_id}' references evaluator with "
+                f"unsupported kind: {evaluator_kind}"
+            )
     return evaluators
 
 
@@ -824,6 +935,10 @@ def apply_input_mapping(
                     result[key] = matches[0].value
                 else:
                     result[key] = [match.value for match in matches]
+            else:
+                raise ValueError(
+                    f"JSONPath expression '{path_expr}' for key '{key}' did not match any values"
+                )
 
     # literal mappings take priority over path mappings
     if hasattr(input_mapping, "literal_mapping"):
@@ -972,6 +1087,7 @@ def create_llm_evaluator_from_inline(
 
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
+    _key = "contains"
     name = "Contains"
     description = "Evaluates whether the output contains a specific string"
     metadata = {"type": "string_matching"}
@@ -1199,6 +1315,7 @@ class ContainsEvaluator(BuiltInEvaluator):
 
 @register_builtin_evaluator
 class ExactMatchEvaluator(BuiltInEvaluator):
+    _key = "exact_match"
     name = "ExactMatch"
     description = "Evaluates whether the actual text exactly matches the expected text"
     metadata = {"type": "string_matching"}
@@ -1409,6 +1526,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 
 @register_builtin_evaluator
 class RegexEvaluator(BuiltInEvaluator):
+    _key = "regex"
     name = "Regex"
     description = "Evaluates whether the text matches a regex pattern"
     metadata = {"type": "pattern_matching"}
@@ -1654,6 +1772,7 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 
 @register_builtin_evaluator
 class LevenshteinDistanceEvaluator(BuiltInEvaluator):
+    _key = "levenshtein_distance"
     name = "LevenshteinDistance"
     description = "Calculates the Levenshtein (edit) distance between two strings"
     metadata = {"type": "string_distance"}
@@ -1887,6 +2006,7 @@ def json_diff_count(expected: Any, actual: Any) -> int:
 
 @register_builtin_evaluator
 class JSONDistanceEvaluator(BuiltInEvaluator):
+    _key = "json_distance"
     name = "JSONDistance"
     description = "Compares two JSON structures and returns the number of differences"
     metadata = {"type": "json_comparison"}

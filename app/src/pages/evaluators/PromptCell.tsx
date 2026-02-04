@@ -7,9 +7,16 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 export const PromptCell = ({
   prompt,
   promptVersionTag,
+  wrapWidth,
 }: {
   prompt?: { id: string; name: string };
   promptVersionTag?: string;
+  /**
+   * When set, constrains the component to a max-width (in pixels) and allows
+   * the content to wrap onto two lines if needed. When undefined, the component
+   * displays inline without wrapping.
+   */
+  wrapWidth?: number;
 }) => {
   if (!prompt) {
     return null;
@@ -19,6 +26,7 @@ export const PromptCell = ({
       promptId={prompt.id}
       promptName={prompt.name}
       promptVersionTag={promptVersionTag}
+      wrapWidth={wrapWidth}
     />
   );
 };
@@ -27,10 +35,17 @@ export const PromptLink = ({
   promptId,
   promptName,
   promptVersionTag,
+  wrapWidth,
 }: {
   promptId: string;
   promptName: string;
   promptVersionTag?: string;
+  /**
+   * When set, constrains the component to a max-width (in pixels) and allows
+   * the content to wrap onto two lines if needed. When undefined, the component
+   * displays inline without wrapping.
+   */
+  wrapWidth?: number;
 }) => {
   let to: string;
   let specifier: ReactNode;
@@ -51,17 +66,32 @@ export const PromptLink = ({
     );
     to = `/prompts/${promptId}`;
   }
+
   return (
     <Link
       to={to}
       css={css`
         text-decoration: none;
+        ${wrapWidth != null &&
+        css`
+          max-width: ${wrapWidth}px;
+        `}
       `}
     >
-      <Flex alignItems="center">
-        <Truncate maxWidth="10rem">{promptName}</Truncate>
-        <Text color="text-300">&nbsp;@&nbsp;</Text>
-        {specifier}
+      <Flex
+        alignItems="center"
+        wrap={wrapWidth != null ? "wrap" : undefined}
+        gap={wrapWidth != null ? "size-50" : undefined}
+      >
+        <Truncate maxWidth={wrapWidth != null ? "100%" : "10rem"}>
+          {promptName}
+        </Truncate>
+        <Flex alignItems="center">
+          <Text color="text-300">
+            {wrapWidth != null ? "@\u00A0" : "\u00A0@\u00A0"}
+          </Text>
+          {specifier}
+        </Flex>
       </Flex>
     </Link>
   );

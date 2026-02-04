@@ -106,7 +106,7 @@ def upgrade() -> None:
         sa.Column(
             "kind",
             sa.String,
-            sa.CheckConstraint("kind IN ('LLM', 'CODE')", name="valid_evaluator_kind"),
+            sa.CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
             nullable=False,
         ),
         sa.Column(
@@ -199,10 +199,9 @@ def upgrade() -> None:
             "evaluator_id",
             _Integer,
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=True,
+            nullable=False,
             index=True,
         ),
-        sa.Column("builtin_evaluator_id", _Integer, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("output_config", JSON_, nullable=True),
@@ -233,18 +232,45 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.CheckConstraint(
-            "(evaluator_id IS NOT NULL) != (builtin_evaluator_id IS NOT NULL)",
-            name="evaluator_id_xor_builtin_evaluator_id",
-        ),
         sa.UniqueConstraint(
             "dataset_id",
             "name",
         ),
     )
+    # Builtin evaluators table - part of the polymorphic evaluator hierarchy.
+    # This table reflects the in-memory builtin evaluator registry in the database.
+    # Data is populated/synced on application startup, not in this migration.
+    # name, description, metadata, user_id, created_at are inherited from base evaluators table.
+    op.create_table(
+        "builtin_evaluators",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "kind",
+            sa.String,
+            sa.CheckConstraint("kind = 'BUILTIN'", name="valid_evaluator_kind"),
+            server_default="BUILTIN",
+            nullable=False,
+        ),
+        sa.Column("key", sa.String, nullable=False, unique=True),
+        sa.Column("input_schema", JSON_, nullable=False),
+        sa.Column("output_config", JSON_, nullable=False),
+        sa.Column(
+            "synced_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["kind", "id"],
+            ["evaluators.kind", "evaluators.id"],
+            ondelete="CASCADE",
+        ),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("builtin_evaluators")
     op.drop_table("dataset_evaluators")
     op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")

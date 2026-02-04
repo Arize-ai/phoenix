@@ -27,7 +27,6 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_VARIABLES,
     BuiltInEvaluator,
     LLMEvaluator,
-    _generate_builtin_evaluator_id,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -732,7 +731,7 @@ class TestApplyInputMapping:
                 context=context,
             )
 
-    def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
+    def test_raises_when_jsonpath_has_no_matches(self) -> None:
         input_schema = {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -743,13 +742,16 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"other": "value", "key": "fallback"}
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Falls back to context since jsonpath has no matches
-        assert result == {"key": "fallback"}
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.nonexistent\.path' for key 'key' "
+            r"did not match any values",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
 
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
@@ -963,13 +965,6 @@ class TestApplyInputMapping:
         }
 
     def test_path_mapping_cannot_traverse_stringified_json(self) -> None:
-        """Test that JSONPath cannot traverse into stringified JSON values.
-
-        This validates the importance of NOT using json.dumps on context values -
-        if values are strings, deep path expressions will not match.
-        """
-        import json
-
         input_schema = {
             "type": "object",
             "properties": {"content": {"type": "string"}},
@@ -983,17 +978,18 @@ class TestApplyInputMapping:
             path_mapping={"content": "$.output[0].message.content"},
             literal_mapping={},
         )
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Path doesn't match because output is a string, not an object
-        # Falls back to context which also doesn't have "content" key
-        assert "content" not in result
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.output\[0\]\.message\.content' for key 'content' "
+            r"did not match any values",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
 
     def test_path_mapping_with_complex_nested_tool_calls(self) -> None:
-        """Test path access into complex tool call structures."""
         input_schema = {
             "type": "object",
             "properties": {"function_name": {"type": "string"}},
@@ -2923,10 +2919,26 @@ class TestGetEvaluators:
         db: Any,
         correctness_llm_evaluator: models.LLMEvaluator,
         openai_api_key: str,
+        synced_builtin_evaluators: None,
     ) -> None:
-        contains_id = _generate_builtin_evaluator_id("Contains")
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        regex_id = _generate_builtin_evaluator_id("Regex")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            regex_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "regex")
+            )
+        assert contains_id is not None
+        assert exact_match_id is not None
+        assert regex_id is not None
 
         # Create a dataset and DatasetEvaluators
         async with db() as session:
@@ -2937,7 +2949,7 @@ class TestGetEvaluators:
             # Create DatasetEvaluators for each evaluator type
             de_contains = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_id,
+                evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
                 input_mapping={},
                 project=models.Project(name="contains-project", description=""),
@@ -2951,14 +2963,14 @@ class TestGetEvaluators:
             )
             de_exact_match = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=exact_match_id,
+                evaluator_id=exact_match_id,
                 name=Identifier("exact-match-eval"),
                 input_mapping={},
                 project=models.Project(name="exact-match-project", description=""),
             )
             de_regex = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=regex_id,
+                evaluator_id=regex_id,
                 name=Identifier("regex-eval"),
                 input_mapping={},
                 project=models.Project(name="regex-project", description=""),
@@ -3008,45 +3020,6 @@ class TestGetEvaluators:
                     credentials=None,
                 )
 
-    # Note: test_raises_value_error_for_missing_llm_evaluator was removed because
-    # the DatasetEvaluators.evaluator_id has a foreign key constraint to LLMEvaluators,
-    # making it impossible to have a DatasetEvaluator referencing a non-existent LLMEvaluator.
-    # The builtin_evaluator_id is NOT a FK (it's an integer referencing the Python registry),
-    # so that test case remains valid.
-
-    async def test_raises_value_error_for_missing_builtin_evaluator(
-        self,
-        db: Any,
-    ) -> None:
-        # Create a DatasetEvaluator that references a non-existent BuiltIn evaluator
-        non_existent_builtin_id = 12345
-        async with db() as session:
-            dataset = models.Dataset(name="test-dataset-missing-builtin", metadata_={})
-            session.add(dataset)
-            await session.flush()
-
-            de = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                builtin_evaluator_id=non_existent_builtin_id,
-                name=Identifier("missing-builtin-eval"),
-                input_mapping={},
-                project=models.Project(name="missing-builtin-project", description=""),
-            )
-            session.add(de)
-            await session.flush()
-
-            input_node_ids = [
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de.id)),
-            ]
-
-            with pytest.raises(NotFound, match="Built-in evaluator.*not found"):
-                await get_evaluators(
-                    dataset_evaluator_node_ids=input_node_ids,
-                    session=session,
-                    decrypt=lambda x: x,
-                    credentials=None,
-                )
-
     async def test_raises_value_error_for_non_dataset_evaluator_type(
         self,
         db: Any,
@@ -3081,10 +3054,28 @@ class TestGetEvaluators:
     async def test_preserves_order_with_only_builtin_evaluators(
         self,
         db: Any,
+        synced_builtin_evaluators: None,
     ) -> None:
-        levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
-        json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
-        contains_id = _generate_builtin_evaluator_id("Contains")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            levenshtein_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+            json_distance_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "json_distance"
+                )
+            )
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+        assert levenshtein_id is not None
+        assert json_distance_id is not None
+        assert contains_id is not None
 
         async with db() as session:
             dataset = models.Dataset(name="test-dataset-builtins", metadata_={})
@@ -3093,21 +3084,21 @@ class TestGetEvaluators:
 
             de_levenshtein = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_id,
+                evaluator_id=levenshtein_id,
                 name=Identifier("levenshtein-eval"),
                 input_mapping={},
                 project=models.Project(name="levenshtein-project", description=""),
             )
             de_json_distance = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=json_distance_id,
+                evaluator_id=json_distance_id,
                 name=Identifier("json-distance-eval"),
                 input_mapping={},
                 project=models.Project(name="json-distance-project", description=""),
             )
             de_contains = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_id,
+                evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
                 input_mapping={},
                 project=models.Project(name="contains-project", description=""),
