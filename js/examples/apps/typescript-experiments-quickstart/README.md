@@ -29,7 +29,6 @@ From this directory:
 
 ```bash
 pnpm install
-pnpm -w run -r build
 ```
 
 This installs dependencies and builds all workspace packages.
