@@ -49,44 +49,36 @@ export const ReadOnlyContinuousConfig = ({
   const hasBounds = hasLowerBound || hasUpperBound;
 
   return (
-    <Flex direction="column" gap="size-200">
-      <Flex direction="row" gap="size-200" alignItems="end">
-        <TextField
-          isDisabled
-          value={name}
-          css={css`
-            width: fit-content;
-          `}
-        >
-          <Label>Name</Label>
-          <Input />
-        </TextField>
+    <div
+      css={css`
+        background-color: var(--ac-global-background-color-dark);
+        border-radius: var(--ac-global-rounding-medium);
+        padding: var(--ac-global-dimension-static-size-200);
+        margin-top: var(--ac-global-dimension-static-size-50);
+        border: 1px solid var(--ac-global-border-color-default);
+      `}
+    >
+      <Flex direction="column" gap="size-200">
+        <Flex alignItems="center" justifyContent="space-between" gap="size-200">
+          <TextField isDisabled value={name}>
+            <Label>Name</Label>
+            <Input />
+          </TextField>
+          <OptimizationDirectionField isReadOnly={isReadOnly} />
+        </Flex>
         {hasBounds && (
           <Flex direction="row" gap="size-200" alignItems="end">
-            <NumberField
-              isDisabled
-              value={lowerBound ?? undefined}
-              css={css`
-                width: fit-content;
-              `}
-            >
+            <NumberField isDisabled value={lowerBound ?? undefined}>
               <Label>Lower bound</Label>
               <Input placeholder={hasLowerBound ? undefined : "unbounded"} />
             </NumberField>
-            <NumberField
-              isDisabled
-              value={upperBound ?? undefined}
-              css={css`
-                width: fit-content;
-              `}
-            >
+            <NumberField isDisabled value={upperBound ?? undefined}>
               <Label>Upper bound</Label>
               <Input placeholder={hasUpperBound ? undefined : "unbounded"} />
             </NumberField>
           </Flex>
         )}
       </Flex>
-      <OptimizationDirectionField isReadOnly={isReadOnly} />
-    </Flex>
+    </div>
   );
 };
