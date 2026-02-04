@@ -5,6 +5,8 @@ import pytest
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
+    ParsedVariable,
+    ParsedVariables,
     TemplateFormatter,
     TemplateFormatterError,
 )
@@ -488,3 +490,147 @@ No tools available.
         template = "{{! This is a comment }}{{real}}"
         variables = formatter.parse(template)
         assert variables == {"real"}
+
+
+class TestMustacheParseWithTypes:
+    """Tests for MustacheTemplateFormatter.parse_with_types()."""
+
+    def test_simple_variables_are_string_type(self) -> None:
+        """Test that simple variables ({{name}}) are typed as string."""
+        formatter = MustacheTemplateFormatter()
+        template = "Hello {{name}}, your score is {{score}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"name", "score"}
+        assert parsed.string_variables() == {"name", "score"}
+        assert parsed.section_variables() == set()
+
+    def test_section_variables_are_section_type(self) -> None:
+        """Test that section variables ({{#items}}) are typed as section."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{#items}}- {{name}}{{/items}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"items"}
+        assert parsed.section_variables() == {"items"}
+        assert parsed.string_variables() == set()
+
+    def test_inverted_section_variables_are_section_type(self) -> None:
+        """Test that inverted section variables ({{^items}}) are typed as section."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{^items}}No items{{/items}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"items"}
+        assert parsed.section_variables() == {"items"}
+        assert parsed.string_variables() == set()
+
+    def test_mixed_template_has_correct_types(self) -> None:
+        """Test template with both sections and simple variables."""
+        formatter = MustacheTemplateFormatter()
+        template = """
+        Header: {{title}}
+        {{#items}}
+        - {{name}}: {{value}}
+        {{/items}}
+        Footer: {{footer}}
+        """
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"title", "items", "footer"}
+        assert parsed.section_variables() == {"items"}
+        assert parsed.string_variables() == {"title", "footer"}
+
+    def test_nested_sections_only_extract_top_level(self) -> None:
+        """Test that nested sections are not extracted."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{#outer}}{{#inner}}{{deep}}{{/inner}}{{/outer}}{{top}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"outer", "top"}
+        assert parsed.section_variables() == {"outer"}
+        assert parsed.string_variables() == {"top"}
+        assert "inner" not in parsed.names()
+        assert "deep" not in parsed.names()
+
+    def test_empty_template(self) -> None:
+        """Test that empty template returns empty result."""
+        formatter = MustacheTemplateFormatter()
+        parsed = formatter.parse_with_types("")
+
+        assert parsed.names() == set()
+        assert parsed.section_variables() == set()
+        assert parsed.string_variables() == set()
+
+    def test_escaped_sequences_ignored(self) -> None:
+        """Test that escaped sequences (\\{{) are treated as tags."""
+        formatter = MustacheTemplateFormatter()
+        template = r"\{{escaped}} and {{real}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"escaped", "real"}
+        assert parsed.string_variables() == {"escaped", "real"}
+
+    def test_section_and_inverted_section_same_variable(self) -> None:
+        """Test variable used as both section and inverted section."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{#items}}Has items{{/items}}{{^items}}No items{{/items}}"
+        parsed = formatter.parse_with_types(template)
+
+        # Should only appear once in section_variables
+        assert parsed.names() == {"items"}
+        assert parsed.section_variables() == {"items"}
+        assert parsed.string_variables() == set()
+
+    def test_adjacent_sections_both_extracted(self) -> None:
+        """Test that adjacent sections are both extracted."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{#a}}content{{/a}}{{#b}}more{{/b}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"a", "b"}
+        assert parsed.section_variables() == {"a", "b"}
+
+    def test_names_method_returns_all_variables(self) -> None:
+        """Test that names() returns all variable names regardless of type."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{simple}}{{#section}}nested{{/section}}"
+        parsed = formatter.parse_with_types(template)
+
+        all_names = parsed.names()
+        assert all_names == {"simple", "section"}
+        assert all_names == parsed.section_variables() | parsed.string_variables()
+
+
+class TestFStringParseWithTypes:
+    """Tests for FStringTemplateFormatter.parse_with_types() (default implementation)."""
+
+    def test_all_variables_are_string_type(self) -> None:
+        """Test that FString formatter treats all variables as string (default)."""
+        formatter = FStringTemplateFormatter()
+        template = "Hello {name}, your score is {score}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"name", "score"}
+        assert parsed.string_variables() == {"name", "score"}
+        assert parsed.section_variables() == set()
+
+
+class TestParsedVariablesDataclass:
+    """Tests for the ParsedVariables dataclass."""
+
+    def test_parsed_variables_frozenset(self) -> None:
+        """Test that ParsedVariables uses frozenset for immutability."""
+        var1 = ParsedVariable(name="test", variable_type="string")
+        var2 = ParsedVariable(name="items", variable_type="section")
+        parsed = ParsedVariables(variables=frozenset([var1, var2]))
+
+        assert len(parsed.variables) == 2
+        assert var1 in parsed.variables
+        assert var2 in parsed.variables
+
+    def test_parsed_variable_frozen(self) -> None:
+        """Test that ParsedVariable is frozen (immutable)."""
+        var = ParsedVariable(name="test", variable_type="string")
+        with pytest.raises(AttributeError):
+            var.name = "changed"  # type: ignore[misc]

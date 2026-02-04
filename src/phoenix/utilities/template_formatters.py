@@ -1,13 +1,41 @@
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from dataclasses import dataclass
 from string import Formatter
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import pystache
 from typing_extensions import assert_never
 
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+
+
+@dataclass(frozen=True)
+class ParsedVariable:
+    """Represents a parsed template variable with type information."""
+
+    name: str
+    variable_type: Literal["string", "section"]
+
+
+@dataclass
+class ParsedVariables:
+    """Container for parsed variables with helper methods."""
+
+    variables: frozenset[ParsedVariable]
+
+    def names(self) -> set[str]:
+        """Return just the variable names (for backward compatibility)."""
+        return {v.name for v in self.variables}
+
+    def section_variables(self) -> set[str]:
+        """Return names of variables expecting structured data."""
+        return {v.name for v in self.variables if v.variable_type == "section"}
+
+    def string_variables(self) -> set[str]:
+        """Return names of variables expecting string data."""
+        return {v.name for v in self.variables if v.variable_type == "string"}
 
 
 class TemplateFormatter(ABC):
@@ -17,6 +45,18 @@ class TemplateFormatter(ABC):
         Parse the template and return a set of variable names.
         """
         raise NotImplementedError
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Parse the template and return variables with type information.
+
+        Default implementation treats all variables as string type.
+        Subclasses can override for richer type information.
+        """
+        names = self.parse(template)
+        return ParsedVariables(
+            variables=frozenset(ParsedVariable(name=name, variable_type="string") for name in names)
+        )
 
     def format(self, template: str, **variables: Any) -> str:
         """
@@ -155,6 +195,31 @@ class MustacheTemplateFormatter(TemplateFormatter):
                     variables.add(self._get_root_variable_name(key))
         return variables
 
+    def _extract_variables_from_parse_tree_with_types(
+        self, parse_tree: list[Any]
+    ) -> dict[str, Literal["string", "section"]]:
+        """
+        Extract top-level variable names with type info from a pystache parse tree.
+
+        Section variables ({{#name}} or {{^name}}) are typed as "section".
+        Regular variables ({{name}}) are typed as "string".
+        """
+        variables: dict[str, Literal["string", "section"]] = {}
+        for node in parse_tree:
+            node_type = type(node).__name__
+            if node_type in {"_SectionNode", "_InvertedNode"}:
+                key = self._extract_key(node)
+                if key:
+                    root_name = self._get_root_variable_name(key)
+                    variables[root_name] = "section"
+                continue
+            if node_type in {"_EscapeNode", "_LiteralNode"}:
+                key = self._extract_key(node)
+                if key:
+                    root_name = self._get_root_variable_name(key)
+                    variables.setdefault(root_name, "string")
+        return variables
+
     def _fallback_extract_variables(self, template: str) -> tuple[set[str], int]:
         """
         Regex-based fallback for variable extraction when native parser fails.
@@ -200,6 +265,54 @@ class MustacheTemplateFormatter(TemplateFormatter):
                 variables.add(self._get_root_variable_name(trimmed))
         return variables, depth
 
+    def _fallback_extract_variables_with_types(
+        self, template: str
+    ) -> tuple[dict[str, Literal["string", "section"]], int]:
+        """
+        Regex-based fallback for variable extraction with types when native parser fails.
+
+        Returns:
+            A tuple of (variables, final_depth) where final_depth > 0 indicates
+            unclosed sections.
+        """
+        variables: dict[str, Literal["string", "section"]] = {}
+        depth = 0
+        for match in self._fallback_regex.findall(template):
+            trimmed = match.strip()
+            if not trimmed:
+                continue
+            # Skip comments, partials, delimiter changes
+            if trimmed.startswith("!") or trimmed.startswith(">") or trimmed.startswith("="):
+                continue
+            # Handle unescaped variables ({{& name}})
+            if trimmed.startswith("&"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    if var_name:
+                        root_name = self._get_root_variable_name(var_name)
+                        variables.setdefault(root_name, "string")
+                continue
+            # Skip malformed triple braces captured as `{name`
+            if trimmed.startswith("{"):
+                continue
+            # Handle sections
+            if trimmed.startswith("#") or trimmed.startswith("^"):
+                if depth == 0:
+                    var_name = trimmed[1:].strip()
+                    root_name = self._get_root_variable_name(var_name)
+                    variables[root_name] = "section"
+                depth += 1
+                continue
+            # Handle section closers
+            if trimmed.startswith("/"):
+                depth = max(0, depth - 1)
+                continue
+            # Regular variables at top level
+            if depth == 0:
+                root_name = self._get_root_variable_name(trimmed)
+                variables.setdefault(root_name, "string")
+        return variables, depth
+
     def parse(self, template: str) -> set[str]:
         """
         Extract top-level variable names from mustache template.
@@ -231,6 +344,43 @@ class MustacheTemplateFormatter(TemplateFormatter):
         except Exception:
             # Fall back to regex-based extraction
             return fallback_vars
+
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Extract top-level variable names with type info from mustache template.
+
+        Uses native-parser-first approach: tries pystache.parse() first for
+        spec-consistent parsing. Falls back to regex-based extraction when:
+        - The native parser fails with an exception
+        - The template has unclosed sections (depth > 0), since pystache may
+          produce unexpected results for malformed templates
+
+        Section variables ({{#name}} or {{^name}}) are typed as "section".
+        Regular variables ({{name}}) are typed as "string".
+
+        For dotted paths like {{output.available_tools}}, only the root variable
+        name (output) is extracted, since Mustache traverses nested properties
+        starting from the root.
+        """
+        # First, do a quick regex scan to check for unclosed sections
+        fallback_vars, depth = self._fallback_extract_variables_with_types(template)
+        if depth > 0:
+            # Template has unclosed sections - use regex result
+            variables = fallback_vars
+        else:
+            # Template is well-formed (sections balanced), try native parser
+            try:
+                parse_tree = self._get_parse_tree(template)
+                variables = self._extract_variables_from_parse_tree_with_types(parse_tree)
+            except Exception:
+                # Fall back to regex-based extraction
+                variables = fallback_vars
+
+        parsed = {
+            ParsedVariable(name=name, variable_type=var_type)
+            for name, var_type in variables.items()
+        }
+        return ParsedVariables(variables=frozenset(parsed))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         # Render with pystache (no HTML escaping)
