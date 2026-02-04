@@ -100,17 +100,14 @@ export const EvaluatorNameInput = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
-  // Validation that runs on change, with blur-only rules deferred
+  // Always validate fully so form submission is blocked for invalid values.
+  // Display of blur-specific errors is handled separately in render.
   const validate = (value: string): ValidateResult => {
     const onChangeResult = validateIdentifierOnChange(value);
     if (onChangeResult !== true) {
       return onChangeResult;
     }
-    // Only validate start/end characters after field has been blurred
-    if (hasBlurredRef.current) {
-      return validateIdentifierOnBlur(value);
-    }
-    return true;
+    return validateIdentifierOnBlur(value);
   };
 
   return (
@@ -119,6 +116,14 @@ export const EvaluatorNameInput = ({
       control={control}
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {
+        // Only show blur-specific errors after the field has been blurred
+        const blurErrorMessage =
+          "Must start and end with lowercase alphanumeric characters";
+        const shouldShowError =
+          error?.message &&
+          (hasBlurredRef.current || error.message !== blurErrorMessage);
+        const displayedError = shouldShowError ? error.message : undefined;
+
         const handleChange = (value: string) => {
           const input = inputRef.current;
           const selectionStart = input?.selectionStart ?? value.length;
@@ -156,13 +161,13 @@ export const EvaluatorNameInput = ({
             onFocus={handleFocus}
             onBlur={handleBlur}
             autoComplete="off"
-            isInvalid={!!error}
+            isInvalid={!!displayedError}
             autoFocus
             {...props}
           >
             <Label>Name</Label>
             <Input ref={inputRef} placeholder={placeholder} />
-            <FieldError>{error?.message}</FieldError>
+            <FieldError>{displayedError}</FieldError>
           </TextField>
         );
       }}
