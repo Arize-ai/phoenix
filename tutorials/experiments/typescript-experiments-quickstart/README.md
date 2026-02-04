@@ -18,20 +18,18 @@ The tutorial runs three experiments:
 
 ## Prerequisites
 
-- Phoenix Cloud account + Phoenix API Key (or local Phoenix instance)
+- Phoenix Cloud account
 - OpenAI API key
 
 ## Setup
 
-### 1. Install Dependencies
+### 1. Install All Dependencies
 
-From this directory:
+From this directory, run:
 
 ```bash
-pnpm install
+npm install
 ```
-
-This installs dependencies and builds all workspace packages.
 
 ### 2. Configure Environment Variables
 
@@ -46,7 +44,7 @@ OPENAI_API_KEY=your-openai-api-key
 ### 3. Run the Tutorial
 
 ```bash
-pnpm start
+npm start
 ```
 
 From here, you can view experiment results and traces in Phoenix!
@@ -59,3 +57,4 @@ For detailed documentation on experiments, see:
 - [Run Experiments with Code Evals](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals)
 - [Run Experiments with LLM as a Judge](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge)
 - [Iterating with Experiments](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments)
+

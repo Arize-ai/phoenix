@@ -8,6 +8,8 @@ description: "Learn how to define and run experiments to systematically evaluate
   <Card title="Follow with Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/experiments/typescript-experiments-quickstart" />
 </div>
 
+In this section, you'll run a repeatable experiment that scores your agent's tool outputs against ground truth reference using code-based evaluators. These evaluators are fast and typically perform deterministic checks for correctness, such as exact matches or comparisons against expected labels.
+
 ## Parts of an Experiment
 
 An experiment consists of four main components:
@@ -61,9 +63,10 @@ This experiment evaluates the accuracy of the agent's `classify_ticket` tool by 
 
 In this example, the task function takes an example from the dataset, extracts the user’s query, and passes it to the `classify_ticket` tool. The tool invokes the underlying `classify_ticket` function, which makes an LLM call to determine the ticket’s category—billing, technical, account, or other. The task function then returns this classification as its final output. 
 
+This simulates how your agent performs a tool call, allowing us to isolate and evaluate a specific capability. For the full implementation, see the reference tutorials linked above.
+
 This task function will be used for all dataset examples.
 
-For the full implementation, see the reference tutorials linked above.
 
 <CodeGroup>
 
@@ -178,7 +181,12 @@ const experiment = await runExperiment({
 
 </CodeGroup>
 
-In the Phoenix UI, you can click into the experiment to view task function traces, scores per example, and aggregate experiment performance metrics.
+In the Phoenix UI, you can click into the experiment to inspect the results:
+- **Task function traces** let you drill into any run to see the exact inputs, tool calls, and outputs—useful for debugging when an example fails or understanding why the model behaved a certain way. 
+
+- **Scores per example** show which inputs your system got right or wrong, so you can spot failure patterns and prioritize fixes.
+
+- **Aggregate experiment performance metrics** give you a single view of how this run did overall, making it easy to compare experiments and track whether changes improve or regress quality.
 
 <Frame caption="Running an experiment with a code-based evaluator">
   <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiment_quickstart_code_eval.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />

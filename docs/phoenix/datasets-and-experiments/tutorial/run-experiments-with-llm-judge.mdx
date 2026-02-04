@@ -8,9 +8,10 @@ description: "Learn how to define and run experiments to systematically evaluate
   <Card title="Follow with Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/experiments/typescript-experiments-quickstart" />
 </div>
 
+In this section, you’ll run a repeatable experiment that uses an LLM-as-a-Judge to score agent outputs on specific and subjective criteria. These evaluations are well suited for cases where ground truth is unavailable or where quality expectations can be clearly defined in a prompt.
 ## LLM as a Judge Evaluators
 
-**LLM as a Judge evaluators** use an LLM to assess output quality. These are particularly useful when correctness is subjective or hard to encode with rules, such as evaluating relevance, helpfulness, reasoning quality, or actionability.
+**LLM as a Judge evaluators** use an LLM to assess output quality. These are particularly useful when correctness is hard to encode with rules, such as evaluating relevance, helpfulness, reasoning quality, or actionability.
 
 These evaluators use criteria you define, making them suitable for datasets with or without reference outputs.
 
@@ -186,7 +187,11 @@ const experiment = await runExperiment({
 
 </CodeGroup>
 
-In the Phoenix UI, you can click into the experiment to view the full agent trace for each dataset example and see the evaluator output including the score, explanation, label, and trace.
+In the Phoenix UI, you can click into the experiment to inspect the results:
+- **Complete agent traces** let you drill into any run to see the exact inputs, agent reasoning, tool calls, and response. This is useful for understanding agent behavior and debugging when an example scores poorly. 
+- **Scores and labels per example** show which inputs the LLM Judge rated highly or poorly, so you can spot patterns and prioritize where to improve. 
+- **Evaluator explanation** tells you *why* the judge gave each score so you can fix specific failure modes. 
+- **Aggregate metrics** across the run let you compare experiments over time and track whether quality is improving.
 
 <Frame caption="Running an experiment with an LLM as a Judge evaluator">
   <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiments_quickstart_llm_judge.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
