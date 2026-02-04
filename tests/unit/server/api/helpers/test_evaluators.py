@@ -28,7 +28,6 @@ from phoenix.server.api.evaluators import (
     TEMPLATE_VARIABLES,
     BuiltInEvaluator,
     LLMEvaluator,
-    _generate_builtin_evaluator_id,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -2924,10 +2923,26 @@ class TestGetEvaluators:
         db: Any,
         correctness_llm_evaluator: models.LLMEvaluator,
         openai_api_key: str,
+        synced_builtin_evaluators: None,
     ) -> None:
-        contains_id = _generate_builtin_evaluator_id("Contains")
-        exact_match_id = _generate_builtin_evaluator_id("ExactMatch")
-        regex_id = _generate_builtin_evaluator_id("Regex")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            regex_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "regex")
+            )
+        assert contains_id is not None
+        assert exact_match_id is not None
+        assert regex_id is not None
 
         # Create a dataset and DatasetEvaluators
         async with db() as session:
@@ -2938,7 +2953,7 @@ class TestGetEvaluators:
             # Create DatasetEvaluators for each evaluator type
             de_contains = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_id,
+                evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="contains-project", description=""),
@@ -2952,14 +2967,14 @@ class TestGetEvaluators:
             )
             de_exact_match = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=exact_match_id,
+                evaluator_id=exact_match_id,
                 name=Identifier("exact-match-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="exact-match-project", description=""),
             )
             de_regex = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=regex_id,
+                evaluator_id=regex_id,
                 name=Identifier("regex-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="regex-project", description=""),
@@ -3009,45 +3024,6 @@ class TestGetEvaluators:
                     credentials=None,
                 )
 
-    # Note: test_raises_value_error_for_missing_llm_evaluator was removed because
-    # the DatasetEvaluators.evaluator_id has a foreign key constraint to LLMEvaluators,
-    # making it impossible to have a DatasetEvaluator referencing a non-existent LLMEvaluator.
-    # The builtin_evaluator_id is NOT a FK (it's an integer referencing the Python registry),
-    # so that test case remains valid.
-
-    async def test_raises_value_error_for_missing_builtin_evaluator(
-        self,
-        db: Any,
-    ) -> None:
-        # Create a DatasetEvaluator that references a non-existent BuiltIn evaluator
-        non_existent_builtin_id = 12345
-        async with db() as session:
-            dataset = models.Dataset(name="test-dataset-missing-builtin", metadata_={})
-            session.add(dataset)
-            await session.flush()
-
-            de = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                builtin_evaluator_id=non_existent_builtin_id,
-                name=Identifier("missing-builtin-eval"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name="missing-builtin-project", description=""),
-            )
-            session.add(de)
-            await session.flush()
-
-            input_node_ids = [
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de.id)),
-            ]
-
-            with pytest.raises(NotFound, match="Built-in evaluator.*not found"):
-                await get_evaluators(
-                    dataset_evaluator_node_ids=input_node_ids,
-                    session=session,
-                    decrypt=lambda x: x,
-                    credentials=None,
-                )
-
     async def test_raises_value_error_for_non_dataset_evaluator_type(
         self,
         db: Any,
@@ -3082,10 +3058,28 @@ class TestGetEvaluators:
     async def test_preserves_order_with_only_builtin_evaluators(
         self,
         db: Any,
+        synced_builtin_evaluators: None,
     ) -> None:
-        levenshtein_id = _generate_builtin_evaluator_id("LevenshteinDistance")
-        json_distance_id = _generate_builtin_evaluator_id("JSONDistance")
-        contains_id = _generate_builtin_evaluator_id("Contains")
+        from sqlalchemy import select
+
+        # Look up builtin evaluator IDs from the database by key
+        async with db() as session:
+            levenshtein_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+            json_distance_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "json_distance"
+                )
+            )
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+        assert levenshtein_id is not None
+        assert json_distance_id is not None
+        assert contains_id is not None
 
         async with db() as session:
             dataset = models.Dataset(name="test-dataset-builtins", metadata_={})
@@ -3094,21 +3088,21 @@ class TestGetEvaluators:
 
             de_levenshtein = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_id,
+                evaluator_id=levenshtein_id,
                 name=Identifier("levenshtein-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="levenshtein-project", description=""),
             )
             de_json_distance = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=json_distance_id,
+                evaluator_id=json_distance_id,
                 name=Identifier("json-distance-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="json-distance-project", description=""),
             )
             de_contains = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_id,
+                evaluator_id=contains_id,
                 name=Identifier("contains-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="contains-project", description=""),

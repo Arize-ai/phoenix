@@ -72,6 +72,7 @@ class Facilitator:
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
+            _ensure_builtin_evaluators,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -536,3 +537,24 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
             .where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
         )
+
+
+async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:
+    """
+    Synchronize the in-memory builtin evaluator registry to the database.
+
+    This function ensures the `builtin_evaluators` table stays in sync with
+    the in-memory registry. Builtin evaluators are part of the polymorphic
+    evaluator hierarchy (inheriting from Evaluator), so we must upsert into
+    both the base `evaluators` table and the `builtin_evaluators` subclass table.
+
+    This function:
+    1. Upserts all current builtin evaluators into base evaluators table
+    2. Upserts corresponding records into builtin_evaluators subclass table
+    3. Removes any stale evaluators no longer in the registry
+
+    Safe to call multiple times (idempotent).
+    """
+    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+
+    await sync_builtin_evaluators(db)

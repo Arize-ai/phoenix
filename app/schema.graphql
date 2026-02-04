@@ -1665,6 +1665,7 @@ input EvaluatorInputMappingInput {
 enum EvaluatorKind {
   LLM
   CODE
+  BUILTIN
 }
 
 input EvaluatorPreviewInput @oneOf {

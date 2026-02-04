@@ -41,7 +41,7 @@ from phoenix.server.api.evaluators import (
     create_llm_evaluator_from_inline,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
-    get_builtin_evaluator_by_id,
+    get_builtin_evaluator_by_key,
     get_evaluator_project_ids,
     get_evaluators,
 )
@@ -614,9 +614,17 @@ class ChatCompletionMutationMixin:
 
                 if type_name != BuiltInEvaluator.__name__:
                     raise BadRequest(f"Expected built-in evaluator, got {type_name}")
-                builtin_evaluator_cls = get_builtin_evaluator_by_id(db_id)
-                if builtin_evaluator_cls is None:
+
+                # Look up the builtin evaluator key from the database
+                async with info.context.db() as session:
+                    builtin_evaluator_record = await session.get(models.BuiltinEvaluator, db_id)
+                if builtin_evaluator_record is None:
                     raise BadRequest(f"Built-in evaluator with id {evaluator_id} not found")
+
+                builtin_evaluator_cls = get_builtin_evaluator_by_key(builtin_evaluator_record.key)
+                if builtin_evaluator_cls is None:
+                    key = builtin_evaluator_record.key
+                    raise BadRequest(f"Built-in evaluator class for key '{key}' not found")
                 builtin_evaluator = builtin_evaluator_cls()
 
                 eval_result = await builtin_evaluator.evaluate(

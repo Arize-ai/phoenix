@@ -315,13 +315,23 @@ class TestBuiltInEvaluatorOutputConfig:
     """Tests for BuiltInEvaluator.output_config field resolution."""
 
     async def test_categorical_builtin_returns_categorical_output_config(
-        self, gql_client: AsyncGraphQLClient
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test that Contains evaluator returns a CategoricalAnnotationConfig."""
-        from phoenix.server.api.evaluators import ContainsEvaluator, _generate_builtin_evaluator_id
+        from sqlalchemy import select
+
         from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 
-        evaluator_id = _generate_builtin_evaluator_id(ContainsEvaluator.name)
+        # Look up the evaluator ID from the database by key
+        async with db() as session:
+            evaluator_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+        assert evaluator_id is not None
+
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -352,16 +362,25 @@ class TestBuiltInEvaluatorOutputConfig:
         assert labels == {"true", "false"}
 
     async def test_continuous_builtin_returns_continuous_output_config(
-        self, gql_client: AsyncGraphQLClient
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
     ) -> None:
         """Test that LevenshteinDistance evaluator returns a ContinuousAnnotationConfig."""
-        from phoenix.server.api.evaluators import (
-            LevenshteinDistanceEvaluator,
-            _generate_builtin_evaluator_id,
-        )
+        from sqlalchemy import select
+
         from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 
-        evaluator_id = _generate_builtin_evaluator_id(LevenshteinDistanceEvaluator.name)
+        # Look up the evaluator ID from the database by key
+        async with db() as session:
+            evaluator_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+        assert evaluator_id is not None
+
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -396,16 +415,15 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
     """Tests for DatasetEvaluator.output_config with builtin evaluators."""
 
     @pytest.fixture
-    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+    async def _test_data(
+        self, db: DbSessionFactory, synced_builtin_evaluators: None
+    ) -> AsyncIterator[dict[str, Any]]:
         """Create test data: dataset with builtin evaluator assignments."""
+        from sqlalchemy import select
+
         from phoenix.db.types.annotation_configs import (
             CategoricalAnnotationConfigOverride,
             ContinuousAnnotationConfigOverride,
-        )
-        from phoenix.server.api.evaluators import (
-            ContainsEvaluator,
-            LevenshteinDistanceEvaluator,
-            _generate_builtin_evaluator_id,
         )
 
         async with db() as session:
@@ -420,14 +438,21 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             session.add(dataset)
             await session.flush()
 
-            contains_evaluator_id = _generate_builtin_evaluator_id(ContainsEvaluator.name)
-            levenshtein_evaluator_id = _generate_builtin_evaluator_id(
-                LevenshteinDistanceEvaluator.name
+            # Look up the builtin evaluator IDs from the database by key
+            contains_evaluator_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
             )
+            levenshtein_evaluator_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+            assert contains_evaluator_id is not None
+            assert levenshtein_evaluator_id is not None
 
             dataset_eval_categorical_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_evaluator_id,
+                evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_no_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=project.id,
@@ -437,7 +462,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_categorical_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=contains_evaluator_id,
+                evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_override=CategoricalAnnotationConfigOverride(
@@ -456,7 +481,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_continuous_no_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_evaluator_id,
+                evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_no_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=project.id,
@@ -466,7 +491,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
 
             dataset_eval_continuous_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                builtin_evaluator_id=levenshtein_evaluator_id,
+                evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_override=ContinuousAnnotationConfigOverride(
