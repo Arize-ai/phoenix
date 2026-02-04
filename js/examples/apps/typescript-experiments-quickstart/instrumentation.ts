@@ -12,9 +12,7 @@ const ENDPOINT = process.env.PHOENIX_HOST;
 const SERVICE_NAME = "experiments-tutorial-ts";
 
 if (!ENDPOINT) {
-  console.warn(
-    "⚠️  PHOENIX_HOST not set, tracing will not be enabled"
-  );
+  console.warn("⚠️  PHOENIX_HOST not set, tracing will not be enabled");
 } else {
   const headers: Record<string, string> = {};
   if (process.env.PHOENIX_API_KEY) {

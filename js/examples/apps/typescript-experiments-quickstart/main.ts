@@ -50,7 +50,7 @@ async function classifyTicket(ticketText: string) {
     });
 
     const label = result.text.trim().toLowerCase();
-    const category = CATEGORIES.includes(label as typeof CATEGORIES[number])
+    const category = CATEGORIES.includes(label as (typeof CATEGORIES)[number])
       ? label
       : "other";
 

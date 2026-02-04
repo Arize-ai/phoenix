@@ -5,11 +5,13 @@ This tutorial demonstrates how to run experiments with Phoenix using TypeScript.
 ## Overview
 
 This tutorial implements a customer support agent that:
+
 - Classifies support tickets into categories (billing, technical, account, other)
 - Retrieves relevant policies based on the classification
 - Generates helpful responses to users
 
 The tutorial runs three experiments:
+
 1. **Tool Call Accuracy**: Evaluates the classification tool using a code-based evaluator
 2. **Initial Support Agent**: Evaluates the full agent using an LLM-as-a-Judge evaluator
 3. **Improved Support Agent**: Compares an improved version of the agent with enhanced instructions and evaluates it with an LLM-as-a-Judge evaluator
@@ -50,11 +52,12 @@ OPENAI_API_KEY=your-openai-api-key
 pnpm start
 ```
 
-From here, you can view experiment results and traces in Phoenix! 
+From here, you can view experiment results and traces in Phoenix!
 
 ## Documentation
 
 For detailed documentation on experiments, see:
+
 - [Defining the Dataset](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset)
 - [Run Experiments with Code Evals](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals)
 - [Run Experiments with LLM as a Judge](https://docs.phoenix.arize.com/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge)
