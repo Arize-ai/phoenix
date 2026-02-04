@@ -5,14 +5,21 @@
   "type": "module",
   "scripts": {
     "start": "npx tsx src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "pre_built_evals": "npx tsx src/pre_built_evals.ts",
+    "custom_evals": "npx tsx src/custom_evals.ts"
   },
   "dependencies": {
-    "@arizeai/phoenix-otel": "^0.3.0",
-    "@langchain/anthropic": "^0.3.0",
-    "@langchain/core": "^0.3.0",
-    "@langchain/openai": "^0.3.0",
-    "langchain": "^0.3.0"
+    "@ai-sdk/openai": "^2.0.63",
+    "@arizeai/openinference-instrumentation-langchain": "^4.0.6",
+    "@arizeai/phoenix-client": "5.7.0",
+    "@arizeai/phoenix-evals": "^0.7.0",
+    "@arizeai/phoenix-otel": "^0.3.4",
+    "@langchain/core": "1.1.18",
+    "@langchain/openai": "1.2.4",
+    "dotenv": "^17.2.3",
+    "langchain": "1.2.16",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20.19.30",

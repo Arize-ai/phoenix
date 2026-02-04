@@ -1,101 +1,76 @@
-/**
- * Simple LangChain TypeScript Application
- *
- * This demonstrates a basic LangChain chain with:
- * - Prompt templates
- * - LLM integration
- * - Phoenix tracing
- *
- * Run with: npm start
- */
+import "dotenv/config";
+import { register } from "@arizeai/phoenix-otel";
+import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
+import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
 
-// Import instrumentation first - this must be at the top!
-import "./instrumentation.js";
+const provider = register({
+  projectName: "langchain-travel-agent",
+});
 
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatAnthropic } from "@langchain/anthropic";
-import { PromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
-import { RunnableSequence } from "@langchain/core/runnables";
+const lcInstrumentation = new LangChainInstrumentation();
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+
+import { createAgent } from "langchain";
+import { travelTools } from "./tools";
 
 async function main() {
-  // Check for API key (supports both OpenAI and Anthropic)
-  if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
-    console.error("❌ Error: No API key found");
-    console.error("   Please set one of:");
-    console.error("   - export OPENAI_API_KEY=your-key-here");
-    console.error("   - export ANTHROPIC_API_KEY=your-key-here");
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ Error: OPENAI_API_KEY environment variable is not set");
     process.exit(1);
   }
 
-  console.log("=".repeat(60));
-  console.log("LangChain TypeScript Quickstart");
-  console.log("=".repeat(60));
-  console.log("");
-
-  // Initialize the LLM based on available API key
-  const llm = process.env.ANTHROPIC_API_KEY
-    ? new ChatAnthropic({
-        modelName: "claude-3-5-sonnet-20241022",
-        temperature: 0.7,
-      })
-    : new ChatOpenAI({
-        modelName: "gpt-3.5-turbo",
-        temperature: 0.7,
-      });
-
-  // Create a prompt template
-  const prompt = PromptTemplate.fromTemplate(
-    "You are a helpful assistant. Answer the following question in a friendly and concise way.\n\nQuestion: {question}\n\nAnswer:"
-  );
-
-  // Create a simple chain: prompt -> llm -> parser
-  const chain = RunnableSequence.from([
-    prompt,
-    llm,
-    new StringOutputParser(),
-  ]);
-
-  console.log("Running LangChain chain with Phoenix tracing...\n");
-
-  // Example questions
-  const questions = [
-    "What is the capital of France?",
-    "Explain quantum computing in simple terms.",
-    "What are the benefits of TypeScript?",
-  ];
-
-  // Process multiple questions through the chain
-  for (let i = 0; i < questions.length; i++) {
-    const question = questions[i];
-    console.log(`📝 Question ${i + 1}: ${question}`);
-    console.log("   Processing...");
-
-    try {
-      const response = await chain.invoke({ question });
-      console.log(`   ✅ Answer: ${response}\n`);
-    } catch (error) {
-      console.error(`   ❌ Error: ${error}\n`);
-    }
-
-    // Small delay between requests
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (!process.env.TAVILY_API_KEY) {
+    console.error("❌ Error: TAVILY_API_KEY environment variable is not set");
+    process.exit(1);
   }
 
-  console.log("=".repeat(60));
-  console.log("✅ All questions processed!");
-  console.log("");
-  console.log("👀 Open Phoenix UI at http://localhost:6006");
-  console.log("");
-  console.log("What to look for:");
-  console.log("   - Each chain invocation creates a trace");
-  console.log("   - The trace includes the prompt, LLM call, and response");
-  console.log("   - You can see token usage, latency, and other metrics");
-  console.log("=".repeat(60));
+  const agent = createAgent({
+    model: "openai:gpt-3.5-turbo",
+    systemPrompt: `You are a travel planner. You must produce a trip plan that includes exactly three sections, each backed by a tool call.
+
+RULES:
+1. You MUST call all three tools for every trip plan: essential_info, budget_basics, and local_flavor. Call them with the user's destination, duration, and interests—do not guess or substitute.
+2. Use only information returned by the tools. Do not invent facts, prices, or recommendations.
+3. Structure your reply strictly as: (a) Essentials — weather, best time to visit, key attractions, etiquette; (b) Budget — cost breakdown for the given duration; (c) Local flavor — experiences matching the user's stated interests.
+4. Keep the total response under 800 words. Be concise and professional; no filler or unsupported claims.`,
+    tools: travelTools,
+  });
+
+  const queries: Array<{
+    destination: string;
+    duration: string;
+    interests: string;
+  }> = [
+    { destination: "Ireland", duration: "5 days", interests: "food, culture" },
+    { destination: "Japan", duration: "7 days", interests: "temples, cuisine" },
+    { destination: "Portugal", duration: "3 days", interests: "beaches, wine" },
+  ];
+
+  for (let i = 0; i < queries.length; i++) {
+    const { destination, duration, interests } = queries[i];
+    const query = `
+Plan a ${duration} trip to ${destination}.
+Focus on ${interests}.
+Include essential info, budget breakdown, and local experiences.
+`;
+    console.log(
+      `\n--- Query ${i + 1}/${queries.length}: ${duration} in ${destination} ---\n`,
+    );
+    try {
+      const response = await agent.invoke({
+        messages: [{ role: "user", content: query }],
+      });
+      const lastMessage = response.messages[response.messages.length - 1];
+      console.log(lastMessage.content);
+    } catch (error) {
+      console.error(`❌ Error on query ${i + 1}: ${error}\n`);
+    }
+  }
+
+  await provider.forceFlush();
 }
 
 main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-

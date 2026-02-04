@@ -1,14 +1,13 @@
 # LangChain TypeScript Quickstart
 
-A simple LangChain TypeScript application with Phoenix tracing integration.
+A LangChain TypeScript travel planner agent with Phoenix tracing and optional evaluations.
 
 ## Prerequisites
 
 - **Node.js 18+** installed
 - **Phoenix** running locally (`pip install arize-phoenix && phoenix serve`) or access to Phoenix Cloud
-- **API key** for either:
-  - OpenAI (`OPENAI_API_KEY`) - for GPT models
-  - Anthropic (`ANTHROPIC_API_KEY`) - for Claude models
+- **OpenAI API key** (`OPENAI_API_KEY`) – for the agent LLM
+- **Tavily API key** (`TAVILY_API_KEY`) – for tool search (essential_info, budget_basics, local_flavor)
 
 ## Setup
 
@@ -21,14 +20,19 @@ npm install
 
 2. **Set environment variables:**
 
-```bash
-# Choose one:
-export OPENAI_API_KEY=your-openai-api-key
-# OR
-export ANTHROPIC_API_KEY=your-anthropic-api-key
+Copy `.env.example` to `.env` and fill in:
 
-# Optional: Custom Phoenix project name
-export PHOENIX_PROJECT_NAME=langchain-ts-quickstart
+```bash
+# Required for the agent
+OPENAI_API_KEY=your-openai-api-key
+TAVILY_API_KEY=your-tavily-api-key
+
+# Optional: Phoenix (defaults shown)
+PHOENIX_ENDPOINT=http://localhost:6006
+PHOENIX_PROJECT_NAME=langchain-travel-agent
+
+# Optional: for custom_evals (uses Fireworks model)
+FIREWORKS_API_KEY=your-fireworks-api-key
 ```
 
 3. **Start Phoenix** (if running locally):
@@ -45,9 +49,35 @@ npm start
 ```
 
 This will:
-- Create a simple LangChain chain with a prompt template and LLM
-- Process multiple questions through the chain
+
+- Create a LangChain agent with three tools: **essential_info**, **budget_basics**, **local_flavor**
+- Run three trip-planning queries (Ireland, Japan, Portugal) with destination, duration, and interests
 - Send all traces to Phoenix for visualization
+
+The agent is instructed to call all three tools per request and to structure replies as: (a) Essentials, (b) Budget, (c) Local flavor.
+
+## Evaluations
+
+After running the agent and sending traces to Phoenix, you can run evaluations against those traces.
+
+**Pre-built correctness evaluator** (uses OpenAI by default):
+
+```bash
+npm run pre_built_evals
+```
+
+- Fetches LangGraph (agent) spans from Phoenix, runs a built-in correctness evaluator, and logs annotations back to Phoenix.
+- Set `OPENAI_API_KEY` for the default evaluator model. Optional: use a custom LLM (e.g. Fireworks) by uncommenting and configuring the block in `src/pre_built_evals.ts`.
+
+**Custom correctness evaluator** (travel-agent rubric, uses Fireworks):
+
+```bash
+npm run custom_evals
+```
+
+- Uses a custom classification evaluator with a travel-plan correctness template.
+- Requires `PHOENIX_ENDPOINT` or `PHOENIX_HOST` and `FIREWORKS_API_KEY`.
+- Evaluates the same LangGraph spans and logs annotations as `custom_correctness`.
 
 ## What to Look For in Phoenix
 
@@ -55,16 +85,13 @@ Open Phoenix at `http://localhost:6006` after running the application.
 
 ### Traces
 
-Each chain invocation creates a trace that shows:
-- **Prompt Template** - The formatted prompt sent to the LLM
-- **LLM Call** - The actual API call to OpenAI
-- **Output Parser** - The parsed response
+Each agent invocation creates a trace that shows:
 
-You can see:
-- Token usage (input/output tokens)
-- Latency metrics
-- The full prompt and response
-- Model information
+- **LangGraph** (agent) span with input messages and final output
+- Tool calls: **essential_info**, **budget_basics**, **local_flavor** (Tavily-backed)
+- Token usage, latency, prompts, and responses
+
+After running evals, you’ll see span annotations (e.g. correctness / custom_correctness) on the LangGraph spans.
 
 ### Project Structure
 
@@ -72,43 +99,53 @@ You can see:
 langchain-ts-quickstart/
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
-├── .gitignore                # Git ignore file
+├── .env.example              # Example environment variables
 ├── src/
-│   ├── instrumentation.ts    # Phoenix/OpenTelemetry setup (import this first!)
-│   └── index.ts              # Main application with LangChain agent
-└── README.md                 # This file
+│   ├── index.ts              # Main app: Phoenix register + LangChain agent
+│   ├── tools.ts              # Travel tools (essential_info, budget_basics, local_flavor)
+│   ├── pre_built_evals.ts    # Pre-built correctness eval → Phoenix annotations
+│   ├── custom_evals.ts       # Custom correctness eval (travel rubric, Fireworks)
+│   └── instrumentation.ts   # Standalone Phoenix setup (optional; index.ts inlines its own)
+├── README.md
+└── SETUP.md
 ```
 
-**Key Files:**
-- `src/instrumentation.ts` - Sets up Phoenix tracing (must be imported first)
-- `src/index.ts` - Main application code with LangChain chain
-- `package.json` - Dependencies: `langchain`, `@langchain/openai`, `@langchain/anthropic`, `@arizeai/phoenix-otel`
+**Key files:**
 
-## Next Steps
+- `src/index.ts` – Registers Phoenix (`@arizeai/phoenix-otel`), instruments LangChain, and runs the travel agent with `travelTools`.
+- `src/tools.ts` – Defines the three Tavily-backed tools and their schemas (destination, duration, interests).
+- `src/pre_built_evals.ts` – Fetches agent spans, runs Phoenix correctness evaluator, logs annotations.
+- `src/custom_evals.ts` – Same span fetch, custom correctness template and Fireworks LLM, logs annotations.
 
-- Add more complex chains with multiple steps
-- Integrate tools and agents
-- Add RAG (Retrieval Augmented Generation) capabilities
-- Set up evaluations to measure response quality
+**Dependencies (high level):** `langchain`, `@langchain/core`, `@arizeai/phoenix-otel`, `@arizeai/openinference-instrumentation-langchain`, `@arizeai/phoenix-client`, `@arizeai/phoenix-evals`, `@ai-sdk/openai`, `dotenv`, `zod`.
 
 ## Troubleshooting
 
-**Error: No API key found**
-- Make sure you've exported either `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
-- Example: `export OPENAI_API_KEY=your-key`
+**Error: OPENAI_API_KEY or TAVILY_API_KEY not set**
+
+- Ensure both are set (e.g. in `.env` or `export OPENAI_API_KEY=...` and `export TAVILY_API_KEY=...`).
 
 **No traces appearing in Phoenix**
+
 - Ensure Phoenix is running: `phoenix serve`
 - Check that the Phoenix endpoint is accessible (default: http://localhost:6006)
-- Verify the project name matches in Phoenix UI
-- Make sure `instrumentation.ts` is imported at the very top of your main file
+- Verify `PHOENIX_PROJECT_NAME` matches what you open in the UI (default: `langchain-travel-agent`)
 
-**TypeScript errors**
-- Run `npm install` to ensure all dependencies are installed
-- Check that you're using Node.js 18+
-- Make sure you're using the correct import paths (ES modules)
+**TypeScript / module errors**
 
-**Module not found errors**
-- Ensure you've run `npm install`
-- Check that `langchain` and `zod` are in your `package.json` dependencies
+- Run `npm install` and use Node.js 18+
+- Confirm `"type": "module"` and import paths match your setup
 
+**"Failed to log annotations to Phoenix: ... 404 Not Found"** (when running `npm run pre_built_evals` or `npm run custom_evals`)
+
+- The Phoenix server may not expose the span annotations API. Upgrade and restart:
+  ```bash
+  pip install -U arize-phoenix
+  phoenix serve
+  ```
+- Or run from the Phoenix repo root: `uv run phoenix serve`
+- Evals still run and print results; only sending annotations to Phoenix fails until the server is upgraded.
+
+**custom_evals: Set PHOENIX_ENDPOINT or PHOENIX_HOST**
+
+- Set one of these in `.env` (e.g. `PHOENIX_ENDPOINT=http://localhost:6006`) and ensure `FIREWORKS_API_KEY` is set for the Fireworks evaluator model.
