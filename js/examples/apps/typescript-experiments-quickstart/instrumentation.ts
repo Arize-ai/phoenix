@@ -1,17 +1,16 @@
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
+
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
-
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 
 const ENDPOINT = process.env.PHOENIX_HOST;
 const SERVICE_NAME = "experiments-tutorial-ts";
 
 if (!ENDPOINT) {
+  // eslint-disable-next-line no-console
   console.warn("⚠️  PHOENIX_HOST not set, tracing will not be enabled");
 } else {
   const headers: Record<string, string> = {};
@@ -35,6 +34,4 @@ if (!ENDPOINT) {
   });
 
   provider.register();
-
-  console.log("✅ Tracer provider registered");
 }

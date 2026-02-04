@@ -1,21 +1,22 @@
-import "dotenv/config";
-import "./instrumentation.js";
-
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-import { trace, SpanStatusCode } from "@opentelemetry/api";
 import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import {
-  runExperiment,
   asExperimentEvaluator,
+  runExperiment,
 } from "@arizeai/phoenix-client/experiments";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import type { EvaluatorParams } from "@arizeai/phoenix-client/types/experiments";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+import "dotenv/config";
+import "./instrumentation.js";
+
+import { openai } from "@ai-sdk/openai";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { generateText } from "ai";
 
 const tracer = trace.getTracer("experiments-tutorial");
 
@@ -266,8 +267,6 @@ const datasetExamples = [
 ];
 
 async function createSupportTicketDataset() {
-  console.log("Creating or getting dataset...");
-
   await createOrGetDataset({
     name: "support-ticket-queries",
     description: "Support ticket queries with ground truth categories",
@@ -276,8 +275,6 @@ async function createSupportTicketDataset() {
       output: { expected_category: item.expected_category },
     })),
   });
-
-  console.log("Dataset ready\n");
 }
 
 /**
@@ -367,65 +364,36 @@ const actionabilityJudge = createClassificationEvaluator({
 });
 
 async function main() {
-  try {
-    await createSupportTicketDataset();
-    const datasetSelector = { datasetName: "support-ticket-queries" };
+  await createSupportTicketDataset();
+  const datasetSelector = { datasetName: "support-ticket-queries" };
 
-    console.log("Running Experiment 1: Tool Call Accuracy...");
-    console.log("-------------------------------------------");
+  await runExperiment({
+    dataset: datasetSelector,
+    experimentName: "tool call accuracy experiment",
+    experimentDescription:
+      "Evaluating classify_ticket tool accuracy against ground truth labels using a code-based evaluator",
+    task: classifyTicketTask,
+    evaluators: [toolCallAccuracyEvaluator],
+  });
 
-    const toolCallExperiment = await runExperiment({
-      dataset: datasetSelector,
-      experimentName: "tool call accuracy experiment",
-      experimentDescription:
-        "Evaluating classify_ticket tool accuracy against ground truth labels using a code-based evaluator",
-      task: classifyTicketTask,
-      evaluators: [toolCallAccuracyEvaluator],
-    });
+  await runExperiment({
+    dataset: datasetSelector,
+    experimentName: "support agent",
+    experimentDescription:
+      "Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
+    task: supportAgentTask,
+    evaluators: [actionabilityJudge],
+  });
 
-    console.log(
-      `  Successful runs: ${toolCallExperiment.successfulRunCount}/${toolCallExperiment.exampleCount}\n`
-    );
-
-    console.log("Running Experiment 2: Initial Support Agent...");
-    console.log("----------------------------------------------");
-
-    const initialAgentExperiment = await runExperiment({
-      dataset: datasetSelector,
-      experimentName: "support agent",
-      experimentDescription:
-        "Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
-      task: supportAgentTask,
-      evaluators: [actionabilityJudge],
-    });
-
-    console.log(
-      `  Successful runs: ${initialAgentExperiment.successfulRunCount}/${initialAgentExperiment.exampleCount}\n`
-    );
-
-    console.log("Running Experiment 3: Improved Support Agent...");
-    console.log("-----------------------------------------------");
-
-    const improvedAgentExperiment = await runExperiment({
-      dataset: datasetSelector,
-      experimentName: "improved support agent",
-      experimentDescription:
-        "Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps",
-      task: improvedSupportAgentTask,
-      evaluators: [actionabilityJudge],
-    });
-
-    console.log(
-      `  Successful runs: ${improvedAgentExperiment.successfulRunCount}/${improvedAgentExperiment.exampleCount}\n`
-    );
-
-    console.log("===========================================");
-    console.log("All experiments completed!");
-    console.log("===========================================");
-  } catch (error) {
-    console.error("Error running experiments:", error);
-    throw error;
-  }
+  await runExperiment({
+    dataset: datasetSelector,
+    experimentName: "improved support agent",
+    experimentDescription:
+      "Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps",
+    task: improvedSupportAgentTask,
+    evaluators: [actionabilityJudge],
+  });
 }
 
+// eslint-disable-next-line no-console
 main().catch(console.error);
