@@ -14,7 +14,7 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 logger = logging.getLogger(__name__)
 

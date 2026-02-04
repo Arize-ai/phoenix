@@ -207,22 +207,22 @@ No tools available.
 
 
 class TestMustacheParserDepthTracking:
-    """Tests specifically for depth tracking logic."""
+    """Tests specifically for depth tracking logic with valid templates."""
 
     def test_depth_increments_on_section_open(self) -> None:
-        """Verify that # increases depth."""
+        """Verify that # increases depth - variables inside sections are not extracted."""
         formatter = MustacheTemplateFormatter()
-        # Variable after section open should not be extracted
-        template = "{{#section}}{{nested}}"
+        # Variable inside section should not be extracted (only top-level)
+        template = "{{#section}}{{nested}}{{/section}}"
         variables = formatter.parse(template)
         assert "section" in variables
         assert "nested" not in variables
 
     def test_depth_increments_on_inverted_section_open(self) -> None:
-        """Verify that ^ increases depth."""
+        """Verify that ^ increases depth - variables inside inverted sections are not extracted."""
         formatter = MustacheTemplateFormatter()
-        # Variable after inverted section open should not be extracted
-        template = "{{^section}}{{nested}}"
+        # Variable inside inverted section should not be extracted
+        template = "{{^section}}{{nested}}{{/section}}"
         variables = formatter.parse(template)
         assert "section" in variables
         assert "nested" not in variables
@@ -236,13 +236,19 @@ class TestMustacheParserDepthTracking:
         assert "nested" not in variables
         assert "after" in variables
 
-    def test_depth_never_goes_negative(self) -> None:
-        """Verify that unmatched closing tags don't cause negative depth."""
+    def test_malformed_template_raises_error(self) -> None:
+        """Verify that malformed templates (unclosed sections, orphan closers) raise errors."""
+        from phoenix.utilities.template_formatters import TemplateFormatterError
+
         formatter = MustacheTemplateFormatter()
-        # Orphan closing tag followed by variable
-        template = "{{/orphan}}{{valid}}"
-        variables = formatter.parse(template)
-        assert "valid" in variables
+
+        # Unclosed section should raise error
+        with pytest.raises(TemplateFormatterError):
+            formatter.parse("{{#section}}{{nested}}")
+
+        # Orphan closing tag should raise error
+        with pytest.raises(TemplateFormatterError):
+            formatter.parse("{{/orphan}}{{valid}}")
 
     def test_multiple_depth_levels(self) -> None:
         """Verify correct tracking through multiple nesting levels."""
