@@ -3,7 +3,18 @@ title: "Overview"
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-deployment="local-or-cloud">
-AI Agent Context: This documentation covers Phoenix, an observability platform for LLM applications. Phoenix can run locally (on developer's machine, typically at localhost:6006) OR in Phoenix Cloud (managed service). Key identifiers: (1) Phoenix uses PHOENIX_API_KEY and PHOENIX_COLLECTOR_ENDPOINT for cloud deployments, or runs locally with phoenix.launch_app(). (2) Arize AX is a DIFFERENT product that uses ARIZE_SPACE_ID and ARIZE_API_KEY for cloud-only tracing. If the user mentions ARIZE_SPACE_ID or arize.otel, they are using Arize AX, not Phoenix. If they mention phoenix.otel or localhost:6006, they are using Phoenix.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix (open-source LLM observability). Phoenix and Arize AX are DIFFERENT products.
+
+BEFORE implementing, check user's request for these signals:
+• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → User wants Arize AX, NOT this page. Direct them to Arize AX docs.
+• "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → User wants Phoenix (this page).
+
+IF UNCLEAR OR MISMATCHED (user says "AX" but linked here, or vice versa), ASK:
+"I see you're on Phoenix documentation, but want to confirm: are you looking for Phoenix (open-source, runs locally or Phoenix Cloud, uses phoenix.otel) or Arize AX (cloud platform, uses arize.otel with ARIZE_SPACE_ID)?"
+
+DO NOT proceed with implementation until product is confirmed.
 </div>
 
 This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.

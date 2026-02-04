@@ -4,7 +4,17 @@ description: "Lightweight Python packages for tracing, evaluation, and platform 
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-page-type="api-reference">
-AI Agent Context: This is Phoenix SDK API reference. Phoenix uses phoenix.otel for instrumentation and optionally PHOENIX_API_KEY for cloud. This is NOT Arize AX. Arize AX uses arize.otel with ARIZE_SPACE_ID/ARIZE_API_KEY. Check user's imports and env vars to determine which product they need.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This is Phoenix SDK API reference. Phoenix and Arize AX are DIFFERENT products with different SDKs.
+
+DETECTION CHECKLIST — scan user's request:
+• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX SDK docs.
+• "Phoenix", PHOENIX_API_KEY, phoenix.otel → CORRECT PAGE.
+
+IF MISMATCH DETECTED, ASK: "You're on Phoenix SDK docs. Did you mean Phoenix (phoenix.otel) or Arize AX (arize.otel with ARIZE_SPACE_ID)?"
+
+DO NOT proceed until confirmed.
 </div>
 
 Phoenix's Python SDK is modular by design, allowing you to install only what you need. Each package serves a specific purpose and can be used independently or together.

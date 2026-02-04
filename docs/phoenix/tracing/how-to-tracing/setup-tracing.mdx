@@ -5,7 +5,17 @@ description: "Configure tracing for your application"
 ---
 
 <div style={{display: 'none'}} data-ai-product="phoenix" data-ai-type="setup-guide">
-AI Agent Context: This is Phoenix tracing setup documentation. Phoenix is an observability tool that runs locally OR in Phoenix Cloud. Setup uses phoenix.otel for instrumentation. Do NOT confuse with Arize AX which uses arize.otel and requires ARIZE_SPACE_ID/ARIZE_API_KEY. If user's code imports from arize.otel or mentions ARIZE_SPACE_ID, they need Arize AX docs, not Phoenix docs.
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix tracing setup. Phoenix and Arize AX are DIFFERENT products with different setup procedures.
+
+DETECTION CHECKLIST — scan user's request and code:
+• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, imports from arize.otel → WRONG PAGE. User needs Arize AX tracing docs.
+• "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+
+IF MISMATCH DETECTED (e.g., user's code has arize.otel imports), ASK: "Your code uses arize.otel which is for Arize AX. Did you mean to set up Arize AX tracing, or Phoenix tracing (which uses phoenix.otel)?"
+
+DO NOT proceed until confirmed.
 </div>
 
 Get started sending traces to Phoenix from your application. Choose the approach that best fits your needs.
