@@ -65,7 +65,7 @@ export const formatMustacheLike = ({
   }
   try {
     return Mustache.render(text, variables, undefined, {
-      escape: (value) => value,
+      escape: (value: string) => value,
     });
   } catch {
     return text;

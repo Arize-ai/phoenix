@@ -6,17 +6,9 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar
 
+import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
 from jsonschema import ValidationError, validate
-from openinference.instrumentation import (
-    Message,
-    TextMessageContent,
-    get_input_attributes,
-    get_llm_input_message_attributes,
-    get_llm_model_name_attributes,
-    get_output_attributes,
-    get_span_kind_attributes,
-)
 from openinference.semconv.trace import MessageAttributes, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
@@ -249,8 +241,8 @@ class LLMEvaluator(BaseEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self._name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),  # inject blank context to ensure the evaluator span is the root
         ) as evaluator_span:
@@ -274,7 +266,7 @@ class LLMEvaluator(BaseEvaluator):
                                 literal_mapping=input_mapping.literal_mapping or {}
                             ),
                             **_get_template_variables_attributes(variables=context),
-                            **get_input_attributes(
+                            **oi.get_input_attributes(
                                 {
                                     "variables": context,
                                     "input_mapping": {
@@ -321,14 +313,14 @@ class LLMEvaluator(BaseEvaluator):
                         messages.append((role, formatted_content, None, None))
 
                     formatted_messages = [
-                        Message(role=role.value.lower(), content=content)
+                        oi.Message(role=role.value.lower(), content=content)
                         for role, content, _, _ in messages
                     ]
                     template_span.set_attributes(
                         _get_template_formatted_message_attributes(messages=formatted_messages)
                     )
                     template_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "messages": [
                                     {"role": msg["role"], "content": msg["content"]}
@@ -349,11 +341,11 @@ class LLMEvaluator(BaseEvaluator):
                 with tracer_.start_as_current_span(
                     self._llm_client.model_name,
                     attributes={
-                        **get_span_kind_attributes("llm"),
-                        **get_llm_model_name_attributes(model_name=self._llm_client.model_name),
-                        **get_llm_input_message_attributes(
+                        **oi.get_span_kind_attributes("llm"),
+                        **oi.get_llm_model_name_attributes(model_name=self._llm_client.model_name),
+                        **oi.get_llm_input_message_attributes(
                             [
-                                Message(role=role.value.lower(), content=content)
+                                oi.Message(role=role.value.lower(), content=content)
                                 for role, content, _, _ in messages
                             ]
                         ),
@@ -376,6 +368,29 @@ class LLMEvaluator(BaseEvaluator):
                                         chunk.function.arguments
                                     )
 
+                        oi_tool_calls = [
+                            oi.ToolCall(
+                                id=call_id,
+                                function=oi.ToolCallFunction(
+                                    name=call["name"],
+                                    arguments=call["arguments"],
+                                ),
+                            )
+                            for call_id, call in tool_call_by_id.items()
+                        ]
+                        output_messages: list[oi.Message] = [
+                            oi.Message(
+                                role="assistant",
+                                tool_calls=oi_tool_calls,
+                            )
+                        ]
+                        llm_span.set_attributes(
+                            oi.get_output_attributes({"messages": output_messages})
+                        )
+                        if oi_tool_calls:
+                            llm_span.set_attributes(
+                                oi.get_llm_output_message_attributes(output_messages)
+                            )
                         llm_span.set_status(Status(StatusCode.OK))
                     finally:
                         llm_span.set_attributes(self._llm_client.attributes)
@@ -383,8 +398,8 @@ class LLMEvaluator(BaseEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "tool_calls": {
                                     call_id: {"name": call["name"], "arguments": call["arguments"]}
@@ -417,7 +432,7 @@ class LLMEvaluator(BaseEvaluator):
                     explanation = args.get("explanation")
 
                     chain_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -428,7 +443,7 @@ class LLMEvaluator(BaseEvaluator):
                     chain_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": label,
                             "score": score,
@@ -732,41 +747,55 @@ async def _get_llm_evaluators(
 
 async def get_evaluators(
     *,
-    evaluator_node_ids: list[GlobalID],
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
 ) -> list[BaseEvaluator]:
     """
-    Get all evaluators for the given node IDs.
+    Get all evaluators for the given DatasetEvaluator node IDs.
 
     Returns a list of BaseEvaluator instances in the same order as the input node IDs.
     This ordering guarantee is important for correlating evaluators with their inputs.
+
+    For each DatasetEvaluator, resolves to the underlying LLM or BuiltIn evaluator.
+    Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
+    "Contains" evaluators with different names), and this function preserves that
+    multiplicity by returning separate evaluator instances for each.
     """
-    from phoenix.server.api.types.Evaluator import BuiltInEvaluator as BuiltInEvaluatorNode
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
     from phoenix.server.api.types.Evaluator import LLMEvaluator as LLMEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
-    # Parse node IDs and separate by type
-    llm_node_ids: list[GlobalID] = []
+    # Validate all IDs are DatasetEvaluator type and build mapping
+    dataset_evaluator_db_ids: list[int] = []
+    for datasetEvaluatorNodeId in dataset_evaluator_node_ids:
+        type_name, db_id = from_global_id(datasetEvaluatorNodeId)
+        if type_name != DatasetEvaluatorNode.__name__:
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{datasetEvaluatorNodeId}'"
+            )
+        dataset_evaluator_db_ids.append(db_id)
 
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
-        if type_name == LLMEvaluatorNode.__name__:
-            llm_node_ids.append(node_id)
-        elif type_name != BuiltInEvaluatorNode.__name__:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
-
-    # Fetch LLM evaluators (returned in order matching llm_node_ids)
-    llm_evaluators = await _get_llm_evaluators(
-        evaluator_node_ids=llm_node_ids,
-        session=session,
-        decrypt=decrypt,
-        credentials=credentials,
+    # Single batch query for all DatasetEvaluator records
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+        )
     )
-    llm_iter = iter(llm_evaluators)
+    dataset_evaluators_by_id: dict[int, models.DatasetEvaluators] = {
+        de.id: de for de in dataset_evaluators_result
+    }
+
+    # Validate all requested DatasetEvaluators were found
+    for idx, db_id in enumerate(dataset_evaluator_db_ids):
+        if db_id not in dataset_evaluators_by_id:
+            raise NotFound(
+                f"DatasetEvaluator with ID '{dataset_evaluator_node_ids[idx]}' not found"
+            )
+
     # Collect unique evaluator IDs to look up their kinds
     evaluator_db_ids: set[int] = set()
     for db_id in dataset_evaluator_db_ids:
@@ -849,65 +878,54 @@ async def get_evaluators(
                 f"DatasetEvaluator '{db_id}' references evaluator with "
                 f"unsupported kind: {evaluator_kind}"
             )
+
     return evaluators
 
 
 async def get_evaluator_project_ids(
-    evaluator_node_ids: list[GlobalID],
-    dataset_id: int,
+    dataset_evaluator_node_ids: list[GlobalID],
     session: AsyncSession,
 ) -> list[int]:
     """
-    Look up project IDs for evaluators from the DatasetEvaluators table.
+    Look up project IDs for DatasetEvaluators.
 
-    Returns a list of project IDs in the same order as the input evaluator_node_ids.
-    Raises NotFound if any evaluator doesn't have an associated project.
+    Returns a list of project IDs in the same order as the input dataset_evaluator_node_ids.
+    Raises NotFound if any DatasetEvaluator is not found.
     """
-    from phoenix.server.api.types.Evaluator import (
-        BuiltInEvaluator as BuiltInEvaluatorNode,
-    )
-    from phoenix.server.api.types.Evaluator import (
-        LLMEvaluator as LLMEvaluatorNode,
-    )
+    from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 
-    if not evaluator_node_ids:
+    if not dataset_evaluator_node_ids:
         return []
 
-    # Query DatasetEvaluators for project IDs
-    dataset_evaluators_result = await session.scalars(
-        select(models.DatasetEvaluators).where(models.DatasetEvaluators.dataset_id == dataset_id)
-    )
+    # Validate all IDs are DatasetEvaluator type and extract db IDs
+    dataset_evaluator_db_ids: list[int] = []
+    for datasetEvaluatorNodeId in dataset_evaluator_node_ids:
+        type_name, db_id = from_global_id(datasetEvaluatorNodeId)
+        if type_name != DatasetEvaluatorNode.__name__:
+            raise BadRequest(
+                f"Expected DatasetEvaluator ID, got '{type_name}' for ID '{datasetEvaluatorNodeId}'"
+            )
+        dataset_evaluator_db_ids.append(db_id)
 
-    # Build mappings from evaluator db_id to project_id
-    llm_project_ids: dict[int, int] = {}
-    builtin_project_ids: dict[int, int] = {}
-    for de in dataset_evaluators_result:
-        if de.evaluator_id is not None:
-            llm_project_ids[de.evaluator_id] = de.project_id
-        if de.builtin_evaluator_id is not None:
-            builtin_project_ids[de.builtin_evaluator_id] = de.project_id
+    # Single batch query for all DatasetEvaluator records
+    dataset_evaluators_result = await session.scalars(
+        select(models.DatasetEvaluators).where(
+            models.DatasetEvaluators.id.in_(dataset_evaluator_db_ids)
+        )
+    )
+    project_ids_by_de_id: dict[int, int] = {
+        de.id: de.project_id for de in dataset_evaluators_result
+    }
 
     # Build result list in input order
     result: list[int] = []
-    for node_id in evaluator_node_ids:
-        type_name, db_id = from_global_id(node_id)
-        if type_name == LLMEvaluatorNode.__name__:
-            project_id = llm_project_ids.get(db_id)
-            if project_id is None:
-                raise NotFound(
-                    f"LLM evaluator '{node_id}' not found in dataset or has no associated project"
-                )
-            result.append(project_id)
-        elif type_name == BuiltInEvaluatorNode.__name__:
-            project_id = builtin_project_ids.get(db_id)
-            if project_id is None:
-                raise NotFound(
-                    f"Built-in evaluator '{node_id}' not found in dataset "
-                    "or has no associated project"
-                )
-            result.append(project_id)
-        else:
-            raise BadRequest(f"Unknown evaluator type '{type_name}' for ID '{node_id}'")
+    for idx, db_id in enumerate(dataset_evaluator_db_ids):
+        project_id = project_ids_by_de_id.get(db_id)
+        if project_id is None:
+            raise NotFound(
+                f"DatasetEvaluator with ID '{dataset_evaluator_node_ids[idx]}' not found"
+            )
+        result.append(project_id)
 
     return result
 
@@ -922,9 +940,6 @@ def apply_input_mapping(
     # apply path mappings
     if hasattr(input_mapping, "path_mapping"):
         for key, path_expr in input_mapping.path_mapping.items():
-            # Skip empty or non-string path expressions
-            if not path_expr or not isinstance(path_expr, str):
-                continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
             except Exception as e:
@@ -987,6 +1002,13 @@ def infer_input_schema_from_template(
     template: PromptChatTemplateInput,
     template_format: PromptTemplateFormat,
 ) -> dict[str, Any]:
+    """
+    Infer the input schema from an evaluator template.
+
+    Uses parse_with_types() to detect variable types:
+    - Section variables ({{#name}} or {{^name}}) get empty schema (accepts any JSON type)
+    - String variables ({{name}}) get {"type": "string"} schema
+    """
     formatter = get_template_formatter(template_format)
     section_vars: set[str] = set()
     string_vars: set[str] = set()
@@ -1146,8 +1168,8 @@ class ContainsEvaluator(BuiltInEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self.name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),
         ) as evaluator_span:
@@ -1167,7 +1189,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                             literal_mapping=input_mapping.literal_mapping or {}
                         ),
                         **_get_template_variables_attributes(variables=context),
-                        **get_input_attributes(
+                        **oi.get_input_attributes(
                             {
                                 "variables": context,
                                 "input_mapping": {
@@ -1191,7 +1213,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
                     template_span.set_status(Status(StatusCode.OK))
 
                 words = [word.strip() for word in inputs.get("words", "").split(",")]
@@ -1202,8 +1224,8 @@ class ContainsEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     f"Run {self.name}",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "words": words,
                                 "text": text,
@@ -1229,7 +1251,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                         explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
 
                     execution_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "matched": matched,
                                 "explanation": explanation,
@@ -1241,8 +1263,8 @@ class ContainsEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "matched": matched,
                                 "explanation": explanation,
@@ -1253,7 +1275,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -1263,7 +1285,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                     parse_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": label,
                             "score": score,
@@ -1368,8 +1390,8 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self.name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),
         ) as evaluator_span:
@@ -1389,7 +1411,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                             literal_mapping=input_mapping.literal_mapping or {}
                         ),
                         **_get_template_variables_attributes(variables=context),
-                        **get_input_attributes(
+                        **oi.get_input_attributes(
                             {
                                 "variables": context,
                                 "input_mapping": {
@@ -1413,7 +1435,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected = inputs.get("expected", "")
@@ -1423,8 +1445,8 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     f"Run {self.name}",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "expected": expected,
                                 "actual": actual,
@@ -1441,7 +1463,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     explanation = f"expected {'matches' if matched else 'does not match'} actual"
 
                     execution_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "matched": matched,
                                 "explanation": explanation,
@@ -1453,8 +1475,8 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "matched": matched,
                                 "explanation": explanation,
@@ -1465,7 +1487,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -1475,7 +1497,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     parse_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": label,
                             "score": score,
@@ -1582,8 +1604,8 @@ class RegexEvaluator(BuiltInEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self.name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),
         ) as evaluator_span:
@@ -1603,7 +1625,7 @@ class RegexEvaluator(BuiltInEvaluator):
                             literal_mapping=input_mapping.literal_mapping or {}
                         ),
                         **_get_template_variables_attributes(variables=context),
-                        **get_input_attributes(
+                        **oi.get_input_attributes(
                             {
                                 "variables": context,
                                 "input_mapping": {
@@ -1627,7 +1649,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
                     template_span.set_status(Status(StatusCode.OK))
 
                 pattern = inputs.get("pattern", "")
@@ -1637,8 +1659,8 @@ class RegexEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     f"Run {self.name}",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "pattern": pattern,
                                 "text": text,
@@ -1667,7 +1689,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         )
 
                     execution_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "matched": matched,
                                 "error": error,
@@ -1680,8 +1702,8 @@ class RegexEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "matched": matched,
                                 "error": error,
@@ -1696,7 +1718,7 @@ class RegexEvaluator(BuiltInEvaluator):
                         label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -1706,7 +1728,7 @@ class RegexEvaluator(BuiltInEvaluator):
                     parse_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": label,
                             "score": score,
@@ -1822,8 +1844,8 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self.name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),
         ) as evaluator_span:
@@ -1843,7 +1865,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                             literal_mapping=input_mapping.literal_mapping or {}
                         ),
                         **_get_template_variables_attributes(variables=context),
-                        **get_input_attributes(
+                        **oi.get_input_attributes(
                             {
                                 "variables": context,
                                 "input_mapping": {
@@ -1867,7 +1889,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected = inputs.get("expected", "")
@@ -1877,8 +1899,8 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     f"Run {self.name}",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "expected": expected,
                                 "actual": actual,
@@ -1895,7 +1917,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     explanation = f"edit distance between expected and actual is {distance}"
 
                     execution_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "distance": distance,
                                 "explanation": explanation,
@@ -1907,8 +1929,8 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "distance": distance,
                                 "explanation": explanation,
@@ -1920,7 +1942,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     score = float(distance)
 
                     parse_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -1930,7 +1952,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     parse_span.set_status(Status(StatusCode.OK))
 
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": label,
                             "score": score,
@@ -2052,8 +2074,8 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         with tracer_.start_as_current_span(
             f"Evaluation: {self.name}",
             attributes={
-                **get_span_kind_attributes("evaluator"),
-                **get_input_attributes(context),
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
             context=Context(),
         ) as evaluator_span:
@@ -2072,7 +2094,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                             literal_mapping=input_mapping.literal_mapping or {}
                         ),
                         **_get_template_variables_attributes(variables=context),
-                        **get_input_attributes(
+                        **oi.get_input_attributes(
                             {
                                 "variables": context,
                                 "input_mapping": {
@@ -2096,7 +2118,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         template_variables=inputs,
                         input_schema=self.input_schema,
                     )
-                    template_span.set_attributes(get_output_attributes({"inputs": inputs}))
+                    template_span.set_attributes(oi.get_output_attributes({"inputs": inputs}))
                     template_span.set_status(Status(StatusCode.OK))
 
                 expected_str = inputs.get("expected", "")
@@ -2105,8 +2127,8 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     f"Run {self.name}",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "expected": expected_str,
                                 "actual": actual_str,
@@ -2126,7 +2148,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         explanation = error
 
                     execution_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "distance": distance,
                                 "error": error,
@@ -2139,8 +2161,8 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 with tracer_.start_as_current_span(
                     "Parse eval result",
                     attributes={
-                        **get_span_kind_attributes("chain"),
-                        **get_input_attributes(
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
                             {
                                 "distance": distance,
                                 "error": error,
@@ -2153,7 +2175,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     score = float(distance) if error is None else None
 
                     parse_span.set_attributes(
-                        get_output_attributes(
+                        oi.get_output_attributes(
                             {
                                 "label": label,
                                 "score": score,
@@ -2176,7 +2198,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     end_time=end_time,
                 )
                 evaluator_span.set_attributes(
-                    get_output_attributes(
+                    oi.get_output_attributes(
                         {
                             "label": result["label"],
                             "score": result["score"],
@@ -2219,27 +2241,27 @@ TEMPLATE_LITERAL_MAPPING = "template.literal_mapping"
 TEMPLATE_VARIABLES = "template.variables"
 
 
-def _get_messages_from_template(template: PromptChatTemplate) -> list[Message]:
-    messages: list[Message] = []
+def _get_messages_from_template(template: PromptChatTemplate) -> list[oi.Message]:
+    messages: list[oi.Message] = []
     for msg in template.messages:
         role = msg.role
         if isinstance(msg.content, str):
-            messages.append(Message(role=role, content=msg.content))
+            messages.append(oi.Message(role=role, content=msg.content))
         elif isinstance(msg.content, list):
-            contents: list[TextMessageContent] = []
+            contents: list[oi.TextMessageContent] = []
             for part in msg.content:
                 if isinstance(part, TextContentPart):
-                    contents.append(TextMessageContent(type="text", text=part.text))
+                    contents.append(oi.TextMessageContent(type="text", text=part.text))
                 else:
                     raise ValueError(f"Unsupported content part type: {type(part)}")
-            messages.append(Message(role=role, contents=contents))
+            messages.append(oi.Message(role=role, contents=contents))
         else:
             assert_never(msg.content)
     return messages
 
 
 # the following helper functions will be refactored to `openinference-instrumentation`
-def _get_template_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
+def _get_template_message_attributes(*, messages: list[oi.Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
     for msg_idx, msg in enumerate(messages):
         attributes[f"{TEMPLATE_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
@@ -2254,7 +2276,7 @@ def _get_template_message_attributes(*, messages: list[Message]) -> dict[str, An
     return attributes
 
 
-def _get_template_formatted_message_attributes(*, messages: list[Message]) -> dict[str, Any]:
+def _get_template_formatted_message_attributes(*, messages: list[oi.Message]) -> dict[str, Any]:
     attributes: dict[str, Any] = {}
     for msg_idx, msg in enumerate(messages):
         attributes[f"{TEMPLATE_FORMATTED_MESSAGES}.{msg_idx}.{MESSAGE_ROLE}"] = msg["role"]
