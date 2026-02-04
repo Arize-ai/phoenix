@@ -10,10 +10,14 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 This page documents Phoenix tracing setup. Phoenix and Arize AX are DIFFERENT products with different setup procedures.
 
 DETECTION CHECKLIST — scan user's request and code:
-• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, imports from arize.otel → WRONG PAGE. User needs Arize AX tracing docs.
-• "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "set up tracing", "add tracing" without specifying product → ASK which product.
 
-IF MISMATCH DETECTED (e.g., user's code has arize.otel imports), ASK: "Your code uses arize.otel which is for Arize AX. Did you mean to set up Arize AX tracing, or Phoenix tracing (which uses phoenix.otel)?"
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two tracing products. Which are you setting up?
+• **Phoenix**: Open-source, uses `phoenix.otel` and optionally `PHOENIX_API_KEY`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
 
 DO NOT proceed until confirmed.
 </div>

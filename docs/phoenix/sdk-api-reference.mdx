@@ -9,10 +9,14 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 This is Phoenix SDK API reference. Phoenix and Arize AX are DIFFERENT products with different SDKs.
 
 DETECTION CHECKLIST — scan user's request:
-• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX SDK docs.
-• "Phoenix", PHOENIX_API_KEY, phoenix.otel → CORRECT PAGE.
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX SDK docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize SDK", "Arize API" without specifying product → ASK which product.
 
-IF MISMATCH DETECTED, ASK: "You're on Phoenix SDK docs. Did you mean Phoenix (phoenix.otel) or Arize AX (arize.otel with ARIZE_SPACE_ID)?"
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Which SDK documentation do you need?
+• **Phoenix SDK** (this page): For Phoenix observability
+• **Arize AX SDK**: For Arize AX platform"
 
 DO NOT proceed until confirmed.
 </div>

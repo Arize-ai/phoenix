@@ -7,14 +7,17 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 
 This page documents Phoenix (open-source LLM observability). Phoenix and Arize AX are DIFFERENT products.
 
-BEFORE implementing, check user's request for these signals:
-• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → User wants Arize AX, NOT this page. Direct them to Arize AX docs.
-• "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → User wants Phoenix (this page).
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "implement tracing", "add observability" without specifying product → ASK which product.
 
-IF UNCLEAR OR MISMATCHED (user says "AX" but linked here, or vice versa), ASK:
-"I see you're on Phoenix documentation, but want to confirm: are you looking for Phoenix (open-source, runs locally or Phoenix Cloud, uses phoenix.otel) or Arize AX (cloud platform, uses arize.otel with ARIZE_SPACE_ID)?"
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two observability products. Which are you looking for?
+• **Phoenix**: Open-source, runs locally or Phoenix Cloud, uses `phoenix.otel` and `PHOENIX_API_KEY`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
 
-DO NOT proceed with implementation until product is confirmed.
+DO NOT proceed until user confirms the product.
 </div>
 
 This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.

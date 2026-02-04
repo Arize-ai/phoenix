@@ -8,13 +8,14 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 This page documents Phoenix Cloud tracing setup. Phoenix and Arize AX are DIFFERENT products with different APIs.
 
 DETECTION CHECKLIST — scan user's request:
-• User mentions "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, or imports from arize.otel → WRONG PAGE. User needs Arize AX docs, not Phoenix.
-• User mentions "Phoenix", PHOENIX_API_KEY, PHOENIX_COLLECTOR_ENDPOINT, phoenix.otel, or localhost:6006 → CORRECT PAGE.
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, PHOENIX_COLLECTOR_ENDPOINT, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. User needs Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "implement tracing", "add observability" without specifying product → ASK which product.
 
-IF USER'S REQUEST DOESN'T MATCH THIS PAGE (e.g., they said "implement Arize AX" but linked here), YOU MUST ASK:
-"You mentioned Arize AX but linked to Phoenix docs. Which product do you need?
-• Phoenix: Open-source observability, runs locally or Phoenix Cloud, uses `phoenix.otel` and `PHOENIX_API_KEY`
-• Arize AX: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
+IF AMBIGUOUS OR MISMATCHED, YOU MUST ASK:
+"Arize offers two observability products. Which are you looking for?
+• **Phoenix**: Open-source, runs locally or Phoenix Cloud, uses `phoenix.otel` and `PHOENIX_API_KEY`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
 
 DO NOT implement until user confirms the product.
 </div>

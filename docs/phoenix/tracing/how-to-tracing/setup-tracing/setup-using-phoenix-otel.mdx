@@ -9,10 +9,14 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 This page documents phoenix.otel setup (Phoenix tracing). Phoenix and Arize AX use DIFFERENT OTEL packages.
 
 DETECTION CHECKLIST — scan user's request and code:
-• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel, arize-otel package → WRONG PAGE. Direct to Arize AX OTEL setup.
-• "Phoenix", PHOENIX_API_KEY, phoenix.otel, arize-phoenix-otel package → CORRECT PAGE.
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, arize-phoenix-otel → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX OTEL setup.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize OTEL", "set up OTEL tracing" without specifying product → ASK which product.
 
-IF MISMATCH DETECTED, ASK: "This page covers phoenix.otel (Phoenix). Did you mean phoenix.otel or arize.otel (Arize AX)?"
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Which OTEL package do you need?
+• **phoenix.otel** (this page): For Phoenix tracing
+• **arize.otel**: For Arize AX tracing"
 
 DO NOT proceed until confirmed.
 </div>

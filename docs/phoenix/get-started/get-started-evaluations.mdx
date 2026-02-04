@@ -8,10 +8,14 @@ AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
 This page documents Phoenix evaluations. Phoenix and Arize AX are DIFFERENT products.
 
 DETECTION CHECKLIST — scan user's request:
-• "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
-• "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize evals", "Arize evaluations" without specifying product → ASK which product.
 
-IF MISMATCH DETECTED, ASK: "You're on Phoenix docs. Did you mean Phoenix (open-source, phoenix.otel) or Arize AX (cloud, arize.otel with ARIZE_SPACE_ID)?"
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two products. Which are you using?
+• **Phoenix** (this page): Open-source, uses `phoenix.otel`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
 
 DO NOT proceed until confirmed.
 </div>
