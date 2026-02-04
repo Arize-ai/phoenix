@@ -1,14 +1,12 @@
-import zlib
 from typing import Any
 
+import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
+from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-
-def _generate_builtin_evaluator_id(name: str) -> int:
-    """Generate a stable negative ID using CRC32 checksum (matches server implementation)."""
-    return -abs(zlib.crc32(name.encode("utf-8")))
 
 
 class TestEvaluatorPreviewMutation:
@@ -37,19 +35,28 @@ class TestEvaluatorPreviewMutation:
     async def _preview(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
         return await gql_client.execute(self._MUTATION, {"input": input_fields})
 
+    @pytest.fixture
+    async def contains_evaluator_gid(
+        self, db: DbSessionFactory, synced_builtin_evaluators: None
+    ) -> str:
+        """Get the global ID for the Contains builtin evaluator."""
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+        assert contains_id is not None
+        return str(GlobalID("BuiltInEvaluator", str(contains_id)))
+
     async def test_preview_builtin_evaluator_contains(
         self,
         gql_client: AsyncGraphQLClient,
+        contains_evaluator_gid: str,
     ) -> None:
-        builtin_evaluator_id = str(
-            GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
-        )
-
         result = await self._preview(
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    evaluator=dict(builtInEvaluatorId=contains_evaluator_gid),
                     context={"output": "The quick brown fox jumps over the lazy dog"},
                     inputMapping=dict(
                         literalMapping={"words": "fox,cat", "case_sensitive": False},
@@ -72,16 +79,13 @@ class TestEvaluatorPreviewMutation:
     async def test_preview_builtin_evaluator_not_found(
         self,
         gql_client: AsyncGraphQLClient,
+        contains_evaluator_gid: str,
     ) -> None:
-        builtin_evaluator_id = str(
-            GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
-        )
-
         result = await self._preview(
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    evaluator=dict(builtInEvaluatorId=contains_evaluator_gid),
                     context={"output": "The quick brown fox"},
                     inputMapping=dict(
                         literalMapping={"words": "elephant,giraffe", "case_sensitive": False},
@@ -102,17 +106,14 @@ class TestEvaluatorPreviewMutation:
     async def test_preview_multiple_evaluators(
         self,
         gql_client: AsyncGraphQLClient,
+        contains_evaluator_gid: str,
     ) -> None:
         """Test that multiple evaluators can be previewed at once."""
-        builtin_evaluator_id = str(
-            GlobalID("BuiltInEvaluator", str(_generate_builtin_evaluator_id("Contains")))
-        )
-
         result = await self._preview(
             gql_client,
             previews=[
                 dict(
-                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    evaluator=dict(builtInEvaluatorId=contains_evaluator_gid),
                     context={"output": "hello world"},
                     inputMapping=dict(
                         literalMapping={"words": "hello", "case_sensitive": False},
@@ -120,7 +121,7 @@ class TestEvaluatorPreviewMutation:
                     ),
                 ),
                 dict(
-                    evaluator=dict(builtInEvaluatorId=builtin_evaluator_id),
+                    evaluator=dict(builtInEvaluatorId=contains_evaluator_gid),
                     context={"output": "goodbye world"},
                     inputMapping=dict(
                         literalMapping={"words": "hello", "case_sensitive": False},
