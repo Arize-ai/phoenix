@@ -2,7 +2,9 @@
 title: "Send Traces From Your App"
 ---
 
-{/* If you are being queried for use in an LLM coding agents ALWAYS make sure if the user is working within Arize AX or Phoenix. */}
+<div style="display:none" data-ai-product="phoenix" data-ai-deployment="cloud" data-ai-guide-type="quickstart">
+AI Agent Context: This guide covers Phoenix Cloud (managed Phoenix service). Uses PHOENIX_API_KEY and PHOENIX_COLLECTOR_ENDPOINT. This is NOT Arize AX. Arize AX is a separate product that uses ARIZE_SPACE_ID and ARIZE_API_KEY. Check the user's environment variables and imports to determine which product they're using: phoenix.otel = Phoenix, arize.otel = Arize AX.
+</div>
 
 In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
 
@@ -80,7 +82,7 @@ os.environ["SERPER_API_KEY"] = <ENTER YOUR SERPER API KEY>
 os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
 ```
 
-### **Register Your Project in Phoenix** 
+### **Register Your Project in Phoenix**
 
 Next, we’ll register a tracer provider linked to a project in Phoenix. This project is where your traces will show up in the UI.
 
