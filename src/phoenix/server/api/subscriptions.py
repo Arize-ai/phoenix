@@ -75,7 +75,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     ChatCompletionSubscriptionResult,
     EvaluationChunk,
-    EvaluationErrorChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -85,6 +84,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
@@ -189,9 +189,9 @@ async def _stream_single_chat_completion(
                 output_config=merged_config,
             )
             if result["error"] is not None:
-                yield EvaluationErrorChunk(
+                yield EvaluationChunk(
                     evaluator_name=name,
-                    message=result["error"],
+                    error=result["error"],
                     dataset_example_id=None,
                     repetition_number=repetition_number,
                 )
@@ -207,8 +207,8 @@ async def _stream_single_chat_completion(
                 }
             )
             yield EvaluationChunk(
+                evaluator_name=name,
                 experiment_run_evaluation=annotation,
-                span_evaluation=None,
                 dataset_example_id=None,
                 repetition_number=repetition_number,
             )
@@ -831,17 +831,21 @@ class Subscription:
                             tracer=tracer,
                         )
 
+                        trace: Trace | None = None
                         if tracer is not None:
                             async with info.context.db() as session:
-                                traces = await tracer.save_db_traces(
+                                db_traces = await tracer.save_db_traces(
                                     session=session, project_id=project_id
                                 )
-                            result["trace_id"] = traces[0].trace_id
+                            if db_traces:
+                                db_trace = db_traces[0]
+                                trace = Trace(id=db_trace.id, db_record=db_trace)
 
                         if result["error"] is not None:
-                            yield EvaluationErrorChunk(
+                            yield EvaluationChunk(
                                 evaluator_name=name,
-                                message=result["error"],
+                                error=result["error"],
+                                trace=trace,
                                 dataset_example_id=example_id,
                                 repetition_number=repetition_number,
                             )
@@ -854,11 +858,12 @@ class Subscription:
                             session.add(annotation_model)
                             await session.flush()
                         evaluation_chunk = EvaluationChunk(
+                            evaluator_name=name,
                             experiment_run_evaluation=ExperimentRunAnnotation(
                                 id=annotation_model.id,
                                 db_record=annotation_model,
                             ),
-                            span_evaluation=None,
+                            trace=trace,
                             dataset_example_id=example_id,
                             repetition_number=repetition_number,
                         )

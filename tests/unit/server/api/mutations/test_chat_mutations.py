@@ -763,19 +763,15 @@ class TestChatCompletionMutationMixin:
                 content
                 errorMessage
                 evaluations {
-                  ... on EvaluationSuccess {
-                    annotation {
-                      name
-                      label
-                      score
-                      explanation
-                      annotatorKind
-                    }
+                  evaluatorName
+                  annotation {
+                    name
+                    label
+                    score
+                    explanation
+                    annotatorKind
                   }
-                  ... on EvaluationError {
-                    evaluatorName
-                    message
-                  }
+                  error
                 }
                 span {
                   id
@@ -904,17 +900,13 @@ class TestChatCompletionMutationMixin:
                 content
                 errorMessage
                 evaluations {
-                  ... on EvaluationSuccess {
-                    annotation {
-                      name
-                      label
-                      score
-                    }
+                  evaluatorName
+                  annotation {
+                    name
+                    label
+                    score
                   }
-                  ... on EvaluationError {
-                    evaluatorName
-                    message
-                  }
+                  error
                 }
                 span {
                   id
@@ -1027,18 +1019,14 @@ class TestChatCompletionMutationMixin:
                   content
                   errorMessage
                   evaluations {
-                    ... on EvaluationSuccess {
-                      annotation {
-                        name
-                        label
-                        score
-                        annotatorKind
-                      }
+                    evaluatorName
+                    annotation {
+                      name
+                      label
+                      score
+                      annotatorKind
                     }
-                    ... on EvaluationError {
-                      evaluatorName
-                      message
-                    }
+                    error
                   }
                   span {
                     id
@@ -1620,17 +1608,13 @@ class TestChatCompletionMutationMixin:
                   content
                   errorMessage
                   evaluations {
-                    ... on EvaluationSuccess {
-                      annotation {
-                        name
-                        label
-                        score
-                      }
+                    evaluatorName
+                    annotation {
+                      name
+                      label
+                      score
                     }
-                    ... on EvaluationError {
-                      evaluatorName
-                      message
-                    }
+                    error
                   }
                   span {
                     id
@@ -1739,17 +1723,13 @@ class TestChatCompletionMutationMixin:
                 content
                 errorMessage
                 evaluations {
-                  ... on EvaluationSuccess {
-                    annotation {
-                      name
-                      score
-                      annotatorKind
-                    }
+                  evaluatorName
+                  annotation {
+                    name
+                    score
+                    annotatorKind
                   }
-                  ... on EvaluationError {
-                    evaluatorName
-                    message
-                  }
+                  error
                 }
                 span {
                   id
@@ -1861,17 +1841,13 @@ class TestChatCompletionMutationMixin:
                   content
                   errorMessage
                   evaluations {
-                    ... on EvaluationSuccess {
-                      annotation {
-                        name
-                        score
-                        annotatorKind
-                      }
+                    evaluatorName
+                    annotation {
+                      name
+                      score
+                      annotatorKind
                     }
-                    ... on EvaluationError {
-                      evaluatorName
-                      message
-                    }
+                    error
                   }
                   span {
                     id

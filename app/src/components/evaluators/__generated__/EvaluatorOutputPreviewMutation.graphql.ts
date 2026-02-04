@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4be182a1fcd1b5893b7047a2d1712c47>>
+ * @generated SignedSource<<da337f7fcc5f7c67dd5c3a4549456104>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -99,22 +99,15 @@ export type EvaluatorOutputPreviewMutation$variables = {
 export type EvaluatorOutputPreviewMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
-      readonly __typename: "EvaluationError";
-      readonly evaluatorName: string;
-      readonly message: string;
-    } | {
-      readonly __typename: "EvaluationSuccess";
       readonly annotation: {
         readonly explanation: string | null;
         readonly id: string;
         readonly label: string | null;
         readonly name: string;
         readonly score: number | null;
-      };
-    } | {
-      // This will never be '%other', but we need some
-      // value in case none of the concrete values match.
-      readonly __typename: "%other";
+      } | null;
+      readonly error: string | null;
+      readonly evaluatorName: string;
     }>;
   };
 };
@@ -149,7 +142,7 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": null,
+        "concreteType": "EvaluationResult",
         "kind": "LinkedField",
         "name": "results",
         "plural": true,
@@ -158,82 +151,61 @@ v1 = [
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "__typename",
+            "name": "evaluatorName",
             "storageKey": null
           },
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "ExperimentRunAnnotation",
-                "kind": "LinkedField",
-                "name": "annotation",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "explanation",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "label",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "score",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "EvaluationSuccess",
-            "abstractKey": null
-          },
-          {
-            "kind": "InlineFragment",
+            "alias": null,
+            "args": null,
+            "concreteType": "ExperimentRunAnnotation",
+            "kind": "LinkedField",
+            "name": "annotation",
+            "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "evaluatorName",
+                "name": "explanation",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "message",
+                "name": "label",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "score",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
                 "storageKey": null
               }
             ],
-            "type": "EvaluationError",
-            "abstractKey": null
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "error",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -260,16 +232,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "bca0dc6c97c2c512cd5c3dae382629fd",
+    "cacheID": "21c50ac32de88b602547d5fb2308de53",
     "id": null,
     "metadata": {},
     "name": "EvaluatorOutputPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      __typename\n      ... on EvaluationSuccess {\n        annotation {\n          explanation\n          label\n          score\n          name\n          id\n        }\n      }\n      ... on EvaluationError {\n        evaluatorName\n        message\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        explanation\n        label\n        score\n        name\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "93dcc88dc60666fd6d3844c6d33f86cc";
+(node as any).hash = "cde83044fc6975f7c5f9879bbce9bf41";
 
 export default node;

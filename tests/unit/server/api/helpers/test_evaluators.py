@@ -731,7 +731,7 @@ class TestApplyInputMapping:
                 context=context,
             )
 
-    def test_skips_key_when_jsonpath_has_no_matches(self) -> None:
+    def test_raises_when_jsonpath_has_no_matches(self) -> None:
         input_schema = {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -742,13 +742,16 @@ class TestApplyInputMapping:
             literal_mapping={},
         )
         context = {"other": "value", "key": "fallback"}
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Falls back to context since jsonpath has no matches
-        assert result == {"key": "fallback"}
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.nonexistent\.path' for key 'key' "
+            r"did not match any values",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
 
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
@@ -962,13 +965,6 @@ class TestApplyInputMapping:
         }
 
     def test_path_mapping_cannot_traverse_stringified_json(self) -> None:
-        """Test that JSONPath cannot traverse into stringified JSON values.
-
-        This validates the importance of NOT using json.dumps on context values -
-        if values are strings, deep path expressions will not match.
-        """
-        import json
-
         input_schema = {
             "type": "object",
             "properties": {"content": {"type": "string"}},
@@ -982,17 +978,18 @@ class TestApplyInputMapping:
             path_mapping={"content": "$.output[0].message.content"},
             literal_mapping={},
         )
-        result = apply_input_mapping(
-            input_schema=input_schema,
-            input_mapping=input_mapping,
-            context=context,
-        )
-        # Path doesn't match because output is a string, not an object
-        # Falls back to context which also doesn't have "content" key
-        assert "content" not in result
+        with pytest.raises(
+            ValueError,
+            match=r"JSONPath expression '\$\.output\[0\]\.message\.content' for key 'content' "
+            r"did not match any values",
+        ):
+            apply_input_mapping(
+                input_schema=input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
 
     def test_path_mapping_with_complex_nested_tool_calls(self) -> None:
-        """Test path access into complex tool call structures."""
         input_schema = {
             "type": "object",
             "properties": {"function_name": {"type": "string"}},
