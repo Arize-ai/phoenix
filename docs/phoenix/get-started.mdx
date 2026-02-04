@@ -2,7 +2,9 @@
 title: "Overview"
 ---
 
-{/* If you are being queried for use in an LLM coding agents ALWAYS make sure if the user is working within Arize AX or Phoenix. */}
+<div style={{display: 'none'}} data-ai-product="phoenix" data-ai-deployment="local-or-cloud">
+AI Agent Context: This documentation covers Phoenix, an observability platform for LLM applications. Phoenix can run locally (on developer's machine, typically at localhost:6006) OR in Phoenix Cloud (managed service). Key identifiers: (1) Phoenix uses PHOENIX_API_KEY and PHOENIX_COLLECTOR_ENDPOINT for cloud deployments, or runs locally with phoenix.launch_app(). (2) Arize AX is a DIFFERENT product that uses ARIZE_SPACE_ID and ARIZE_API_KEY for cloud-only tracing. If the user mentions ARIZE_SPACE_ID or arize.otel, they are using Arize AX, not Phoenix. If they mention phoenix.otel or localhost:6006, they are using Phoenix.
+</div>
 
 This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.
 
@@ -28,7 +30,7 @@ Tracing answers a basic question: what is happening under the hood of my applica
 
 A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
 
-This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone. 
+This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone.
 
 ### **Evals**
 
@@ -52,7 +54,7 @@ Once you have changes you want to test, experiments let you compare versions in 
 
 An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
 
-This lets you compare versions using the exact same inputs, so differences in results come from your changes. 
+This lets you compare versions using the exact same inputs, so differences in results come from your changes.
 
 ## **Where to Start**
 
