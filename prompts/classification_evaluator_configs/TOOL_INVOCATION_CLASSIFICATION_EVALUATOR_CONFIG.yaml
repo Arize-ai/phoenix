@@ -1,9 +1,9 @@
 name: tool_invocation
-description: For determining if a tool was invoked correctly with proper arguments, formatting, and safe content. Requires conversation context, available tool schemas, and the LLM's tool invocation(s).
+description: For determining if a tool was invoked correctly with proper arguments, formatting, and safe content.
 optimization_direction: maximize
 messages:
   - role: user
-    content: >-
+    content: |-
       You are an impartial judge evaluating an LLM's tool-calling behavior, specifically whether the LLM invoked a tool (or tools) correctly with valid arguments and proper formatting.
 
       Your task: Determine whether the LLM's tool invocation(s) were correct or incorrect based on:
@@ -22,7 +22,7 @@ messages:
       - Return "correct" only if ALL tool invocations are correct.
       - Return "incorrect" if ANY tool invocation has an error.
 
-      IMPORTANT - Conversation Context:
+      IMPORTANT - Conversation Context (input):
       - Read the entire conversation history carefully, not just the final user message.
       - Argument values may need to be extracted from EARLIER turns in the conversation (e.g., user mentions a location, date, or quantity in a previous message).
       - The LLM should use context from the full conversation to populate argument values correctly.
@@ -47,25 +47,28 @@ messages:
       - Does each tool invocation match the schema for that tool?
       - Are all required parameters provided with appropriate values for each invocation?
       - Are there any extra fields that don't exist in the schema?
-      - Looking at the FULL conversation: do the argument values accurately reflect what the user requested across all messages?
+      - Looking at the FULL input: do the argument values accurately reflect what the user requested across all messages?
       - Is there any unsafe or sensitive content in any of the arguments?
       - Check that you are not evaluating the tool selection, only the tool invocation.
-
+      
       <data>
-      <context>
+      <input>
       {{input}}
-      </context>
+      </input>
 
       <available_tools>
       {{available_tools}}
       </available_tools>
 
-      <tool_invocation>
+      <output>
       {{tool_selection}}
-      </tool_invocation>
+      </output>
       </data>
 
       Given the above data, is the tool invocation correct or incorrect?
 choices:
   correct: 1.0
   incorrect: 0.0
+formatters:
+  available_tools: available_tools_parameters
+  tool_selection: tool_calls_to_string
