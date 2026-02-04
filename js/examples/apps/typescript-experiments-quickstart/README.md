@@ -18,8 +18,6 @@ The tutorial runs three experiments:
 
 ## Prerequisites
 
-- Node.js 20+
-- pnpm
 - Phoenix Cloud account + Phoenix API Key (or local Phoenix instance)
 - OpenAI API key
 
