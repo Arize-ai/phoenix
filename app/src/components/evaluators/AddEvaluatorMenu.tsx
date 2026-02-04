@@ -27,7 +27,6 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -208,7 +207,12 @@ const CodeEvaluatorTemplateSubmenu = ({
   return (
     <SubmenuTrigger {...props}>
       {children}
-      <MenuContainer shouldFlip placement="start top" minHeight="auto">
+      <MenuContainer
+        shouldFlip
+        placement="start top"
+        minHeight="auto"
+        maxWidth={350}
+      >
         <Menu
           items={builtInCodeEvaluators}
           onAction={(key) => onAction(key as string)}
@@ -222,11 +226,9 @@ const CodeEvaluatorTemplateSubmenu = ({
               <Flex direction="column" gap="size-50">
                 <Text weight="heavy">{evaluator.name}</Text>
                 {evaluator.description && (
-                  <Truncate maxLines={2} title={evaluator.description}>
-                    <Text size="S" color="text-700">
-                      {evaluator.description}
-                    </Text>
-                  </Truncate>
+                  <Text size="S" color="text-700">
+                    {evaluator.description}
+                  </Text>
                 )}
               </Flex>
             </MenuItem>
@@ -274,7 +276,12 @@ const LLMEvaluatorTemplateSubmenu = ({
   return (
     <SubmenuTrigger {...props}>
       {children}
-      <MenuContainer shouldFlip placement="start top" minHeight="auto">
+      <MenuContainer
+        shouldFlip
+        placement="start top"
+        maxWidth={350}
+        minHeight="auto"
+      >
         <Menu
           items={llmEvaluatorTemplates}
           onAction={(key) => {
@@ -317,11 +324,9 @@ const LLMEvaluatorTemplateSubmenu = ({
               <Flex direction="column" gap="size-50">
                 <Text weight="heavy">{evaluator.name}</Text>
                 {evaluator.description && (
-                  <Truncate maxLines={2} title={evaluator.description}>
-                    <Text size="S" color="text-700">
-                      {evaluator.description}
-                    </Text>
-                  </Truncate>
+                  <Text size="S" color="text-700">
+                    {evaluator.description}
+                  </Text>
                 )}
               </Flex>
             </MenuItem>
