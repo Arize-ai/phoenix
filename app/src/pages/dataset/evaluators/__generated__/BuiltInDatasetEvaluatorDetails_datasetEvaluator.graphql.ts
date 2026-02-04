@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03c89d40ca4e1eb859ae896f69ba7f53>>
+ * @generated SignedSource<<5deba98ab105828fb4ad87572e0057bf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,39 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
     readonly isBuiltin: boolean;
     readonly kind: EvaluatorKind;
     readonly name: string;
+    readonly outputConfig?: {
+      readonly lowerBound?: number | null;
+      readonly name?: string;
+      readonly optimizationDirection?: OptimizationDirection;
+      readonly upperBound?: number | null;
+      readonly values?: ReadonlyArray<{
+        readonly label: string;
+        readonly score: number | null;
+      }>;
+    };
   };
   readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
+  readonly outputConfig: {
+    readonly lowerBound?: number | null;
+    readonly name?: string;
+    readonly optimizationDirection?: OptimizationDirection;
+    readonly upperBound?: number | null;
+    readonly values?: ReadonlyArray<{
+      readonly label: string;
+      readonly score: number | null;
+    }>;
+  } | null;
   readonly " $fragmentType": "BuiltInDatasetEvaluatorDetails_datasetEvaluator";
 };
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$key = {
@@ -29,7 +50,96 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$key = {
   readonly " $fragmentSpreads": FragmentRefs<"BuiltInDatasetEvaluatorDetails_datasetEvaluator">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "outputConfig",
+  "plural": false,
+  "selections": [
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v0/*: any*/)
+      ],
+      "type": "AnnotationConfigBase",
+      "abstractKey": "__isAnnotationConfigBase"
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CategoricalAnnotationValue",
+          "kind": "LinkedField",
+          "name": "values",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "label",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "score",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "type": "CategoricalAnnotationConfig",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "lowerBound",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "upperBound",
+          "storageKey": null
+        }
+      ],
+      "type": "ContinuousAnnotationConfig",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
@@ -67,6 +177,7 @@ const node: ReaderFragment = {
       ],
       "storageKey": null
     },
+    (v2/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -82,19 +193,21 @@ const node: ReaderFragment = {
           "name": "kind",
           "storageKey": null
         },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
+        (v0/*: any*/),
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
           "name": "isBuiltin",
           "storageKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v2/*: any*/)
+          ],
+          "type": "BuiltInEvaluator",
+          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -103,7 +216,8 @@ const node: ReaderFragment = {
   "type": "DatasetEvaluator",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "02e897eff0649ad0f594d58a59ca8def";
+(node as any).hash = "58a72c5e4c67f8f9da534651e78b5194";
 
 export default node;

@@ -106,7 +106,7 @@ export function LLMDatasetEvaluatorDetails({
           },
         }}
       >
-        <View padding="size-200" overflow="auto">
+        <View padding="size-200" overflow="auto" maxWidth={1000}>
           <Flex direction="column" gap="size-300">
             {datasetEvaluator.outputConfig && (
               <Flex direction="column" gap="size-100">
