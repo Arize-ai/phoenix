@@ -201,7 +201,9 @@ const CodeEvaluatorTemplateSubmenu = ({
   );
   const builtInCodeEvaluators = useMemo(
     () =>
-      data.builtInEvaluators.filter((evaluator) => evaluator.kind === "CODE"),
+      data.builtInEvaluators.filter(
+        (evaluator) => evaluator.kind === "BUILTIN"
+      ),
     [data.builtInEvaluators]
   );
   return (

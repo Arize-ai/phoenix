@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c5321a6f772957f021c22cc38eda24d2>>
+ * @generated SignedSource<<96a05d3243c4789bc9d706a50811513d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,11 +12,10 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
+  readonly description: string | null;
   readonly evaluator: {
     readonly createdAt: string;
-    readonly description: string | null;
     readonly id: string;
-    readonly isBuiltin: boolean;
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly prompt?: {
@@ -47,6 +46,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "1e283596b83503cfd916106a76f2fe07";
+(node as any).hash = "1dde73f2565747974ae1f82363d3c4cb";
 
 export default node;

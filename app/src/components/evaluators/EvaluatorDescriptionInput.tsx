@@ -35,22 +35,15 @@ export const EvaluatorDescriptionInput = ({
   ...props
 }: Partial<TextFieldProps> & { placeholder?: string }) => {
   const form = useEvaluatorDescriptionInputForm();
-  const isBuiltin = useEvaluatorStore((state) => state.evaluator.isBuiltin);
   const { control } = form;
   return (
     <Controller
       name="description"
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <TextField
-          {...field}
-          autoComplete="off"
-          isInvalid={!!error}
-          isDisabled={!!isBuiltin}
-          {...props}
-        >
-          <Label>Description{isBuiltin ? "" : " (optional)"}</Label>
-          <Input placeholder={!isBuiltin ? placeholder : undefined} />
+        <TextField {...field} autoComplete="off" isInvalid={!!error} {...props}>
+          <Label>Description (optional)</Label>
+          <Input placeholder={placeholder} />
           <FieldError>{error?.message}</FieldError>
         </TextField>
       )}
