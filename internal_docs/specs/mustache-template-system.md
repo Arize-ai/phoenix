@@ -1,9 +1,5 @@
 # Mustache Template System for Server Evaluators
 
-**Branch:** `ehutt/mustache-templates-clean`
-**Target:** `version-13`
-**PR:** #11229
-
 ## What We Built
 
 This feature introduces full Mustache template support for Phoenix's server-side evaluators, enabling built-in classification evaluator templates to work seamlessly with structured data while maintaining compatibility with the Python/TypeScript evals libraries.
