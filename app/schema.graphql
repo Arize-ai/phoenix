@@ -460,7 +460,7 @@ type ChatCompletionRepetition {
   toolCalls: [ChatCompletionToolCall!]!
   span: Span
   errorMessage: String
-  evaluations: [EvaluationResultUnion!]!
+  evaluations: [EvaluationResult!]!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -1581,26 +1581,17 @@ input EvalResultKey {
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+  evaluatorName: String!
   experimentRunEvaluation: ExperimentRunAnnotation
-  spanEvaluation: SpanAnnotation
+  trace: Trace
+  error: String
 }
 
-type EvaluationError {
+type EvaluationResult {
   evaluatorName: String!
-  message: String!
-}
-
-type EvaluationErrorChunk implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: ID
-  repetitionNumber: Int
-  evaluatorName: String!
-  message: String!
-}
-
-union EvaluationResultUnion = EvaluationSuccess | EvaluationError
-
-type EvaluationSuccess {
-  annotation: ExperimentRunAnnotation!
+  annotation: ExperimentRunAnnotation
+  trace: Trace
+  error: String
 }
 
 interface Evaluator implements Node {
@@ -1685,7 +1676,7 @@ input EvaluatorPreviewsInput {
 }
 
 type EvaluatorPreviewsPayload {
-  results: [EvaluationResultUnion!]!
+  results: [EvaluationResult!]!
 }
 
 """The sort key and direction for evaluator connections"""

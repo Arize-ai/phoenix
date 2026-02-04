@@ -78,7 +78,7 @@ type AnnotationSummary = {
   readonly meanScore: number | null;
 };
 
-type AnnotationWithTrace = Annotation & {
+export type AnnotationWithTrace = Annotation & {
   trace?: {
     traceId: string;
     projectId: string;
@@ -93,6 +93,11 @@ export type AnnotationError = {
   evaluatorName: string;
   /** The error message */
   message: string;
+  /** Optional trace for viewing the evaluator's execution */
+  trace?: {
+    traceId: string;
+    projectId: string;
+  } | null;
 };
 
 // Union type for items in the unified list
@@ -253,6 +258,7 @@ export function ExperimentRunCellAnnotationsList(
             <AnnotationErrorItem
               key={`error-${item.error.evaluatorName}`}
               error={item.error}
+              onTraceClick={onTraceClick}
             />
           );
         }
@@ -389,7 +395,25 @@ function AnnotationPlaceholder({
  * Displays an annotation that failed during evaluation
  * Shows the evaluator name in red with a tooltip containing the error message
  */
-function AnnotationErrorItem({ error }: { error: AnnotationError }) {
+function AnnotationErrorItem({
+  error,
+  onTraceClick,
+}: {
+  error: AnnotationError;
+  onTraceClick?: ({
+    annotationName,
+    traceId,
+    projectId,
+  }: {
+    annotationName: string;
+    traceId: string;
+    projectId: string;
+  }) => void;
+}) {
+  const traceId = error.trace?.traceId;
+  const projectId = error.trace?.projectId;
+  const hasTrace = traceId != null && projectId != null;
+
   return (
     <li css={listItemCSS}>
       <TooltipTrigger delay={0}>
@@ -411,9 +435,28 @@ function AnnotationErrorItem({ error }: { error: AnnotationError }) {
           <RichTooltipDescription>{error.message}</RichTooltipDescription>
         </RichTooltip>
       </TooltipTrigger>
-      <IconButton size="S" isDisabled aria-label="View evaluation trace">
-        <Icon svg={<Icons.Trace />} />
-      </IconButton>
+      <TooltipTrigger>
+        <IconButton
+          size="S"
+          isDisabled={!hasTrace}
+          onPress={() => {
+            if (hasTrace && onTraceClick) {
+              onTraceClick({
+                annotationName: error.evaluatorName,
+                traceId,
+                projectId,
+              });
+            }
+          }}
+          aria-label="View evaluation trace"
+        >
+          <Icon svg={<Icons.Trace />} />
+        </IconButton>
+        <Tooltip>
+          <TooltipArrow />
+          View evaluation trace
+        </Tooltip>
+      </TooltipTrigger>
     </li>
   );
 }
