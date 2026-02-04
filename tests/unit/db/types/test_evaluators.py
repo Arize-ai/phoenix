@@ -7,17 +7,23 @@ from phoenix.db.types.evaluators import InputMapping
 class TestJSONPathValidation:
     """Tests for JSONPath validation in InputMapping.
 
-    We support the intersection of RFC 9535 and jsonpath-ng base parser:
+    Uses an ALLOWLIST approach - only these AST node types are permitted:
+    - Root ($), Child, Fields, Index, Slice, Descendants
+
+    This ensures new jsonpath-ng features don't accidentally slip through.
+
+    Supported features (intersection of RFC 9535 and jsonpath-ng):
     - Root ($), child (.name, ['name']), index ([n]), wildcard ([*])
     - Slice ([start:end:step]), descendants (..)
     - Multiple name selectors (['a', 'b'])
+    - Paths without $ prefix (jsonpath-ng is lenient, frontend uses this)
 
     RFC 9535 features NOT supported (jsonpath-ng can't parse):
     - Filter expressions: $[?@.price < 10]
     - Function extensions: length(), count(), match(), search(), value()
     - Multiple index/slice selectors: $[0, 3], $[0:2, 5]
 
-    jsonpath-ng extensions NOT in RFC 9535 (rejected by validator):
+    jsonpath-ng extensions NOT in allowlist (rejected):
     - Union (|), Intersect (&), Where, WhereNot, Parent
     """
 
@@ -52,6 +58,11 @@ class TestJSONPathValidation:
             "$.a.b.c.d.e",  # Long path
             "$['a', 'b']",  # Multiple name selectors (RFC 9535)
             '$["foo", "bar"]',  # Multiple name selectors double quotes
+            # Paths without $ prefix (frontend sends these, jsonpath-ng accepts them)
+            "field",  # Simple field
+            "field.nested",  # Nested fields
+            "input.query",  # Typical frontend path
+            "output.messages[0].content",  # Complex frontend path
         ],
     )
     def test_valid_jsonpath_expressions(self, expr: str) -> None:
@@ -74,6 +85,18 @@ class TestJSONPathValidation:
         )
         assert len(mapping.path_mapping) == 3
 
+    def test_paths_without_dollar_prefix(self) -> None:
+        """Paths without $ prefix should work (frontend sends these)."""
+        mapping = InputMapping(
+            literal_mapping={},
+            path_mapping={
+                "input": "context.input",
+                "output": "context.output",
+                "nested": "data.items[0].name",
+            },
+        )
+        assert mapping.path_mapping["input"] == "context.input"
+
     # --- Pre-check rejections ---
 
     def test_empty_string_rejected(self) -> None:
@@ -81,12 +104,6 @@ class TestJSONPathValidation:
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": ""})
         assert "cannot be empty" in str(exc_info.value)
-
-    def test_missing_root_rejected(self) -> None:
-        """Expression not starting with $ should be rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            InputMapping(literal_mapping={}, path_mapping={"x": "foo.bar"})
-        assert "must start with '$'" in str(exc_info.value)
 
     def test_excessive_length_rejected(self) -> None:
         """Expression exceeding max length should be rejected."""
