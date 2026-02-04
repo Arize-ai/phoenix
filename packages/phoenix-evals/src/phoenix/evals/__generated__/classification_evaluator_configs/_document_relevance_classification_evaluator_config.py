@@ -14,5 +14,5 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
         )
     ],
     choices={"relevant": 1.0, "unrelated": 0.0},
-    formatters=None,
+    substitutions=None,
 )

@@ -14,5 +14,5 @@ FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         )
     ],
     choices={"faithful": 1.0, "unfaithful": 0.0},
-    formatters=None,
+    substitutions=None,
 )

@@ -16,4 +16,4 @@ class ClassificationEvaluatorConfig(BaseModel):
     optimization_direction: Literal["minimize", "maximize"]
     messages: list[PromptMessage]
     choices: dict[str, float]
-    formatters: Optional[dict[str, str]] = None  # placeholder -> formatter_name
+    substitutions: Optional[dict[str, str]] = None  # placeholder -> substitution_name

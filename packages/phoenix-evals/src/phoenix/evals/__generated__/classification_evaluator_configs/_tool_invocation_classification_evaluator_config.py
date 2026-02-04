@@ -14,7 +14,7 @@ TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         )
     ],
     choices={"correct": 1.0, "incorrect": 0.0},
-    formatters={
+    substitutions={
         "available_tools": "available_tools_parameters",
         "tool_selection": "tool_calls_to_string",
     },
