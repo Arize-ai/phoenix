@@ -226,6 +226,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/formatters/server.yaml",
 ]
 
 [tool.hatch.build]
@@ -246,6 +247,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/formatters/server.yaml",
 ]
 
 [tool.pytest.ini_options]

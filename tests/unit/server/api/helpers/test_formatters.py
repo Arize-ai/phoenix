@@ -111,7 +111,7 @@ class TestExpandConfigTemplates:
         expanded = expand_config_templates(config)
 
         # The placeholder should be expanded to the full Mustache block
-        assert "{{#available_tools}}" in expanded.messages[0].content
+        assert "{{#output.available_tools}}" in expanded.messages[0].content
         assert "{{function.name}}" in expanded.messages[0].content
 
     def test_expand_config_without_formatters_unchanged(self) -> None:
@@ -148,9 +148,9 @@ class TestClassificationEvaluatorConfigsLoading:
 
         # The available_tools placeholder should be expanded
         content = tool_sel.messages[0].content
-        assert "{{#available_tools}}" in content
+        assert "{{#output.available_tools}}" in content
         assert "{{function.name}}" in content
-        assert "{{^available_tools}}" in content
+        assert "{{^output.available_tools}}" in content
 
     def test_non_tool_configs_unchanged(self) -> None:
         """Test that configs without formatters have simple placeholders."""
