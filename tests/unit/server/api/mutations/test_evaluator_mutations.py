@@ -1940,7 +1940,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             name="test-builtin-evaluator-2",
             inputMapping=dict(
                 literalMapping={"key": "value"},
-                pathMapping={"input": "context.input"},
+                pathMapping={"input": "$.context.input"},
             ),
         )
         assert result.data and not result.errors
@@ -1953,7 +1953,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.input_mapping == InputMapping(
                 literal_mapping={"key": "value"},
-                path_mapping={"input": "context.input"},
+                path_mapping={"input": "$.context.input"},
             )
 
         # Success: Multiple builtin evaluators for same dataset
@@ -2159,7 +2159,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     "name": "original-name",
                     "inputMapping": dict(
                         literalMapping={"key": "original"},
-                        pathMapping={"input": "context.original"},
+                        pathMapping={"input": "$.context.original"},
                     ),
                 }
             },
@@ -2208,7 +2208,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     "name": "updated-name",
                     "inputMapping": dict(
                         literalMapping={"new_key": "new_value"},
-                        pathMapping={"output": "context.output"},
+                        pathMapping={"output": "$.context.output"},
                     ),
                 }
             },
@@ -2222,7 +2222,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.input_mapping == InputMapping(
                 literal_mapping={"new_key": "new_value"},
-                path_mapping={"output": "context.output"},
+                path_mapping={"output": "$.context.output"},
             )
 
         # Update both display name and input_mapping
