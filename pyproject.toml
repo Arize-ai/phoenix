@@ -27,6 +27,8 @@ dependencies = [
   "jinja2",
   "jsonpath-ng",
   "jsonschema",
+  "pystache",
+  "PyYAML",
   "starlette",
   "uvicorn",
   "psutil",
@@ -313,6 +315,7 @@ module = [
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
+  "pystache",
   "authlib.*",
   "google.*",
   "mistralai.*",
