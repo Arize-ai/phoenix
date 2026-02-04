@@ -205,6 +205,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
       fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
         id
         name
+        description
         updatedAt
         user {
           username
@@ -214,7 +215,6 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           id
           name
           kind
-          description
           createdAt
           updatedAt
           isBuiltin
@@ -335,7 +335,7 @@ export const DatasetEvaluatorsTable = ({
       },
       {
         header: "description",
-        accessorKey: "evaluator.description",
+        accessorKey: "description",
         cell: TextCell,
         enableSorting: false,
         size: 320,

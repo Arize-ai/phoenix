@@ -197,11 +197,12 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const onAddEvaluator = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      evaluator: { inputMapping, name },
+      evaluator: { inputMapping, name, description },
       outputConfig,
     } = store.getState();
 
     const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+    const normalizedDescription = description.trim();
 
     createDatasetBuiltInEvaluator({
       variables: {
@@ -211,6 +212,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           name,
           inputMapping,
           outputConfigOverride,
+          description: normalizedDescription,
         },
         connectionIds: updateConnectionIds,
       },

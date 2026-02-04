@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<711e25a00e3ed1f35e832420fa164dd0>>
+ * @generated SignedSource<<2f5f494617e73fb62fd9657878d76897>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -149,6 +149,13 @@ return {
                   "selections": [
                     (v1/*: any*/),
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "description",
+                      "storageKey": null
+                    },
                     (v3/*: any*/),
                     {
                       "alias": null,
@@ -190,13 +197,6 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "kind",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "description",
                           "storageKey": null
                         },
                         {
