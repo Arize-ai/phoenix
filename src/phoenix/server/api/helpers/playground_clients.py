@@ -496,6 +496,101 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             ):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
+    async def _chat_completion_create_unified_endpoint(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        """
+        Shared implementation for unified responses.create endpoint used by GPT 5.1 and 5.2 models.
+        Converts messages to input string format and handles streaming responses.
+        """
+        from openai import NOT_GIVEN
+
+        # Convert messages to input format for responses.create unified endpoint
+        # The unified endpoint uses 'input' (string) instead of 'messages' (array)
+        input_parts = []
+        for role, content, tool_call_id, tool_calls in messages:
+            if role is ChatCompletionMessageRole.SYSTEM:
+                input_parts.append(f"System: {content}")
+            elif role is ChatCompletionMessageRole.USER:
+                input_parts.append(f"User: {content}")
+            elif role is ChatCompletionMessageRole.AI:
+                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
+                if tool_calls:
+                    tool_call_parts = []
+                    for tool_call in tool_calls:
+                        tool_id = tool_call.get("id", "")
+                        function = tool_call.get("function", {})
+                        function_name = function.get("name", "")
+                        function_args = function.get("arguments", "")
+                        tool_call_parts.append(
+                            f"Tool Call ({tool_id}): {function_name}({function_args})"
+                        )
+                    assistant_msg += "\n" + "\n".join(tool_call_parts)
+                input_parts.append(assistant_msg)
+            elif role is ChatCompletionMessageRole.TOOL:
+                input_parts.append(f"Tool ({tool_call_id}): {content}")
+
+        input_text = "\n\n".join(input_parts)
+
+        tool_call_ids: dict[int, str] = {}
+        token_usage: Optional["CompletionUsage"] = None
+
+        # Use responses.create instead of chat.completions.create for unified endpoint
+        # The unified endpoint uses 'input' parameter instead of 'messages'
+        throttled_create = self.rate_limiter._alimit(self.client.responses.create)
+        async for chunk in await throttled_create(
+            input=input_text,
+            model=self.model_name,
+            stream=True,
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        ):
+            # Handle usage information if present
+            if hasattr(chunk, "usage") and chunk.usage is not None:
+                token_usage = chunk.usage
+
+            # Handle streaming chunks - unified endpoint may have different structure
+            # Check for choices format (similar to chat.completions)
+            if hasattr(chunk, "choices") and chunk.choices:
+                choice = chunk.choices[0]
+                if hasattr(choice, "delta"):
+                    delta = choice.delta
+                    if hasattr(delta, "content") and isinstance(delta.content, str):
+                        yield TextChunk(content=delta.content)
+                    if hasattr(delta, "tool_calls") and delta.tool_calls is not None:
+                        for tool_call_index, tool_call in enumerate(delta.tool_calls):
+                            tool_call_id = (
+                                tool_call.id
+                                if hasattr(tool_call, "id") and tool_call.id is not None
+                                else tool_call_ids.get(tool_call_index)
+                            )
+                            if tool_call_id:
+                                tool_call_ids[tool_call_index] = tool_call_id
+                            if hasattr(tool_call, "function") and tool_call.function is not None:
+                                function = tool_call.function
+                                yield ToolCallChunk(
+                                    id=tool_call_id or "",
+                                    function=FunctionCallChunk(
+                                        name=getattr(function, "name", "") or "",
+                                        arguments=getattr(function, "arguments", "") or "",
+                                    ),
+                                )
+            # Fallback: check for output_text format (unified endpoint format)
+            elif hasattr(chunk, "output_text") and chunk.output_text:
+                yield TextChunk(content=chunk.output_text)
+            elif hasattr(chunk, "delta") and chunk.delta:
+                delta = chunk.delta
+                if hasattr(delta, "output_text") and delta.output_text:
+                    yield TextChunk(content=delta.output_text)
+
+        if token_usage is not None:
+            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+
 
 def _get_credential_value(
     credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str
@@ -1279,88 +1374,10 @@ class OpenAIResponseStreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-
-        # Convert messages to input format for responses.create unified endpoint
-        # The unified endpoint uses 'input' (string) instead of 'messages' (array)
-        input_parts = []
-        for role, content, tool_call_id, tool_calls in messages:
-            if role is ChatCompletionMessageRole.SYSTEM:
-                input_parts.append(f"System: {content}")
-            elif role is ChatCompletionMessageRole.USER:
-                input_parts.append(f"User: {content}")
-            elif role is ChatCompletionMessageRole.AI:
-                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
-                if tool_calls:
-                    tool_call_parts = []
-                    for tool_call in tool_calls:
-                        tool_id = tool_call.get("id", "")
-                        function = tool_call.get("function", {})
-                        function_name = function.get("name", "")
-                        function_args = function.get("arguments", "")
-                        tool_call_parts.append(
-                            f"Tool Call ({tool_id}): {function_name}({function_args})"
-                        )
-                    assistant_msg += "\n" + "\n".join(tool_call_parts)
-                input_parts.append(assistant_msg)
-            elif role is ChatCompletionMessageRole.TOOL:
-                input_parts.append(f"Tool ({tool_call_id}): {content}")
-
-        input_text = "\n\n".join(input_parts)
-
-        tool_call_ids: dict[int, str] = {}
-        token_usage: Optional["CompletionUsage"] = None
-
-        # Use responses.create instead of chat.completions.create for unified endpoint
-        # The unified endpoint uses 'input' parameter instead of 'messages'
-        throttled_create = self.rate_limiter._alimit(self.client.responses.create)
-        async for chunk in await throttled_create(
-            input=input_text,
-            model=self.model_name,
-            stream=True,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
+        async for chunk in self._chat_completion_create_unified_endpoint(
+            messages, tools, **invocation_parameters
         ):
-            # Handle usage information if present
-            if hasattr(chunk, "usage") and chunk.usage is not None:
-                token_usage = chunk.usage
-
-            # Handle streaming chunks - unified endpoint may have different structure
-            # Check for choices format (similar to chat.completions)
-            if hasattr(chunk, "choices") and chunk.choices:
-                choice = chunk.choices[0]
-                if hasattr(choice, "delta"):
-                    delta = choice.delta
-                    if hasattr(delta, "content") and isinstance(delta.content, str):
-                        yield TextChunk(content=delta.content)
-                    if hasattr(delta, "tool_calls") and delta.tool_calls is not None:
-                        for tool_call_index, tool_call in enumerate(delta.tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if hasattr(tool_call, "id") and tool_call.id is not None
-                                else tool_call_ids.get(tool_call_index)
-                            )
-                            if tool_call_id:
-                                tool_call_ids[tool_call_index] = tool_call_id
-                            if hasattr(tool_call, "function") and tool_call.function is not None:
-                                function = tool_call.function
-                                yield ToolCallChunk(
-                                    id=tool_call_id or "",
-                                    function=FunctionCallChunk(
-                                        name=getattr(function, "name", "") or "",
-                                        arguments=getattr(function, "arguments", "") or "",
-                                    ),
-                                )
-            # Fallback: check for output_text format (unified endpoint format)
-            elif hasattr(chunk, "output_text") and chunk.output_text:
-                yield TextChunk(content=chunk.output_text)
-            elif hasattr(chunk, "delta") and chunk.delta:
-                delta = chunk.delta
-                if hasattr(delta, "output_text") and delta.output_text:
-                    yield TextChunk(content=delta.output_text)
-
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            yield chunk
 
 
 @register_llm_client(
@@ -1499,88 +1516,10 @@ class AzureOpenAIGPT51_52StreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-
-        # Convert messages to input format for responses.create unified endpoint
-        # The unified endpoint uses 'input' (string) instead of 'messages' (array)
-        input_parts = []
-        for role, content, tool_call_id, tool_calls in messages:
-            if role is ChatCompletionMessageRole.SYSTEM:
-                input_parts.append(f"System: {content}")
-            elif role is ChatCompletionMessageRole.USER:
-                input_parts.append(f"User: {content}")
-            elif role is ChatCompletionMessageRole.AI:
-                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
-                if tool_calls:
-                    tool_call_parts = []
-                    for tool_call in tool_calls:
-                        tool_id = tool_call.get("id", "")
-                        function = tool_call.get("function", {})
-                        function_name = function.get("name", "")
-                        function_args = function.get("arguments", "")
-                        tool_call_parts.append(
-                            f"Tool Call ({tool_id}): {function_name}({function_args})"
-                        )
-                    assistant_msg += "\n" + "\n".join(tool_call_parts)
-                input_parts.append(assistant_msg)
-            elif role is ChatCompletionMessageRole.TOOL:
-                input_parts.append(f"Tool ({tool_call_id}): {content}")
-
-        input_text = "\n\n".join(input_parts)
-
-        tool_call_ids: dict[int, str] = {}
-        token_usage: Optional["CompletionUsage"] = None
-
-        # Use responses.create instead of chat.completions.create for unified endpoint
-        # The unified endpoint uses 'input' parameter instead of 'messages'
-        throttled_create = self.rate_limiter._alimit(self.client.responses.create)
-        async for chunk in await throttled_create(
-            input=input_text,
-            model=self.model_name,
-            stream=True,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
+        async for chunk in self._chat_completion_create_unified_endpoint(
+            messages, tools, **invocation_parameters
         ):
-            # Handle usage information if present
-            if hasattr(chunk, "usage") and chunk.usage is not None:
-                token_usage = chunk.usage
-
-            # Handle streaming chunks - unified endpoint may have different structure
-            # Check for choices format (similar to chat.completions)
-            if hasattr(chunk, "choices") and chunk.choices:
-                choice = chunk.choices[0]
-                if hasattr(choice, "delta"):
-                    delta = choice.delta
-                    if hasattr(delta, "content") and isinstance(delta.content, str):
-                        yield TextChunk(content=delta.content)
-                    if hasattr(delta, "tool_calls") and delta.tool_calls is not None:
-                        for tool_call_index, tool_call in enumerate(delta.tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if hasattr(tool_call, "id") and tool_call.id is not None
-                                else tool_call_ids.get(tool_call_index)
-                            )
-                            if tool_call_id:
-                                tool_call_ids[tool_call_index] = tool_call_id
-                            if hasattr(tool_call, "function") and tool_call.function is not None:
-                                function = tool_call.function
-                                yield ToolCallChunk(
-                                    id=tool_call_id or "",
-                                    function=FunctionCallChunk(
-                                        name=getattr(function, "name", "") or "",
-                                        arguments=getattr(function, "arguments", "") or "",
-                                    ),
-                                )
-            # Fallback: check for output_text format (unified endpoint format)
-            elif hasattr(chunk, "output_text") and chunk.output_text:
-                yield TextChunk(content=chunk.output_text)
-            elif hasattr(chunk, "delta") and chunk.delta:
-                delta = chunk.delta
-                if hasattr(delta, "output_text") and delta.output_text:
-                    yield TextChunk(content=delta.output_text)
-
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            yield chunk
 
 
 @register_llm_client(
