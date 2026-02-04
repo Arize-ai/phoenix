@@ -173,28 +173,6 @@ class MustacheTemplateFormatter(TemplateFormatter):
             return None
         return key
 
-    def _extract_variables_from_parse_tree(self, parse_tree: list[Any]) -> set[str]:
-        """
-        Extract top-level variable names from a pystache parse tree.
-
-        Only extracts variables at the top level (depth 0), not those nested
-        inside sections.
-        """
-        variables: set[str] = set()
-        for node in parse_tree:
-            node_type = type(node).__name__
-            if node_type in {"_SectionNode", "_InvertedNode"}:
-                key = self._extract_key(node)
-                if key:
-                    variables.add(self._get_root_variable_name(key))
-                # Don't recurse into section children - we only want top-level vars
-                continue
-            if node_type in {"_EscapeNode", "_LiteralNode"}:
-                key = self._extract_key(node)
-                if key:
-                    variables.add(self._get_root_variable_name(key))
-        return variables
-
     def _extract_variables_from_parse_tree_with_types(
         self, parse_tree: list[Any]
     ) -> dict[str, Literal["string", "section"]]:
@@ -219,51 +197,6 @@ class MustacheTemplateFormatter(TemplateFormatter):
                     root_name = self._get_root_variable_name(key)
                     variables.setdefault(root_name, "string")
         return variables
-
-    def _fallback_extract_variables(self, template: str) -> tuple[set[str], int]:
-        """
-        Regex-based fallback for variable extraction when native parser fails.
-
-        Best-effort extraction that handles most common Mustache patterns.
-
-        Returns:
-            A tuple of (variables, final_depth) where final_depth > 0 indicates
-            unclosed sections.
-        """
-        variables: set[str] = set()
-        depth = 0
-        for match in self._fallback_regex.findall(template):
-            trimmed = match.strip()
-            if not trimmed:
-                continue
-            # Skip comments, partials, delimiter changes
-            if trimmed.startswith("!") or trimmed.startswith(">") or trimmed.startswith("="):
-                continue
-            # Handle unescaped variables ({{& name}})
-            if trimmed.startswith("&"):
-                if depth == 0:
-                    var_name = trimmed[1:].strip()
-                    if var_name:
-                        variables.add(self._get_root_variable_name(var_name))
-                continue
-            # Skip malformed triple braces captured as `{name`
-            if trimmed.startswith("{"):
-                continue
-            # Handle sections
-            if trimmed.startswith("#") or trimmed.startswith("^"):
-                if depth == 0:
-                    var_name = trimmed[1:].strip()
-                    variables.add(self._get_root_variable_name(var_name))
-                depth += 1
-                continue
-            # Handle section closers
-            if trimmed.startswith("/"):
-                depth = max(0, depth - 1)
-                continue
-            # Regular variables at top level
-            if depth == 0:
-                variables.add(self._get_root_variable_name(trimmed))
-        return variables, depth
 
     def _fallback_extract_variables_with_types(
         self, template: str
@@ -317,33 +250,10 @@ class MustacheTemplateFormatter(TemplateFormatter):
         """
         Extract top-level variable names from mustache template.
 
-        Uses native-parser-first approach: tries pystache.parse() first for
-        spec-consistent parsing. Falls back to regex-based extraction when:
-        - The native parser fails with an exception
-        - The template has unclosed sections (depth > 0), since pystache may
-          produce unexpected results for malformed templates
-
-        Only extracts variables at the top level, not those nested inside sections.
-        This ensures validation only checks for required top-level inputs.
-        For dotted paths like {{output.available_tools}}, only the root variable
-        name (output) is extracted, since Mustache traverses nested properties
-        starting from the root.
+        Delegates to parse_with_types() and returns just the variable names.
+        See parse_with_types() for full documentation.
         """
-        # First, do a quick regex scan to check for unclosed sections
-        # This is needed because pystache may not throw on malformed templates
-        # but produces unexpected parse trees for unclosed sections
-        fallback_vars, depth = self._fallback_extract_variables(template)
-        if depth > 0:
-            # Template has unclosed sections - use regex result
-            return fallback_vars
-
-        # Template is well-formed (sections balanced), try native parser
-        try:
-            parse_tree = self._get_parse_tree(template)
-            return self._extract_variables_from_parse_tree(parse_tree)
-        except Exception:
-            # Fall back to regex-based extraction
-            return fallback_vars
+        return self.parse_with_types(template).names()
 
     def parse_with_types(self, template: str) -> ParsedVariables:
         """
