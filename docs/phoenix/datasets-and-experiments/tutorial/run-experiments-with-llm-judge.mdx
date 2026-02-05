@@ -3,11 +3,15 @@ title: "Run Experiments with LLM as a Judge"
 description: "Learn how to define and run experiments to systematically evaluate your AI application using LLM as a Judge evaluators for subjective quality assessments."
 ---
 
-<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+<div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+  <Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+  <Card title="Follow with Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/experiments/typescript-experiments-quickstart" />
+</div>
 
+In this section, you’ll run a repeatable experiment that uses an LLM-as-a-Judge to score agent outputs on specific and subjective criteria. These evaluations are well suited for cases where ground truth is unavailable or where quality expectations can be clearly defined in a prompt.
 ## LLM as a Judge Evaluators
 
-**LLM as a Judge evaluators** use an LLM to assess output quality. These are particularly useful when correctness is subjective or hard to encode with rules, such as evaluating relevance, helpfulness, reasoning quality, or actionability.
+**LLM as a Judge evaluators** use an LLM to assess output quality. These are particularly useful when correctness is hard to encode with rules, such as evaluating relevance, helpfulness, reasoning quality, or actionability.
 
 These evaluators use criteria you define, making them suitable for datasets with or without reference outputs.
 
@@ -21,7 +25,9 @@ The task function is what Phoenix calls for each example in your dataset. It rec
 
 In this example, our task function extracts the query from the dataset input, runs the full support agent (which includes tool calls and reasoning), and returns the agent's response:
 
-```python
+<CodeGroup>
+
+```python Python
 def my_support_agent_task(input):
     """
     Task function that will be run on each row of the dataset.
@@ -33,11 +39,23 @@ def my_support_agent_task(input):
     return response.content
 ```
 
+```typescript TypeScript
+import type { Example } from "@arizeai/phoenix-client/types/datasets";
+
+async function supportAgentTask(example: Example) {
+  return supportAgent(example.input.query as string);
+}
+```
+
+</CodeGroup>
+
 ### Define the LLM as a Judge Evaluator
 
 We create an LLM as a Judge evaluator that assesses whether the agent's response is actionable and helpful. The evaluator uses a prompt template that defines the criteria for a good response:
 
-```python
+<CodeGroup>
+
+```python Python
 # Define LLM Judge Evaluator checking for Actionable Responses
 from phoenix.evals import create_classifier, LLM
 from phoenix.experiments.types import EvaluationResult
@@ -93,11 +111,56 @@ def call_actionability_judge(input, output):
     )
 ```
 
+```typescript TypeScript
+import { openai } from "@ai-sdk/openai";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+// Define Prompt Template
+const actionabilityPromptTemplate = `
+You are evaluating a customer support agent's response.
+
+Determine whether the response is ACTIONABLE and helps resolve the user's issue.
+
+Mark the response as CORRECT if it:
+- Directly addresses the user's specific question
+- Provides concrete steps, guidance, or information
+- Clearly routes the user toward a solution
+
+Mark the response as INCORRECT if it:
+- Is generic, vague, or non-specific
+- Avoids answering the question
+- Provides no clear next steps
+- Deflects with phrases like "contact support" without guidance
+
+User Query:
+{{input.query}}
+
+Agent Response:
+{{output}}
+
+Return only one label: "correct" or "incorrect".
+`;
+
+// Create Evaluator
+const actionabilityJudge = createClassificationEvaluator({
+  name: "actionability-judge",
+  model: openai("gpt-5"),
+  promptTemplate: actionabilityPromptTemplate,
+  choices: { correct: 1, incorrect: 0 },
+});
+```
+
+</CodeGroup>
+
+Note: In TypeScript, the `createClassificationEvaluator` returns an evaluator that can be passed directly to `runExperiment` without needing a wrapper function. The template variables use double curly braces `{{variable}}` instead of single braces.
+
 ### Run the Experiment
 
 Run the experiment on your dataset.
 
-```python
+<CodeGroup>
+
+```python Python
 from phoenix.experiments import run_experiment
 
 experiment = run_experiment(
@@ -109,7 +172,26 @@ experiment = run_experiment(
 )
 ```
 
-In the Phoenix UI, you can click into the experiment to view the full agent trace for each dataset example and see the evaluator output including the score, explanation, label, and trace.
+```typescript TypeScript
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+const experiment = await runExperiment({
+  dataset: { datasetName: "support-ticket-queries" },
+  experimentName: "support agent",
+  experimentDescription:
+    "Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
+  task: supportAgentTask,
+  evaluators: [actionabilityJudge],
+});
+```
+
+</CodeGroup>
+
+In the Phoenix UI, you can click into the experiment to inspect the results:
+- **Complete agent traces** let you drill into any run to see the exact inputs, agent reasoning, tool calls, and response. This is useful for understanding agent behavior and debugging when an example scores poorly. 
+- **Scores and labels per example** show which inputs the LLM Judge rated highly or poorly, so you can spot patterns and prioritize where to improve. 
+- **Evaluator explanation** tells you *why* the judge gave each score so you can fix specific failure modes. 
+- **Aggregate metrics** across the run let you compare experiments over time and track whether quality is improving.
 
 <Frame caption="Running an experiment with an LLM as a Judge evaluator">
   <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/python_experiments_quickstart_llm_judge.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />

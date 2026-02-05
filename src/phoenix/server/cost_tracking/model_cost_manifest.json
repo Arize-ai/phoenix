@@ -1360,6 +1360,28 @@
       ]
     },
     {
+      "name": "gemini-robotics-er-1.5-preview",
+      "name_pattern": "gemini-robotics-er-1\\.5-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gpt-3.5-turbo",
       "name_pattern": "gpt-(35|3.5)-turbo",
       "source": "litellm",

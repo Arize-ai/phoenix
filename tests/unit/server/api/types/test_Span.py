@@ -890,3 +890,72 @@ async def spans_with_annotations(
 
         # Add all annotations to the session
         session.add_all(hallucination_annotations + relevance_annotations)
+
+
+async def test_as_example_revision_with_annotations(
+    gql_client: AsyncGraphQLClient,
+    spans_with_annotations: None,
+) -> None:
+    """
+    Test the asExampleRevision field returns span data with annotations.
+
+    This test verifies that:
+    1. The asExampleRevision field returns the expected input, output, and metadata
+    2. Annotations are correctly grouped by name as lists (to handle duplicates)
+    3. ORM attributes are accessed correctly (not strawberry field methods)
+    """
+    query = """
+      query ($spanId: ID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            revision: asExampleRevision {
+              input
+              output
+              metadata
+            }
+          }
+        }
+      }
+    """
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    response = await gql_client.execute(
+        query=query,
+        variables={"spanId": span_id},
+    )
+    assert not response.errors, f"GraphQL query returned errors: {response.errors}"
+    assert response.data is not None
+
+    revision = response.data["span"]["revision"]
+    assert revision is not None
+
+    # Check that metadata contains annotations
+    metadata = revision["metadata"]
+    assert metadata is not None
+    assert "span_kind" in metadata
+    assert metadata["span_kind"] == "LLM"
+
+    # Check annotations are present and structured as lists
+    annotations = metadata.get("annotations")
+    assert annotations is not None, "Expected annotations in metadata"
+
+    # Verify Hallucination annotations (5 total in fixture)
+    assert "Hallucination" in annotations
+    hallucination_list = annotations["Hallucination"]
+    assert isinstance(hallucination_list, list)
+    assert len(hallucination_list) == 5
+
+    # Verify Relevance annotations (4 total in fixture)
+    assert "Relevance" in annotations
+    relevance_list = annotations["Relevance"]
+    assert isinstance(relevance_list, list)
+    assert len(relevance_list) == 4
+
+    # Verify annotation structure (each should have these fields)
+    for annotation in hallucination_list + relevance_list:
+        assert "label" in annotation
+        assert "score" in annotation
+        assert "explanation" in annotation
+        assert "metadata" in annotation
+        assert "annotator_kind" in annotation
+        # annotator_kind should be a string, not a function or enum
+        assert annotation["annotator_kind"] in ("HUMAN", "LLM", "CODE")

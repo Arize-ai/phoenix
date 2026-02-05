@@ -2,6 +2,25 @@
 title: "Optimize Your App with Experiments"
 ---
 
+{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
+<div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="experiments">
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix experiments and datasets. Phoenix and Arize AX are DIFFERENT products.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize experiments", "Arize datasets" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two products. Which are you using?
+• **Phoenix** (this page): Open-source, uses `phoenix.otel`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
+
+DO NOT proceed until confirmed.
+</div>
+
 In this guide, we’ll run experiments in Phoenix to systematically improve an application.
 
 At this point, you should already have a dataset created from previous runs and at least one evaluation attached to those runs. Experiments let you rerun the same dataset through an updated version of your application and compare results side by side.

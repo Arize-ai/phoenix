@@ -72,6 +72,7 @@ class SpanKind(Enum):
     reranker = "RERANKER"
     evaluator = "EVALUATOR"
     guardrail = "GUARDRAIL"
+    prompt = "PROMPT"
     unknown = "UNKNOWN"
 
     @classmethod
@@ -721,17 +722,20 @@ class Span(Node):
             else await info.context.data_loaders.span_by_id.load(self.id)
         )
 
-        # Fetch annotations associated with this span
-        span_annotations = await self.span_annotations(info)
-        annotations = dict()
+        # Fetch annotations associated with this span using the dataloader
+        # which returns ORM objects directly
+        span_annotations = await info.context.data_loaders.span_annotations.load(self.id)
+        annotations: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for annotation in span_annotations:
-            annotations[annotation.name] = {
-                "label": annotation.label,
-                "score": annotation.score,
-                "explanation": annotation.explanation,
-                "metadata": annotation.metadata,
-                "annotator_kind": annotation.annotator_kind.value,
-            }
+            annotations[annotation.name].append(
+                {
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "metadata": annotation.metadata_,
+                    "annotator_kind": annotation.annotator_kind,
+                }
+            )
         # Merge annotations into the metadata
         metadata = {
             "span_kind": span.span_kind,

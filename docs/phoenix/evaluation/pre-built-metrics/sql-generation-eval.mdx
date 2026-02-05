@@ -3,6 +3,52 @@ title: "SQL Generation"
 description: "SQL Generation is a common approach to using an LLM. In many cases the goal is to take a human description of the query and generate matching SQL to the human description."
 ---
 
+<Warning>
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and is not available as a built-in metric in evals 2.0. You can still use these templates with older versions of the library (see [API Reference](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/)), or migrate them to custom evaluators as shown below.
+</Warning>
+
+<Accordion title="Using this template with evals 2.0">
+You can use the legacy template with a custom `ClassificationEvaluator`:
+
+```python
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+SQL_EVAL_TEMPLATE = """You are tasked with determining if the SQL generated appropriately answers a given
+instruction taking into account its generated query and response.
+
+Data:
+-----
+- [Instruction]: {question}
+  This section contains the specific task or problem that the sql query is intended to solve.
+
+- [Reference Query]: {query_gen}
+  This is the sql query submitted for evaluation. Analyze it in the context of the provided instruction.
+
+- [Provided Response]: {response}
+  This is the response and/or conclusions made after running the sql query through the database
+
+Evaluation:
+-----------
+You must assume that the db exists and that columns are appropriately named.
+You must take into account the response as additional information to determine the correctness.
+"correct" means the SQL query correctly answers the instruction.
+"incorrect" means the SQL query does not correctly answer the instruction."""
+
+sql_evaluator = ClassificationEvaluator(
+    name="sql_generation",
+    prompt_template=SQL_EVAL_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices={"incorrect": 0, "correct": 1},
+)
+
+result = sql_evaluator.evaluate({
+    "question": "How many artists have names longer than 10 characters?",
+    "query_gen": "SELECT COUNT(ArtistId) FROM artists WHERE LENGTH(Name) > 10",
+    "response": "42"
+})
+```
+</Accordion>
 
 **Example of a Question:**\
 How many artists have names longer than 10 characters?
