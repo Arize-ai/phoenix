@@ -1,11 +1,10 @@
-import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Heading, Label, Switch, Text, View } from "@phoenix/components";
-import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
+import { MultiOutputConfigEditor } from "@phoenix/components/evaluators/MultiOutputConfigEditor";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
@@ -14,17 +13,12 @@ export const LLMEvaluatorForm = () => {
   if (evaluatorKind !== "LLM") {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
   }
-  const { showPromptPreview, setShowPromptPreview, outputConfig } =
-    useEvaluatorStore(
-      useShallow((state) => ({
-        showPromptPreview: state.showPromptPreview,
-        setShowPromptPreview: state.setShowPromptPreview,
-        outputConfig: state.outputConfig,
-      }))
-    );
-  const isCategoricalAnnotationConfig = useMemo(() => {
-    return outputConfig && "values" in outputConfig;
-  }, [outputConfig]);
+  const { showPromptPreview, setShowPromptPreview } = useEvaluatorStore(
+    useShallow((state) => ({
+      showPromptPreview: state.showPromptPreview,
+      setShowPromptPreview: state.setShowPromptPreview,
+    }))
+  );
   return (
     <>
       <View marginBottom="size-200" flex="none">
@@ -56,19 +50,10 @@ export const LLMEvaluatorForm = () => {
           <EvaluatorChatTemplate />
         )}
       </Flex>
-      <View marginBottom="size-200" flex="none">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2} weight="heavy">
-            Evaluator Annotation
-          </Heading>
-          <Text color="text-500">
-            Define the annotation that your evaluator will create.
-          </Text>
-          {isCategoricalAnnotationConfig ? (
-            <EvaluatorCategoricalChoiceConfig />
-          ) : null}
-        </Flex>
-      </View>
+      <MultiOutputConfigEditor
+        title="Evaluator Annotation"
+        description="Define the annotations that your evaluator will create."
+      />
       <Flex direction="column" gap="size-100">
         <Heading level={2} weight="heavy">
           Map Prompt Variables (optional)

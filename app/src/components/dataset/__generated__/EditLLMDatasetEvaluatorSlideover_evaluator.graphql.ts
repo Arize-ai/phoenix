@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8835b19a7d7c8abae335262ea0f81812>>
+ * @generated SignedSource<<a00fd6464fd74d4350ee3815ac13e3ce>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,14 +17,14 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly description: string | null;
     readonly kind: EvaluatorKind;
     readonly name: string;
-    readonly outputConfig?: {
+    readonly outputConfigs?: ReadonlyArray<{
       readonly name?: string;
       readonly optimizationDirection: OptimizationDirection;
       readonly values: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
-    };
+    }>;
     readonly prompt?: {
       readonly id: string;
       readonly name: string;
@@ -42,7 +42,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly pathMapping: any;
   };
   readonly name: string;
-  readonly outputConfig: {
+  readonly outputConfigs: ReadonlyArray<{
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
@@ -51,7 +51,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  } | null;
+  }> | null;
   readonly " $fragmentType": "EditLLMDatasetEvaluatorSlideover_evaluator";
 };
 export type EditLLMDatasetEvaluatorSlideover_evaluator$key = {
@@ -189,8 +189,8 @@ return {
       "args": null,
       "concreteType": null,
       "kind": "LinkedField",
-      "name": "outputConfig",
-      "plural": false,
+      "name": "outputConfigs",
+      "plural": true,
       "selections": [
         (v2/*: any*/),
         {
@@ -258,8 +258,8 @@ return {
               "args": null,
               "concreteType": "CategoricalAnnotationConfig",
               "kind": "LinkedField",
-              "name": "outputConfig",
-              "plural": false,
+              "name": "outputConfigs",
+              "plural": true,
               "selections": [
                 (v2/*: any*/),
                 (v3/*: any*/),
@@ -505,6 +505,6 @@ return {
 };
 })();
 
-(node as any).hash = "fecc4c65947c688f3e8bbf5bc1f5a262";
+(node as any).hash = "2e11a9182fcbf96872fb4c59e8aa5bcc";
 
 export default node;

@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 from pydantic import (
     BaseModel,
@@ -18,6 +18,12 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolFunction,
     PromptTools,
 )
+
+if TYPE_CHECKING:
+    from phoenix.server.api.input_types.AnnotationConfigInput import (
+        AnnotationConfigInput,
+        NamedAnnotationConfigOverrideInput,
+    )
 
 
 def validate_evaluator_prompt_and_config(
@@ -103,11 +109,18 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
     llm_evaluator: models.LLMEvaluator,
 ) -> None:
+    # Get the first output config for validation (primary config)
+    output_configs = llm_evaluator.output_configs
+    if not output_configs:
+        raise ValueError("LLM evaluator must have at least one output config")
+    output_config = output_configs[0]
+    if not isinstance(output_config, CategoricalAnnotationConfig):
+        raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
     validate_evaluator_prompt_and_config(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=llm_evaluator.output_config.name or "",
-        evaluator_output_config=llm_evaluator.output_config,
+        evaluator_annotation_name=output_config.name or "",
+        evaluator_output_config=output_config,
         evaluator_description=llm_evaluator.description,
     )
 
@@ -196,3 +209,109 @@ class _LLMEvaluatorPromptErrorMessage:
     EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED = (
         "The 'explanation' property must be omitted or set to a string."
     )
+
+
+# ============================================================================
+# Multi-output evaluator validation helpers
+# ============================================================================
+
+
+def get_config_name(
+    config: "AnnotationConfigInput",
+) -> str:
+    """
+    Extract the name from an AnnotationConfigInput.
+
+    Args:
+        config: The annotation config input to extract the name from.
+
+    Returns:
+        The name of the config.
+
+    Raises:
+        ValueError: If no annotation config variant is provided.
+    """
+    import strawberry
+
+    if config.categorical is not None and config.categorical is not strawberry.UNSET:
+        return str(config.categorical.name)
+    elif config.continuous is not None and config.continuous is not strawberry.UNSET:
+        return str(config.continuous.name)
+    elif config.freeform is not None and config.freeform is not strawberry.UNSET:
+        return str(config.freeform.name)
+    else:
+        raise ValueError("No annotation config provided")
+
+
+def validate_unique_config_names(
+    configs: "list[AnnotationConfigInput]",
+) -> None:
+    """
+    Validate that all config names in the list are unique.
+
+    Args:
+        configs: List of annotation config inputs to validate.
+
+    Raises:
+        ValueError: If duplicate config names are found.
+    """
+    config_names = [get_config_name(c) for c in configs]
+    if len(config_names) != len(set(config_names)):
+        duplicates = [name for name in config_names if config_names.count(name) > 1]
+        raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
+
+
+def validate_min_one_config(
+    configs: "list[AnnotationConfigInput]",
+) -> None:
+    """
+    Validate that at least one config exists in the list.
+
+    Args:
+        configs: List of annotation config inputs to validate.
+
+    Raises:
+        ValueError: If the config list is empty.
+    """
+    if not configs:
+        raise ValueError("At least one output config is required")
+
+
+def validate_unique_override_names(
+    overrides: "list[NamedAnnotationConfigOverrideInput]",
+) -> None:
+    """
+    Validate that all override names in the list are unique.
+
+    Args:
+        overrides: List of named override inputs to validate.
+
+    Raises:
+        ValueError: If duplicate override names are found.
+    """
+    override_names = [o.name for o in overrides]
+    if len(override_names) != len(set(override_names)):
+        duplicates = [name for name in override_names if override_names.count(name) > 1]
+        raise ValueError(f"Override names must be unique. Duplicates found: {set(duplicates)}")
+
+
+def validate_override_names_match_configs(
+    overrides: "list[NamedAnnotationConfigOverrideInput]",
+    base_config_names: list[str],
+) -> None:
+    """
+    Validate that all override names match base config names.
+
+    Args:
+        overrides: List of named override inputs to validate.
+        base_config_names: List of valid config names from the base evaluator.
+
+    Raises:
+        ValueError: If an override name doesn't match any base config name.
+    """
+    for override in overrides:
+        if override.name not in base_config_names:
+            raise ValueError(
+                f"Override '{override.name}' doesn't match any config. "
+                f"Available configs: {base_config_names}"
+            )

@@ -70,7 +70,7 @@ export function PlaygroundDatasetSection({
                   kind
                   isBuiltin
                 }
-                outputConfig {
+                outputConfigs {
                   ... on CategoricalAnnotationConfig {
                     name
                     optimizationDirection
@@ -133,39 +133,43 @@ export function PlaygroundDatasetSection({
       .filter((datasetEvaluator) =>
         selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
       )
-      .map((datasetEvaluator) => {
-        const outputConfig = datasetEvaluator.outputConfig;
-        if (!outputConfig) {
+      .flatMap((datasetEvaluator) => {
+        const outputConfigs = datasetEvaluator.outputConfigs;
+        if (!outputConfigs || outputConfigs.length === 0) {
           // TODO: all evaluators should have an output config eventually
+          return [
+            {
+              name: datasetEvaluator.name,
+              annotationType: "FREEFORM",
+            } satisfies AnnotationConfig,
+          ];
+        }
+        return outputConfigs.map((outputConfig) => {
+          // Handle CategoricalAnnotationConfig from the union
+          if ("values" in outputConfig && outputConfig.values) {
+            return {
+              name: outputConfig.name ?? datasetEvaluator.name,
+              optimizationDirection: outputConfig.optimizationDirection,
+              values: outputConfig.values,
+              annotationType: "CATEGORICAL",
+            } satisfies AnnotationConfig;
+          }
+          // Handle ContinuousAnnotationConfig from the union
+          if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
+            return {
+              name: outputConfig.name ?? datasetEvaluator.name,
+              optimizationDirection: outputConfig.optimizationDirection,
+              lowerBound: outputConfig.lowerBound,
+              upperBound: outputConfig.upperBound,
+              annotationType: "CONTINUOUS",
+            } satisfies AnnotationConfig;
+          }
+          // Fallback for freeform or unknown types
           return {
             name: datasetEvaluator.name,
             annotationType: "FREEFORM",
           } satisfies AnnotationConfig;
-        }
-        // Handle CategoricalAnnotationConfig from the union
-        if ("values" in outputConfig && outputConfig.values) {
-          return {
-            name: outputConfig.name ?? datasetEvaluator.name,
-            optimizationDirection: outputConfig.optimizationDirection,
-            values: outputConfig.values,
-            annotationType: "CATEGORICAL",
-          } satisfies AnnotationConfig;
-        }
-        // Handle ContinuousAnnotationConfig from the union
-        if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
-          return {
-            name: outputConfig.name ?? datasetEvaluator.name,
-            optimizationDirection: outputConfig.optimizationDirection,
-            lowerBound: outputConfig.lowerBound,
-            upperBound: outputConfig.upperBound,
-            annotationType: "CONTINUOUS",
-          } satisfies AnnotationConfig;
-        }
-        // Fallback for freeform or unknown types
-        return {
-          name: datasetEvaluator.name,
-          annotationType: "FREEFORM",
-        } satisfies AnnotationConfig;
+        });
       });
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 

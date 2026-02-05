@@ -195,7 +195,7 @@ export function ExperimentCompareListPage({
                 edges {
                   node {
                     name
-                    outputConfig {
+                    outputConfigs {
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection

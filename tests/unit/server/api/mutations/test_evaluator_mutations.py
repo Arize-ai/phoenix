@@ -42,7 +42,7 @@ class TestDatasetLLMEvaluatorMutations:
             id
             name
             description
-            outputConfig {
+            outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
                 description
@@ -151,24 +151,29 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
         llm_evaluator_data = dataset_evaluator["evaluator"]
         assert dataset_evaluator["name"] == "test-evaluator"
         assert dataset_evaluator["description"] == "test description"
-        assert dataset_evaluator["outputConfig"]["name"] == "test-evaluator"
-        assert dataset_evaluator["outputConfig"]["description"] == "test description"
-        assert len(dataset_evaluator["outputConfig"]["values"]) == 2
+        assert len(dataset_evaluator["outputConfigs"]) == 1
+        assert dataset_evaluator["outputConfigs"][0]["name"] == "correctness"
+        assert dataset_evaluator["outputConfigs"][0]["description"] == "description"
+        assert len(dataset_evaluator["outputConfigs"][0]["values"]) == 2
         assert llm_evaluator_data["kind"] == "LLM"
         await self._verify_prompt_version_messages(
             gql_client, llm_evaluator_data["promptVersion"]["id"], "Eval {{input}}"
@@ -189,10 +194,13 @@ class TestDatasetLLMEvaluatorMutations:
                 literal_mapping={}, path_mapping={}
             )
             assert db_dataset_evaluator.description == "test description"
-            assert db_dataset_evaluator.output_config_override is None
-            assert llm_evaluator.output_config is not None
-            assert llm_evaluator.output_config.name == "correctness"
-            assert len(llm_evaluator.output_config.values) == 2
+            assert db_dataset_evaluator.output_config_overrides is None
+            assert llm_evaluator.output_configs is not None
+            assert len(llm_evaluator.output_configs) == 1
+            output_config = llm_evaluator.output_configs[0]
+            assert output_config.name == "correctness"
+            assert isinstance(output_config, CategoricalAnnotationConfig)
+            assert len(output_config.values) == 2
 
         result = await self._create(
             gql_client,
@@ -233,15 +241,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
@@ -291,15 +303,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
@@ -356,15 +372,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.errors and "Dataset with id 999 not found" in result.errors[0].message
 
@@ -380,15 +400,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.errors
 
@@ -516,15 +540,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
@@ -622,15 +650,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
@@ -787,15 +819,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
@@ -871,11 +907,15 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="out",
-                optimizationDirection="MAXIMIZE",
-                values=[dict(label="a", score=1), dict(label="b", score=0)],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="out",
+                        optimizationDirection="MAXIMIZE",
+                        values=[dict(label="a", score=1), dict(label="b", score=0)],
+                    )
+                )
+            ],
         )
         assert result.data and not result.errors
 
@@ -955,15 +995,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="description",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="description",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
         assert result.errors
         assert "not found" in result.errors[0].message.lower()
@@ -1020,15 +1064,19 @@ class TestDatasetLLMEvaluatorMutations:
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
-            outputConfig=dict(
-                name="correctness",
-                description="correctness eval",
-                optimizationDirection="MAXIMIZE",
-                values=[
-                    dict(label="correct", score=1),
-                    dict(label="incorrect", score=0),
-                ],
-            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        description="correctness eval",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
         )
 
         result1 = await self._create(
@@ -1147,15 +1195,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
-                    "outputConfig": dict(
-                        name="result",
-                        description="updated output description",
-                        optimizationDirection="MINIMIZE",
-                        values=[
-                            dict(label="good", score=1),
-                            dict(label="bad", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="result",
+                                description="updated output description",
+                                optimizationDirection="MINIMIZE",
+                                values=[
+                                    dict(label="good", score=1),
+                                    dict(label="bad", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -1179,10 +1231,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.output_config_override is None
+            assert db_dataset_evaluator.output_config_overrides is None
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
-            assert db_evaluator.output_config.name == "result"
+            assert db_evaluator.output_configs[0].name == "result"
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
         self,
@@ -1257,15 +1309,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
-                    "outputConfig": dict(
-                        name="result",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="yes", score=1),
-                            dict(label="no", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="result",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="yes", score=1),
+                                    dict(label="no", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -1438,15 +1494,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
-                    "outputConfig": dict(
-                        name="result",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="yes", score=1),
-                            dict(label="no", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="result",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="yes", score=1),
+                                    dict(label="no", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -1550,15 +1610,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
-                    "outputConfig": dict(
-                        name="result",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="yes", score=1),
-                            dict(label="no", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="result",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="yes", score=1),
+                                    dict(label="no", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -1664,15 +1728,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider=current_prompt_version.model_provider.value,
                         modelName=current_prompt_version.model_name,
                     ),
-                    "outputConfig": dict(
-                        name="correctness",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="correct", score=1),
-                            dict(label="incorrect", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="correctness",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="correct", score=1),
+                                    dict(label="incorrect", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -1830,15 +1898,19 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
-                    "outputConfig": dict(
-                        name="correctness",
-                        description="description",
-                        optimizationDirection="MAXIMIZE",
-                        values=[
-                            dict(label="correct", score=1),
-                            dict(label="incorrect", score=0),
-                        ],
-                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="correctness",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="correct", score=1),
+                                    dict(label="incorrect", score=0),
+                                ],
+                            )
+                        )
+                    ],
                 }
             },
         )
@@ -2104,7 +2176,9 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             name="test-levenshtein",
-            outputConfigOverride={"continuous": {"upperBound": -1.0}},
+            outputConfigOverrides=[
+                {"name": "levenshtein_distance", "override": {"continuous": {"upperBound": -1.0}}}
+            ],
         )
         assert result.errors
         assert "lower_bound" in result.errors[0].message.lower()
@@ -2115,7 +2189,12 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             name="test-levenshtein-2",
-            outputConfigOverride={"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+            outputConfigOverrides=[
+                {
+                    "name": "levenshtein_distance",
+                    "override": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                }
+            ],
         )
         assert result.data and not result.errors
 
@@ -2311,23 +2390,25 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             name=llm_evaluator_name,
             description="test llm evaluator",
             kind="LLM",
-            output_config=CategoricalAnnotationConfig(
-                type="CATEGORICAL",
-                name="test",
-                optimization_direction=OptimizationDirection.MAXIMIZE,
-                description="test description",
-                values=[
-                    CategoricalAnnotationValue(label="good", score=1.0),
-                    CategoricalAnnotationValue(label="bad", score=0.0),
-                ],
-            ),
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="test",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="test description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                )
+            ],
             prompt=prompt,
             dataset_evaluators=[
                 models.DatasetEvaluators(
                     dataset_id=empty_dataset.id,
                     name=llm_evaluator_name,
                     description="test description",
-                    output_config_override=None,
+                    output_config_overrides=None,
                     input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     project=models.Project(
                         name=f"{empty_dataset.name}/{llm_evaluator_name}",
@@ -2456,7 +2537,12 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
-                    "outputConfigOverride": {"continuous": {"upperBound": -1.0}},
+                    "outputConfigOverrides": [
+                        {
+                            "name": "levenshtein_distance",
+                            "override": {"continuous": {"upperBound": -1.0}},
+                        }
+                    ],
                 }
             },
         )
@@ -2470,7 +2556,12 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
-                    "outputConfigOverride": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                    "outputConfigOverrides": [
+                        {
+                            "name": "levenshtein_distance",
+                            "override": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                        }
+                    ],
                 }
             },
         )
@@ -2555,23 +2646,25 @@ async def llm_evaluator(
         name=evaluator_name,
         description=evaluator_description,
         kind="LLM",
-        output_config=CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name=annotation_name,
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            description="correctness description",
-            values=[
-                CategoricalAnnotationValue(label="correct", score=1.0),
-                CategoricalAnnotationValue(label="incorrect", score=0.0),
-            ],
-        ),
+        output_configs=[
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name=annotation_name,
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description="correctness description",
+                values=[
+                    CategoricalAnnotationValue(label="correct", score=1.0),
+                    CategoricalAnnotationValue(label="incorrect", score=0.0),
+                ],
+            )
+        ],
         prompt=prompt,
         dataset_evaluators=[
             models.DatasetEvaluators(
                 dataset_id=empty_dataset.id,
                 name=evaluator_name,
                 description="correctness description",
-                output_config_override=None,
+                output_config_overrides=None,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/{evaluator_name}",
@@ -2714,23 +2807,25 @@ class TestDeleteDatasetEvaluators:
                 name=evaluator_name,
                 description="test llm evaluator for deletion",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="correctness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
                 prompt=prompt,
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_override=None,
+                        output_config_overrides=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -2838,23 +2933,25 @@ class TestDeleteDatasetEvaluators:
                 name=evaluator_name,
                 description="test llm evaluator for batch deletion",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="correctness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
                 prompt=prompt,
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_override=None,
+                        output_config_overrides=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -2997,23 +3094,25 @@ class TestDeleteDatasetEvaluators:
                 name=evaluator_name,
                 description="test llm evaluator for prompt deletion",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="correctness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
                 prompt=prompt,
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_override=None,
+                        output_config_overrides=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3107,23 +3206,25 @@ class TestDeleteDatasetEvaluators:
                 name=evaluator_name,
                 description="test llm evaluator to keep prompt",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="correctness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
                 prompt=prompt,
                 dataset_evaluators=[
                     models.DatasetEvaluators(
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_override=None,
+                        output_config_overrides=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3179,3 +3280,449 @@ class TestDeleteDatasetEvaluators:
         # Clean up the prompt
         async with db() as session:
             await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt_id))
+
+
+class TestMultiOutputEvaluators:
+    """Tests for multi-output evaluator functionality."""
+
+    _CREATE_LLM_MUTATION = """
+      mutation($input: CreateDatasetLLMEvaluatorInput!) {
+        createDatasetLlmEvaluator(input: $input) {
+          evaluator {
+            id
+            name
+            description
+            outputConfigs {
+              ... on CategoricalAnnotationConfig {
+                name
+                description
+                optimizationDirection
+                values { label score }
+              }
+              ... on ContinuousAnnotationConfig {
+                name
+                description
+                lowerBound
+                upperBound
+                optimizationDirection
+              }
+            }
+            evaluator {
+              ... on LLMEvaluator {
+                id
+                name
+                kind
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    _CREATE_BUILTIN_MUTATION = """
+      mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+        createDatasetBuiltinEvaluator(input: $input) {
+          evaluator {
+            id
+            name
+            outputConfigs {
+              ... on CategoricalAnnotationConfig {
+                name
+                description
+                optimizationDirection
+                values { label score }
+              }
+              ... on ContinuousAnnotationConfig {
+                name
+                description
+                lowerBound
+                upperBound
+                optimizationDirection
+              }
+            }
+            evaluator {
+              ... on BuiltInEvaluator {
+                id
+                name
+                kind
+                outputConfigs {
+                  ... on CategoricalAnnotationConfig {
+                    name
+                    description
+                    values { label score }
+                  }
+                  ... on ContinuousAnnotationConfig {
+                    name
+                    description
+                    lowerBound
+                    upperBound
+                  }
+                }
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_create_evaluator_with_multiple_configs(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Create LLM evaluator with 2+ output configs and verify all configs are stored."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        # Note: LLM evaluator validation requires a 'label' property in the tool function
+        # The first output config must be categorical and:
+        # - Its values must match the label enum
+        # - The label description must match the first output config name
+        result = await gql_client.execute(
+            self._CREATE_LLM_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "name": "multi-output-evaluator",
+                    "description": "multi-output evaluator description",
+                    "promptVersion": dict(
+                        description="multi-output prompt",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Evaluate: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.0,
+                            tool_choice=dict(
+                                type="function",
+                                function=dict(name="multi-output-evaluator"),
+                            ),
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="multi-output-evaluator",
+                                        description="multi-output evaluator description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                # The 'label' property is required by validation
+                                                # Its description must match the first output config name
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["good", "bad"],
+                                                    description="quality",  # Must match first config name
+                                                ),
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="quality",  # Must match label description above
+                                description="Quality assessment",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="good", score=1),
+                                    dict(label="bad", score=0),
+                                ],
+                            )
+                        ),
+                        dict(
+                            categorical=dict(
+                                name="relevance",
+                                description="Relevance assessment",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="relevant", score=1),
+                                    dict(label="irrelevant", score=0),
+                                ],
+                            )
+                        ),
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+
+        # Verify all output configs are returned
+        assert len(dataset_evaluator["outputConfigs"]) == 2
+        config_names = [c["name"] for c in dataset_evaluator["outputConfigs"]]
+        assert "quality" in config_names
+        assert "relevance" in config_names
+
+        # Verify first config details
+        quality_config = next(
+            c for c in dataset_evaluator["outputConfigs"] if c["name"] == "quality"
+        )
+        assert quality_config["description"] == "Quality assessment"
+        assert quality_config["optimizationDirection"] == "MAXIMIZE"
+        assert len(quality_config["values"]) == 2
+
+        # Verify second config details
+        relevance_config = next(
+            c for c in dataset_evaluator["outputConfigs"] if c["name"] == "relevance"
+        )
+        assert relevance_config["description"] == "Relevance assessment"
+        assert len(relevance_config["values"]) == 2
+
+        # Verify database storage
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            llm_evaluator = await session.get(
+                models.LLMEvaluator, db_dataset_evaluator.evaluator_id
+            )
+            assert llm_evaluator is not None
+            assert len(llm_evaluator.output_configs) == 2
+            db_config_names = [c.name for c in llm_evaluator.output_configs]
+            assert "quality" in db_config_names
+            assert "relevance" in db_config_names
+
+    async def test_duplicate_config_names_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Duplicate config names within evaluator are rejected."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        result = await gql_client.execute(
+            self._CREATE_LLM_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "name": "duplicate-config-evaluator",
+                    "description": "duplicate config evaluator description",
+                    "promptVersion": dict(
+                        description="duplicate config prompt",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Evaluate: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.0,
+                            tool_choice=dict(
+                                type="function",
+                                function=dict(name="duplicate-config-evaluator"),
+                            ),
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="duplicate-config-evaluator",
+                                        description="duplicate config evaluator description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                quality=dict(
+                                                    type="string",
+                                                    enum=["good", "bad"],
+                                                    description="quality assessment",
+                                                ),
+                                            ),
+                                            required=["quality"],
+                                        ),
+                                    ),
+                                )
+                            )
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="quality",
+                                description="First quality config",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="good", score=1),
+                                    dict(label="bad", score=0),
+                                ],
+                            )
+                        ),
+                        dict(
+                            categorical=dict(
+                                name="quality",  # Duplicate name
+                                description="Second quality config",
+                                optimizationDirection="MINIMIZE",
+                                values=[
+                                    dict(label="high", score=1),
+                                    dict(label="low", score=0),
+                                ],
+                            )
+                        ),
+                    ],
+                }
+            },
+        )
+        # Should fail with duplicate name error
+        assert result.errors is not None
+        error_message = result.errors[0].message.lower()
+        assert "duplicate" in error_message or "unique" in error_message
+
+    async def test_override_matches_by_name(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Create a builtin evaluator with override and verify the override matches by name."""
+        # Look up the exact_match evaluator (has categorical config)
+        async with db() as session:
+            exact_match_evaluator = await session.scalar(
+                select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "exact_match")
+            )
+        assert exact_match_evaluator is not None, "ExactMatch builtin evaluator not found"
+
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        evaluator_gid = str(GlobalID("BuiltInEvaluator", str(exact_match_evaluator.id)))
+
+        # Get the base config name from the builtin evaluator
+        assert exact_match_evaluator.output_configs is not None
+        assert len(exact_match_evaluator.output_configs) > 0
+        base_config_name = exact_match_evaluator.output_configs[0].name
+
+        # Create with override that matches by name - using optimization_direction
+        result = await gql_client.execute(
+            self._CREATE_BUILTIN_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": evaluator_gid,
+                    "name": "exact-match-with-override",
+                    "outputConfigOverrides": [
+                        {
+                            "name": base_config_name,
+                            "override": {
+                                "categorical": {
+                                    "optimizationDirection": "MINIMIZE",
+                                }
+                            },
+                        }
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
+
+        # Verify the override was applied
+        output_configs = dataset_evaluator["outputConfigs"]
+        assert len(output_configs) >= 1
+        matched_config = next((c for c in output_configs if c["name"] == base_config_name), None)
+        assert matched_config is not None
+        assert matched_config["optimizationDirection"] == "MINIMIZE"
+
+        # Verify database storage
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.output_config_overrides is not None
+            assert base_config_name in db_dataset_evaluator.output_config_overrides
+            override = db_dataset_evaluator.output_config_overrides[base_config_name]
+            # The override can be stored as either a string or an enum
+            override_direction = override.optimization_direction
+            assert override_direction in (
+                OptimizationDirection.MINIMIZE,
+                OptimizationDirection.MINIMIZE.value,
+                "MINIMIZE",
+            )
+
+    async def test_mixed_config_types(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Test that builtin evaluators with continuous configs work correctly.
+
+        Note: LLM evaluators currently only support categorical configs due to validation
+        constraints. This test uses a builtin evaluator with a continuous config to verify
+        continuous config support in the multi-output system.
+        """
+        # Look up the levenshtein_distance evaluator (has continuous config)
+        async with db() as session:
+            levenshtein_evaluator = await session.scalar(
+                select(models.BuiltinEvaluator).where(
+                    models.BuiltinEvaluator.key == "levenshtein_distance"
+                )
+            )
+        assert levenshtein_evaluator is not None, "LevenshteinDistance builtin evaluator not found"
+
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        evaluator_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_evaluator.id)))
+
+        # Get the base config from the builtin evaluator
+        assert levenshtein_evaluator.output_configs is not None
+        assert len(levenshtein_evaluator.output_configs) > 0
+        base_config = levenshtein_evaluator.output_configs[0]
+        base_config_name = base_config.name
+
+        # Create the builtin evaluator and verify continuous config is returned
+        result = await gql_client.execute(
+            self._CREATE_BUILTIN_MUTATION,
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": evaluator_gid,
+                    "name": "levenshtein-continuous-test",
+                }
+            },
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
+
+        # Verify the continuous config is returned with bounds
+        output_configs = dataset_evaluator["outputConfigs"]
+        assert len(output_configs) >= 1
+
+        # Find the continuous config
+        continuous_config = next(
+            (c for c in output_configs if "lowerBound" in c or "upperBound" in c), None
+        )
+        assert continuous_config is not None, "Expected a continuous config with bounds"
+        assert continuous_config["name"] == base_config_name
+
+        # Verify database storage
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            # The base config should be a continuous type
+            builtin_evaluator = await session.get(
+                models.BuiltinEvaluator, db_dataset_evaluator.evaluator_id
+            )
+            assert builtin_evaluator is not None
+            assert len(builtin_evaluator.output_configs) >= 1
+            config_types = {c.name: c.type for c in builtin_evaluator.output_configs}
+            assert config_types.get(base_config_name) == "CONTINUOUS"

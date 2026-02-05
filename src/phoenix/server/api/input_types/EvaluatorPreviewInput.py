@@ -6,7 +6,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.server.api.input_types.AnnotationConfigInput import (
-    CategoricalAnnotationConfigInput,
+    AnnotationConfigInput,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
@@ -18,7 +18,7 @@ class InlineLLMEvaluatorInput:
     """Defines an inline LLM evaluator without requiring persistence."""
 
     prompt_version: ChatPromptVersionInput
-    output_config: CategoricalAnnotationConfigInput
+    output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None
 
 

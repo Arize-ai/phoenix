@@ -320,7 +320,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
-  outputConfig: BuiltInEvaluatorOutputConfig!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
@@ -646,7 +646,7 @@ input CreateDatasetBuiltinEvaluatorInput {
   evaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput = null
+  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!] = null
   description: String = null
 }
 
@@ -662,7 +662,7 @@ input CreateDatasetLLMEvaluatorInput {
   description: String
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
 }
 
@@ -910,7 +910,7 @@ type DatasetEvaluator implements Node {
   dataset: Dataset!
   evaluator: Evaluator!
   description: String
-  outputConfig: BuiltInEvaluatorOutputConfig
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]
   inputMapping: EvaluatorInputMapping!
   user: User
   project: Project!
@@ -2268,7 +2268,7 @@ enum InferencesRole {
 
 input InlineLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   description: String = null
 }
 
@@ -2354,7 +2354,7 @@ type LLMEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  outputConfig: CategoricalAnnotationConfig!
+  outputConfigs: [CategoricalAnnotationConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
@@ -2485,6 +2485,11 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): DeleteUsersPayload!
+}
+
+input NamedAnnotationConfigOverrideInput {
+  name: String!
+  override: AnnotationConfigOverrideInput!
 }
 
 """An object with a Globally Unique ID"""
@@ -2652,8 +2657,7 @@ input PlaygroundEvaluatorInput {
   name: Identifier!
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
-  outputConfig: CategoricalAnnotationConfigOverrideInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput = null
+  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!] = null
 }
 
 type PlaygroundModel implements ModelInterface {
@@ -4021,7 +4025,7 @@ input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput
+  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!]
   description: String
 }
 
@@ -4032,7 +4036,7 @@ input UpdateDatasetLLMEvaluatorInput {
   description: String = null
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
 }
 

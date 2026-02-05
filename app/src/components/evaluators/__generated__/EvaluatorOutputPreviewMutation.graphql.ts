@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da337f7fcc5f7c67dd5c3a4549456104>>
+ * @generated SignedSource<<8389270bcefc9acec6bf9cd8246dcd95>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,7 @@ export type EvaluatorPreviewInput = {
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
-  outputConfig: CategoricalAnnotationConfigInput;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   promptVersion: ChatPromptVersionInput;
 };
 export type ChatPromptVersionInput = {
@@ -75,6 +75,11 @@ export type ToolDefinitionInput = {
 export type ResponseFormatInput = {
   definition: any;
 };
+export type AnnotationConfigInput = {
+  categorical?: CategoricalAnnotationConfigInput | null;
+  continuous?: ContinuousAnnotationConfigInput | null;
+  freeform?: FreeformAnnotationConfigInput | null;
+};
 export type CategoricalAnnotationConfigInput = {
   description?: string | null;
   name: string;
@@ -84,6 +89,17 @@ export type CategoricalAnnotationConfigInput = {
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
+};
+export type ContinuousAnnotationConfigInput = {
+  description?: string | null;
+  lowerBound?: number | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
+  upperBound?: number | null;
+};
+export type FreeformAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
