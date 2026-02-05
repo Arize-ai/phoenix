@@ -1,5 +1,48 @@
 import { ISpanItem } from "../types";
-import { createSpanTree } from "../utils";
+import { compareTimestamps, createSpanTree } from "../utils";
+
+describe("compareTimestamps", () => {
+  it("correctly orders timestamps with sub-millisecond precision", () => {
+    const earlier = "2024-01-15T10:30:00.123456Z";
+    const later = "2024-01-15T10:30:00.123789Z";
+
+    expect(compareTimestamps(earlier, later)).toBe(-1);
+    expect(compareTimestamps(later, earlier)).toBe(1);
+    expect(compareTimestamps(earlier, earlier)).toBe(0);
+  });
+
+  it("correctly compares timestamps with different timezone offsets", () => {
+    // These represent the same instant
+    const utc = "2024-01-15T05:30:00.123456Z";
+    const plusFive = "2024-01-15T10:30:00.123456+05:00";
+
+    expect(compareTimestamps(utc, plusFive)).toBe(0);
+
+    // This is 333 microseconds later
+    const laterUtc = "2024-01-15T05:30:00.123789Z";
+    expect(compareTimestamps(plusFive, laterUtc)).toBe(-1);
+  });
+
+  it("correctly compares timestamps with different fractional second precision", () => {
+    // This test addresses the lexicographic comparison bug where .123Z would
+    // incorrectly sort after .123456Z because 'Z' (ASCII 90) > '4' (ASCII 52)
+    const millisecondPrecision = "2024-01-15T10:30:00.123Z";
+    const microsecondPrecision = "2024-01-15T10:30:00.123456Z";
+
+    // .123 seconds (123ms) should come before .123456 seconds (123.456ms)
+    expect(compareTimestamps(millisecondPrecision, microsecondPrecision)).toBe(
+      -1
+    );
+    expect(compareTimestamps(microsecondPrecision, millisecondPrecision)).toBe(
+      1
+    );
+
+    // Edge case: same milliseconds but different microseconds
+    const sameMs1 = "2024-01-15T10:30:00.123Z";
+    const sameMs2 = "2024-01-15T10:30:00.123000Z";
+    expect(compareTimestamps(sameMs1, sameMs2)).toBe(0);
+  });
+});
 
 describe("createSpanTree", () => {
   const traceSpans: ISpanItem[] = [
