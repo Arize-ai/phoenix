@@ -14,6 +14,7 @@ from vcr.request import Request
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import (
     TEMPLATE_FORMATTED_MESSAGES,
@@ -734,14 +735,14 @@ class TestChatCompletionMutationMixin:
                 dataset_id=dataset.id,
                 evaluator_id=correctness_llm_evaluator.id,
                 name=Identifier("correctness"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="correctness-project", description=""),
             )
             builtin_dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=contains_id,
                 name=Identifier("contains-four"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="contains-project", description=""),
             )
             session.add_all([llm_dataset_evaluator, builtin_dataset_evaluator])
@@ -883,7 +884,7 @@ class TestChatCompletionMutationMixin:
                 dataset_id=dataset.id,
                 evaluator_id=correctness_llm_evaluator.id,
                 name=Identifier("correctness"),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="correctness-error-project", description=""),
             )
             session.add(dataset_evaluator)
@@ -1706,7 +1707,7 @@ class TestChatCompletionMutationMixin:
                 dataset_id=dataset.id,
                 evaluator_id=exact_match_id,
                 name=Identifier(custom_name),
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name="builtin-name-project", description=""),
             )
             session.add(dataset_evaluator)

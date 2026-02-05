@@ -13,6 +13,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -1003,7 +1004,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             dataset_id=dataset.id,
             evaluator_id=evaluator_1.id,
             name=Identifier(root="evaluator-1"),
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             output_config_override=None,
             project=models.Project(
                 name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
@@ -1013,7 +1014,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             dataset_id=dataset.id,
             evaluator_id=evaluator_2.id,
             name=Identifier(root="evaluator-2"),
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             output_config_override=None,
             project=models.Project(
                 name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"

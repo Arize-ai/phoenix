@@ -17,6 +17,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -870,7 +871,7 @@ class TestEvaluatorPolymorphism:
                         dataset_id=dataset.id,
                         evaluator_id=eval_1.id,
                         name=eval_1.name,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         output_config_override=None,
                         project=models.Project(
                             name=f"{dataset.name}/{eval_1.name}",
@@ -881,7 +882,7 @@ class TestEvaluatorPolymorphism:
                         dataset_id=dataset.id,
                         evaluator_id=eval_2.id,
                         name=eval_2.name,
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         output_config_override=None,
                         project=models.Project(
                             name=f"{dataset.name}/{eval_2.name}",
@@ -1035,7 +1036,7 @@ class TestEvaluatorPolymorphism:
                 dataset_id=dataset_id,
                 evaluator_id=new_eval_id,
                 name=new_eval_name,
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_override=None,
                 project=models.Project(
                     name=f"{new_eval_name}-project",
