@@ -123,7 +123,8 @@ export const extractVariablesFromMustacheLike = (text: string): string[] => {
   for (const [type, value] of tokens) {
     if (typeof value !== "string") continue;
     if (VARIABLE_TOKEN_TYPES.has(type)) {
-      variables.add(getRootVariableName(value.trim()));
+      const root = getRootVariableName(value.trim());
+      if (root) variables.add(root);
     }
   }
 

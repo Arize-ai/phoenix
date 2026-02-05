@@ -42,6 +42,8 @@ can you help with this json?
         input: `{"name": "{{  name  }}"}`,
         expected: ["name"],
       },
+      { input: "{{}}", expected: [] },
+      { input: "{{}} {{name}}", expected: ["name"] },
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(extractVariablesFromMustacheLike(input)).toEqual(expected);
