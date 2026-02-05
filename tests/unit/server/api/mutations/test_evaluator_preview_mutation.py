@@ -67,7 +67,7 @@ class TestEvaluatorPreviewMutation:
         assert len(results) == 1
 
         annotation = results[0]["annotation"]
-        assert annotation["name"] == "Contains"
+        assert annotation["name"] == "contains"
         assert annotation["annotatorKind"] == "CODE"
         assert annotation["score"] == 1.0
         assert "found" in annotation["explanation"]

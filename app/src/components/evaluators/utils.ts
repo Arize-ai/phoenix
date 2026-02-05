@@ -340,18 +340,3 @@ export const buildOutputConfigOverride = (
     },
   };
 };
-
-export const formatBuiltinEvaluatorDisplayName = (name: string) => {
-  return (
-    name
-      // convert camel case to snake case, but keep contiguous uppercase sequences together (e.g. "JSONDistance" -> "JSON_Distance")
-      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // Handle boundary between acronym and normal word: JSONDistance -> JSON_Distance
-      .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // Handle boundary between lower and upper: fooBar -> foo_Bar
-      // replace spaces with underscores
-      .replace(/\s+/g, "_")
-      // trim leading and trailing underscores
-      .replace(/^_+|_+$/g, "")
-      // convert to lowercase
-      .toLowerCase()
-  );
-};
