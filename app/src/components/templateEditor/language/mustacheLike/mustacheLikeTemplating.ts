@@ -92,49 +92,42 @@ const getRootVariableName = (variablePath: string): string => {
 };
 
 /**
+ * Mustache token types that represent variables we want to extract.
+ * - "#" and "^": section/inverted section tags
+ * - "name": escaped variable {{name}}
+ * - "&" and "{": unescaped variables {{& name}} and {{{name}}}
+ */
+const VARIABLE_TOKEN_TYPES = new Set(["#", "^", "name", "&", "{"]);
+
+/**
  * Extracts the variables from a Mustache-like template.
  *
  * For dotted paths like {{output.available_tools}}, only the root variable
  * name (output) is extracted, since Mustache traverses nested properties
  * starting from the root.
+ *
+ * Mustache.parse() returns a flat array of top-level tokens. Nested tokens
+ * (inside sections) are encapsulated in the children array of section tokens,
+ * so we only need to iterate the top-level array to extract top-level variables.
  */
-export const extractVariablesFromMustacheLike = (text: string) => {
-  let tokens: unknown;
+export const extractVariablesFromMustacheLike = (text: string): string[] => {
+  let tokens: ReturnType<typeof Mustache.parse>;
   try {
     tokens = Mustache.parse(text);
   } catch {
     return [];
   }
-  const topLevelVariables = new Set<string>();
 
-  const walkTokens = (tokenList: unknown[], depth: number) => {
-    for (const token of tokenList) {
-      if (!Array.isArray(token)) {
-        continue;
-      }
-      const [type, value, _start, _end, children] = token;
-      if (type === "#" || type === "^") {
-        if (depth === 0 && typeof value === "string") {
-          topLevelVariables.add(getRootVariableName(value.trim()));
-        }
-        if (Array.isArray(children)) {
-          walkTokens(children, depth + 1);
-        }
-        continue;
-      }
-      if ((type === "name" || type === "&" || type === "{") && depth === 0) {
-        if (typeof value === "string") {
-          topLevelVariables.add(getRootVariableName(value.trim()));
-        }
-      }
+  const variables = new Set<string>();
+
+  for (const [type, value] of tokens) {
+    if (typeof value !== "string") continue;
+    if (VARIABLE_TOKEN_TYPES.has(type)) {
+      variables.add(getRootVariableName(value.trim()));
     }
-  };
-
-  if (Array.isArray(tokens)) {
-    walkTokens(tokens, 0);
   }
 
-  return Array.from(topLevelVariables);
+  return Array.from(variables);
 };
 
 export type MustacheSectionValidation = {

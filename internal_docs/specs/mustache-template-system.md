@@ -12,9 +12,9 @@ This feature introduces full Mustache template support for Phoenix's server-side
 
 3. **Type-Aware Variable Extraction**: Templates now distinguish between string variables (`{{name}}`) and section variables (`{{#list}}...{{/list}}`), enabling proper input schema generation
 
-4. **Frontend Validation**: Real-time validation of Mustache syntax in the playground with descriptive error messages for section mismatches
+4. **Frontend Validation**: Real-time validation of Mustache syntax in the playground using native Mustache.js parser error messages
 
-5. **Frontend/Backend Parity**: Python and TypeScript implementations use identical algorithms for variable extraction
+5. **Frontend/Backend Parity**: Python and TypeScript implementations use identical approaches for variable extraction (simple iteration of top-level tokens)
 
 ---
 
@@ -56,10 +56,10 @@ This feature introduces full Mustache template support for Phoenix's server-side
 │                                                                             │
 │  parse_with_types() / extractVariablesFromMustacheLike():                  │
 │  1. Parse template with native Mustache parser                              │
-│  2. Walk parse tree, track depth (0 = top-level)                           │
-│  3. Extract only top-level variables (not nested inside sections)          │
-│  4. Tag variables as "string" or "section" type                            │
-│  5. For dotted paths (output.tools), extract only root (output)            │
+│  2. Iterate only top-level tokens (nested tokens are encapsulated in       │
+│     section children arrays, so no recursion needed)                       │
+│  3. Extract top-level variables, tag as "string" or "section" type         │
+│  4. For dotted paths (output.tools), extract only root (output)            │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -213,10 +213,12 @@ No tools available.
 - Backend generates the canonical input_schema
 - If results differed, UI could show wrong variables or miss some
 
-**Implementation Note:** The mechanisms differ but produce the same output:
+**Implementation Note:** Both implementations use the same simple approach:
 
-- **Python**: Iterates only the top-level nodes of pystache's parse tree (no recursion needed—pystache's structure naturally exposes only top-level nodes)
-- **TypeScript**: Uses depth tracking with recursive `walkTokens()` because Mustache.js exposes nested children in its token format, requiring explicit `depth === 0` filtering
+- **Python**: Iterates only the top-level nodes of pystache's parse tree
+- **TypeScript**: Iterates only the top-level tokens from Mustache.parse()
+
+Both parsers structure their output such that nested tokens (inside sections) are encapsulated in children arrays of section tokens. This means a simple iteration of the top-level array naturally extracts only top-level variables—no recursion or depth tracking needed.
 
 ---
 
@@ -234,12 +236,14 @@ No tools available.
 ┌──────────────────────────────────────────────────────────────────┐
 │  extractVariablesFromMustacheLike() in frontend                  │
 │                                                                  │
-│  1. Mustache.parse() → token tree                                │
-│  2. walkTokens(tokens, depth=0)                                  │
-│  3. For each token:                                              │
-│     - "#" or "^" at depth 0 → add root name, recurse depth+1   │
-│     - "name"/"&"/"{" at depth 0 → add root name                 │
-│  4. Return: ["input", "output"]                                  │
+│  1. Mustache.parse() → array of top-level tokens                 │
+│  2. For each token [type, value] in array:                       │
+│     - If type is "#", "^", "name", "&", or "{"                  │
+│       → add getRootVariableName(value) to set                    │
+│  3. Return: ["input", "output"]                                  │
+│                                                                  │
+│  Note: Nested tokens inside sections are in children arrays,     │
+│  so iterating the top-level array naturally filters them out.    │
 └───────────────────────────────┬──────────────────────────────────┘
                                 │
                                 ▼

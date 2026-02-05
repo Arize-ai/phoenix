@@ -121,7 +121,11 @@ No tools available.
   it("should validate mustache section tags using native parser", () => {
     // Native Mustache.js parser provides error messages with position info
     // All validation failures are treated as errors (no warning distinction)
-    const tests = [
+    const tests: Array<{
+      input: string;
+      errorContains?: string;
+      expected?: { errors: string[]; warnings: string[] };
+    }> = [
       {
         input: "{{#query}}\n{{#messages}}\n{{role}}\n{{/messages}}",
         // Native parser reports unclosed section with position
@@ -157,7 +161,7 @@ No tools available.
         input: "{{#messages}}{{^tool_calls}}{{/messages}}",
         errorContains: "Unclosed section",
       },
-    ] as const;
+    ];
     tests.forEach(({ input, expected, errorContains }) => {
       const result = validateMustacheSections(input);
       if (expected) {
