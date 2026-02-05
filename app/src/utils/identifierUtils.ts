@@ -16,7 +16,7 @@ export const IDENTIFIER_ERROR_MESSAGES = {
  * Used for immediate validation feedback while typing.
  */
 export function validateIdentifierAllowedChars(value: string): ValidateResult {
-  if (value.trim() === "") {
+  if (!value || value.trim() === "") {
     return IDENTIFIER_ERROR_MESSAGES.empty;
   }
   if (!allowedIdentifierCharactersRegex.test(value)) {

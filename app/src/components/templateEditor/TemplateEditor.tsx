@@ -14,12 +14,18 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
+import { createTemplateAutocomplete } from "./autocomplete";
 import { TemplateFormats } from "./constants";
 import { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
   templateFormat: TemplateFormat;
   defaultValue: string;
+  /**
+   * Available paths for autocomplete suggestions.
+   * When provided, enables autocomplete for template variables.
+   */
+  availablePaths?: string[];
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -51,6 +57,7 @@ export const TemplateEditor = ({
   templateFormat,
   defaultValue,
   readOnly,
+  availablePaths,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
@@ -70,8 +77,17 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
+    // Add autocomplete extension if available paths are provided and templating is enabled
+    if (
+      availablePaths &&
+      availablePaths.length > 0 &&
+      !readOnly &&
+      templateFormat !== TemplateFormats.NONE
+    ) {
+      ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
+    }
     return ext;
-  }, [templateFormat]);
+  }, [templateFormat, availablePaths, readOnly]);
 
   useEffect(() => {
     if (readOnly) {
@@ -122,6 +138,10 @@ export const TemplateEditorWrap = ({
         }
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
+        }
+        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
+        & .cm-tooltip-autocomplete {
+          z-index: 100;
         }
       `}
     >
