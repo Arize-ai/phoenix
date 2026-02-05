@@ -1350,7 +1350,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
-_OPENAI_NEWER_MODELS = [
+_OPENAI_RESPONSES_API_MODELS = [
     "gpt-5.2",
     "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
@@ -1359,7 +1359,7 @@ _OPENAI_NEWER_MODELS = [
     "gpt-5.1-chat-latest",
 ]
 
-_OPENAI_OTHER_REASONING_MODELS = [
+_OPENAI_CHAT_COMPLETIONS_API_MODELS = [
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1380,9 +1380,6 @@ _OPENAI_OTHER_REASONING_MODELS = [
     "o4-mini",
     "o4-mini-2025-04-16",
 ]
-
-_OPENAI_REASONING_MODELS = _OPENAI_NEWER_MODELS + _OPENAI_OTHER_REASONING_MODELS
-
 
 class OpenAIReasoningReasoningModelsMixin:
     """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
@@ -1424,7 +1421,7 @@ class OpenAIReasoningReasoningModelsMixin:
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=_OPENAI_NEWER_MODELS,
+    model_names=_OPENAI_RESPONSES_API_MODELS,
 )
 class OpenAIResponseStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1449,7 +1446,7 @@ class OpenAIResponseStreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=_OPENAI_OTHER_REASONING_MODELS,
+    model_names=_OPENAI_CHAT_COMPLETIONS_API_MODELS,
 )
 class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1566,7 +1563,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=_OPENAI_NEWER_MODELS,
+    model_names=_OPENAI_RESPONSES_API_MODELS,
 )
 class AzureOpenAIGPT51_52StreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1591,7 +1588,7 @@ class AzureOpenAIGPT51_52StreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=_OPENAI_OTHER_REASONING_MODELS,
+    model_names=_OPENAI_CHAT_COMPLETIONS_API_MODELS,
 )
 class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
