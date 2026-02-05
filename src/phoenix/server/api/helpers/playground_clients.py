@@ -588,7 +588,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                     # Accumulate arguments (ensure it's a string)
                     if arguments_delta:
                         arguments_str = (
-                            arguments_delta if isinstance(arguments_delta, str) else str(arguments_delta)
+                            arguments_delta
+                            if isinstance(arguments_delta, str)
+                            else str(arguments_delta)
                         )
                         active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
                     # Update function name if provided
@@ -612,9 +614,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
             # Extract usage only from response.completed
             elif event_type == "response.completed":
-                usage = getattr(event, "usage", None)
-                if usage is not None:
-                    token_usage = usage
+                response = getattr(event, "response", None)
+                if response is not None:
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        token_usage = usage
             # Skip unknown event types silently
 
         # Update _llm_token_counts exactly once after streaming ends
