@@ -37,17 +37,16 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM python:3.11-bullseye as backend-builder
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.11-bookworm-slim as backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
+COPY ./uv.lock /phoenix/
 COPY ./LICENSE /phoenix/
 COPY ./IP_NOTICE /phoenix/
 COPY ./README.md /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
-# Delete symbolic links used during development.
-RUN find src/ -xtype l -delete
-RUN pip install --target ./env ".[container, pg]"
+RUN uv sync --frozen --no-dev --no-editable --no-install-workspace --extra container --extra pg
 
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
@@ -63,8 +62,8 @@ RUN pip install --target ./env ".[container, pg]"
 # Use the debug tag in the following line to build the debug image.
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
-COPY --from=backend-builder /phoenix/env/ ./env
-ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
+COPY --from=backend-builder /phoenix/.venv/ ./env
+ENV PYTHONPATH="/phoenix/env/lib/python3.11/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.
 EXPOSE 6006
