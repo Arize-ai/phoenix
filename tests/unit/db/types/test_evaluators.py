@@ -5,26 +5,23 @@ from phoenix.db.types.evaluators import InputMapping
 
 
 class TestJSONPathValidation:
-    """Tests for JSONPath validation in InputMapping.
+    """Tests for path validation in InputMapping.
 
-    Uses an ALLOWLIST approach - only these AST node types are permitted:
-    - Root ($), Child, Fields, Index, Slice, Descendants
+    Paths are restricted to a simple feature set via AST allowlist.
+    Only Root, Child, Fields, Index, and Slice nodes are permitted.
 
-    This ensures new jsonpath-ng features don't accidentally slip through.
+    Supported features:
+      - Root marker: $ (optional)
+      - Dot notation: field.nested, field.123
+      - Bracket notation: ['field'], ["field"], ['field-name']
+      - Index access: field[0], field[-1]
+      - Wildcard: field[*]
+      - Slices: field[0:5], field[::2]
 
-    Supported features (intersection of RFC 9535 and jsonpath-ng):
-    - Root ($), child (.name, ['name']), index ([n]), wildcard ([*])
-    - Slice ([start:end:step]), descendants (..)
-    - Multiple name selectors (['a', 'b'])
-    - Paths without $ prefix (jsonpath-ng is lenient, frontend uses this)
-
-    RFC 9535 features NOT supported (jsonpath-ng can't parse):
-    - Filter expressions: $[?@.price < 10]
-    - Function extensions: length(), count(), match(), search(), value()
-    - Multiple index/slice selectors: $[0, 3], $[0:2, 5]
-
-    jsonpath-ng extensions NOT in allowlist (rejected):
-    - Union (|), Intersect (&), Where, WhereNot, Parent
+    NOT supported (rejected):
+      - '..' recursive descent
+      - Bare '@' (use ['@'] instead)
+      - Union (|), Intersect (&), Where, WhereNot, This
     """
 
     # --- Valid expressions (should pass) ---
@@ -32,41 +29,52 @@ class TestJSONPathValidation:
     @pytest.mark.parametrize(
         "expr",
         [
-            "$",  # Root only
-            "$.field",  # Dot notation
-            "$.field.nested",  # Nested dot notation
-            "$.field.deeply.nested.path",  # Deep nesting
-            "$['field']",  # Bracket notation single quotes
-            '$["field"]',  # Bracket notation double quotes
-            "$[0]",  # Positive index
-            "$[-1]",  # Negative index
-            "$[*]",  # Wildcard
-            "$[0:5]",  # Slice with end
-            "$[:5]",  # Slice with end only
-            "$[0:]",  # Slice with start only
-            "$[::2]",  # Slice with step
-            "$[0:10:2]",  # Full slice
-            "$..field",  # Recursive descent (RFC 9535)
-            "$..['field']",  # Recursive descent bracket
-            "$.items..name",  # Nested recursive descent
-            "$.items[0]",  # Combined dot and index
-            "$.items[*].name",  # Wildcard with field access
-            "$.items[1:3]",  # Slice in path
-            "$['field'][0].name",  # Mixed notation
-            "$.users[-1].email",  # Negative index in path
-            "$[0][1][2]",  # Multiple indices
-            "$.a.b.c.d.e",  # Long path
-            "$['a', 'b']",  # Multiple name selectors (RFC 9535)
-            '$["foo", "bar"]',  # Multiple name selectors double quotes
-            # Paths without $ prefix (frontend sends these, jsonpath-ng accepts them)
+            # Dot notation
             "field",  # Simple field
             "field.nested",  # Nested fields
-            "input.query",  # Typical frontend path
-            "output.messages[0].content",  # Complex frontend path
+            "field.deeply.nested.path",  # Deep nesting
+            "a.b.c.d.e",  # Long path
+            "field.123",  # Numeric field name
+            "items.0.bar",  # Numeric field in chain
+            # Bracket notation for fields
+            "['field']",  # Bracket with single quotes
+            '["field"]',  # Bracket with double quotes
+            "['field-name']",  # Special chars in field name
+            "['@']",  # @ in bracket notation (allowed)
+            '["@"]',  # @ with double quotes (allowed)
+            "data['special-key'].value",  # Bracket in chain
+            "['123']",  # Numeric string as field name
+            # Index access
+            "items[0]",  # Index access
+            "items[-1]",  # Negative index
+            "data[0][1][2]",  # Multiple indices
+            # Wildcard
+            "items[*]",  # Wildcard
+            "items[*].name",  # Wildcard with field access
+            # Slices
+            "items[0:5]",  # Slice with end
+            "items[:5]",  # Slice with end only
+            "items[0:]",  # Slice with start only
+            "items[::2]",  # Slice with step
+            "items[0:10:2]",  # Full slice
+            "items[1:3]",  # Slice in path
+            # Combined
+            "items[0].name",  # Dot and index
+            "users[-1].email",  # Negative index in path
+            "input.query",  # Typical path
+            "output.messages[0].content",  # Complex path
+            # With $ prefix
+            "$",  # Root only
+            "$.field",  # Dot notation with $
+            "$.field.nested",  # Nested with $
+            "$[0]",  # Index with $
+            "$['field']",  # Bracket notation with $
+            "$.items[*].name",  # Wildcard with $
+            "$['@']",  # @ in bracket with root
         ],
     )
-    def test_valid_jsonpath_expressions(self, expr: str) -> None:
-        """Valid JSONPath expressions should be accepted."""
+    def test_valid_expressions(self, expr: str) -> None:
+        """Valid expressions should be accepted."""
         mapping = InputMapping(
             literal_mapping={},
             path_mapping={"result": expr},
@@ -78,24 +86,12 @@ class TestJSONPathValidation:
         mapping = InputMapping(
             literal_mapping={"static": "value"},
             path_mapping={
-                "input": "$.messages[0].content",
-                "output": "$.response.text",
-                "score": "$.metadata.score",
+                "input": "messages[0].content",
+                "output": "response.text",
+                "score": "metadata.score",
             },
         )
         assert len(mapping.path_mapping) == 3
-
-    def test_paths_without_dollar_prefix(self) -> None:
-        """Paths without $ prefix should work (frontend sends these)."""
-        mapping = InputMapping(
-            literal_mapping={},
-            path_mapping={
-                "input": "context.input",
-                "output": "context.output",
-                "nested": "data.items[0].name",
-            },
-        )
-        assert mapping.path_mapping["input"] == "context.input"
 
     # --- Pre-check rejections ---
 
@@ -107,53 +103,83 @@ class TestJSONPathValidation:
 
     def test_excessive_length_rejected(self) -> None:
         """Expression exceeding max length should be rejected."""
-        long_path = "$" + ".field" * 200  # > 1000 chars
+        long_path = "field" + ".a" * 500  # > 1000 chars
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": long_path})
         assert "maximum length" in str(exc_info.value)
+
+    def test_exactly_max_length_accepted(self) -> None:
+        """Expression at exactly max length (1000 chars) should be accepted."""
+        # Build a path of exactly 1000 characters
+        path = "a" * 1000
+        assert len(path) == 1000
+        mapping = InputMapping(literal_mapping={}, path_mapping={"x": path})
+        assert len(mapping.path_mapping["x"]) == 1000
+
+    # --- '..' rejection ---
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "items..name",  # Recursive descent
+            "data..value",  # Another recursive descent
+            "$..field",  # With root marker
+        ],
+    )
+    def test_recursive_descent_rejected(self, expr: str) -> None:
+        """'..' recursive descent should be rejected (Descendants node not in allowlist)."""
+        with pytest.raises(ValidationError) as exc_info:
+            InputMapping(literal_mapping={}, path_mapping={"x": expr})
+        assert "Descendants" in str(exc_info.value)
 
     # --- Invalid syntax (parser rejects) ---
 
     @pytest.mark.parametrize(
         "expr,description",
         [
-            ("$.foo[", "unclosed bracket"),
-            ("$foo", "missing dot after root"),
-            ("$['field", "unclosed quote"),
+            ("field[", "unclosed bracket"),
+            ("field['name", "unclosed quote"),
         ],
     )
     def test_invalid_syntax_rejected(self, expr: str, description: str) -> None:
         """Expressions with invalid syntax should be rejected."""
+        with pytest.raises(ValidationError):
+            InputMapping(literal_mapping={}, path_mapping={"x": expr})
+
+    # --- Bare @ rejection ---
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "@",  # Standalone @
+            "foo.@.bar",  # @ in middle of path
+            "$.@",  # @ after root
+            "@.field",  # @ at start with field
+        ],
+    )
+    def test_bare_at_rejected(self, expr: str) -> None:
+        """Bare @ should be rejected (use bracket notation ['@'] instead)."""
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
-        assert "Invalid JSONPath syntax" in str(exc_info.value)
+        assert "Bare '@'" in str(exc_info.value)
 
-    # --- Disallowed features (jsonpath-ng extensions not in RFC 9535) ---
+    # --- jsonpath-ng extensions rejection ---
 
     @pytest.mark.parametrize(
         "expr,feature",
         [
-            ("$.a | $.b", "Union"),  # Union operator
-            ("$.x & $.y", "Intersect"),  # Intersect operator
-            ("$.a where $.b", "Where"),  # Where clause
-            ("$.a wherenot $.b", "WhereNot"),  # WhereNot clause
-            ("$.foo.`parent`", "Parent"),  # Parent operator
+            ("a | b", "Union"),  # Union operator
+            ("a & b", "Intersect"),  # Intersect operator
+            ("a where b", "Where"),  # Where clause
+            ("a wherenot b", "WhereNot"),  # WhereNot clause
+            ("`this`", "This"),  # This operator
         ],
     )
-    def test_nonrfc_extensions_rejected(self, expr: str, feature: str) -> None:
-        """jsonpath-ng extensions not in RFC 9535 should be rejected."""
+    def test_jsonpath_ng_extensions_rejected(self, expr: str, feature: str) -> None:
+        """jsonpath-ng extensions should be rejected."""
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
         assert feature in str(exc_info.value)
-
-    # --- Nested disallowed features (tests recursive walk) ---
-
-    def test_nested_union_rejected(self) -> None:
-        """Union nested in path should be rejected."""
-        # $.a | $..b - Union at top level (Descendants is allowed, Union is not)
-        with pytest.raises(ValidationError) as exc_info:
-            InputMapping(literal_mapping={}, path_mapping={"x": "$.a | $..b"})
-        assert "Union" in str(exc_info.value)
 
     # --- Edge cases ---
 
@@ -162,33 +188,21 @@ class TestJSONPathValidation:
         mapping = InputMapping(
             literal_mapping={},
             path_mapping={
-                "all": "$[*]",
-                "nested": "$.items[*].name",
-                "slice": "$.items[0:5]",
+                "all": "items[*]",
+                "nested": "items[*].name",
+                "slice": "items[0:5]",
             },
         )
-        assert mapping.path_mapping["all"] == "$[*]"
-        assert mapping.path_mapping["slice"] == "$.items[0:5]"
-
-    def test_special_characters_in_field_names(self) -> None:
-        """Field names with special characters (via bracket notation) should work."""
-        mapping = InputMapping(
-            literal_mapping={},
-            path_mapping={
-                "hyphen": "$['field-name']",
-                "space": "$['field name']",
-                "dot": "$['field.name']",
-            },
-        )
-        assert len(mapping.path_mapping) == 3
+        assert mapping.path_mapping["all"] == "items[*]"
+        assert mapping.path_mapping["slice"] == "items[0:5]"
 
     def test_literal_mapping_unaffected(self) -> None:
-        """Literal mapping should not be validated as JSONPath."""
+        """Literal mapping should not be validated as path."""
         mapping = InputMapping(
             literal_mapping={
                 "not_a_path": "this is just a string",
-                "union_syntax": "$.a | $.b",  # Would fail as path_mapping (Union disallowed)
+                "invalid_syntax": "a | b",  # Would fail as path_mapping (Union)
             },
-            path_mapping={"valid": "$.field"},
+            path_mapping={"valid": "field.nested"},
         )
-        assert mapping.literal_mapping["union_syntax"] == "$.a | $.b"
+        assert mapping.literal_mapping["invalid_syntax"] == "a | b"
