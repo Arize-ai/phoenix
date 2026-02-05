@@ -715,21 +715,11 @@ class TestApplyInputMapping:
         assert result == {"input": "user input", "output": "model output"}
 
     def test_raises_on_invalid_jsonpath_expression(self) -> None:
-        input_schema = {
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        }
-        input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"key": "[[[invalid jsonpath"},
-            literal_mapping={},
-        )
-        context = {"key": "fallback"}
-        with pytest.raises(ValueError, match=r"Invalid JSONPath expression.*for key 'key'"):
-            apply_input_mapping(
-                input_schema=input_schema,
-                input_mapping=input_mapping,
-                context=context,
+        # Invalid JSONPath expressions are now validated at construction time
+        with pytest.raises(BadRequest, match=r"Invalid JSONPath expression for key 'key'"):
+            EvaluatorInputMappingInput(
+                path_mapping={"key": "[[[invalid jsonpath"},
+                literal_mapping={},
             )
 
     def test_raises_when_jsonpath_has_no_matches(self) -> None:
@@ -2345,7 +2335,7 @@ class TestLLMEvaluator:
         assert output_detail.cost == pytest.approx(expected_completion_cost)
         assert output_detail.cost_per_token == completion_base_rate
 
-    async def test_evaluate_with_invalid_jsonpath_records_error_on_template_span(
+    async def test_evaluate_with_invalid_jsonpath_rejected_at_construction(
         self,
         db: DbSessionFactory,
         project: models.Project,
@@ -2353,8 +2343,25 @@ class TestLLMEvaluator:
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
     ) -> None:
+        # Invalid JSONPath expressions are now validated at construction time
+        with pytest.raises(BadRequest) as exc_info:
+            EvaluatorInputMappingInput(
+                path_mapping={"output": "[[[invalid jsonpath"},  # invalid JSONPath syntax
+                literal_mapping={},
+            )
+        assert "Invalid JSONPath expression for key 'output'" in str(exc_info.value)
+
+    async def test_evaluate_with_nonexistent_path_records_error_on_template_span(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
+        llm_evaluator: LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
+    ) -> None:
+        # Valid JSONPath syntax but path doesn't exist in context
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"output": "[[[invalid jsonpath"},  # invalid JSONPath expression
+            path_mapping={"output": "nonexistent.path"},
             literal_mapping={},
         )
         evaluation_result = await llm_evaluator.evaluate(
@@ -2368,7 +2375,6 @@ class TestLLMEvaluator:
         result = dict(evaluation_result)
         error = result.pop("error")
         assert isinstance(error, str)
-        assert "Invalid JSONPath expression" in error
         assert result.pop("label") is None
         assert result.pop("score") is None
         assert result.pop("explanation") is None
@@ -2412,9 +2418,9 @@ class TestLLMEvaluator:
         assert isinstance(exception_event.pop("timestamp"), str)
         event_attributes = dict(exception_event.pop("attributes"))
         assert event_attributes.pop("exception.type") == "ValueError"
-        assert "Invalid JSONPath expression" in event_attributes.pop("exception.message")
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
+        event_attributes.pop("exception.message")  # Don't assert on specific message
         assert not event_attributes
         assert not exception_event
 
@@ -2432,7 +2438,7 @@ class TestLLMEvaluator:
         assert isinstance(exception_event.pop("timestamp"), str)
         event_attributes = dict(exception_event.pop("attributes"))
         assert event_attributes.pop("exception.type") == "ValueError"
-        assert "Invalid JSONPath expression" in event_attributes.pop("exception.message")
+        assert "did not match any values" in event_attributes.pop("exception.message")
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes
@@ -2444,9 +2450,7 @@ class TestLLMEvaluator:
         assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
         attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
         attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {
-            "output": "[[[invalid jsonpath"
-        }
+        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {"output": "nonexistent.path"}
         assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
         assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
             "input": "What is 2 + 2?",
