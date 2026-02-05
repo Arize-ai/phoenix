@@ -8,6 +8,7 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -638,7 +639,7 @@ async def projects_with_and_without_dataset_evaluators(
             dataset_id=dataset.id,
             evaluator_id=code_evaluator.id,
             name=Identifier(root="test-dataset-evaluator"),
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             project_id=dataset_evaluator_project.id,
         )
         session.add(dataset_evaluator)
