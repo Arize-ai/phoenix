@@ -104,10 +104,25 @@ class Evaluator(Node):
     @strawberry.field
     async def datasets(
         self,
+        info: Info[Context, None],
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
     ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
-        raise NotImplementedError
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
+        from .Dataset import Dataset
+
+        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
+
+    @strawberry.field
+    async def dataset_evaluators(
+        self,
+        info: Info[Context, None],
+    ) -> list["DatasetEvaluator"]:
+        dataset_evaluator_records = (
+            await info.context.data_loaders.dataset_evaluators_by_evaluator.load(self.id)
+        )
+        return [DatasetEvaluator(id=de.id, db_record=de) for de in dataset_evaluator_records]
 
 
 @strawberry.type
@@ -213,19 +228,6 @@ class CodeEvaluator(Evaluator, Node):
         from .User import User
 
         return User(id=user_id)
-
-    @strawberry.field
-    async def datasets(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        after: Optional[CursorString] = UNSET,
-    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
-        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
-        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
-        from .Dataset import Dataset
-
-        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
 @strawberry.type
@@ -427,19 +429,6 @@ class LLMEvaluator(Evaluator, Node):
 
         return to_gql_prompt_version(prompt_version)
 
-    @strawberry.field
-    async def datasets(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        after: Optional[CursorString] = UNSET,
-    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
-        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
-        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
-        from .Dataset import Dataset
-
-        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
-
 
 @strawberry.type
 class BuiltInEvaluator(Evaluator, Node):
@@ -551,19 +540,6 @@ class BuiltInEvaluator(Evaluator, Node):
             id_prefix="Evaluator",
             evaluator_id=self.id,
         )
-
-    @strawberry.field
-    async def datasets(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        after: Optional[CursorString] = UNSET,
-    ) -> Connection[Annotated["Dataset", strawberry.lazy(".Dataset")]]:
-        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
-        dataset_records = await info.context.data_loaders.datasets_by_evaluator.load(self.id)
-        from .Dataset import Dataset
-
-        return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
 def _generate_output_config_id(id_prefix: str, evaluator_id: int) -> int:

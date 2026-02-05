@@ -10,7 +10,7 @@ import anyio
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -1371,9 +1371,24 @@ class Query:
         # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
         # base `evaluators` table.
         PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
         )  # eagerly join sub-classed evaluator tables
-        query = select(PolymorphicEvaluator)
+        query = (
+            select(PolymorphicEvaluator)
+            .join(
+                models.DatasetEvaluators,
+                onclause=models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                isouter=True,
+            )
+            # exclude builtin evaluators that are not associated with any dataset
+            .where(
+                or_(
+                    PolymorphicEvaluator.kind != "BUILTIN",
+                    models.DatasetEvaluators.dataset_id.isnot(None),
+                )
+            )
+            .distinct()
+        )
 
         if filter:
             column = getattr(PolymorphicEvaluator, filter.col.value)
@@ -1390,6 +1405,7 @@ class Query:
                 sort_col = case(
                     (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
                     (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
                     else_=None,
                 )
             else:
@@ -1406,6 +1422,8 @@ class Query:
                 data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
             elif isinstance(evaluator, models.CodeEvaluator):
                 data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
