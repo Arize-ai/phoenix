@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<711e25a00e3ed1f35e832420fa164dd0>>
+ * @generated SignedSource<<246f52a70a80c14e986a59e58dfb056d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -149,6 +149,13 @@ return {
                   "selections": [
                     (v1/*: any*/),
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "description",
+                      "storageKey": null
+                    },
                     (v3/*: any*/),
                     {
                       "alias": null,
@@ -196,24 +203,10 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "description",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
                           "name": "createdAt",
                           "storageKey": null
                         },
                         (v3/*: any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "isBuiltin",
-                          "storageKey": null
-                        },
                         {
                           "kind": "InlineFragment",
                           "selections": [

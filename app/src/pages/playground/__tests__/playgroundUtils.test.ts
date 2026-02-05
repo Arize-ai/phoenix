@@ -29,6 +29,8 @@ import {
 } from "../invocationParameterUtils";
 import {
   areRequiredInvocationParametersConfigured,
+  extractRootVariable,
+  extractRootVariables,
   extractVariablesFromInstances,
   getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
@@ -1778,5 +1780,62 @@ describe("getAzureConfigFromAttributes", () => {
       deploymentName: "meta-deploy",
       endpoint: null,
     });
+  });
+});
+
+describe("extractRootVariable", () => {
+  it("should return simple variable names unchanged", () => {
+    expect(extractRootVariable("name")).toBe("name");
+    expect(extractRootVariable("input")).toBe("input");
+    expect(extractRootVariable("reference")).toBe("reference");
+  });
+
+  it("should extract root from dot notation paths", () => {
+    expect(extractRootVariable("reference.label")).toBe("reference");
+    expect(extractRootVariable("user.name")).toBe("user");
+    expect(extractRootVariable("input.input.messages")).toBe("input");
+    expect(extractRootVariable("user.address.city")).toBe("user");
+  });
+
+  it("should extract root from bracket notation", () => {
+    expect(extractRootVariable("items[0]")).toBe("items");
+    expect(extractRootVariable("reference[label]")).toBe("reference");
+  });
+
+  it("should extract root from mixed notation", () => {
+    expect(extractRootVariable("items[0].name")).toBe("items");
+    expect(extractRootVariable("user.addresses[0].city")).toBe("user");
+  });
+
+  it("should handle empty string", () => {
+    expect(extractRootVariable("")).toBe("");
+  });
+});
+
+describe("extractRootVariables", () => {
+  it("should extract unique root variables from paths", () => {
+    const paths = [
+      "input.input.messages",
+      "reference.label",
+      "input.question",
+      "metadata",
+    ];
+    const result = extractRootVariables(paths);
+    expect(result).toEqual(["input", "reference", "metadata"]);
+  });
+
+  it("should return empty array for empty input", () => {
+    expect(extractRootVariables([])).toEqual([]);
+  });
+
+  it("should deduplicate root variables", () => {
+    const paths = [
+      "user.name",
+      "user.email",
+      "user.address.city",
+      "reference.label",
+    ];
+    const result = extractRootVariables(paths);
+    expect(result).toEqual(["user", "reference"]);
   });
 });

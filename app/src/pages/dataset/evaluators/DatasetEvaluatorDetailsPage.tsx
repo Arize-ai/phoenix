@@ -74,7 +74,7 @@ function DatasetEvaluatorDetailsPageContent({
     <main css={mainCSS}>
       <PageHeader
         title={`Evaluator: ${datasetEvaluator.name}`}
-        subTitle={evaluator.description}
+        subTitle={datasetEvaluator.description}
         extra={
           <Button
             variant="primary"

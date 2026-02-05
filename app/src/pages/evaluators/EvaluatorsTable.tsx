@@ -204,7 +204,7 @@ export const EvaluatorsTable = ({
         accessorKey: "kind",
         size: 80,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE"} />
+          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
         ),
       },
       {
