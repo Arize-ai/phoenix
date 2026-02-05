@@ -24,6 +24,10 @@ class EvaluatorInputMappingInput:
         if not isinstance(self.path_mapping, Mapping):
             raise BadRequest("path_mapping must be a dictionary")
         for key, path in self.path_mapping.items():
+            if not isinstance(path, str):
+                raise BadRequest(
+                    f"Invalid JSONPath expression for key '{key}': {path} is not a string"
+                )
             try:
                 validate_jsonpath(path)
             except ValueError as e:
