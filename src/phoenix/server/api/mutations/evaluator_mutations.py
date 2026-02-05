@@ -15,6 +15,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.models import EvaluatorKind
+from phoenix.db.types.annotation_configs import AnnotationConfigType
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
@@ -35,6 +36,9 @@ from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
+    validate_min_one_config,
+    validate_unique_config_names,
+    validate_unique_override_names,
 )
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
@@ -43,9 +47,6 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
-from phoenix.server.api.mutations.annotation_config_mutations import (
-    _convert_annotation_config_inputs_to_pydantic,
-)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
@@ -60,49 +61,54 @@ from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
 
-def _get_config_name(config: AnnotationConfigInput) -> str:
-    """Extract the name from an AnnotationConfigInput."""
-    if config.categorical is not None and config.categorical is not UNSET:
-        return config.categorical.name
-    elif config.continuous is not None and config.continuous is not UNSET:
-        return config.continuous.name
-    elif config.freeform is not None and config.freeform is not UNSET:
-        return config.freeform.name
+def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> AnnotationConfigType:
+    """
+    Convert AnnotationConfigInput to pydantic for evaluator output configs.
+    Always includes name.
+    """
+    from phoenix.db.types.annotation_configs import (
+        AnnotationType,
+        CategoricalAnnotationConfig,
+        CategoricalAnnotationValue,
+        ContinuousAnnotationConfig,
+        FreeformAnnotationConfig,
+    )
+
+    if input.categorical is not None and input.categorical is not UNSET:
+        cat = input.categorical
+        return CategoricalAnnotationConfig(
+            type=AnnotationType.CATEGORICAL.value,
+            name=cat.name,
+            description=cat.description,
+            optimization_direction=cat.optimization_direction,
+            values=[CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values],
+        )
+    elif input.continuous is not None and input.continuous is not UNSET:
+        cont = input.continuous
+        return ContinuousAnnotationConfig(
+            type=AnnotationType.CONTINUOUS.value,
+            name=cont.name,
+            description=cont.description,
+            optimization_direction=cont.optimization_direction,
+            lower_bound=cont.lower_bound,
+            upper_bound=cont.upper_bound,
+        )
+    elif input.freeform is not None and input.freeform is not UNSET:
+        ff = input.freeform
+        return FreeformAnnotationConfig(
+            type=AnnotationType.FREEFORM.value,
+            name=ff.name,
+            description=ff.description,
+        )
     else:
-        raise BadRequest("No annotation config provided")
+        raise BadRequest("No annotation config provided in output config input")
 
 
-def _validate_unique_config_names(configs: list[AnnotationConfigInput]) -> None:
-    """
-    Validate that all config names in the list are unique.
-    Raises BadRequest if duplicate names are found.
-    """
-    config_names = [_get_config_name(c) for c in configs]
-    if len(config_names) != len(set(config_names)):
-        duplicates = [name for name in config_names if config_names.count(name) > 1]
-        raise BadRequest(f"Config names must be unique. Duplicates found: {set(duplicates)}")
-
-
-def _validate_unique_override_names(
-    overrides: list[NamedAnnotationConfigOverrideInput],
-) -> None:
-    """
-    Validate that all override names in the list are unique.
-    Raises BadRequest if duplicate names are found.
-    """
-    override_names = [o.name for o in overrides]
-    if len(override_names) != len(set(override_names)):
-        duplicates = [name for name in override_names if override_names.count(name) > 1]
-        raise BadRequest(f"Override names must be unique. Duplicates found: {set(duplicates)}")
-
-
-def _validate_min_one_config(configs: list[AnnotationConfigInput]) -> None:
-    """
-    Validate that at least one config exists in the list.
-    Raises BadRequest if the config list is empty.
-    """
-    if not configs:
-        raise BadRequest("At least one output config is required")
+def _convert_output_config_inputs_to_pydantic(
+    configs: list[AnnotationConfigInput],
+) -> list[AnnotationConfigType]:
+    """Convert a list of AnnotationConfigInput to pydantic models for evaluator output configs."""
+    return [_output_config_input_to_pydantic(c) for c in configs]
 
 
 async def _generate_unique_evaluator_name(
@@ -420,9 +426,12 @@ class EvaluatorMutationMixin:
         except ValidationError as error:
             raise BadRequest(str(error))
         # Validate output configs before conversion
-        _validate_min_one_config(input.output_configs)
-        _validate_unique_config_names(input.output_configs)
-        output_configs = _convert_annotation_config_inputs_to_pydantic(input.output_configs)
+        try:
+            validate_min_one_config(input.output_configs)
+            validate_unique_config_names(input.output_configs)
+        except ValueError as e:
+            raise BadRequest(str(e))
+        output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
         try:
             validated_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
@@ -566,9 +575,12 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
         # Validate output configs before conversion
-        _validate_min_one_config(input.output_configs)
-        _validate_unique_config_names(input.output_configs)
-        output_configs = _convert_annotation_config_inputs_to_pydantic(input.output_configs)
+        try:
+            validate_min_one_config(input.output_configs)
+            validate_unique_config_names(input.output_configs)
+        except ValueError as e:
+            raise BadRequest(str(e))
+        output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
         try:
             prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
@@ -888,7 +900,10 @@ class EvaluatorMutationMixin:
 
         # Validate unique override names before processing
         if input.output_config_overrides:
-            _validate_unique_override_names(input.output_config_overrides)
+            try:
+                validate_unique_override_names(input.output_config_overrides)
+            except ValueError as e:
+                raise BadRequest(str(e))
 
         try:
             async with info.context.db() as session:
@@ -967,7 +982,10 @@ class EvaluatorMutationMixin:
 
         # Validate unique override names before processing
         if input.output_config_overrides is not UNSET and input.output_config_overrides is not None:
-            _validate_unique_override_names(input.output_config_overrides)
+            try:
+                validate_unique_override_names(input.output_config_overrides)
+            except ValueError as e:
+                raise BadRequest(str(e))
 
         try:
             async with info.context.db() as session:

@@ -17,12 +17,10 @@ export type DatasetEvaluatorOutputConfig = {
 
 /**
  * The minimal shape of a dataset evaluator needed for conversion.
- * Supports both the deprecated outputConfig and the new outputConfigs array.
+ * Uses the outputConfigs array for multi-output evaluator support.
  */
 export type DatasetEvaluatorForConfig = {
   readonly name: string;
-  /** @deprecated Use outputConfigs instead */
-  readonly outputConfig?: DatasetEvaluatorOutputConfig;
   /** Array of output configurations for multi-output evaluators */
   readonly outputConfigs?:
     | readonly (DatasetEvaluatorOutputConfig | null)[]
@@ -75,12 +73,11 @@ function outputConfigToAnnotationConfig(
 
 /**
  * Converts a single dataset evaluator to an array of AnnotationConfigs.
- * Handles both the deprecated outputConfig and the new outputConfigs array.
+ * Handles the outputConfigs array for multi-output evaluator support.
  */
 export function datasetEvaluatorToAnnotationConfigs(
   evaluator: DatasetEvaluatorForConfig
 ): AnnotationConfig[] {
-  // Prefer outputConfigs array if available
   if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
     return evaluator.outputConfigs
       .filter(
@@ -90,19 +87,13 @@ export function datasetEvaluatorToAnnotationConfigs(
       .map((config) => outputConfigToAnnotationConfig(config, evaluator.name));
   }
 
-  // Fall back to deprecated outputConfig
-  const outputConfig = evaluator.outputConfig;
-  if (!outputConfig) {
-    // No configs at all, return FREEFORM
-    return [
-      {
-        name: evaluator.name,
-        annotationType: "FREEFORM",
-      },
-    ];
-  }
-
-  return [outputConfigToAnnotationConfig(outputConfig, evaluator.name)];
+  // No configs at all, return FREEFORM
+  return [
+    {
+      name: evaluator.name,
+      annotationType: "FREEFORM",
+    },
+  ];
 }
 
 /**

@@ -134,7 +134,7 @@ const CreateEvaluatorDialog = ({
   const initialState = useMemo(() => {
     const defaultOutputConfig =
       _initialState?.outputConfig ??
-      DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
+      DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
     const defaultEvaluatorName =
       _initialState?.name ??
       DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
@@ -154,7 +154,6 @@ const CreateEvaluatorDialog = ({
       },
       // Initialize outputConfigs with the single config in an array
       outputConfigs: [outputConfigWithName],
-      activeOutputConfigIndex: 0,
       dataset: {
         readonly: true,
         id: datasetId,

@@ -40,20 +40,10 @@ export type EvaluatorStoreProps = {
     includeExplanation: boolean;
   };
   /**
-   * @deprecated Use outputConfigs instead. This is kept for backward compatibility.
-   */
-  outputConfig?:
-    | ClassificationEvaluatorAnnotationConfig
-    | ContinuousEvaluatorAnnotationConfig;
-  /**
    * Array of output configurations for multi-output evaluators.
    * Each config defines an annotation that the evaluator will produce.
    */
   outputConfigs: AnnotationConfig[];
-  /**
-   * Index of the currently active output config being edited.
-   */
-  activeOutputConfigIndex: number;
   dataset?: {
     id: string;
     readonly: boolean;
@@ -130,8 +120,6 @@ export type EvaluatorStoreActions = {
     index: number,
     updates: Partial<AnnotationConfig>
   ) => void;
-  /** Sets the active output config index for editing. */
-  setActiveOutputConfigIndex: (index: number) => void;
   /** Replaces all output configs with a new array. */
   setOutputConfigs: (configs: AnnotationConfig[]) => void;
   /** Sets the name of the output config at a specific index. */
@@ -220,7 +208,6 @@ export const DEFAULT_STORE_VALUES = {
   evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
-  activeOutputConfigIndex: 0,
 } satisfies DeepPartial<EvaluatorStoreProps>;
 
 /**
@@ -240,9 +227,7 @@ export const DEFAULT_LLM_EVALUATOR_STORE_VALUES = {
     kind: "LLM",
     isBuiltin: false,
   },
-  outputConfig: DEFAULT_LLM_OUTPUT_CONFIG,
   outputConfigs: [DEFAULT_LLM_OUTPUT_CONFIG],
-  activeOutputConfigIndex: 0,
 } satisfies EvaluatorStoreProps;
 
 /**
@@ -256,7 +241,6 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
     isBuiltin: true,
   },
   outputConfigs: [],
-  activeOutputConfigIndex: 0,
 } satisfies EvaluatorStoreProps;
 
 export const createEvaluatorStore = (
@@ -281,12 +265,13 @@ export const createEvaluatorStore = (
             set(
               {
                 evaluator: { ...get().evaluator, globalName },
-                // synchronize the output config name with the evaluator name
               },
               undefined,
               "setEvaluatorGlobalName"
             );
-            get().setOutputConfigName(globalName);
+            if (get().outputConfigs.length <= 1) {
+              get().setOutputConfigName(globalName);
+            }
           },
           setEvaluatorName(name) {
             set(
@@ -296,7 +281,9 @@ export const createEvaluatorStore = (
               undefined,
               "setEvaluatorName"
             );
-            get().setOutputConfigName(name);
+            if (get().outputConfigs.length <= 1) {
+              get().setOutputConfigName(name);
+            }
           },
           setEvaluatorDescription(description) {
             set(
@@ -306,19 +293,17 @@ export const createEvaluatorStore = (
             );
           },
           setOutputConfigName(name) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
-            const newOutputConfig = { ...baseOutputConfig, name };
-            // Also update the first element of outputConfigs for consistency
             const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = { ...baseConfig, name };
             const newConfigs =
               currentConfigs.length > 0
-                ? [newOutputConfig, ...currentConfigs.slice(1)]
-                : [newOutputConfig];
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
               {
-                outputConfig: newOutputConfig,
                 outputConfigs: newConfigs,
               },
               undefined,
@@ -326,22 +311,20 @@ export const createEvaluatorStore = (
             );
           },
           setOutputConfigOptimizationDirection(optimizationDirection) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
-            const newOutputConfig = {
-              ...baseOutputConfig,
+            const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = {
+              ...baseConfig,
               optimizationDirection,
             };
-            // Also update the first element of outputConfigs for consistency
-            const currentConfigs = get().outputConfigs;
             const newConfigs =
               currentConfigs.length > 0
-                ? [newOutputConfig, ...currentConfigs.slice(1)]
-                : [newOutputConfig];
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
               {
-                outputConfig: newOutputConfig,
                 outputConfigs: newConfigs,
               },
               undefined,
@@ -349,19 +332,17 @@ export const createEvaluatorStore = (
             );
           },
           setOutputConfigValues(values) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
-            const newOutputConfig = { ...baseOutputConfig, values };
-            // Also update the first element of outputConfigs for consistency
             const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = { ...baseConfig, values };
             const newConfigs =
               currentConfigs.length > 0
-                ? [newOutputConfig, ...currentConfigs.slice(1)]
-                : [newOutputConfig];
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
               {
-                outputConfig: newOutputConfig,
                 outputConfigs: newConfigs,
               },
               undefined,
@@ -548,16 +529,9 @@ export const createEvaluatorStore = (
           removeOutputConfig(index) {
             const currentConfigs = get().outputConfigs;
             const newConfigs = currentConfigs.filter((_, i) => i !== index);
-            const activeIndex = get().activeOutputConfigIndex;
-            // Adjust active index if needed
-            const newActiveIndex =
-              activeIndex >= newConfigs.length
-                ? Math.max(0, newConfigs.length - 1)
-                : activeIndex;
             set(
               {
                 outputConfigs: newConfigs,
-                activeOutputConfigIndex: newActiveIndex,
               },
               undefined,
               "removeOutputConfig"
@@ -569,13 +543,6 @@ export const createEvaluatorStore = (
             const newConfigs = [...currentConfigs];
             newConfigs[index] = { ...newConfigs[index], ...updates };
             set({ outputConfigs: newConfigs }, undefined, "updateOutputConfig");
-          },
-          setActiveOutputConfigIndex(index) {
-            set(
-              { activeOutputConfigIndex: index },
-              undefined,
-              "setActiveOutputConfigIndex"
-            );
           },
           setOutputConfigs(configs) {
             set({ outputConfigs: configs }, undefined, "setOutputConfigs");

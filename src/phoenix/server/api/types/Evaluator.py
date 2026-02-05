@@ -546,14 +546,15 @@ class BuiltInEvaluator(Evaluator, Node):
         ]
 
 
-def _generate_output_config_id(id_prefix: str, evaluator_id: int) -> int:
+def _generate_output_config_id(id_prefix: str, evaluator_id: int, config_name: str) -> int:
     """
     Generate a stable negative ID for evaluator output configs.
 
     The id_prefix ensures different contexts (e.g., "Evaluator" vs "DatasetEvaluator")
     produce distinct IDs even when referencing the same underlying evaluator_id.
+    The config_name ensures multi-output evaluators produce unique IDs per config.
     """
-    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}".encode("utf-8")))
+    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}:{config_name}".encode("utf-8")))
 
 
 def _to_gql_categorical_annotation_config(
@@ -570,7 +571,7 @@ def _to_gql_categorical_annotation_config(
         for val in config.values
     ]
     return CategoricalAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -586,7 +587,7 @@ def _to_gql_continuous_annotation_config(
     evaluator_id: int,
 ) -> ContinuousAnnotationConfig:
     return ContinuousAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,

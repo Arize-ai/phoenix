@@ -180,10 +180,7 @@ export const MultiOutputConfigEditor = ({
           {outputConfigs.map((config, index) => {
             const hasDuplicateName = duplicateNames.has(config.name);
             return (
-              <Disclosure
-                key={config.name || index}
-                id={`output-config-${index}`}
-              >
+              <Disclosure key={index} id={`output-config-${index}`}>
                 <DisclosureTrigger arrowPosition="start" width="100%">
                   <Flex
                     direction="row"

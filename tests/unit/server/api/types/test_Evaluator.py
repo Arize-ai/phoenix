@@ -1142,3 +1142,114 @@ class TestBuiltInEvaluatorMultiOutput:
         assert config["optimizationDirection"] == "MAXIMIZE"  # Base is MAXIMIZE
         labels = {v["label"] for v in config["values"]}
         assert labels == {"true", "false"}  # Base labels
+
+
+class TestLLMEvaluatorOutputConfigs:
+    """Tests for LLMEvaluator.outputConfigs GraphQL field resolution."""
+
+    @pytest.fixture
+    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+        """Create test data: LLM evaluator with multiple output configs."""
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier(token_hex(4)))
+            session.add(prompt)
+            await session.flush()
+
+            v1 = _create_prompt_version(prompt.id, "V1: {input}", "gpt-4")
+            session.add(v1)
+            await session.flush()
+
+            llm_evaluator = models.LLMEvaluator(
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+                description="Multi-output LLM evaluator",
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        description="Quality assessment",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="high", score=1.0),
+                            CategoricalAnnotationValue(label="low", score=0.0),
+                        ],
+                    ),
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="relevance",
+                        description="Relevance assessment",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="relevant", score=1.0),
+                            CategoricalAnnotationValue(label="irrelevant", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+
+        yield {
+            "llm_evaluator": llm_evaluator.id,
+        }
+
+    async def test_llm_evaluator_output_configs_returns_all_configs(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Query an LLM evaluator node and verify outputConfigs returns
+        the correct list of configs with all fields populated."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on LLMEvaluator {
+                        name
+                        description
+                        outputConfigs {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                description
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["llm_evaluator"])))
+            },
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["description"] == "Multi-output LLM evaluator"
+
+        output_configs = node["outputConfigs"]
+        assert isinstance(output_configs, list)
+        assert len(output_configs) == 2
+
+        # Verify first config
+        first = output_configs[0]
+        assert first["__typename"] == "CategoricalAnnotationConfig"
+        assert first["name"] == "quality"
+        assert first["description"] == "Quality assessment"
+        assert first["optimizationDirection"] == "MAXIMIZE"
+        assert len(first["values"]) == 2
+        labels_1 = {v["label"] for v in first["values"]}
+        assert labels_1 == {"high", "low"}
+        scores_1 = {v["label"]: v["score"] for v in first["values"]}
+        assert scores_1["high"] == 1.0
+        assert scores_1["low"] == 0.0
+
+        # Verify second config
+        second = output_configs[1]
+        assert second["__typename"] == "CategoricalAnnotationConfig"
+        assert second["name"] == "relevance"
+        assert second["description"] == "Relevance assessment"
+        assert second["optimizationDirection"] == "MINIMIZE"
+        assert len(second["values"]) == 2
+        labels_2 = {v["label"] for v in second["values"]}
+        assert labels_2 == {"relevant", "irrelevant"}
+        scores_2 = {v["label"]: v["score"] for v in second["values"]}
+        assert scores_2["relevant"] == 1.0
+        assert scores_2["irrelevant"] == 0.0

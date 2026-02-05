@@ -256,8 +256,6 @@ const EditEvaluatorDialog = ({
       loadedOutputConfigs && loadedOutputConfigs.length > 0
         ? loadedOutputConfigs
         : DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs;
-    // Keep outputConfig for backward compatibility (first config)
-    const outputConfig = outputConfigs[0];
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
@@ -281,7 +279,6 @@ const EditEvaluatorDialog = ({
       datasetEvaluator: {
         id: datasetEvaluatorId,
       },
-      outputConfig,
       outputConfigs,
       dataset: {
         readonly: true,

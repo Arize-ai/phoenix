@@ -83,7 +83,7 @@ export const EvaluatorOutputPreview = () => {
         builtInEvaluatorId: state.evaluator.id,
       };
     } else {
-      const outputConfig = state.outputConfig;
+      const outputConfig = state.outputConfigs[0];
       invariant(outputConfig, "outputConfig is required");
       invariant(
         "values" in outputConfig,
@@ -95,7 +95,7 @@ export const EvaluatorOutputPreview = () => {
         name: state.evaluator.name || state.evaluator.globalName,
         includeExplanation: state.evaluator.includeExplanation,
         inputMapping: state.evaluator.inputMapping,
-        outputConfig,
+        outputConfigs: [outputConfig],
         instanceId,
         datasetId: state.dataset?.id ?? "",
       });

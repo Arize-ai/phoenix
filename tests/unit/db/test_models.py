@@ -1360,6 +1360,100 @@ class TestAnnotationConfigTypeDecorators:
             assert config_2.name == "relevance"
             assert config_2.description == "Relevance assessment"
 
+    async def test_continuous_annotation_config_list_round_trip(self, db: DbSessionFactory) -> None:
+        """Test ContinuousAnnotationConfig round-trip through _AnnotationConfigList.
+
+        Verifies all fields (name, description, optimization_direction,
+        lower_bound, upper_bound) survive serialization and deserialization.
+        """
+        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
+
+        async with db() as session:
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            continuous_configs: list[AnnotationConfigType] = [
+                ContinuousAnnotationConfig(
+                    type="CONTINUOUS",
+                    name="similarity_score",
+                    description="Measures semantic similarity",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=1.0,
+                ),
+                ContinuousAnnotationConfig(
+                    type="CONTINUOUS",
+                    name="latency",
+                    description="Response latency in seconds",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=None,
+                ),
+            ]
+
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"continuous-eval-{token_hex(4)}"),
+                description="Continuous config evaluator",
+                kind="LLM",
+                output_configs=continuous_configs,
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+            evaluator_id = evaluator.id
+
+        async with db() as session:
+            loaded_eval = await session.get(models.LLMEvaluator, evaluator_id)
+            assert loaded_eval is not None
+            assert len(loaded_eval.output_configs) == 2
+
+            # Verify first continuous config
+            config_1 = loaded_eval.output_configs[0]
+            assert isinstance(config_1, ContinuousAnnotationConfig)
+            assert config_1.name == "similarity_score"
+            assert config_1.description == "Measures semantic similarity"
+            assert str(config_1.optimization_direction) == OptimizationDirection.MAXIMIZE.value
+            assert config_1.lower_bound == 0.0
+            assert config_1.upper_bound == 1.0
+
+            # Verify second continuous config
+            config_2 = loaded_eval.output_configs[1]
+            assert isinstance(config_2, ContinuousAnnotationConfig)
+            assert config_2.name == "latency"
+            assert config_2.description == "Response latency in seconds"
+            assert str(config_2.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config_2.lower_bound == 0.0
+            assert config_2.upper_bound is None
+
     async def test_annotation_config_override_dict_serialization(
         self, db: DbSessionFactory
     ) -> None:
