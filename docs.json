@@ -152,8 +152,6 @@
                   "docs/phoenix/evaluation/tutorials/customize-eval-template"
                 ]
               },
-              "docs/phoenix/evaluation/typescript-quickstart",
-              "docs/phoenix/evaluation/python-quickstart",
               {
                 "group": "Overview: Evals",
                 "pages": [

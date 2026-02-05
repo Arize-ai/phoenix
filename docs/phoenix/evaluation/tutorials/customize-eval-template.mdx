@@ -15,9 +15,6 @@ Follow along with the following code assets:
     Companion Python project with runnable examples
   </Card>
 </Columns>
-
-TODO: \<LINK\> 
-
 --- 
 
 ## How Custom Evaluators Work
@@ -117,7 +114,7 @@ By making these criteria explicit, the resulting evaluation signal is more infor
 
 ## Create the Custom Evaluator
 
-Once the template is defined, you can create a custom evaluator using any supported judge model. This example uses a custom OpenAI-compatible endpoint, but the same pattern applies regardless of where the model is hosted.
+Once the template is defined, you can create a custom evaluator using any supported judge model. This example uses a built in, classic OpenAI LLM model, but you can use any judge model. 
 
 <Tabs>
   <Tab title="Python">
@@ -125,11 +122,10 @@ Once the template is defined, you can create a custom evaluator using any suppor
     from phoenix.evals import ClassificationEvaluator
     from phoenix.evals.llm import LLM
 
-    custom_llm = LLM(
+    llm = LLM(
         provider="openai",
-        model="accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
-        base_url="https://api.fireworks.ai/inference/v1",
-        api_key=os.environ.get("FIREWORKS_API_KEY"),
+        model="gpt-4o",
+        client="openai",
     )
 
     custom_correctness_evaluator = ClassificationEvaluator(
@@ -143,13 +139,9 @@ Once the template is defined, you can create a custom evaluator using any suppor
     <Tab title="TypeScript">
     ```typescript
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-    import { createOpenAI } from "@ai-sdk/openai";
+    import { openai } from "@ai-sdk/openai";
 
-    const llm = createOpenAI({
-      baseURL: "https://api.fireworks.ai/inference/v1",
-      apiKey: process.env.FIREWORKS_API_KEY,
-    }).chat(FIREWORKS_MODEL);
-
+    const base_model = openai("gpt-4o-mini");
     const EVAL_NAME = "custom_correctness";
     const evaluator = createClassificationEvaluator({
       model: llm as Parameters<typeof createClassificationEvaluator>[0]["model"],

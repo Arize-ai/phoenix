@@ -1,14 +1,12 @@
 import "dotenv/config";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-import { createOpenAI } from "@ai-sdk/openai";
+import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 
 const EVAL_NAME = "custom_correctness";
 const AGENT_SPAN_NAME = "LangGraph";
 const PROJECT_NAME =
   process.env.PHOENIX_PROJECT_NAME ?? "langchain-travel-agent";
-const FIREWORKS_MODEL =
-  "accounts/fireworks/models/qwen3-235b-a22b-instruct-2507";
 
 const correctnessTemplate = `
 You are an expert evaluator judging whether a travel planner agent's response is correct. The agent is a friendly travel planner that must combine multiple tools to create a trip plan with: (1) essential info, (2) budget breakdown, and (3) local flavor/experiences.
@@ -74,13 +72,12 @@ function getSpanId(span: SpanLike): string | null {
 }
 
 async function main() {
-  const llm = createOpenAI({
-    baseURL: "https://api.fireworks.ai/inference/v1",
-    apiKey: process.env.FIREWORKS_API_KEY,
-  }).chat(FIREWORKS_MODEL);
+  const base_model = openai("gpt-4o-mini");
 
   const evaluator = createClassificationEvaluator({
-    model: llm as Parameters<typeof createClassificationEvaluator>[0]["model"],
+    model: base_model as Parameters<
+      typeof createClassificationEvaluator
+    >[0]["model"],
     promptTemplate: correctnessTemplate,
     choices: { correct: 1, incorrect: 0 },
     name: EVAL_NAME,

@@ -2,7 +2,7 @@
 title: "Run Evals With Built-In Eval Templates" 
 ---
 
-This guide walks through how to run evaluations using Phoenix’s built-in eval templates. You’ll configure a judge model, select a pre-built evaluation, and run it on real data—specifically, data derived from Phoenix traces.
+This guide is part of a sequence: it starts with built-in eval templates, then moves to customizing the judge model, then to defining your own evaluation criteria. Here you configure a judge model, select a pre-built evaluation, and run it on real data—specifically, data derived from Phoenix traces.
 
 The goal is to go from traced application executions to structured quality signals that can be inspected, compared, and logged back to Phoenix. This guide assumes you already have tracing in place and focuses on using evals to measure correctness and behavior.
 
@@ -29,12 +29,10 @@ Follow along with the following code assets:
   </Card>
 </Columns>
 
-TODO: \<LINK\> 
-
 --- 
 
 ## Configure Core LLM Setup
-Phoenix Evals is provider-agnostic. You can run evaluations using any supported LLM provider without changing how your evaluators are written.
+Evals need an LLM to act as the judge—the model that applies the rubric to your data. Configuring that judge is the first step. Phoenix Evals is provider-agnostic. You can run evaluations using any supported LLM provider without changing how your evaluators are written.
 
 Across both the Python and TypeScript evals libraries, a judge model is represented as a reusable configuration object. This object describes how Phoenix connects to a model provider, including the provider name, model identifier, credentials, and any SDK-specific client configuration.
 
@@ -72,8 +70,6 @@ You can find all [built in templates](https://arize.com/docs/phoenix/evaluation/
 
 Built-in templates are a good choice when you want reliable signal quickly without designing a rubric from scratch, especially early in iteration or when establishing a baseline.
 
-The example below shows how to instantiate a built-in Correctness eval template using a configured judge model:
-
 The example below shows a minimal setup using the built-in Correctness eval template with a configured judge model:
 <Tabs>
   <Tab title="Python">
@@ -98,7 +94,7 @@ Once defined, built-in evaluators can be run on tabular data or trace-derived ex
 
 ## Running Evals on Phoenix Traces
 
-With a judge model and evaluator defined, the next step is running evals on real application data. A common workflow is evaluating traced executions and attaching results back to spans in Phoenix.
+With a judge model and evaluator defined, the next step is running evals on real application data. A common workflow is evaluating traced executions and attaching results back to spans in Phoenix. Once attached, you can inspect failures and edge cases in the UI, compare behavior across runs, and use eval results as inputs to datasets and experiments.
 
 **1. Export trace spans**
 
