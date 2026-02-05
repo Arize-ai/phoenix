@@ -49,19 +49,16 @@ projects.push({
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
   timeout: process.env.CI ? 60000 : 30000,
-  // Limit the number of workers on CI, use default locally
-  workers: process.env.CI ? 2 : undefined,
+  // Parallel workers expose flakiness, so we'll run tests serially.
+  workers: 1,
+  fullyParallel: false,
   testDir: "./tests",
-  /* Run tests in files in parallel */
-  fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
-  /* Opt out of parallel tests on CI. */
-  // workers: process.env.CI ? 1 : undefined,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
