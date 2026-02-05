@@ -320,9 +320,7 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: 0.8.6
+        uses: astral-sh/setup-uv@v7
       - name: Check lockfile is up to date
         run: uv lock --check
 
