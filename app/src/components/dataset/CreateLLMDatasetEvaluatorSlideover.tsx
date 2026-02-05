@@ -7,7 +7,10 @@ import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } fr
 import { Dialog } from "@phoenix/components/dialog";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  createLLMEvaluatorPayload,
+  getOutputConfigValidationErrors,
+} from "@phoenix/components/evaluators/utils";
 import { Loading } from "@phoenix/components/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
@@ -135,6 +138,11 @@ const CreateEvaluatorDialog = ({
     const defaultEvaluatorName =
       _initialState?.name ??
       DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
+    // Build the output config with the evaluator name
+    const outputConfigWithName = {
+      ...defaultOutputConfig,
+      name: defaultEvaluatorName,
+    };
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
@@ -144,10 +152,9 @@ const CreateEvaluatorDialog = ({
           _initialState?.description ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.description,
       },
-      outputConfig: {
-        ...defaultOutputConfig,
-        name: defaultEvaluatorName,
-      },
+      // Initialize outputConfigs with the single config in an array
+      outputConfigs: [outputConfigWithName],
+      activeOutputConfigIndex: 0,
       dataset: {
         readonly: true,
         id: datasetId,
@@ -166,20 +173,37 @@ const CreateEvaluatorDialog = ({
           includeExplanation,
         },
         dataset,
-        outputConfig,
+        outputConfigs,
       } = store.getState();
       invariant(dataset, "dataset is required");
-      invariant(outputConfig, "outputConfig is required");
       invariant(
-        "values" in outputConfig,
-        "outputConfig must have values, aka is a categorical annotation config"
+        outputConfigs && outputConfigs.length > 0,
+        "At least one output config is required"
       );
+
+      // Validate output configs before submitting
+      const validationErrors = getOutputConfigValidationErrors(outputConfigs);
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join("\n"));
+        return;
+      }
+
+      // Filter to only categorical configs for LLM evaluators
+      const categoricalConfigs = outputConfigs.filter(
+        (config): config is ClassificationEvaluatorAnnotationConfig =>
+          "values" in config
+      );
+      invariant(
+        categoricalConfigs.length > 0,
+        "At least one categorical output config is required for LLM evaluators"
+      );
+
       const input = createLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
         name: globalName,
         description,
-        outputConfig,
+        outputConfigs: categoricalConfigs,
         datasetId: dataset.id,
         inputMapping,
         includeExplanation,

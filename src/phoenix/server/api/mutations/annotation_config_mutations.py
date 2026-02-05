@@ -171,6 +171,27 @@ def _to_pydantic_freeform_annotation_config(
         raise BadRequest(str(error))
 
 
+def _annotation_config_input_to_pydantic(
+    input: AnnotationConfigInput,
+) -> AnnotationConfigType:
+    """Convert an AnnotationConfigInput to its corresponding pydantic model."""
+    if categorical_input := input.categorical:
+        return _to_pydantic_categorical_annotation_config(categorical_input)
+    elif continuous_input := input.continuous:
+        return _to_pydantic_continuous_annotation_config(continuous_input)
+    elif freeform_input := input.freeform:
+        return _to_pydantic_freeform_annotation_config(freeform_input)
+    else:
+        raise BadRequest("No annotation config provided")
+
+
+def _convert_annotation_config_inputs_to_pydantic(
+    inputs: list[AnnotationConfigInput],
+) -> list[AnnotationConfigType]:
+    """Convert a list of AnnotationConfigInput to their corresponding pydantic models."""
+    return [_annotation_config_input_to_pydantic(input) for input in inputs]
+
+
 @strawberry.type
 class AnnotationConfigMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]

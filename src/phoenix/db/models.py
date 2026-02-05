@@ -62,7 +62,6 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigOverrideType,
     AnnotationConfigType,
-    CategoricalAnnotationConfig,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -430,6 +429,26 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
+class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[AnnotationConfigType]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel(root=config).model_dump() for config in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[AnnotationConfigType]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel.model_validate(config).root for config in value]
+
+
 class _AnnotationConfigOverride(TypeDecorator[AnnotationConfigOverrideType]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -446,6 +465,30 @@ class _AnnotationConfigOverride(TypeDecorator[AnnotationConfigOverrideType]):
         return (
             AnnotationConfigOverrideModel.model_validate(value).root if value is not None else None
         )
+
+
+class _AnnotationConfigOverrideDict(
+    TypeDecorator[Optional[dict[str, AnnotationConfigOverrideType]]]
+):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[dict[str, AnnotationConfigOverrideType]], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return {name: override.model_dump() for name, override in value.items()}
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[dict[str, AnnotationConfigOverrideType]]:
+        if value is None:
+            return None
+        return {
+            name: AnnotationConfigOverrideModel.model_validate(o).root for name, o in value.items()
+        }
 
 
 class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
@@ -2293,8 +2336,8 @@ class LLMEvaluator(Evaluator):
         ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
         index=True,
     )
-    output_config: Mapped[CategoricalAnnotationConfig] = mapped_column(
-        _AnnotationConfig, nullable=False
+    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
+        "output_config", _AnnotationConfigList, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2362,7 +2405,9 @@ class BuiltinEvaluator(Evaluator):
 
     key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-    output_config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
+        "output_config", _AnnotationConfigList, nullable=False
+    )
 
     # Track when this was last synced from the registry
     synced_at: Mapped[datetime] = mapped_column(
@@ -2396,8 +2441,8 @@ class DatasetEvaluators(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_config_override: Mapped[Optional[AnnotationConfigOverrideType]] = mapped_column(
-        "output_config", _AnnotationConfigOverride, nullable=True
+    output_config_overrides: Mapped[Optional[dict[str, AnnotationConfigOverrideType]]] = (
+        mapped_column("output_config", _AnnotationConfigOverrideDict, nullable=True)
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

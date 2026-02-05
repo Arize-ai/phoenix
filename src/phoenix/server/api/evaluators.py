@@ -121,8 +121,8 @@ class BaseEvaluator(ABC):
 
     @property
     @abstractmethod
-    def output_config(self) -> EvaluatorOutputConfig:
-        """Returns the output configuration for this evaluator."""
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        """Returns the output configurations for this evaluator."""
         ...
 
     @abstractmethod
@@ -161,7 +161,7 @@ class LLMEvaluator(BaseEvaluator):
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient[Any],
-        output_config: CategoricalAnnotationConfig,
+        output_configs: list[EvaluatorOutputConfig],
         prompt_name: str,
     ):
         self._name = name
@@ -172,7 +172,7 @@ class LLMEvaluator(BaseEvaluator):
         self._invocation_parameters = invocation_parameters
         self._model_provider = model_provider
         self._llm_client = llm_client
-        self._output_config = output_config
+        self._output_configs = output_configs
         self._prompt_name = prompt_name
 
     @property
@@ -184,8 +184,8 @@ class LLMEvaluator(BaseEvaluator):
         return self._description
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return self._output_config
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return self._output_configs
 
     @property
     def input_schema(self) -> dict[str, Any]:
@@ -516,8 +516,8 @@ class BuiltInEvaluator(BaseEvaluator):
 
     @property
     @abstractmethod
-    def output_config(self) -> EvaluatorOutputConfig:
-        """Returns the base output config for this evaluator (before any overrides are applied)."""
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        """Returns the output configurations for this evaluator."""
         ...
 
     @abstractmethod
@@ -736,7 +736,11 @@ async def _get_llm_evaluators(
             invocation_parameters=prompt_version.invocation_parameters,
             model_provider=prompt_version.model_provider,
             llm_client=llm_client,
-            output_config=llm_evaluator_orm.output_config,
+            output_configs=[
+                cfg
+                for cfg in llm_evaluator_orm.output_configs
+                if isinstance(cfg, (CategoricalAnnotationConfig, ContinuousAnnotationConfig))
+            ],
             prompt_name=prompt.name.root,
         )
 
@@ -1089,7 +1093,7 @@ def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
     llm_client: "PlaygroundStreamingClient[Any]",
-    output_config: CategoricalAnnotationConfig,
+    output_configs: list[EvaluatorOutputConfig],
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
@@ -1110,7 +1114,7 @@ def create_llm_evaluator_from_inline(
         invocation_parameters=prompt_version_orm.invocation_parameters,
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
-        output_config=output_config,
+        output_configs=output_configs,
         prompt_name="preview-prompt",
     )
 
@@ -1150,16 +1154,18 @@ class ContainsEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="contains",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="contains",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
     async def evaluate(
         self,
@@ -1352,16 +1358,18 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="exact_match",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="exact_match",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
     async def evaluate(
         self,
@@ -1546,16 +1554,18 @@ class RegexEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="regex",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="regex",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
     async def evaluate(
         self,
@@ -1767,13 +1777,15 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> ContinuousAnnotationConfig:
-        return ContinuousAnnotationConfig(
-            type="CONTINUOUS",
-            name="levenshtein_distance",
-            optimization_direction=OptimizationDirection.MINIMIZE,
-            lower_bound=0.0,
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            ContinuousAnnotationConfig(
+                type="CONTINUOUS",
+                name="levenshtein_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
 
     async def evaluate(
         self,
@@ -1975,13 +1987,15 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> ContinuousAnnotationConfig:
-        return ContinuousAnnotationConfig(
-            type="CONTINUOUS",
-            name="json_distance",
-            optimization_direction=OptimizationDirection.MINIMIZE,
-            lower_bound=0.0,
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            ContinuousAnnotationConfig(
+                type="CONTINUOUS",
+                name="json_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
 
     async def evaluate(
         self,

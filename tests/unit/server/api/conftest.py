@@ -888,16 +888,18 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
             name=evaluator_name,
             description="evaluates the correctness of the output",
             kind="LLM",
-            output_config=CategoricalAnnotationConfig(
-                type="CATEGORICAL",
-                name="correctness",
-                optimization_direction=OptimizationDirection.MAXIMIZE,
-                description="correctness evaluation",
-                values=[
-                    CategoricalAnnotationValue(label="correct", score=1.0),
-                    CategoricalAnnotationValue(label="incorrect", score=0.0),
-                ],
-            ),
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness evaluation",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                )
+            ],
             prompt=prompt,
         )
         session.add(llm_evaluator)
@@ -923,7 +925,7 @@ async def assign_correctness_llm_evaluator_to_dataset(
             evaluator_id=correctness_llm_evaluator.id,
             name=correctness_llm_evaluator.name,
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_override=None,
+            output_config_overrides=None,
             project=models.Project(
                 name="correctness-evaluator-project",
                 description="Project for llm evaluator",

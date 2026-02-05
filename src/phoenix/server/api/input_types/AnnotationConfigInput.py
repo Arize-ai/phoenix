@@ -90,3 +90,11 @@ class AnnotationConfigOverrideInput:
             != 1
         ):
             raise BadRequest("Exactly one of categorical or continuous must be set")
+
+
+@strawberry.input
+class NamedAnnotationConfigOverrideInput:
+    """Input for a named annotation config override, used for multi-output evaluators."""
+
+    name: str
+    override: AnnotationConfigOverrideInput
