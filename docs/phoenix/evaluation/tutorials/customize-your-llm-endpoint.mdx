@@ -1,0 +1,132 @@
+---
+title: "Customize Your LLM Endpoint" 
+---
+Phoenix Evals gives you flexibility in how you configure the model that acts as a judge. You can use hosted models from common providers, connect to self-hosted or internal inference endpoints, and tune model behavior to match your evaluation needs.
+
+This guide builds on the previous page by showing how to run built-in eval templates using a custom-configured judge model. The evaluation logic stays the same, but the underlying model can be swapped or customized to fit your environment, cost constraints, or deployment requirements.
+
+The goal is to demonstrate that judge models are modular: once configured, the same built-in eval templates can be reused regardless of where the model is hosted.
+
+At its core, an LLM-as-a-judge evaluation combines three things:
+
+1. The judge model: the LLM that produces the judgment
+
+2. A prompt template or rubric: the criteria used to make that judgment
+
+3. Your data: the examples being evaluated
+
+In this guide, we focus on configuring the judge model, then reusing the same built-in eval templates you’ve already seen.
+
+Follow along with the following code assets: 
+
+<Columns cols={2}>
+  <Card title="TypeScript Tutorial" icon="js" href="">
+    Companion TypeScript project with runnable examples
+  </Card>
+  <Card title="Python Tutorial" icon="python" href="">
+    Companion Python project with runnable examples
+  </Card>
+</Columns>
+
+--- 
+
+## Using Custom or OpenAI-Compatible Judge Models
+
+In addition to standard hosted providers, Phoenix supports using custom or self-hosted judge models that are compatible with an existing provider SDK, such as OpenAI-compatible APIs.
+
+This allows you to run LLM-as-a-judge evaluations against internal inference services, private deployments, or alternative model hosts, while continuing to use the same evaluation templates and execution workflows.
+
+When configuring a judge model, you can pass any SDK-specific parameters required to reach your endpoint: `base_url`, `api_key`, or `api_version`. These settings control how Phoenix connects and authenticates with the model provider.
+
+The same separation of responsibilities applies regardless of where the model is hosted:
+
+* Connectivity and authentication are defined on the judge model
+
+* Evaluation behavior (for example, temperature or token limits) is controlled by the evaluator
+
+A minimal example of configuring a custom OpenAI-compatible endpoint looks like this:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from phoenix.evals.llm import LLM
+
+    custom_llm = LLM(
+      provider="openai",
+      model="accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+      base_url="https://api.fireworks.ai/inference/v1",
+      api_key=os.environ.get("FIREWORKS_API_KEY"),
+    ) 
+    ```
+  </Tab>
+    <Tab title="TypeScript">
+    ```typescript
+    import { createOpenAI } from "@ai-sdk/openai";
+
+    const fireworks = createOpenAI({
+      baseURL: "https://api.fireworks.ai/inference/v1",
+      apiKey: process.env.FIREWORKS_API_KEY,
+    });
+    const custom_llm = fireworks.chat(
+      "accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+    );
+    ```
+    </Tab>
+</Tabs>
+Once configured, this judge model can be used with built-in eval templates in exactly the same way as a hosted model, without changing evaluation logic or execution code.
+
+
+## Built-In Eval Templates in Phoenix
+
+Phoenix includes a set of built-in eval templates that cover common evaluation tasks such as relevance, correctness, faithfulness, summarization quality, and toxicity. These templates encode a predefined rubric, structured outputs, and defaults that work well for LLM-as-a-judge workflows.
+
+You can find all [built in templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) here.
+
+Built-in templates are a good choice when you want reliable signal quickly without designing a rubric from scratch, especially early in iteration or when establishing a baseline.
+
+The example below shows a minimal setup using the built-in Correctness eval template with a configured judge model:
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from phoenix.evals.metrics import CorrectnessEvaluator
+
+    correctness_eval = CorrectnessEvaluator(llm=custom_llm)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+  const evaluator = createCorrectnessEvaluator({
+    model: custom_llm as any,
+  });
+  ```
+  </Tab>
+</Tabs>
+Once defined, built-in evaluators can be run on tabular data or trace-derived examples and logged back to Phoenix like any other eval. Because they return structured outputs, results can be compared across runs and combined with other evaluations.
+
+## Running Evals on Phoenix Traces
+
+The workflow is the same as on [the previous page](/docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals#running-evals-on-phoenix-traces): export spans, prepare evaluator inputs, run evals, and log results back to Phoenix. Only the judge model configuration changes; the steps for running evals on traced data are unchanged. 
+
+---
+
+## **Best Practices for Judge Models**
+
+Judge models are not user-facing. Their role is to apply a rubric consistently, not to generate creative or varied responses. When configuring a judge model, prioritize stability and repeatability over expressiveness.
+
+### **Favor consistency over creativity**
+
+Judge models should produce the same judgment when given the same input. Variability makes it harder to compare results across runs or to detect regressions. In most cases, configure the judge with a sampling temperature of 0.0 (or as low as the provider allows) to minimize randomness and improve consistency.
+
+### **Prefer categorical judgments**
+
+For most evaluation tasks, categorical outputs are more reliable than numeric ratings. Asking a model to reason about scales or relative magnitudes introduces additional variability and tends to correlate less well with human judgment. Phoenix Evals recommends using categorical labels for judging outputs and mapping them to numeric values only if needed downstream.
+
+## What’s Next
+
+You’ve now seen how to run built-in eval templates using both hosted and custom judge models. This allows you to adapt evaluation workflows to different providers and deployment environments while keeping evaluation logic consistent.
+
+In the next guide, we’ll move beyond built-in templates and show how to define a custom evaluator. This includes writing your own evaluation prompt, defining application-specific criteria, and tailoring outputs to your use case.
+
+Together, these guides show how to move from out-of-the-box evaluations to fully customized evals tailored to your application.
