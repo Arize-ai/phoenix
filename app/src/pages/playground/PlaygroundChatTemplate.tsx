@@ -1,4 +1,10 @@
-import { PropsWithChildren, useCallback, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -68,13 +74,13 @@ import { PlaygroundTools } from "./PlaygroundTools";
 import { createToolCallForProvider } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
-const MESSAGE_Z_INDEX = 1;
 /**
  * The z-index of the dragging message.
- * Must be higher than the z-index of the other messages. Otherwise when dragging
- * from top to bottom, the dragging message will be covered by the message below.
+ * Only applied when actively dragging to ensure the dragged message appears above others.
+ * Non-dragging messages should NOT have a z-index to avoid creating stacking contexts
+ * that would clip autocomplete dropdowns.
  */
-const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
+const DRAGGING_MESSAGE_Z_INDEX = 10;
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
@@ -197,25 +203,42 @@ function MessageEditor({
   templateFormat,
   playgroundInstanceId,
   messageMode,
+  availablePaths,
 }: {
   playgroundInstanceId: number;
   message: ChatMessage;
   templateFormat: TemplateFormat;
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
+  availablePaths?: string[];
 }) {
+  // Track whether to show validation alerts - becomes true on first blur
+  // and stays true so errors remain visible until fixed
+  const [showValidation, setShowValidation] = useState(false);
+
   const onChange = useCallback(
     (val: string) => {
       updateMessage({ content: val });
     },
     [updateMessage]
   );
+  const onBlur = useCallback(() => setShowValidation(true), []);
   const sectionValidation = useMemo(() => {
     if (templateFormat !== TemplateFormats.Mustache) {
       return null;
     }
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
+  const hasValidationIssues =
+    sectionValidation != null &&
+    (sectionValidation?.errors.length > 0 ||
+      sectionValidation?.warnings.length > 0);
+  // Reset validation state when switching to a different message or template format
+  useEffect(() => {
+    if (!hasValidationIssues) {
+      setShowValidation(false);
+    }
+  }, [message.id, templateFormat, hasValidationIssues]);
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -271,9 +294,14 @@ function MessageEditor({
 
   return (
     <TemplateEditorWrap>
-      {sectionValidation?.errors.length ? (
+      {showValidation && sectionValidation?.errors.length ? (
         <Alert variant="danger" banner title="Invalid mustache sections">
           {sectionValidation.errors.join(", ")}
+        </Alert>
+      ) : null}
+      {showValidation && sectionValidation?.warnings.length ? (
+        <Alert variant="warning" banner title="Unclosed mustache sections">
+          {sectionValidation.warnings.join(", ")}
         </Alert>
       ) : null}
       <TemplateEditor
@@ -282,6 +310,8 @@ function MessageEditor({
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
+        onBlur={onBlur}
+        availablePaths={availablePaths}
       />
     </TemplateEditorWrap>
   );
@@ -326,11 +356,19 @@ function SortableMessageItem({
     [messageId]
   );
   const message = usePlaygroundContext(messageSelector);
+  // Get available paths for autocomplete from the dataset state
+  const availablePaths = usePlaygroundContext((state) => {
+    const datasetId = state.datasetId;
+    if (!datasetId) return undefined;
+    return state.stateByDatasetId[datasetId]?.availablePaths;
+  });
   const messageCardStyles = useChatMessageStyles(message.role);
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
     transition,
-    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
+    // Only set z-index when dragging to avoid creating stacking contexts
+    // that would clip autocomplete dropdowns
+    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : undefined,
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
@@ -478,6 +516,7 @@ function SortableMessageItem({
             playgroundInstanceId={playgroundInstanceId}
             templateFormat={templateFormat}
             updateMessage={onMessageUpdate}
+            availablePaths={availablePaths}
           />
         </div>
       </Card>

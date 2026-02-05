@@ -276,6 +276,12 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
      * @default "input"
      */
     templateVariablesPath: z.string().nullish(),
+    /**
+     * Available paths for template variable autocomplete.
+     * These are extracted from dataset examples and cached per dataset.
+     * Not persisted - computed at runtime when dataset is loaded.
+     */
+    availablePaths: z.array(z.string()).optional(),
   })
 );
 
@@ -490,6 +496,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId,
   }: {
     templateVariablesPath: string | null;
+    datasetId: string;
+  }) => void;
+  /**
+   * Set the available paths for template variable autocomplete.
+   * These are extracted from dataset examples.
+   */
+  setAvailablePaths: ({
+    availablePaths,
+    datasetId,
+  }: {
+    availablePaths: string[];
     datasetId: string;
   }) => void;
   /**
