@@ -23,25 +23,7 @@
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-**First**, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
-
-```
-brew install uv
-```
-
-For non-mac users, you can follow the instruction [here](https://docs.astral.sh/uv/getting-started/installation/) to install `uv` for your particular operating system.
-
-Create a new virtual environment. In general, we recommend developing on the lowest Python version compatible with Phoenix (currently 3.10) to make it easier to write code that is compatible across all supported versions.
-
-```bash
-uv venv --python 3.10
-```
-
-Activate your virtual environment before continuing.
-
-```bash
-source ./.venv/bin/activate
-```
+**First**, ensure that your virtual environment manager is installed. For macOS users, we recommend installing the project version of `uv` (found in `pyproject.toml` under `tool.uv.required-version`) by using the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer). This will enable you to upgrade `uv` using the `uv self update` command.
 
 The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibilty with all supported Python versions.
 
