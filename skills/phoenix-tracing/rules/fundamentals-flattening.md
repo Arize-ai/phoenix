@@ -20,6 +20,22 @@ OpenInference flattens nested data structures into dot-notation attributes for d
 { "llm.input_messages.0.message.role": "user", "llm.input_messages.0.message.content": "Hi" }
 ```
 
+**Important: Do not JSON.stringify message arrays**
+
+Do **not** store messages as a single JSON string attribute like `llm.input_messages`.
+Each message field must be flattened into its own indexed attribute key.
+
+```javascript
+// Incorrect (JSON string hides fields from queries)
+{ "llm.input_messages": JSON.stringify([{ role: "user", content: "Hi" }]) }
+
+// Correct (flattened attributes)
+{
+  "llm.input_messages.0.message.role": "user",
+  "llm.input_messages.0.message.content": "Hi"
+}
+```
+
 **Message Convention: `.message.` segment required**
 
 ```

@@ -41,6 +41,24 @@ Represent calls to language models (OpenAI, Anthropic, local models, etc.).
 
 **Output messages:** Same structure as input messages.
 
+**Do not JSON.stringify messages**
+
+Do **not** put the entire messages array into a single attribute (for example,
+`"llm.input_messages": JSON.stringify([...])`). Each message field must be
+flattened into indexed attribute keys so Phoenix can query them.
+
+```javascript
+const attributes = {
+  "openinference.span.kind": "LLM",
+  "llm.model_name": modelName,
+};
+
+messages.forEach((msg, index) => {
+  attributes[`llm.input_messages.${index}.message.role`] = msg.role;
+  attributes[`llm.input_messages.${index}.message.content`] = msg.content;
+});
+```
+
 ## Example: Basic LLM Call
 
 ```json
