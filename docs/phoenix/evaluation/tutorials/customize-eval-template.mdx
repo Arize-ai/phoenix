@@ -130,7 +130,7 @@ Once the template is defined, you can create a custom evaluator using any suppor
 
     custom_correctness_evaluator = ClassificationEvaluator(
         name = "custom_correctness",
-        llm = custom_llm,
+        llm = llm,
         prompt_template=CUSTOM_CORRECTNESS_TEMPLATE,
         choices={"correct": 1, "incorrect": 0}
     )
@@ -144,7 +144,7 @@ Once the template is defined, you can create a custom evaluator using any suppor
     const base_model = openai("gpt-4o-mini");
     const EVAL_NAME = "custom_correctness";
     const evaluator = createClassificationEvaluator({
-      model: llm as Parameters<typeof createClassificationEvaluator>[0]["model"],
+      model: base_model as Parameters<typeof createClassificationEvaluator>[0]["model"],
       promptTemplate: correctnessTemplate,
       choices: { correct: 1, incorrect: 0 },
       name: EVAL_NAME,
