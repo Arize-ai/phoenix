@@ -206,8 +206,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
         | ClassificationEvaluatorAnnotationConfig
       >[]
     | undefined;
-  // Keep outputConfig for backward compatibility (first config)
-  const evaluatorOutputConfig = loadedOutputConfigs?.[0];
   const initialState = useMemo(() => {
     if (evaluatorKind === "BUILTIN") {
       return {
@@ -231,7 +229,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           isBuiltin: true,
           inputMapping,
         },
-        outputConfig: evaluatorOutputConfig,
         outputConfigs: loadedOutputConfigs ?? [],
       } satisfies EvaluatorStoreProps;
     }
@@ -245,7 +242,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     inputMapping,
     datasetEvaluatorId,
     evaluatorDescription,
-    evaluatorOutputConfig,
     loadedOutputConfigs,
   ]);
 

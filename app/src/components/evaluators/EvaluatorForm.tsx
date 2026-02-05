@@ -35,7 +35,7 @@ export type EvaluatorFormValues = {
     builtInEvaluatorName?: string | null;
     includeExplanation?: boolean;
   };
-  outputConfig?: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs?: ClassificationEvaluatorAnnotationConfig[];
   // TODO: this makes very little sense in react hook form state, but will make more sense when we move to zustand
   dataset?: {
     readonly: boolean;

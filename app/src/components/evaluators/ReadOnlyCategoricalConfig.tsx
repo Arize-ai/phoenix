@@ -27,8 +27,9 @@ export const ReadOnlyCategoricalConfig = ({
 }: ReadOnlyCategoricalConfigProps) => {
   const outputConfig = useEvaluatorStore(
     useShallow((state) => {
-      if (state.outputConfig && "values" in state.outputConfig) {
-        return state.outputConfig as ClassificationEvaluatorAnnotationConfig;
+      const firstConfig = state.outputConfigs[0];
+      if (firstConfig && "values" in firstConfig) {
+        return firstConfig as ClassificationEvaluatorAnnotationConfig;
       }
       return null;
     })

@@ -117,7 +117,6 @@ export const updateLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
   outputConfigs,
   datasetId,
   datasetEvaluatorId,
@@ -131,22 +130,17 @@ export const updateLLMEvaluatorPayload = ({
   name: string;
   description: string;
   /**
-   * @deprecated Use outputConfigs instead. Kept for backward compatibility.
-   */
-  outputConfig?: ClassificationEvaluatorAnnotationConfig;
-  /**
-   * Array of output configs. If provided, the first categorical config will be used
+   * Array of output configs. The first categorical config will be used
    * for the prompt tool definition.
    */
-  outputConfigs?: ClassificationEvaluatorAnnotationConfig[];
+  outputConfigs: ClassificationEvaluatorAnnotationConfig[];
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  // Use outputConfigs if provided, otherwise fall back to single outputConfig
-  const configs = outputConfigs ?? (outputConfig ? [outputConfig] : []);
+  const configs = outputConfigs;
   const primaryConfig = configs[0];
 
   if (!primaryConfig) {
@@ -191,7 +185,6 @@ export const createLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
   outputConfigs,
   datasetId,
   inputMapping,
@@ -214,15 +207,10 @@ export const createLLMEvaluatorPayload = ({
    */
   description: string;
   /**
-   * The choice config of the evaluator.
-   * @deprecated Use outputConfigs instead. Kept for backward compatibility.
-   */
-  outputConfig?: ClassificationEvaluatorAnnotationConfig;
-  /**
-   * Array of output configs. If provided, the first categorical config will be used
+   * Array of output configs. The first categorical config will be used
    * for the prompt tool definition.
    */
-  outputConfigs?: ClassificationEvaluatorAnnotationConfig[];
+  outputConfigs: ClassificationEvaluatorAnnotationConfig[];
   /**
    * The input mapping of the evaluator.
    */
@@ -239,8 +227,7 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  // Use outputConfigs if provided, otherwise fall back to single outputConfig
-  const configs = outputConfigs ?? (outputConfig ? [outputConfig] : []);
+  const configs = outputConfigs;
   const primaryConfig = configs[0];
 
   if (!primaryConfig) {
