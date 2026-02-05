@@ -1344,7 +1344,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1373,7 +1373,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1399,7 +1399,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="ExactMatch",
+            name="exact_match",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1427,7 +1427,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="ExactMatch",
+            name="exact_match",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1464,7 +1464,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="JSONDistance",
+            name="json_distance",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1489,7 +1489,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1515,7 +1515,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="LevenshteinDistance",
+            name="levenshtein_distance",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1542,7 +1542,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Regex",
+            name="regex",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1570,7 +1570,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1594,7 +1594,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["error"] is None
@@ -1632,7 +1632,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["label"] == "true"
@@ -1649,7 +1649,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
-            name="Contains",
+            name="contains",
             output_config=output_config,
         )
         assert result["label"] == "false"
@@ -2994,13 +2994,13 @@ class TestGetEvaluators:
 
         assert len(evaluators) == 4
         assert isinstance(evaluators[0], BuiltInEvaluator)
-        assert evaluators[0].name == "Contains"
+        assert evaluators[0].name == "contains"
         assert isinstance(evaluators[1], LLMEvaluatorClass)
         assert evaluators[1].name == correctness_llm_evaluator.name.root
         assert isinstance(evaluators[2], BuiltInEvaluator)
-        assert evaluators[2].name == "ExactMatch"
+        assert evaluators[2].name == "exact_match"
         assert isinstance(evaluators[3], BuiltInEvaluator)
-        assert evaluators[3].name == "Regex"
+        assert evaluators[3].name == "regex"
 
     async def test_raises_value_error_for_missing_dataset_evaluator(
         self,
@@ -3121,9 +3121,9 @@ class TestGetEvaluators:
 
         assert len(evaluators) == 3
         assert all(isinstance(e, BuiltInEvaluator) for e in evaluators)
-        assert evaluators[0].name == "LevenshteinDistance"
-        assert evaluators[1].name == "JSONDistance"
-        assert evaluators[2].name == "Contains"
+        assert evaluators[0].name == "levenshtein_distance"
+        assert evaluators[1].name == "json_distance"
+        assert evaluators[2].name == "contains"
 
 
 @pytest.fixture

@@ -351,10 +351,10 @@ class TestBuiltInEvaluatorOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["name"] == "Contains"
+        assert node["name"] == "contains"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "CategoricalAnnotationConfig"
-        assert output_config["name"] == "Contains"
+        assert output_config["name"] == "contains"
         assert output_config["optimizationDirection"] == "MAXIMIZE"
         assert len(output_config["values"]) == 2
         labels = {v["label"] for v in output_config["values"]}
@@ -401,10 +401,10 @@ class TestBuiltInEvaluatorOutputConfig:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["name"] == "LevenshteinDistance"
+        assert node["name"] == "levenshtein_distance"
         output_config = node["outputConfig"]
         assert output_config["__typename"] == "ContinuousAnnotationConfig"
-        assert output_config["name"] == "LevenshteinDistance"
+        assert output_config["name"] == "levenshtein_distance"
         assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.0
         assert output_config["upperBound"] is None

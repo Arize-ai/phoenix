@@ -1464,7 +1464,7 @@ class TestChatCompletionMutationMixin:
             assert builtin_parse_span.parent_id == builtin_evaluator_span.span_id
 
             # Built-in evaluator span
-            assert builtin_evaluator_span.name == "Evaluation: ExactMatch"
+            assert builtin_evaluator_span.name == "Evaluation: exact_match"
             assert builtin_evaluator_span.span_kind == "EVALUATOR"
             assert builtin_evaluator_span.status_code == "OK"
             assert not builtin_evaluator_span.status_message
@@ -1529,8 +1529,8 @@ class TestChatCompletionMutationMixin:
             assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
             assert not attributes
 
-            # Built-in execution span (Run ExactMatch)
-            assert builtin_execution_span.name == "Run ExactMatch"
+            # Built-in execution span (Run exact_match)
+            assert builtin_execution_span.name == "Run exact_match"
             assert builtin_execution_span.span_kind == "CHAIN"
             assert builtin_execution_span.status_code == "OK"
             assert not builtin_execution_span.status_message

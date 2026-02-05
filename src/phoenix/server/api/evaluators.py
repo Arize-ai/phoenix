@@ -1112,7 +1112,7 @@ def create_llm_evaluator_from_inline(
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     _key = "contains"
-    name = "Contains"
+    name = "contains"
     description = "Evaluates whether the output contains a specific string"
     metadata = {"type": "string_matching"}
 
@@ -1340,7 +1340,7 @@ class ContainsEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class ExactMatchEvaluator(BuiltInEvaluator):
     _key = "exact_match"
-    name = "ExactMatch"
+    name = "exact_match"
     description = "Evaluates whether the actual text exactly matches the expected text"
     metadata = {"type": "string_matching"}
 
@@ -1551,7 +1551,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class RegexEvaluator(BuiltInEvaluator):
     _key = "regex"
-    name = "Regex"
+    name = "regex"
     description = "Evaluates whether the text matches a regex pattern"
     metadata = {"type": "pattern_matching"}
 
@@ -1797,7 +1797,7 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 @register_builtin_evaluator
 class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     _key = "levenshtein_distance"
-    name = "LevenshteinDistance"
+    name = "levenshtein_distance"
     description = "Calculates the Levenshtein (edit) distance between two strings"
     metadata = {"type": "string_distance"}
 
@@ -2031,7 +2031,7 @@ def json_diff_count(expected: Any, actual: Any) -> int:
 @register_builtin_evaluator
 class JSONDistanceEvaluator(BuiltInEvaluator):
     _key = "json_distance"
-    name = "JSONDistance"
+    name = "json_distance"
     description = "Compares two JSON structures and returns the number of differences"
     metadata = {"type": "json_comparison"}
 
