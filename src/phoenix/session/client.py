@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, Literal, Optional, Union, cast
+from typing import Any, BinaryIO, Literal, Optional, Union
 from urllib.parse import quote, urljoin
 
 import httpx
@@ -322,7 +322,7 @@ class Client(TraceDataExtractor):
                 writer.write_table(table)
             self._client.post(
                 url="v1/evaluations",
-                content=cast(bytes, sink.getvalue().to_pybytes()),
+                content=sink.getvalue().to_pybytes(),
                 headers=headers,
                 timeout=timeout,
             ).raise_for_status()

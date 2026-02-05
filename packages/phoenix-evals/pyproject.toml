@@ -134,6 +134,8 @@ module = [
   "opentelemetry.trace",
   "openinference.*",
   "opentelemetry.*",
+  "google.api_core",
+  "google.api_core.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

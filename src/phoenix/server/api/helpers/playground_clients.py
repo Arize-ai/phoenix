@@ -353,12 +353,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
+        async for chunk in await throttled_create(  # type: ignore[attr-defined]
             messages=openai_messages,
             model=self.model_name,
             stream=True,
             stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
+            tools=tools or NOT_GIVEN,  # type: ignore[arg-type]
             **invocation_parameters,
         ):
             if (usage := chunk.usage) is not None:
@@ -1403,14 +1403,14 @@ class AzureOpenAIReasoningNonStreamingClient(
             messages=openai_messages,
             model=self.model_name,
             stream=False,
-            tools=tools or NOT_GIVEN,
+            tools=tools or NOT_GIVEN,  # type: ignore[arg-type]
             **invocation_parameters,
         )
 
-        if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+        if response.usage is not None:  # type: ignore[attr-defined]
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))  # type: ignore[attr-defined]
 
-        choice = response.choices[0]
+        choice = response.choices[0]  # type: ignore[attr-defined]
         if choice.message.content:
             yield TextChunk(content=choice.message.content)
 
@@ -1842,13 +1842,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
             config=config,
         )
         async for event in stream:
-            self._attributes.update(
-                {
-                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                }
-            )
+            if event.usage_metadata:
+                self._attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,  # type: ignore[dict-item]
+                        LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,  # type: ignore[dict-item]
+                        LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,  # type: ignore[dict-item]
+                    }
+                )
 
             if event.candidates:
                 candidate = event.candidates[0]
