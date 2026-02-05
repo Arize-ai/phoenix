@@ -15,10 +15,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import {
-  buildOutputConfigOverride,
-  formatBuiltinEvaluatorDisplayName,
-} from "@phoenix/components/evaluators/utils";
+import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -161,7 +158,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const initialState = useMemo(() => {
     invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "BUILTIN") {
-      const name = formatBuiltinEvaluatorDisplayName(evaluator.name) ?? "";
+      const name = evaluator.name;
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
