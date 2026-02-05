@@ -24,13 +24,13 @@
     "@arizeai/phoenix-client": "5.7.0",
     "@arizeai/phoenix-evals": "0.7.0",
     "@mastra/arize": "latest",
-    "@mastra/client-js": "1.0.1",
+    "@mastra/client-js": "1.2.0",
     "@mastra/core": "latest",
     "@mastra/evals": "latest",
     "@mastra/libsql": "latest",
     "@mastra/loggers": "latest",
     "@mastra/memory": "latest",
-    "@mastra/observability": "latest",
+    "@mastra/observability": "1.2.0",
     "dotenv": "^16.4.7",
     "zod": "^3.25.76"
   },
@@ -39,19 +39,5 @@
     "mastra": "latest",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  }, 
-  "pnpm": {
-    "overrides": {
-      "@mastra/core": "link:~/Desktop/mastra/packages/core",
-      "@mastra/otel-exporter": "link:~/Desktop/mastra/observability/otel-exporter",
-      "@mastra/observability": "link:~/Desktop/mastra/observability/mastra",
-      "@mastra/arize": "link:~/Desktop/mastra/observability/arize",
-      "@mastra/libsql": "link:~/Desktop/mastra/stores/libsql",
-      "@mastra/memory": "link:~/Desktop/mastra/packages/memory",
-      "@mastra/schema-compat": "link:~/Desktop/mastra/packages/schema-compat",
-      "@mastra/loggers": "link:~/Desktop/mastra/packages/loggers",
-      "@mastra/evals": "link:~/Desktop/mastra/packages/evals",
-      "mastra": "link:~/Desktop/mastra/packages/cli"
-    }
   }
 }
