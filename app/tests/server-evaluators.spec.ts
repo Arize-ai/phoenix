@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
+import { ADMIN_USER, login } from "./utils/login";
+
 test.describe.serial("Server Evaluators", () => {
   const datasetName = `test-dataset-${randomUUID()}`;
 
@@ -9,11 +11,7 @@ test.describe.serial("Server Evaluators", () => {
   const updatedDescription = "Updated description for testing";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`/login`);
-    await page.getByLabel("Email").fill("admin@localhost");
-    await page.getByLabel("Password").fill("admin123");
-    await page.getByRole("button", { name: "Log In", exact: true }).click();
-    await page.waitForURL("**/projects");
+    await login(page, ADMIN_USER);
   });
 
   test("can create a dataset with an example", async ({ page }) => {
