@@ -64,6 +64,7 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalAnnotationConfig,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.token_price_customization import (
@@ -503,6 +504,26 @@ class _HexColor(TypeDecorator[str]):
         if value is None:
             return None
         return value
+
+
+class _InputMapping(TypeDecorator[InputMapping]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON
+
+    def process_bind_param(
+        self, value: Optional[InputMapping], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            raise ValueError("Input mapping cannot be None")
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[InputMapping]:
+        if value is None:
+            raise ValueError("Input mapping cannot be None")
+        return InputMapping.model_validate(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -2378,7 +2399,7 @@ class DatasetEvaluators(HasId):
     output_config_override: Mapped[Optional[AnnotationConfigOverrideType]] = mapped_column(
         "output_config", _AnnotationConfigOverride, nullable=True
     )
-    input_mapping: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
