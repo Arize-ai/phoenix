@@ -34,13 +34,13 @@ class SpanKind(Enum):
     TOOL = "TOOL"
     CHAIN = "CHAIN"
     LLM = "LLM"
+    PROMPT = "PROMPT"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"
     RERANKER = "RERANKER"
     EVALUATOR = "EVALUATOR"
     GUARDRAIL = "GUARDRAIL"
-    PROMPT = "PROMPT"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:

@@ -21,11 +21,6 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.evaluators import (
-    TEMPLATE_FORMATTED_MESSAGES,
-    TEMPLATE_LITERAL_MAPPING,
-    TEMPLATE_MESSAGES,
-    TEMPLATE_PATH_MAPPING,
-    TEMPLATE_VARIABLES,
     BuiltInEvaluator,
     LLMEvaluator,
     apply_input_mapping,
@@ -1927,6 +1922,7 @@ class TestLLMEvaluator:
             model_provider=llm_evaluator_prompt_version.model_provider,
             llm_client=openai_streaming_client,
             output_config=output_config,
+            prompt_name="test-prompt",
         )
 
     @pytest.fixture
@@ -2029,6 +2025,7 @@ class TestLLMEvaluator:
             model_provider=multipart_llm_evaluator_prompt_version.model_provider,
             llm_client=openai_streaming_client,
             output_config=output_config,
+            prompt_name="test-prompt",
         )
 
     async def test_evaluate_returns_correct_result(
@@ -2073,33 +2070,39 @@ class TestLLMEvaluator:
         assert db_trace.trace_id == trace_id
         db_spans = db_trace.spans
         span_costs = db_trace.span_costs
-        assert len(db_spans) == 4
+        assert len(db_spans) == 5
 
         evaluator_span = None
-        template_span = None
+        input_mapping_span = None
+        prompt_span = None
         llm_span = None
-        chain_span = None
+        parse_eval_result_span = None
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "TEMPLATE":
-                template_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
             elif span.span_kind == "CHAIN":
-                chain_span = span
+                if span.name == "Input Mapping":
+                    input_mapping_span = span
+                elif span.name == "Parse Eval Result":
+                    parse_eval_result_span = span
 
         assert evaluator_span is not None
-        assert template_span is not None
+        assert input_mapping_span is not None
+        assert prompt_span is not None
         assert llm_span is not None
-        assert chain_span is not None
+        assert parse_eval_result_span is not None
         assert evaluator_span.parent_id is None
-        assert template_span.parent_id == evaluator_span.span_id
+        assert input_mapping_span.parent_id == evaluator_span.span_id
+        assert prompt_span.parent_id == evaluator_span.span_id
         assert llm_span.parent_id == evaluator_span.span_id
-        assert chain_span.parent_id == evaluator_span.span_id
+        assert parse_eval_result_span.parent_id == evaluator_span.span_id
 
         # evaluator span
-        assert evaluator_span.name == "Evaluation: correctness"
+        assert evaluator_span.name == "Evaluator: correctness"
         assert evaluator_span.status_code == "OK"
         assert not evaluator_span.events
         attributes = dict(flatten(evaluator_span.attributes, recurse_on_sequence=True))
@@ -2118,45 +2121,34 @@ class TestLLMEvaluator:
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
-        # template span
-        assert template_span.name == "Apply template variables"
-        assert template_span.status_code == "OK"
-        assert not template_span.events
-        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
-        )
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-        variables_str = attributes.pop(TEMPLATE_VARIABLES)
-        variables = json.loads(variables_str)
-        assert set(variables.keys()) == {"input", "output"}
-        assert variables["input"] == "What is 2 + 2?"
-        assert variables["output"] == "4"
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?"
-        )
+        # Input Mapping span
+        assert input_mapping_span.name == "Input Mapping"
+        assert input_mapping_span.status_code == "OK"
+        assert not input_mapping_span.events
+        attributes = dict(flatten(input_mapping_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         raw_input_value = attributes.pop(INPUT_VALUE)
         input_value = json.loads(raw_input_value)
         assert input_value == {
-            "variables": {"input": "What is 2 + 2?", "output": "4"},
             "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
+            "template_variables": {"input": "What is 2 + 2?", "output": "4"},
         }
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+        raw_output_value = attributes.pop(OUTPUT_VALUE)
+        output_value = json.loads(raw_output_value)
+        assert output_value == {"input": "What is 2 + 2?", "output": "4"}
+        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+        assert not attributes
+
+        # Prompt span
+        assert prompt_span.name == "Prompt: test-prompt"
+        assert prompt_span.status_code == "OK"
+        assert not prompt_span.events
+        attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
+        raw_input_value = attributes.pop(INPUT_VALUE)
+        input_value = json.loads(raw_input_value)
+        assert input_value == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         raw_output_value = attributes.pop(OUTPUT_VALUE)
         output_value = json.loads(raw_output_value)
@@ -2251,11 +2243,11 @@ class TestLLMEvaluator:
         assert not arguments
         assert not attributes
 
-        # chain span
-        assert chain_span.name == "Parse eval result"
-        assert chain_span.status_code == "OK"
-        assert not chain_span.events
-        attributes = dict(flatten(chain_span.attributes, recurse_on_sequence=True))
+        # Parse Eval Result span
+        assert parse_eval_result_span.name == "Parse Eval Result"
+        assert parse_eval_result_span.status_code == "OK"
+        assert not parse_eval_result_span.events
+        attributes = dict(flatten(parse_eval_result_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         raw_input_value = attributes.pop(INPUT_VALUE)
         assert raw_input_value is not None
@@ -2394,21 +2386,21 @@ class TestLLMEvaluator:
         db_trace = db_traces[0]
         db_spans = db_trace.spans
         db_span_costs = db_trace.span_costs
-        assert len(db_spans) == 2  # Only EVALUATOR and TEMPLATE (no LLM or CHAIN)
+        assert len(db_spans) == 2  # Only EVALUATOR and Input Mapping (CHAIN) (no Prompt or LLM)
         assert len(db_span_costs) == 0  # no span costs since there's no LLM span
 
         evaluator_span = None
-        template_span = None
+        input_mapping_span = None
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "TEMPLATE":
-                template_span = span
+            elif span.span_kind == "CHAIN":
+                input_mapping_span = span
 
         assert evaluator_span is not None
-        assert template_span is not None
+        assert input_mapping_span is not None
         assert evaluator_span.parent_id is None
-        assert template_span.parent_id == evaluator_span.span_id
+        assert input_mapping_span.parent_id == evaluator_span.span_id
 
         # Verify evaluator span has error
         assert evaluator_span.status_code == "ERROR"
@@ -2430,10 +2422,10 @@ class TestLLMEvaluator:
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
-        # Verify template span has error
-        assert template_span.status_code == "ERROR"
-        assert len(template_span.events) == 1
-        exception_event = dict(template_span.events[0])
+        # Verify Input Mapping span has error
+        assert input_mapping_span.status_code == "ERROR"
+        assert len(input_mapping_span.events) == 1
+        exception_event = dict(input_mapping_span.events[0])
         assert exception_event.pop("name") == "exception"
         assert isinstance(exception_event.pop("timestamp"), str)
         event_attributes = dict(exception_event.pop("attributes"))
@@ -2444,19 +2436,15 @@ class TestLLMEvaluator:
         assert not event_attributes
         assert not exception_event
 
-        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
-        attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {"output": "nonexistent.path"}
-        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
-            "input": "What is 2 + 2?",
-            "output": "4",
+        attributes = dict(flatten(input_mapping_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+        assert json.loads(attributes.pop(INPUT_VALUE)) == {
+            "input_mapping": {
+                "path_mapping": {"output": "nonexistent.path"},
+                "literal_mapping": {},
+            },
+            "template_variables": {"input": "What is 2 + 2?", "output": "4"},
         }
-        attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
@@ -2505,63 +2493,62 @@ class TestLLMEvaluator:
         db_span_costs = db_trace.span_costs
         assert trace_id == db_trace.trace_id
 
-        assert len(db_spans) == 3  # EVALUATOR, TEMPLATE, LLM (no CHAIN due to error)
+        assert (
+            len(db_spans) == 4
+        )  # EVALUATOR, Input Mapping (CHAIN), Prompt (PROMPT), LLM (no Parse Eval Result due to error)
 
         evaluator_span = None
-        template_span = None
+        input_mapping_span = None
+        prompt_span = None
         llm_span = None
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "TEMPLATE":
-                template_span = span
+            elif span.span_kind == "CHAIN":
+                input_mapping_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
 
         assert evaluator_span is not None
-        assert template_span is not None
+        assert input_mapping_span is not None
+        assert prompt_span is not None
         assert llm_span is not None
         assert evaluator_span.parent_id is None
-        assert template_span.parent_id == evaluator_span.span_id
-
-        assert len(db_span_costs) == 0  # LLM span has no token counts due to API error
+        assert input_mapping_span.parent_id == evaluator_span.span_id
+        assert prompt_span.parent_id == evaluator_span.span_id
         assert llm_span.parent_id == evaluator_span.span_id
 
-        # template span
-        assert template_span.name == "Apply template variables"
-        assert template_span.status_code == "OK"
-        assert not template_span.events
-        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
-        )
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
+        assert len(db_span_costs) == 0  # LLM span has no token counts due to API error
+
+        # Input Mapping span (CHAIN)
+        assert input_mapping_span.name == "Input Mapping"
+        assert input_mapping_span.status_code == "OK"
+        assert not input_mapping_span.events
+        attributes = dict(flatten(input_mapping_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+        assert json.loads(attributes.pop(INPUT_VALUE)) == {
+            "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
+            "template_variables": {"input": "What is 2 + 2?", "output": "4"},
+        }
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
+        assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
             "input": "What is 2 + 2?",
             "output": "4",
         }
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?"
-        )
+        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
+        assert not attributes
+
+        # Prompt span
+        assert prompt_span.name == "Prompt: test-prompt"
+        assert prompt_span.status_code == "OK"
+        assert not prompt_span.events
+        attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
-            "variables": {"input": "What is 2 + 2?", "output": "4"},
-            "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
+            "input": "What is 2 + 2?",
+            "output": "4",
         }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
@@ -2580,7 +2567,7 @@ class TestLLMEvaluator:
         assert not attributes
 
         # evaluator span
-        assert evaluator_span.name == "Evaluation: correctness"
+        assert evaluator_span.name == "Evaluator: correctness"
         assert evaluator_span.status_code == "ERROR"
         assert "401" in evaluator_span.status_message
         assert "invalid_api_key" in evaluator_span.status_message
@@ -2683,95 +2670,61 @@ class TestLLMEvaluator:
         assert len(db_traces) == 1
         db_trace = db_traces[0]
         db_spans = db_trace.spans
-        assert len(db_spans) == 4  # All spans created
+        assert (
+            len(db_spans) == 5
+        )  # EVALUATOR, Input Mapping (CHAIN), Prompt (PROMPT), LLM, Parse Eval Result (CHAIN) with error
 
         evaluator_span = None
-        template_span = None
+        input_mapping_span = None
+        prompt_span = None
         llm_span = None
-        chain_span = None
+        parse_eval_result_span = None
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "TEMPLATE":
-                template_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
             elif span.span_kind == "CHAIN":
-                chain_span = span
+                if span.name == "Input Mapping":
+                    input_mapping_span = span
+                elif span.name == "Parse Eval Result":
+                    parse_eval_result_span = span
 
         assert evaluator_span is not None
-        assert template_span is not None
+        assert input_mapping_span is not None
+        assert prompt_span is not None
         assert llm_span is not None
-        assert chain_span is not None
+        assert parse_eval_result_span is not None
 
         # Verify parent-child relationships
         assert evaluator_span.parent_id is None
-        assert template_span.parent_id == evaluator_span.span_id
+        assert input_mapping_span.parent_id == evaluator_span.span_id
+        assert prompt_span.parent_id == evaluator_span.span_id
         assert llm_span.parent_id == evaluator_span.span_id
-        assert chain_span.parent_id == evaluator_span.span_id
+        assert parse_eval_result_span.parent_id == evaluator_span.span_id
 
-        # template span
-        assert template_span.name == "Apply template variables"
-        assert template_span.status_code == "OK"
-        assert not template_span.events
-        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
-        )
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_VARIABLES)) == {
-            "input": "What is 2 + 2?",
-            "output": "4",
-        }
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?"
-        )
-        assert json.loads(attributes.pop(INPUT_VALUE)) == {
-            "variables": {"input": "What is 2 + 2?", "output": "4"},
-            "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
-        }
-        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
-        assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
-                },
-                {
-                    "role": "user",
-                    "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
-                },
-            ]
-        }
-        assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
-        assert not attributes
+        # Input Mapping span
+        assert input_mapping_span.name == "Input Mapping"
+        assert input_mapping_span.status_code == "OK"
+        assert not input_mapping_span.events
+
+        # Prompt span
+        assert prompt_span.name == "Prompt: test-prompt"
+        assert prompt_span.status_code == "OK"
+        assert not prompt_span.events
 
         # llm span
         assert llm_span.status_code == "OK"
         assert not llm_span.events
 
-        # chain span
-        assert chain_span.name == "Parse eval result"
-        assert chain_span.status_code == "ERROR"
-        assert "No tool calls received from LLM" in chain_span.status_message
-        assert len(chain_span.events) == 1
-        exception_event = dict(chain_span.events[0])
+        # Parse Eval Result span (has error)
+        assert parse_eval_result_span.name == "Parse Eval Result"
+        assert parse_eval_result_span.status_code == "ERROR"
+        assert "No tool calls received from LLM" in parse_eval_result_span.status_message
+        assert len(parse_eval_result_span.events) == 1
+        exception_event = dict(parse_eval_result_span.events[0])
         assert exception_event.pop("name") == "exception"
         assert isinstance(exception_event.pop("timestamp"), str)
         event_attributes = dict(exception_event.pop("attributes"))
@@ -2781,7 +2734,7 @@ class TestLLMEvaluator:
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes
         assert not exception_event
-        attributes = dict(flatten(chain_span.attributes, recurse_on_sequence=True))
+        attributes = dict(flatten(parse_eval_result_span.attributes, recurse_on_sequence=True))
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
             "tool_calls": {},
@@ -2796,7 +2749,7 @@ class TestLLMEvaluator:
         assert not attributes
 
         # evaluator span
-        assert evaluator_span.name == "Evaluation: correctness"
+        assert evaluator_span.name == "Evaluator: correctness"
         assert evaluator_span.status_code == "ERROR"
         assert "No tool calls received from LLM" in evaluator_span.status_message
         assert len(evaluator_span.events) == 1
@@ -2858,48 +2811,18 @@ class TestLLMEvaluator:
         assert db_trace.trace_id == trace_id
         db_spans = db_trace.spans
 
-        template_span = None
+        prompt_span = None
         for span in db_spans:
-            if span.span_kind == "TEMPLATE":
-                template_span = span
+            if span.span_kind == "PROMPT":
+                prompt_span = span
                 break
 
-        assert template_span is not None
-        attributes = dict(flatten(template_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "TEMPLATE"
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. "
-        )
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.0.{MESSAGE_CONTENTS}.1.{MESSAGE_CONTENT}")
-            == "Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_MESSAGES}.1.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT}")
-            == "Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?"
-        )
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.0.{MESSAGE_CONTENT}")
-            == "You are an evaluator. Assess whether the output correctly answers the input question."
-        )
-        assert attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_ROLE}") == "user"
-        assert (
-            attributes.pop(f"{TEMPLATE_FORMATTED_MESSAGES}.1.{MESSAGE_CONTENT}")
-            == "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?"
-        )
-        assert json.loads(attributes.pop(TEMPLATE_PATH_MAPPING)) == {}
-        assert json.loads(attributes.pop(TEMPLATE_LITERAL_MAPPING)) == {}
-        variables = json.loads(attributes.pop(TEMPLATE_VARIABLES))
-        assert variables == {"input": "What is 2 + 2?", "output": "4"}
+        assert prompt_span is not None
+        assert prompt_span.name == "Prompt: test-prompt"
+        attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
         input_value = json.loads(attributes.pop(INPUT_VALUE))
-        assert input_value == {
-            "variables": {"input": "What is 2 + 2?", "output": "4"},
-            "input_mapping": {"path_mapping": {}, "literal_mapping": {}},
-        }
+        assert input_value == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         output_value = json.loads(attributes.pop(OUTPUT_VALUE))
         assert output_value == {
