@@ -568,7 +568,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 pass
 
             # Handle tool call streaming: accumulate arguments across deltas
-            elif event_type == "response.output_tool_call.delta":
+            elif event_type == "response.function_call_arguments.delta":
                 # Read tool call metadata from the event itself
                 tool_call_id = getattr(event, "id", None)
                 function_name = getattr(event, "name", None)
@@ -598,7 +598,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                         active_tool_calls[tool_call_id]["name"] = function_name
 
             # Emit ToolCallChunk only when the tool call is complete
-            elif event_type == "response.output_tool_call.done":
+            elif event_type == "response.function_call_arguments.done":
                 tool_call_id = getattr(event, "id", None)
                 if tool_call_id and tool_call_id in active_tool_calls:
                     tool_call_data = active_tool_calls[tool_call_id]
