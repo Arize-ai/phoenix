@@ -1,12 +1,19 @@
 import json
 import re
-from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import httpx
 import pytest
+import respx
 from openai import AsyncOpenAI
-from openinference.semconv.trace import MessageAttributes, SpanAttributes, ToolCallAttributes
+from openinference.semconv.trace import (
+    MessageAttributes,
+    OpenInferenceMimeTypeValues,
+    SpanAttributes,
+    ToolAttributes,
+    ToolCallAttributes,
+)
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay import GlobalID
 
@@ -58,7 +65,6 @@ from phoenix.server.api.helpers.prompts.models import (
     TextContentPart,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
-from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -2250,7 +2256,7 @@ class TestLLMEvaluator:
         assert not attributes
 
         # llm span
-        assert llm_span.name == "gpt-4o-mini"
+        assert llm_span.name == "ChatCompletion"
         assert llm_span.status_code == "OK"
         assert not llm_span.events
         assert llm_span.llm_token_count_prompt is not None
@@ -2323,6 +2329,51 @@ class TestLLMEvaluator:
         assert arguments.pop("label") == "correct"
         assert isinstance(arguments.pop("explanation"), str)
         assert not arguments
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        input_value = json.loads(attributes.pop(INPUT_VALUE))
+        assert input_value.pop("messages") == [
+            {
+                "role": "SYSTEM",
+                "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
+            },
+            {
+                "role": "USER",
+                "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
+            },
+        ]
+        assert input_value.pop("invocation_parameters") == {
+            "temperature": 0.0,
+            "tool_choice": "required",
+        }
+        expected_tool = {
+            "type": "function",
+            "function": {
+                "name": "correctness",
+                "description": "Evaluates the correctness of the output",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string",
+                            "enum": ["correct", "incorrect"],
+                            "description": "correctness",
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "Brief explanation for the label",
+                        },
+                    },
+                    "required": ["label", "explanation"],
+                },
+            },
+        }
+        assert input_value.pop("tools") == [expected_tool]
+        assert not input_value
+        assert json.loads(attributes.pop(LLM_INVOCATION_PARAMETERS)) == {
+            "temperature": 0.0,
+            "tool_choice": "required",
+        }
+        assert json.loads(attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")) == expected_tool
         assert not attributes
 
         # Parse Eval Result span
@@ -2685,7 +2736,7 @@ class TestLLMEvaluator:
         assert not attributes
 
         # llm span
-        assert llm_span.name == "gpt-4o-mini"
+        assert llm_span.name == "ChatCompletion"
         assert llm_span.status_code == "ERROR"
         assert len(llm_span.events) == 1
         exception_event = dict(llm_span.events[0])
@@ -2713,6 +2764,51 @@ class TestLLMEvaluator:
         assert "4" in user_message
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        input_value = json.loads(attributes.pop(INPUT_VALUE))
+        assert input_value.pop("messages") == [
+            {
+                "role": "SYSTEM",
+                "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
+            },
+            {
+                "role": "USER",
+                "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
+            },
+        ]
+        assert input_value.pop("invocation_parameters") == {
+            "temperature": 0.0,
+            "tool_choice": "required",
+        }
+        expected_tool = {
+            "type": "function",
+            "function": {
+                "name": "correctness",
+                "description": "Evaluates the correctness of the output",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string",
+                            "enum": ["correct", "incorrect"],
+                            "description": "correctness",
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "Brief explanation for the label",
+                        },
+                    },
+                    "required": ["label", "explanation"],
+                },
+            },
+        }
+        assert input_value.pop("tools") == [expected_tool]
+        assert not input_value
+        assert json.loads(attributes.pop(LLM_INVOCATION_PARAMETERS)) == {
+            "temperature": 0.0,
+            "tool_choice": "required",
+        }
+        assert json.loads(attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")) == expected_tool
         assert not attributes
 
     async def test_evaluate_with_no_tool_calls_records_error_on_chain_span(
@@ -2723,24 +2819,39 @@ class TestLLMEvaluator:
         llm_evaluator: LLMEvaluator,
         output_config: CategoricalAnnotationConfig,
         input_mapping: EvaluatorInputMappingInput,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        async def mock_chat_completion(*args: Any, **kwargs: Any) -> AsyncIterator[TextChunk]:
-            yield TextChunk(content="I cannot evaluate this.")
-
-        monkeypatch.setattr(
-            llm_evaluator._llm_client, "chat_completion_create", mock_chat_completion
+        text_response_body = (
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":""},'
+            '"finish_reason":null}],"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":"I cannot evaluate this."},'
+            '"finish_reason":null}],"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],'
+            '"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,'
+            '"total_tokens":15}}\n\n'
+            "data: [DONE]\n\n"
         )
-
-        evaluation_result = (
-            await llm_evaluator.evaluate(
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(
+                    200,
+                    content=text_response_body,
+                    headers={"content-type": "text/event-stream"},
+                )
+            )
+            evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
                 input_mapping=input_mapping,
                 name="correctness",
                 output_configs=[output_config],
                 tracer=tracer,
             )
-        )[0]
+            assert len(evaluation_results) == 1
+            evaluation_result = evaluation_results[0]
 
         # Check evaluation result
         result = dict(evaluation_result)
@@ -2811,7 +2922,8 @@ class TestLLMEvaluator:
         assert prompt_span.status_code == "OK"
         assert not prompt_span.events
 
-        # llm span
+        # LLM span
+        assert llm_span.name == "ChatCompletion"
         assert llm_span.status_code == "OK"
         assert not llm_span.events
 
@@ -3237,12 +3349,20 @@ LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 
+# tool attributes
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+
 # tool call attributes
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+
+# mime type values
+JSON = OpenInferenceMimeTypeValues.JSON.value

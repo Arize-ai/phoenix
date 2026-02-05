@@ -32,6 +32,7 @@ from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -312,9 +313,7 @@ class LLMEvaluator(BaseEvaluator):
                     },
                 ) as prompt_span:
                     template_formatter = get_template_formatter(self._template_format)
-                    messages: list[
-                        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
-                    ] = []
+                    messages: list[PlaygroundMessage] = []
                     for msg in self._template.messages:
                         role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
                         if isinstance(msg.content, str):
@@ -330,11 +329,11 @@ class LLMEvaluator(BaseEvaluator):
                                     )
                                     text_parts.append(formatted_text)
                             formatted_content = "".join(text_parts)
-                        messages.append((role, formatted_content, None, None))
+                        messages.append(create_playground_message(role, formatted_content))
 
                     formatted_messages = [
-                        oi.Message(role=role.value.lower(), content=content)
-                        for role, content, _, _ in messages
+                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                        for msg in messages
                     ]
                     prompt_span.set_attributes(
                         oi.get_output_attributes(
@@ -355,62 +354,20 @@ class LLMEvaluator(BaseEvaluator):
                 invocation_parameters.update(denormalized_tool_choice)
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
-                with tracer_.start_as_current_span(
-                    self._llm_client.model_name,
-                    attributes={
-                        **oi.get_span_kind_attributes("llm"),
-                        **oi.get_llm_model_name_attributes(model_name=self._llm_client.model_name),
-                        **oi.get_llm_input_message_attributes(
-                            [
-                                oi.Message(role=role.value.lower(), content=content)
-                                for role, content, _, _ in messages
-                            ]
-                        ),
-                    },
-                ) as llm_span:
-                    try:
-                        async for chunk in self._llm_client.chat_completion_create(
-                            messages=messages,
-                            tools=denormalized_tools,
-                            **invocation_parameters,
-                        ):
-                            if isinstance(chunk, ToolCallChunk):
-                                if chunk.id not in tool_call_by_id:
-                                    tool_call_by_id[chunk.id] = ToolCall(
-                                        name=chunk.function.name,
-                                        arguments=chunk.function.arguments,
-                                    )
-                                else:
-                                    tool_call_by_id[chunk.id]["arguments"] += (
-                                        chunk.function.arguments
-                                    )
-
-                        oi_tool_calls = [
-                            oi.ToolCall(
-                                id=call_id,
-                                function=oi.ToolCallFunction(
-                                    name=call["name"],
-                                    arguments=call["arguments"],
-                                ),
+                async for chunk in self._llm_client.chat_completion_create(
+                    messages=messages,
+                    tools=denormalized_tools,
+                    tracer=tracer_,
+                    **invocation_parameters,
+                ):
+                    if isinstance(chunk, ToolCallChunk):
+                        if chunk.id not in tool_call_by_id:
+                            tool_call_by_id[chunk.id] = ToolCall(
+                                name=chunk.function.name,
+                                arguments=chunk.function.arguments,
                             )
-                            for call_id, call in tool_call_by_id.items()
-                        ]
-                        output_messages: list[oi.Message] = [
-                            oi.Message(
-                                role="assistant",
-                                tool_calls=oi_tool_calls,
-                            )
-                        ]
-                        llm_span.set_attributes(
-                            oi.get_output_attributes({"messages": output_messages})
-                        )
-                        if oi_tool_calls:
-                            llm_span.set_attributes(
-                                oi.get_llm_output_message_attributes(output_messages)
-                            )
-                        llm_span.set_status(Status(StatusCode.OK))
-                    finally:
-                        llm_span.set_attributes(self._llm_client.attributes)
+                        else:
+                            tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
 
                 with tracer_.start_as_current_span(
                     "Parse Eval Result",

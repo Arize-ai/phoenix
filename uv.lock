@@ -261,7 +261,7 @@ wheels = [
 
 [[package]]
 name = "arize"
-version = "8.0.2"
+version = "8.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -283,9 +283,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/72/6a9dbd63c9bf1769ba50117b5bb4e2dfa19bad658c79a87878eb03770b2b/arize-8.0.2.tar.gz", hash = "sha256:1b0eaf973f8b733683362d115b0e9ee20aef07bf4ebb4ff19b6f81673dec6809", size = 245491, upload-time = "2026-02-04T22:48:49.548Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/21/6e38650a73a183567c8b9f5c6c7ebf35f8e30d718e94f812aeffe6ba3edd/arize-8.1.0.tar.gz", hash = "sha256:cc89436ece818878e904cd54d0531c6f60eed96eec13e54a0109316c22ae45f2", size = 246689, upload-time = "2026-02-09T20:23:31.406Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/ba/ee7617f1d5e82cef2cef63543f12aa1653bc8872d9b1bf9c0f21af39f63d/arize-8.0.2-py3-none-any.whl", hash = "sha256:29799dcc3fc5f3e80cc90fb7a5024f348cc5d5bf5ab496505d510b53201f4b82", size = 344461, upload-time = "2026-02-04T22:48:47.659Z" },
+    { url = "https://files.pythonhosted.org/packages/83/78/8731e90da9d9a2c5275595ba65eaf769e2398d3f94866324bc5bf88ce723/arize-8.1.0-py3-none-any.whl", hash = "sha256:a07d4cb9b0f10f33453294a02fb2943d8544e5ab265e93eff531776a0d53a6e4", size = 345524, upload-time = "2026-02-09T20:23:29.262Z" },
 ]
 
 [[package]]
@@ -473,7 +473,7 @@ requires-dist = [
     { name = "aioitertools" },
     { name = "aiosqlite" },
     { name = "alembic", specifier = ">=1.3.0,<2" },
-    { name = "anthropic", marker = "extra == 'container'", specifier = ">=0.49.0" },
+    { name = "anthropic", marker = "extra == 'container'", specifier = ">=0.78.0" },
     { name = "arize-phoenix-client", editable = "packages/phoenix-client" },
     { name = "arize-phoenix-evals", editable = "packages/phoenix-evals" },
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
@@ -547,8 +547,8 @@ provides-extras = ["aws", "container", "embeddings", "evals", "experimental", "p
 dev = [
     { name = "aiobotocore", specifier = ">=3.1.1" },
     { name = "aiosqlite", specifier = "<0.22.0" },
-    { name = "anthropic" },
-    { name = "arize" },
+    { name = "anthropic", specifier = ">=0.79.0" },
+    { name = "arize", specifier = ">=8.1.0" },
     { name = "asgi-lifespan" },
     { name = "asyncpg" },
     { name = "azure-identity" },
