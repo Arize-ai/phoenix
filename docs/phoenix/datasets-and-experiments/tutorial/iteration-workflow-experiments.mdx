@@ -3,7 +3,10 @@ title: "Iterating with Experiments in Your Workflow"
 description: "Learn how to use experiments to systematically validate changes to your AI application and compare different versions over time."
 ---
 
-<Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+<div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+  <Card title="Follow with Complete Python Notebook" icon="python" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/python_experiments_quickstart.ipynb" />
+  <Card title="Follow with Complete TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/experiments/typescript-experiments-quickstart" />
+</div>
 
 Once experiments are defined, they can be integrated into your development workflow as a systematic way to validate changes to your application. In practice, this means updating the underlying code that your experiment task calls—such as prompt changes, model swaps, retrieval logic, or system configuration—and then rerunning the experiment to observe how those changes affect evaluation metrics.
 
@@ -25,11 +28,13 @@ For the complete implementation including the task function, see the [reference 
 
 Run an experiment with the improved agent using the same dataset and evaluator to compare performance:
 
-```python
+<CodeGroup>
+
+```python Python
 # Run experiment with improved agent to compare actionability scores
 from phoenix.experiments import run_experiment
 
-# Get the dataset 
+# Get the dataset
 improved_experiment = run_experiment(
     dataset,
     improved_support_agent_task,
@@ -38,6 +43,22 @@ improved_experiment = run_experiment(
     experiment_description="Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps"
 )
 ```
+
+```typescript TypeScript
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+// Run experiment with improved agent to compare actionability scores
+const improvedExperiment = await runExperiment({
+  dataset: { datasetName: "support-ticket-queries" },
+  experimentName: "improved support agent",
+  experimentDescription:
+    "Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps",
+  task: improvedSupportAgentTask,
+  evaluators: [actionabilityJudge],
+});
+```
+
+</CodeGroup>
 
 With the improved prompt, the evaluator scores should be higher compared to the initial experiment, indicating better actionability and helpfulness.
 
