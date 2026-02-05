@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Mapping, Optional
 
 import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.evaluators import InputMapping, validate_jsonpath
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigOverrideInput,
     CategoricalAnnotationConfigOverrideInput,
@@ -18,6 +19,15 @@ class EvaluatorInputMappingInput:
     """Direct key-value mappings to evaluator inputs."""
     path_mapping: JSON = strawberry.field(default_factory=dict)
     """JSONPath expressions to extract values from the evaluation context."""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.path_mapping, Mapping):
+            raise BadRequest("path_mapping must be a dictionary")
+        for key, path in self.path_mapping.items():
+            try:
+                validate_jsonpath(path)
+            except ValueError as e:
+                raise BadRequest(f"Invalid JSONPath expression for key '{key}': {e}")
 
     def to_orm(self) -> InputMapping:
         """Convert to database InputMapping type."""
