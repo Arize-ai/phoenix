@@ -276,11 +276,6 @@ function MessageEditor({
           {sectionValidation.errors.join(", ")}
         </Alert>
       ) : null}
-      {sectionValidation?.warnings.length ? (
-        <Alert variant="warning" banner title="Unclosed mustache sections">
-          {sectionValidation.warnings.join(", ")}
-        </Alert>
-      ) : null}
       <TemplateEditor
         height="100%"
         defaultValue={message.content || ""}
