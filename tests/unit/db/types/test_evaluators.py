@@ -12,8 +12,8 @@ class TestJSONPathValidation:
 
     Supported features:
       - Root marker: $ (optional)
-      - Dot notation: field.nested, field.123
-      - Bracket notation: ['field'], ["field"], ['field-name']
+      - Dot notation: field.nested
+      - Bracket notation: ['field'], ["field"], ['field-name'], ['123']
       - Index access: field[0], field[-1]
       - Wildcard: field[*]
       - Slices: field[0:5], field[::2]
@@ -21,6 +21,7 @@ class TestJSONPathValidation:
     NOT supported (rejected):
       - '..' recursive descent
       - Bare '@' (use ['@'] instead)
+      - Numeric dot notation like .123 (use ['123'] instead)
       - Union (|), Intersect (&), Where, WhereNot, This
     """
 
@@ -34,8 +35,7 @@ class TestJSONPathValidation:
             "field.nested",  # Nested fields
             "field.deeply.nested.path",  # Deep nesting
             "a.b.c.d.e",  # Long path
-            "field.123",  # Numeric field name
-            "items.0.bar",  # Numeric field in chain
+            "a1.b2.c3",  # Field names can contain digits (just not start with them)
             # Bracket notation for fields
             "['field']",  # Bracket with single quotes
             '["field"]',  # Bracket with double quotes
@@ -162,6 +162,23 @@ class TestJSONPathValidation:
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
         assert "Bare '@'" in str(exc_info.value)
+
+    # --- Numeric dot notation rejection ---
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "field.123",  # Numeric field name
+            "items.0.bar",  # Numeric field in chain
+            "$.items.0",  # With root marker
+            "data.0",  # Simple numeric
+        ],
+    )
+    def test_numeric_dot_notation_rejected(self, expr: str) -> None:
+        """Numeric field names in dot notation should be rejected (use ['123'] instead)."""
+        with pytest.raises(ValidationError) as exc_info:
+            InputMapping(literal_mapping={}, path_mapping={"x": expr})
+        assert "Numeric field names" in str(exc_info.value)
 
     # --- jsonpath-ng extensions rejection ---
 

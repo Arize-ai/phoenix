@@ -14,12 +14,12 @@ Dot notation:
     field                   Access a field
     field.nested            Access nested fields
     $.field.nested          Same as above, with explicit root
-    field.123               Numeric field names supported
 
 Bracket notation:
     ['field']               Access a field (alternative to dot notation)
     ["field"]               Double quotes also supported
     ['field-name']          Required for field names with special characters
+    ['123']                 Required for numeric field names
 
 Index access:
     [0]                     First element
@@ -50,13 +50,16 @@ Recursive descent:
 Bare @:
     @                       NOT ALLOWED as identifier (use ['@'] instead)
 
+Numeric dot notation:
+    .123                    NOT ALLOWED (use ['123'] instead)
+
 Operators:
     |                       Union - NOT ALLOWED
     &                       Intersect - NOT ALLOWED
     where / wherenot        Filter clauses - NOT ALLOWED
 
 Filter expressions:
-    [?(@.price < 10)]       NOT ALLOWED (not parseable by jsonpath-ng)
+    [?(@.price < 10)]       NOT ALLOWED (too complex for this use case)
 
 Examples
 --------
@@ -74,6 +77,7 @@ Invalid paths:
     "$..name"               # Recursive descent not allowed
     "a | b"                 # Union not allowed
     "foo.@.bar"             # Bare @ not allowed
+    "items.0.name"          # Numeric dot notation not allowed
 """
 
 import re
@@ -104,6 +108,19 @@ _BARE_AT_PATTERN = re.compile(
     r"""
     (?:^|[.\[])  # Start of string, dot, or bracket
     @            # The @ symbol
+    (?:[.\[]|$)  # Followed by dot, bracket, or end of string
+    """,
+    re.VERBOSE,
+)
+
+# Regex to detect numeric field names in dot notation (not RFC 9535).
+# RFC 9535 requires field names in dot notation to start with a letter or underscore.
+# Examples that should match (reject):  .123, field.0, items.0.bar
+# Examples that should NOT match (allow): ['123'], field[0], a1.b2
+_NUMERIC_DOT_PATTERN = re.compile(
+    r"""
+    \.           # A dot
+    \d+          # Followed by one or more digits
     (?:[.\[]|$)  # Followed by dot, bracket, or end of string
     """,
     re.VERBOSE,
@@ -158,13 +175,15 @@ def validate_jsonpath(value: str) -> str:
     Allowed:
       - Root marker: $ (optional)
       - Dot notation: field.nested or $.field.nested
+      - Bracket notation: ['field'], ['123'], ['@']
       - Index access: field[0], field[-1]
       - Wildcard: field[*]
       - Slices: field[0:5], field[::2]
 
     Not allowed:
       - '..' recursive descent
-      - Bare '@'
+      - Bare '@' (use ['@'] instead)
+      - Numeric dot notation like .123 (use ['123'] instead)
     """
     if not value:
         raise ValueError("JSONPath cannot be empty")
@@ -175,8 +194,15 @@ def validate_jsonpath(value: str) -> str:
     # not RFC 9535 compliant). Bracket notation like ['@'] is still allowed.
     if _BARE_AT_PATTERN.search(value):
         raise ValueError(
-            "Bare '@' is not supported (jsonpath-ng extension). "
-            "Use bracket notation ['@'] for fields named '@'"
+            "Bare '@' is not supported. Use bracket notation ['@'] for fields named '@'"
+        )
+
+    # Reject numeric field names in dot notation (not RFC 9535 compliant).
+    # Use bracket notation like ['123'] instead.
+    if _NUMERIC_DOT_PATTERN.search(value):
+        raise ValueError(
+            "Numeric field names in dot notation are not supported. "
+            "Use bracket notation like ['123'] instead"
         )
 
     try:
