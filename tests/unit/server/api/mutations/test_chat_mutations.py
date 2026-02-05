@@ -1433,7 +1433,7 @@ class TestChatCompletionMutationMixin:
                 elif span.span_kind == "CHAIN":
                     if span.name == "Input Mapping":
                         builtin_input_mapping_span = span
-                    elif span.name == "ExactMatch":
+                    elif span.name == "exact_match":
                         builtin_execution_span = span
                     elif span.name == "Parse Eval Result":
                         builtin_parse_span = span

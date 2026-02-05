@@ -2440,7 +2440,7 @@ class TestLLMEvaluator:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
             "input_mapping": {
-                "path_mapping": {"output": "[[[invalid jsonpath"},
+                "path_mapping": {"output": "nonexistent.path"},
                 "literal_mapping": {},
             },
             "template_variables": {"input": "What is 2 + 2?", "output": "4"},
