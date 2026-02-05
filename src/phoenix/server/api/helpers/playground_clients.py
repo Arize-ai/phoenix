@@ -501,6 +501,22 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         """
         Normalize Responses API usage object to CompletionUsage format.
         Maps input_tokens -> prompt_tokens and output_tokens -> completion_tokens.
+        Also maps input_tokens_details -> prompt_tokens_details and
+        output_tokens_details -> completion_tokens_details.
+
+        ResponseUsage structure:
+        - input_tokens: int
+        - input_tokens_details: InputTokensDetails (has cached_tokens: int)
+        - output_tokens: int
+        - output_tokens_details: OutputTokensDetails (has reasoning_tokens: int)
+        - total_tokens: int
+
+        CompletionUsage structure:
+        - prompt_tokens: int
+        - prompt_tokens_details: PromptTokensDetails (has cached_tokens, audio_tokens - both optional)
+        - completion_tokens: int
+        - completion_tokens_details: CompletionTokensDetails (has reasoning_tokens, audio_tokens, etc. - all optional)
+        - total_tokens: int
         """
 
         # Extract tokens with defensive getattr access
@@ -515,6 +531,46 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         if total_tokens is None:
             total_tokens = prompt_tokens + completion_tokens
 
+        # Map token details: Responses API uses input_tokens_details/output_tokens_details
+        # but CompletionUsage expects prompt_tokens_details/completion_tokens_details
+        input_tokens_details = getattr(usage, "input_tokens_details", None)
+        output_tokens_details = getattr(usage, "output_tokens_details", None)
+
+        # Create normalized detail objects matching CompletionUsage structure
+        # Check fallback first (CompletionUsage format) before normalizing from Responses API format
+        prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
+        if prompt_tokens_details is None and input_tokens_details is not None:
+            # InputTokensDetails has cached_tokens (required)
+            # Map to PromptTokensDetails which has cached_tokens (optional) and audio_tokens (optional)
+            cached_tokens = getattr(input_tokens_details, "cached_tokens", None)
+            if cached_tokens is not None:
+                # Create a simple object matching PromptTokensDetails structure
+                class NormalizedPromptTokensDetails:
+                    def __init__(self) -> None:
+                        self.cached_tokens = cached_tokens
+                        # audio_tokens not available in InputTokensDetails, leave as None
+                        self.audio_tokens = None
+
+                prompt_tokens_details = NormalizedPromptTokensDetails()
+
+        completion_tokens_details = getattr(usage, "completion_tokens_details", None)
+        if completion_tokens_details is None and output_tokens_details is not None:
+            # OutputTokensDetails has reasoning_tokens (required)
+            # Map to CompletionTokensDetails which has reasoning_tokens (optional) and audio_tokens (optional)
+            reasoning_tokens = getattr(output_tokens_details, "reasoning_tokens", None)
+            if reasoning_tokens is not None:
+                # Create a simple object matching CompletionTokensDetails structure
+                class NormalizedCompletionTokensDetails:
+                    def __init__(self) -> None:
+                        self.reasoning_tokens = reasoning_tokens
+                        # audio_tokens not available in OutputTokensDetails, leave as None
+                        self.audio_tokens = None
+                        # Other fields not available in OutputTokensDetails
+                        self.accepted_prediction_tokens = None
+                        self.rejected_prediction_tokens = None
+
+                completion_tokens_details = NormalizedCompletionTokensDetails()
+
         # Create a CompletionUsage-like object
         # We'll create a simple object that provides the expected interface
         class NormalizedUsage:
@@ -522,9 +578,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 self.prompt_tokens = prompt_tokens
                 self.completion_tokens = completion_tokens
                 self.total_tokens = total_tokens
-                # Preserve details if they exist
-                self.prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
-                self.completion_tokens_details = getattr(usage, "completion_tokens_details", None)
+                # Map details from Responses API format to CompletionUsage format
+                self.prompt_tokens_details = prompt_tokens_details
+                self.completion_tokens_details = completion_tokens_details
 
         return NormalizedUsage()  # type: ignore[return-value]
 
@@ -604,11 +660,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 # Read tool call metadata from the event itself
                 tool_call_id = getattr(event, "id", None)
                 function_name = getattr(event, "name", None)
-                # Only read incremental arguments from event.delta.arguments
+                # Treat event.delta as the incremental arguments string directly
                 delta = getattr(event, "delta", None)
                 arguments_delta = None
-                if delta:
-                    arguments_delta = getattr(delta, "arguments", None)
+                if delta and isinstance(delta, str) and delta:
+                    arguments_delta = delta
 
                 if tool_call_id:
                     # Initialize tool call tracking if not already present
@@ -1380,6 +1436,7 @@ _OPENAI_CHAT_COMPLETIONS_API_MODELS = [
     "o4-mini",
     "o4-mini-2025-04-16",
 ]
+
 
 class OpenAIReasoningReasoningModelsMixin:
     """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
