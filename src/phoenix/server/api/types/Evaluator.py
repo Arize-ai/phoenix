@@ -22,6 +22,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
+from phoenix.db.types.evaluators import validate_jsonpath
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers.annotation_configs import (
@@ -63,6 +64,13 @@ class EvaluatorInputMapping:
     """Direct key-value mappings to evaluator inputs."""
     path_mapping: JSON = strawberry.field(default_factory=dict)
     """JSONPath expressions to extract values from the evaluation context."""
+
+    def __post_init__(self) -> None:
+        for key, path in self.path_mapping.items():
+            try:
+                validate_jsonpath(path)
+            except ValueError as e:
+                raise ValueError(f"Invalid JSONPath expression for key '{key}': {e}")
 
 
 @strawberry.interface
