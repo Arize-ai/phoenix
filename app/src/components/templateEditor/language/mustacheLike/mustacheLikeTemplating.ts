@@ -143,107 +143,22 @@ export type MustacheSectionValidation = {
 };
 
 /**
- * Runs a regex-based stack scan to produce descriptive section mismatch errors.
- * Regex validation is used ONLY for descriptive UI error messages during template editing.
- */
-const getDescriptiveSectionErrors = (
-  text: string
-): MustacheSectionValidation => {
-  const tagRegex = /\{\{\s*([^}]+?)\s*\}\}/g;
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const sectionStack: Array<{ name: string; opener: "#" | "^" }> = [];
-
-  for (const match of text.matchAll(tagRegex)) {
-    const trimmed = match[1]?.trim() ?? "";
-    if (!trimmed) {
-      continue;
-    }
-    // Skip comments, partials, and delimiter changes
-    if (
-      trimmed.startsWith("!") ||
-      trimmed.startsWith(">") ||
-      trimmed.startsWith("=")
-    ) {
-      continue;
-    }
-    if (trimmed.startsWith("#") || trimmed.startsWith("^")) {
-      const opener = trimmed.startsWith("#") ? "#" : "^";
-      sectionStack.push({ name: trimmed.slice(1).trim(), opener });
-      continue;
-    }
-    if (trimmed.startsWith("/")) {
-      const closingName = trimmed.slice(1).trim();
-      if (sectionStack.length === 0) {
-        errors.push(`Unmatched closing tag: {{/${closingName}}}`);
-        continue;
-      }
-      const expectedEntry = sectionStack[sectionStack.length - 1];
-      const expectedName = expectedEntry.name;
-      if (expectedName !== closingName) {
-        const closingIndex = sectionStack
-          .map((entry) => entry.name)
-          .lastIndexOf(closingName);
-        if (closingIndex === -1) {
-          errors.push(`Unmatched closing tag: {{/${closingName}}}`);
-          continue;
-        }
-        errors.push(
-          `Missing closing tag for {{${expectedEntry.opener}${expectedName}}} ` +
-            `before {{/${closingName}}}`
-        );
-        sectionStack.length = closingIndex;
-        continue;
-      }
-      sectionStack.pop();
-    }
-  }
-
-  if (errors.length > 0) {
-    return { errors, warnings: [] };
-  }
-
-  if (sectionStack.length > 0) {
-    sectionStack.forEach(({ name, opener }) => {
-      warnings.push(`Unclosed section tag: {{${opener}${name}}}`);
-    });
-  }
-
-  return { errors, warnings };
-};
-
-/**
  * Validates Mustache section tags for proper nesting and closure.
  *
- * Uses a native-first approach: tries the native Mustache parser first for
- * spec-consistent validation. If the parser throws, falls back to a regex-based
- * stack scan to produce descriptive error messages about section mismatches.
+ * Uses the native Mustache.js parser for spec-compliant validation.
+ * Parser exceptions are surfaced directly as error messages.
  */
 export const validateMustacheSections = (
   text: string
 ): MustacheSectionValidation => {
-  // Try native parser first for spec-consistent validation
   try {
     Mustache.parse(text);
-    // If parse succeeds, the template is valid
     return { errors: [], warnings: [] };
   } catch (parseError) {
-    // Native parser failed - run descriptive fallback for section errors
-    const descriptiveResult = getDescriptiveSectionErrors(text);
-
-    // If we found descriptive section errors, return those
-    if (
-      descriptiveResult.errors.length > 0 ||
-      descriptiveResult.warnings.length > 0
-    ) {
-      return descriptiveResult;
-    }
-
-    // No section errors found, but parse still failed - return generic error
     const message =
-      parseError instanceof Error ? `: ${parseError.message}` : "";
+      parseError instanceof Error ? parseError.message : "Invalid template";
     return {
-      errors: [`Invalid mustache template${message}`],
+      errors: [message],
       warnings: [],
     };
   }

@@ -118,28 +118,23 @@ No tools available.
     });
   });
 
-  it("should validate mustache section tags", () => {
+  it("should validate mustache section tags using native parser", () => {
+    // Native Mustache.js parser provides error messages with position info
+    // All validation failures are treated as errors (no warning distinction)
     const tests = [
       {
         input: "{{#query}}\n{{#messages}}\n{{role}}\n{{/messages}}",
-        expected: {
-          errors: [],
-          warnings: ["Unclosed section tag: {{#query}}"],
-        },
+        // Native parser reports unclosed section with position
+        errorContains: "Unclosed section",
       },
       {
         input: "{{^available_tools}}\n{{name}}",
-        expected: {
-          errors: [],
-          warnings: ["Unclosed section tag: {{^available_tools}}"],
-        },
+        errorContains: "Unclosed section",
       },
       {
         input: "{{/items}}",
-        expected: {
-          errors: ["Unmatched closing tag: {{/items}}"],
-          warnings: [],
-        },
+        // Native parser calls this "Unopened section"
+        errorContains: "Unopened section",
       },
       {
         input: "{{#items}}{{name}}{{/items}}",
@@ -150,32 +145,28 @@ No tools available.
       },
       {
         input: "{{#a}}{{/b}}",
-        expected: {
-          errors: ["Unmatched closing tag: {{/b}}"],
-          warnings: [],
-        },
+        // Native parser reports unclosed "a" when it sees /b
+        errorContains: "Unclosed section",
       },
       {
         input: "{{#messages}}{{#tool_calls}}{{/messages}}",
-        expected: {
-          errors: [
-            "Missing closing tag for {{#tool_calls}} before {{/messages}}",
-          ],
-          warnings: [],
-        },
+        // Native parser reports unclosed inner section
+        errorContains: "Unclosed section",
       },
       {
         input: "{{#messages}}{{^tool_calls}}{{/messages}}",
-        expected: {
-          errors: [
-            "Missing closing tag for {{^tool_calls}} before {{/messages}}",
-          ],
-          warnings: [],
-        },
+        errorContains: "Unclosed section",
       },
     ] as const;
-    tests.forEach(({ input, expected }) => {
-      expect(validateMustacheSections(input)).toEqual(expected);
+    tests.forEach(({ input, expected, errorContains }) => {
+      const result = validateMustacheSections(input);
+      if (expected) {
+        expect(result).toEqual(expected);
+      } else if (errorContains) {
+        expect(result.errors.length).toBe(1);
+        expect(result.errors[0]).toContain(errorContains);
+        expect(result.warnings).toEqual([]);
+      }
     });
   });
 

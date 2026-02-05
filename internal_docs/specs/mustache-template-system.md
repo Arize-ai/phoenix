@@ -118,7 +118,7 @@ This feature introduces full Mustache template support for Phoenix's server-side
 | **Template Formatter** (`template_formatters.py`)                      | Parses templates, extracts variables with types, renders with pystache.                              |
 | **Input Schema** (`LLMEvaluator.input_schema`)                         | JSON Schema derived from template variables. Section vars → any type, string vars → string.          |
 | **Input Mapping** (`EvaluatorInputMapping.tsx`)                        | UI component for mapping context fields to template variables.                                       |
-| **Validation** (`validateMustacheSections()`)                          | Frontend validation with descriptive error messages for template authors.                            |
+| **Validation** (`validateMustacheSections()`)                          | Frontend validation using native Mustache.js parser error messages.                                  |
 
 ---
 
@@ -190,26 +190,33 @@ No tools available.
 - Simple interpolation expects string values → enforce type constraint
 - Enables automatic type casting in the pipeline (non-strings → string for string vars)
 
-### 5. Native Parser First, Regex Fallback for Errors
+### 5. Native Mustache Parser for Validation
 
-**Decision:** Use native Mustache parsers for validation and extraction, with regex fallback only for generating descriptive error messages.
+**Decision:** Use native Mustache.js parser exclusively for template validation, surfacing parser exception messages directly to users.
 
 **Rationale:**
 
-- Native parsers (`pystache.parse()`, `Mustache.parse()`) are spec-compliant and handle edge cases correctly
-- When parsing fails, regex-based stack analysis can identify _which_ section is unclosed
-- Best of both worlds: correct validation + helpful error messages
+- **Simplicity**: A single validation path is easier to maintain and reason about than a multi-layer regex fallback system
+- **Spec compliance**: Native parsers correctly handle all Mustache edge cases (comments, delimiter changes, etc.)
+- **Adequate error messages**: Native parser errors like `Unclosed section "foo" at 13` are sufficiently informative for users to locate and fix issues
+- **Avoid regex brittleness**: Custom regex-based parsers are difficult to validate exhaustively and can drift from the Mustache spec
+
+**Trade-off**: All parse failures are treated as errors (no warning vs. error distinction). Users may see error banners while still typing incomplete sections. This was deemed acceptable for code simplicity.
 
 ### 6. Frontend/Backend Parity for Variable Extraction
 
-**Decision:** Python and TypeScript use identical depth-tracking algorithms.
+**Decision:** Python and TypeScript both extract only top-level variables, producing identical results.
 
 **Rationale:**
 
 - Frontend needs to know which variables to display in input mapping UI
 - Backend generates the canonical input_schema
-- If algorithms differed, UI could show wrong variables or miss some
-- Single algorithm, two implementations, same results
+- If results differed, UI could show wrong variables or miss some
+
+**Implementation Note:** The mechanisms differ but produce the same output:
+
+- **Python**: Iterates only the top-level nodes of pystache's parse tree (no recursion needed—pystache's structure naturally exposes only top-level nodes)
+- **TypeScript**: Uses depth tracking with recursive `walkTokens()` because Mustache.js exposes nested children in its token format, requiring explicit `depth === 0` filtering
 
 ---
 
@@ -326,12 +333,16 @@ No tools available.
 
 ### Template Validation Errors (Surfaced in Playground UI)
 
-| Error Type                  | Example                           | UI Display                                                              |
-| --------------------------- | --------------------------------- | ----------------------------------------------------------------------- |
-| **Unclosed Section**        | `{{#items}}...` (no `{{/items}}`) | Yellow warning banner: "Unclosed mustache sections: {{#items}}"         |
-| **Mismatched Closing Tag**  | `{{#items}}...{{/item}}`          | Red error banner: "Missing closing tag for {{#items}} before {{/item}}" |
-| **Unmatched Closing Tag**   | `{{/items}}` without opener       | Red error banner: "Unmatched closing tag: {{/items}}"                   |
-| **Invalid Mustache Syntax** | Parser throws generic error       | Red error banner: "Invalid mustache template: [error message]"          |
+Errors are detected by the native Mustache.js parser and displayed directly to users:
+
+| Error Type                  | Example                           | Native Parser Message                |
+| --------------------------- | --------------------------------- | ------------------------------------ |
+| **Unclosed Section**        | `{{#items}}...` (no `{{/items}}`) | `Unclosed section "items" at 13`     |
+| **Mismatched Closing Tag**  | `{{#items}}...{{/item}}`          | `Unclosed section "items" at 13`     |
+| **Unmatched Closing Tag**   | `{{/items}}` without opener       | `Unopened section "items" at 0`      |
+| **Invalid Mustache Syntax** | Other parse errors                | Parser-specific error message        |
+
+All validation errors are displayed as red error banners in the UI. The native parser messages include position information to help users locate issues.
 
 ### Runtime Errors (During Evaluation)
 
