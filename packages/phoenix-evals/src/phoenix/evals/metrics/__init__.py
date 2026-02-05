@@ -6,6 +6,7 @@ from .hallucination import HallucinationEvaluator  # Deprecated alias
 from .matches_regex import MatchesRegex
 from .precision_recall import PrecisionRecallFScore
 from .tool_invocation import ToolInvocationEvaluator
+from .tool_selection import ToolSelectionEvaluator
 
 __all__ = [
     "CorrectnessEvaluator",
@@ -16,4 +17,5 @@ __all__ = [
     "MatchesRegex",
     "PrecisionRecallFScore",
     "ToolInvocationEvaluator",
+    "ToolSelectionEvaluator",
 ]

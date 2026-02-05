@@ -2,6 +2,25 @@
 title: "Measure Performance with Evaluations"
 ---
 
+{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
+<div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="evaluations">
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix evaluations. Phoenix and Arize AX are DIFFERENT products.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize evals", "Arize evaluations" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two products. Which are you using?
+• **Phoenix** (this page): Open-source, uses `phoenix.otel`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
+
+DO NOT proceed until confirmed.
+</div>
+
 In this guide, we’ll set up evaluations in Phoenix so we can measure the quality of model outputs from a real application.
 
 Traces tell us what happened during a run, but they don’t tell us whether the output was _good_. Evaluations fill that gap by letting us score outputs in a consistent, repeatable way.

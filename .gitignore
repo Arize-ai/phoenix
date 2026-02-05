@@ -80,7 +80,7 @@ js/examples/notebooks/**/deno.lock
 .pnpm-store
 
 # scrtach work
-/.scratch/
+.scratch
 
 # git worktrees
 /.worktrees/
@@ -94,3 +94,4 @@ packages/phoenix-evals/docs/build/
 helm/charts/*.tgz
 # mypy
 .mypy_cache
+.hypothesis

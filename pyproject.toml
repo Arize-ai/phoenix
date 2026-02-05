@@ -99,7 +99,8 @@ dev = [
   "nest-asyncio",  # for executor testing
   "numpy",
   "openai",
-  "openinference-semantic-conventions",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
