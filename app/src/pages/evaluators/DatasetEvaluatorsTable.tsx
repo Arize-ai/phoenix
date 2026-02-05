@@ -104,10 +104,7 @@ const EmptyState = ({
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
   hasActiveFilter: boolean;
 }) => {
-  const codeEvaluators = useMemo(
-    () => builtInEvaluators.builtInEvaluators,
-    [builtInEvaluators.builtInEvaluators]
-  );
+  const codeEvaluators = builtInEvaluators.builtInEvaluators;
   const llmEvaluatorTemplates =
     builtInEvaluators.classificationEvaluatorConfigs;
 
