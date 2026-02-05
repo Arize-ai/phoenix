@@ -11,12 +11,9 @@ import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
-  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
-  RerankerAttributePostfixes,
-  RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
@@ -51,10 +48,7 @@ import {
   Tabs,
   Text,
   ToggleButton,
-  Token,
-  TokenProps,
   View,
-  ViewProps,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
@@ -69,7 +63,6 @@ import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
-  AttributeDocument,
   AttributeEmbedding,
   AttributeEmbeddingEmbedding,
   AttributeLlm,
@@ -88,9 +81,7 @@ import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
-import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
 
 import {
@@ -101,6 +92,7 @@ import {
 import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
+import { RerankerDocuments, RetrieverDocuments } from "./SpanDocuments";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
@@ -117,8 +109,6 @@ type AttributeObject = {
 };
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
-
-type DocumentEvaluation = NonNullable<Span["documentEvaluations"]>[number];
 
 /**
  * Hook that safely parses a JSON string.
@@ -214,6 +204,7 @@ export function SpanDetails({
               hit
             }
             documentEvaluations {
+              id
               documentPosition
               name
               label
@@ -347,7 +338,7 @@ export function SpanDetails({
               <Flex direction="row" height="100%">
                 <SpanInfoWrap>
                   <ErrorBoundary>
-                    <SpanInfo span={span} />
+                    <SpanInfo span={span} isAnnotating={isAnnotatingSpans} />
                   </ErrorBoundary>
                 </SpanInfoWrap>
               </Flex>
@@ -466,7 +457,13 @@ function AddSpanToDatasetButton({
   );
 }
 
-function SpanInfo({ span }: { span: Span }) {
+function SpanInfo({
+  span,
+  isAnnotating = false,
+}: {
+  span: Span;
+  isAnnotating?: boolean;
+}) {
   const { spanKind, attributes } = span;
   // Parse the attributes once
   const { json: attributesObject, parseError } =
@@ -505,13 +502,25 @@ function SpanInfo({ span }: { span: Span }) {
     }
     case "retriever": {
       content = (
-        <RetrieverSpanInfo span={span} spanAttributes={attributesObject} />
+        <RetrieverDocuments
+          spanId={span.id}
+          spanAttributes={attributesObject}
+          input={span.input}
+          documentEvaluations={span.documentEvaluations}
+          documentRetrievalMetrics={span.documentRetrievalMetrics}
+          isAnnotating={isAnnotating}
+        />
       );
       break;
     }
     case "reranker": {
       content = (
-        <RerankerSpanInfo span={span} spanAttributes={attributesObject} />
+        <RerankerDocuments
+          spanId={span.id}
+          spanAttributes={attributesObject}
+          documentEvaluations={span.documentEvaluations}
+          isAnnotating={isAnnotating}
+        />
       );
       break;
     }
@@ -849,242 +858,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
-function RetrieverSpanInfo(props: {
-  span: Span;
-  spanAttributes: AttributeObject;
-}) {
-  const { spanAttributes, span } = props;
-  const { input } = span;
-  const retrieverAttributes = useMemo<AttributeRetrieval | null>(
-    () => spanAttributes[SemanticAttributePrefixes.retrieval] || null,
-    [spanAttributes]
-  );
-  const documents = useMemo<AttributeDocument[]>(() => {
-    if (retrieverAttributes == null) {
-      return [];
-    }
-    return (retrieverAttributes[RetrievalAttributePostfixes.documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
-  }, [retrieverAttributes]);
-
-  // Construct a map of document position to document evaluations
-  const documentEvaluationsMap = useMemo<
-    Record<number, DocumentEvaluation[]>
-  >(() => {
-    const documentEvaluations = span.documentEvaluations;
-    return documentEvaluations.reduce(
-      (acc, documentEvaluation) => {
-        const documentPosition = documentEvaluation.documentPosition;
-        const evaluations = acc[documentPosition] || [];
-        return {
-          ...acc,
-          [documentPosition]: [...evaluations, documentEvaluation],
-        };
-      },
-      {} as Record<number, DocumentEvaluation[]>
-    );
-  }, [span.documentEvaluations]);
-
-  const hasInput = input != null && input.value != null;
-  const isText = hasInput && input.mimeType === "text";
-  const hasDocuments = documents.length > 0;
-  const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
-  return (
-    <Flex direction="column" gap="size-200">
-      {hasInput ? (
-        <MarkdownDisplayProvider>
-          <Card
-            title="Input"
-            {...defaultCardProps}
-            extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {isText ? (
-                  <ConnectedMarkdownModeSelect />
-                ) : (
-                  <CopyToClipboardButton text={input.value} />
-                )}
-              </Flex>
-            }
-          >
-            <CodeBlock {...input} />
-          </Card>
-        </MarkdownDisplayProvider>
-      ) : null}
-      {hasDocuments ? (
-        <MarkdownDisplayProvider>
-          <Card
-            title="Documents"
-            {...defaultCardProps}
-            titleExtra={
-              hasDocumentRetrievalMetrics && (
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  {span.documentRetrievalMetrics.map((retrievalMetric) => {
-                    return (
-                      <>
-                        <RetrievalEvaluationLabel
-                          key="ndcg"
-                          name={retrievalMetric.evaluationName}
-                          metric="ndcg"
-                          score={retrievalMetric.ndcg}
-                        />
-                        <RetrievalEvaluationLabel
-                          key="precision"
-                          name={retrievalMetric.evaluationName}
-                          metric="precision"
-                          score={retrievalMetric.precision}
-                        />
-                        <RetrievalEvaluationLabel
-                          key="hit"
-                          name={retrievalMetric.evaluationName}
-                          metric="hit"
-                          score={retrievalMetric.hit}
-                        />
-                      </>
-                    );
-                  })}
-                </Flex>
-              )
-            }
-            extra={<ConnectedMarkdownModeSelect />}
-          >
-            <ul
-              css={css`
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-                padding: var(--ac-global-dimension-static-size-200);
-              `}
-            >
-              {documents.map((document, idx) => {
-                return (
-                  <li key={idx}>
-                    <DocumentItem
-                      document={document}
-                      documentEvaluations={documentEvaluationsMap[idx]}
-                      borderColor={"seafoam-700"}
-                      backgroundColor={"seafoam-100"}
-                      tokenColor="var(--ac-global-color-seafoam-1000)"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-        </MarkdownDisplayProvider>
-      ) : null}
-    </Flex>
-  );
-}
-
-function RerankerSpanInfo(props: {
-  span: Span;
-  spanAttributes: AttributeObject;
-}) {
-  const { spanAttributes } = props;
-  const rerankerAttributes = useMemo<AttributeReranker | null>(
-    () => spanAttributes[SemanticAttributePrefixes.reranker] || null,
-    [spanAttributes]
-  );
-  const query = useMemo<string | null>(() => {
-    if (rerankerAttributes == null) {
-      return null;
-    }
-    return rerankerAttributes[RerankerAttributePostfixes.query] || null;
-  }, [rerankerAttributes]);
-  const input_documents = useMemo<AttributeDocument[]>(() => {
-    if (rerankerAttributes == null) {
-      return [];
-    }
-    return (rerankerAttributes[RerankerAttributePostfixes.input_documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
-  }, [rerankerAttributes]);
-  const output_documents = useMemo<AttributeDocument[]>(() => {
-    if (rerankerAttributes == null) {
-      return [];
-    }
-    return (rerankerAttributes[RerankerAttributePostfixes.output_documents]
-      ?.map((obj) => obj[SemanticAttributePrefixes.document])
-      .filter(Boolean) || []) as AttributeDocument[];
-  }, [rerankerAttributes]);
-
-  const numInputDocuments = input_documents.length;
-  const numOutputDocuments = output_documents.length;
-  return (
-    <Flex direction="column" gap="size-200">
-      <MarkdownDisplayProvider>
-        {query && (
-          <Card title="Query" {...defaultCardProps}>
-            <View padding="size-200">
-              <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
-            </View>
-          </Card>
-        )}
-      </MarkdownDisplayProvider>
-      <Card
-        title={"Input Documents"}
-        titleExtra={<Counter>{numInputDocuments}</Counter>}
-        {...defaultCardProps}
-        defaultOpen={false}
-      >
-        {
-          <ul
-            css={css`
-              padding: var(--ac-global-dimension-static-size-200);
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
-            `}
-          >
-            {input_documents.map((document, idx) => {
-              return (
-                <li key={idx}>
-                  <DocumentItem
-                    document={document}
-                    borderColor={"seafoam-700"}
-                    backgroundColor={"seafoam-100"}
-                    tokenColor="var(--ac-global-color-seafoam-1000)"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        }
-      </Card>
-      <Card
-        title={"Output Documents"}
-        titleExtra={<Counter>{numOutputDocuments}</Counter>}
-        {...defaultCardProps}
-      >
-        {
-          <ul
-            css={css`
-              padding: var(--ac-global-dimension-static-size-200);
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
-            `}
-          >
-            {output_documents.map((document, idx) => {
-              return (
-                <li key={idx}>
-                  <DocumentItem
-                    document={document}
-                    borderColor={"celery-700"}
-                    backgroundColor={"celery-100"}
-                    tokenColor="var(--ac-global-color-celery-1000)"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        }
-      </Card>
-    </Flex>
-  );
-}
-
 function EmbeddingSpanInfo(props: {
   span: Span;
   spanAttributes: AttributeObject;
@@ -1264,149 +1037,6 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Card>
       ) : null}
     </Flex>
-  );
-}
-
-// Labels that get highlighted as danger in the document evaluations
-const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant", "unrelated"];
-function DocumentItem({
-  document,
-  documentEvaluations,
-  backgroundColor,
-  borderColor,
-  tokenColor,
-}: {
-  document: AttributeDocument;
-  documentEvaluations?: DocumentEvaluation[] | null;
-  backgroundColor: ViewProps["backgroundColor"];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
-}) {
-  const metadata = document[DocumentAttributePostfixes.metadata];
-  const hasEvaluations = documentEvaluations && documentEvaluations.length;
-  const documentContent = document[DocumentAttributePostfixes.content];
-  return (
-    <Card
-      {...defaultCardProps}
-      backgroundColor={backgroundColor}
-      borderColor={borderColor}
-      title={
-        <Flex direction="row" gap="size-50" alignItems="center">
-          <Icon svg={<Icons.FileOutline />} />
-          <Heading level={4}>
-            document {document[DocumentAttributePostfixes.id]}
-          </Heading>
-        </Flex>
-      }
-      extra={
-        typeof document[DocumentAttributePostfixes.score] === "number" && (
-          <Token color={tokenColor}>
-            {`score ${numberFormatter(
-              document[DocumentAttributePostfixes.score]
-            )}`}
-          </Token>
-        )
-      }
-    >
-      <Flex direction="column">
-        {documentContent && (
-          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-        )}
-        {metadata && (
-          <>
-            <View borderColor={borderColor} borderTopWidth="thin">
-              <View
-                paddingX="size-200"
-                paddingY="size-100"
-                borderColor={borderColor}
-                borderBottomWidth="thin"
-              >
-                <Heading level={4}>Document Metadata</Heading>
-              </View>
-              <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
-                {JSON.stringify(metadata)}
-              </ReadonlyJSONBlock>
-            </View>
-          </>
-        )}
-        {hasEvaluations && (
-          <View
-            borderColor={borderColor}
-            borderTopWidth="thin"
-            padding="size-200"
-          >
-            <Flex direction="column" gap="size-100">
-              <Heading level={3} weight="heavy">
-                Evaluations
-              </Heading>
-              <ul>
-                {documentEvaluations.map((documentEvaluation, idx) => {
-                  // Highlight the label as danger if it is a danger classification
-                  const evalTokenColor =
-                    documentEvaluation.label &&
-                    DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                      documentEvaluation.label
-                    )
-                      ? "var(--ac-global-color-danger)"
-                      : tokenColor;
-                  return (
-                    <li key={idx}>
-                      <View
-                        padding="size-200"
-                        borderWidth="thin"
-                        borderColor={borderColor}
-                        borderRadius="medium"
-                      >
-                        <Flex direction="column" gap="size-50">
-                          <Flex direction="row" gap="size-100">
-                            <Text weight="heavy" elementType="h5">
-                              {documentEvaluation.name}
-                            </Text>
-                            {documentEvaluation.label && (
-                              <Token color={evalTokenColor}>
-                                {documentEvaluation.label}
-                              </Token>
-                            )}
-                            {typeof documentEvaluation.score === "number" && (
-                              <Token color={evalTokenColor}>
-                                <Flex direction="row" gap="size-50">
-                                  <Text
-                                    size="XS"
-                                    weight="heavy"
-                                    color="inherit"
-                                  >
-                                    score
-                                  </Text>
-                                  <Text size="XS">
-                                    {formatFloat(documentEvaluation.score)}
-                                  </Text>
-                                </Flex>
-                              </Token>
-                            )}
-                          </Flex>
-                          {documentEvaluation.explanation ? (
-                            <p
-                              css={css`
-                                margin-top: var(
-                                  --ac-global-dimension-static-size-100
-                                );
-                                margin-bottom: 0;
-                              `}
-                            >
-                              {documentEvaluation.explanation}
-                            </p>
-                          ) : null}
-                        </Flex>
-                      </View>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Flex>
-          </View>
-        )}
-      </Flex>
-    </Card>
   );
 }
 
