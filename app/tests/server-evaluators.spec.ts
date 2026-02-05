@@ -16,7 +16,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.waitForURL("**/projects");
   });
 
-  test("can create a dataset", async ({ page }) => {
+  test("can create a dataset with an example", async ({ page }) => {
     await page.goto("/datasets");
     await page.waitForURL("**/datasets");
 
@@ -52,6 +52,33 @@ test.describe.serial("Server Evaluators", () => {
     await expect(
       page.getByRole("heading", { name: datasetName })
     ).toBeVisible();
+
+    // Add an example to the dataset (required for playground to work)
+    await page
+      .getByRole("button", { name: "Add Dataset Example" })
+      .or(page.getByRole("button", { name: "Example" }))
+      .click();
+
+    // Wait for the Add Example dialog to open
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
+
+    // Fill in the input field with valid JSON
+    // JSONEditor renders a CodeMirror editor with .cm-content
+    const inputTextArea = page.locator(".cm-content").first();
+    await inputTextArea.waitFor({ state: "visible", timeout: 5000 });
+    await inputTextArea.click();
+    // Clear existing content and type new JSON
+    await page.keyboard.press("Meta+a");
+    await page.keyboard.type('{"question": "What is 2+2?", "context": "Math"}');
+
+    // Click Add Example button to save
+    await page.getByRole("button", { name: "Add Example" }).click();
+
+    // Wait for dialog to close
+    await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10000 });
+
+    // Verify the example appears in the table (or at least the table is no longer empty)
+    await expect(page.getByRole("row")).toHaveCount(2, { timeout: 10000 }); // header + 1 example
   });
 
   test("can navigate to evaluators tab", async ({ page }) => {
@@ -78,10 +105,171 @@ test.describe.serial("Server Evaluators", () => {
     ).toBeVisible();
   });
 
-  // TODO: Re-enable these tests once prebuilt evaluator features are complete
-  // test("can add a prebuilt LLM evaluator (correctness)")
-  // test("can add a prebuilt code evaluator (exact_match)")
-  // test("can configure input mapping for evaluator")
+  // Store names for prebuilt evaluators
+  const prebuiltLLMEvaluatorName = `correctness-${randomUUID().slice(0, 8)}`;
+  const prebuiltCodeEvaluatorName = `exact-match-${randomUUID().slice(0, 8)}`;
+
+  test("can add a prebuilt LLM evaluator (correctness)", async ({ page }) => {
+    // Navigate to the dataset's evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Click Add evaluator button
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+
+    // Hover over "Use LLM evaluator template" to open submenu
+    await page
+      .getByRole("menuitem", { name: "Use LLM evaluator template" })
+      .hover();
+
+    // Wait for submenu to appear and click "Correctness"
+    await page
+      .getByRole("menuitem", { name: /Correctness/i })
+      .first()
+      .click();
+
+    // Verify the Create Evaluator dialog opens with prefilled template
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    // Update the name to our unique test name
+    const nameInput = page.getByRole("textbox", { name: "Name" }).first();
+    await nameInput.clear();
+    await nameInput.fill(prebuiltLLMEvaluatorName);
+
+    // Click Create button
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Wait for dialog to close
+    await expect(page.getByTestId("dialog")).not.toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify the evaluator appears in the table
+    await expect(
+      page.getByRole("cell", { name: prebuiltLLMEvaluatorName, exact: true })
+    ).toBeVisible();
+  });
+
+  test("can add a prebuilt code evaluator (ExactMatch)", async ({ page }) => {
+    // Navigate to the dataset's evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Wait for page to be fully loaded and GraphQL data to be available
+    await page.waitForLoadState("networkidle");
+
+    // Click Add evaluator button
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+
+    // Wait a moment for menu to fully render
+    await page.waitForTimeout(500);
+
+    // Hover on "Use built-in code evaluator" to open submenu
+    // Use hover as the submenu is a SubmenuTrigger
+    const submenuTrigger = page.getByRole("menuitem", {
+      name: "Use built-in code evaluator",
+    });
+    await submenuTrigger.hover();
+
+    // Wait for submenu dialog to appear and have items
+    // The submenu should contain text "ExactMatch"
+    const exactMatchItem = page.getByText("ExactMatch").first();
+    await exactMatchItem.waitFor({ state: "visible", timeout: 15000 });
+    await exactMatchItem.click();
+
+    // Verify the Create Evaluator dialog opens
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    // Update the name to our unique test name
+    const nameInput = page.getByRole("textbox", { name: "Name" }).first();
+    await nameInput.clear();
+    await nameInput.fill(prebuiltCodeEvaluatorName);
+
+    // Click Create button
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Wait for dialog to close
+    await expect(page.getByTestId("dialog")).not.toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify the evaluator appears in the table
+    await expect(
+      page.getByRole("cell", { name: prebuiltCodeEvaluatorName, exact: true })
+    ).toBeVisible();
+  });
+
+  test("can configure input mapping for code evaluator", async ({ page }) => {
+    // Navigate to the dataset's evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Find the row containing our code evaluator and click its action menu
+    const evaluatorRow = page.getByRole("row").filter({
+      has: page.getByRole("cell", {
+        name: prebuiltCodeEvaluatorName,
+        exact: true,
+      }),
+    });
+
+    // Click the action menu button (three dots) in the row
+    await evaluatorRow.getByRole("button").last().click();
+
+    // Click "Edit" from the menu
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+
+    // Verify the Edit Evaluator dialog opens
+    await expect(
+      page.getByRole("heading", { name: "Edit Evaluator" })
+    ).toBeVisible();
+
+    // Find the Expected field's input mode selector and verify it exists
+    // The SwitchableEvaluatorInput has a mode toggle (path vs literal)
+    const expectedLabel = page.getByText("Expected", { exact: true });
+    await expect(expectedLabel).toBeVisible();
+
+    // Find the Actual field and verify it exists
+    const actualLabel = page.getByText("Actual", { exact: true });
+    await expect(actualLabel).toBeVisible();
+
+    // Find and verify the case sensitive switch exists
+    const caseSensitiveSwitch = page.getByRole("switch", {
+      name: /Case sensitive/i,
+    });
+    await expect(caseSensitiveSwitch).toBeVisible();
+
+    // Toggle the case sensitive switch off
+    // Note: React Aria's Switch creates a hidden input with role="switch".
+    // Clicking via getByRole targets this hidden input which can cause issues.
+    // Click the label text instead which properly toggles the switch.
+    await page.getByText("Case sensitive", { exact: true }).click();
+
+    // Click Update button
+    await page.getByRole("button", { name: "Update" }).click();
+
+    // Wait for dialog to close
+    await expect(page.getByTestId("dialog")).not.toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify the evaluator still appears in the table
+    await expect(
+      page.getByRole("cell", { name: prebuiltCodeEvaluatorName, exact: true })
+    ).toBeVisible();
+  });
 
   test("can create a custom LLM evaluator from scratch", async ({ page }) => {
     // Navigate to the dataset's evaluators tab
@@ -233,7 +421,83 @@ test.describe.serial("Server Evaluators", () => {
     });
   });
 
-  // TODO: Re-enable once playground dataset integration is more stable
-  // This test hangs in CI - needs investigation
-  // test("evaluators are visible in playground when dataset is selected")
+  test("evaluators are visible in playground when dataset is selected", async ({
+    page,
+  }) => {
+    // First, navigate to the dataset to get its ID from the URL
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+
+    // Extract the dataset ID from the URL
+    const url = page.url();
+    const match = url.match(/datasets\/([^/]+)/);
+    const datasetId = match ? match[1] : "";
+    expect(datasetId).toBeTruthy();
+
+    // Navigate to the playground with the dataset selected
+    await page.goto(`/playground?datasetId=${datasetId}`);
+
+    // Wait for the playground to load with dataset mode
+    await page.waitForURL(`**/playground?datasetId=${datasetId}`);
+
+    // Wait for network to settle and page to load
+    await page.waitForLoadState("networkidle");
+
+    // Check if the playground is showing the "No provider" message
+    // If so, we skip this test as it requires providers to be installed
+    const noProviderMessage = page.getByText(
+      "The playground is not available until an LLM provider client is installed"
+    );
+    if (
+      await noProviderMessage.isVisible({ timeout: 5000 }).catch(() => false)
+    ) {
+      test.skip(true, "Playground requires an LLM provider to be installed");
+      return;
+    }
+
+    // Wait for the playground title to appear first
+    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible(
+      { timeout: 10000 }
+    );
+
+    // Wait for the "Experiment" text to appear, which indicates
+    // the dataset section has loaded (this appears in PlaygroundExperimentToolbar)
+    await expect(page.getByText("Experiment", { exact: true })).toBeVisible({
+      timeout: 30000,
+    });
+
+    // Find and click the Evaluators button to open the evaluators menu
+    // Use the button inside the content area (not the tab)
+    const evaluatorsButton = page
+      .getByTestId("content")
+      .getByRole("button", { name: /Evaluators/i });
+    await expect(evaluatorsButton).toBeVisible({ timeout: 10000 });
+    await evaluatorsButton.click();
+
+    // Wait for the evaluators menu to appear - the GridList has aria-label="Select evaluators"
+    // React Aria GridList renders with role="grid"
+    const evaluatorsList = page.locator('[aria-label="Select evaluators"]');
+    await expect(evaluatorsList).toBeVisible({ timeout: 10000 });
+
+    // Verify that the prebuilt LLM evaluator (correctness) appears in the list
+    // GridList items render as role="row"
+    await expect(
+      evaluatorsList.getByRole("row", {
+        name: new RegExp(prebuiltLLMEvaluatorName),
+      })
+    ).toBeVisible();
+
+    // Verify that the prebuilt code evaluator (exact match) appears in the list
+    await expect(
+      evaluatorsList.getByRole("row", {
+        name: new RegExp(prebuiltCodeEvaluatorName),
+      })
+    ).toBeVisible();
+
+    // Verify that the custom LLM evaluator appears in the list
+    await expect(
+      evaluatorsList.getByRole("row", { name: new RegExp(customEvaluatorName) })
+    ).toBeVisible();
+  });
 });

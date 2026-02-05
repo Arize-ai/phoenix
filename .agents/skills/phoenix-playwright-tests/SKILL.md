@@ -227,6 +227,23 @@ pnpm exec playwright test -g "can create"
 pnpm exec playwright test --debug
 ```
 
+### Avoiding Interactive Report Server
+
+By default, Playwright serves an HTML report after tests finish and waits for Ctrl+C, which can cause command timeouts. Use these options to avoid this:
+
+```bash
+# Use list reporter (no interactive server)
+pnpm exec playwright test tests/example.spec.ts --project=chromium --reporter=list
+
+# Use dot reporter for minimal output
+pnpm exec playwright test tests/example.spec.ts --project=chromium --reporter=dot
+
+# Set CI mode to disable interactive features
+CI=1 pnpm exec playwright test tests/example.spec.ts --project=chromium
+```
+
+**Recommended for automation**: Always use `--reporter=list` or `CI=1` when running tests programmatically to ensure the command exits cleanly after tests complete.
+
 ## Phoenix-Specific Pages
 
 | Page                 | URL Pattern                  | Key Elements                                       |
