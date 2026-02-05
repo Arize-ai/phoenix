@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<64ecc7003accce520006837787c2db1a>>
+ * @generated SignedSource<<6340719c7f1bd76ff7297df12fb6ffac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,7 +22,7 @@ export type ExperimentCompareDetailsQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly name: string;
-          readonly outputConfig: {
+          readonly outputConfigs: ReadonlyArray<{
             readonly lowerBound?: number | null;
             readonly name?: string;
             readonly optimizationDirection?: OptimizationDirection;
@@ -31,7 +31,7 @@ export type ExperimentCompareDetailsQuery$data = {
               readonly label: string;
               readonly score: number | null;
             }>;
-          } | null;
+          }> | null;
         };
       }>;
     };
@@ -624,8 +624,8 @@ return {
                             "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
-                            "name": "outputConfig",
-                            "plural": false,
+                            "name": "outputConfigs",
+                            "plural": true,
                             "selections": [
                               (v26/*: any*/),
                               (v27/*: any*/)
@@ -808,8 +808,8 @@ return {
                             "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
-                            "name": "outputConfig",
-                            "plural": false,
+                            "name": "outputConfigs",
+                            "plural": true,
                             "selections": [
                               (v28/*: any*/),
                               (v26/*: any*/),
@@ -846,16 +846,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "29c84f0f737f25d8eb3405f4c98e4cec",
+    "cacheID": "9db9b824c30cbf7add6118a2763f8c1b",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfig {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fb2dc8639cc5fa93e0a3f2cd3a02cb3b";
+(node as any).hash = "b02872ee36b62f089986aa3afbe64bc0";
 
 export default node;

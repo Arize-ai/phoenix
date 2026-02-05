@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a73e4776db37961998c8e6df3b1df36c>>
+ * @generated SignedSource<<bf57502ce0f8b5e9164479f79b398bfd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -72,12 +72,19 @@ export type PlaygroundEvaluatorInput = {
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
   name: string;
-  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
-  outputConfigOverride?: AnnotationConfigOverrideInput | null;
+  outputConfigOverrides?: ReadonlyArray<NamedAnnotationConfigOverrideInput> | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
+};
+export type NamedAnnotationConfigOverrideInput = {
+  name: string;
+  override: AnnotationConfigOverrideInput;
+};
+export type AnnotationConfigOverrideInput = {
+  categorical?: CategoricalAnnotationConfigOverrideInput | null;
+  continuous?: ContinuousAnnotationConfigOverrideInput | null;
 };
 export type CategoricalAnnotationConfigOverrideInput = {
   optimizationDirection?: OptimizationDirection | null;
@@ -86,10 +93,6 @@ export type CategoricalAnnotationConfigOverrideInput = {
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
-};
-export type AnnotationConfigOverrideInput = {
-  categorical?: CategoricalAnnotationConfigOverrideInput | null;
-  continuous?: ContinuousAnnotationConfigOverrideInput | null;
 };
 export type ContinuousAnnotationConfigOverrideInput = {
   lowerBound?: number | null;

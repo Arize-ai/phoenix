@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51dbc5a1ec5ac0b105bbe9f439d3673c>>
+ * @generated SignedSource<<85a3db61e3a22f18568d4afac888e8ec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,7 +25,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly inputSchema?: any | null;
         readonly kind: EvaluatorKind;
         readonly name: string;
-        readonly outputConfig?: {
+        readonly outputConfigs?: ReadonlyArray<{
           readonly lowerBound?: number | null;
           readonly name?: string;
           readonly optimizationDirection?: OptimizationDirection;
@@ -34,7 +34,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
             readonly label: string;
             readonly score: number | null;
           }>;
-        };
+        }>;
       };
       readonly id: string;
       readonly inputMapping: {
@@ -42,7 +42,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly pathMapping: any;
       };
       readonly name: string;
-      readonly outputConfig: {
+      readonly outputConfigs: ReadonlyArray<{
         readonly lowerBound?: number | null;
         readonly name?: string;
         readonly optimizationDirection?: OptimizationDirection;
@@ -51,7 +51,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
           readonly label: string;
           readonly score: number | null;
         }>;
-      } | null;
+      }> | null;
     };
     readonly id: string;
   };
@@ -184,8 +184,8 @@ v10 = {
   "args": null,
   "concreteType": null,
   "kind": "LinkedField",
-  "name": "outputConfig",
-  "plural": false,
+  "name": "outputConfigs",
+  "plural": true,
   "selections": [
     (v6/*: any*/),
     (v8/*: any*/),
@@ -244,8 +244,8 @@ v15 = {
   "args": null,
   "concreteType": null,
   "kind": "LinkedField",
-  "name": "outputConfig",
-  "plural": false,
+  "name": "outputConfigs",
+  "plural": true,
   "selections": [
     (v14/*: any*/),
     (v6/*: any*/),
@@ -402,16 +402,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a60741f1ff3f073bba6a48332f61c314",
+    "cacheID": "9cf6519397bf2034467bd2adae245f66",
     "id": null,
     "metadata": {},
     "name": "EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        outputConfig {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n          ... on CategoricalAnnotationConfig {\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on BuiltInEvaluator {\n            inputSchema\n            outputConfig {\n              __typename\n              ... on AnnotationConfigBase {\n                __isAnnotationConfigBase: __typename\n                name\n              }\n              ... on CategoricalAnnotationConfig {\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        outputConfigs {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n          ... on CategoricalAnnotationConfig {\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on BuiltInEvaluator {\n            inputSchema\n            outputConfigs {\n              __typename\n              ... on AnnotationConfigBase {\n                __isAnnotationConfigBase: __typename\n                name\n              }\n              ... on CategoricalAnnotationConfig {\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d51d1b8b6f5d33042b29423d47e1d5e5";
+(node as any).hash = "e5f5429b1db1b0f03c135bbf91dc8e4f";
 
 export default node;

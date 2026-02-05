@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ce1cc9af8e4d562eb6b58aebf9ebbf50>>
+ * @generated SignedSource<<ce8c6d3ae4726b920fa6528a6c939077>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
     readonly kind: EvaluatorKind;
     readonly name: string;
-    readonly outputConfig?: {
+    readonly outputConfigs?: ReadonlyArray<{
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
@@ -25,14 +25,14 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
         readonly label: string;
         readonly score: number | null;
       }>;
-    };
+    }>;
   };
   readonly id: string;
   readonly inputMapping: {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
-  readonly outputConfig: {
+  readonly outputConfigs: ReadonlyArray<{
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
@@ -41,7 +41,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  } | null;
+  }> | null;
   readonly " $fragmentType": "BuiltInDatasetEvaluatorDetails_datasetEvaluator";
 };
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$key = {
@@ -69,8 +69,8 @@ v2 = {
   "args": null,
   "concreteType": null,
   "kind": "LinkedField",
-  "name": "outputConfig",
-  "plural": false,
+  "name": "outputConfigs",
+  "plural": true,
   "selections": [
     {
       "kind": "InlineFragment",
@@ -210,6 +210,6 @@ return {
 };
 })();
 
-(node as any).hash = "3a9e4de0e1fb32eba1806f64f1714f27";
+(node as any).hash = "8bc7826f19541f5618e6a9a29b0d3d09";
 
 export default node;

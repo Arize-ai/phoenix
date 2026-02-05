@@ -174,7 +174,7 @@ export function ExperimentCompareDetails({
               edges {
                 node {
                   name
-                  outputConfig {
+                  outputConfigs {
                     ... on CategoricalAnnotationConfig {
                       name
                       optimizationDirection

@@ -969,31 +969,35 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
         evaluator_1 = models.LLMEvaluator(
             name=Identifier("evaluator-1"),
             description="First evaluator",
-            output_config=CategoricalAnnotationConfig(
-                type="CATEGORICAL",
-                name="goodness",
-                optimization_direction=OptimizationDirection.MAXIMIZE,
-                description="goodness description",
-                values=[
-                    CategoricalAnnotationValue(label="good", score=1.0),
-                    CategoricalAnnotationValue(label="bad", score=0.0),
-                ],
-            ),
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="goodness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="goodness description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                )
+            ],
             prompt_id=prompt.id,
         )
         evaluator_2 = models.LLMEvaluator(
             name=Identifier("evaluator-2"),
             description="Second evaluator",
-            output_config=CategoricalAnnotationConfig(
-                type="CATEGORICAL",
-                name="correctness",
-                optimization_direction=OptimizationDirection.MAXIMIZE,
-                description="correctness description",
-                values=[
-                    CategoricalAnnotationValue(label="correct", score=1.0),
-                    CategoricalAnnotationValue(label="incorrect", score=0.0),
-                ],
-            ),
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                )
+            ],
             prompt_id=prompt.id,
         )
         session.add_all([evaluator_1, evaluator_2])
@@ -1005,7 +1009,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             evaluator_id=evaluator_1.id,
             name=Identifier(root="evaluator-1"),
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_override=None,
+            output_config_overrides=None,
             project=models.Project(
                 name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
             ),
@@ -1015,7 +1019,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             evaluator_id=evaluator_2.id,
             name=Identifier(root="evaluator-2"),
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_override=None,
+            output_config_overrides=None,
             project=models.Project(
                 name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"
             ),

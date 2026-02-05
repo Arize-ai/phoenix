@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b803c50fe8fbae1abea7c86ceb2c215c>>
+ * @generated SignedSource<<c125489d7372d6468178095b32c2b9cd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly tools: ReadonlyArray<{
         readonly definition: any;
       }>;
-      readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
+      readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
     };
     readonly promptVersionTag?: {
       readonly name: string;
@@ -34,14 +34,16 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly literalMapping: any;
     readonly pathMapping: any;
   };
-  readonly outputConfig: {
+  readonly outputConfigs: ReadonlyArray<{
+    readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
+    readonly upperBound?: number | null;
     readonly values?: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
-  } | null;
+  }> | null;
   readonly " $fragmentType": "LLMDatasetEvaluatorDetails_datasetEvaluator";
 };
 export type LLMDatasetEvaluatorDetails_datasetEvaluator$key = {
@@ -99,6 +101,13 @@ v6 = {
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -372,11 +381,6 @@ return {
                   ],
                   "args": null,
                   "argumentDefinitions": []
-                },
-                {
-                  "args": null,
-                  "kind": "FragmentSpread",
-                  "name": "PromptChatMessagesCard__main"
                 }
               ],
               "storageKey": null
@@ -405,20 +409,14 @@ return {
       "args": null,
       "concreteType": null,
       "kind": "LinkedField",
-      "name": "outputConfig",
-      "plural": false,
+      "name": "outputConfigs",
+      "plural": true,
       "selections": [
         {
           "kind": "InlineFragment",
           "selections": [
             (v1/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "optimizationDirection",
-              "storageKey": null
-            },
+            (v7/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -447,6 +445,29 @@ return {
           ],
           "type": "CategoricalAnnotationConfig",
           "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v1/*: any*/),
+            (v7/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "lowerBound",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "upperBound",
+              "storageKey": null
+            }
+          ],
+          "type": "ContinuousAnnotationConfig",
+          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -457,6 +478,6 @@ return {
 };
 })();
 
-(node as any).hash = "a1de6958f09847f991d05398a350f580";
+(node as any).hash = "3e2ecb986420dcb983fe548a6414db52";
 
 export default node;

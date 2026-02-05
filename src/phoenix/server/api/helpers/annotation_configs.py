@@ -4,11 +4,13 @@ from typing_extensions import assert_never
 
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigOverrideType,
+    AnnotationConfigType,
     CategoricalAnnotationConfig,
     CategoricalAnnotationConfigOverride,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
     ContinuousAnnotationConfigOverride,
+    FreeformAnnotationConfig,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
@@ -182,3 +184,95 @@ def merge_continuous_annotation_config(
         lower_bound=lower_bound,
         upper_bound=upper_bound,
     )
+
+
+def merge_single_config(
+    config: AnnotationConfigType,
+    override: AnnotationConfigOverrideType,
+) -> AnnotationConfigType:
+    """
+    Merge a single annotation config with an override.
+
+    Uses the config's existing name and description (no overrides for those fields).
+    Freeform configs are returned unchanged since there are no freeform overrides.
+
+    Args:
+        config: The base annotation config
+        override: The override to apply
+
+    Returns:
+        A new annotation config with the override applied
+
+    Raises:
+        ValueError: If the config has no name or if the override type doesn't match
+    """
+    if isinstance(config, FreeformAnnotationConfig):
+        # Freeform configs have no override type, return as-is
+        return config
+
+    # Ensure config has a name for merging
+    if config.name is None:
+        raise ValueError("Cannot merge config without a name")
+
+    if isinstance(config, CategoricalAnnotationConfig):
+        if not isinstance(override, CategoricalAnnotationConfigOverride):
+            raise ValueError(
+                "Cannot apply a continuous annotation config override "
+                "to a categorical annotation config"
+            )
+        return merge_categorical_annotation_config(
+            base=config,
+            override=override,
+            name=config.name,
+            description_override=None,
+        )
+    elif isinstance(config, ContinuousAnnotationConfig):
+        if not isinstance(override, ContinuousAnnotationConfigOverride):
+            raise ValueError(
+                "Cannot apply a categorical annotation config override "
+                "to a continuous annotation config"
+            )
+        return merge_continuous_annotation_config(
+            base=config,
+            override=override,
+            name=config.name,
+            description_override=None,
+        )
+    assert_never(config)
+
+
+def merge_configs_with_overrides(
+    base_configs: list[AnnotationConfigType],
+    overrides: Optional[dict[str, AnnotationConfigOverrideType]],
+) -> list[AnnotationConfigType]:
+    """
+    Merge base configs with overrides by config name.
+
+    For each base config, looks up an override by the config's name field.
+    If an override exists, merges it with the base config.
+    If no override exists, uses the base config unchanged.
+    Configs without names are passed through unchanged.
+
+    Args:
+        base_configs: List of base annotation configs
+        overrides: Optional dict of overrides keyed by config name
+
+    Returns:
+        List of merged annotation configs
+    """
+    if not overrides:
+        return base_configs
+
+    result: list[AnnotationConfigType] = []
+    for config in base_configs:
+        config_name = config.name
+        if config_name is not None:
+            override = overrides.get(config_name)
+            if override:
+                result.append(merge_single_config(config, override))
+            else:
+                result.append(config)
+        else:
+            # Configs without names cannot be looked up, pass through unchanged
+            result.append(config)
+    return result

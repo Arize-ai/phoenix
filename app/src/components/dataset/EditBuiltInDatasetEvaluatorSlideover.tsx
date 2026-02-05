@@ -14,7 +14,7 @@ import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from 
 import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
+import { buildNamedOutputConfigOverrides } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -106,7 +106,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                 name
                 description
                 ... on DatasetEvaluator {
-                  outputConfig {
+                  outputConfigs {
                     ... on AnnotationConfigBase {
                       name
                     }
@@ -134,7 +134,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     description
                     ... on BuiltInEvaluator {
                       inputSchema
-                      outputConfig {
+                      outputConfigs {
                         ... on AnnotationConfigBase {
                           name
                         }
@@ -195,11 +195,19 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
   const evaluatorGlobalName = evaluator.name;
   const evaluatorDescription = datasetEvaluator.description;
   const evaluatorId = evaluator.id;
-  const evaluatorOutputConfig = (datasetEvaluator.outputConfig ??
-    evaluator.outputConfig) as Mutable<
-    | ContinuousEvaluatorAnnotationConfig
-    | ClassificationEvaluatorAnnotationConfig
-  >;
+  // Load all output configs from the evaluator data, falling back to evaluator's defaults
+  const loadedOutputConfigs = (
+    datasetEvaluator.outputConfigs?.length
+      ? datasetEvaluator.outputConfigs
+      : evaluator.outputConfigs
+  ) as
+    | Mutable<
+        | ContinuousEvaluatorAnnotationConfig
+        | ClassificationEvaluatorAnnotationConfig
+      >[]
+    | undefined;
+  // Keep outputConfig for backward compatibility (first config)
+  const evaluatorOutputConfig = loadedOutputConfigs?.[0];
   const initialState = useMemo(() => {
     if (evaluatorKind === "BUILTIN") {
       return {
@@ -224,6 +232,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           inputMapping,
         },
         outputConfig: evaluatorOutputConfig,
+        outputConfigs: loadedOutputConfigs ?? [],
       } satisfies EvaluatorStoreProps;
     }
     return null;
@@ -237,6 +246,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     datasetEvaluatorId,
     evaluatorDescription,
     evaluatorOutputConfig,
+    loadedOutputConfigs,
   ]);
 
   if (!initialState) {
@@ -249,10 +259,12 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, name, description },
-      outputConfig,
+      outputConfigs,
     } = store.getState();
 
-    const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+    // Use outputConfigs array for multi-output support
+    const outputConfigOverrides =
+      buildNamedOutputConfigOverrides(outputConfigs);
     const normalizedDescription = description.trim();
 
     updateDatasetBuiltinEvaluator({
@@ -261,7 +273,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           datasetEvaluatorId: datasetEvaluatorId,
           name,
           inputMapping,
-          outputConfigOverride,
+          outputConfigOverrides,
           description: normalizedDescription,
         },
         connectionIds: updateConnectionIds ?? [],

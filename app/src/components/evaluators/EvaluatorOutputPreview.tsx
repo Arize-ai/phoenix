@@ -102,7 +102,7 @@ export const EvaluatorOutputPreview = () => {
       params = {
         inlineLlmEvaluator: {
           description: payload.description,
-          outputConfig: payload.outputConfig,
+          outputConfigs: payload.outputConfigs,
           promptVersion: payload.promptVersion,
         },
       };

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<19c424e3dc59f3b21824121c1d6de30f>>
+ * @generated SignedSource<<265460fe756ee79bd72a27bd37e71eee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -73,7 +73,7 @@ export type ExperimentCompareTable_comparisons$data = {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly name: string;
-          readonly outputConfig: {
+          readonly outputConfigs: ReadonlyArray<{
             readonly lowerBound?: number | null;
             readonly name?: string;
             readonly optimizationDirection?: OptimizationDirection;
@@ -82,7 +82,7 @@ export type ExperimentCompareTable_comparisons$data = {
               readonly label: string;
               readonly score: number | null;
             }>;
-          } | null;
+          }> | null;
         };
       }>;
     };
@@ -752,8 +752,8 @@ return {
                           "args": null,
                           "concreteType": null,
                           "kind": "LinkedField",
-                          "name": "outputConfig",
-                          "plural": false,
+                          "name": "outputConfigs",
+                          "plural": true,
                           "selections": [
                             {
                               "kind": "InlineFragment",
@@ -825,6 +825,6 @@ return {
 };
 })();
 
-(node as any).hash = "b9b2e7f7b273b38ac6f267a4eb5e817f";
+(node as any).hash = "13b7742b787f2aaf62db96b1119750e3";
 
 export default node;

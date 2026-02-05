@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1106aab048eb1293f60e5e41c299c224>>
+ * @generated SignedSource<<7debd01fc899c4bdae3357b646bde69d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,11 +17,15 @@ export type CreateDatasetBuiltinEvaluatorInput = {
   evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
-  outputConfigOverride?: AnnotationConfigOverrideInput | null;
+  outputConfigOverrides?: ReadonlyArray<NamedAnnotationConfigOverrideInput> | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
+};
+export type NamedAnnotationConfigOverrideInput = {
+  name: string;
+  override: AnnotationConfigOverrideInput;
 };
 export type AnnotationConfigOverrideInput = {
   categorical?: CategoricalAnnotationConfigOverrideInput | null;
@@ -300,8 +304,8 @@ return {
                     "args": null,
                     "concreteType": null,
                     "kind": "LinkedField",
-                    "name": "outputConfig",
-                    "plural": false,
+                    "name": "outputConfigs",
+                    "plural": true,
                     "selections": [
                       (v9/*: any*/),
                       (v10/*: any*/)
@@ -455,8 +459,8 @@ return {
                 "args": null,
                 "concreteType": null,
                 "kind": "LinkedField",
-                "name": "outputConfig",
-                "plural": false,
+                "name": "outputConfigs",
+                "plural": true,
                 "selections": [
                   (v17/*: any*/),
                   (v9/*: any*/),
@@ -518,12 +522,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "045aef695e20b9cf1cee8ccc9caa6c37",
+    "cacheID": "99fbef9b2b3f379558324346ace2dfe1",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();
