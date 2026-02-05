@@ -21,7 +21,7 @@ class TestJSONPathValidation:
     NOT supported (rejected):
       - '..' recursive descent
       - Bare '@' (use ['@'] instead)
-      - Numeric dot notation like .123 (use ['123'] instead)
+      - Invalid identifiers (must start with letter or underscore, use ['123'] instead)
       - Union (|), Intersect (&), Where, WhereNot, This
     """
 
@@ -163,22 +163,27 @@ class TestJSONPathValidation:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
         assert "Bare '@'" in str(exc_info.value)
 
-    # --- Numeric dot notation rejection ---
+    # --- Invalid identifier rejection ---
 
     @pytest.mark.parametrize(
         "expr",
         [
+            # At root (no leading dot)
+            "123",  # Bare numeric
+            "123.field",  # Numeric at start with field access
+            "123[0]",  # Numeric at start with index
+            # In dot notation (with leading dot)
             "field.123",  # Numeric field name
             "items.0.bar",  # Numeric field in chain
             "$.items.0",  # With root marker
             "data.0",  # Simple numeric
         ],
     )
-    def test_numeric_dot_notation_rejected(self, expr: str) -> None:
-        """Numeric field names in dot notation should be rejected (use ['123'] instead)."""
+    def test_invalid_identifier_rejected(self, expr: str) -> None:
+        """Invalid identifiers should be rejected (must start with letter or underscore)."""
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
-        assert "Numeric field names" in str(exc_info.value)
+        assert "must start with a letter or underscore" in str(exc_info.value)
 
     # --- jsonpath-ng extensions rejection ---
 

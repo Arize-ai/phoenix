@@ -1,8 +1,19 @@
 """Path expression validation for evaluator input mappings.
 
 This module provides validation for path expressions used to extract data from
-JSON objects. Paths are validated against a restricted subset of JSONPath syntax
-to ensure simplicity and broad library compatibility.
+JSON objects. Paths are validated against a restricted subset of JSONPath syntax.
+
+Design Principles
+-----------------
+
+1. RFC 9535 compliance: We reject syntax that jsonpath-ng accepts but isn't
+   part of the JSONPath standard (RFC 9535). This ensures paths are portable
+   across different JSONPath implementations. Exception: we allow omitting the
+   root marker ($) for convenience, though RFC 9535 requires it.
+
+2. Simplicity: Complex features like recursive descent and filter expressions
+   add cognitive overhead without significant benefit for the input mapping
+   use case. Explicit paths are easier to understand and debug.
 
 Supported Syntax
 ----------------
@@ -44,22 +55,34 @@ Combinations:
 Not Supported
 -------------
 
-Recursive descent:
-    ..                      NOT ALLOWED (e.g., $..name, items..value)
+The following features are rejected for specific reasons:
 
-Bare @:
-    @                       NOT ALLOWED as identifier (use ['@'] instead)
+Recursive descent (..) - TOO COMPLEX
+    $..name                 Searches entire document tree at all depths. Adds
+                            complexity without significant benefit for the
+                            input mapping use case.
 
-Numeric dot notation:
-    .123                    NOT ALLOWED (use ['123'] instead)
+Bare @ - NOT RFC 9535 COMPLIANT
+    @                       jsonpath-ng accepts this as a field name, but it's
+    foo.@.bar               not valid per RFC 9535. Use bracket notation ['@']
+                            for fields actually named '@'.
 
-Operators:
-    |                       Union - NOT ALLOWED
-    &                       Intersect - NOT ALLOWED
-    where / wherenot        Filter clauses - NOT ALLOWED
+Invalid dot-notation identifiers - NOT RFC 9535 COMPLIANT
+    123                     RFC 9535 requires dot-notation identifiers to start
+    .123                    with a letter or underscore. Use bracket notation
+    items.0.name            for field names that don't meet this requirement.
 
-Filter expressions:
-    [?(@.price < 10)]       NOT ALLOWED (too complex for this use case)
+Operators - JSONPATH-NG EXTENSIONS, NOT PORTABLE
+    a | b                   Union - not in RFC 9535, jsonpath-ng specific
+    a & b                   Intersect - not in RFC 9535, jsonpath-ng specific
+    a where b               Filter clause - jsonpath-ng specific syntax
+    a wherenot b            Filter clause - jsonpath-ng specific syntax
+    `this`                  Self-reference - jsonpath-ng specific
+
+Filter expressions - TOO COMPLEX
+    [?(@.price < 10)]       While RFC 9535 supports filters, they add significant
+                            complexity. For input mappings, explicit paths are
+                            clearer and more predictable.
 
 Examples
 --------
@@ -77,7 +100,8 @@ Invalid paths:
     "$..name"               # Recursive descent not allowed
     "a | b"                 # Union not allowed
     "foo.@.bar"             # Bare @ not allowed
-    "items.0.name"          # Numeric dot notation not allowed
+    "123"                   # Numeric field name not allowed
+    "items.0.name"          # Numeric field name not allowed
 """
 
 import re
@@ -113,15 +137,21 @@ _BARE_AT_PATTERN = re.compile(
     re.VERBOSE,
 )
 
-# Regex to detect numeric field names in dot notation (not RFC 9535).
-# RFC 9535 requires field names in dot notation to start with a letter or underscore.
-# Examples that should match (reject):  .123, field.0, items.0.bar
-# Examples that should NOT match (allow): ['123'], field[0], a1.b2
-_NUMERIC_DOT_PATTERN = re.compile(
+# Regex to detect invalid field names in dot notation (not RFC 9535).
+# RFC 9535 requires dot-notation identifiers to start with a letter or underscore:
+#   member-name-shorthand = name-first *name-char
+#   name-first = ALPHA / "_"
+# Examples that should match (reject):  .123, field.0, items.0.bar, 123, 123.foo
+# Examples that should NOT match (allow): ['123'], field[0], a1.b2, _foo, $, ..name
+_INVALID_IDENTIFIER_PATTERN = re.compile(
     r"""
-    \.           # A dot
-    \d+          # Followed by one or more digits
-    (?:[.\[]|$)  # Followed by dot, bracket, or end of string
+    (?:^|\.)       # Start of string or after a dot
+    (?!\.)         # NOT followed by another dot (let AST catch recursive descent)
+    (?![a-zA-Z_])  # NOT followed by letter or underscore (negative lookahead)
+    (?!\$)         # NOT the root marker $
+    (?!\[)         # NOT a bracket (which starts bracket notation)
+    (?!`)          # NOT a backtick (let AST catch `this`)
+    .              # Match the invalid character
     """,
     re.VERBOSE,
 )
@@ -183,7 +213,7 @@ def validate_jsonpath(value: str) -> str:
     Not allowed:
       - '..' recursive descent
       - Bare '@' (use ['@'] instead)
-      - Numeric dot notation like .123 (use ['123'] instead)
+      - Invalid identifiers in dot notation (must start with letter or underscore)
     """
     if not value:
         raise ValueError("JSONPath cannot be empty")
@@ -197,12 +227,12 @@ def validate_jsonpath(value: str) -> str:
             "Bare '@' is not supported. Use bracket notation ['@'] for fields named '@'"
         )
 
-    # Reject numeric field names in dot notation (not RFC 9535 compliant).
-    # Use bracket notation like ['123'] instead.
-    if _NUMERIC_DOT_PATTERN.search(value):
+    # Reject invalid identifiers in dot notation (not RFC 9535 compliant).
+    # RFC 9535 requires identifiers to start with a letter or underscore.
+    if _INVALID_IDENTIFIER_PATTERN.search(value):
         raise ValueError(
-            "Numeric field names in dot notation are not supported. "
-            "Use bracket notation like ['123'] instead"
+            "Field names in dot notation must start with a letter or underscore. "
+            "Use bracket notation like ['123'] for other field names"
         )
 
     try:
