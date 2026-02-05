@@ -24,7 +24,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import validate_jsonpath
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import NotFound, BadRequest
 from phoenix.server.api.helpers.annotation_configs import (
     merge_categorical_annotation_config,
     merge_continuous_annotation_config,
@@ -70,7 +70,7 @@ class EvaluatorInputMapping:
             try:
                 validate_jsonpath(path)
             except ValueError as e:
-                raise ValueError(f"Invalid JSONPath expression for key '{key}': {e}")
+                raise BadRequest(f"Invalid JSONPath expression for key '{key}': {e}")
 
 
 @strawberry.interface
