@@ -186,23 +186,37 @@ class LLMEvaluator(BaseEvaluator):
     @property
     def input_schema(self) -> dict[str, Any]:
         formatter = get_template_formatter(self._template_format)
-        variables: set[str] = set()
+        section_vars: set[str] = set()
+        string_vars: set[str] = set()
 
         for msg in self._template.messages:
             if isinstance(msg.content, str):
-                variables.update(formatter.parse(msg.content))
+                parsed = formatter.parse_with_types(msg.content)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
             elif isinstance(msg.content, list):
                 for part in msg.content:
                     if isinstance(part, TextContentPart):
-                        variables.update(formatter.parse(part.text))
+                        parsed = formatter.parse_with_types(part.text)
+                        section_vars.update(parsed.section_variables())
+                        string_vars.update(parsed.string_variables())
             else:
                 assert_never(msg.content)
 
-        properties = {var: {"type": "string"} for var in variables}
+        # Section vars get empty schema (accepts any type), string vars get type: string
+        # Sort iteration order for deterministic key ordering in the resulting dict
+        properties: dict[str, dict[str, Any]] = {}
+        for var in sorted(section_vars):
+            properties[var] = {}  # Empty schema accepts any JSON type
+        for var in sorted(string_vars):
+            if var not in section_vars:  # Section type takes precedence
+                properties[var] = {"type": "string"}
+
+        all_vars = section_vars | string_vars
         return {
             "type": "object",
             "properties": properties,
-            "required": list(variables),
+            "required": sorted(all_vars),
         }
 
     async def evaluate(
@@ -989,18 +1003,39 @@ def infer_input_schema_from_template(
     template: PromptChatTemplateInput,
     template_format: PromptTemplateFormat,
 ) -> dict[str, Any]:
+    """
+    Infer the input schema from an evaluator template.
+
+    Uses parse_with_types() to detect variable types:
+    - Section variables ({{#name}} or {{^name}}) get empty schema (accepts any JSON type)
+    - String variables ({{name}}) get {"type": "string"} schema
+    """
     formatter = get_template_formatter(template_format)
-    variables: set[str] = set()
+    section_vars: set[str] = set()
+    string_vars: set[str] = set()
+
     for msg in template.messages:
         content = msg.content
         for part in content:
             if isinstance(part.text, TextContentValueInput):
-                variables.update(formatter.parse(part.text.text))
+                parsed = formatter.parse_with_types(part.text.text)
+                section_vars.update(parsed.section_variables())
+                string_vars.update(parsed.string_variables())
 
+    # Section vars get empty schema (accepts any type), string vars get type: string
+    # Sort iteration order for deterministic key ordering in the resulting dict
+    properties: dict[str, dict[str, Any]] = {}
+    for var in sorted(section_vars):
+        properties[var] = {}  # Empty schema accepts any JSON type
+    for var in sorted(string_vars):
+        if var not in section_vars:  # Section type takes precedence
+            properties[var] = {"type": "string"}
+
+    all_vars = section_vars | string_vars
     return {
         "type": "object",
-        "properties": {var: {} for var in variables},
-        "required": list(variables),
+        "properties": properties,
+        "required": sorted(all_vars),
     }
 
 

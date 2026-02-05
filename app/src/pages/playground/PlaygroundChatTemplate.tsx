@@ -36,6 +36,8 @@ import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { validateMustacheSections } from "@phoenix/components/templateEditor/language/mustacheLike";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -208,6 +210,12 @@ function MessageEditor({
     },
     [updateMessage]
   );
+  const sectionValidation = useMemo(() => {
+    if (templateFormat !== TemplateFormats.Mustache) {
+      return null;
+    }
+    return validateMustacheSections(message.content ?? "");
+  }, [message.content, templateFormat]);
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -263,6 +271,11 @@ function MessageEditor({
 
   return (
     <TemplateEditorWrap>
+      {sectionValidation?.errors.length ? (
+        <Alert variant="danger" banner title="Invalid mustache sections">
+          {sectionValidation.errors.join(", ")}
+        </Alert>
+      ) : null}
       <TemplateEditor
         height="100%"
         defaultValue={message.content || ""}

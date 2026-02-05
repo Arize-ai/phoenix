@@ -27,6 +27,8 @@ dependencies = [
   "jinja2",
   "jsonpath-ng",
   "jsonschema",
+  "pystache",
+  "PyYAML",
   "starlette",
   "uvicorn",
   "psutil",
@@ -225,6 +227,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
 [tool.hatch.build]
@@ -245,6 +248,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
 [tool.pytest.ini_options]
@@ -314,6 +318,7 @@ module = [
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
+  "pystache",
   "authlib.*",
   "google.*",
   "mistralai.*",
