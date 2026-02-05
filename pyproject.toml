@@ -352,6 +352,9 @@ force-single-line = false
 [tool.ruff.format]
 line-ending = "native"
 
+[tool.uv]
+required-version = "==0.9.30"
+
 [tool.uv.workspace]
 members = ["packages/*"]
 
