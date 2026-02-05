@@ -8,11 +8,13 @@ on:
     paths:
       - "src/**"
       - "app/**"
+      - ".github/workflows/playwright.yaml"
   pull_request:
     branches: [main, feat/annotations]
     paths:
       - "src/**"
       - "app/**"
+      - ".github/workflows/playwright.yaml"
 jobs:
   e2e-test:
     timeout-minutes: 60
