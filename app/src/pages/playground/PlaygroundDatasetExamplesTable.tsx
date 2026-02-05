@@ -128,9 +128,7 @@ import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgres
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
 import {
-  denormalizePlaygroundInstance,
   extractRootVariable,
-  extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
 
