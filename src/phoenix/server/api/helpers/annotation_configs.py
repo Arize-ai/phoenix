@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Optional
 
 from typing_extensions import assert_never
@@ -15,48 +16,54 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
+def get_annotation_config_overrides_dict(
+    evaluator_input: PlaygroundEvaluatorInput,
+) -> dict[str, AnnotationConfigOverrideType] | None:
+    """
+    Convert PlaygroundEvaluatorInput's output_config_overrides to a dict keyed by config name.
+    """
+    if evaluator_input.output_config_overrides is None:
+        return None
+    result: dict[str, AnnotationConfigOverrideType] = {}
+    for named_override in evaluator_input.output_config_overrides:
+        if named_override.override.categorical is not None:
+            cat = named_override.override.categorical
+            values = None
+            if cat.values is not None:
+                values = [
+                    CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values
+                ]
+            result[named_override.name] = CategoricalAnnotationConfigOverride(
+                type="CATEGORICAL",
+                optimization_direction=cat.optimization_direction,
+                values=values,
+            )
+        elif named_override.override.continuous is not None:
+            cont = named_override.override.continuous
+            result[named_override.name] = ContinuousAnnotationConfigOverride(
+                type="CONTINUOUS",
+                optimization_direction=cont.optimization_direction,
+                lower_bound=cont.lower_bound,
+                upper_bound=cont.upper_bound,
+            )
+    return result if result else None
+
+
 def get_annotation_config_override(
     evaluator_input: PlaygroundEvaluatorInput,
 ) -> AnnotationConfigOverrideType | None:
-    """
-    Get the annotation config override from the PlaygroundEvaluatorInput.
-    """
+    """Backward-compatible shim: returns the first override value (or None).
 
-    if (
-        evaluator_input.output_config_override is not None
-        and evaluator_input.output_config_override.categorical
-    ):
-        cat = evaluator_input.output_config_override.categorical
-        values = None
-        if cat.values is not None:
-            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
-        return CategoricalAnnotationConfigOverride(
-            type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
-            values=values,
-        )
-    elif (
-        evaluator_input.output_config_override is not None
-        and evaluator_input.output_config_override.continuous
-    ):
-        cont = evaluator_input.output_config_override.continuous
-        return ContinuousAnnotationConfigOverride(
-            type="CONTINUOUS",
-            optimization_direction=cont.optimization_direction,
-            lower_bound=cont.lower_bound,
-            upper_bound=cont.upper_bound,
-        )
-    elif evaluator_input.output_config is not None:
-        cat = evaluator_input.output_config
-        values = None
-        if cat.values is not None:
-            values = [CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values]
-        return CategoricalAnnotationConfigOverride(
-            type="CATEGORICAL",
-            optimization_direction=cat.optimization_direction,
-            values=values,
-        )
-    return None
+    ``chat_mutations.py`` still uses the single-override API. This thin wrapper
+    delegates to ``get_annotation_config_overrides_dict`` and returns the first
+    value so that the existing call-sites keep working until they are migrated
+    to the multi-output API.
+    """
+    overrides = get_annotation_config_overrides_dict(evaluator_input)
+    if not overrides:
+        return None
+    # Return the first override value
+    return next(iter(overrides.values()))
 
 
 def apply_overrides_to_annotation_config(
@@ -242,7 +249,7 @@ def merge_single_config(
 
 
 def merge_configs_with_overrides(
-    base_configs: list[AnnotationConfigType],
+    base_configs: Sequence[AnnotationConfigType],
     overrides: Optional[dict[str, AnnotationConfigOverrideType]],
 ) -> list[AnnotationConfigType]:
     """
@@ -254,14 +261,14 @@ def merge_configs_with_overrides(
     Configs without names are passed through unchanged.
 
     Args:
-        base_configs: List of base annotation configs
+        base_configs: Sequence of base annotation configs
         overrides: Optional dict of overrides keyed by config name
 
     Returns:
         List of merged annotation configs
     """
     if not overrides:
-        return base_configs
+        return list(base_configs)
 
     result: list[AnnotationConfigType] = []
     for config in base_configs:

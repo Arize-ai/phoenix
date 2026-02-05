@@ -189,7 +189,6 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
         },
         // Initialize with all output configs from the evaluator
         outputConfigs,
-        activeOutputConfigIndex: 0,
       } satisfies EvaluatorStoreProps;
     }
     return null;

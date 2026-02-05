@@ -53,7 +53,7 @@ export const OptimizationDirectionField = ({
     useEvaluatorStore(
       useShallow((state) => ({
         optimizationDirection:
-          state.outputConfig?.optimizationDirection ?? "NONE",
+          state.outputConfigs[0]?.optimizationDirection ?? "NONE",
         setOutputConfigOptimizationDirection:
           state.setOutputConfigOptimizationDirection,
       }))
