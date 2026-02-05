@@ -45,14 +45,20 @@ uv run pytest tests/unit/test_failed_unit_tests.py::test_failed_test  # Runs a p
 uv run pytest tests/integration -n auto                               # Runs integration tests in parallel
 ```
 
-Other commands can be managed through the 
+Other commands can be managed through tox or direct scripts:
 
 ```bash
 tox run -e ruff                                          # Format and lint
-tox run -e ruff,remove_symlinks,type_check,add_symlinks  # Type check (remove/add symlinks)
-tox run -e type_check_unit_tests                         # Type check unit tests
-tox run -e type_check_integration_tests                  # Type check integration tests
-tox run -e phoenix_client                                # Test sub-package
+
+# Type checking (using uv directly)
+./scripts/uv/mypy/main_source.sh                         # Type check main source
+./scripts/uv/mypy/unit_tests.sh                          # Type check unit tests
+./scripts/uv/mypy/integration_tests.sh                   # Type check integration tests
+./scripts/uv/mypy/phoenix_client.sh                      # Type check phoenix-client package
+./scripts/uv/mypy/phoenix_evals.sh                       # Type check phoenix-evals package
+./scripts/uv/mypy/phoenix_otel.sh                        # Type check phoenix-otel package
+
+tox run -e phoenix_client                                # Test sub-package (includes mypy)
 tox list                                                 # List all environments
 ```
 

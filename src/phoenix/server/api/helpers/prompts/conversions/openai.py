@@ -75,4 +75,6 @@ class OpenAIToolChoiceConversion:
                 function_name=function["name"],
             )
             return choice_function_tool
-        assert_never(obj["type"])
+        # Map newer OpenAI tool choice types (allowed_tools, custom) to zero_or_more (auto mode)
+        choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")
+        return choice_zero_or_more

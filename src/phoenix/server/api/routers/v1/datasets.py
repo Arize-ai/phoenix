@@ -757,14 +757,17 @@ async def _process_pyarrow(
 
     def get_examples() -> Iterator[ExampleContent]:
         for row in reader.read_pandas().to_dict(orient="records"):
+            row_mapping = cast(Mapping[str, Any], row)
             yield ExampleContent(
-                input={k: row.get(k) for k in input_keys},
-                output={k: row.get(k) for k in output_keys},
-                metadata={k: row.get(k) for k in metadata_keys},
+                input={k: row_mapping.get(k) for k in input_keys},
+                output={k: row_mapping.get(k) for k in output_keys},
+                metadata={k: row_mapping.get(k) for k in metadata_keys},
                 splits=frozenset(
-                    str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                    str(v).strip()
+                    for k in split_keys
+                    if (v := row_mapping.get(k)) and str(v).strip()
                 ),  # Only include non-empty, non-whitespace split values
-                span_id=_get_span_id(row, span_id_key),
+                span_id=_get_span_id(row_mapping, span_id_key),
             )
 
     return run_in_threadpool(get_examples)

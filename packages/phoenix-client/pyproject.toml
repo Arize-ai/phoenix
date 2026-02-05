@@ -97,6 +97,10 @@ exclude = [
   "src/phoenix/client/helpers/sdk/",
 ]
 
+[[tool.mypy.overrides]]
+module = ["google.generativeai"]
+ignore_missing_imports = true
+
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.9"

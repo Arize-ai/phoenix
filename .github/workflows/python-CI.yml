@@ -162,6 +162,117 @@ jobs:
           version: 0.8.6
       - run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e phoenix_otel -- -ra -x
 
+  type-check-phoenix-client:
+    name: Type Check Phoenix Client
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/uv/mypy/
+            requirements/
+            packages/phoenix-client/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/packages/phoenix-client.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types on phoenix-client
+        run: bash scripts/uv/mypy/phoenix_client.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
+
+  type-check-phoenix-evals:
+    name: Type Check Phoenix Evals
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/uv/mypy/
+            requirements/
+            packages/phoenix-evals/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/packages/phoenix-evals.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types on phoenix-evals
+        run: bash scripts/uv/mypy/phoenix_evals.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
+
+  type-check-phoenix-otel:
+    name: Type Check Phoenix OTel
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ["3.10", "3.13"]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/uv/mypy/
+            requirements/
+            packages/phoenix-otel/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.6
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/packages/phoenix-otel.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types on phoenix-otel
+        run: bash scripts/uv/mypy/phoenix_otel.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
+
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
     needs: changes
@@ -365,6 +476,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/ci/
+            scripts/uv/mypy/
             requirements/
             src/phoenix/
             packages/phoenix-client/
@@ -383,7 +495,9 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check
+        run: bash scripts/uv/mypy/main_source.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
       - name: Ensure GraphQL mutations have permission classes
         run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e ensure_graphql_mutations_have_permission_classes
 
@@ -402,6 +516,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            scripts/uv/mypy/
             requirements/
             src/phoenix/
             tests/unit/
@@ -424,7 +539,9 @@ jobs:
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on unit tests
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check_unit_tests
+        run: bash scripts/uv/mypy/unit_tests.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
 
   unit-tests:
     name: Unit Tests
@@ -488,6 +605,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            scripts/uv/mypy/
             requirements/
             src/phoenix/
             packages/phoenix-client/
@@ -509,7 +627,9 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on integration tests
-        run: uvx --with tox-uv==1.27.0 --with uv==0.8.6 tox run -e type_check_integration_tests
+        run: bash scripts/uv/mypy/integration_tests.sh
+        env:
+          UV_PYTHON: ${{ matrix.py }}
 
   integration-tests:
     name: Integration Tests
