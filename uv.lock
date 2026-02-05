@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10, <3.14"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -600,7 +600,7 @@ requires-dist = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "2.8.0"
+version = "2.9.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },

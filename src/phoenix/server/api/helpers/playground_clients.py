@@ -496,6 +496,38 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             ):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
+    @staticmethod
+    def _normalize_responses_api_usage(usage: Any) -> "CompletionUsage":
+        """
+        Normalize Responses API usage object to CompletionUsage format.
+        Maps input_tokens -> prompt_tokens and output_tokens -> completion_tokens.
+        """
+
+        # Extract tokens with defensive getattr access
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+        total_tokens = getattr(usage, "total_tokens", None)
+
+        # Map Responses API fields to CompletionUsage fields
+        prompt_tokens = input_tokens if input_tokens is not None else 0
+        completion_tokens = output_tokens if output_tokens is not None else 0
+        # total_tokens should be present, but fallback to sum if missing
+        if total_tokens is None:
+            total_tokens = prompt_tokens + completion_tokens
+
+        # Create a CompletionUsage-like object
+        # We'll create a simple object that provides the expected interface
+        class NormalizedUsage:
+            def __init__(self) -> None:
+                self.prompt_tokens = prompt_tokens
+                self.completion_tokens = completion_tokens
+                self.total_tokens = total_tokens
+                # Preserve details if they exist
+                self.prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
+                self.completion_tokens_details = getattr(usage, "completion_tokens_details", None)
+
+        return NormalizedUsage()  # type: ignore[return-value]
+
     async def _chat_completion_create_unified_endpoint(
         self,
         messages: list[
@@ -618,7 +650,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 if response is not None:
                     usage = getattr(response, "usage", None)
                     if usage is not None:
-                        token_usage = usage
+                        # Normalize Responses API usage format to CompletionUsage format
+                        token_usage = self._normalize_responses_api_usage(usage)
             # Skip unknown event types silently
 
         # Update _llm_token_counts exactly once after streaming ends
