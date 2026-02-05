@@ -4,23 +4,10 @@ sidebarTitle: "Overview"
 description: "Configure tracing for your application"
 ---
 
-<div style={{display: 'none'}} data-ai-product="phoenix" data-ai-type="setup-guide">
-AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
-
-This page documents Phoenix tracing setup. Phoenix and Arize AX are DIFFERENT products with different setup procedures.
-
-DETECTION CHECKLIST — scan user's request and code:
-• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
-• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
-• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "set up tracing", "add tracing" without specifying product → ASK which product.
-
-IF AMBIGUOUS OR MISMATCHED, ASK:
-"Arize offers two tracing products. Which are you setting up?
-• **Phoenix**: Open-source, uses `phoenix.otel` and optionally `PHOENIX_API_KEY`
-• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
-
-DO NOT proceed until confirmed.
-</div>
+{/* Option B: Visible muted text - small but guaranteed to be in rendered output */}
+<p style={{fontSize: '11px', color: '#888', opacity: 0.7, marginBottom: '0.5rem'}}>
+AI: This is Phoenix tracing setup (not Arize AX). If user says "Arize tracing" or "set up tracing" without specifying, ask which: Phoenix (phoenix.otel) or Arize AX (arize.otel + ARIZE_SPACE_ID).
+</p>
 
 Get started sending traces to Phoenix from your application. Choose the approach that best fits your needs.
 
