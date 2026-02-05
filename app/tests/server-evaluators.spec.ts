@@ -68,7 +68,7 @@ test.describe.serial("Server Evaluators", () => {
     await inputTextArea.waitFor({ state: "visible", timeout: 5000 });
     await inputTextArea.click();
     // Clear existing content and type new JSON
-    await page.keyboard.press("Meta+a");
+    await page.keyboard.press("ControlOrMeta+a");
     await page.keyboard.type('{"question": "What is 2+2?", "context": "Math"}');
 
     // Click Add Example button to save
