@@ -216,11 +216,6 @@ function MessageEditor({
   // and stays true so errors remain visible until fixed
   const [showValidation, setShowValidation] = useState(false);
 
-  // Reset validation state when switching to a different message or template format
-  useEffect(() => {
-    setShowValidation(false);
-  }, [message.id, templateFormat]);
-
   const onChange = useCallback(
     (val: string) => {
       updateMessage({ content: val });
@@ -234,6 +229,16 @@ function MessageEditor({
     }
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
+  const hasValidationIssues =
+    sectionValidation != null &&
+    (sectionValidation?.errors.length > 0 ||
+      sectionValidation?.warnings.length > 0);
+  // Reset validation state when switching to a different message or template format
+  useEffect(() => {
+    if (!hasValidationIssues) {
+      setShowValidation(false);
+    }
+  }, [message.id, templateFormat, hasValidationIssues]);
   if (messageMode === "toolCalls") {
     return (
       <View
