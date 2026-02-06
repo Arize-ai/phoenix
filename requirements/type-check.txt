@@ -32,3 +32,4 @@ types-setuptools
 types-tabulate
 types-tqdm
 types-ldap3
+arize

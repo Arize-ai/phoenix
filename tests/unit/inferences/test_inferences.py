@@ -1357,18 +1357,20 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
 
 
 def test_inferences_with_arize_schema() -> None:
-    import arize
+    from importlib.metadata import version
 
-    if int(arize.__version__.split(".")[0]) >= 8:
-        from arize.ml.types import (  # type: ignore[import-untyped]
+    if int(version("arize").split(".")[0]) >= 8:
+        from arize.ml.types import (
             EmbeddingColumnNames as ArizeEmbeddingColumnNames,
         )
         from arize.ml.types import Schema as ArizeSchema
     else:
-        from arize.utils.types import (
+        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
             EmbeddingColumnNames as ArizeEmbeddingColumnNames,
         )
-        from arize.utils.types import Schema as ArizeSchema
+        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
+            Schema as ArizeSchema,
+        )
 
     input_df = DataFrame(
         {
@@ -1405,3 +1407,46 @@ def test_inferences_with_arize_schema() -> None:
     assert (inferences.schema.embedding_feature_column_names or {})[
         "embedding"
     ].vector_column_name == "embedding"
+
+
+def test_inferences_with_arize_schema_typed_columns() -> None:
+    from importlib.metadata import version
+
+    if int(version("arize").split(".")[0]) >= 8:
+        from arize.ml.types import Schema as ArizeSchema
+        from arize.ml.types import TypedColumns
+    else:
+        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
+            Schema as ArizeSchema,
+        )
+        from arize.utils.types import TypedColumns  # type: ignore[attr-defined,no-redef]
+
+    input_df = DataFrame(
+        {
+            "prediction_label": ["apple", "orange", "grape"],
+            "prediction_id": ["1", "2", "3"],
+            "feature_1": [1.0, 2.0, 3.0],
+            "feature_2": ["a", "b", "c"],
+            "tag_1": ["x", "y", "z"],
+            "tag_2": [10, 20, 30],
+        }
+    )
+
+    input_schema = ArizeSchema(
+        prediction_id_column_name="prediction_id",
+        prediction_label_column_name="prediction_label",
+        feature_column_names=TypedColumns(
+            inferred=["feature_1"],
+            to_str=["feature_2"],
+        ),
+        tag_column_names=TypedColumns(
+            to_str=["tag_1"],
+            to_int=["tag_2"],
+        ),
+    )
+    inferences = Inferences(dataframe=input_df, schema=input_schema)
+    assert isinstance(inferences.schema, Schema)
+    assert inferences.schema.prediction_id_column_name == "prediction_id"
+    # TypedColumns should be converted to a list of column names
+    assert inferences.schema.feature_column_names == ["feature_1", "feature_2"]
+    assert inferences.schema.tag_column_names == ["tag_1", "tag_2"]
