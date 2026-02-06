@@ -24,7 +24,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             __typename
             kind
             description
-            isBuiltin
           }
           project {
             id
