@@ -677,10 +677,18 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     Compatibility function for converting from arize.utils.types.Schema to phoenix.inferences.Schema
     """
     try:
-        from arize.utils.types import (
-            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # fmt: off type: ignore
-        )
-        from arize.utils.types import Schema as ArizeSchema
+        import arize
+
+        if int(arize.__version__.split(".")[0]) >= 8:
+            from arize.ml.types import (  # type: ignore[import-untyped]
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+            )
+            from arize.ml.types import Schema as ArizeSchema
+        else:
+            from arize.utils.types import (  # type: ignore[import-untyped]
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+            )
+            from arize.utils.types import Schema as ArizeSchema
 
         if not isinstance(schemaLike, ArizeSchema):
             raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
