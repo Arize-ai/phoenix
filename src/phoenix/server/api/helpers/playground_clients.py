@@ -678,7 +678,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DELTA,
             ):
                 # Read tool call ID from the event
-                tool_call_id = getattr(event, "id", None)
+                tool_call_id = getattr(event, "item_id", None)
                 # Treat event.delta as the incremental arguments string directly
                 delta = getattr(event, "delta", None)
                 arguments_delta = None
@@ -707,7 +707,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 OpenAIResponsesStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
                 OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DONE,
             ):
-                tool_call_id = getattr(event, "id", None)
+                tool_call_id = getattr(event, "item_id", None)
                 if tool_call_id and tool_call_id in active_tool_calls:
                     tool_call_data = active_tool_calls[tool_call_id]
                     yield ToolCallChunk(
