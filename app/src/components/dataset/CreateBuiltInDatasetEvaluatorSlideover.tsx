@@ -15,10 +15,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import {
-  buildNamedOutputConfigOverrides,
-  formatBuiltinEvaluatorDisplayName,
-} from "@phoenix/components/evaluators/utils";
+import { buildNamedOutputConfigOverrides } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
