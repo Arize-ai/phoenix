@@ -30,6 +30,7 @@ class DatasetsByEvaluatorDataLoader(DataLoader[Key, Result]):
                     models.DatasetEvaluators.dataset_id == models.Dataset.id,
                 )
                 .where(models.DatasetEvaluators.evaluator_id.in_(keys))
+                .distinct()
                 .order_by(models.Dataset.name.asc())
             )
             for row in await session.execute(stmt):

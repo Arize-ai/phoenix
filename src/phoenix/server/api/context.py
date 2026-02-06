@@ -19,6 +19,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetDatasetSplitsDataLoader,
+    DatasetEvaluatorsByEvaluatorDataLoader,
     DatasetEvaluatorsByIdDataLoader,
     DatasetEvaluatorsDataLoader,
     DatasetExampleRevisionsDataLoader,
@@ -109,6 +110,7 @@ class DataLoaders:
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     code_evaluator_fields: TableFieldsDataLoader
+    dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
     dataset_evaluators: DatasetEvaluatorsDataLoader
     datasets_by_evaluator: DatasetsByEvaluatorDataLoader
