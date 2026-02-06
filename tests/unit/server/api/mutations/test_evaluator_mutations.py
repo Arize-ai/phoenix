@@ -1101,6 +1101,54 @@ class TestDatasetLLMEvaluatorMutations:
         name2 = result2.data["createDatasetLlmEvaluator"]["evaluator"]["evaluator"]["name"]
         assert name1 != name2
 
+    async def test_create_dataset_llm_evaluator_rejects_empty_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            name="empty-configs",
+            description="test",
+            promptVersion=dict(
+                templateFormat="MUSTACHE",
+                template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
+                invocationParameters=dict(
+                    temperature=0.5,
+                    tool_choice=dict(type="function", function=dict(name="test")),
+                ),
+                tools=[
+                    dict(
+                        definition=dict(
+                            type="function",
+                            function=dict(
+                                name="test",
+                                description="test",
+                                parameters=dict(
+                                    type="object",
+                                    properties=dict(
+                                        label=dict(
+                                            type="string",
+                                            enum=["correct", "incorrect"],
+                                            description="correctness",
+                                        )
+                                    ),
+                                    required=["label"],
+                                ),
+                            ),
+                        )
+                    )
+                ],
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfigs=[],
+        )
+        assert result.errors
+        assert "At least one output config is required" in result.errors[0].message
+
 
 class TestUpdateDatasetLLMEvaluatorMutation:
     _UPDATE_MUTATION = """

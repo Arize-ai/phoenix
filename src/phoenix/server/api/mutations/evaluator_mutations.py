@@ -61,6 +61,18 @@ from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
 
+def _validate_llm_evaluator_configs_are_categorical(
+    configs: list[AnnotationConfigInput],
+) -> None:
+    """LLM evaluators only support categorical output configs."""
+    for config in configs:
+        if config.categorical is None or config.categorical is UNSET:
+            raise ValueError(
+                "LLM evaluators only support categorical output configs. "
+                "Non-categorical config found."
+            )
+
+
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> AnnotationConfigType:
     """
     Convert AnnotationConfigInput to pydantic for evaluator output configs.
@@ -429,6 +441,7 @@ class EvaluatorMutationMixin:
         try:
             validate_min_one_config(input.output_configs)
             validate_unique_config_names(input.output_configs)
+            _validate_llm_evaluator_configs_are_categorical(input.output_configs)
         except ValueError as e:
             raise BadRequest(str(e))
         output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
@@ -578,6 +591,7 @@ class EvaluatorMutationMixin:
         try:
             validate_min_one_config(input.output_configs)
             validate_unique_config_names(input.output_configs)
+            _validate_llm_evaluator_configs_are_categorical(input.output_configs)
         except ValueError as e:
             raise BadRequest(str(e))
         output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)

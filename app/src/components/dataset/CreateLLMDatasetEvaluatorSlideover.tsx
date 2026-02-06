@@ -34,7 +34,7 @@ import {
 export type CreateLLMDatasetEvaluatorInitialState = {
   name: string;
   description: string;
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: ClassificationEvaluatorAnnotationConfig[];
   promptMessages: PromptVersionMessageFragments;
 };
 
@@ -133,7 +133,7 @@ const CreateEvaluatorDialog = ({
     );
   const initialState = useMemo(() => {
     const defaultOutputConfig =
-      _initialState?.outputConfig ??
+      _initialState?.outputConfigs?.[0] ??
       DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
     const defaultEvaluatorName =
       _initialState?.name ??

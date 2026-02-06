@@ -97,18 +97,6 @@ export function datasetEvaluatorToAnnotationConfigs(
 }
 
 /**
- * Converts a single dataset evaluator to an AnnotationConfig.
- * @deprecated Use datasetEvaluatorToAnnotationConfigs instead for multi-output support.
- * This function only returns the first config for backward compatibility.
- */
-export function datasetEvaluatorToAnnotationConfig(
-  evaluator: DatasetEvaluatorForConfig
-): AnnotationConfig {
-  const configs = datasetEvaluatorToAnnotationConfigs(evaluator);
-  return configs[0];
-}
-
-/**
  * Converts an array of dataset evaluators to an array of AnnotationConfigs.
  * Each evaluator can produce multiple configs (for multi-output evaluators).
  */

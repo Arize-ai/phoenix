@@ -109,18 +109,24 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
     llm_evaluator: models.LLMEvaluator,
 ) -> None:
-    # Get the first output config for validation (primary config)
     output_configs = llm_evaluator.output_configs
     if not output_configs:
         raise ValueError("LLM evaluator must have at least one output config")
-    output_config = output_configs[0]
-    if not isinstance(output_config, CategoricalAnnotationConfig):
-        raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
+    # Validate all configs are categorical
+    for output_config in output_configs:
+        if not isinstance(output_config, CategoricalAnnotationConfig):
+            raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
+    # Only validate the first (primary) config against the prompt tool definition.
+    # The prompt tool's label enum and description are tied to the primary config.
+    # Additional configs are independent annotation outputs that don't need to
+    # match the prompt tool structure.
+    primary_config = output_configs[0]
+    assert isinstance(primary_config, CategoricalAnnotationConfig)
     validate_evaluator_prompt_and_config(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=output_config.name or "",
-        evaluator_output_config=output_config,
+        evaluator_annotation_name=primary_config.name or "",
+        evaluator_output_config=primary_config,
         evaluator_description=llm_evaluator.description,
     )
 
@@ -293,25 +299,3 @@ def validate_unique_override_names(
     if len(override_names) != len(set(override_names)):
         duplicates = [name for name in override_names if override_names.count(name) > 1]
         raise ValueError(f"Override names must be unique. Duplicates found: {set(duplicates)}")
-
-
-def validate_override_names_match_configs(
-    overrides: "list[NamedAnnotationConfigOverrideInput]",
-    base_config_names: list[str],
-) -> None:
-    """
-    Validate that all override names match base config names.
-
-    Args:
-        overrides: List of named override inputs to validate.
-        base_config_names: List of valid config names from the base evaluator.
-
-    Raises:
-        ValueError: If an override name doesn't match any base config name.
-    """
-    for override in overrides:
-        if override.name not in base_config_names:
-            raise ValueError(
-                f"Override '{override.name}' doesn't match any config. "
-                f"Available configs: {base_config_names}"
-            )
