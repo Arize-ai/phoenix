@@ -1357,10 +1357,10 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
 
 
 def test_inferences_with_arize_schema() -> None:
-    from arize.utils.types import (  # type: ignore[import-untyped]
+    from arize.ml.types import (  # type: ignore[import-untyped]
         EmbeddingColumnNames as ArizeEmbeddingColumnNames,
     )
-    from arize.utils.types import Schema as ArizeSchema
+    from arize.ml.types import Schema as ArizeSchema
 
     input_df = DataFrame(
         {
