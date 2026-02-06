@@ -125,7 +125,12 @@ export function extractPathsFromObject(
  * @returns A deduplicated array of all paths found across examples
  */
 export function extractPathsFromDatasetExamples(
-  examples: Array<{ input: unknown; output: unknown; metadata: unknown }>,
+  examples: Array<{
+    input: unknown;
+    taskOutput?: unknown;
+    metadata: unknown;
+    reference: unknown;
+  }>,
   templateVariablesPath: string | null | undefined,
   maxExamples = 10
 ): string[] {
@@ -136,11 +141,13 @@ export function extractPathsFromDatasetExamples(
 
   for (const example of examplesToProcess) {
     // Build the template variables context matching the backend mapping
-    // (output is renamed to reference)
+    // (output is renamed to reference in the args)
+    // (taskOutput is renamed to output in the args, optional)
     const templateContext: Record<string, unknown> = {
       input: example.input,
-      reference: example.output,
+      reference: example.reference,
       metadata: example.metadata,
+      ...(example.taskOutput != null ? { output: example.taskOutput } : {}),
     };
 
     // Determine the target object based on templateVariablesPath

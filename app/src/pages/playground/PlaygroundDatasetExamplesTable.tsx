@@ -1273,7 +1273,7 @@ export function PlaygroundDatasetExamplesTable({
     if (tableData.length > 0) {
       const examples = tableData.map((row) => ({
         input: row.input,
-        output: row.output,
+        reference: row.output,
         metadata: row.metadata,
       }));
       const paths = extractPathsFromDatasetExamples(
