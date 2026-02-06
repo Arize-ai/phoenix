@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85a3db61e3a22f18568d4afac888e8ec>>
+ * @generated SignedSource<<35dacae0ce1401d657cbbbad34ed93cd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,7 +51,7 @@ export type EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
           readonly label: string;
           readonly score: number | null;
         }>;
-      }> | null;
+      }>;
     };
     readonly id: string;
   };

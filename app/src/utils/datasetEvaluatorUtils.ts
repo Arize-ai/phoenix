@@ -13,7 +13,7 @@ export type DatasetEvaluatorOutputConfig = {
   }[];
   readonly lowerBound?: number | null;
   readonly upperBound?: number | null;
-} | null;
+};
 
 /**
  * The minimal shape of a dataset evaluator needed for conversion.
@@ -22,9 +22,7 @@ export type DatasetEvaluatorOutputConfig = {
 export type DatasetEvaluatorForConfig = {
   readonly name: string;
   /** Array of output configurations for multi-output evaluators */
-  readonly outputConfigs?:
-    | readonly (DatasetEvaluatorOutputConfig | null)[]
-    | null;
+  readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
 };
 
 /**
@@ -32,7 +30,7 @@ export type DatasetEvaluatorForConfig = {
  * @internal
  */
 function outputConfigToAnnotationConfig(
-  outputConfig: NonNullable<DatasetEvaluatorOutputConfig>,
+  outputConfig: DatasetEvaluatorOutputConfig,
   fallbackName: string
 ): AnnotationConfig {
   // Handle CategoricalAnnotationConfig from the union
@@ -79,12 +77,9 @@ export function datasetEvaluatorToAnnotationConfigs(
   evaluator: DatasetEvaluatorForConfig
 ): AnnotationConfig[] {
   if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
-    return evaluator.outputConfigs
-      .filter(
-        (config): config is NonNullable<DatasetEvaluatorOutputConfig> =>
-          config != null
-      )
-      .map((config) => outputConfigToAnnotationConfig(config, evaluator.name));
+    return evaluator.outputConfigs.map((config) =>
+      outputConfigToAnnotationConfig(config, evaluator.name)
+    );
   }
 
   // No configs at all, return FREEFORM

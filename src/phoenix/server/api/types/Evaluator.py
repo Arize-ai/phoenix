@@ -13,9 +13,6 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    AnnotationConfigType,
-)
-from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
@@ -23,7 +20,6 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.annotation_configs import merge_configs_with_overrides
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
@@ -705,60 +701,23 @@ class DatasetEvaluator(Node):
     async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> Optional[list[BuiltInEvaluatorOutputConfig]]:
+    ) -> list[BuiltInEvaluatorOutputConfig]:
         """
-        Returns the effective output_configs for this dataset evaluator.
-        If overrides are set, they're merged with the base configs from the evaluator by name.
-        Otherwise, returns the base configs from the evaluator.
-        Works for builtin evaluators, LLM evaluators, and code evaluators.
+        Returns the output_configs stored on this dataset evaluator.
         """
-        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-
         record = await self._get_record(info)
-        overrides = record.output_config_overrides
-
-        async with info.context.db() as session:
-            # Use with_polymorphic to eagerly load all subclass columns
-            # This avoids lazy loading issues with async SQLAlchemy
-            poly_evaluator = sa.orm.with_polymorphic(
-                models.Evaluator,
-                [models.BuiltinEvaluator, models.LLMEvaluator, models.CodeEvaluator],
+        return [
+            _to_gql_builtin_output_config(
+                config,
+                config.name or "",
+                id_prefix="DatasetEvaluator",
+                evaluator_id=self.id,
             )
-            stmt = sa.select(poly_evaluator).where(poly_evaluator.id == record.evaluator_id)
-            result = await session.execute(stmt)
-            evaluator = result.scalar_one_or_none()
-            if evaluator is None:
-                return None
-
-            # Get base configs from the evaluator
-            base_configs: list[AnnotationConfigType]
-            if isinstance(evaluator, models.BuiltinEvaluator):
-                evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
-                if evaluator_class is None:
-                    return None
-                base_configs = list(evaluator_class().output_configs)
-            elif isinstance(evaluator, models.LLMEvaluator):
-                base_configs = list(evaluator.output_configs)
-            else:
-                # CodeEvaluator doesn't have output_configs
-                return None
-
-            # Merge base configs with overrides
-            merged_configs = merge_configs_with_overrides(base_configs, overrides)
-
-            # Convert to GraphQL types
-            return [
-                _to_gql_builtin_output_config(
-                    config,
-                    config.name or "",
-                    id_prefix="DatasetEvaluator",
-                    evaluator_id=self.id,
-                )
-                for config in merged_configs
-                if isinstance(
-                    config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
-                )
-            ]
+            for config in record.output_configs
+            if isinstance(
+                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+            )
+        ]
 
     @strawberry.field
     async def input_mapping(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed03fa2b672f69342e67df7e05abd1c2>>
+ * @generated SignedSource<<9910c78092ec5f2cba14e00608a111d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -42,7 +42,7 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  }> | null;
+  }>;
   readonly " $fragmentType": "BuiltInDatasetEvaluatorDetails_datasetEvaluator";
 };
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$key = {

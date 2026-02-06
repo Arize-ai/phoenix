@@ -204,7 +204,7 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("output_config", JSON_, nullable=True),
+        sa.Column("output_config", JSON_, nullable=False),
         sa.Column("input_mapping", JSON_, nullable=False),
         sa.Column(
             "user_id",
@@ -267,88 +267,6 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-
-    # Data migration: Convert existing output_config data from single objects to arrays/dicts
-    # This is needed to support multi-output evaluators.
-    # The migration is idempotent - it only converts objects, not arrays.
-    dialect = op.get_bind().dialect.name
-
-    if dialect == "postgresql":
-        # PostgreSQL: use jsonb_build_array and jsonb_build_object
-        # LLMEvaluator: wrap single config in array
-        op.execute(
-            sa.text(
-                """
-                UPDATE llm_evaluators
-                SET output_config = jsonb_build_array(output_config)
-                WHERE output_config IS NOT NULL
-                AND jsonb_typeof(output_config) = 'object'
-                """
-            )
-        )
-        # BuiltinEvaluator: wrap single config in array
-        op.execute(
-            sa.text(
-                """
-                UPDATE builtin_evaluators
-                SET output_config = jsonb_build_array(output_config)
-                WHERE output_config IS NOT NULL
-                AND jsonb_typeof(output_config) = 'object'
-                """
-            )
-        )
-        # DatasetEvaluators: convert single override to dict keyed by name
-        op.execute(
-            sa.text(
-                """
-                UPDATE dataset_evaluators
-                SET output_config = jsonb_build_object(
-                    COALESCE(output_config->>'name', 'default'),
-                    output_config
-                )
-                WHERE output_config IS NOT NULL
-                AND jsonb_typeof(output_config) = 'object'
-                """
-            )
-        )
-    else:
-        # SQLite: use json_array and json_object
-        # LLMEvaluator: wrap single config in array
-        op.execute(
-            sa.text(
-                """
-                UPDATE llm_evaluators
-                SET output_config = json_array(json(output_config))
-                WHERE output_config IS NOT NULL
-                AND json_type(output_config) = 'object'
-                """
-            )
-        )
-        # BuiltinEvaluator: wrap single config in array
-        op.execute(
-            sa.text(
-                """
-                UPDATE builtin_evaluators
-                SET output_config = json_array(json(output_config))
-                WHERE output_config IS NOT NULL
-                AND json_type(output_config) = 'object'
-                """
-            )
-        )
-        # DatasetEvaluators: convert single override to dict keyed by name
-        op.execute(
-            sa.text(
-                """
-                UPDATE dataset_evaluators
-                SET output_config = json_object(
-                    COALESCE(json_extract(output_config, '$.name'), 'default'),
-                    json(output_config)
-                )
-                WHERE output_config IS NOT NULL
-                AND json_type(output_config) = 'object'
-                """
-            )
-        )
 
 
 def downgrade() -> None:

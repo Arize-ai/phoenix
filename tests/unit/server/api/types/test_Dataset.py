@@ -1009,7 +1009,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             evaluator_id=evaluator_1.id,
             name=Identifier(root="evaluator-1"),
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_overrides=None,
+            output_configs=[],
             project=models.Project(
                 name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
             ),
@@ -1019,7 +1019,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             evaluator_id=evaluator_2.id,
             name=Identifier(root="evaluator-2"),
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_overrides=None,
+            output_configs=[],
             project=models.Project(
                 name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"
             ),

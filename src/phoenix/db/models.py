@@ -57,10 +57,6 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
-    AnnotationConfigOverride as AnnotationConfigOverrideModel,
-)
-from phoenix.db.types.annotation_configs import (
-    AnnotationConfigOverrideType,
     AnnotationConfigType,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -447,30 +443,6 @@ class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
         if value is None:
             return None
         return [AnnotationConfigModel.model_validate(config).root for config in value]
-
-
-class _AnnotationConfigOverrideDict(
-    TypeDecorator[Optional[dict[str, AnnotationConfigOverrideType]]]
-):
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    cache_ok = True
-    impl = JSON_
-
-    def process_bind_param(
-        self, value: Optional[dict[str, AnnotationConfigOverrideType]], _: Dialect
-    ) -> Optional[dict[str, Any]]:
-        if value is None:
-            return None
-        return {name: override.model_dump() for name, override in value.items()}
-
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[dict[str, AnnotationConfigOverrideType]]:
-        if value is None:
-            return None
-        return {
-            name: AnnotationConfigOverrideModel.model_validate(o).root for name, o in value.items()
-        }
 
 
 class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
@@ -2423,8 +2395,8 @@ class DatasetEvaluators(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_config_overrides: Mapped[Optional[dict[str, AnnotationConfigOverrideType]]] = (
-        mapped_column("output_config", _AnnotationConfigOverrideDict, nullable=True)
+    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
+        "output_config", _AnnotationConfigList, nullable=False
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

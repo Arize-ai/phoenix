@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e93ea309a3f8487fac564a97a584040>>
+ * @generated SignedSource<<d4782c9ab42994cbf183acf768a222dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,32 +16,37 @@ export type UpdateDatasetBuiltinEvaluatorInput = {
   description?: string | null;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
-  outputConfigOverrides?: ReadonlyArray<NamedAnnotationConfigOverrideInput> | null;
+  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type NamedAnnotationConfigOverrideInput = {
+export type AnnotationConfigInput = {
+  categorical?: CategoricalAnnotationConfigInput | null;
+  continuous?: ContinuousAnnotationConfigInput | null;
+  freeform?: FreeformAnnotationConfigInput | null;
+};
+export type CategoricalAnnotationConfigInput = {
+  description?: string | null;
   name: string;
-  override: AnnotationConfigOverrideInput;
-};
-export type AnnotationConfigOverrideInput = {
-  categorical?: CategoricalAnnotationConfigOverrideInput | null;
-  continuous?: ContinuousAnnotationConfigOverrideInput | null;
-};
-export type CategoricalAnnotationConfigOverrideInput = {
-  optimizationDirection?: OptimizationDirection | null;
-  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+  optimizationDirection: OptimizationDirection;
+  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
-export type ContinuousAnnotationConfigOverrideInput = {
+export type ContinuousAnnotationConfigInput = {
+  description?: string | null;
   lowerBound?: number | null;
-  optimizationDirection?: OptimizationDirection | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
   upperBound?: number | null;
+};
+export type FreeformAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
 };
 export type EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;

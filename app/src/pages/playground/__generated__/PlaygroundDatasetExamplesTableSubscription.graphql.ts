@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89cafd1c331b99ea34894dd107f5f897>>
+ * @generated SignedSource<<acab5aafe4580226e9c97dbdad45c891>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,32 +78,37 @@ export type PlaygroundEvaluatorInput = {
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
   name: string;
-  outputConfigOverrides?: ReadonlyArray<NamedAnnotationConfigOverrideInput> | null;
+  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type NamedAnnotationConfigOverrideInput = {
+export type AnnotationConfigInput = {
+  categorical?: CategoricalAnnotationConfigInput | null;
+  continuous?: ContinuousAnnotationConfigInput | null;
+  freeform?: FreeformAnnotationConfigInput | null;
+};
+export type CategoricalAnnotationConfigInput = {
+  description?: string | null;
   name: string;
-  override: AnnotationConfigOverrideInput;
-};
-export type AnnotationConfigOverrideInput = {
-  categorical?: CategoricalAnnotationConfigOverrideInput | null;
-  continuous?: ContinuousAnnotationConfigOverrideInput | null;
-};
-export type CategoricalAnnotationConfigOverrideInput = {
-  optimizationDirection?: OptimizationDirection | null;
-  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+  optimizationDirection: OptimizationDirection;
+  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
-export type ContinuousAnnotationConfigOverrideInput = {
+export type ContinuousAnnotationConfigInput = {
+  description?: string | null;
   lowerBound?: number | null;
-  optimizationDirection?: OptimizationDirection | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
   upperBound?: number | null;
+};
+export type FreeformAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;
