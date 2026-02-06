@@ -1892,6 +1892,154 @@ class TestChatCompletionMutationMixin:
             assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
 
+    async def test_multi_output_evaluator_produces_result_per_config(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Test that evaluators with multiple output_configs produce one result per config.
+
+        Uses two builtin evaluators (contains and exact_match), each with a single
+        output config. Verifies both evaluators produce results, confirming the
+        multi-output loop iterates over all configs for each evaluator.
+        """
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            assert contains_id is not None
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None
+
+            dataset = models.Dataset(name="test-multi-output-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            contains_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=contains_id,
+                name=Identifier("contains-check"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="contains-multi-project", description=""),
+            )
+            exact_match_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=exact_match_id,
+                name=Identifier("exact-match-check"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="exact-match-multi-project", description=""),
+            )
+            session.add_all([contains_dataset_evaluator, exact_match_dataset_evaluator])
+            await session.flush()
+
+            contains_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__,
+                    node_id=str(contains_dataset_evaluator.id),
+                )
+            )
+            exact_match_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__,
+                    node_id=str(exact_match_dataset_evaluator.id),
+                )
+            )
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  evaluatorName
+                  annotation {
+                    name
+                    label
+                    score
+                    annotatorKind
+                  }
+                  error
+                }
+                span {
+                  id
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "Say hello",
+                    }
+                ],
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": contains_gid,
+                        "name": "contains-check",
+                        "inputMapping": {
+                            "literalMapping": {"words": "hello"},
+                            "pathMapping": {"text": "$.output"},
+                        },
+                    },
+                    {
+                        "id": exact_match_gid,
+                        "name": "exact-match-check",
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "hello",
+                                "actual": "hello",
+                            },
+                        },
+                    },
+                ],
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+
+        assert not result.errors
+        assert (data := result.data)
+        assert (field := data["chatCompletion"])
+        assert (repetitions := field["repetitions"])
+        assert len(repetitions) == 1
+
+        repetition = repetitions[0]
+        assert not repetition["errorMessage"]
+
+        # Verify we get evaluations from both evaluators
+        # Each evaluator has 1 output config, so 2 evaluators = 2 evaluations
+        assert (evaluations := repetition["evaluations"])
+        assert len(evaluations) == 2
+
+        eval_names = {e["annotation"]["name"] for e in evaluations if e["annotation"]}
+        assert "contains-check" in eval_names
+        assert "exact-match-check" in eval_names
+
+        # Verify span annotations were persisted
+        async with db() as session:
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
+            assert len(annotations) == 2
+            annotation_names = {a.name for a in annotations}
+            assert "contains-check" in annotation_names
+            assert "exact-match-check" in annotation_names
+
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())

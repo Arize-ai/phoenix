@@ -368,7 +368,7 @@ export type AnnotationConfig =
  * This determines whether the config is categorical (has "values" property)
  * or continuous and constructs the appropriate override structure.
  */
-export const buildOutputConfigOverride = (
+const buildOutputConfigOverride = (
   outputConfig: AnnotationConfig | null | undefined
 ): OutputConfigOverride | undefined => {
   if (!outputConfig) {

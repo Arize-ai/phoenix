@@ -90,14 +90,16 @@ export function DatasetEvaluatorsPageContent() {
       setCreateLLMEvaluatorDialogInitialState({
         name: template.name,
         description: template.description ?? "",
-        outputConfig: {
-          name: template.name,
-          optimizationDirection: template.optimizationDirection,
-          values: Object.entries(validatedChoices).map(([label, score]) => ({
-            label,
-            score,
-          })),
-        },
+        outputConfigs: [
+          {
+            name: template.name,
+            optimizationDirection: template.optimizationDirection,
+            values: Object.entries(validatedChoices).map(([label, score]) => ({
+              label,
+              score,
+            })),
+          },
+        ],
         promptMessages: template.messages,
       });
     }

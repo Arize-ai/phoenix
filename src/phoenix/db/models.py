@@ -534,7 +534,7 @@ class _HexColor(TypeDecorator[str]):
 class _InputMapping(TypeDecorator[InputMapping]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = JSON
+    impl = JSON_
 
     def process_bind_param(
         self, value: Optional[InputMapping], _: Dialect

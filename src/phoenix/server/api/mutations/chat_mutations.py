@@ -31,6 +31,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
 from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
@@ -49,8 +50,8 @@ from phoenix.server.api.evaluators import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.annotation_configs import (
-    apply_overrides_to_annotation_config,
-    get_annotation_config_override,
+    get_annotation_config_overrides_dict,
+    merge_configs_with_overrides,
 )
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
 from phoenix.server.api.helpers.evaluators import (
@@ -90,7 +91,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.mutations.annotation_config_mutations import (
-    _to_pydantic_categorical_annotation_config,
+    _convert_annotation_config_inputs_to_pydantic,
 )
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
@@ -432,46 +433,45 @@ class ChatCompletionMutationMixin:
                         evaluators, input.evaluators, project_ids
                     ):
                         name = str(evaluator_input.name)
-                        annotation_config_override = get_annotation_config_override(evaluator_input)
-                        merged_config = apply_overrides_to_annotation_config(
-                            annotation_config=evaluator.output_configs[0],
-                            annotation_config_override=annotation_config_override,
-                            name=name,
-                            description_override=evaluator_input.description,
+                        overrides = get_annotation_config_overrides_dict(evaluator_input)
+                        merged_configs = merge_configs_with_overrides(
+                            evaluator.output_configs, overrides
                         )
+                        for config in merged_configs:
+                            tracer: Tracer | None = None
+                            if input.tracing_enabled:
+                                tracer = Tracer(
+                                    span_cost_calculator=info.context.span_cost_calculator
+                                )
 
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
-
-                        eval_result: EvaluationResultDict = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_config=merged_config,
-                            tracer=tracer,
-                        )
-
-                        trace: Trace | None = None
-                        if tracer is not None:
-                            db_traces = await tracer.save_db_traces(
-                                session=session, project_id=project_id
+                            eval_result: EvaluationResultDict = await evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=evaluator_input.input_mapping,
+                                name=name,
+                                output_config=config,  # type: ignore[arg-type]
+                                tracer=tracer,
                             )
-                            if db_traces:
-                                db_trace = db_traces[0]
-                                trace = Trace(id=db_trace.id, db_record=db_trace)
-                                eval_result["trace_id"] = db_trace.trace_id
 
-                        if eval_result["error"] is None:
-                            annotation_model = evaluation_result_to_model(
-                                eval_result,
-                                experiment_run_id=experiment_run.id,
+                            trace: Trace | None = None
+                            if tracer is not None:
+                                db_traces = await tracer.save_db_traces(
+                                    session=session, project_id=project_id
+                                )
+                                if db_traces:
+                                    db_trace = db_traces[0]
+                                    trace = Trace(id=db_trace.id, db_record=db_trace)
+                                    eval_result["trace_id"] = db_trace.trace_id
+
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_model(
+                                    eval_result,
+                                    experiment_run_id=experiment_run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations[evaluation_key].append(
+                                _to_evaluation_result(eval_result, name, trace=trace)
                             )
-                            session.add(annotation_model)
-                            await session.flush()
-                        evaluations[evaluation_key].append(
-                            _to_evaluation_result(eval_result, name, trace=trace)
-                        )
 
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
@@ -555,30 +555,28 @@ class ChatCompletionMutationMixin:
 
                     for evaluator, evaluator_input in zip(evaluators, input.evaluators):
                         name = str(evaluator_input.name)
-                        annotation_config_override = get_annotation_config_override(evaluator_input)
-                        merged_config = apply_overrides_to_annotation_config(
-                            annotation_config=evaluator.output_configs[0],
-                            annotation_config_override=annotation_config_override,
-                            name=name,
-                            description_override=evaluator_input.description,
+                        overrides = get_annotation_config_overrides_dict(evaluator_input)
+                        merged_configs = merge_configs_with_overrides(
+                            evaluator.output_configs, overrides
                         )
-                        eval_result: EvaluationResultDict = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_config=merged_config,
-                        )
-
-                        if eval_result["error"] is None:
-                            annotation_model = evaluation_result_to_span_annotation(
-                                eval_result,
-                                span_rowid=db_span.id,
+                        for config in merged_configs:
+                            eval_result: EvaluationResultDict = await evaluator.evaluate(
+                                context=context_dict,
+                                input_mapping=evaluator_input.input_mapping,
+                                name=name,
+                                output_config=config,  # type: ignore[arg-type]
                             )
-                            session.add(annotation_model)
-                            await session.flush()
-                        evaluations_by_repetition[repetition_number].append(
-                            _to_evaluation_result(eval_result, name)
-                        )
+
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_span_annotation(
+                                    eval_result,
+                                    span_rowid=db_span.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations_by_repetition[repetition_number].append(
+                                _to_evaluation_result(eval_result, name)
+                            )
 
         repetitions: list[ChatCompletionRepetition] = []
         for repetition_number, result in enumerate(results, start=1):
@@ -630,13 +628,14 @@ class ChatCompletionMutationMixin:
                     raise BadRequest(f"Built-in evaluator class for key '{key}' not found")
                 builtin_evaluator = builtin_evaluator_cls()
 
-                eval_result = await builtin_evaluator.evaluate(
-                    context=context,
-                    input_mapping=input_mapping,
-                    name=builtin_evaluator.name,
-                    output_config=builtin_evaluator.output_configs[0],
-                )
-                context_result = _to_evaluation_result(eval_result, builtin_evaluator.name)
+                for config in builtin_evaluator.output_configs:
+                    eval_result = await builtin_evaluator.evaluate(
+                        context=context,
+                        input_mapping=input_mapping,
+                        name=builtin_evaluator.name,
+                        output_config=config,
+                    )
+                    all_results.append(_to_evaluation_result(eval_result, builtin_evaluator.name))
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 prompt_version = inline_llm_evaluator.prompt_version
                 model_name = prompt_version.model_name
@@ -698,40 +697,43 @@ class ChatCompletionMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                first_config = inline_llm_evaluator.output_configs[0]
-                assert first_config.categorical is not None
-                output_config = _to_pydantic_categorical_annotation_config(first_config.categorical)
+                output_configs = _convert_annotation_config_inputs_to_pydantic(
+                    inline_llm_evaluator.output_configs
+                )
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
-                    output_configs=[output_config],
+                    output_configs=output_configs,  # type: ignore[arg-type]
                     description=inline_llm_evaluator.description,
                 )
 
-                try:
-                    validate_evaluator_prompt_and_config(
-                        prompt_tools=prompt_version_orm.tools,
-                        prompt_response_format=prompt_version_orm.response_format,
-                        evaluator_annotation_name=first_config.categorical.name,
-                        evaluator_output_config=output_config,
-                        evaluator_description=inline_llm_evaluator.description,
-                    )
-                except ValueError as error:
-                    raise BadRequest(str(error))
+                for config in output_configs:  # type: ignore[assignment]
+                    if isinstance(config, CategoricalAnnotationConfig):
+                        assert config.name is not None
+                        try:
+                            validate_evaluator_prompt_and_config(
+                                prompt_tools=prompt_version_orm.tools,
+                                prompt_response_format=prompt_version_orm.response_format,
+                                evaluator_annotation_name=config.name,
+                                evaluator_output_config=config,
+                                evaluator_description=inline_llm_evaluator.description,
+                            )
+                        except ValueError as error:
+                            raise BadRequest(str(error))
 
-                eval_result = await evaluator.evaluate(
-                    context=context,
-                    input_mapping=input_mapping,
-                    name=first_config.categorical.name,
-                    output_config=output_config,
-                )
-                context_result = _to_evaluation_result(eval_result, first_config.categorical.name)
+                    eval_result = await evaluator.evaluate(
+                        context=context,
+                        input_mapping=input_mapping,
+                        name=config.name or evaluator.name,
+                        output_config=config,
+                    )
+                    all_results.append(
+                        _to_evaluation_result(eval_result, config.name or evaluator.name)
+                    )
 
             else:
                 raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
-
-            all_results.append(context_result)
 
         return EvaluatorPreviewsPayload(results=all_results)
 

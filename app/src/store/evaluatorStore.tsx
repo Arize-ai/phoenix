@@ -214,7 +214,7 @@ export const DEFAULT_STORE_VALUES = {
  * Default output config for LLM evaluators.
  */
 const DEFAULT_LLM_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
-  ...DEFAULT_EVALUATOR_TEMPLATE.outputConfig,
+  ...DEFAULT_EVALUATOR_TEMPLATE.outputConfigs[0],
 };
 
 /**

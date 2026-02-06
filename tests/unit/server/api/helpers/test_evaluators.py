@@ -636,10 +636,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 class TestMultiConfigValidation:
     """Tests for validate_consistent_llm_evaluator_and_prompt_version with multiple configs.
 
-    The function currently validates only the first output config against the
-    prompt tool (see line 116 in evaluators.py: ``output_config = output_configs[0]``).
-    This is intentional: only the primary config is expected to match the tool.
-    These tests document that behaviour.
+    Only the first (primary) config is validated against the prompt tool definition.
+    Additional configs are independent annotation outputs that don't need to match
+    the prompt tool structure. These tests document that behaviour.
     """
 
     def test_multi_config_with_inconsistent_second_config_does_not_raise(
@@ -649,7 +648,7 @@ class TestMultiConfigValidation:
     ) -> None:
         """When the first config is consistent but a subsequent config would
         be inconsistent (different labels), validation should still pass
-        because only the first config is checked."""
+        because only the primary config is checked against the prompt tool."""
         from phoenix.server.api.helpers.evaluators import (
             validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
         )
@@ -672,8 +671,36 @@ class TestMultiConfigValidation:
             description=None,
             output_configs=[output_config, inconsistent_second_config],
         )
-        # Should not raise because only the first config is validated
+        # Should not raise because only the primary config is validated
         validate_fn(prompt_version, llm_evaluator)
+
+    def test_multi_config_all_categorical_required(
+        self,
+        output_config: CategoricalAnnotationConfig,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        """All configs must be CategoricalAnnotationConfig, even if only the primary
+        config is validated against the prompt tool."""
+        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
+        from phoenix.server.api.helpers.evaluators import (
+            validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
+        )
+
+        non_categorical_config = ContinuousAnnotationConfig(
+            type="CONTINUOUS",
+            name="score",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            lower_bound=0.0,
+            upper_bound=1.0,
+        )
+        llm_evaluator = models.LLMEvaluator(
+            prompt_id=1,
+            name="test",
+            description=None,
+            output_configs=[output_config, non_categorical_config],
+        )
+        with pytest.raises(ValueError, match="CategoricalAnnotationConfig"):
+            validate_fn(prompt_version, llm_evaluator)
 
 
 class TestApplyInputMapping:

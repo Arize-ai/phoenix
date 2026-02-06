@@ -49,66 +49,6 @@ def get_annotation_config_overrides_dict(
     return result if result else None
 
 
-def get_annotation_config_override(
-    evaluator_input: PlaygroundEvaluatorInput,
-) -> AnnotationConfigOverrideType | None:
-    """Backward-compatible shim: returns the first override value (or None).
-
-    ``chat_mutations.py`` still uses the single-override API. This thin wrapper
-    delegates to ``get_annotation_config_overrides_dict`` and returns the first
-    value so that the existing call-sites keep working until they are migrated
-    to the multi-output API.
-    """
-    overrides = get_annotation_config_overrides_dict(evaluator_input)
-    if not overrides:
-        return None
-    # Return the first override value
-    return next(iter(overrides.values()))
-
-
-def apply_overrides_to_annotation_config(
-    *,
-    annotation_config: CategoricalAnnotationConfig | ContinuousAnnotationConfig,
-    annotation_config_override: AnnotationConfigOverrideType | None,
-    name: str,
-    description_override: str | None,
-) -> CategoricalAnnotationConfig | ContinuousAnnotationConfig:
-    """
-    Apply overrides to an annotation config.
-    """
-    if isinstance(annotation_config, CategoricalAnnotationConfig):
-        categorical_override: CategoricalAnnotationConfigOverride | None = None
-        if annotation_config_override is not None:
-            if not isinstance(annotation_config_override, CategoricalAnnotationConfigOverride):
-                raise ValueError(
-                    "Cannot apply a continuous annotation config override "
-                    "to a categorical annotation config"
-                )
-            categorical_override = annotation_config_override
-        return merge_categorical_annotation_config(
-            base=annotation_config,
-            override=categorical_override,
-            name=name,
-            description_override=description_override,
-        )
-    elif isinstance(annotation_config, ContinuousAnnotationConfig):
-        continuous_override: ContinuousAnnotationConfigOverride | None = None
-        if annotation_config_override is not None:
-            if not isinstance(annotation_config_override, ContinuousAnnotationConfigOverride):
-                raise ValueError(
-                    "Cannot apply a categorical annotation config override "
-                    "to a continuous annotation config"
-                )
-            continuous_override = annotation_config_override
-        return merge_continuous_annotation_config(
-            base=annotation_config,
-            override=continuous_override,
-            name=name,
-            description_override=description_override,
-        )
-    assert_never(annotation_config)
-
-
 def merge_categorical_annotation_config(
     base: CategoricalAnnotationConfig,
     override: Optional[CategoricalAnnotationConfigOverride],

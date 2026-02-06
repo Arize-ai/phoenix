@@ -49,5 +49,5 @@ const DEFAULT_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
 export const DEFAULT_EVALUATOR_TEMPLATE: LLMEvaluatorTemplate = {
   systemPrompt: SYSTEM_PROMPT.trim(),
   userPrompt: USER_PROMPT.trim(),
-  outputConfig: DEFAULT_OUTPUT_CONFIG,
+  outputConfigs: [DEFAULT_OUTPUT_CONFIG],
 };
