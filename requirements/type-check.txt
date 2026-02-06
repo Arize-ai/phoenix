@@ -33,3 +33,4 @@ types-tqdm
 types-ldap3
 arize
 types-PyYAML
+arize
