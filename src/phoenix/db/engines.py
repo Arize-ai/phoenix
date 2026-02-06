@@ -169,11 +169,19 @@ def aio_postgresql_engine(
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
+        get_env_database_max_overflow,
+        get_env_database_pool_pre_ping,
+        get_env_database_pool_recycle,
+        get_env_database_pool_size,
         get_env_postgres_iam_token_lifetime,
         get_env_postgres_use_iam_auth,
     )
 
     use_iam_auth = get_env_postgres_use_iam_auth()
+    pool_size = get_env_database_pool_size()
+    max_overflow = get_env_database_max_overflow()
+    pool_pre_ping = get_env_database_pool_pre_ping()
+    pool_recycle = get_env_database_pool_recycle()
 
     asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg", enforce_ssl=use_iam_auth)
 
@@ -213,7 +221,10 @@ def aio_postgresql_engine(
             async_creator=iam_async_creator,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            pool_recycle=token_lifetime,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_pre_ping=pool_pre_ping,
+            pool_recycle=token_lifetime,  # Use IAM token lifetime for pool recycling
         )
     else:
         engine = create_async_engine(
@@ -221,6 +232,10 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_pre_ping=pool_pre_ping,
+            pool_recycle=pool_recycle,
         )
 
     if not migrate:

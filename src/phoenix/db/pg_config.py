@@ -53,6 +53,13 @@ def get_pg_config(
             connect_args = {"ssl": _get_ssl_context(ssl_args)}
         else:
             connect_args = {}
+        # Add TCP keepalive settings to detect broken connections through firewalls/proxies
+        # These settings help prevent "connection was closed" errors in Kubernetes environments
+        connect_args["server_settings"] = {
+            "tcp_keepalives_idle": "60",      # Send keepalive probe after 60s of idle
+            "tcp_keepalives_interval": "10",  # Send probe every 10s if no response
+            "tcp_keepalives_count": "5",      # Close connection after 5 failed probes
+        }
     else:
         assert_never(driver)
     return base_url, connect_args

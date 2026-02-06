@@ -161,6 +161,28 @@ Token lifetime in seconds for connection pool recycling when using AWS RDS IAM a
 AWS RDS auth tokens are valid for 15 minutes. This should be set slightly lower to ensure
 tokens are refreshed before expiration. Defaults to 840 seconds (14 minutes).
 """
+ENV_PHOENIX_SQL_DATABASE_POOL_SIZE = "PHOENIX_SQL_DATABASE_POOL_SIZE"
+"""
+The number of persistent connections to maintain in the PostgreSQL connection pool.
+Defaults to 10. This setting is ignored for SQLite.
+"""
+ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW = "PHOENIX_SQL_DATABASE_MAX_OVERFLOW"
+"""
+The maximum number of additional temporary connections allowed beyond pool_size for PostgreSQL.
+Defaults to 20. Total max connections = pool_size + max_overflow. This setting is ignored for SQLite.
+"""
+ENV_PHOENIX_SQL_DATABASE_POOL_PRE_PING = "PHOENIX_SQL_DATABASE_POOL_PRE_PING"
+"""
+Whether to validate PostgreSQL connections before using them from the pool.
+Enabling this (true) prevents "connection was closed" errors at the cost of a small latency overhead.
+Defaults to true. This setting is ignored for SQLite.
+"""
+ENV_PHOENIX_SQL_DATABASE_POOL_RECYCLE = "PHOENIX_SQL_DATABASE_POOL_RECYCLE"
+"""
+The number of seconds after which PostgreSQL connections are recycled (closed and reopened).
+Helps prevent issues with long-lived connections. Defaults to 300 (5 minutes).
+Set to -1 to disable. This setting is ignored for SQLite.
+"""
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
 The schema to use for the PostgresSQL database. (This is ignored for SQLite.)
@@ -3248,9 +3270,65 @@ def get_env_postgres_iam_token_lifetime() -> int:
         logger.warning(
             f"{ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS} is set to {lifetime} seconds, "
             f"which exceeds AWS RDS IAM token validity (900 seconds / 15 minutes). "
-            f"Consider setting it to 840 seconds (14 minutes) or less."
         )
     return lifetime
+
+
+def get_env_database_pool_size() -> int:
+    """
+    Gets the PostgreSQL connection pool size.
+
+    Returns:
+        int: Number of persistent connections to maintain (default: 10)
+    """
+    pool_size = _int_val(ENV_PHOENIX_SQL_DATABASE_POOL_SIZE, 10)
+    if pool_size <= 0:
+        raise ValueError(
+            f"{ENV_PHOENIX_SQL_DATABASE_POOL_SIZE} must be a positive integer. Got: {pool_size}"
+        )
+    return pool_size
+
+
+def get_env_database_max_overflow() -> int:
+    """
+    Gets the PostgreSQL connection pool max overflow.
+
+    Returns:
+        int: Maximum additional temporary connections beyond pool_size (default: 20)
+    """
+    max_overflow = _int_val(ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW, 20)
+    if max_overflow < 0:
+        raise ValueError(
+            f"{ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW} must be non-negative. Got: {max_overflow}"
+        )
+    return max_overflow
+
+
+def get_env_database_pool_pre_ping() -> bool:
+    """
+    Gets whether to validate PostgreSQL connections before use.
+
+    Returns:
+        bool: True to enable connection health checks (default: True)
+    """
+    return _bool_val(ENV_PHOENIX_SQL_DATABASE_POOL_PRE_PING, True)
+
+
+def get_env_database_pool_recycle() -> int:
+    """
+    Gets the PostgreSQL connection recycle time in seconds.
+
+    Returns:
+        int: Seconds after which to recycle connections (default: 300)
+             Returns -1 if recycling is disabled
+    """
+    pool_recycle = _int_val(ENV_PHOENIX_SQL_DATABASE_POOL_RECYCLE, 300)
+    if pool_recycle < -1 or pool_recycle == 0:
+        raise ValueError(
+            f"{ENV_PHOENIX_SQL_DATABASE_POOL_RECYCLE} must be -1 (disabled) or a positive integer. "
+            f"Got: {pool_recycle}"
+        )
+    return pool_recycle
 
 
 def _validate_iam_auth_config() -> None:
