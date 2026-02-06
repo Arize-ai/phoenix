@@ -20,7 +20,8 @@ export function EvaluatorKindToken(props: {
   }, [kind]);
   return (
     <Token color={color} size={size}>
-      {kind}
+      {/* for now, all builtin evaluators are code evaluators */}
+      {kind === "BUILTIN" ? "CODE" : kind}
     </Token>
   );
 }

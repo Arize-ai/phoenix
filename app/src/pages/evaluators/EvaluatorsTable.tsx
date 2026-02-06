@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { graphql, readInlineData } from "react-relay";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   ColumnDef,
   ExpandedState,
@@ -23,7 +23,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -174,7 +174,6 @@ type EvaluatorsTableProps = {
    * pass the resulting edges into this prop.
    */
   rowReferences: EvaluatorsTable_row$key[];
-  emptyState?: React.ReactNode;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -185,28 +184,17 @@ type EvaluatorsTableProps = {
     sort?: EvaluatorSort | null;
     filter?: EvaluatorFilter | null;
   }) => void;
-  onRowClick?: (row: TableRow) => void;
-  /**
-   * If datasetId is provided, the table will include an action menu with
-   * the ability to unassign the evaluator from the dataset.
-   */
-  datasetId?: string;
-  /**
-   * If provided, these connections will be updated when a row is edited or deleted.
-   */
-  updateConnectionIds?: string[];
 };
 
 export const EvaluatorsTable = ({
   rowReferences,
-  emptyState,
   isLoadingNext,
   hasNext,
   loadNext,
   refetch,
-  onRowClick,
 }: EvaluatorsTableProps) => {
   "use no memo";
+  const navigate = useNavigate();
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
   const { fullTimeFormatter } = useTimeFormatters();
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -228,7 +216,7 @@ export const EvaluatorsTable = ({
     },
     [setSort]
   );
-  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [expanded, setExpanded] = useState<ExpandedState>(true);
   const tableData = useMemo(() => {
     return rowReferences.map(readRow).map((evaluator) => ({
       rowType: "evaluator" as const,
@@ -445,7 +433,7 @@ export const EvaluatorsTable = ({
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
-    return emptyState || <EmptyState />;
+    return <EmptyState />;
   }
 
   return (
@@ -457,7 +445,7 @@ export const EvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -507,13 +495,21 @@ export const EvaluatorsTable = ({
         </thead>
         <tbody>
           {rows.map((row) => {
+            const rowIsExpandable = row.getCanExpand();
             return (
               <tr
                 key={row.id}
                 data-depth={row.depth}
+                style={{
+                  cursor: "pointer",
+                }}
                 onClick={() => {
-                  if (row.original.rowType === "evaluator") {
-                    onRowClick?.(row.original.data);
+                  if (rowIsExpandable) {
+                    row.toggleExpanded();
+                  } else if (row.original.rowType === "datasetEvaluator") {
+                    navigate(
+                      `/datasets/${row.original.data.dataset.id}/evaluators/${row.original.data.id}`
+                    );
                   }
                 }}
               >
