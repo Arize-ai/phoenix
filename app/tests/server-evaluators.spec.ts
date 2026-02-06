@@ -153,7 +153,7 @@ test.describe.serial("Server Evaluators", () => {
     ).toBeVisible();
   });
 
-  test("can add a prebuilt code evaluator (ExactMatch)", async ({ page }) => {
+  test("can add a prebuilt code evaluator (exact_match)", async ({ page }) => {
     // Navigate to the dataset's evaluators tab
     await page.goto("/datasets");
     await page.getByRole("link", { name: datasetName }).click();
@@ -169,8 +169,8 @@ test.describe.serial("Server Evaluators", () => {
       .getByRole("menuitem", { name: "Use built-in code evaluator" })
       .hover();
 
-    // Wait for submenu to appear and click "ExactMatch"
-    await page.getByRole("menuitem", { name: /ExactMatch/i }).click();
+    // Wait for submenu to appear and click "exact_match"
+    await page.getByRole("menuitem", { name: /exact_match/i }).click();
 
     // Verify the Create Evaluator dialog opens
     await expect(
