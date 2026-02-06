@@ -19,7 +19,7 @@
 # - https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 # - https://github.com/Arize-ai/phoenix/issues
 
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:debug
 # To deploy it on an arm64, like Raspberry Pi or Apple-Silicon, chose this image instead:
 # ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
 
@@ -37,7 +37,7 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM ghcr.io/astral-sh/uv:0.9.30-python3.11-bookworm-slim as backend-builder
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.11-bookworm-slim AS backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
@@ -46,7 +46,14 @@ COPY ./LICENSE /phoenix/
 COPY ./IP_NOTICE /phoenix/
 COPY ./README.md /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
-RUN uv sync --frozen --no-dev --no-editable --no-install-workspace --extra container --extra pg
+RUN uv sync \
+  --no-dev \
+  --no-install-project \
+  --no-sources \
+  --extra container \
+  --extra pg
+RUN uv build
+RUN uv pip install dist/*.whl --no-deps
 
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
