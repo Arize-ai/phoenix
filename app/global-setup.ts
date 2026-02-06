@@ -80,6 +80,8 @@ async function globalSetup(config: FullConfig) {
   await page.getByLabel("New Password").fill("viewer123");
   await page.getByLabel("Confirm Password").fill("viewer123");
   await page.getByRole("button", { name: "Reset Password" }).click();
+
+  await browser.close();
 }
 
 export default globalSetup;

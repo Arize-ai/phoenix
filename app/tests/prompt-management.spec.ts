@@ -1,14 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
+import { ADMIN_USER, login } from "./utils/login";
+
 test.describe("Prompt Management", () => {
   test.beforeEach(async ({ page }) => {
-    page.goto(`/login`);
-
-    await page.getByLabel("Email").fill("admin@localhost");
-    await page.getByLabel("Password").fill("admin123");
-    await page.getByRole("button", { name: "Log In", exact: true }).click();
-    await page.waitForURL("**/projects");
+    await login(page, ADMIN_USER);
   });
 
   test("can create a prompt", async ({ page }) => {

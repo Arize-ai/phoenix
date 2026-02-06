@@ -24,16 +24,16 @@ export const CodeEvaluatorForm = () => {
       case "contains": {
         return <ContainsEvaluatorForm />;
       }
-      case "exactmatch": {
+      case "exact_match": {
         return <ExactMatchEvaluatorForm />;
       }
       case "regex": {
         return <RegexEvaluatorForm />;
       }
-      case "levenshteindistance": {
+      case "levenshtein_distance": {
         return <LevenshteinDistanceEvaluatorForm />;
       }
-      case "jsondistance": {
+      case "json_distance": {
         return <JSONDistanceEvaluatorForm />;
       }
     }
