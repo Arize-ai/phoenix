@@ -32,3 +32,4 @@ types-tabulate
 types-tqdm
 types-ldap3
 types-PyYAML
+arize
