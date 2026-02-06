@@ -342,25 +342,28 @@ describe("extractPathsFromDatasetExamples", () => {
     const examples = [
       {
         input: { query: "hello" },
-        output: { label: "greeting" },
+        reference: { label: "greeting" },
         metadata: { source: "test" },
+        taskOutput: { label: "greeting" },
       },
     ];
     const result = extractPathsFromDatasetExamples(examples, null);
-    // Should have input, reference (from output), and metadata
+    // Should have input, reference (from output), output (from taskOutput), and metadata
     expect(result).toContain("input");
     expect(result).toContain("input.query");
     expect(result).toContain("reference");
     expect(result).toContain("reference.label");
     expect(result).toContain("metadata");
     expect(result).toContain("metadata.source");
+    expect(result).toContain("output");
+    expect(result).toContain("output.label");
   });
 
   it("scopes paths to input when templateVariablesPath is 'input'", () => {
     const examples = [
       {
         input: { query: "hello", context: { text: "world" } },
-        output: { label: "greeting" },
+        reference: { label: "greeting" },
         metadata: { source: "test" },
       },
     ];
@@ -379,7 +382,7 @@ describe("extractPathsFromDatasetExamples", () => {
     const examples = [
       {
         input: { query: "hello" },
-        output: { label: "greeting", score: 0.9 },
+        reference: { label: "greeting", score: 0.9 },
         metadata: { source: "test" },
       },
     ];
@@ -393,8 +396,8 @@ describe("extractPathsFromDatasetExamples", () => {
 
   it("merges paths from multiple examples", () => {
     const examples = [
-      { input: { a: 1 }, output: {}, metadata: {} },
-      { input: { b: 2 }, output: {}, metadata: {} },
+      { input: { a: 1 }, reference: {}, metadata: {} },
+      { input: { b: 2 }, reference: {}, metadata: {} },
     ];
     const result = extractPathsFromDatasetExamples(examples, null);
     expect(result).toContain("input.a");
@@ -403,8 +406,8 @@ describe("extractPathsFromDatasetExamples", () => {
 
   it("deduplicates paths", () => {
     const examples = [
-      { input: { query: "a" }, output: {}, metadata: {} },
-      { input: { query: "b" }, output: {}, metadata: {} },
+      { input: { query: "a" }, reference: {}, metadata: {} },
+      { input: { query: "b" }, reference: {}, metadata: {} },
     ];
     const result = extractPathsFromDatasetExamples(examples, null);
     const queryCount = result.filter((p) => p === "input.query").length;
@@ -414,7 +417,7 @@ describe("extractPathsFromDatasetExamples", () => {
   it("respects maxExamples limit", () => {
     const examples = Array.from({ length: 100 }, (_, i) => ({
       input: { [`field${i}`]: i },
-      output: {},
+      reference: {},
       metadata: {},
     }));
     const result = extractPathsFromDatasetExamples(examples, null, 5);
@@ -426,7 +429,7 @@ describe("extractPathsFromDatasetExamples", () => {
 
   it("returns sorted paths", () => {
     const examples = [
-      { input: { z: 1, a: 2, m: 3 }, output: {}, metadata: {} },
+      { input: { z: 1, a: 2, m: 3 }, reference: {}, metadata: {} },
     ];
     const result = extractPathsFromDatasetExamples(examples, null);
     const sorted = [...result].sort();
@@ -442,7 +445,7 @@ describe("extractPathsFromDatasetExamples", () => {
     const examples = [
       {
         input: { nested: { foo: "bar", baz: 123 } },
-        output: {},
+        reference: {},
         metadata: {},
       },
     ];
@@ -464,7 +467,7 @@ describe("extractPathsFromDatasetExamples", () => {
             },
           },
         },
-        output: {},
+        reference: {},
         metadata: {},
       },
     ];
