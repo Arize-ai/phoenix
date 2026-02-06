@@ -16,6 +16,13 @@ import type {
 import type { DeepPartial } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
+/**
+ * Union type for annotation configs (categorical or continuous).
+ */
+export type AnnotationConfig =
+  | ClassificationEvaluatorAnnotationConfig
+  | ContinuousEvaluatorAnnotationConfig;
+
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
     id: string;
@@ -32,9 +39,11 @@ export type EvaluatorStoreProps = {
     isBuiltin: boolean;
     includeExplanation: boolean;
   };
-  outputConfig?:
-    | ClassificationEvaluatorAnnotationConfig
-    | ContinuousEvaluatorAnnotationConfig;
+  /**
+   * Array of output configurations for multi-output evaluators.
+   * Each config defines an annotation that the evaluator will produce.
+   */
+  outputConfigs: AnnotationConfig[];
   dataset?: {
     id: string;
     readonly: boolean;
@@ -54,13 +63,22 @@ export type EvaluatorStoreActions = {
   setEvaluatorDescription: (description: string) => void;
   /** Sets whether the evaluator should include an explanation in its output. */
   setIncludeExplanation: (includeExplanation: boolean) => void;
-  /** Sets the name of the output configuration (annotation name). */
+  /**
+   * Sets the name of the output configuration (annotation name).
+   * @deprecated Use setOutputConfigNameAtIndex instead for multi-output support.
+   */
   setOutputConfigName: (name: string) => void;
-  /** Sets the optimization direction (MAXIMIZE or MINIMIZE) for the output config. */
+  /**
+   * Sets the optimization direction (MAXIMIZE or MINIMIZE) for the output config.
+   * @deprecated Use setOutputConfigOptimizationDirectionAtIndex instead for multi-output support.
+   */
   setOutputConfigOptimizationDirection: (
     optimizationDirection: EvaluatorOptimizationDirection
   ) => void;
-  /** Sets the classification choices for the output configuration. */
+  /**
+   * Sets the classification choices for the output configuration.
+   * @deprecated Use setOutputConfigValuesAtIndex instead for multi-output support.
+   */
   setOutputConfigValues: (values: ClassificationChoice[]) => void;
   /** Sets a single path mapping entry by key. */
   setInputMappingPath: (path: string, value: string) => void;
@@ -91,6 +109,31 @@ export type EvaluatorStoreActions = {
   setSelectedSplitIds: (selectedSplitIds: string[]) => void;
   /** Sets whether to show the prompt preview panel. */
   setShowPromptPreview: (showPromptPreview: boolean) => void;
+
+  // Multi-output config CRUD actions
+  /** Adds a new output config to the array. */
+  addOutputConfig: (config: AnnotationConfig) => void;
+  /** Removes an output config at the specified index. */
+  removeOutputConfig: (index: number) => void;
+  /** Updates an output config at the specified index with partial updates. */
+  updateOutputConfig: (
+    index: number,
+    updates: Partial<AnnotationConfig>
+  ) => void;
+  /** Replaces all output configs with a new array. */
+  setOutputConfigs: (configs: AnnotationConfig[]) => void;
+  /** Sets the name of the output config at a specific index. */
+  setOutputConfigNameAtIndex: (index: number, name: string) => void;
+  /** Sets the optimization direction of the output config at a specific index. */
+  setOutputConfigOptimizationDirectionAtIndex: (
+    index: number,
+    optimizationDirection: EvaluatorOptimizationDirection
+  ) => void;
+  /** Sets the classification choices for the output config at a specific index. */
+  setOutputConfigValuesAtIndex: (
+    index: number,
+    values: ClassificationChoice[]
+  ) => void;
 };
 
 export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
@@ -163,7 +206,15 @@ export const DEFAULT_STORE_VALUES = {
   },
   evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   showPromptPreview: false,
+  outputConfigs: [] as AnnotationConfig[],
 } satisfies DeepPartial<EvaluatorStoreProps>;
+
+/**
+ * Default output config for LLM evaluators.
+ */
+const DEFAULT_LLM_OUTPUT_CONFIG: ClassificationEvaluatorAnnotationConfig = {
+  ...DEFAULT_EVALUATOR_TEMPLATE.outputConfig,
+};
 
 /**
  * Default values for LLM evaluators.
@@ -175,7 +226,7 @@ export const DEFAULT_LLM_EVALUATOR_STORE_VALUES = {
     kind: "LLM",
     isBuiltin: false,
   },
-  outputConfig: { ...DEFAULT_EVALUATOR_TEMPLATE.outputConfig },
+  outputConfigs: [DEFAULT_LLM_OUTPUT_CONFIG],
 } satisfies EvaluatorStoreProps;
 
 /**
@@ -188,6 +239,7 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
     kind: "BUILTIN",
     isBuiltin: true,
   },
+  outputConfigs: [],
 } satisfies EvaluatorStoreProps;
 
 export const createEvaluatorStore = (
@@ -212,12 +264,13 @@ export const createEvaluatorStore = (
             set(
               {
                 evaluator: { ...get().evaluator, globalName },
-                // synchronize the output config name with the evaluator name
               },
               undefined,
               "setEvaluatorGlobalName"
             );
-            get().setOutputConfigName(globalName);
+            if (get().outputConfigs.length <= 1) {
+              get().setOutputConfigName(globalName);
+            }
           },
           setEvaluatorName(name) {
             set(
@@ -227,7 +280,9 @@ export const createEvaluatorStore = (
               undefined,
               "setEvaluatorName"
             );
-            get().setOutputConfigName(name);
+            if (get().outputConfigs.length <= 1) {
+              get().setOutputConfigName(name);
+            }
           },
           setEvaluatorDescription(description) {
             set(
@@ -237,33 +292,58 @@ export const createEvaluatorStore = (
             );
           },
           setOutputConfigName(name) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
+            const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = { ...baseConfig, name };
+            const newConfigs =
+              currentConfigs.length > 0
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
-              { outputConfig: { ...baseOutputConfig, name } },
+              {
+                outputConfigs: newConfigs,
+              },
               undefined,
               "setOutputConfigName"
             );
           },
           setOutputConfigOptimizationDirection(optimizationDirection) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
+            const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = {
+              ...baseConfig,
+              optimizationDirection,
+            };
+            const newConfigs =
+              currentConfigs.length > 0
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
               {
-                outputConfig: { ...baseOutputConfig, optimizationDirection },
+                outputConfigs: newConfigs,
               },
               undefined,
               "setOutputConfigOptimizationDirection"
             );
           },
           setOutputConfigValues(values) {
-            const baseOutputConfig =
-              get().outputConfig ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfig;
+            const currentConfigs = get().outputConfigs;
+            const baseConfig =
+              currentConfigs[0] ??
+              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
+            const newConfig = { ...baseConfig, values };
+            const newConfigs =
+              currentConfigs.length > 0
+                ? [newConfig, ...currentConfigs.slice(1)]
+                : [newConfig];
             set(
-              { outputConfig: { ...baseOutputConfig, values } },
+              {
+                outputConfigs: newConfigs,
+              },
               undefined,
               "setOutputConfigValues"
             );
@@ -435,6 +515,76 @@ export const createEvaluatorStore = (
               undefined,
               "setIncludeExplanation"
             );
+          },
+          // Multi-output config CRUD actions
+          addOutputConfig(config) {
+            const currentConfigs = get().outputConfigs;
+            set(
+              { outputConfigs: [...currentConfigs, config] },
+              undefined,
+              "addOutputConfig"
+            );
+          },
+          removeOutputConfig(index) {
+            const currentConfigs = get().outputConfigs;
+            const newConfigs = currentConfigs.filter((_, i) => i !== index);
+            set(
+              {
+                outputConfigs: newConfigs,
+              },
+              undefined,
+              "removeOutputConfig"
+            );
+          },
+          updateOutputConfig(index, updates) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], ...updates };
+            set({ outputConfigs: newConfigs }, undefined, "updateOutputConfig");
+          },
+          setOutputConfigs(configs) {
+            set({ outputConfigs: configs }, undefined, "setOutputConfigs");
+          },
+          setOutputConfigNameAtIndex(index, name) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], name };
+            set(
+              { outputConfigs: newConfigs },
+              undefined,
+              "setOutputConfigNameAtIndex"
+            );
+          },
+          setOutputConfigOptimizationDirectionAtIndex(
+            index,
+            optimizationDirection
+          ) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], optimizationDirection };
+            set(
+              { outputConfigs: newConfigs },
+              undefined,
+              "setOutputConfigOptimizationDirectionAtIndex"
+            );
+          },
+          setOutputConfigValuesAtIndex(index, values) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            // Only update if it's a classification config
+            const currentConfig = newConfigs[index];
+            if ("values" in currentConfig) {
+              newConfigs[index] = { ...currentConfig, values };
+              set(
+                { outputConfigs: newConfigs },
+                undefined,
+                "setOutputConfigValuesAtIndex"
+              );
+            }
           },
         } satisfies EvaluatorStoreActions;
         return {

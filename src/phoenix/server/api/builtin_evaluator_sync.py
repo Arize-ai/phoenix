@@ -14,6 +14,7 @@ import logging
 from sqlalchemy import delete, select
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import AnnotationConfigType
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
@@ -39,7 +40,9 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
             current_keys.add(key)
 
             evaluator = evaluator_cls()
-            output_cfg = evaluator.output_config
+            # Cast to the broader AnnotationConfigType since EvaluatorOutputConfig
+            # is a subset (excludes FreeformAnnotationConfig)
+            output_cfgs: list[AnnotationConfigType] = list(evaluator.output_configs)
 
             # Check if this evaluator already exists by key
             existing = await session.scalar(
@@ -51,7 +54,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                 existing.name = Identifier(evaluator_cls.name)
                 existing.description = evaluator_cls.description
                 existing.input_schema = evaluator.input_schema
-                existing.output_config = output_cfg.model_dump()
+                existing.output_configs = output_cfgs
             else:
                 # Create new record using ORM (handles polymorphic inheritance)
                 # synced_at uses server_default=sa.func.now()
@@ -62,7 +65,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     user_id=None,
                     key=key,
                     input_schema=evaluator.input_schema,
-                    output_config=output_cfg.model_dump(),
+                    output_configs=output_cfgs,
                 )
                 session.add(new_evaluator)
 

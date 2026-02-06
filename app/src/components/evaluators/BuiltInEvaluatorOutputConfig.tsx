@@ -10,7 +10,7 @@ import { ReadOnlyContinuousConfig } from "./ReadOnlyContinuousConfig";
  * but allows editing the optimization direction.
  */
 export const BuiltInEvaluatorOutputConfig = () => {
-  const outputConfig = useEvaluatorStore((state) => state.outputConfig);
+  const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
 
   if (!outputConfig) {
     return null;

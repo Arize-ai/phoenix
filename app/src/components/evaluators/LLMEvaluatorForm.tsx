@@ -19,7 +19,7 @@ export const LLMEvaluatorForm = () => {
       useShallow((state) => ({
         showPromptPreview: state.showPromptPreview,
         setShowPromptPreview: state.setShowPromptPreview,
-        outputConfig: state.outputConfig,
+        outputConfig: state.outputConfigs[0],
       }))
     );
   const isCategoricalAnnotationConfig = useMemo(() => {

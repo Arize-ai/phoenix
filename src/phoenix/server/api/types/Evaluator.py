@@ -13,21 +13,17 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+    AnnotationConfigType,
 )
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfigOverride,
-    ContinuousAnnotationConfigOverride,
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.annotation_configs import (
-    merge_categorical_annotation_config,
-    merge_continuous_annotation_config,
-)
+from phoenix.server.api.helpers.annotation_configs import merge_configs_with_overrides
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
@@ -290,24 +286,26 @@ class LLMEvaluator(Evaluator, Node):
         return EvaluatorKind(val)
 
     @strawberry.field
-    async def output_config(
+    async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> CategoricalAnnotationConfig:
-        config: CategoricalAnnotationConfigModel
+    ) -> list[CategoricalAnnotationConfig]:
         if self.db_record:
-            assert isinstance(self.db_record.output_config, CategoricalAnnotationConfigModel)
-            config = self.db_record.output_config
+            configs = self.db_record.output_configs
         else:
-            config = await info.context.data_loaders.llm_evaluator_fields.load(
-                (self.id, models.LLMEvaluator.output_config),
+            configs = await info.context.data_loaders.llm_evaluator_fields.load(
+                (self.id, models.LLMEvaluator.output_configs),
             )
-        return _to_gql_categorical_annotation_config(
-            config=config,
-            annotation_name=config.name or "",
-            id_prefix="Evaluator",
-            evaluator_id=self.id,
-        )
+        return [
+            _to_gql_categorical_annotation_config(
+                config=config,
+                annotation_name=config.name or "",
+                id_prefix="Evaluator",
+                evaluator_id=self.id,
+            )
+            for config in configs
+            if isinstance(config, CategoricalAnnotationConfigModel)
+        ]
 
     @strawberry.field
     async def created_at(
@@ -539,18 +537,24 @@ class BuiltInEvaluator(Evaluator, Node):
         return None
 
     @strawberry.field
-    async def output_config(
+    async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> "BuiltInEvaluatorOutputConfig":
+    ) -> list["BuiltInEvaluatorOutputConfig"]:
         evaluator_class = await self._get_evaluator_class(info)
-        base_config = evaluator_class().output_config  # type: ignore[operator]
-        return _to_gql_builtin_output_config(
-            base_config,
-            evaluator_class.name,  # type: ignore[attr-defined]
-            id_prefix="Evaluator",
-            evaluator_id=self.id,
-        )
+        base_configs = evaluator_class().output_configs  # type: ignore[operator]
+        return [
+            _to_gql_builtin_output_config(
+                config,
+                config.name or evaluator_class.name,  # type: ignore[attr-defined]
+                id_prefix="Evaluator",
+                evaluator_id=self.id,
+            )
+            for config in base_configs
+            if isinstance(
+                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+            )
+        ]
 
     @strawberry.field
     async def datasets(
@@ -566,14 +570,15 @@ class BuiltInEvaluator(Evaluator, Node):
         return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
 
 
-def _generate_output_config_id(id_prefix: str, evaluator_id: int) -> int:
+def _generate_output_config_id(id_prefix: str, evaluator_id: int, config_name: str) -> int:
     """
     Generate a stable negative ID for evaluator output configs.
 
     The id_prefix ensures different contexts (e.g., "Evaluator" vs "DatasetEvaluator")
     produce distinct IDs even when referencing the same underlying evaluator_id.
+    The config_name ensures multi-output evaluators produce unique IDs per config.
     """
-    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}".encode("utf-8")))
+    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}:{config_name}".encode("utf-8")))
 
 
 def _to_gql_categorical_annotation_config(
@@ -590,7 +595,7 @@ def _to_gql_categorical_annotation_config(
         for val in config.values
     ]
     return CategoricalAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -606,7 +611,7 @@ def _to_gql_continuous_annotation_config(
     evaluator_id: int,
 ) -> ContinuousAnnotationConfig:
     return ContinuousAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id),
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -721,18 +726,20 @@ class DatasetEvaluator(Node):
             return None
 
     @strawberry.field
-    async def output_config(
+    async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> Optional[BuiltInEvaluatorOutputConfig]:
+    ) -> Optional[list[BuiltInEvaluatorOutputConfig]]:
         """
-        Returns the effective output_config for this dataset evaluator.
-        If an override is set, it's merged with the base config from the evaluator.
-        Otherwise, returns the base config from the evaluator.
+        Returns the effective output_configs for this dataset evaluator.
+        If overrides are set, they're merged with the base configs from the evaluator by name.
+        Otherwise, returns the base configs from the evaluator.
         Works for builtin evaluators, LLM evaluators, and code evaluators.
         """
+        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
         record = await self._get_record(info)
-        override = record.output_config_override
+        overrides = record.output_config_overrides
 
         async with info.context.db() as session:
             # Use with_polymorphic to eagerly load all subclass columns
@@ -747,74 +754,35 @@ class DatasetEvaluator(Node):
             if evaluator is None:
                 return None
 
+            # Get base configs from the evaluator
+            base_configs: list[AnnotationConfigType]
             if isinstance(evaluator, models.BuiltinEvaluator):
-                from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-
                 evaluator_class = get_builtin_evaluator_by_key(evaluator.key)
                 if evaluator_class is None:
                     return None
-                base_config = evaluator_class().output_config
-                if isinstance(base_config, CategoricalAnnotationConfigModel):
-                    categorical_override = (
-                        override
-                        if isinstance(override, CategoricalAnnotationConfigOverride)
-                        else None
-                    )
-                    effective_categorical_config = merge_categorical_annotation_config(
-                        base=base_config,
-                        override=categorical_override,
-                        name=record.name.root,
-                        description_override=record.description,
-                    )
-                    return _to_gql_categorical_annotation_config(
-                        config=effective_categorical_config,
-                        annotation_name=record.name.root,
-                        id_prefix="DatasetEvaluator",
-                        evaluator_id=self.id,
-                    )
-                else:
-                    continuous_override = (
-                        override
-                        if isinstance(override, ContinuousAnnotationConfigOverride)
-                        else None
-                    )
-                    effective_continuous_config = merge_continuous_annotation_config(
-                        base=base_config,
-                        override=continuous_override,
-                        name=record.name.root,
-                        description_override=record.description,
-                    )
-                    return _to_gql_continuous_annotation_config(
-                        config=effective_continuous_config,
-                        annotation_name=record.name.root,
-                        id_prefix="DatasetEvaluator",
-                        evaluator_id=self.id,
-                    )
-
+                base_configs = list(evaluator_class().output_configs)
             elif isinstance(evaluator, models.LLMEvaluator):
-                llm_base_config = evaluator.output_config
-                if llm_base_config is None or not isinstance(
-                    llm_base_config, CategoricalAnnotationConfigModel
-                ):
-                    return None
-                llm_categorical_override = (
-                    override if isinstance(override, CategoricalAnnotationConfigOverride) else None
-                )
-                effective_llm_config = merge_categorical_annotation_config(
-                    base=llm_base_config,
-                    override=llm_categorical_override,
-                    name=record.name.root,
-                    description_override=record.description,
-                )
-                return _to_gql_categorical_annotation_config(
-                    config=effective_llm_config,
-                    annotation_name=record.name.root,
+                base_configs = list(evaluator.output_configs)
+            else:
+                # CodeEvaluator doesn't have output_configs
+                return None
+
+            # Merge base configs with overrides
+            merged_configs = merge_configs_with_overrides(base_configs, overrides)
+
+            # Convert to GraphQL types
+            return [
+                _to_gql_builtin_output_config(
+                    config,
+                    config.name or "",
                     id_prefix="DatasetEvaluator",
                     evaluator_id=self.id,
                 )
-
-            # CodeEvaluator doesn't have output_config
-            return None
+                for config in merged_configs
+                if isinstance(
+                    config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+                )
+            ]
 
     @strawberry.field
     async def input_mapping(

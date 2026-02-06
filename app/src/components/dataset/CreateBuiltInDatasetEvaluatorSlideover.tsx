@@ -15,7 +15,7 @@ import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMut
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { buildOutputConfigOverride } from "@phoenix/components/evaluators/utils";
+import { buildNamedOutputConfigOverrides } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -107,7 +107,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
             }
             ... on BuiltInEvaluator {
               inputSchema
-              outputConfig {
+              outputConfigs {
                 ... on AnnotationConfigBase {
                   name
                   annotationType
@@ -159,6 +159,14 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     invariant(evaluator.name, "evaluator name is required");
     if (evaluator.kind === "BUILTIN") {
       const name = evaluator.name;
+      // Map all output configs from the evaluator to the store format
+      const outputConfigs = (evaluator.outputConfigs ?? []).map(
+        (config) =>
+          config as Mutable<
+            | ContinuousEvaluatorAnnotationConfig
+            | ClassificationEvaluatorAnnotationConfig
+          >
+      );
       return {
         ...DEFAULT_CODE_EVALUATOR_STORE_VALUES,
         dataset: {
@@ -176,10 +184,8 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           kind: evaluator.kind,
           isBuiltin: true,
         },
-        outputConfig: evaluator.outputConfig as Mutable<
-          | ContinuousEvaluatorAnnotationConfig
-          | ClassificationEvaluatorAnnotationConfig
-        >,
+        // Initialize with all output configs from the evaluator
+        outputConfigs,
       } satisfies EvaluatorStoreProps;
     }
     return null;
@@ -195,10 +201,12 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
     setError(undefined);
     const {
       evaluator: { inputMapping, name, description },
-      outputConfig,
+      outputConfigs,
     } = store.getState();
 
-    const outputConfigOverride = buildOutputConfigOverride(outputConfig);
+    // Use outputConfigs array for multi-output support
+    const outputConfigOverrides =
+      buildNamedOutputConfigOverrides(outputConfigs);
     const normalizedDescription = description.trim();
 
     createDatasetBuiltInEvaluator({
@@ -208,7 +216,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           evaluatorId: evaluator.id,
           name,
           inputMapping,
-          outputConfigOverride,
+          outputConfigOverrides,
           description: normalizedDescription,
         },
         connectionIds: updateConnectionIds,

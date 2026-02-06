@@ -600,7 +600,9 @@ async def _dataset_evaluators(
                         output_name=openai_output_name,
                         custom_provider_id=_custom_providers.openai,
                     ),
-                    "outputConfig": _evaluator_output_config(openai_output_name),
+                    "outputConfigs": [
+                        {"categorical": _evaluator_output_config(openai_output_name)}
+                    ],
                 }
             },
         )
@@ -622,7 +624,9 @@ async def _dataset_evaluators(
                         output_name=anthropic_output_name,
                         custom_provider_id=_custom_providers.anthropic,
                     ),
-                    "outputConfig": _evaluator_output_config(anthropic_output_name),
+                    "outputConfigs": [
+                        {"categorical": _evaluator_output_config(anthropic_output_name)}
+                    ],
                 }
             },
         )
@@ -644,7 +648,9 @@ async def _dataset_evaluators(
                         output_name=google_output_name,
                         custom_provider_id=_custom_providers.google_genai,
                     ),
-                    "outputConfig": _evaluator_output_config(google_output_name),
+                    "outputConfigs": [
+                        {"categorical": _evaluator_output_config(google_output_name)}
+                    ],
                 }
             },
         )
@@ -666,7 +672,9 @@ async def _dataset_evaluators(
                         output_name=bedrock_output_name,
                         custom_provider_id=_custom_providers.bedrock,
                     ),
-                    "outputConfig": _evaluator_output_config(bedrock_output_name),
+                    "outputConfigs": [
+                        {"categorical": _evaluator_output_config(bedrock_output_name)}
+                    ],
                 }
             },
         )

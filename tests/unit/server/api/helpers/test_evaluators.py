@@ -633,6 +633,49 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             )
 
 
+class TestMultiConfigValidation:
+    """Tests for validate_consistent_llm_evaluator_and_prompt_version with multiple configs.
+
+    The function currently validates only the first output config against the
+    prompt tool (see line 116 in evaluators.py: ``output_config = output_configs[0]``).
+    This is intentional: only the primary config is expected to match the tool.
+    These tests document that behaviour.
+    """
+
+    def test_multi_config_with_inconsistent_second_config_does_not_raise(
+        self,
+        output_config: CategoricalAnnotationConfig,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        """When the first config is consistent but a subsequent config would
+        be inconsistent (different labels), validation should still pass
+        because only the first config is checked."""
+        from phoenix.server.api.helpers.evaluators import (
+            validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
+        )
+
+        # Build an LLMEvaluator model instance with two configs.
+        # The first config matches the tool; the second has mismatched labels.
+        inconsistent_second_config = CategoricalAnnotationConfig(
+            type="CATEGORICAL",
+            name="hallucination",
+            optimization_direction=OptimizationDirection.MAXIMIZE,
+            description="hallucination detection",
+            values=[
+                CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                CategoricalAnnotationValue(label="factual", score=0.0),
+            ],
+        )
+        llm_evaluator = models.LLMEvaluator(
+            prompt_id=1,
+            name="test",
+            description=None,
+            output_configs=[output_config, inconsistent_second_config],
+        )
+        # Should not raise because only the first config is validated
+        validate_fn(prompt_version, llm_evaluator)
+
+
 class TestApplyInputMapping:
     def test_extracts_value_using_jsonpath_expression(self) -> None:
         input_schema = {
@@ -1315,7 +1358,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         # Context similar to subscriptions.py chat_completion context_dict
         context = {
             "input": [{"message": {"role": "user", "content": "Tell me about Paris"}}],
@@ -1343,7 +1386,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         # Context similar to subscriptions.py chat_completion_over_dataset context_dict
         context = {
             "input": {"question": "What is the capital of France?", "topic": "geography"},
@@ -1370,7 +1413,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "Paris"}},
@@ -1398,7 +1441,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ExactMatchEvaluator
 
         evaluator = ExactMatchEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "expected": {"answer": "Paris"},
             "output": {"response": {"text": "London"}},
@@ -1434,7 +1477,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
 
         evaluator = JSONDistanceEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         # Provide JSON strings directly in context
         context = {
             "expected_json": json.dumps({"items": [1, 2, 3]}),
@@ -1462,7 +1505,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         # Direct context values (fallback behavior)
         context = {
             "words": "hello,world",
@@ -1486,7 +1529,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "expected": [{"message": {"content": "Hello"}}],
             "output": [{"message": {"content": "Hallo"}}],
@@ -1513,7 +1556,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import RegexEvaluator
 
         evaluator = RegexEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "output": {
                 "response": {
@@ -1541,7 +1584,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "output": [
                 {"message": {"content": "First response"}},
@@ -1568,7 +1611,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "output": {"nested": {"value": "contains target word"}},
         }
@@ -1595,7 +1638,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = await evaluator.evaluate(
@@ -1612,7 +1655,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = await evaluator.evaluate(
@@ -1629,7 +1672,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "goodbye world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = await evaluator.evaluate(
@@ -1734,7 +1777,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
 
         evaluator = LevenshteinDistanceEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {"expected": "hello", "actual": "hallo"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
         result = await evaluator.evaluate(
@@ -1754,7 +1797,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import JSONDistanceEvaluator
 
         evaluator = JSONDistanceEvaluator()
-        output_config = evaluator.output_config
+        output_config = evaluator.output_configs[0]
         context = {
             "expected": json.dumps({"a": 1}),
             "actual": json.dumps({"a": 1}),
@@ -1921,7 +1964,7 @@ class TestLLMEvaluator:
             invocation_parameters=llm_evaluator_prompt_version.invocation_parameters,
             model_provider=llm_evaluator_prompt_version.model_provider,
             llm_client=openai_streaming_client,
-            output_config=output_config,
+            output_configs=[output_config],
             prompt_name="test-prompt",
         )
 
@@ -2024,7 +2067,7 @@ class TestLLMEvaluator:
             invocation_parameters=multipart_llm_evaluator_prompt_version.invocation_parameters,
             model_provider=multipart_llm_evaluator_prompt_version.model_provider,
             llm_client=openai_streaming_client,
-            output_config=output_config,
+            output_configs=[output_config],
             prompt_name="test-prompt",
         )
 
@@ -2080,13 +2123,13 @@ class TestLLMEvaluator:
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "PROMPT":
-                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
             elif span.span_kind == "CHAIN":
                 if span.name == "Input Mapping":
                     input_mapping_span = span
+                elif span.name.startswith("Prompt:"):
+                    prompt_span = span
                 elif span.name == "Parse Eval Result":
                     parse_eval_result_span = span
 
@@ -2145,7 +2188,7 @@ class TestLLMEvaluator:
         assert prompt_span.status_code == "OK"
         assert not prompt_span.events
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         raw_input_value = attributes.pop(INPUT_VALUE)
         input_value = json.loads(raw_input_value)
         assert input_value == {"input": "What is 2 + 2?", "output": "4"}
@@ -2504,12 +2547,13 @@ class TestLLMEvaluator:
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "CHAIN":
-                input_mapping_span = span
-            elif span.span_kind == "PROMPT":
-                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
+            elif span.span_kind == "CHAIN":
+                if span.name == "Input Mapping":
+                    input_mapping_span = span
+                elif span.name.startswith("Prompt:"):
+                    prompt_span = span
 
         assert evaluator_span is not None
         assert input_mapping_span is not None
@@ -2545,7 +2589,7 @@ class TestLLMEvaluator:
         assert prompt_span.status_code == "OK"
         assert not prompt_span.events
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
             "input": "What is 2 + 2?",
             "output": "4",
@@ -2682,13 +2726,13 @@ class TestLLMEvaluator:
         for span in db_spans:
             if span.span_kind == "EVALUATOR":
                 evaluator_span = span
-            elif span.span_kind == "PROMPT":
-                prompt_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
             elif span.span_kind == "CHAIN":
                 if span.name == "Input Mapping":
                     input_mapping_span = span
+                elif span.name.startswith("Prompt:"):
+                    prompt_span = span
                 elif span.name == "Parse Eval Result":
                     parse_eval_result_span = span
 
@@ -2813,14 +2857,14 @@ class TestLLMEvaluator:
 
         prompt_span = None
         for span in db_spans:
-            if span.span_kind == "PROMPT":
+            if span.span_kind == "CHAIN" and span.name.startswith("Prompt:"):
                 prompt_span = span
                 break
 
         assert prompt_span is not None
         assert prompt_span.name == "Prompt: test-prompt"
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
