@@ -170,7 +170,6 @@ test.describe.serial("Server Evaluators", () => {
       .hover();
 
     // Wait for submenu to appear and click "ExactMatch"
-    // Use getByRole to find the menuitem, similar to the LLM evaluator test
     await page.getByRole("menuitem", { name: /ExactMatch/i }).click();
 
     // Verify the Create Evaluator dialog opens
@@ -433,14 +432,16 @@ test.describe.serial("Server Evaluators", () => {
     await page.waitForLoadState("networkidle");
 
     // Check if the playground is showing the "No provider" message
-    // If so, we skip this test as it requires providers to be installed
+    // If so, we error and fail the test
     const noProviderMessage = page.getByText(
       "The playground is not available until an LLM provider client is installed"
     );
     if (
       await noProviderMessage.isVisible({ timeout: 5000 }).catch(() => false)
     ) {
-      test.skip(true, "Playground requires an LLM provider to be installed");
+      throw new Error(
+        "Playground requires an LLM provider to be installed. Playwright test environment is not configured correctly."
+      );
       return;
     }
 
