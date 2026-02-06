@@ -2371,7 +2371,7 @@ class TestEvaluatorsQuery:
         assert len(edges) == 2
         evaluators_by_name = {edge["evaluator"]["name"]: edge["evaluator"] for edge in edges}
         assert evaluators_by_name["llm_eval"]["kind"] == "LLM"
-        assert evaluators_by_name["Contains"]["kind"] == "BUILTIN"
+        assert evaluators_by_name["contains"]["kind"] == "BUILTIN"
 
     async def test_evaluators_excludes_unassociated_builtin_evaluators(
         self,
@@ -2444,7 +2444,7 @@ class TestEvaluatorsQuery:
         assert not response.errors
         assert (data := response.data) is not None
         names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
-        assert names.count("ExactMatch") == 1
+        assert names.count("exact_match") == 1
 
     async def test_evaluators_filter_by_name(
         self,
@@ -2506,8 +2506,7 @@ class TestEvaluatorsQuery:
         assert (data := response.data) is not None
         names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
         # Sorted by DB name column: "contains" < "llm_eval"
-        # BuiltInEvaluator GQL resolver returns display name "Contains"
-        assert names == ["Contains", "llm_eval"]
+        assert names == ["contains", "llm_eval"]
 
         # Sort descending
         response = await gql_client.execute(
@@ -2516,7 +2515,7 @@ class TestEvaluatorsQuery:
         assert not response.errors
         assert (data := response.data) is not None
         names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
-        assert names == ["llm_eval", "Contains"]
+        assert names == ["llm_eval", "contains"]
 
     async def test_evaluators_sort_by_kind(
         self,
