@@ -92,14 +92,14 @@ class TestEvaluatorFields:
                 dataset_id=dataset_a.id,
                 evaluator_id=untagged.id,
                 name=Identifier("de_one"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name=f"{dataset_a.name}/de_one"),
             )
             de_2 = models.DatasetEvaluators(
                 dataset_id=dataset_b.id,
                 evaluator_id=untagged.id,
                 name=Identifier("de_two"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(name=f"{dataset_b.name}/de_two"),
             )
             session.add_all([de_1, de_2])
