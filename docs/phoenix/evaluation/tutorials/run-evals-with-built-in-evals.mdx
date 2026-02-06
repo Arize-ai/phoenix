@@ -1,0 +1,248 @@
+---
+title: "Run Evals With Built-In Eval Templates" 
+---
+
+This guide is part of a sequence: it starts with built-in eval templates, then moves to customizing the judge model, then to defining your own evaluation criteria. Here you configure a judge model, select a pre-built evaluation, and run it on real data—specifically, data derived from Phoenix traces.
+
+The goal is to go from traced application executions to structured quality signals that can be inspected, compared, and logged back to Phoenix. This guide assumes you already have tracing in place and focuses on using evals to measure correctness and behavior.
+
+At its core, an LLM-as-a-judge evaluation combines three things:
+
+1. The judge model: the LLM that produces the judgment
+
+2. A prompt template or rubric: the criteria used to make that judgment
+
+3. Your data: the examples being evaluated
+
+Once you’ve defined what you want to evaluate and selected the data to run on, the next step is configuring the judge model. The choice of model and its invocation settings directly affect how criteria are interpreted and how consistent evaluation results are.
+
+This guide walks through how to configure a judge model and run built-in eval templates using Phoenix Evals.
+
+Follow along with the following code assets: 
+
+<Columns cols={2}>
+  <Card title="Python Tutorial" icon="python" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/agno_agent_for_evals.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/quickstarts/langchain-ts-quickstart">
+    Companion TypeScript project with runnable examples
+  </Card>
+</Columns>
+
+--- 
+
+## Configure Core LLM Setup
+Evals need an LLM to act as the judge—the model that applies the rubric to your data. Configuring that judge is the first step. Phoenix Evals is provider-agnostic. You can run evaluations using any supported LLM provider without changing how your evaluators are written.
+
+Across both the Python and TypeScript evals libraries, a judge model is represented as a reusable configuration object. This object describes how Phoenix connects to a model provider, including the provider name, model identifier, credentials, and any SDK-specific client configuration.
+
+Invocation behavior (temperature, token limits, or other generation controls) is configured separately on the evaluator. This separation makes it possible to reuse the same judge model across multiple evals while tuning behavior per evaluation.
+
+The example below illustrates this separation by configuring a judge model independently of any specific evaluator:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from phoenix.evals.llm import LLM
+
+    llm = LLM(
+        provider="openai",
+        model="gpt-4o",
+        client="openai",
+    )
+    ```
+  </Tab>
+    <Tab title="TypeScript">
+    ```typescript
+    import { openai } from "@ai-sdk/openai";
+    
+    const base_model = openai("gpt-4o-mini");
+    ```
+    </Tab>
+</Tabs>
+In practice, this means you can adjust how a model is called for one eval without affecting others, while keeping provider configuration centralized.
+
+## Built-In Eval Templates in Phoenix
+
+Phoenix includes a set of built-in eval templates that cover common evaluation tasks such as relevance, correctness, faithfulness, summarization quality, and toxicity. These templates encode a predefined rubric, structured outputs, and defaults that work well for LLM-as-a-judge workflows.
+
+You can find all [built in templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) here.
+
+Built-in templates are a good choice when you want reliable signal quickly without designing a rubric from scratch, especially early in iteration or when establishing a baseline.
+
+The example below shows a minimal setup using the built-in Correctness eval template with a configured judge model:
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from phoenix.evals.metrics import CorrectnessEvaluator
+
+    correctness_eval = CorrectnessEvaluator(llm=llm)
+    print(correctness_eval.describe())
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+  const evaluator = createCorrectnessEvaluator({
+    model: base_model as any,
+  });
+  ```
+  </Tab>
+</Tabs>
+Once defined, built-in evaluators can be run on tabular data or trace-derived examples and logged back to Phoenix like any other eval. Because they return structured outputs, results can be compared across runs and combined with other evaluations.
+
+## Running Evals on Phoenix Traces
+
+With a judge model and evaluator defined, the next step is running evals on real application data. A common workflow is evaluating traced executions and attaching results back to spans in Phoenix. Once attached, you can inspect failures and edge cases in the UI, compare behavior across runs, and use eval results as inputs to datasets and experiments.
+
+**1. Export trace spans**
+
+Start by exporting spans from a Phoenix project into a tabular structure:
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.client import Client
+
+  client = Client()
+  spans_df = client.spans.get_spans_dataframe(project_identifier="agno_travel_agent")
+  agent_spans = spans_df[spans_df['span_kind'] == 'AGENT']
+  agent_spans
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript 
+  import { getSpans } from "@arizeai/phoenix-client/spans";
+
+  const projectName =
+    process.env.PHOENIX_PROJECT_NAME || "langchain-travel-agent";
+  const { spans } = await getSpans({ project: { projectName }, limit: 500 });
+  ```
+  </Tab>
+</Tabs>
+Each row represents a span and includes identifiers and attributes captured during execution.
+
+**2. Prepare Evaluator Inputs**
+Next, select or transform fields from the exported spans so they match the evaluator’s expected inputs. This often involves extracting nested attributes such as:
+
+Ex. `attributes.input.value` & `attributes.output.value`
+
+Input mappings help bridge differences between how data is stored in traces and what evaluators expect.
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals import bind_evaluator
+
+  bound_evaluator = bind_evaluator(
+      evaluator=correctness_eval,
+      input_mapping={
+          "input": "attributes.input.value",
+          "output": "attributes.output.value",
+      }
+  )
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  We may need to manipulate the data a little bit here to make it easier to pass into the evaluator. We can first define some helper functions. 
+  ```typescript
+  const toStr = (v: unknown) =>
+  typeof v === "string" ? v : v != null ? JSON.stringify(v) : null;
+
+  function getInputOutput(span: any) {
+    const attrs = span.attributes ?? {};
+    const input = toStr(attrs["input.value"] ?? attrs["input"]);
+    const output = toStr(attrs["output.value"] ?? attrs["output"]);
+    return { input, output };
+  }
+
+  const parentSpans: { spanId: string; input: string; output: string }[] = [];
+  for (const s of spans) {
+    const name = (s as any).name ?? (s as any).span_name;
+    if (name !== "LangGraph") continue;
+    const { input, output } = getInputOutput(s);
+    const spanId =
+      (s as any).context?.span_id ?? (s as any).span_id ?? (s as any).id;
+    if (input && output && spanId) {
+      parentSpans.push({ spanId: String(spanId), input, output });
+    }
+  }
+  ```
+  </Tab>
+</Tabs>
+
+**3. Run evals on the prepared data**
+
+Once the evaluation dataframe is prepared, you can run evals in batch using the same APIs used for any tabular data.
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals import evaluate_dataframe
+  from phoenix.trace import suppress_tracing
+  with suppress_tracing():
+    results_df = evaluate_dataframe(agent_spans, [bound_evaluator])
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  const spanAnnotations = await Promise.all(
+    parentSpans.map(async ({ spanId, input, output }) => {
+      const r = await evaluator.evaluate({ input, output });
+      console.log(r.explanation);
+      return {
+        spanId,
+        name: "correctness" as const,
+        label: r.label,
+        score: r.score,
+        explanation: r.explanation ?? undefined,
+        annotatorKind: "LLM" as const,
+        metadata: { evaluator: "correctness", input, output },
+      };
+    }),
+  );
+  ```
+  </Tab>
+</Tabs>
+
+**4. Log results back to Phoenix**
+
+Finally, log evaluation results back to Phoenix as span annotations. Phoenix uses span identifiers to associate eval outputs with the correct execution.
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals.utils import to_annotation_dataframe
+
+  evaluations = to_annotation_dataframe(dataframe=results_df)
+  Client().spans.log_span_annotations_dataframe(dataframe=evaluations)
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+  await logSpanAnnotations({ spanAnnotations, sync: true });
+  ```
+  </Tab>
+</Tabs>
+Once logged, eval results appear alongside traces in the Phoenix UI, making it possible to analyze execution behavior and quality together.
+
+--- 
+With built-in evals running on traced data, you can now:
+
+* Inspect failures and edge cases
+
+* Compare behavior across runs
+
+* Use eval results as inputs to datasets and experiments
+
+This completes the core loop from tracing → evaluation → analysis.
+
+## What’s Next
+
+At this point, you’ve seen how to run evaluations using Phoenix’s built-in eval templates and attach quality signals to real application executions. This provides a fast way to measure behavior and establish baselines using predefined criteria.
+
+In the next guides, we’ll build on this foundation by customizing different parts of the evaluation workflow. Specifically, the next page walks through how to define a custom LLM judge, including how to configure model behavior and connect to different providers or endpoints. From there, we’ll move into customizing evaluation templates and defining application-specific criteria.
+
+Together, these guides show how to move from out-of-the-box evaluations to fully customized evals tailored to your application.

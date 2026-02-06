@@ -99,7 +99,8 @@ dev = [
   "nest-asyncio",  # for executor testing
   "numpy",
   "openai",
-  "openinference-semantic-conventions",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
@@ -340,6 +341,9 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
+
+[tool.uv]
+required-version = "==0.9.30"  # When updating this version, also update the `backend-builder` image in the Dockerfile
 
 [tool.uv.workspace]
 members = ["packages/*"]
