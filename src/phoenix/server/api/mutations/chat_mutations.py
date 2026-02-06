@@ -434,7 +434,7 @@ class ChatCompletionMutationMixin:
                         name = str(evaluator_input.name)
                         annotation_config_override = get_annotation_config_override(evaluator_input)
                         merged_config = apply_overrides_to_annotation_config(
-                            annotation_config=evaluator.output_config,
+                            annotation_config=evaluator.output_configs[0],
                             annotation_config_override=annotation_config_override,
                             name=name,
                             description_override=evaluator_input.description,
@@ -557,7 +557,7 @@ class ChatCompletionMutationMixin:
                         name = str(evaluator_input.name)
                         annotation_config_override = get_annotation_config_override(evaluator_input)
                         merged_config = apply_overrides_to_annotation_config(
-                            annotation_config=evaluator.output_config,
+                            annotation_config=evaluator.output_configs[0],
                             annotation_config_override=annotation_config_override,
                             name=name,
                             description_override=evaluator_input.description,
@@ -634,7 +634,7 @@ class ChatCompletionMutationMixin:
                     context=context,
                     input_mapping=input_mapping,
                     name=builtin_evaluator.name,
-                    output_config=builtin_evaluator.output_config,
+                    output_config=builtin_evaluator.output_configs[0],
                 )
                 context_result = _to_evaluation_result(eval_result, builtin_evaluator.name)
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
@@ -698,14 +698,14 @@ class ChatCompletionMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                output_config = _to_pydantic_categorical_annotation_config(
-                    inline_llm_evaluator.output_config
-                )
+                first_config = inline_llm_evaluator.output_configs[0]
+                assert first_config.categorical is not None
+                output_config = _to_pydantic_categorical_annotation_config(first_config.categorical)
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
-                    output_config=output_config,
+                    output_configs=[output_config],
                     description=inline_llm_evaluator.description,
                 )
 
@@ -713,7 +713,7 @@ class ChatCompletionMutationMixin:
                     validate_evaluator_prompt_and_config(
                         prompt_tools=prompt_version_orm.tools,
                         prompt_response_format=prompt_version_orm.response_format,
-                        evaluator_annotation_name=inline_llm_evaluator.output_config.name,
+                        evaluator_annotation_name=first_config.categorical.name,
                         evaluator_output_config=output_config,
                         evaluator_description=inline_llm_evaluator.description,
                     )
@@ -723,12 +723,10 @@ class ChatCompletionMutationMixin:
                 eval_result = await evaluator.evaluate(
                     context=context,
                     input_mapping=input_mapping,
-                    name=inline_llm_evaluator.output_config.name,
+                    name=first_config.categorical.name,
                     output_config=output_config,
                 )
-                context_result = _to_evaluation_result(
-                    eval_result, inline_llm_evaluator.output_config.name
-                )
+                context_result = _to_evaluation_result(eval_result, first_config.categorical.name)
 
             else:
                 raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
