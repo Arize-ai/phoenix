@@ -25,24 +25,6 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
           0.0 if incorrect), and an `explanation` from the LLM judge.
         - Requires an LLM that supports tool calling or structured output.
 
-    Criteria for Correct Handling:
-        - Data is extracted accurately from the tool result (no hallucination).
-        - Dates, numbers, and structured fields are properly transformed.
-        - Results are accurately summarized to address the user's query.
-        - Error responses are handled appropriately (retries, corrections, user notification).
-        - No disclosure of sensitive information (credentials, internal URLs, PII).
-        - The agent's response actually uses the tool result.
-
-    Criteria for Incorrect Handling:
-        - Hallucinated data not present in the tool result.
-        - Misinterpretation or misrepresentation of tool data.
-        - Improper transformation of dates, numbers, or structured data.
-        - Missing retry on retryable errors (rate limits, timeouts).
-        - Missing correction after invalid argument errors.
-        - Repeated identical calls that continue to fail.
-        - Disclosure of sensitive information.
-        - Agent's response ignores tool results.
-
     Examples::
 
         from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator

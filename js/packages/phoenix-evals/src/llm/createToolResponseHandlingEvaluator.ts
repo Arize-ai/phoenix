@@ -49,14 +49,6 @@ export type ToolResponseHandlingEvaluationRecord = {
  * handled a tool's response, including error handling, data extraction,
  * transformation, and safe information disclosure.
  *
- * The evaluator checks for:
- * - Accurate data extraction from tool results (no hallucination)
- * - Proper transformation of dates, numbers, and structured fields
- * - Accurate summarization addressing the user's query
- * - Appropriate error handling (retries, corrections, user notification)
- * - No disclosure of sensitive information (credentials, PII, internal URLs)
- * - Actually using the tool result in the response
- *
  * @param args - The arguments for creating the tool response handling evaluator.
  * @param args.model - The model to use for classification.
  * @param args.choices - The possible classification choices (defaults to correct/incorrect).
