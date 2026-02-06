@@ -180,12 +180,12 @@ async def _stream_single_chat_completion(
                 result: EvaluationResult = await evaluator.evaluate(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
-                    name=config.name or name,
-                    output_config=config,
+                    name=name,
+                    output_config=config,  # type: ignore[arg-type]
                 )
                 if result["error"] is not None:
                     yield EvaluationChunk(
-                        evaluator_name=config.name or name,
+                        evaluator_name=name,
                         error=result["error"],
                         dataset_example_id=None,
                         repetition_number=repetition_number,
@@ -202,7 +202,7 @@ async def _stream_single_chat_completion(
                     }
                 )
                 yield EvaluationChunk(
-                    evaluator_name=config.name or name,
+                    evaluator_name=name,
                     experiment_run_evaluation=annotation,
                     dataset_example_id=None,
                     repetition_number=repetition_number,
@@ -823,8 +823,8 @@ class Subscription:
                             result: EvaluationResult = await evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,
-                                name=config.name or name,
-                                output_config=config,
+                                name=name,
+                                output_config=config,  # type: ignore[arg-type]
                                 tracer=tracer,
                             )
 
@@ -840,7 +840,7 @@ class Subscription:
 
                             if result["error"] is not None:
                                 yield EvaluationChunk(
-                                    evaluator_name=config.name or name,
+                                    evaluator_name=name,
                                     error=result["error"],
                                     trace=trace,
                                     dataset_example_id=example_id,
@@ -855,7 +855,7 @@ class Subscription:
                                 session.add(annotation_model)
                                 await session.flush()
                             evaluation_chunk = EvaluationChunk(
-                                evaluator_name=config.name or name,
+                                evaluator_name=name,
                                 experiment_run_evaluation=ExperimentRunAnnotation(
                                     id=annotation_model.id,
                                     db_record=annotation_model,
