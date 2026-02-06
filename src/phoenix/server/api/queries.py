@@ -10,7 +10,7 @@ import anyio
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -1371,16 +1371,41 @@ class Query:
         # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
         # base `evaluators` table.
         PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
         )  # eagerly join sub-classed evaluator tables
-        query = select(PolymorphicEvaluator)
+
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+            )
+        )
+        query = select(PolymorphicEvaluator).where(
+            or_(
+                # non-builtin evaluators are always included
+                PolymorphicEvaluator.kind != "BUILTIN",
+                # builtin evaluators are only included if associated with at least one dataset
+                has_dataset_association,
+            )
+        )
 
         if filter:
-            column = getattr(PolymorphicEvaluator, filter.col.value)
-            # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
-                column = cast(column, String)
-            query = query.where(column.ilike(f"%{filter.value}%"))
+                parent_name_col = cast(PolymorphicEvaluator.name, String)
+                # Match parent name OR any child (datasetEvaluator) name
+                child_name_exists = exists(
+                    select(models.DatasetEvaluators.id)
+                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
+                )
+                query = query.where(
+                    or_(
+                        parent_name_col.ilike(f"%{filter.value}%"),
+                        child_name_exists,
+                    )
+                )
+            else:
+                column = getattr(PolymorphicEvaluator, filter.col.value)
+                query = query.where(column.ilike(f"%{filter.value}%"))
 
         if sort:
             if sort.col.value == "updated_at":
@@ -1390,6 +1415,7 @@ class Query:
                 sort_col = case(
                     (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
                     (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
                     else_=None,
                 )
             else:
@@ -1406,6 +1432,8 @@ class Query:
                 data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
             elif isinstance(evaluator, models.CodeEvaluator):
                 data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
             else:
                 raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 

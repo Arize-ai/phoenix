@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa465fc027d73dec9d10b7947a4c16b0>>
+ * @generated SignedSource<<2f07b68ea0a36787df5fc506d839beb0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,11 +46,25 @@ v2 = {
   "name": "name",
   "storageKey": null
 },
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v5 = [
   (v1/*: any*/),
   (v2/*: any*/)
 ],
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -171,13 +185,7 @@ return {
                       "name": "kind",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "description",
-                      "storageKey": null
-                    },
+                    (v3/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -185,13 +193,7 @@ return {
                       "name": "createdAt",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "updatedAt",
-                      "storageKey": null
-                    },
+                    (v4/*: any*/),
                     {
                       "alias": null,
                       "args": [
@@ -221,7 +223,7 @@ return {
                               "kind": "LinkedField",
                               "name": "node",
                               "plural": false,
-                              "selections": (v3/*: any*/),
+                              "selections": (v5/*: any*/),
                               "storageKey": null
                             }
                           ],
@@ -229,6 +231,32 @@ return {
                         }
                       ],
                       "storageKey": "datasets(first:10)"
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetEvaluator",
+                      "kind": "LinkedField",
+                      "name": "datasetEvaluators",
+                      "plural": true,
+                      "selections": [
+                        (v1/*: any*/),
+                        (v2/*: any*/),
+                        (v3/*: any*/),
+                        (v4/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Dataset",
+                          "kind": "LinkedField",
+                          "name": "dataset",
+                          "plural": false,
+                          "selections": (v5/*: any*/),
+                          "storageKey": null
+                        },
+                        (v6/*: any*/)
+                      ],
+                      "storageKey": null
                     },
                     {
                       "kind": "InlineFragment",
@@ -240,7 +268,7 @@ return {
                           "kind": "LinkedField",
                           "name": "prompt",
                           "plural": false,
-                          "selections": (v3/*: any*/),
+                          "selections": (v5/*: any*/),
                           "storageKey": null
                         },
                         {
@@ -255,7 +283,7 @@ return {
                           ],
                           "storageKey": null
                         },
-                        (v4/*: any*/)
+                        (v6/*: any*/)
                       ],
                       "type": "LLMEvaluator",
                       "abstractKey": null
@@ -263,7 +291,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v4/*: any*/)
+                        (v6/*: any*/)
                       ],
                       "type": "CodeEvaluator",
                       "abstractKey": null
