@@ -69,8 +69,8 @@ RUN uv pip install dist/*.whl --no-deps
 # Use the debug tag in the following line to build the debug image.
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
-COPY --from=backend-builder /phoenix/.venv/ ./env
-ENV PYTHONPATH="/phoenix/env/lib/python3.11/site-packages:$PYTHONPATH"
+COPY --from=backend-builder /phoenix/.venv/ ./.venv
+ENV PYTHONPATH="/phoenix/.venv/lib/python3.11/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.
 EXPOSE 6006
