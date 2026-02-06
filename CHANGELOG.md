@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.34.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.34.0...arize-phoenix-v12.34.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* arize 8.0.0 inference schema ([#11268](https://github.com/Arize-ai/phoenix/issues/11268)) ([c42ce16](https://github.com/Arize-ai/phoenix/commit/c42ce16dc9ade7dcb48b993eebad5a8b40011b64))
+
 ## [12.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.1...arize-phoenix-v12.34.0) (2026-02-06)
 
 
