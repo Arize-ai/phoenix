@@ -1373,21 +1373,19 @@ class Query:
         PolymorphicEvaluator = with_polymorphic(
             models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
         )  # eagerly join sub-classed evaluator tables
-        query = (
-            select(PolymorphicEvaluator)
-            .join(
-                models.DatasetEvaluators,
-                onclause=models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
-                isouter=True,
+
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id)
+            .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+            .correlate(PolymorphicEvaluator)
+        )
+        query = select(PolymorphicEvaluator).where(
+            or_(
+                # non-builtin evaluators are always included
+                PolymorphicEvaluator.kind != "BUILTIN",
+                # builtin evaluators are only included if associated with at least one dataset
+                has_dataset_association,
             )
-            # exclude builtin evaluators that are not associated with any dataset
-            .where(
-                or_(
-                    PolymorphicEvaluator.kind != "BUILTIN",
-                    models.DatasetEvaluators.dataset_id.isnot(None),
-                )
-            )
-            .distinct()
         )
 
         if filter:

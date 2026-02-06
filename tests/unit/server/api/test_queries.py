@@ -2333,7 +2333,7 @@ async def evaluators_for_querying(
             dataset_id=dataset.id,
             evaluator_id=builtin_evaluator.id,
             name=Identifier(root="builtin_dataset_eval"),
-            input_mapping={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             project_id=project.id,
         )
         session.add(dataset_evaluator)
@@ -2434,7 +2434,7 @@ class TestEvaluatorsQuery:
                         dataset_id=ds.id,
                         evaluator_id=builtin.id,
                         name=Identifier(root=f"eval-for-{ds.name}"),
-                        input_mapping={},
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project_id=project.id,
                     )
                 )
@@ -2544,6 +2544,46 @@ class TestEvaluatorsQuery:
         assert (data := response.data) is not None
         kinds = [edge["evaluator"]["kind"] for edge in data["evaluators"]["edges"]]
         assert kinds == sorted(kinds)
+
+    async def test_evaluators_sort_by_updated_at(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that evaluators can be sorted by updatedAt without errors."""
+        query = """
+          query ($sort: EvaluatorSort) {
+            evaluators(sort: $sort) {
+              edges {
+                evaluator: node {
+                  name
+                  kind
+                }
+              }
+            }
+          }
+        """
+
+        # Sort ascending
+        response = await gql_client.execute(
+            query=query, variables={"sort": {"col": "updatedAt", "dir": "asc"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        names_asc = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        assert len(names_asc) == 2
+
+        # Sort descending
+        response = await gql_client.execute(
+            query=query, variables={"sort": {"col": "updatedAt", "dir": "desc"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        names_desc = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        assert len(names_desc) == 2
+        # Both directions return the same evaluators (order may vary
+        # when timestamps are close together in test fixtures)
+        assert set(names_desc) == set(names_asc)
 
     async def test_evaluators_pagination(
         self,
