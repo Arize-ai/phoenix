@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53087234f29c8c77886baf682331cac6>>
+ * @generated SignedSource<<ad95d79e0dba3f3dd000535923c8f688>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type utils_datasetExampleToEvaluatorInput_example$data = {
   readonly input: any;
+  readonly metadata: any;
   readonly output: any;
   readonly " $fragmentType": "utils_datasetExampleToEvaluatorInput_example";
 };
@@ -25,6 +26,6 @@ const node: ReaderInlineDataFragment = {
   "name": "utils_datasetExampleToEvaluatorInput_example"
 };
 
-(node as any).hash = "a7c21c3204e88706ed67e336d574eca3";
+(node as any).hash = "2bc657d55c240986265a3810deb4eef4";
 
 export default node;

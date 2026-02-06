@@ -244,6 +244,7 @@ export const datasetExampleToEvaluatorInput = ({
       @inline {
         input
         output
+        metadata
       }
     `,
     exampleRef
@@ -252,6 +253,7 @@ export const datasetExampleToEvaluatorInput = ({
     input: example.input,
     output: taskOutput,
     reference: example.output,
+    metadata: example.metadata ?? {},
   };
 };
 
