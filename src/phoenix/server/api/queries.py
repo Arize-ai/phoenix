@@ -1375,9 +1375,9 @@ class Query:
         )  # eagerly join sub-classed evaluator tables
 
         has_dataset_association = exists(
-            select(models.DatasetEvaluators.id)
-            .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
-            .correlate(PolymorphicEvaluator)
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+            )
         )
         query = select(PolymorphicEvaluator).where(
             or_(
@@ -1396,7 +1396,6 @@ class Query:
                     select(models.DatasetEvaluators.id)
                     .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
                     .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
-                    .correlate(PolymorphicEvaluator)
                 )
                 query = query.where(
                     or_(
