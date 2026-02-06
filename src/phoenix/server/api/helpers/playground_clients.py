@@ -728,6 +728,30 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                     if usage is not None:
                         # Normalize Responses API usage format to CompletionUsage format
                         token_usage = self._normalize_responses_api_usage(usage)
+
+            # Handle failed events - raise exception to signal error
+            elif event_type == OpenAIResponsesStreamEventType.FAILED:
+                response = getattr(event, "response", None)
+                error_message = "OpenAI Responses API request failed"
+                if response is not None:
+                    error = getattr(response, "error", None)
+                    if error is not None:
+                        error_message = getattr(error, "message", error_message)
+                        error_type = getattr(error, "type", None)
+                        error_code = getattr(error, "code", None)
+                        if error_type or error_code:
+                            error_message = f"{error_message} (type: {error_type or 'unknown'}, code: {error_code or 'unknown'})"
+                raise RuntimeError(error_message)
+
+            # Handle incomplete events - raise exception to signal incomplete response
+            elif event_type == OpenAIResponsesStreamEventType.INCOMPLETE:
+                response = getattr(event, "response", None)
+                error_message = "OpenAI Responses API request incomplete"
+                if response is not None:
+                    error = getattr(response, "error", None)
+                    if error is not None:
+                        error_message = getattr(error, "message", error_message)
+                raise RuntimeError(error_message)
             # Skip unknown event types silently
 
         # Update _llm_token_counts exactly once after streaming ends
