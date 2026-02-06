@@ -4,13 +4,16 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, readInlineData } from "react-relay";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   ColumnDef,
+  ExpandedState,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getSortedRowModel,
   SortingState,
   Updater,
@@ -20,10 +23,11 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
-import { TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
+import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
@@ -102,6 +106,20 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             }
           }
         }
+        datasetEvaluators {
+          id
+          name
+          description
+          updatedAt
+          dataset {
+            id
+            name
+          }
+          user {
+            username
+            profilePictureUrl
+          }
+        }
         ... on LLMEvaluator {
           prompt {
             id
@@ -129,6 +147,55 @@ const readRow = (row: EvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
+type DatasetEvaluatorData = NonNullable<TableRow["datasetEvaluators"]>[number];
+
+// Parent row (Evaluator)
+type EvaluatorRow = {
+  rowType: "evaluator";
+  data: TableRow;
+  children: DatasetEvaluatorRow[];
+};
+
+// Child row (DatasetEvaluator)
+type DatasetEvaluatorRow = {
+  rowType: "datasetEvaluator";
+  data: DatasetEvaluatorData;
+  children: readonly []; // Leaf nodes have no children
+};
+
+// Union type for the table
+type NestedTableRow = EvaluatorRow | DatasetEvaluatorRow;
+
+const filterRows = (
+  data: EvaluatorRow[],
+  searchString: string
+): EvaluatorRow[] => {
+  if (!searchString.trim()) return data;
+
+  const lowerSearch = searchString.toLowerCase();
+
+  return data.flatMap((parent) => {
+    const parentMatches = parent.data.name.toLowerCase().includes(lowerSearch);
+
+    if (parentMatches) {
+      // Parent matches: show all children
+      return [parent];
+    }
+
+    // Parent doesn't match: show only matching children
+    const matchingChildren = parent.children.filter((child) =>
+      child.data.name.toLowerCase().includes(lowerSearch)
+    );
+
+    // Exclude parent entirely if no children match either
+    if (matchingChildren.length === 0) {
+      return [];
+    }
+
+    return [{ ...parent, children: matchingChildren }];
+  });
+};
+
 type EvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
@@ -137,7 +204,6 @@ type EvaluatorsTableProps = {
    * pass the resulting edges into this prop.
    */
   rowReferences: EvaluatorsTable_row$key[];
-  emptyState?: React.ReactNode;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -148,28 +214,17 @@ type EvaluatorsTableProps = {
     sort?: EvaluatorSort | null;
     filter?: EvaluatorFilter | null;
   }) => void;
-  onRowClick?: (row: TableRow) => void;
-  /**
-   * If datasetId is provided, the table will include an action menu with
-   * the ability to unassign the evaluator from the dataset.
-   */
-  datasetId?: string;
-  /**
-   * If provided, these connections will be updated when a row is edited or deleted.
-   */
-  updateConnectionIds?: string[];
 };
 
 export const EvaluatorsTable = ({
   rowReferences,
-  emptyState,
   isLoadingNext,
   hasNext,
   loadNext,
   refetch,
-  onRowClick,
 }: EvaluatorsTableProps) => {
   "use no memo";
+  const navigate = useNavigate();
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
@@ -190,27 +245,82 @@ export const EvaluatorsTable = ({
     },
     [setSort]
   );
+  const [expanded, setExpanded] = useState<ExpandedState>(true);
   const tableData = useMemo(() => {
-    return rowReferences.map(readRow);
-  }, [rowReferences]);
+    const rawData = rowReferences.map(readRow).map((evaluator) => ({
+      rowType: "evaluator" as const,
+      data: evaluator,
+      children: evaluator.datasetEvaluators.map((de) => ({
+        rowType: "datasetEvaluator" as const,
+        data: de,
+        children: [] as const,
+      })),
+    }));
+
+    return filterRows(rawData, filter);
+  }, [rowReferences, filter]);
   const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
+    const cols: ColumnDef<NestedTableRow>[] = [
       {
-        header: "name",
+        header: ({ table }) => (
+          <Flex gap="size-50" direction="row" alignItems="center">
+            <TableExpandButton
+              isExpanded={table.getIsAllRowsExpanded()}
+              onClick={table.getToggleAllRowsExpandedHandler()}
+              aria-label="Expand all rows"
+            />
+            name
+          </Flex>
+        ),
         accessorKey: "name",
+        cell: ({ row }) => {
+          const name = row.original.data.name;
+          return (
+            <div style={{ paddingLeft: `${row.depth * 1.5}rem` }}>
+              <Flex gap="size-50" alignItems="center">
+                {row.getCanExpand() ? (
+                  <TableExpandButton
+                    isExpanded={row.getIsExpanded()}
+                    onClick={row.getToggleExpandedHandler()}
+                    aria-label="Expand row"
+                  />
+                ) : null}
+                {row.original.rowType === "datasetEvaluator" ? (
+                  <Link
+                    to={`/datasets/${row.original.data.dataset.id}/evaluators/${row.original.data.id}`}
+                  >
+                    {name}
+                  </Link>
+                ) : (
+                  <span>{name}</span>
+                )}
+              </Flex>
+            </div>
+          );
+        },
       },
       {
         header: "kind",
         accessorKey: "kind",
         size: 80,
-        cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
-        ),
+        cell: ({ row }) => {
+          if (row.original.rowType === "evaluator") {
+            return <EvaluatorKindToken kind={row.original.data.kind} />;
+          }
+          return "--";
+        },
       },
       {
         header: "description",
         accessorKey: "description",
-        cell: TextCell,
+        cell: ({ row }) => {
+          const description = row.original.data.description;
+          if (!description) {
+            return "--";
+          }
+
+          return <Truncate maxWidth="25rem">{description}</Truncate>;
+        },
         enableSorting: false,
         size: 320,
       },
@@ -218,31 +328,44 @@ export const EvaluatorsTable = ({
         header: "prompt",
         accessorKey: "prompt",
         enableSorting: false,
-        cell: ({ row }) => (
-          <PromptCell
-            prompt={row.original.prompt}
-            promptVersionTag={row.original.promptVersionTag?.name}
-            wrapWidth={200}
-          />
-        ),
+        cell: ({ row }) => {
+          // TODO: should dataset evaluators have a prompt?
+          if (row.original.rowType === "evaluator") {
+            return (
+              <PromptCell
+                prompt={row.original.data.prompt}
+                promptVersionTag={row.original.data.promptVersionTag?.name}
+                wrapWidth={200}
+              />
+            );
+          }
+          return "--";
+        },
       },
       {
         header: "used in",
         accessorKey: "datasets",
         enableSorting: false,
         cell: ({ row }) => {
-          const datasets = row.original.datasets?.edges ?? [];
-          if (datasets.length === 0) {
-            return <Text color="text-700">—</Text>;
+          if (row.original.rowType === "evaluator") {
+            const datasets = row.original.data.datasets?.edges ?? [];
+            if (datasets.length === 0) {
+              return "--";
+            }
+            return (
+              <Flex direction="row" gap="size-100" wrap="wrap">
+                {datasets.map(({ node }) => (
+                  <Link key={node.id} to={`/datasets/${node.id}`}>
+                    {node.name}
+                  </Link>
+                ))}
+              </Flex>
+            );
           }
           return (
-            <Flex direction="row" gap="size-100" wrap="wrap">
-              {datasets.map(({ node }) => (
-                <Link key={node.id} to={`/datasets/${node.id}`}>
-                  {node.name}
-                </Link>
-              ))}
-            </Flex>
+            <Link to={`/datasets/${row.original.data.dataset.id}`}>
+              {row.original.data.dataset.name}
+            </Link>
           );
         },
       },
@@ -251,9 +374,9 @@ export const EvaluatorsTable = ({
         accessorKey: "user",
         enableSorting: false,
         cell: ({ row }) => {
-          const user = row.original.user;
+          const user = row.original.data.user;
           if (!user) {
-            return <Text color="text-700">—</Text>;
+            return "--";
           }
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -269,7 +392,8 @@ export const EvaluatorsTable = ({
       },
       {
         header: "last updated",
-        accessorKey: "updatedAt",
+        id: "updatedAt",
+        accessorFn: (row) => row.data.updatedAt,
         cell: TimestampCell,
       },
     ];
@@ -282,11 +406,18 @@ export const EvaluatorsTable = ({
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getSubRows: (row) =>
+      row.rowType === "evaluator" && row.children.length > 0
+        ? row.children
+        : undefined,
     state: {
       sorting,
+      expanded,
     },
     onSortingChange: setSorting,
-    getRowId: (row) => row.id,
+    onExpandedChange: setExpanded,
+    getRowId: (row) => row.data.id,
   });
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null
@@ -325,7 +456,7 @@ export const EvaluatorsTable = ({
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
-    return emptyState || <EmptyState />;
+    return <EmptyState />;
   }
 
   return (
@@ -337,7 +468,7 @@ export const EvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -387,11 +518,22 @@ export const EvaluatorsTable = ({
         </thead>
         <tbody>
           {rows.map((row) => {
+            const rowIsExpandable = row.getCanExpand();
             return (
               <tr
                 key={row.id}
+                data-depth={row.depth}
+                style={{
+                  cursor: "pointer",
+                }}
                 onClick={() => {
-                  onRowClick?.(row.original);
+                  if (rowIsExpandable) {
+                    row.toggleExpanded();
+                  } else if (row.original.rowType === "datasetEvaluator") {
+                    navigate(
+                      `/datasets/${row.original.data.dataset.id}/evaluators/${row.original.data.id}`
+                    );
+                  }
                 }}
               >
                 {row.getVisibleCells().map((cell) => (

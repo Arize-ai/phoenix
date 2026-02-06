@@ -18,7 +18,8 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       }}
       aria-label={props["aria-label"]}
       css={css`
-        color: var(--ac-global-text-color-white-900);
+        color: var(--ac-global-text-color-500);
+        cursor: pointer;
         .ac-icon-wrap {
           font-size: 1.2rem;
         }

@@ -318,6 +318,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
   user: User
   outputConfig: BuiltInEvaluatorOutputConfig!
 }
@@ -567,6 +568,7 @@ type CodeEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
   user: User
 }
 
@@ -1606,6 +1608,7 @@ interface Evaluator implements Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
 }
 
 enum EvaluatorColumn {
@@ -2350,6 +2353,7 @@ type LLMEvaluator implements Evaluator & Node {
   inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
   outputConfig: CategoricalAnnotationConfig!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
