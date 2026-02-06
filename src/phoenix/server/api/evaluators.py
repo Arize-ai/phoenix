@@ -290,7 +290,7 @@ class LLMEvaluator(BaseEvaluator):
                 with tracer_.start_as_current_span(
                     f"Prompt: {self._prompt_name}",
                     attributes={
-                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_span_kind_attributes("prompt"),
                         **oi.get_input_attributes(template_variables),
                     },
                 ) as prompt_span:

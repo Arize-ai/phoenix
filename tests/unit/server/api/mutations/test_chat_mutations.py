@@ -1148,7 +1148,7 @@ class TestChatCompletionMutationMixin:
                     llm_evaluator_span = span
                 elif span.span_kind == "CHAIN" and span.name == "Input Mapping":
                     llm_input_mapping_span = span
-                elif span.span_kind == "CHAIN" and span.name.startswith("Prompt:"):
+                elif span.span_kind == "PROMPT" and span.name.startswith("Prompt:"):
                     llm_prompt_span = span
                 elif span.span_kind == "LLM":
                     llm_llm_span = span
@@ -1218,12 +1218,12 @@ class TestChatCompletionMutationMixin:
 
             # Prompt span
             assert llm_prompt_span.name == "Prompt: correctness-prompt"
-            assert llm_prompt_span.span_kind == "CHAIN"
+            assert llm_prompt_span.span_kind == "PROMPT"
             assert llm_prompt_span.status_code == "OK"
             assert not llm_prompt_span.status_message
             assert not llm_prompt_span.events
             attributes = dict(flatten(llm_prompt_span.attributes, recurse_on_sequence=True))
-            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+            assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
             assert input_value == {
                 "input": "{'city': 'Paris'}",

@@ -2884,7 +2884,7 @@ class TestLLMEvaluator:
 
         prompt_span = None
         for span in db_spans:
-            if span.span_kind == "CHAIN" and span.name.startswith("Prompt:"):
+            if span.span_kind == "PROMPT" and span.name.startswith("Prompt:"):
                 prompt_span = span
                 break
 

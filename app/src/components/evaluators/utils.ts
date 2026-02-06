@@ -14,6 +14,7 @@ import {
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
+import { type AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
@@ -318,13 +319,6 @@ export const inferIncludeExplanationFromPrompt = (
     return false;
   }
 };
-
-/**
- * Union type for annotation configs (categorical or continuous).
- */
-export type AnnotationConfig =
-  | ClassificationEvaluatorAnnotationConfig
-  | ContinuousEvaluatorAnnotationConfig;
 
 /**
  * Convert an annotation config to the GraphQL AnnotationConfigInput format.
