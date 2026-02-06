@@ -871,7 +871,7 @@ class TestBuiltInEvaluatorMultiOutput:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["name"] == "Contains"
+        assert node["name"] == "contains"
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
@@ -903,7 +903,7 @@ class TestBuiltInEvaluatorMultiOutput:
         )
         assert not resp.errors and resp.data
         node = resp.data["node"]
-        assert node["name"] == "LevenshteinDistance"
+        assert node["name"] == "levenshtein_distance"
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
@@ -957,7 +957,7 @@ class TestBuiltInEvaluatorMultiOutput:
                 dataset_id=dataset.id,
                 evaluator_id=contains_id,
                 name=Identifier("contains_overridden"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides={
                     "contains": CategoricalAnnotationConfigOverride(
                         type="CATEGORICAL",
@@ -984,7 +984,7 @@ class TestBuiltInEvaluatorMultiOutput:
                 dataset_id=dataset.id,
                 evaluator_id=levenshtein_id,
                 name=Identifier("levenshtein_overridden"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides={
                     "levenshtein_distance": ContinuousAnnotationConfigOverride(
                         type="CONTINUOUS",
@@ -1104,7 +1104,7 @@ class TestBuiltInEvaluatorMultiOutput:
                 dataset_id=dataset.id,
                 evaluator_id=contains_id,
                 name=Identifier("contains_no_override"),
-                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides=None,  # No overrides
                 project_id=project.id,
             )

@@ -1541,7 +1541,7 @@ class TestAnnotationConfigTypeDecorators:
                 dataset_id=dataset.id,
                 evaluator_id=evaluator.id,
                 name=evaluator.name,
-                input_mapping={"input": "example_input"},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides=overrides,
                 project=models.Project(
                     name=f"{dataset.name}/{evaluator.name}",
@@ -1635,7 +1635,7 @@ class TestAnnotationConfigTypeDecorators:
                 dataset_id=dataset.id,
                 evaluator_id=evaluator.id,
                 name=evaluator.name,
-                input_mapping={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides=None,
                 project=models.Project(
                     name=f"{dataset.name}/{evaluator.name}",
@@ -1759,7 +1759,7 @@ class TestBuiltinEvaluatorMultiOutput:
                 dataset_id=dataset.id,
                 evaluator_id=builtin_eval.id,
                 name=builtin_eval.name,
-                input_mapping={"input": "example_input"},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_config_overrides=overrides,
                 project=models.Project(
                     name=f"{dataset.name}/{builtin_eval.name}",
