@@ -788,6 +788,8 @@ class Subscription:
             )
 
         if input.evaluators:
+            # Process revisions in reverse order to match the order in which chat completions
+            # were executed, since not_started pops from the right
             for revision in reversed(revisions):
                 example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
                 for repetition_number in range(1, input.repetitions + 1):
