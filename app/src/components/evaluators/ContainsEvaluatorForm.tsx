@@ -107,6 +107,31 @@ export const ContainsEvaluatorForm = () => {
             </Switch>
           )}
         />
+        <Controller
+          name="literalMapping.require_all"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <Switch
+              {...field}
+              value={String(field.value ?? "")}
+              onChange={(value) => field.onChange(value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : false
+              )}
+            >
+              <Label>Require all</Label>
+              <Text slot="description">
+                Whether to require all words in the list to be present in the
+                text. If false, any word in the list can be present in the text.
+              </Text>
+            </Switch>
+          )}
+        />
       </Flex>
       <BuiltInEvaluatorOutputConfig />
       <ContainsEvaluatorCodeBlock />
