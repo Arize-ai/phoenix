@@ -343,7 +343,7 @@ force-single-line = false
 line-ending = "native"
 
 [tool.uv]
-required-version = "==0.9.30"
+required-version = "==0.9.30"  # When updating this version, also update the `backend-builder` image in the Dockerfile
 
 [tool.uv.workspace]
 members = ["packages/*"]
