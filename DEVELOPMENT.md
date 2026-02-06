@@ -84,13 +84,7 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we are using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
-
-You can install `tox-uv` globally with
-
-```bash
-pip install tox-uv
-```
+Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. 
 
 `tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
 
