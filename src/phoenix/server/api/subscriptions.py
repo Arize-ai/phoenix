@@ -43,9 +43,8 @@ from phoenix.server.api.evaluators import (
     get_evaluators,
 )
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.helpers.annotation_configs import (
-    get_annotation_config_overrides_dict,
-    merge_configs_with_overrides,
+from phoenix.server.api.helpers.evaluators import (
+    get_evaluator_output_configs,
 )
 from phoenix.server.api.helpers.message_helpers import (
     ChatCompletionMessage,
@@ -174,9 +173,8 @@ async def _stream_single_chat_completion(
         }
         for evaluator, evaluator_input in zip(evaluators, input.evaluators):
             name = str(evaluator_input.name)
-            overrides = get_annotation_config_overrides_dict(evaluator_input)
-            merged_configs = merge_configs_with_overrides(evaluator.output_configs, overrides)
-            for config in merged_configs:
+            configs = get_evaluator_output_configs(evaluator_input, evaluator)
+            for config in configs:
                 result: EvaluationResult = await evaluator.evaluate(
                     context=context_dict,
                     input_mapping=evaluator_input.input_mapping,
@@ -809,11 +807,8 @@ class Subscription:
                         evaluators, input.evaluators, project_ids
                     ):
                         name = str(evaluator_input.name)
-                        overrides = get_annotation_config_overrides_dict(evaluator_input)
-                        merged_configs = merge_configs_with_overrides(
-                            evaluator.output_configs, overrides
-                        )
-                        for config in merged_configs:
+                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                        for config in configs:
                             tracer: Tracer | None = None
                             if input.tracing_enabled:
                                 tracer = Tracer(

@@ -49,12 +49,9 @@ from phoenix.server.api.evaluators import (
     get_evaluators,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.annotation_configs import (
-    get_annotation_config_overrides_dict,
-    merge_configs_with_overrides,
-)
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
 from phoenix.server.api.helpers.evaluators import (
+    get_evaluator_output_configs,
     validate_evaluator_prompt_and_config,
 )
 from phoenix.server.api.helpers.message_helpers import (
@@ -433,11 +430,8 @@ class ChatCompletionMutationMixin:
                         evaluators, input.evaluators, project_ids
                     ):
                         name = str(evaluator_input.name)
-                        overrides = get_annotation_config_overrides_dict(evaluator_input)
-                        merged_configs = merge_configs_with_overrides(
-                            evaluator.output_configs, overrides
-                        )
-                        for config in merged_configs:
+                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                        for config in configs:
                             tracer: Tracer | None = None
                             if input.tracing_enabled:
                                 tracer = Tracer(
@@ -555,11 +549,8 @@ class ChatCompletionMutationMixin:
 
                     for evaluator, evaluator_input in zip(evaluators, input.evaluators):
                         name = str(evaluator_input.name)
-                        overrides = get_annotation_config_overrides_dict(evaluator_input)
-                        merged_configs = merge_configs_with_overrides(
-                            evaluator.output_configs, overrides
-                        )
-                        for config in merged_configs:
+                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                        for config in configs:
                             eval_result: EvaluationResultDict = await evaluator.evaluate(
                                 context=context_dict,
                                 input_mapping=evaluator_input.input_mapping,

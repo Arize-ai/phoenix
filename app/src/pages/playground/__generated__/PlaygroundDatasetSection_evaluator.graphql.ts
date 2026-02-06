@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a97f9ca06135abb4e815f0e139f894f1>>
+ * @generated SignedSource<<7fb05d6ab1916eb82d1b1137ded6c970>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,7 +33,7 @@ export type PlaygroundDatasetSection_evaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  }> | null;
+  }>;
   readonly " $fragmentType": "PlaygroundDatasetSection_evaluator";
 };
 export type PlaygroundDatasetSection_evaluator$key = {

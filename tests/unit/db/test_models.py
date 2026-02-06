@@ -877,7 +877,7 @@ class TestEvaluatorPolymorphism:
                         evaluator_id=eval_1.id,
                         name=eval_1.name,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                        output_config_overrides=None,
+                        output_configs=[],
                         project=models.Project(
                             name=f"{dataset.name}/{eval_1.name}",
                             description="Project for evaluator 1",
@@ -888,7 +888,7 @@ class TestEvaluatorPolymorphism:
                         evaluator_id=eval_2.id,
                         name=eval_2.name,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                        output_config_overrides=None,
+                        output_configs=[],
                         project=models.Project(
                             name=f"{dataset.name}/{eval_2.name}",
                             description="Project for evaluator 2",
@@ -1044,7 +1044,7 @@ class TestEvaluatorPolymorphism:
                 evaluator_id=new_eval_id,
                 name=new_eval_name,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides=None,
+                output_configs=[],
                 project=models.Project(
                     name=f"{new_eval_name}-project",
                     description="Project for new evaluator",
@@ -1262,8 +1262,7 @@ class TestPromptVersion:
 class TestAnnotationConfigTypeDecorators:
     """Test serialization/deserialization of annotation config TypeDecorators.
 
-    Validates _AnnotationConfigList and _AnnotationConfigOverrideDict work correctly
-    for multi-output evaluator support.
+    Validates _AnnotationConfigList works correctly for multi-output evaluator support.
     """
 
     async def test_annotation_config_list_serialization(self, db: DbSessionFactory) -> None:
@@ -1454,15 +1453,10 @@ class TestAnnotationConfigTypeDecorators:
             assert config_2.lower_bound == 0.0
             assert config_2.upper_bound is None
 
-    async def test_annotation_config_override_dict_serialization(
+    async def test_dataset_evaluator_output_configs_serialization(
         self, db: DbSessionFactory
     ) -> None:
-        """Test _AnnotationConfigOverrideDict serializes and deserializes correctly."""
-        from phoenix.db.types.annotation_configs import (
-            CategoricalAnnotationConfigOverride,
-            ContinuousAnnotationConfigOverride,
-        )
-
+        """Test DatasetEvaluators.output_configs serializes and deserializes correctly."""
         async with db() as session:
             # Create dataset
             dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
@@ -1523,26 +1517,25 @@ class TestAnnotationConfigTypeDecorators:
             session.add(evaluator)
             await session.flush()
 
-            # Create dataset evaluator with output config overrides
-            overrides: dict[
-                str, CategoricalAnnotationConfigOverride | ContinuousAnnotationConfigOverride
-            ] = {  # noqa: E501
-                "quality": CategoricalAnnotationConfigOverride(
+            # Create dataset evaluator with output configs
+            configs: list[AnnotationConfigType] = [
+                CategoricalAnnotationConfig(
                     type="CATEGORICAL",
+                    name="quality",
                     optimization_direction=OptimizationDirection.MINIMIZE,
                     values=[
                         CategoricalAnnotationValue(label="excellent", score=2.0),
                         CategoricalAnnotationValue(label="poor", score=-1.0),
                     ],
                 ),
-            }
+            ]
 
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=evaluator.id,
                 name=evaluator.name,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides=overrides,
+                output_configs=configs,
                 project=models.Project(
                     name=f"{dataset.name}/{evaluator.name}",
                     description="Test project",
@@ -1556,20 +1549,20 @@ class TestAnnotationConfigTypeDecorators:
         async with db() as session:
             loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert loaded is not None
-            assert loaded.output_config_overrides is not None
-            assert "quality" in loaded.output_config_overrides
+            assert len(loaded.output_configs) == 1
 
-            override = loaded.output_config_overrides["quality"]
-            assert isinstance(override, CategoricalAnnotationConfigOverride)
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalAnnotationConfig)
+            assert config.name == "quality"
             # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(override.optimization_direction) == OptimizationDirection.MINIMIZE.value
-            assert override.values is not None
-            assert len(override.values) == 2
-            assert override.values[0].label == "excellent"
-            assert override.values[0].score == 2.0
+            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config.values is not None
+            assert len(config.values) == 2
+            assert config.values[0].label == "excellent"
+            assert config.values[0].score == 2.0
 
-    async def test_annotation_config_override_dict_none(self, db: DbSessionFactory) -> None:
-        """Test _AnnotationConfigOverrideDict handles None correctly."""
+    async def test_dataset_evaluator_empty_output_configs(self, db: DbSessionFactory) -> None:
+        """Test DatasetEvaluators.output_configs handles empty list correctly."""
         async with db() as session:
             # Create dataset
             dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
@@ -1630,13 +1623,13 @@ class TestAnnotationConfigTypeDecorators:
             session.add(evaluator)
             await session.flush()
 
-            # Create dataset evaluator without overrides (None)
+            # Create dataset evaluator with empty output configs
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=evaluator.id,
                 name=evaluator.name,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides=None,
+                output_configs=[],
                 project=models.Project(
                     name=f"{dataset.name}/{evaluator.name}",
                     description="Test project",
@@ -1646,11 +1639,11 @@ class TestAnnotationConfigTypeDecorators:
             await session.flush()
             dataset_evaluator_id = dataset_evaluator.id
 
-        # Verify None is preserved
+        # Verify empty list is preserved
         async with db() as session:
             loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert loaded is not None
-            assert loaded.output_config_overrides is None
+            assert loaded.output_configs == []
 
 
 class TestBuiltinEvaluatorMultiOutput:
@@ -1715,10 +1708,10 @@ class TestBuiltinEvaluatorMultiOutput:
             assert config_2.name == "confidence"
             assert len(config_2.values) == 3
 
-    async def test_builtin_evaluator_with_dataset_overrides(self, db: DbSessionFactory) -> None:
-        """Test BuiltinEvaluator can be associated with dataset and have overrides."""
-        from phoenix.db.types.annotation_configs import CategoricalAnnotationConfigOverride
-
+    async def test_builtin_evaluator_with_dataset_output_configs(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Test BuiltinEvaluator can be associated with dataset and have output configs."""
         async with db() as session:
             # Create dataset
             dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
@@ -1747,20 +1740,23 @@ class TestBuiltinEvaluatorMultiOutput:
             session.add(builtin_eval)
             await session.flush()
 
-            # Associate with dataset using overrides
-            overrides: dict[str, CategoricalAnnotationConfigOverride] = {
-                "quality": CategoricalAnnotationConfigOverride(
-                    type="CATEGORICAL",
-                    optimization_direction=OptimizationDirection.MINIMIZE,
-                ),
-            }
-
+            # Associate with dataset using custom output configs
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=builtin_eval.id,
                 name=builtin_eval.name,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides=overrides,
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
                 project=models.Project(
                     name=f"{dataset.name}/{builtin_eval.name}",
                     description="Test project",
@@ -1774,10 +1770,10 @@ class TestBuiltinEvaluatorMultiOutput:
         async with db() as session:
             loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert loaded is not None
-            assert loaded.output_config_overrides is not None
-            assert "quality" in loaded.output_config_overrides
+            assert len(loaded.output_configs) == 1
 
-            override = loaded.output_config_overrides["quality"]
-            assert isinstance(override, CategoricalAnnotationConfigOverride)
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalAnnotationConfig)
+            assert config.name == "quality"
             # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(override.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value

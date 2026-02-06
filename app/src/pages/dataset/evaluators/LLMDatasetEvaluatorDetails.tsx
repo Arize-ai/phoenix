@@ -87,16 +87,13 @@ export function LLMDatasetEvaluatorDetails({
       <View padding="size-200" overflow="auto" maxWidth={1000}>
         <Flex direction="column" gap="size-300">
           {datasetEvaluator.outputConfigs &&
-            datasetEvaluator.outputConfigs.length > 0 && (
-              <Flex direction="column" gap="size-100">
-                <Heading level={2}>
-                  {datasetEvaluator.outputConfigs.length === 1
-                    ? "Evaluator Annotation"
-                    : `Evaluator Annotations (${datasetEvaluator.outputConfigs.length})`}
-                </Heading>
-                {datasetEvaluator.outputConfigs.map((outputConfig, idx) => (
+            datasetEvaluator.outputConfigs.length > 0 &&
+            (() => {
+              const outputConfig = datasetEvaluator.outputConfigs[0];
+              return (
+                <Flex direction="column" gap="size-100">
+                  <Heading level={2}>Evaluator Annotation</Heading>
                   <div
-                    key={idx}
                     css={css`
                       background-color: var(--ac-global-background-color-dark);
                       border-radius: var(--ac-global-rounding-medium);
@@ -136,9 +133,9 @@ export function LLMDatasetEvaluatorDetails({
                       </Text>
                     </Flex>
                   </div>
-                ))}
-              </Flex>
-            )}
+                </Flex>
+              );
+            })()}
           <Flex direction="column" gap="size-100">
             <Flex justifyContent="space-between">
               <Heading level={2}>Prompt</Heading>

@@ -95,7 +95,7 @@ export const EvaluatorOutputPreview = () => {
         name: state.evaluator.name || state.evaluator.globalName,
         includeExplanation: state.evaluator.includeExplanation,
         inputMapping: state.evaluator.inputMapping,
-        outputConfigs: [outputConfig],
+        outputConfig,
         instanceId,
         datasetId: state.dataset?.id ?? "",
       });

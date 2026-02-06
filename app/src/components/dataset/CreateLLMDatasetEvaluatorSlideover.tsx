@@ -187,13 +187,13 @@ const CreateEvaluatorDialog = ({
         return;
       }
 
-      // Filter to only categorical configs for LLM evaluators
-      const categoricalConfigs = outputConfigs.filter(
+      // Get the first categorical config for LLM evaluators
+      const categoricalConfig = outputConfigs.find(
         (config): config is ClassificationEvaluatorAnnotationConfig =>
           "values" in config
       );
       invariant(
-        categoricalConfigs.length > 0,
+        categoricalConfig,
         "At least one categorical output config is required for LLM evaluators"
       );
 
@@ -202,7 +202,7 @@ const CreateEvaluatorDialog = ({
         instanceId,
         name: globalName,
         description,
-        outputConfigs: categoricalConfigs,
+        outputConfig: categoricalConfig,
         datasetId: dataset.id,
         inputMapping,
         includeExplanation,

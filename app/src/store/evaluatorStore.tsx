@@ -63,23 +63,6 @@ export type EvaluatorStoreActions = {
   setEvaluatorDescription: (description: string) => void;
   /** Sets whether the evaluator should include an explanation in its output. */
   setIncludeExplanation: (includeExplanation: boolean) => void;
-  /**
-   * Sets the name of the output configuration (annotation name).
-   * @deprecated Use setOutputConfigNameAtIndex instead for multi-output support.
-   */
-  setOutputConfigName: (name: string) => void;
-  /**
-   * Sets the optimization direction (MAXIMIZE or MINIMIZE) for the output config.
-   * @deprecated Use setOutputConfigOptimizationDirectionAtIndex instead for multi-output support.
-   */
-  setOutputConfigOptimizationDirection: (
-    optimizationDirection: EvaluatorOptimizationDirection
-  ) => void;
-  /**
-   * Sets the classification choices for the output configuration.
-   * @deprecated Use setOutputConfigValuesAtIndex instead for multi-output support.
-   */
-  setOutputConfigValues: (values: ClassificationChoice[]) => void;
   /** Sets a single path mapping entry by key. */
   setInputMappingPath: (path: string, value: string) => void;
   /** Sets a single literal mapping entry by key. */
@@ -270,7 +253,7 @@ export const createEvaluatorStore = (
               "setEvaluatorGlobalName"
             );
             if (get().outputConfigs.length <= 1) {
-              get().setOutputConfigName(globalName);
+              get().setOutputConfigNameAtIndex(0, globalName);
             }
           },
           setEvaluatorName(name) {
@@ -282,7 +265,7 @@ export const createEvaluatorStore = (
               "setEvaluatorName"
             );
             if (get().outputConfigs.length <= 1) {
-              get().setOutputConfigName(name);
+              get().setOutputConfigNameAtIndex(0, name);
             }
           },
           setEvaluatorDescription(description) {
@@ -290,63 +273,6 @@ export const createEvaluatorStore = (
               { evaluator: { ...get().evaluator, description } },
               undefined,
               "setEvaluatorDescription"
-            );
-          },
-          setOutputConfigName(name) {
-            const currentConfigs = get().outputConfigs;
-            const baseConfig =
-              currentConfigs[0] ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
-            const newConfig = { ...baseConfig, name };
-            const newConfigs =
-              currentConfigs.length > 0
-                ? [newConfig, ...currentConfigs.slice(1)]
-                : [newConfig];
-            set(
-              {
-                outputConfigs: newConfigs,
-              },
-              undefined,
-              "setOutputConfigName"
-            );
-          },
-          setOutputConfigOptimizationDirection(optimizationDirection) {
-            const currentConfigs = get().outputConfigs;
-            const baseConfig =
-              currentConfigs[0] ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
-            const newConfig = {
-              ...baseConfig,
-              optimizationDirection,
-            };
-            const newConfigs =
-              currentConfigs.length > 0
-                ? [newConfig, ...currentConfigs.slice(1)]
-                : [newConfig];
-            set(
-              {
-                outputConfigs: newConfigs,
-              },
-              undefined,
-              "setOutputConfigOptimizationDirection"
-            );
-          },
-          setOutputConfigValues(values) {
-            const currentConfigs = get().outputConfigs;
-            const baseConfig =
-              currentConfigs[0] ??
-              DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs[0];
-            const newConfig = { ...baseConfig, values };
-            const newConfigs =
-              currentConfigs.length > 0
-                ? [newConfig, ...currentConfigs.slice(1)]
-                : [newConfig];
-            set(
-              {
-                outputConfigs: newConfigs,
-              },
-              undefined,
-              "setOutputConfigValues"
             );
           },
           setPathMapping(pathMapping) {

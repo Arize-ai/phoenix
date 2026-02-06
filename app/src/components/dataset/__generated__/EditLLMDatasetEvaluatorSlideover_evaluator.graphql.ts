@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a00fd6464fd74d4350ee3815ac13e3ce>>
+ * @generated SignedSource<<8d2960fdefb471eb5d10b231f984f345>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,7 +51,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  }> | null;
+  }>;
   readonly " $fragmentType": "EditLLMDatasetEvaluatorSlideover_evaluator";
 };
 export type EditLLMDatasetEvaluatorSlideover_evaluator$key = {

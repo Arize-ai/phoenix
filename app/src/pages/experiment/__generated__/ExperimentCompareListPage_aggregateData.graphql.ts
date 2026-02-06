@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4cc2f1db296e5dbbb365ca560eb0c9f>>
+ * @generated SignedSource<<b6c0327bdc6c275d1608e4d3b07c81b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,7 @@ export type ExperimentCompareListPage_aggregateData$data = {
               readonly label: string;
               readonly score: number | null;
             }>;
-          }> | null;
+          }>;
         };
       }>;
     };

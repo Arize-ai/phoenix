@@ -67,14 +67,15 @@ const useEvaluatorLLMChoiceForm = () => {
           return;
         }
         const {
-          setOutputConfigOptimizationDirection,
-          setOutputConfigValues,
+          setOutputConfigOptimizationDirectionAtIndex,
+          setOutputConfigValuesAtIndex,
           setIncludeExplanation,
         } = store.getState();
-        setOutputConfigOptimizationDirection(
+        setOutputConfigOptimizationDirectionAtIndex(
+          0,
           outputConfig.optimizationDirection
         );
-        setOutputConfigValues(outputConfig.values);
+        setOutputConfigValuesAtIndex(0, outputConfig.values);
         setIncludeExplanation(includeExplanation);
       },
     });

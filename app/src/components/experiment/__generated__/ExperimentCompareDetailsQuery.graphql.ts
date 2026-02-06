@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6340719c7f1bd76ff7297df12fb6ffac>>
+ * @generated SignedSource<<d8eae4eb7a48644dccb61f7b65726e0d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,7 @@ export type ExperimentCompareDetailsQuery$data = {
               readonly label: string;
               readonly score: number | null;
             }>;
-          }> | null;
+          }>;
         };
       }>;
     };

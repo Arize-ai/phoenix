@@ -493,8 +493,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         from sqlalchemy import select
 
         from phoenix.db.types.annotation_configs import (
-            CategoricalAnnotationConfigOverride,
-            ContinuousAnnotationConfigOverride,
+            ContinuousAnnotationConfig,
         )
 
         async with db() as session:
@@ -526,27 +525,28 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_no_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
                 project_id=project.id,
             )
             session.add(dataset_eval_categorical_no_override)
             await session.flush()
 
-            # Note: override key matches the output config name (lowercase "contains")
             dataset_eval_categorical_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=contains_evaluator_id,
                 name=Identifier("contains_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides={
-                    "contains": CategoricalAnnotationConfigOverride(
+                output_configs=[
+                    CategoricalAnnotationConfig(
                         type="CATEGORICAL",
+                        name="contains",
                         optimization_direction=OptimizationDirection.MINIMIZE,
                         values=[
                             CategoricalAnnotationValue(label="yes", score=1.0),
                             CategoricalAnnotationValue(label="no", score=0.0),
                         ],
                     )
-                },
+                ],
                 description="Overridden description",
                 project_id=project.id,
             )
@@ -558,25 +558,26 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_no_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
                 project_id=project.id,
             )
             session.add(dataset_eval_continuous_no_override)
             await session.flush()
 
-            # Note: override key matches the output config name (lowercase "levenshtein_distance")
             dataset_eval_continuous_with_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=levenshtein_evaluator_id,
                 name=Identifier("levenshtein_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides={
-                    "levenshtein_distance": ContinuousAnnotationConfigOverride(
+                output_configs=[
+                    ContinuousAnnotationConfig(
                         type="CONTINUOUS",
+                        name="levenshtein_distance",
                         optimization_direction=OptimizationDirection.MINIMIZE,
                         lower_bound=0.1,
                         upper_bound=0.9,
                     )
-                },
+                ],
                 project_id=project.id,
             )
             session.add(dataset_eval_continuous_with_override)
@@ -591,10 +592,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         }
         yield ids
 
-    async def test_categorical_builtin_without_override(
+    async def test_categorical_builtin_without_configs_returns_empty(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        """Test that categorical builtin without override returns base config."""
+        """Test that categorical builtin without output configs returns empty list."""
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -621,13 +622,8 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         node = resp.data["node"]
         assert node["name"] == "contains_no_override"
         output_configs = node["outputConfigs"]
-        assert isinstance(output_configs, list) and len(output_configs) >= 1
-        output_config = output_configs[0]
-        assert output_config["__typename"] == "CategoricalAnnotationConfig"
-        assert output_config["name"] == "contains"
-        assert output_config["optimizationDirection"] == "MAXIMIZE"
-        labels = {v["label"] for v in output_config["values"]}
-        assert labels == {"true", "false"}
+        assert isinstance(output_configs, list)
+        assert len(output_configs) == 0
 
     async def test_categorical_builtin_with_override(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
@@ -672,10 +668,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         labels = {v["label"] for v in output_config["values"]}
         assert labels == {"yes", "no"}
 
-    async def test_continuous_builtin_without_override(
+    async def test_continuous_builtin_without_configs_returns_empty(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        """Test that continuous builtin without override returns base config."""
+        """Test that continuous builtin without output configs returns empty list."""
         resp = await gql_client.execute(
             """query ($id: ID!) {
                 node(id: $id) {
@@ -703,13 +699,8 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         node = resp.data["node"]
         assert node["name"] == "levenshtein_no_override"
         output_configs = node["outputConfigs"]
-        assert isinstance(output_configs, list) and len(output_configs) >= 1
-        output_config = output_configs[0]
-        assert output_config["__typename"] == "ContinuousAnnotationConfig"
-        assert output_config["name"] == "levenshtein_distance"
-        assert output_config["optimizationDirection"] == "MINIMIZE"
-        assert output_config["lowerBound"] == 0.0
-        assert output_config["upperBound"] is None
+        assert isinstance(output_configs, list)
+        assert len(output_configs) == 0
 
     async def test_continuous_builtin_with_override(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
@@ -775,7 +766,10 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
             }""",
             variables={
                 "id": str(
-                    GlobalID(DatasetEvaluator.__name__, str(_test_data["categorical_no_override"]))
+                    GlobalID(
+                        DatasetEvaluator.__name__,
+                        str(_test_data["categorical_with_override"]),
+                    )
                 )
             },
         )
@@ -915,12 +909,11 @@ class TestBuiltInEvaluatorMultiOutput:
         db: DbSessionFactory,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Verify overrides are correctly merged by config name for builtin evaluators."""
+        """Verify output_configs are correctly stored for builtin evaluators."""
         from sqlalchemy import select
 
         from phoenix.db.types.annotation_configs import (
-            CategoricalAnnotationConfigOverride,
-            ContinuousAnnotationConfigOverride,
+            ContinuousAnnotationConfig,
         )
 
         async with db() as session:
@@ -951,23 +944,23 @@ class TestBuiltInEvaluatorMultiOutput:
             )
             assert levenshtein_id is not None
 
-            # Create dataset evaluator with categorical override keyed by config name
-            # The Contains evaluator's output config is named "contains"
+            # Create dataset evaluator with categorical output configs
             categorical_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=contains_id,
                 name=Identifier("contains_overridden"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides={
-                    "contains": CategoricalAnnotationConfigOverride(
+                output_configs=[
+                    CategoricalAnnotationConfig(
                         type="CATEGORICAL",
+                        name="contains",
                         optimization_direction=OptimizationDirection.MINIMIZE,
                         values=[
                             CategoricalAnnotationValue(label="matched", score=1.0),
                             CategoricalAnnotationValue(label="not_matched", score=0.0),
                         ],
                     )
-                },
+                ],
                 project_id=project.id,
             )
             session.add(categorical_override)
@@ -978,21 +971,21 @@ class TestBuiltInEvaluatorMultiOutput:
             session.add(project2)
             await session.flush()
 
-            # Create dataset evaluator with continuous override keyed by config name
-            # The LevenshteinDistance evaluator's output config is named "levenshtein_distance"
+            # Create dataset evaluator with continuous output configs
             continuous_override = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=levenshtein_id,
                 name=Identifier("levenshtein_overridden"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides={
-                    "levenshtein_distance": ContinuousAnnotationConfigOverride(
+                output_configs=[
+                    ContinuousAnnotationConfig(
                         type="CONTINUOUS",
+                        name="levenshtein_distance",
                         optimization_direction=OptimizationDirection.MAXIMIZE,
                         lower_bound=0.0,
                         upper_bound=100.0,
                     )
-                },
+                ],
                 project_id=project2.id,
             )
             session.add(continuous_override)
@@ -1070,13 +1063,13 @@ class TestBuiltInEvaluatorMultiOutput:
         assert config["lowerBound"] == 0.0
         assert config["upperBound"] == 100.0
 
-    async def test_builtin_no_override_returns_base_config(
+    async def test_builtin_empty_output_configs_returns_empty(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Verify that without overrides, base config is returned unchanged."""
+        """Verify that empty output_configs returns an empty list."""
         from sqlalchemy import select
 
         async with db() as session:
@@ -1099,13 +1092,13 @@ class TestBuiltInEvaluatorMultiOutput:
             )
             assert contains_id is not None
 
-            # Create dataset evaluator WITHOUT overrides
+            # Create dataset evaluator with empty output configs
             dataset_eval = models.DatasetEvaluators(
                 dataset_id=dataset.id,
                 evaluator_id=contains_id,
                 name=Identifier("contains_no_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_overrides=None,  # No overrides
+                output_configs=[],
                 project_id=project.id,
             )
             session.add(dataset_eval)
@@ -1135,13 +1128,7 @@ class TestBuiltInEvaluatorMultiOutput:
         node = resp.data["node"]
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list)
-        assert len(output_configs) >= 1
-        config = output_configs[0]
-        # Should match the base Contains evaluator config
-        assert config["__typename"] == "CategoricalAnnotationConfig"
-        assert config["optimizationDirection"] == "MAXIMIZE"  # Base is MAXIMIZE
-        labels = {v["label"] for v in config["values"]}
-        assert labels == {"true", "false"}  # Base labels
+        assert len(output_configs) == 0
 
 
 class TestLLMEvaluatorOutputConfigs:

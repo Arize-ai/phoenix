@@ -7,7 +7,7 @@ from strawberry.scalars import JSON
 from phoenix.db.types.evaluators import InputMapping, validate_jsonpath
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
-    NamedAnnotationConfigOverrideInput,
+    AnnotationConfigInput,
 )
 from phoenix.server.api.types.Identifier import Identifier
 
@@ -48,4 +48,4 @@ class PlaygroundEvaluatorInput:
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
     )
-    output_config_overrides: Optional[list[NamedAnnotationConfigOverrideInput]] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = None

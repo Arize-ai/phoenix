@@ -10,7 +10,7 @@ from pydantic import (
 from typing_extensions import Self, assert_never
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
+from phoenix.db.types.annotation_configs import AnnotationConfigType, CategoricalAnnotationConfig
 from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptToolChoiceOneOrMore,
@@ -20,10 +20,11 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 
 if TYPE_CHECKING:
+    from phoenix.server.api.evaluators import BaseEvaluator
     from phoenix.server.api.input_types.AnnotationConfigInput import (
         AnnotationConfigInput,
-        NamedAnnotationConfigOverrideInput,
     )
+    from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
 def validate_evaluator_prompt_and_config(
@@ -283,19 +284,18 @@ def validate_min_one_config(
         raise ValueError("At least one output config is required")
 
 
-def validate_unique_override_names(
-    overrides: "list[NamedAnnotationConfigOverrideInput]",
-) -> None:
+def get_evaluator_output_configs(
+    evaluator_input: "PlaygroundEvaluatorInput",
+    evaluator: "BaseEvaluator",
+) -> list[AnnotationConfigType]:
     """
-    Validate that all override names in the list are unique.
-
-    Args:
-        overrides: List of named override inputs to validate.
-
-    Raises:
-        ValueError: If duplicate override names are found.
+    Get the output configs for an evaluator run. Uses configs from the evaluator input
+    if provided, otherwise falls back to the base evaluator's stored output configs.
     """
-    override_names = [o.name for o in overrides]
-    if len(override_names) != len(set(override_names)):
-        duplicates = [name for name in override_names if override_names.count(name) > 1]
-        raise ValueError(f"Override names must be unique. Duplicates found: {set(duplicates)}")
+    if evaluator_input.output_configs:
+        from phoenix.server.api.mutations.evaluator_mutations import (
+            _convert_output_config_inputs_to_pydantic,
+        )
+
+        return _convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
+    return list(evaluator.output_configs)

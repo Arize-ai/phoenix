@@ -143,11 +143,6 @@ input AnnotationConfigInput @oneOf {
   freeform: FreeformAnnotationConfigInput
 }
 
-input AnnotationConfigOverrideInput @oneOf {
-  categorical: CategoricalAnnotationConfigOverrideInput
-  continuous: ContinuousAnnotationConfigOverrideInput
-}
-
 input AnnotationFilter {
   include: AnnotationFilterCondition
   exclude: AnnotationFilterCondition
@@ -352,11 +347,6 @@ input CategoricalAnnotationConfigInput {
   description: String = null
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationConfigValueInput!]!
-}
-
-input CategoricalAnnotationConfigOverrideInput {
-  optimizationDirection: OptimizationDirection = null
-  values: [CategoricalAnnotationConfigValueInput!] = null
 }
 
 input CategoricalAnnotationConfigValueInput {
@@ -599,12 +589,6 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
-input ContinuousAnnotationConfigOverrideInput {
-  optimizationDirection: OptimizationDirection = null
-  lowerBound: Float = null
-  upperBound: Float = null
-}
-
 type CostBreakdown {
   """
   Total number of tokens, including tokens for which no cost was computed.
@@ -646,7 +630,7 @@ input CreateDatasetBuiltinEvaluatorInput {
   evaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!] = null
+  outputConfigs: [AnnotationConfigInput!] = null
   description: String = null
 }
 
@@ -910,7 +894,7 @@ type DatasetEvaluator implements Node {
   dataset: Dataset!
   evaluator: Evaluator!
   description: String
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   inputMapping: EvaluatorInputMapping!
   user: User
   project: Project!
@@ -2487,11 +2471,6 @@ type Mutation {
   deleteUsers(input: DeleteUsersInput!): DeleteUsersPayload!
 }
 
-input NamedAnnotationConfigOverrideInput {
-  name: String!
-  override: AnnotationConfigOverrideInput!
-}
-
 """An object with a Globally Unique ID"""
 interface Node {
   """The Globally Unique ID of this object"""
@@ -2657,7 +2636,7 @@ input PlaygroundEvaluatorInput {
   name: Identifier!
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
-  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!] = null
+  outputConfigs: [AnnotationConfigInput!] = null
 }
 
 type PlaygroundModel implements ModelInterface {
@@ -4025,7 +4004,7 @@ input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverrides: [NamedAnnotationConfigOverrideInput!]
+  outputConfigs: [AnnotationConfigInput!]
   description: String
 }
 

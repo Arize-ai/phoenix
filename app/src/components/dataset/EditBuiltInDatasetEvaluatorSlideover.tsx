@@ -14,7 +14,7 @@ import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from 
 import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { buildNamedOutputConfigOverrides } from "@phoenix/components/evaluators/utils";
+import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -258,9 +258,6 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
       outputConfigs,
     } = store.getState();
 
-    // Use outputConfigs array for multi-output support
-    const outputConfigOverrides =
-      buildNamedOutputConfigOverrides(outputConfigs);
     const normalizedDescription = description.trim();
 
     updateDatasetBuiltinEvaluator({
@@ -269,7 +266,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
           datasetEvaluatorId: datasetEvaluatorId,
           name,
           inputMapping,
-          outputConfigOverrides,
+          outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
         },
         connectionIds: updateConnectionIds ?? [],

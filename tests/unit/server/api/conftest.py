@@ -925,7 +925,7 @@ async def assign_correctness_llm_evaluator_to_dataset(
             evaluator_id=correctness_llm_evaluator.id,
             name=correctness_llm_evaluator.name,
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            output_config_overrides=None,
+            output_configs=[],
             project=models.Project(
                 name="correctness-evaluator-project",
                 description="Project for llm evaluator",

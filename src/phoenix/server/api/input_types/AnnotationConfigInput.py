@@ -21,23 +21,6 @@ class CategoricalAnnotationConfigInput:
 
 
 @strawberry.input
-class CategoricalAnnotationConfigOverrideInput:
-    """Override for categorical annotation config. All fields optional."""
-
-    optimization_direction: Optional[OptimizationDirection] = None
-    values: Optional[list[CategoricalAnnotationConfigValueInput]] = None
-
-
-@strawberry.input
-class ContinuousAnnotationConfigOverrideInput:
-    """Override for continuous annotation config. All fields optional."""
-
-    optimization_direction: Optional[OptimizationDirection] = None
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-
-
-@strawberry.input
 class ContinuousAnnotationConfigInput:
     name: str
     description: Optional[str] = None
@@ -70,31 +53,3 @@ class AnnotationConfigInput:
             != 1
         ):
             raise BadRequest("Exactly one of categorical, continuous, or freeform must be set")
-
-
-@strawberry.input(one_of=True)
-class AnnotationConfigOverrideInput:
-    """Input for an annotation config override. One of categorical or continuous."""
-
-    categorical: Optional[CategoricalAnnotationConfigOverrideInput] = strawberry.UNSET
-    continuous: Optional[ContinuousAnnotationConfigOverrideInput] = strawberry.UNSET
-
-    def __post_init__(self) -> None:
-        if (
-            sum(
-                [
-                    self.categorical is not strawberry.UNSET,
-                    self.continuous is not strawberry.UNSET,
-                ]
-            )
-            != 1
-        ):
-            raise BadRequest("Exactly one of categorical or continuous must be set")
-
-
-@strawberry.input
-class NamedAnnotationConfigOverrideInput:
-    """Input for a named annotation config override, used for multi-output evaluators."""
-
-    name: str
-    override: AnnotationConfigOverrideInput

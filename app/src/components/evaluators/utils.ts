@@ -117,7 +117,7 @@ export const updateLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfigs,
+  outputConfig,
   datasetId,
   datasetEvaluatorId,
   inputMapping,
@@ -130,22 +130,14 @@ export const updateLLMEvaluatorPayload = ({
   name: string;
   description: string;
   /**
-   * Array of output configs. The first categorical config will be used
-   * for the prompt tool definition.
+   * The output config for the evaluator. Used for the prompt tool definition.
    */
-  outputConfigs: ClassificationEvaluatorAnnotationConfig[];
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
-
-  const configs = outputConfigs;
-  const primaryConfig = configs[0];
-
-  if (!primaryConfig) {
-    throw new Error("At least one output config is required");
-  }
 
   const { prunedPromptInput: promptVersion, promptVersionId } =
     createPromptVersionInput({
@@ -153,7 +145,7 @@ export const updateLLMEvaluatorPayload = ({
       instanceId,
       name,
       description,
-      outputConfig: primaryConfig,
+      outputConfig,
       includeExplanation,
     });
 
@@ -164,16 +156,18 @@ export const updateLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfigs: configs.map((config) => ({
-      categorical: {
-        name: config.name,
-        optimizationDirection: config.optimizationDirection,
-        values: config.values.map((v) => ({
-          label: v.label,
-          score: v.score ?? null,
-        })),
+    outputConfigs: [
+      {
+        categorical: {
+          name: outputConfig.name,
+          optimizationDirection: outputConfig.optimizationDirection,
+          values: outputConfig.values.map((v) => ({
+            label: v.label,
+            score: v.score ?? null,
+          })),
+        },
       },
-    })),
+    ],
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -185,7 +179,7 @@ export const createLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfigs,
+  outputConfig,
   datasetId,
   inputMapping,
   includeExplanation,
@@ -207,10 +201,9 @@ export const createLLMEvaluatorPayload = ({
    */
   description: string;
   /**
-   * Array of output configs. The first categorical config will be used
-   * for the prompt tool definition.
+   * The output config for the evaluator. Used for the prompt tool definition.
    */
-  outputConfigs: ClassificationEvaluatorAnnotationConfig[];
+  outputConfig: ClassificationEvaluatorAnnotationConfig;
   /**
    * The input mapping of the evaluator.
    */
@@ -227,20 +220,13 @@ export const createLLMEvaluatorPayload = ({
   const name = rawName.trim();
   const description = rawDescription.trim() || undefined;
 
-  const configs = outputConfigs;
-  const primaryConfig = configs[0];
-
-  if (!primaryConfig) {
-    throw new Error("At least one output config is required");
-  }
-
   const { prunedPromptInput: promptVersion, promptVersionId } =
     createPromptVersionInput({
       playgroundStore,
       instanceId,
       name,
       description,
-      outputConfig: primaryConfig,
+      outputConfig,
       includeExplanation,
     });
 
@@ -250,16 +236,18 @@ export const createLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfigs: configs.map((config) => ({
-      categorical: {
-        name: config.name,
-        optimizationDirection: config.optimizationDirection,
-        values: config.values.map((v) => ({
-          label: v.label,
-          score: v.score ?? null,
-        })),
+    outputConfigs: [
+      {
+        categorical: {
+          name: outputConfig.name,
+          optimizationDirection: outputConfig.optimizationDirection,
+          values: outputConfig.values.map((v) => ({
+            label: v.label,
+            score: v.score ?? null,
+          })),
+        },
       },
-    })),
+    ],
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -332,127 +320,11 @@ export const inferIncludeExplanationFromPrompt = (
 };
 
 /**
- * The type of output config override used in dataset evaluator mutations.
- */
-export type OutputConfigOverride =
-  | {
-      categorical: {
-        optimizationDirection: EvaluatorOptimizationDirection;
-      };
-    }
-  | {
-      continuous: {
-        optimizationDirection: EvaluatorOptimizationDirection;
-      };
-    };
-
-/**
- * The type of named output config override used in dataset evaluator mutations.
- * This matches the GraphQL NamedAnnotationConfigOverrideInput type.
- */
-export type NamedOutputConfigOverride = {
-  name: string;
-  override: OutputConfigOverride;
-};
-
-/**
  * Union type for annotation configs (categorical or continuous).
  */
 export type AnnotationConfig =
   | ClassificationEvaluatorAnnotationConfig
   | ContinuousEvaluatorAnnotationConfig;
-
-/**
- * Build the output config override from a single annotation config.
- *
- * This determines whether the config is categorical (has "values" property)
- * or continuous and constructs the appropriate override structure.
- */
-const buildOutputConfigOverride = (
-  outputConfig: AnnotationConfig | null | undefined
-): OutputConfigOverride | undefined => {
-  if (!outputConfig) {
-    return undefined;
-  }
-
-  if ("values" in outputConfig) {
-    // Categorical config
-    return {
-      categorical: {
-        optimizationDirection: outputConfig.optimizationDirection,
-      },
-    };
-  }
-
-  // Continuous config
-  return {
-    continuous: {
-      optimizationDirection: outputConfig.optimizationDirection,
-    },
-  };
-};
-
-/**
- * Build named output config overrides from the store's output config(s).
- *
- * This creates an array of NamedAnnotationConfigOverrideInput objects
- * that can be passed to the GraphQL mutations.
- *
- * Supports both a single config (for backward compatibility) and an array of configs.
- *
- * @param outputConfigOrConfigs - A single config, an array of configs, or null/undefined
- * @returns An array of NamedOutputConfigOverride objects
- */
-export const buildNamedOutputConfigOverrides = (
-  outputConfigOrConfigs:
-    | AnnotationConfig
-    | AnnotationConfig[]
-    | null
-    | undefined
-): NamedOutputConfigOverride[] => {
-  if (!outputConfigOrConfigs) {
-    return [];
-  }
-
-  // Normalize to array
-  const configs = Array.isArray(outputConfigOrConfigs)
-    ? outputConfigOrConfigs
-    : [outputConfigOrConfigs];
-
-  return configs
-    .map((config) => {
-      const override = buildOutputConfigOverride(config);
-      if (!override) {
-        return null;
-      }
-      return {
-        name: config.name,
-        override,
-      };
-    })
-    .filter((item): item is NamedOutputConfigOverride => item !== null);
-};
-
-/**
- * Build named output config overrides from a Map of overrides.
- *
- * This is useful when you have already processed overrides and stored them
- * in a Map keyed by config name.
- *
- * @param overrides - A Map where keys are config names and values are the override objects
- * @returns An array of NamedOutputConfigOverride objects, or undefined if the map is empty
- */
-export const buildNamedOutputConfigOverridesFromMap = (
-  overrides: Map<string, OutputConfigOverride>
-): NamedOutputConfigOverride[] | undefined => {
-  if (overrides.size === 0) {
-    return undefined;
-  }
-  return Array.from(overrides.entries()).map(([name, override]) => ({
-    name,
-    override,
-  }));
-};
 
 /**
  * Convert an annotation config to the GraphQL AnnotationConfigInput format.
@@ -567,19 +439,4 @@ export const getOutputConfigValidationErrors = (
   }
 
   return errors;
-};
-
-export const formatBuiltinEvaluatorDisplayName = (name: string) => {
-  return (
-    name
-      // convert camel case to snake case, but keep contiguous uppercase sequences together (e.g. "JSONDistance" -> "JSON_Distance")
-      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // Handle boundary between acronym and normal word: JSONDistance -> JSON_Distance
-      .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // Handle boundary between lower and upper: fooBar -> foo_Bar
-      // replace spaces with underscores
-      .replace(/\s+/g, "_")
-      // trim leading and trailing underscores
-      .replace(/^_+|_+$/g, "")
-      // convert to lowercase
-      .toLowerCase()
-  );
 };

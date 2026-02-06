@@ -194,7 +194,11 @@ class TestDatasetLLMEvaluatorMutations:
                 literal_mapping={}, path_mapping={}
             )
             assert db_dataset_evaluator.description == "test description"
-            assert db_dataset_evaluator.output_config_overrides is None
+            assert len(db_dataset_evaluator.output_configs) == 1
+            dataset_eval_config = db_dataset_evaluator.output_configs[0]
+            assert dataset_eval_config.name == "correctness"
+            assert isinstance(dataset_eval_config, CategoricalAnnotationConfig)
+            assert len(dataset_eval_config.values) == 2
             assert llm_evaluator.output_configs is not None
             assert len(llm_evaluator.output_configs) == 1
             output_config = llm_evaluator.output_configs[0]
@@ -1278,7 +1282,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.output_config_overrides is None
+            assert len(db_dataset_evaluator.output_configs) == 1
+            assert db_dataset_evaluator.output_configs[0].name == "result"
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
             assert db_evaluator.output_configs[0].name == "result"
@@ -2367,18 +2372,14 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
-    async def test_create_dataset_builtin_evaluator_invalid_merged_continuous_bounds(
+    async def test_create_dataset_builtin_evaluator_invalid_continuous_bounds(
         self,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
         db: DbSessionFactory,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Test that continuous output config override validates merged bounds.
-
-        When only one bound is provided in the override, it should be validated
-        against the base config's bounds to ensure the merged result is valid.
-        """
+        """Test that continuous output config validates bounds."""
         # Look up the builtin evaluator ID by key from the database
         async with db() as session:
             levenshtein_id = await session.scalar(
@@ -2391,28 +2392,39 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
         levenshtein_gid = str(GlobalID("BuiltInEvaluator", str(levenshtein_id)))
 
+        # Invalid: lower_bound >= upper_bound should fail
         result = await self._create(
             gql_client,
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             name="test-levenshtein",
-            outputConfigOverrides=[
-                {"name": "levenshtein_distance", "override": {"continuous": {"upperBound": -1.0}}}
+            outputConfigs=[
+                {
+                    "continuous": {
+                        "name": "levenshtein_distance",
+                        "optimizationDirection": "MAXIMIZE",
+                        "lowerBound": 0.0,
+                        "upperBound": -1.0,
+                    }
+                }
             ],
         )
         assert result.errors
-        assert "lower_bound" in result.errors[0].message.lower()
-        assert "upper_bound" in result.errors[0].message.lower()
 
+        # Valid: lower_bound < upper_bound should succeed
         result = await self._create(
             gql_client,
             datasetId=dataset_id,
             evaluatorId=levenshtein_gid,
             name="test-levenshtein-2",
-            outputConfigOverrides=[
+            outputConfigs=[
                 {
-                    "name": "levenshtein_distance",
-                    "override": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                    "continuous": {
+                        "name": "levenshtein_distance",
+                        "optimizationDirection": "MAXIMIZE",
+                        "lowerBound": 5.0,
+                        "upperBound": 10.0,
+                    }
                 }
             ],
         )
@@ -2628,7 +2640,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     dataset_id=empty_dataset.id,
                     name=llm_evaluator_name,
                     description="test description",
-                    output_config_overrides=None,
+                    output_configs=[],
                     input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     project=models.Project(
                         name=f"{empty_dataset.name}/{llm_evaluator_name}",
@@ -2710,14 +2722,14 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         )
         assert result.errors and "already exists" in result.errors[0].message.lower()
 
-    async def test_update_dataset_builtin_evaluator_invalid_merged_continuous_bounds(
+    async def test_update_dataset_builtin_evaluator_invalid_continuous_bounds(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         empty_dataset: models.Dataset,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Test that update mutation validates merged bounds for continuous config override."""
+        """Test that update mutation validates bounds for continuous config."""
         # Look up the builtin evaluator ID by key from the database
         async with db() as session:
             levenshtein_id = await session.scalar(
@@ -2751,35 +2763,43 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             "id"
         ]
 
+        # Invalid: lower_bound >= upper_bound should fail
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
-                    "outputConfigOverrides": [
+                    "outputConfigs": [
                         {
-                            "name": "levenshtein_distance",
-                            "override": {"continuous": {"upperBound": -1.0}},
+                            "continuous": {
+                                "name": "levenshtein_distance",
+                                "optimizationDirection": "MAXIMIZE",
+                                "lowerBound": 0.0,
+                                "upperBound": -1.0,
+                            }
                         }
                     ],
                 }
             },
         )
         assert result.errors
-        assert "lower_bound" in result.errors[0].message.lower()
-        assert "upper_bound" in result.errors[0].message.lower()
 
+        # Valid: lower_bound < upper_bound should succeed
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
-                    "outputConfigOverrides": [
+                    "outputConfigs": [
                         {
-                            "name": "levenshtein_distance",
-                            "override": {"continuous": {"lowerBound": 5.0, "upperBound": 10.0}},
+                            "continuous": {
+                                "name": "levenshtein_distance",
+                                "optimizationDirection": "MAXIMIZE",
+                                "lowerBound": 5.0,
+                                "upperBound": 10.0,
+                            }
                         }
                     ],
                 }
@@ -2884,7 +2904,7 @@ async def llm_evaluator(
                 dataset_id=empty_dataset.id,
                 name=evaluator_name,
                 description="correctness description",
-                output_config_overrides=None,
+                output_configs=[],
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3045,7 +3065,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_overrides=None,
+                        output_configs=[],
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3171,7 +3191,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_overrides=None,
+                        output_configs=[],
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3332,7 +3352,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_overrides=None,
+                        output_configs=[],
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3444,7 +3464,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_config_overrides=None,
+                        output_configs=[],
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3807,14 +3827,14 @@ class TestMultiOutputEvaluators:
         error_message = result.errors[0].message.lower()
         assert "duplicate" in error_message or "unique" in error_message
 
-    async def test_override_matches_by_name(
+    async def test_custom_output_configs(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Create a builtin evaluator with override and verify the override matches by name."""
+        """Create a builtin evaluator with custom output configs and verify storage."""
         # Look up the exact_match evaluator (has categorical config)
         async with db() as session:
             exact_match_evaluator = await session.scalar(
@@ -3828,24 +3848,27 @@ class TestMultiOutputEvaluators:
         # Get the base config name from the builtin evaluator
         assert exact_match_evaluator.output_configs is not None
         assert len(exact_match_evaluator.output_configs) > 0
-        base_config_name = exact_match_evaluator.output_configs[0].name
+        base_config = exact_match_evaluator.output_configs[0]
+        base_config_name = base_config.name
 
-        # Create with override that matches by name - using optimization_direction
+        # Create with custom output configs
         result = await gql_client.execute(
             self._CREATE_BUILTIN_MUTATION,
             {
                 "input": {
                     "datasetId": dataset_id,
                     "evaluatorId": evaluator_gid,
-                    "name": "exact-match-with-override",
-                    "outputConfigOverrides": [
+                    "name": "exact-match-with-custom-config",
+                    "outputConfigs": [
                         {
-                            "name": base_config_name,
-                            "override": {
-                                "categorical": {
-                                    "optimizationDirection": "MINIMIZE",
-                                }
-                            },
+                            "categorical": {
+                                "name": base_config_name,
+                                "optimizationDirection": "MINIMIZE",
+                                "values": [
+                                    {"label": "match", "score": 1.0},
+                                    {"label": "no_match", "score": 0.0},
+                                ],
+                            }
                         }
                     ],
                 }
@@ -3854,7 +3877,7 @@ class TestMultiOutputEvaluators:
         assert result.data and not result.errors
         dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
 
-        # Verify the override was applied
+        # Verify the custom config was applied
         output_configs = dataset_evaluator["outputConfigs"]
         assert len(output_configs) >= 1
         matched_config = next((c for c in output_configs if c["name"] == base_config_name), None)
@@ -3866,12 +3889,12 @@ class TestMultiOutputEvaluators:
         async with db() as session:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.output_config_overrides is not None
-            assert base_config_name in db_dataset_evaluator.output_config_overrides
-            override = db_dataset_evaluator.output_config_overrides[base_config_name]
-            # The override can be stored as either a string or an enum
-            override_direction = override.optimization_direction
-            assert override_direction in (
+            assert len(db_dataset_evaluator.output_configs) == 1
+            config = db_dataset_evaluator.output_configs[0]
+            assert config.name == base_config_name
+            # The config can be stored as either a string or an enum
+            config_direction = config.optimization_direction
+            assert config_direction in (
                 OptimizationDirection.MINIMIZE,
                 OptimizationDirection.MINIMIZE.value,
                 "MINIMIZE",
