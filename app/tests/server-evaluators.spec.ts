@@ -442,7 +442,6 @@ test.describe.serial("Server Evaluators", () => {
       throw new Error(
         "Playground requires an LLM provider to be installed. Playwright test environment is not configured correctly."
       );
-      return;
     }
 
     // Wait for the playground title to appear first
