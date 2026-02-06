@@ -20,7 +20,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.types.Evaluator import DatasetEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, DatasetEvaluator, LLMEvaluator
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -48,7 +48,8 @@ class TestEvaluatorFields:
 
     @pytest.fixture
     async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
-        """Create test data: prompt with 2 versions, 1 tag pointing to v1, and 2 evaluators."""
+        """Create test data: prompt with 2 versions, 1 tag pointing to v1, 2 evaluators,
+        and dataset evaluator assignments for the untagged evaluator."""
         async with db() as session:
             prompt = models.Prompt(name=Identifier(token_hex(4)))
             session.add(prompt)
@@ -79,6 +80,30 @@ class TestEvaluatorFields:
                 metadata_=None,
             )
             session.add_all([untagged, tagged])
+            await session.flush()
+
+            # Dataset evaluator assignments for the untagged evaluator
+            dataset_a = models.Dataset(name=f"dataset-a-{token_hex(4)}", metadata_={})
+            dataset_b = models.Dataset(name=f"dataset-b-{token_hex(4)}", metadata_={})
+            session.add_all([dataset_a, dataset_b])
+            await session.flush()
+
+            de_1 = models.DatasetEvaluators(
+                dataset_id=dataset_a.id,
+                evaluator_id=untagged.id,
+                name=Identifier("de_one"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project=models.Project(name=f"{dataset_a.name}/de_one"),
+            )
+            de_2 = models.DatasetEvaluators(
+                dataset_id=dataset_b.id,
+                evaluator_id=untagged.id,
+                name=Identifier("de_two"),
+                input_mapping={"literal_mapping": {}, "path_mapping": {}},
+                project=models.Project(name=f"{dataset_b.name}/de_two"),
+            )
+            session.add_all([de_1, de_2])
+            await session.flush()
 
         ids = {
             "prompt": prompt.id,
@@ -87,6 +112,8 @@ class TestEvaluatorFields:
             "tag": tag.id,
             "untagged": untagged.id,
             "tagged": tagged.id,
+            "de_1": de_1.id,
+            "de_2": de_2.id,
         }
         yield ids
 
@@ -132,6 +159,46 @@ class TestEvaluatorFields:
             GlobalID("PromptVersionTag", str(_test_data["tag"]))
         )
         assert node["promptVersion"]["id"] == str(GlobalID("PromptVersion", str(_test_data["v1"])))
+
+    async def test_dataset_evaluators_field(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test Evaluator.datasetEvaluators returns associated assignments or empty list."""
+        # Untagged evaluator has two dataset evaluator assignments
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on LLMEvaluator {
+                        datasetEvaluators { id name }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+        )
+        assert not resp.errors and resp.data
+        dataset_evaluators = resp.data["node"]["datasetEvaluators"]
+        assert len(dataset_evaluators) == 2
+        returned_ids = {de["id"] for de in dataset_evaluators}
+        expected_ids = {
+            str(GlobalID(DatasetEvaluator.__name__, str(_test_data["de_1"]))),
+            str(GlobalID(DatasetEvaluator.__name__, str(_test_data["de_2"]))),
+        }
+        assert returned_ids == expected_ids
+        assert {de["name"] for de in dataset_evaluators} == {"de_one", "de_two"}
+
+        # Tagged evaluator has no dataset evaluator assignments
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on LLMEvaluator {
+                        datasetEvaluators { id }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["tagged"])))},
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["datasetEvaluators"] == []
 
 
 class TestDatasetEvaluatorDescriptionFallback:
@@ -323,8 +390,6 @@ class TestBuiltInEvaluatorOutputConfig:
         """Test that Contains evaluator returns a CategoricalAnnotationConfig."""
         from sqlalchemy import select
 
-        from phoenix.server.api.types.Evaluator import BuiltInEvaluator
-
         # Look up the evaluator ID from the database by key
         async with db() as session:
             evaluator_id = await session.scalar(
@@ -369,8 +434,6 @@ class TestBuiltInEvaluatorOutputConfig:
     ) -> None:
         """Test that LevenshteinDistance evaluator returns a ContinuousAnnotationConfig."""
         from sqlalchemy import select
-
-        from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 
         # Look up the evaluator ID from the database by key
         async with db() as session:

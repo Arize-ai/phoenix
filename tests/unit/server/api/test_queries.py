@@ -8,6 +8,11 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -2247,3 +2252,346 @@ class TestApplyChatTemplate:
         assert len(response.errors) == 1
         assert "Missing template variable(s)" in response.errors[0].message
         assert "place" in response.errors[0].message
+
+
+@pytest.fixture
+async def evaluators_for_querying(
+    db: DbSessionFactory,
+    synced_builtin_evaluators: None,
+) -> None:
+    """
+    Insert evaluators of different kinds for testing the evaluators query.
+    Creates an LLM evaluator (with its required prompt) and associates a synced
+    builtin evaluator with a dataset so it appears in results.
+    """
+    from sqlalchemy import select
+
+    async with db() as session:
+        # Project needed for dataset evaluator
+        project = models.Project(name="eval-test-project")
+        session.add(project)
+        await session.flush()
+
+        # Prompt needed for LLM evaluator
+        prompt = models.Prompt(
+            name=Identifier(root="llm_eval_prompt"),
+            description="Prompt for LLM evaluator",
+            metadata_={},
+        )
+        session.add(prompt)
+        await session.flush()
+
+        prompt_version = models.PromptVersion(
+            prompt_id=prompt.id,
+            description="v1",
+            template_type=PromptTemplateType.STRING,
+            template_format=PromptTemplateFormat.F_STRING,
+            template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4",
+            metadata_={},
+        )
+        session.add(prompt_version)
+        await session.flush()
+
+        llm_evaluator = models.LLMEvaluator(
+            name=Identifier(root="llm_eval"),
+            description="An LLM evaluator",
+            metadata_={},
+            prompt_id=prompt.id,
+            output_config=CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="good", score=1.0),
+                    CategoricalAnnotationValue(label="bad", score=0.0),
+                ],
+            ),
+        )
+        session.add(llm_evaluator)
+        await session.flush()
+
+        # Get the synced "contains" builtin evaluator from the database
+        builtin_evaluator = await session.scalar(
+            select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
+        )
+        assert builtin_evaluator is not None
+
+        # Dataset and dataset evaluator linking the builtin evaluator
+        # (builtin evaluators are only visible in the query when associated with a dataset)
+        dataset = models.Dataset(
+            name="eval-test-dataset",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=builtin_evaluator.id,
+            name=Identifier(root="builtin_dataset_eval"),
+            input_mapping={},
+            project_id=project.id,
+        )
+        session.add(dataset_evaluator)
+        await session.flush()
+
+
+class TestEvaluatorsQuery:
+    """Tests for the evaluators query."""
+
+    _EVALUATORS_QUERY = """
+      query {
+        evaluators {
+          edges {
+            evaluator: node {
+              id
+              name
+              description
+              kind
+            }
+          }
+        }
+      }
+    """
+
+    async def test_evaluators_returns_all_evaluator_types(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that the evaluators query returns LLM and builtin evaluators with correct kinds."""
+        response = await gql_client.execute(query=self._EVALUATORS_QUERY)
+        assert not response.errors
+        assert (data := response.data) is not None
+        edges = data["evaluators"]["edges"]
+        assert len(edges) == 2
+        evaluators_by_name = {edge["evaluator"]["name"]: edge["evaluator"] for edge in edges}
+        assert evaluators_by_name["llm_eval"]["kind"] == "LLM"
+        assert evaluators_by_name["Contains"]["kind"] == "BUILTIN"
+
+    async def test_evaluators_excludes_unassociated_builtin_evaluators(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test that builtin evaluators not associated with any dataset are excluded
+        from the results.
+        """
+        async with db() as session:
+            # Create a builtin evaluator without a dataset association
+            orphan_builtin = models.BuiltinEvaluator(
+                name=Identifier(root="orphan_builtin"),
+                description="Orphan builtin",
+                metadata_={},
+                key="orphan_key",
+                input_schema={"type": "object"},
+                output_config={"type": "CATEGORICAL", "values": [{"label": "a"}]},
+            )
+            session.add(orphan_builtin)
+            await session.flush()
+
+        response = await gql_client.execute(query=self._EVALUATORS_QUERY)
+        assert not response.errors
+        assert (data := response.data) is not None
+        names = {edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]}
+        assert "orphan_builtin" not in names
+
+    async def test_builtin_evaluator_used_by_multiple_datasets_appears_once(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """
+        Test that a builtin evaluator associated with multiple datasets appears
+        only once in the results (no duplicates from the join).
+        """
+        from sqlalchemy import select
+
+        async with db() as session:
+            builtin = await session.scalar(
+                select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "exact_match")
+            )
+            assert builtin is not None
+
+            project = models.Project(name="multi-dataset-project")
+            session.add(project)
+            await session.flush()
+
+            datasets = [models.Dataset(name=f"dataset-{i}", metadata_={}) for i in range(3)]
+            for ds in datasets:
+                session.add(ds)
+            await session.flush()
+
+            for ds in datasets:
+                session.add(
+                    models.DatasetEvaluators(
+                        dataset_id=ds.id,
+                        evaluator_id=builtin.id,
+                        name=Identifier(root=f"eval-for-{ds.name}"),
+                        input_mapping={},
+                        project_id=project.id,
+                    )
+                )
+            await session.flush()
+
+        response = await gql_client.execute(query=self._EVALUATORS_QUERY)
+        assert not response.errors
+        assert (data := response.data) is not None
+        names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        assert names.count("ExactMatch") == 1
+
+    async def test_evaluators_filter_by_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that evaluators can be filtered by name."""
+        query = """
+          query ($filter: EvaluatorFilter) {
+            evaluators(filter: $filter) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+
+        # Filter by partial name match
+        response = await gql_client.execute(
+            query=query, variables={"filter": {"col": "name", "value": "llm"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        assert names == ["llm_eval"]
+
+        # Filter with no matches
+        response = await gql_client.execute(
+            query=query, variables={"filter": {"col": "name", "value": "nonexistent"}}
+        )
+        assert not response.errors
+        assert response.data == {"evaluators": {"edges": []}}
+
+    async def test_evaluators_sort_by_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that evaluators can be sorted by name."""
+        query = """
+          query ($sort: EvaluatorSort) {
+            evaluators(sort: $sort) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+
+        # Sort ascending (default)
+        response = await gql_client.execute(
+            query=query, variables={"sort": {"col": "name", "dir": "asc"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        # Sorted by DB name column: "contains" < "llm_eval"
+        # BuiltInEvaluator GQL resolver returns display name "Contains"
+        assert names == ["Contains", "llm_eval"]
+
+        # Sort descending
+        response = await gql_client.execute(
+            query=query, variables={"sort": {"col": "name", "dir": "desc"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        names = [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+        assert names == ["llm_eval", "Contains"]
+
+    async def test_evaluators_sort_by_kind(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that evaluators can be sorted by kind."""
+        query = """
+          query ($sort: EvaluatorSort) {
+            evaluators(sort: $sort) {
+              edges {
+                evaluator: node {
+                  name
+                  kind
+                }
+              }
+            }
+          }
+        """
+
+        response = await gql_client.execute(
+            query=query, variables={"sort": {"col": "kind", "dir": "asc"}}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        kinds = [edge["evaluator"]["kind"] for edge in data["evaluators"]["edges"]]
+        assert kinds == sorted(kinds)
+
+    async def test_evaluators_pagination(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        """Test that evaluators query supports pagination."""
+        query = """
+          query ($first: Int, $after: String) {
+            evaluators(first: $first, after: $after) {
+              edges {
+                cursor
+                evaluator: node {
+                  name
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        """
+
+        # Get first page with 1 item
+        response = await gql_client.execute(query=query, variables={"first": 1})
+        assert not response.errors
+        assert (data := response.data) is not None
+        edges = data["evaluators"]["edges"]
+        assert len(edges) == 1
+        assert data["evaluators"]["pageInfo"]["hasNextPage"] is True
+
+        # Get next page using cursor
+        end_cursor = data["evaluators"]["pageInfo"]["endCursor"]
+        response = await gql_client.execute(
+            query=query, variables={"first": 1, "after": end_cursor}
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        edges = data["evaluators"]["edges"]
+        assert len(edges) == 1
+        assert data["evaluators"]["pageInfo"]["hasNextPage"] is False
+
+    async def test_evaluators_empty_result(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that evaluators query returns empty edges when no evaluators exist."""
+        response = await gql_client.execute(query=self._EVALUATORS_QUERY)
+        assert not response.errors
+        assert response.data == {"evaluators": {"edges": []}}
