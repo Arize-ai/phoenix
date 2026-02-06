@@ -31,6 +31,9 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.openai_responses_streaming import (
+    OpenAIResponsesStreamEventType,
+)
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
@@ -646,20 +649,36 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 continue
 
             # Handle text streaming: yield TextChunk for every delta
-            if event_type == "response.output_text.delta":
+            if event_type == OpenAIResponsesStreamEventType.OUTPUT_TEXT_DELTA:
                 # Treat event.delta as a string directly
                 delta = getattr(event, "delta", None)
                 if delta and isinstance(delta, str) and delta:
                     yield TextChunk(content=delta)
             # Don't duplicate text on .done - just skip it
-            elif event_type == "response.output_text.done":
+            elif event_type == OpenAIResponsesStreamEventType.OUTPUT_TEXT_DONE:
                 pass
 
+            # Handle output_item.added event to extract function name for tool calls
+            elif event_type == OpenAIResponsesStreamEventType.OUTPUT_ITEM_ADDED:
+                item = getattr(event, "item", None)
+                if item is not None:
+                    tool_call_id = getattr(item, "id", None)
+                    function_name = getattr(item, "name", None)
+                    # Check if this is a function call item (has a name)
+                    if tool_call_id and function_name:
+                        # Initialize tool call tracking with the function name
+                        active_tool_calls[tool_call_id] = {
+                            "name": function_name,
+                            "arguments_buffer": "",
+                        }
+
             # Handle tool call streaming: accumulate arguments across deltas
-            elif event_type == "response.function_call_arguments.delta":
-                # Read tool call metadata from the event itself
+            elif event_type in (
+                OpenAIResponsesStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA,
+                OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DELTA,
+            ):
+                # Read tool call ID from the event
                 tool_call_id = getattr(event, "id", None)
-                function_name = getattr(event, "name", None)
                 # Treat event.delta as the incremental arguments string directly
                 delta = getattr(event, "delta", None)
                 arguments_delta = None
@@ -670,7 +689,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                     # Initialize tool call tracking if not already present
                     if tool_call_id not in active_tool_calls:
                         active_tool_calls[tool_call_id] = {
-                            "name": function_name or "",
+                            "name": "",
                             "arguments_buffer": "",
                         }
                     # Accumulate arguments (ensure it's a string)
@@ -681,12 +700,13 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                             else str(arguments_delta)
                         )
                         active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
-                    # Update function name if provided
-                    if function_name:
-                        active_tool_calls[tool_call_id]["name"] = function_name
 
             # Emit ToolCallChunk only when the tool call is complete
-            elif event_type == "response.function_call_arguments.done":
+            # Support both function_call_arguments and custom_tool_call_input events
+            elif event_type in (
+                OpenAIResponsesStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
+                OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DONE,
+            ):
                 tool_call_id = getattr(event, "id", None)
                 if tool_call_id and tool_call_id in active_tool_calls:
                     tool_call_data = active_tool_calls[tool_call_id]
@@ -700,8 +720,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                     # Clean up completed tool call
                     del active_tool_calls[tool_call_id]
 
-            # Extract usage only from response.completed
-            elif event_type == "response.completed":
+            # Extract usage only from completed event
+            elif event_type == OpenAIResponsesStreamEventType.COMPLETED:
                 response = getattr(event, "response", None)
                 if response is not None:
                     usage = getattr(response, "usage", None)
