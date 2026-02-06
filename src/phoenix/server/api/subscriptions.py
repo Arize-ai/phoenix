@@ -788,7 +788,7 @@ class Subscription:
             )
 
         if input.evaluators:
-            for revision in revisions:
+            for revision in reversed(revisions):
                 example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
                 for repetition_number in range(1, input.repetitions + 1):
                     async with info.context.db() as session:
