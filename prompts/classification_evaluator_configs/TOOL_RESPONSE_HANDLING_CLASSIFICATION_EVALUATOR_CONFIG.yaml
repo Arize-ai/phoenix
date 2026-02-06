@@ -3,7 +3,7 @@ description: For determining if an AI agent properly handled a tool's response, 
 optimization_direction: maximize
 messages:
   - role: user
-    content: >-
+    content: |-
       You are an impartial judge evaluating an AI agent's handling of a tool's response. Your task is to determine whether the agent correctly processed the tool result to produce an appropriate output.
 
       IMPORTANT - Scope of Evaluation:
