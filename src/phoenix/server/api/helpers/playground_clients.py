@@ -1569,6 +1569,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+        if self.model_name == "claude-opus-4-6":
+            invocation_parameters = self._adapt_invocation_parameters_for_claude_46(
+                invocation_parameters
+            )
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
@@ -1643,18 +1647,71 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 else:
                     assert_never(event)
 
+    def _adapt_invocation_parameters_for_claude_46(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive, remove GA betas."""
+        params = dict(params)
+        thinking = params.get("thinking")
+        if isinstance(thinking, dict) and thinking.get("type") == "enabled":
+            params["thinking"] = {"type": "adaptive"}
+        betas = params.get("betas")
+        if isinstance(betas, list):
+            ga_on_46 = {
+                "interleaved-thinking-2025-05-14",
+                "effort-2025-11-24",
+                "fine-grained-tool-streaming-2025-05-14",
+            }
+            filtered = [b for b in betas if b not in ga_on_46]
+            if filtered:
+                params["betas"] = filtered
+            else:
+                params.pop("betas", None)
+        return params
+
+    def _anthropic_content_to_context_str(
+        self, content: Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]
+    ) -> str:
+        """Format assistant content as a single string for folding into the next user message.
+        Used for Claude 4.6+ which does not allow prefilling assistant messages."""
+        if isinstance(content, str):
+            return content
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(block.get("text", ""))
+                elif block.get("type") == "tool_use":
+                    parts.append(f"[Tool: {block.get('name', '')}]")
+        return "\n".join(parts)
+
     def _build_anthropic_messages(
         self,
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     ) -> tuple[list["MessageParam"], str]:
+        # Claude 4.6+ returns 400 when assistant messages are prefilled; fold them into user.
+        no_prefill_models = {"claude-opus-4-6"}
+        fold_assistant_into_user = self.model_name in no_prefill_models
+
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
+        pending_assistant_context: list[str] = []
+
         for role, content, _tool_call_id, _tool_calls in messages:
             tool_aware_content = self._anthropic_message_content(content, _tool_calls)
             if role == ChatCompletionMessageRole.USER:
+                if fold_assistant_into_user and pending_assistant_context:
+                    prefix = "\n\n".join(
+                        "[Previous assistant response]:\n" + c for c in pending_assistant_context
+                    )
+                    tool_aware_content = prefix + "\n\n" + (content or "")
+                    pending_assistant_context = []
                 anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
+                if fold_assistant_into_user:
+                    pending_assistant_context.append(
+                        self._anthropic_content_to_context_str(tool_aware_content)
+                    )
+                else:
+                    anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
@@ -1692,6 +1749,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-opus-4-6",
         "claude-opus-4-5",
         "claude-opus-4-5-20251101",
         "claude-sonnet-4-5",
