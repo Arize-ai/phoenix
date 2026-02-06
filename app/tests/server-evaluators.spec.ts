@@ -161,27 +161,17 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("tab", { name: /Evaluators/i }).click();
     await page.waitForURL("**/evaluators");
 
-    // Wait for page to be fully loaded and GraphQL data to be available
-    await page.waitForLoadState("networkidle");
-
     // Click Add evaluator button
     await page.getByRole("button", { name: "Add evaluator" }).click();
 
-    // Wait for menu to be visible and ready
-    const submenuTrigger = page.getByRole("menuitem", {
-      name: "Use built-in code evaluator",
-    });
-    await submenuTrigger.waitFor({ state: "visible", timeout: 5000 });
+    // Hover over "Use built-in code evaluator" to open submenu
+    await page
+      .getByRole("menuitem", { name: "Use built-in code evaluator" })
+      .hover();
 
-    // Hover on "Use built-in code evaluator" to open submenu
-    // Use hover as the submenu is a SubmenuTrigger
-    await submenuTrigger.hover();
-
-    // Wait for submenu dialog to appear and have items
-    // The submenu should contain text "ExactMatch"
-    const exactMatchItem = page.getByText("ExactMatch").first();
-    await exactMatchItem.waitFor({ state: "visible", timeout: 15000 });
-    await exactMatchItem.click();
+    // Wait for submenu to appear and click "ExactMatch"
+    // Use getByRole to find the menuitem, similar to the LLM evaluator test
+    await page.getByRole("menuitem", { name: /ExactMatch/i }).click();
 
     // Verify the Create Evaluator dialog opens
     await expect(

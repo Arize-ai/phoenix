@@ -92,11 +92,19 @@ await page.getByRole("menuitem", { name: "New Dataset" }).click();
 ### Nested Menus (Submenus)
 
 ```typescript
+// Open menu, hover over submenu trigger, click submenu item
 await page.getByRole("button", { name: "Add evaluator" }).click();
 await page
   .getByRole("menuitem", { name: "Use LLM evaluator template" })
-  .click();
+  .hover();
 await page.getByRole("menuitem", { name: /correctness/i }).click();
+
+// IMPORTANT: Always use getByRole("menuitem") for submenu items, not getByText()
+// Playwright's auto-waiting handles the submenu appearance timing
+// ❌ BAD - flaky in CI:
+// await page.getByText("ExactMatch").first().click();
+// ✅ GOOD - reliable:
+// await page.getByRole("menuitem", { name: /ExactMatch/i }).click();
 ```
 
 ### Dialogs/Modals
@@ -381,9 +389,10 @@ When tests are flaky:
 
 | Flaky Pattern | Root Cause | Fix |
 |--------------|------------|-----|
+| Submenu item not found | Using `getByText()` instead of `getByRole()` | Use `getByRole("menuitem", { name: /pattern/i })` for submenu items |
 | Menu click fails | Menu not fully rendered | `await menu.waitFor({ state: "visible" })` before click |
 | Dialog assertion fails | Dialog animation not complete | Increase timeout or wait for specific content |
-| Navigation timeout | Page still loading | `waitForLoadState("networkidle")` before assertions |
+| Navigation timeout | Page still loading | Remove `waitForLoadState("networkidle")` - it's flaky in CI |
 | Element not found | Dynamic content loading | Wait for element visibility, not arbitrary timeout |
 | Stale element | Re-render between locate and click | Store locator, not element handle |
 
