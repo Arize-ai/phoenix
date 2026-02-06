@@ -167,14 +167,14 @@ test.describe.serial("Server Evaluators", () => {
     // Click Add evaluator button
     await page.getByRole("button", { name: "Add evaluator" }).click();
 
-    // Wait a moment for menu to fully render
-    await page.waitForTimeout(500);
-
-    // Hover on "Use built-in code evaluator" to open submenu
-    // Use hover as the submenu is a SubmenuTrigger
+    // Wait for menu to be visible and ready
     const submenuTrigger = page.getByRole("menuitem", {
       name: "Use built-in code evaluator",
     });
+    await submenuTrigger.waitFor({ state: "visible", timeout: 5000 });
+
+    // Hover on "Use built-in code evaluator" to open submenu
+    // Use hover as the submenu is a SubmenuTrigger
     await submenuTrigger.hover();
 
     // Wait for submenu dialog to appear and have items

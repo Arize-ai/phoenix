@@ -49,9 +49,9 @@ projects.push({
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
   timeout: process.env.CI ? 60000 : 30000,
-  // Parallel workers expose flakiness, so we'll run tests serially.
-  workers: 1,
-  fullyParallel: false,
+  // Use default workers (cpu count) locally, limit to 2 on CI
+  workers: process.env.CI ? 2 : undefined,
+  fullyParallel: true,
   testDir: "./tests",
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,

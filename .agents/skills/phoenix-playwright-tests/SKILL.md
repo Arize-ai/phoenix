@@ -310,3 +310,114 @@ agent-browser get text @e1
 3. **Dynamic content**: Use regex in name: `{ name: /pattern/i }`
 4. **Flaky waits**: Prefer `waitForURL` over `waitForTimeout`
 5. **Menu not appearing**: Add small delay or wait for specific element
+
+## Debugging Flaky Tests
+
+### Critical Lessons Learned
+
+1. **Don't assume parallelism is the problem**
+   - Phoenix tests run with 7 parallel workers without issues
+   - The app handles concurrent logins, database operations, and session management properly
+   - If tests fail with parallelism, it's usually a test timing issue, not infrastructure
+   - Playwright's browser context isolation is robust - each worker gets isolated cookies/sessions
+
+2. **waitForTimeout is almost always wrong**
+   - `page.waitForTimeout()` is the #1 cause of flakiness in Phoenix tests
+   - Arbitrary timeouts race against rendering and network speed
+   - **Always replace with state-based waits:**
+     ```typescript
+     // ❌ BAD - flaky, races against rendering
+     await page.waitForTimeout(500);
+     await element.click();
+
+     // ✅ GOOD - waits for actual state
+     await element.waitFor({ state: "visible", timeout: 5000 });
+     await element.click();
+     ```
+
+3. **Test the actual failure before fixing**
+   - Run tests with parallelism enabled to see what actually fails
+   - Check error messages - they often point to the real issue
+   - Don't optimize prematurely (e.g., caching auth state) if it's not the problem
+
+4. **Phoenix test infrastructure is solid**
+   - In-memory SQLite works fine with parallel tests
+   - No need for per-worker databases
+   - No need for auth state caching
+   - Tests use `randomUUID()` for data isolation - this works well
+
+### Debugging Workflow
+
+When tests are flaky:
+
+1. **Run with parallelism multiple times** to catch intermittent failures:
+   ```bash
+   for i in 1 2 3 4 5; do
+     pnpm exec playwright test --project=chromium --reporter=dot
+   done
+   ```
+
+2. **Look for `waitForTimeout` usage** - replace with proper waits:
+   ```bash
+   grep -r "waitForTimeout" app/tests/
+   ```
+
+3. **Check for race conditions** in element interactions:
+   - Wait for element visibility before interacting
+   - Wait for network idle when needed: `page.waitForLoadState("networkidle")`
+   - Use `waitForURL` after navigation actions
+
+4. **Verify selectors are stable**:
+   - Avoid CSS selectors that depend on DOM structure
+   - Use role/label selectors that match ARIA attributes
+   - Test selectors don't break when UI updates
+
+5. **Run with trace on failure** to see what happened:
+   ```bash
+   pnpm exec playwright test --trace on-first-retry
+   ```
+
+### Common Flaky Patterns and Fixes
+
+| Flaky Pattern | Root Cause | Fix |
+|--------------|------------|-----|
+| Menu click fails | Menu not fully rendered | `await menu.waitFor({ state: "visible" })` before click |
+| Dialog assertion fails | Dialog animation not complete | Increase timeout or wait for specific content |
+| Navigation timeout | Page still loading | `waitForLoadState("networkidle")` before assertions |
+| Element not found | Dynamic content loading | Wait for element visibility, not arbitrary timeout |
+| Stale element | Re-render between locate and click | Store locator, not element handle |
+
+### Test Stability Best Practices
+
+1. **Use proper waits**:
+   ```typescript
+   // Wait for element state
+   await element.waitFor({ state: "visible" | "hidden" | "attached" })
+
+   // Wait for network
+   await page.waitForLoadState("networkidle" | "domcontentloaded" | "load")
+
+   // Wait for URL change
+   await page.waitForURL("**/expected-path")
+   ```
+
+2. **Use unique test data**:
+   ```typescript
+   const uniqueName = `test-${randomUUID()}`;
+   ```
+
+3. **Prefer role selectors** - they're less brittle:
+   ```typescript
+   page.getByRole("button", { name: "Save" }) // ✅ Good
+   page.locator('button.save-btn') // ❌ Brittle
+   ```
+
+4. **Don't fight animations** - wait for them:
+   ```typescript
+   await expect(dialog).not.toBeVisible({ timeout: 10000 });
+   ```
+
+5. **Verify URL changes** after navigation:
+   ```typescript
+   await page.waitForURL("**/datasets");
+   ```
