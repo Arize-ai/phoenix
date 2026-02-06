@@ -1241,9 +1241,6 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
-        # TODO: Add PROMPT_TEMPLATE_VARIABLES to spans
-        # assert attributes.pop(PROMPT_TEMPLATE_VARIABLES)
-        attributes.pop(PROMPT_TEMPLATE_VARIABLES, None) == json.dumps({"city": "Tokyo"})
         assert not attributes
 
         # check that example 3 has no span
