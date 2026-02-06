@@ -166,6 +166,34 @@ type DatasetEvaluatorRow = {
 // Union type for the table
 type NestedTableRow = EvaluatorRow | DatasetEvaluatorRow;
 
+const filterChildren = (
+  data: EvaluatorRow[],
+  searchString: string
+): EvaluatorRow[] => {
+  if (!searchString.trim()) return data;
+
+  const lowerSearch = searchString.toLowerCase();
+
+  return data.map((parent) => {
+    const parentMatches = parent.data.name.toLowerCase().includes(lowerSearch);
+
+    if (parentMatches) {
+      // Parent matches: show all children
+      return parent;
+    }
+
+    // Parent doesn't match: show only matching children
+    const matchingChildren = parent.children.filter((child) =>
+      child.data.name.toLowerCase().includes(lowerSearch)
+    );
+
+    return {
+      ...parent,
+      children: matchingChildren,
+    };
+  });
+};
+
 type EvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
@@ -218,7 +246,7 @@ export const EvaluatorsTable = ({
   );
   const [expanded, setExpanded] = useState<ExpandedState>(true);
   const tableData = useMemo(() => {
-    return rowReferences.map(readRow).map((evaluator) => ({
+    const rawData = rowReferences.map(readRow).map((evaluator) => ({
       rowType: "evaluator" as const,
       data: evaluator,
       children: evaluator.datasetEvaluators.map((de) => ({
@@ -227,7 +255,9 @@ export const EvaluatorsTable = ({
         children: [] as const,
       })),
     }));
-  }, [rowReferences]);
+
+    return filterChildren(rawData, filter);
+  }, [rowReferences, filter]);
   const columns = useMemo(() => {
     const cols: ColumnDef<NestedTableRow>[] = [
       {

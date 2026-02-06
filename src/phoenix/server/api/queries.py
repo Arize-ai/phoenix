@@ -10,7 +10,7 @@ import anyio
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, func, or_, select, text
+from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -1391,11 +1391,24 @@ class Query:
         )
 
         if filter:
-            column = getattr(PolymorphicEvaluator, filter.col.value)
-            # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
-                column = cast(column, String)
-            query = query.where(column.ilike(f"%{filter.value}%"))
+                parent_name_col = cast(PolymorphicEvaluator.name, String)
+                # Match parent name OR any child (datasetEvaluator) name
+                child_name_exists = exists(
+                    select(models.DatasetEvaluators.id)
+                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
+                    .correlate(PolymorphicEvaluator)
+                )
+                query = query.where(
+                    or_(
+                        parent_name_col.ilike(f"%{filter.value}%"),
+                        child_name_exists,
+                    )
+                )
+            else:
+                column = getattr(PolymorphicEvaluator, filter.col.value)
+                query = query.where(column.ilike(f"%{filter.value}%"))
 
         if sort:
             if sort.col.value == "updated_at":
