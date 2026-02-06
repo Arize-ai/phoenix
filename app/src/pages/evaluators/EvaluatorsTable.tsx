@@ -25,9 +25,9 @@ import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import {
   EvaluatorFilter,
@@ -166,7 +166,7 @@ type DatasetEvaluatorRow = {
 // Union type for the table
 type NestedTableRow = EvaluatorRow | DatasetEvaluatorRow;
 
-const filterChildren = (
+const filterRows = (
   data: EvaluatorRow[],
   searchString: string
 ): EvaluatorRow[] => {
@@ -174,12 +174,12 @@ const filterChildren = (
 
   const lowerSearch = searchString.toLowerCase();
 
-  return data.map((parent) => {
+  return data.flatMap((parent) => {
     const parentMatches = parent.data.name.toLowerCase().includes(lowerSearch);
 
     if (parentMatches) {
       // Parent matches: show all children
-      return parent;
+      return [parent];
     }
 
     // Parent doesn't match: show only matching children
@@ -187,10 +187,12 @@ const filterChildren = (
       child.data.name.toLowerCase().includes(lowerSearch)
     );
 
-    return {
-      ...parent,
-      children: matchingChildren,
-    };
+    // Exclude parent entirely if no children match either
+    if (matchingChildren.length === 0) {
+      return [];
+    }
+
+    return [{ ...parent, children: matchingChildren }];
   });
 };
 
@@ -224,7 +226,6 @@ export const EvaluatorsTable = ({
   "use no memo";
   const navigate = useNavigate();
   const { sort, setSort, filter } = useEvaluatorsFilterContext();
-  const { fullTimeFormatter } = useTimeFormatters();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
     () => convertEvaluatorSortToTanstackSort(sort),
@@ -256,7 +257,7 @@ export const EvaluatorsTable = ({
       })),
     }));
 
-    return filterChildren(rawData, filter);
+    return filterRows(rawData, filter);
   }, [rowReferences, filter]);
   const columns = useMemo(() => {
     const cols: ColumnDef<NestedTableRow>[] = [
@@ -306,7 +307,7 @@ export const EvaluatorsTable = ({
           if (row.original.rowType === "evaluator") {
             return <EvaluatorKindToken kind={row.original.data.kind} />;
           }
-          return <Text color="text-700">—</Text>;
+          return "--";
         },
       },
       {
@@ -315,7 +316,7 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => {
           const description = row.original.data.description;
           if (!description) {
-            return <span>--</span>;
+            return "--";
           }
 
           return <Truncate maxWidth="25rem">{description}</Truncate>;
@@ -338,7 +339,7 @@ export const EvaluatorsTable = ({
               />
             );
           }
-          return <Text color="text-700">—</Text>;
+          return "--";
         },
       },
       {
@@ -349,7 +350,7 @@ export const EvaluatorsTable = ({
           if (row.original.rowType === "evaluator") {
             const datasets = row.original.data.datasets?.edges ?? [];
             if (datasets.length === 0) {
-              return <Text color="text-700">—</Text>;
+              return "--";
             }
             return (
               <Flex direction="row" gap="size-100" wrap="wrap">
@@ -375,7 +376,7 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => {
           const user = row.original.data.user;
           if (!user) {
-            return <Text color="text-700">—</Text>;
+            return "--";
           }
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -391,21 +392,13 @@ export const EvaluatorsTable = ({
       },
       {
         header: "last updated",
-        accessorKey: "updatedAt",
-        cell: ({ row }) => {
-          const updatedAt = row.original.data.updatedAt;
-          const timestamp =
-            updatedAt != null ? fullTimeFormatter(new Date(updatedAt)) : "--";
-          return (
-            <time title={updatedAt != null ? String(updatedAt) : ""}>
-              {timestamp}
-            </time>
-          );
-        },
+        id: "updatedAt",
+        accessorFn: (row) => row.data.updatedAt,
+        cell: TimestampCell,
       },
     ];
     return cols;
-  }, [fullTimeFormatter]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
