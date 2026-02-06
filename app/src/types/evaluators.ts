@@ -135,4 +135,5 @@ export type EvaluatorMappingSource = {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
   reference: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 };
