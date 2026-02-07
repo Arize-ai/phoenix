@@ -554,6 +554,8 @@ class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
     type: str
+    input: NotRequired[Any]
+    ctx: NotRequired[Mapping[str, Any]]
 
 
 class AnnotateSessionsRequestBody(TypedDict):

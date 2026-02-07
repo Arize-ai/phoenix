@@ -1,0 +1,159 @@
+---
+title: "Exact Match"
+description: "Evaluate if output exactly matches expected value"
+---
+
+## Overview
+
+The **exact_match** evaluator is a simple code-based evaluator that checks if the output exactly equals the expected value. It performs a strict string comparison with no normalization.
+
+<Note>
+This evaluator is only available as a built-in for **Python**. For TypeScript, see the [usage example below](#usage-examples) showing how to create an equivalent evaluator using `createEvaluator`.
+</Note>
+
+### When to Use
+
+Use the exact_match evaluator when you need to:
+
+- **Validate exact outputs** - Check that responses match expected values character-for-character
+- **Evaluate classification tasks** - Verify categorical outputs match expected labels
+- **Test deterministic outputs** - Validate outputs that should be identical every time
+- **Quick sanity checks** - Fast evaluation without LLM costs
+
+<Info>
+This is a code-based evaluator that performs direct string comparison. For semantic similarity or fuzzy matching, consider using an LLM-based evaluator instead.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Evaluate any span output against expected values. |
+
+## Input Requirements
+
+The exact_match evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `output` | `string` | The actual output to evaluate |
+| `expected` | `string` | The expected value to match against |
+
+### Important Notes
+
+- **No normalization**: The comparison is case-sensitive and whitespace-sensitive
+- **String comparison**: Both inputs are compared as strings
+- **No partial matching**: The entire string must match exactly
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `True` or `False` | Whether the strings match |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = match, 0.0 = no match) |
+| `kind` | `"code"` | Indicates this is a code-based evaluator |
+| `direction` | `"maximize"` | Higher scores are better |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import exact_match
+
+    # Basic usage with matching field names
+    eval_input = {
+        "output": "Paris",
+        "expected": "Paris"
+    }
+    scores = exact_match.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='exact_match', score=1.0, label=True, kind='code', ...)
+
+    # Non-matching example
+    eval_input = {
+        "output": "paris",  # lowercase
+        "expected": "Paris"  # uppercase
+    }
+    scores = exact_match.evaluate(eval_input)
+    print(scores[0].score)  # 0.0 (case-sensitive comparison)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    <Note>
+    The exact_match evaluator is not available as a built-in for TypeScript. You can create an equivalent code evaluator using `createEvaluator`:
+    </Note>
+
+    ```typescript
+    import { createEvaluator } from "@arizeai/phoenix-evals";
+
+    const exactMatchEvaluator = createEvaluator(
+      (record: { output: string; expected: string }) => ({
+        score: record.output === record.expected ? 1 : 0,
+        label: record.output === record.expected ? "match" : "no_match",
+      }),
+      { name: "exact_match", kind: "CODE" }
+    );
+
+    const result = await exactMatchEvaluator.evaluate({
+      output: "Paris",
+      expected: "Paris",
+    });
+    console.log(result); // { score: 1, label: "match" }
+    ```
+  </Tab>
+</Tabs>
+
+### Implementing Case-Insensitive Matching
+
+If you need case-insensitive matching, normalize your inputs first:
+
+```python
+from phoenix.evals.metrics import exact_match
+
+eval_input = {
+    "output": "PARIS".lower(),
+    "expected": "paris"
+}
+scores = exact_match.evaluate(eval_input)
+print(scores[0].score)  # 1.0
+```
+
+Or create a custom evaluator with normalization:
+
+```python
+from phoenix.evals.evaluators import Score, create_evaluator
+
+@create_evaluator(name="exact_match_normalized", kind="code")
+def exact_match_normalized(output: str, expected: str) -> Score:
+    """Case-insensitive exact match with whitespace normalization."""
+    normalized_output = output.strip().lower()
+    normalized_expected = expected.strip().lower()
+    correct = normalized_output == normalized_expected
+    return Score(score=float(correct))
+```
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+
+### Running Experiments
+
+Use the exact_match evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [exact_match](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+
+## Related
+
+- [Matches Regex Evaluator](/docs/phoenix/evaluation/pre-built-metrics/matches-regex) - For pattern-based matching

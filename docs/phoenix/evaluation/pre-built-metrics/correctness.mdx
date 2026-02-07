@@ -1,0 +1,253 @@
+---
+title: "Correctness"
+description: "Evaluate whether LLM responses are generally correct and complete."
+---
+
+## Overview
+
+The **Correctness** evaluator assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates the quality of answers without requiring external context or reference responses.
+
+### When to Use
+
+Use the Correctness evaluator when you need to:
+
+- **Validate factual accuracy** - Ensure responses contain accurate information
+- **Check answer completeness** - Verify responses address all parts of the question
+- **Detect logical inconsistencies** - Identify contradictions within responses
+- **Evaluate general knowledge responses** - Assess answers that don't rely on retrieved context
+- **Get a quick gut-check** - Capture a wide range of potential problems quickly
+
+<Info>
+For evaluating responses against retrieved documents, use the [Faithfulness evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) instead. Correctness is best suited for evaluating general knowledge.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to LLM spans where you want to evaluate the response quality. |
+| **Trace** | Yes | Evaluate the final response of the entire trace. |
+| **Session** | Yes | Evaluate responses across a conversation session. |
+
+**Relevant span kinds:** LLM spans, particularly ones where the LLM response is not grounded in retrieved context.
+
+## Input Requirements
+
+The Correctness evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user's query or question |
+| `output` | `string` | The LLM's response to evaluate |
+
+### Formatting Tips
+
+For best results:
+
+- **Use human-readable strings** rather than raw JSON for all inputs
+- **For multi-turn conversations**, format input as a readable conversation:
+  ```
+  User: What is the capital of France?
+  Assistant: Paris is the capital of France.
+  User: What is its population?
+  ```
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Correct (1.0)**: The response is factually accurate, complete, and logically consistent
+- **Incorrect (0.0)**: The response contains factual errors, is incomplete, or has logical inconsistencies
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import CorrectnessEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    correctness_eval = CorrectnessEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(correctness_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "input": "What is the capital of France?",
+        "output": "Paris is the capital of France."
+    }
+
+    scores = correctness_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='correctness', score=1.0, label='correct', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const correctnessEvaluator = createCorrectnessEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await correctnessEvaluator.evaluate({
+      input: "What is the capital of France?",
+      output: "Paris is the capital of France.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "correct", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names or requires transformation, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import CorrectnessEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    correctness_eval = CorrectnessEvaluator(llm=llm)
+
+    # Example with different field names
+    eval_input = {
+        "question": "What is the speed of light?",
+        "answer": "The speed of light is approximately 299,792 km/s."
+    }
+
+    # Use input mapping to match expected field names
+    input_mapping = {
+        "input": "question",
+        "output": "answer"
+    }
+
+    scores = correctness_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const correctnessEvaluator = createCorrectnessEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(correctnessEvaluator, {
+      inputMapping: {
+        input: "question",
+        output: "answer",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      question: "What is the speed of light?",
+      answer: "The speed of light is approximately 299,792 km/s.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import CorrectnessEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = CorrectnessEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="correctness",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"correct": 1.0, "incorrect": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG, createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createCorrectnessEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Correctness evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [CorrectnessEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createCorrectnessEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - For evaluating responses against retrieved context
+- [Tool Selection Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) - For evaluating LLM tool selection accuracy 

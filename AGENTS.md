@@ -124,6 +124,8 @@ phoenix/
 - **Type checking**: Strict mode with mypy
 - **Linting**: Ruff (replaces black, isort, flake8)
 - **Import style**: Multi-line imports allowed (not forced single-line)
+- All imports MUST be included at the top of each module rather than inside functions or methods, unless doing so causes circular import issues or unless the imported dependencies belong to an extra (e.g., `openai` belongs to the `container` extra in `pyproject.toml`). If you must import a module inside a function or method, include a brief **inline** comment explaining why the import is necessary (e.g., `# avoids circular import`).
+- When creating or updating tests that use `vcrpy` to record requests and responses to and from third-party APIs, DO NOT create or update the cassette YAML file directly via a file edit. Instead, first ensure that the test passes by actually hitting the third-party API. This typically requires (1) deleting the pre-existing cassette YAML file (if one exists) and (2) commenting out fixtures for API keys (e.g., `openai_api_key`) to allow API keys set as environment variables in the the development environment to be used. Once the test passes by hitting the actual third-party API, uncomment any API key fixtures and re-run the test to ensure it still passes using `vcrpy`. A consequence of this approach is that tests using `vcrpy` should avoid hard-coding details that are likely to vary between responses from the API. For example, instead of asserting an exact token count that likely differs for each response, just assert that the token count returned from the API is an integer.
 
 ### TypeScript Style
 - **Node version**: 22+
