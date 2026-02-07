@@ -2302,14 +2302,16 @@ async def evaluators_for_querying(
             description="An LLM evaluator",
             metadata_={},
             prompt_id=prompt.id,
-            output_config=CategoricalAnnotationConfig(
-                type="CATEGORICAL",
-                optimization_direction=OptimizationDirection.MAXIMIZE,
-                values=[
-                    CategoricalAnnotationValue(label="good", score=1.0),
-                    CategoricalAnnotationValue(label="bad", score=0.0),
-                ],
-            ),
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                ),
+            ],
         )
         session.add(llm_evaluator)
         await session.flush()
@@ -2390,7 +2392,13 @@ class TestEvaluatorsQuery:
                 metadata_={},
                 key="orphan_key",
                 input_schema={"type": "object"},
-                output_config={"type": "CATEGORICAL", "values": [{"label": "a"}]},
+                output_configs=[
+                    {
+                        "type": "CATEGORICAL",
+                        "optimization_direction": "MAXIMIZE",
+                        "values": [{"label": "a"}],
+                    }
+                ],
             )
             session.add(orphan_builtin)
             await session.flush()
