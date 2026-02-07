@@ -1429,6 +1429,27 @@ const anthropicForcedToolUseSchema = z
   .passthrough();
 
 /**
+ * Regex pattern matching Claude 4.x model names.
+ * Matches patterns like:
+ * - claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5
+ * - claude-opus-4-1, claude-sonnet-4-1
+ * - claude-opus-4-5-20251101 (with date suffix)
+ * - claude-4 (hypothetical base name)
+ *
+ * The pattern looks for "claude" followed by an optional variant name,
+ * then a version segment starting with "4".
+ */
+const CLAUDE_4_MODEL_REGEX = /\bclaude(?:-[a-z]+)?-4(?:[.-]\d+)*/i;
+
+/**
+ * Returns true if the given model name refers to a Claude 4.x model.
+ * Claude 4.x models do not allow specifying both temperature and top_p
+ * simultaneously in the same request.
+ */
+export const isClaude4Model = (model: string): boolean =>
+  CLAUDE_4_MODEL_REGEX.test(model);
+
+/**
  * Applies Anthropic-specific constraints to the invocation parameters.
  *
  * @param invocationParameters - The invocation parameters to be constrained.
@@ -1449,6 +1470,20 @@ const applyAnthropicInvocationParameterConstraints = (
       param.valueJson &&
       anthropicExtendedThinkingEnabledSchema.safeParse(param.valueJson).success
   );
+
+  // Claude 4.x models do not support specifying both temperature and top_p.
+  // When both are present, we keep temperature and drop top_p because
+  // temperature is the more commonly used sampling parameter.
+  const isClaude4 = isClaude4Model(model);
+  const hasBothTempAndTopP =
+    isClaude4 &&
+    invocationParameters.some(
+      (p) => p.canonicalName === "TEMPERATURE" && p.valueFloat != null
+    ) &&
+    invocationParameters.some(
+      (p) => p.canonicalName === "TOP_P" && p.valueFloat != null
+    );
+
   // Filter parameters in a single pass
   return invocationParameters.filter((param) => {
     // Skip null/undefined valueJson for extended thinking
@@ -1471,6 +1506,11 @@ const applyAnthropicInvocationParameterConstraints = (
       if (param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME) {
         return !anthropicForcedToolUseSchema.safeParse(param.valueJson).success;
       }
+    }
+    // For Claude 4.x: when both temperature and top_p are set, drop top_p
+    // to avoid the API error "'temperature' and 'top_p' cannot both be specified"
+    if (hasBothTempAndTopP && param.canonicalName === "TOP_P") {
+      return false;
     }
     // Keep all other parameters
     return true;
