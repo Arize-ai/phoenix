@@ -3,8 +3,9 @@ from typing import Any
 import pytest
 
 from phoenix.server.api.helpers.message_helpers import (
-    ChatCompletionMessage,
+    PlaygroundMessage,
     convert_openai_message_to_internal,
+    create_playground_message,
     extract_and_convert_example_messages,
     extract_value_from_path,
 )
@@ -63,48 +64,54 @@ class TestConvertOpenaiMessageToInternal:
         [
             pytest.param(
                 {"role": "user", "content": "Hello, how are you?"},
-                (ChatCompletionMessageRole.USER, "Hello, how are you?", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, "Hello, how are you?"),
                 id="simple-user-message",
             ),
             pytest.param(
                 {"role": "assistant", "content": "I'm doing well, thanks!"},
-                (ChatCompletionMessageRole.AI, "I'm doing well, thanks!", None, None),
+                create_playground_message(ChatCompletionMessageRole.AI, "I'm doing well, thanks!"),
                 id="simple-assistant-message",
             ),
             pytest.param(
                 {"role": "system", "content": "You are a helpful assistant."},
-                (ChatCompletionMessageRole.SYSTEM, "You are a helpful assistant.", None, None),
+                create_playground_message(
+                    ChatCompletionMessageRole.SYSTEM, "You are a helpful assistant."
+                ),
                 id="simple-system-message",
             ),
             pytest.param(
                 {"role": "USER", "content": "Uppercase role"},
-                (ChatCompletionMessageRole.USER, "Uppercase role", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, "Uppercase role"),
                 id="uppercase-role",
             ),
             pytest.param(
                 {"role": "Assistant", "content": "Mixed case role"},
-                (ChatCompletionMessageRole.AI, "Mixed case role", None, None),
+                create_playground_message(ChatCompletionMessageRole.AI, "Mixed case role"),
                 id="mixed-case-role",
             ),
             pytest.param(
                 {"role": "ai", "content": "Using internal role name"},
-                (ChatCompletionMessageRole.AI, "Using internal role name", None, None),
+                create_playground_message(ChatCompletionMessageRole.AI, "Using internal role name"),
                 id="internal-ai-role-name",
             ),
             pytest.param(
                 {"role": "unknown_role", "content": "Unknown role defaults to user"},
-                (ChatCompletionMessageRole.USER, "Unknown role defaults to user", None, None),
+                create_playground_message(
+                    ChatCompletionMessageRole.USER, "Unknown role defaults to user"
+                ),
                 id="unknown-role-defaults-to-user",
             ),
             pytest.param(
                 {"content": "Missing role defaults to user"},
-                (ChatCompletionMessageRole.USER, "Missing role defaults to user", None, None),
+                create_playground_message(
+                    ChatCompletionMessageRole.USER, "Missing role defaults to user"
+                ),
                 id="missing-role-defaults-to-user",
             ),
         ],
     )
     def test_role_conversion(
-        self, openai_message: dict[str, Any], expected: ChatCompletionMessage
+        self, openai_message: dict[str, Any], expected: PlaygroundMessage
     ) -> None:
         result = convert_openai_message_to_internal(openai_message)
         assert result == expected
@@ -114,33 +121,33 @@ class TestConvertOpenaiMessageToInternal:
         [
             pytest.param(
                 {"role": "user", "content": "Hello"},
-                (ChatCompletionMessageRole.USER, "Hello", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, "Hello"),
                 id="string-content",
             ),
             pytest.param(
                 {"role": "user", "content": None},
-                (ChatCompletionMessageRole.USER, "", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, ""),
                 id="null-content-becomes-empty-string",
             ),
             pytest.param(
                 {"role": "user"},
-                (ChatCompletionMessageRole.USER, "", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, ""),
                 id="missing-content-becomes-empty-string",
             ),
             pytest.param(
                 {"role": "user", "content": ""},
-                (ChatCompletionMessageRole.USER, "", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, ""),
                 id="empty-string-content",
             ),
             pytest.param(
                 {"role": "user", "content": 123},
-                (ChatCompletionMessageRole.USER, "123", None, None),
+                create_playground_message(ChatCompletionMessageRole.USER, "123"),
                 id="numeric-content-converted-to-string",
             ),
         ],
     )
     def test_content_handling(
-        self, openai_message: dict[str, Any], expected: ChatCompletionMessage
+        self, openai_message: dict[str, Any], expected: PlaygroundMessage
     ) -> None:
         result = convert_openai_message_to_internal(openai_message)
         assert result == expected
@@ -204,7 +211,7 @@ class TestConvertOpenaiMessageToInternal:
         self, openai_message: dict[str, Any], expected_content: str
     ) -> None:
         result = convert_openai_message_to_internal(openai_message)
-        assert result[1] == expected_content
+        assert result["content"] == expected_content
 
     def test_tool_message_with_tool_call_id(self) -> None:
         openai_message = {
@@ -213,11 +220,10 @@ class TestConvertOpenaiMessageToInternal:
             "tool_call_id": "call_abc123",
         }
         result = convert_openai_message_to_internal(openai_message)
-        assert result == (
+        assert result == create_playground_message(
             ChatCompletionMessageRole.TOOL,
             '{"temperature": 72}',
-            "call_abc123",
-            None,
+            tool_call_id="call_abc123",
         )
 
     def test_assistant_message_with_tool_calls(self) -> None:
@@ -237,11 +243,11 @@ class TestConvertOpenaiMessageToInternal:
             "tool_calls": tool_calls,
         }
         result = convert_openai_message_to_internal(openai_message)
-        assert result[0] == ChatCompletionMessageRole.AI
-        assert result[1] == ""
-        assert result[2] is None
+        assert result["role"] == ChatCompletionMessageRole.AI
+        assert result["content"] == ""
+        assert result.get("tool_call_id") is None
         # Tool calls are passed through directly
-        assert result[3] == tool_calls
+        assert result.get("tool_calls") == tool_calls
 
     def test_assistant_message_with_multiple_tool_calls(self) -> None:
         tool_calls = [
@@ -262,10 +268,10 @@ class TestConvertOpenaiMessageToInternal:
             "tool_calls": tool_calls,
         }
         result = convert_openai_message_to_internal(openai_message)
-        assert result[0] == ChatCompletionMessageRole.AI
-        assert result[1] == "Let me check both for you."
+        assert result["role"] == ChatCompletionMessageRole.AI
+        assert result["content"] == "Let me check both for you."
         # Tool calls are passed through directly
-        assert result[3] == tool_calls
+        assert result.get("tool_calls") == tool_calls
 
     def test_assistant_message_with_empty_tool_calls_list(self) -> None:
         openai_message = {
@@ -275,7 +281,7 @@ class TestConvertOpenaiMessageToInternal:
         }
         result = convert_openai_message_to_internal(openai_message)
         # Empty list is passed through directly
-        assert result[3] == []
+        assert result.get("tool_calls") == []
 
 
 class TestExtractAndConvertExampleMessages:
@@ -290,8 +296,8 @@ class TestExtractAndConvertExampleMessages:
         }
         result = extract_and_convert_example_messages(data, "messages")
         assert len(result) == 2
-        assert result[0] == (ChatCompletionMessageRole.USER, "Hello!", None, None)
-        assert result[1] == (ChatCompletionMessageRole.AI, "Hi there!", None, None)
+        assert result[0] == create_playground_message(ChatCompletionMessageRole.USER, "Hello!")
+        assert result[1] == create_playground_message(ChatCompletionMessageRole.AI, "Hi there!")
 
     def test_nested_messages_path(self) -> None:
         data = {
@@ -304,8 +310,12 @@ class TestExtractAndConvertExampleMessages:
         }
         result = extract_and_convert_example_messages(data, "input.messages")
         assert len(result) == 2
-        assert result[0] == (ChatCompletionMessageRole.SYSTEM, "You are helpful.", None, None)
-        assert result[1] == (ChatCompletionMessageRole.USER, "What is 2+2?", None, None)
+        assert result[0] == create_playground_message(
+            ChatCompletionMessageRole.SYSTEM, "You are helpful."
+        )
+        assert result[1] == create_playground_message(
+            ChatCompletionMessageRole.USER, "What is 2+2?"
+        )
 
     def test_openai_fine_tuning_format(self) -> None:
         """Test the OpenAI fine-tuning format as described in the feature spec."""
@@ -339,16 +349,14 @@ class TestExtractAndConvertExampleMessages:
         }
         result = extract_and_convert_example_messages(data, "messages")
         assert len(result) == 2
-        assert result[0] == (
+        assert result[0] == create_playground_message(
             ChatCompletionMessageRole.USER,
             "What is the weather in San Francisco?",
-            None,
-            None,
         )
-        assert result[1][0] == ChatCompletionMessageRole.AI
-        assert result[1][1] == ""  # No content, just tool calls
-        assert result[1][3] is not None
-        assert len(result[1][3]) == 1
+        assert result[1]["role"] == ChatCompletionMessageRole.AI
+        assert result[1]["content"] == ""  # No content, just tool calls
+        assert result[1].get("tool_calls") is not None
+        assert len(result[1]["tool_calls"]) == 1
 
     def test_tool_response_in_conversation(self) -> None:
         data = {
@@ -376,11 +384,10 @@ class TestExtractAndConvertExampleMessages:
         result = extract_and_convert_example_messages(data, "messages")
         assert len(result) == 4
         # Check the tool response message
-        assert result[2] == (
+        assert result[2] == create_playground_message(
             ChatCompletionMessageRole.TOOL,
             '{"temp": 72}',
-            "call_123",
-            None,
+            tool_call_id="call_123",
         )
 
     def test_empty_messages_list(self) -> None:
@@ -440,13 +447,13 @@ class TestExtractAndConvertExampleMessages:
         assert len(result) == 7
 
         # Verify each message type is correctly converted
-        assert result[0][0] == ChatCompletionMessageRole.SYSTEM
-        assert result[1][0] == ChatCompletionMessageRole.USER
-        assert result[2][0] == ChatCompletionMessageRole.AI
-        assert result[3][0] == ChatCompletionMessageRole.USER
-        assert result[4][0] == ChatCompletionMessageRole.AI
-        assert result[4][3] is not None  # Has tool calls
-        assert result[5][0] == ChatCompletionMessageRole.TOOL
-        assert result[5][2] == "call_weather_1"  # tool_call_id
-        assert result[6][0] == ChatCompletionMessageRole.AI
-        assert "65°F" in result[6][1]
+        assert result[0]["role"] == ChatCompletionMessageRole.SYSTEM
+        assert result[1]["role"] == ChatCompletionMessageRole.USER
+        assert result[2]["role"] == ChatCompletionMessageRole.AI
+        assert result[3]["role"] == ChatCompletionMessageRole.USER
+        assert result[4]["role"] == ChatCompletionMessageRole.AI
+        assert result[4].get("tool_calls") is not None  # Has tool calls
+        assert result[5]["role"] == ChatCompletionMessageRole.TOOL
+        assert result[5].get("tool_call_id") == "call_weather_1"
+        assert result[6]["role"] == ChatCompletionMessageRole.AI
+        assert "65°F" in result[6]["content"]

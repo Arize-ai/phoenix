@@ -6,14 +6,40 @@ users to specify a path to conversation messages within dataset examples that
 should be appended to prompt templates when running experiments.
 """
 
-from typing import Any, Optional
+from collections.abc import Sequence
+from typing import Any, Optional, TypedDict
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
-# The fourth element (tool_calls) can be a list of dicts in OpenAI format
-ChatCompletionMessage = tuple[
-    ChatCompletionMessageRole, str, Optional[str], Optional[list[dict[str, Any]]]
-]
+
+class PlaygroundMessageToolCall(TypedDict, total=False):
+    id: str
+    function: dict[str, Any]
+    type: str
+    name: str
+    input: dict[str, Any]
+
+
+class PlaygroundMessage(TypedDict, total=False):
+    role: ChatCompletionMessageRole
+    content: str
+    tool_call_id: str
+    tool_calls: Sequence[dict[str, Any]]
+
+
+def create_playground_message(
+    role: ChatCompletionMessageRole,
+    content: str,
+    tool_call_id: Optional[str] = None,
+    tool_calls: Optional[Sequence[dict[str, Any]]] = None,
+) -> PlaygroundMessage:
+    msg: PlaygroundMessage = {"role": role, "content": content}
+    if tool_call_id is not None:
+        msg["tool_call_id"] = tool_call_id
+    if tool_calls is not None:
+        msg["tool_calls"] = tool_calls
+    return msg
+
 
 # Mapping from OpenAI role strings to internal enum values
 _ROLE_MAPPING = {
@@ -76,11 +102,9 @@ def _role_to_enum(role: str) -> ChatCompletionMessageRole:
     return _ROLE_MAPPING[role_lower]
 
 
-def convert_openai_message_to_internal(
-    message: dict[str, Any],
-) -> ChatCompletionMessage:
+def convert_openai_message_to_internal(message: dict[str, Any]) -> PlaygroundMessage:
     """
-    Convert an OpenAI-format message to the internal ChatCompletionMessage tuple.
+    Convert an OpenAI-format message to the internal PlaygroundMessage dict.
 
     OpenAI format:
         {"role": "user", "content": "Hello"}
@@ -88,13 +112,13 @@ def convert_openai_message_to_internal(
         {"role": "tool", "content": "result", "tool_call_id": "call_123"}
 
     Internal format:
-        (ChatCompletionMessageRole, content_str, tool_call_id, tool_calls_list)
+        PlaygroundMessage dict with role, content, tool_call_id (optional), tool_calls (optional)
 
     Args:
         message: Message dict in OpenAI format
 
     Returns:
-        ChatCompletionMessage tuple
+        PlaygroundMessage dict
     """
     role = _role_to_enum(message.get("role", "user"))
 
@@ -121,26 +145,27 @@ def convert_openai_message_to_internal(
     # Extract tool_calls (for assistant messages with function calls)
     tool_calls = message.get("tool_calls")
 
-    return (role, content, tool_call_id, tool_calls)
+    return create_playground_message(role, content, tool_call_id, tool_calls)
 
 
 def extract_and_convert_example_messages(
     data: dict[str, Any],
     path: str,
-) -> list[ChatCompletionMessage]:
+) -> list[PlaygroundMessage]:
     """
     Extract messages from a dataset example and convert them to internal format.
 
     This is the main entry point for the appended messages feature. It extracts
     a list of messages from a dataset example's input using a dot-notation path,
-    then converts each message from OpenAI format to the internal tuple format.
+    then converts each message from OpenAI format to the internal PlaygroundMessage
+    format.
 
     Args:
         data: The dataset example input dictionary
         path: Dot-notation path to the messages list
 
     Returns:
-        List of ChatCompletionMessage tuples ready to be appended to a prompt
+        List of PlaygroundMessage dicts ready to be appended to a prompt
 
     Raises:
         KeyError: If the path doesn't exist in the data
@@ -152,7 +177,7 @@ def extract_and_convert_example_messages(
     if not isinstance(messages_raw, list):
         raise TypeError(f"Value at path '{path}' is not a list (got {type(messages_raw).__name__})")
 
-    messages: list[ChatCompletionMessage] = []
+    messages: list[PlaygroundMessage] = []
     for i, msg in enumerate(messages_raw):
         if not isinstance(msg, dict):
             raise ValueError(f"Message at index {i} is not a dict (got {type(msg).__name__})")

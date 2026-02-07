@@ -15,13 +15,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from opentelemetry.trace import StatusCode
 
-from phoenix.db import models
 from phoenix.server.api.helpers.playground_spans import streaming_llm_span
 from phoenix.server.api.subscriptions import _cleanup_chat_completion_resources
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     TextChunk,
 )
+from phoenix.tracers import Tracer
 
 # Type alias for the async generator used in chat completion streams
 ChatStream = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
@@ -141,11 +141,11 @@ class TestCleanupChatCompletionResources:
             (0, mock_gen, task)
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Mock dependencies
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -153,7 +153,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -192,10 +192,10 @@ class TestCleanupChatCompletionResources:
             (0, mock_gen, task)
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -203,7 +203,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -257,10 +257,10 @@ class TestCleanupChatCompletionResources:
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -268,7 +268,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -288,10 +288,10 @@ class TestCleanupChatCompletionResources:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise any exceptions
@@ -300,7 +300,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -338,10 +338,10 @@ class TestCleanupChatCompletionResources:
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -349,7 +349,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -389,10 +389,10 @@ class TestCleanupChatCompletionResources:
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
@@ -401,7 +401,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -449,10 +449,10 @@ class TestCleanupChatCompletionResources:
                 (1, mock_gen_not_started),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -460,7 +460,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -615,10 +615,10 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should complete without errors
@@ -627,7 +627,7 @@ class TestResultsQueueFlushing:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -643,13 +643,13 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Add some results to the queue
-        mock_span1 = MagicMock(spec=models.Span)
-        mock_span2 = MagicMock(spec=models.Span)
-        await results.put((mock_span1, 1))
-        await results.put((mock_span2, 2))
+        mock_tracer1 = MagicMock(spec=Tracer)
+        mock_tracer2 = MagicMock(spec=Tracer)
+        await results.put((mock_tracer1, 1))
+        await results.put((mock_tracer2, 2))
 
         # Create mock database session
         mock_session = AsyncMock()
@@ -657,8 +657,7 @@ class TestResultsQueueFlushing:
         mock_db.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        mock_span_cost_calculator = MagicMock()
-        mock_span_cost_calculator.calculate_cost = MagicMock(return_value=None)
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Use the actual _chat_completion_span_result_payloads
@@ -677,7 +676,7 @@ class TestResultsQueueFlushing:
                 not_started=not_started,
                 results=results,
                 db=mock_db,
-                span_cost_calculator=mock_span_cost_calculator,
+                project_id=mock_project_id,
                 on_span_insertion=mock_on_span_insertion,
             )
 
@@ -685,8 +684,8 @@ class TestResultsQueueFlushing:
             mock_flush.assert_called_once()
             call_kwargs = mock_flush.call_args.kwargs
             assert len(call_kwargs["results"]) == 2
-            assert (mock_span1, 1) in call_kwargs["results"]
-            assert (mock_span2, 2) in call_kwargs["results"]
+            assert (mock_tracer1, 1) in call_kwargs["results"]
+            assert (mock_tracer2, 2) in call_kwargs["results"]
 
     async def test_queue_flush_handles_errors(self, caplog: pytest.LogCaptureFixture) -> None:
         """
@@ -694,14 +693,14 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Add a result to the queue
-        mock_span = MagicMock(spec=models.Span)
-        await results.put((mock_span, 1))
+        mock_tracer = MagicMock(spec=Tracer)
+        await results.put((mock_tracer, 1))
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Make the flush function raise an error
@@ -722,7 +721,7 @@ class TestResultsQueueFlushing:
                     not_started=not_started,
                     results=results,
                     db=mock_db,
-                    span_cost_calculator=mock_span_cost_calculator,
+                    project_id=mock_project_id,
                     on_span_insertion=mock_on_span_insertion,
                 )
 
@@ -802,10 +801,10 @@ class TestCancellationIntegration:
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise
@@ -814,7 +813,7 @@ class TestCancellationIntegration:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -862,10 +861,10 @@ class TestCancellationIntegration:
             (1, mock_gen2, task2),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
@@ -874,7 +873,7 @@ class TestCancellationIntegration:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 

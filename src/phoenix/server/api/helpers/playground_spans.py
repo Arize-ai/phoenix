@@ -34,6 +34,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -51,9 +52,6 @@ from phoenix.trace.schemas import (
 )
 from phoenix.utilities.json import jsonify
 
-ChatCompletionMessage: TypeAlias = tuple[
-    ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
-]
 ToolCallID: TypeAlias = str
 
 logger = logging.getLogger(__name__)
@@ -69,7 +67,7 @@ class streaming_llm_span:
         self,
         *,
         input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
-        messages: list[ChatCompletionMessage],
+        messages: list[PlaygroundMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
     ) -> None:
@@ -358,11 +356,13 @@ def _output_value_and_mime_type(
 
 
 def llm_input_messages(
-    messages: Iterable[
-        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-    ],
+    messages: Iterable[PlaygroundMessage],
 ) -> Iterator[tuple[str, Any]]:
-    for i, (role, content, tool_call_id, tool_calls) in enumerate(messages):
+    for i, msg in enumerate(messages):
+        role = msg["role"]
+        content = msg["content"]
+        tool_call_id = msg.get("tool_call_id")
+        tool_calls = msg.get("tool_calls")
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
         if role == ChatCompletionMessageRole.TOOL and tool_call_id:
