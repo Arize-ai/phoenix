@@ -2152,11 +2152,11 @@ class TestLLMEvaluator:
                 evaluator_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "CHAIN":
                 if span.name == "Input Mapping":
                     input_mapping_span = span
-                elif span.name.startswith("Prompt:"):
-                    prompt_span = span
                 elif span.name == "Parse Eval Result":
                     parse_eval_result_span = span
 
@@ -2215,7 +2215,7 @@ class TestLLMEvaluator:
         assert prompt_span.status_code == "OK"
         assert not prompt_span.events
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
         raw_input_value = attributes.pop(INPUT_VALUE)
         input_value = json.loads(raw_input_value)
         assert input_value == {"input": "What is 2 + 2?", "output": "4"}
@@ -2576,11 +2576,11 @@ class TestLLMEvaluator:
                 evaluator_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "CHAIN":
                 if span.name == "Input Mapping":
                     input_mapping_span = span
-                elif span.name.startswith("Prompt:"):
-                    prompt_span = span
 
         assert evaluator_span is not None
         assert input_mapping_span is not None
@@ -2616,7 +2616,7 @@ class TestLLMEvaluator:
         assert prompt_span.status_code == "OK"
         assert not prompt_span.events
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
             "input": "What is 2 + 2?",
             "output": "4",
@@ -2755,11 +2755,11 @@ class TestLLMEvaluator:
                 evaluator_span = span
             elif span.span_kind == "LLM":
                 llm_span = span
+            elif span.span_kind == "PROMPT":
+                prompt_span = span
             elif span.span_kind == "CHAIN":
                 if span.name == "Input Mapping":
                     input_mapping_span = span
-                elif span.name.startswith("Prompt:"):
-                    prompt_span = span
                 elif span.name == "Parse Eval Result":
                     parse_eval_result_span = span
 
@@ -2891,7 +2891,7 @@ class TestLLMEvaluator:
         assert prompt_span is not None
         assert prompt_span.name == "Prompt: test-prompt"
         attributes = dict(flatten(prompt_span.attributes, recurse_on_sequence=True))
-        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
