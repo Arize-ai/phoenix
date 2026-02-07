@@ -84,6 +84,7 @@ const DRAGGING_MESSAGE_Z_INDEX = 10;
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
+  availablePaths: string[] | undefined;
 }
 
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
@@ -161,6 +162,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           {messageIds.map((messageId) => {
             return (
               <SortableMessageItem
+                availablePaths={props.availablePaths}
                 playgroundInstanceId={id}
                 templateFormat={templateFormat}
                 key={messageId}
@@ -321,10 +323,12 @@ function SortableMessageItem({
   playgroundInstanceId,
   templateFormat,
   messageId,
+  availablePaths,
 }: PropsWithChildren<{
   playgroundInstanceId: number;
   messageId: number;
   templateFormat: TemplateFormat;
+  availablePaths: string[] | undefined;
 }>) {
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
   const deleteMessage = usePlaygroundContext((state) => state.deleteMessage);
@@ -356,12 +360,6 @@ function SortableMessageItem({
     [messageId]
   );
   const message = usePlaygroundContext(messageSelector);
-  // Get available paths for autocomplete from the dataset state
-  const availablePaths = usePlaygroundContext((state) => {
-    const datasetId = state.datasetId;
-    if (!datasetId) return undefined;
-    return state.stateByDatasetId[datasetId]?.availablePaths;
-  });
   const messageCardStyles = useChatMessageStyles(message.role);
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),

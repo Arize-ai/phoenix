@@ -213,7 +213,7 @@ function PlaygroundContent() {
   const playgroundDatasetState = datasetId
     ? playgroundDatasetStateByDatasetId[datasetId]
     : null;
-  const { appendedMessagesPath } = playgroundDatasetState ?? {};
+  const { appendedMessagesPath, availablePaths } = playgroundDatasetState ?? {};
 
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
@@ -275,6 +275,7 @@ function PlaygroundContent() {
                           <PlaygroundTemplate
                             playgroundInstanceId={instanceId}
                             appendedMessagesPath={appendedMessagesPath}
+                            availablePaths={availablePaths}
                           />
                         </View>
                       ))}

@@ -31,6 +31,7 @@ import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
+  availablePaths: string[] | undefined;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
