@@ -131,7 +131,6 @@ export function BuiltInDatasetEvaluatorDetails({
         evaluator {
           kind
           name
-          isBuiltin
           ... on BuiltInEvaluator {
             outputConfig {
               ... on AnnotationConfigBase {
@@ -158,7 +157,7 @@ export function BuiltInDatasetEvaluatorDetails({
   );
 
   const evaluator = datasetEvaluator.evaluator;
-  if (evaluator.kind !== "BUILTIN" || !evaluator.isBuiltin || !evaluator.name) {
+  if (evaluator.kind !== "BUILTIN" || !evaluator.name) {
     throw new Error("Invalid evaluator for BuiltInDatasetEvaluatorDetails");
   }
 
@@ -178,7 +177,7 @@ export function BuiltInDatasetEvaluatorDetails({
       DetailsComponent = ContainsEvaluatorDetails;
       CodeBlockComponent = ContainsEvaluatorCodeBlock;
       break;
-    case "exactmatch":
+    case "exact_match":
       DetailsComponent = ExactMatchEvaluatorDetails;
       CodeBlockComponent = ExactMatchEvaluatorCodeBlock;
       break;
@@ -186,11 +185,11 @@ export function BuiltInDatasetEvaluatorDetails({
       DetailsComponent = RegexEvaluatorDetails;
       CodeBlockComponent = RegexEvaluatorCodeBlock;
       break;
-    case "levenshteindistance":
+    case "levenshtein_distance":
       DetailsComponent = LevenshteinDistanceEvaluatorDetails;
       CodeBlockComponent = LevenshteinDistanceEvaluatorCodeBlock;
       break;
-    case "jsondistance":
+    case "json_distance":
       DetailsComponent = JSONDistanceEvaluatorDetails;
       CodeBlockComponent = JSONDistanceEvaluatorCodeBlock;
       break;

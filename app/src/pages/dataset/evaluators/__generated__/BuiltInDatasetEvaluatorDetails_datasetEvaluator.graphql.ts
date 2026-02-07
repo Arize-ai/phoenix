@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5deba98ab105828fb4ad87572e0057bf>>
+ * @generated SignedSource<<ce1cc9af8e4d562eb6b58aebf9ebbf50>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,6 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
-    readonly isBuiltin: boolean;
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfig?: {
@@ -195,13 +194,6 @@ return {
         },
         (v0/*: any*/),
         {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "isBuiltin",
-          "storageKey": null
-        },
-        {
           "kind": "InlineFragment",
           "selections": [
             (v2/*: any*/)
@@ -218,6 +210,6 @@ return {
 };
 })();
 
-(node as any).hash = "58a72c5e4c67f8f9da534651e78b5194";
+(node as any).hash = "3a9e4de0e1fb32eba1806f64f1714f27";
 
 export default node;
