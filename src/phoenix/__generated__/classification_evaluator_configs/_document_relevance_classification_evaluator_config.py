@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="document_relevance",
     description="A specialized evaluator for determining document relevance to a given question.",
     optimization_direction="maximize",
+    specification=EvaluatorSpecification(
+        use_cases=["rag"],
+        measures="grounding",
+        requires=["input", "context"],
+        level=["document"],
+        span_kind=None,
+    ),
     messages=[
         PromptMessage(
             role="user",

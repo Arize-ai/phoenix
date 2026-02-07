@@ -1,12 +1,19 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import ClassificationEvaluatorConfig, EvaluatorSpecification, PromptMessage
 
 TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="tool_selection",
     description="For determining if the correct tool was selected for a given context. Requires conversation context, a list of available tools, and the LLM's tool selections.",
     optimization_direction="maximize",
+    specification=EvaluatorSpecification(
+        use_cases=["agent"],
+        measures="tool_use",
+        requires=["input", "tools", "tool_calls"],
+        level=["span"],
+        span_kind=["tool"],
+    ),
     messages=[
         PromptMessage(
             role="user",
