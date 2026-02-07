@@ -2,9 +2,9 @@
 title: "Measure Performance with Evaluations"
 ---
 
-In this guide, we’ll set up evaluations in Phoenix so we can measure the quality of model outputs from a real application.
+An evaluation produces a score or label for an output, so you can track quality across runs. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case. Traces tell us what happened during a run, but they don’t tell us whether the output was good; evaluations fill that gap by letting us score outputs in a consistent, repeatable way. 
 
-Traces tell us what happened during a run, but they don’t tell us whether the output was _good_. Evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
+In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real application.
 
 We’ll start with data that already exists in Phoenix, define a simple evaluation, and run it so we can see results directly in the UI. The goal is to move from “I have model outputs” to “I can measure quality in a repeatable way.”
 

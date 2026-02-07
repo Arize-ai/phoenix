@@ -3,7 +3,12 @@ import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 
-const financial_completeness_template = `
+const EVAL_NAME = "completeness";
+const AGENT_SPAN_NAME = "invoke_agent Financial Analysis Orchestrator";
+const PROJECT_NAME =
+  process.env.PHOENIX_PROJECT_NAME ?? "mastra-tracing-quickstart";
+
+const financialCompletenessTemplate = `
 You are evaluating whether a financial research report correctly completes ALL parts of the user's task.
 
 User input: {{input}}
@@ -30,130 +35,79 @@ Respond with ONLY one word: "complete" or "incomplete"
 Then provide a brief explanation of which parts were completed or missed.
 `;
 
-const simple_financial_completeness_template = `
-You are evaluating whether a financial research report correctly completes all parts of the user's task.
-
-User input: {{input}}
-
-Generated report:
-{{output}}
-
-To be marked as "correct", the report should:
-Cover companies/tickers mentioned in the input
-
-The report is "incorrect" if:
-- It misses any company/ticker mentioned in the input
-
-Respond with ONLY one word: "complete" or "incomplete"
-Then provide a brief explanation of which parts were completed or missed.
-`;
-
-function extractInputOutputFromSpan(span: any): {
-  input: string | null;
-  output: string | null;
-} {
-  let input: string | null = null;
-  let output: string | null = null;
-
-  if (span.attributes) {
-    input = span.attributes["input.value"] || span.attributes["input"] || null;
-
-    output =
-      span.attributes["output.value"] || span.attributes["output"] || null;
-  }
-
-  if ((!input || !output) && span.events) {
-    for (const event of span.events) {
-      if (event.attributes) {
-        if (!input && event.attributes["input"]) {
-          input =
-            typeof event.attributes["input"] === "string"
-              ? event.attributes["input"]
-              : JSON.stringify(event.attributes["input"]);
-        }
-        if (!output && event.attributes["output"]) {
-          output =
-            typeof event.attributes["output"] === "string"
-              ? event.attributes["output"]
-              : JSON.stringify(event.attributes["output"]);
-        }
-      }
-    }
-  }
-
-  return { input, output };
-}
-
-// Step 1: Create the evaluator
-const evaluator = createClassificationEvaluator<{
-  input: string;
-  output: string;
-}>({
-  name: "completeness",
-  model: openai("gpt-4o-mini"),
-  promptTemplate: simple_financial_completeness_template,
-  choices: { complete: 1, incomplete: 0 },
-});
-
-// Step 2: Get all spans from Phoenix
-const projectName =
-  process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart";
-const allSpans = await getSpans({ project: { projectName }, limit: 500 });
-
-// Step 3: Filter for orchestrator agent spans
-const orchestratorSpans: typeof allSpans.spans = [];
-for (const span of allSpans.spans) {
-  if (span.name === "invoke_agent Financial Analysis Orchestrator") {
-    orchestratorSpans.push(span);
-  }
-}
-console.log(`Found ${orchestratorSpans.length} orchestrator spans`);
-
-// Step 4: Extract input/output from each span
-const parentSpans: Array<{ input: string; output: string; spanId: string }> =
-  [];
-for (const span of orchestratorSpans) {
-  const { input, output } = extractInputOutputFromSpan(span);
-  const spanId = span.context?.span_id || span.id;
-
-  parentSpans.push({
-    input: input || "",
-    output: output || "",
-    spanId: spanId?.toString() || "",
+async function main() {
+  const evaluator = createClassificationEvaluator({
+    model: openai("gpt-4o-mini") as Parameters<
+      typeof createClassificationEvaluator
+    >[0]["model"],
+    promptTemplate: financialCompletenessTemplate,
+    choices: { complete: 1, incomplete: 0 },
+    name: EVAL_NAME,
   });
+
+  const { spans } = await getSpans({
+    project: { projectName: PROJECT_NAME },
+    limit: 500,
+  });
+
+  const toEvaluate: { spanId: string; input: string; output: string }[] = [];
+  for (const s of spans) {
+    const span = s as {
+      name?: string;
+      span_name?: string;
+      attributes?: Record<string, unknown>;
+      context?: { span_id?: string };
+      span_id?: string;
+      id?: string;
+    };
+    if ((span.name ?? span.span_name) !== AGENT_SPAN_NAME) continue;
+    const attrs = span.attributes ?? {};
+    const rawInput = attrs["input.value"] ?? attrs["input"];
+    const rawOutput = attrs["output.value"] ?? attrs["output"];
+    const input =
+      typeof rawInput === "string"
+        ? rawInput
+        : rawInput != null
+          ? JSON.stringify(rawInput)
+          : null;
+    const output =
+      typeof rawOutput === "string"
+        ? rawOutput
+        : rawOutput != null
+          ? JSON.stringify(rawOutput)
+          : null;
+    const rawId = span.context?.span_id ?? span.span_id ?? span.id;
+    const spanId = rawId != null ? String(rawId) : null;
+    if (input && output && spanId) toEvaluate.push({ spanId, input, output });
+  }
+
+  console.log(`Found ${toEvaluate.length} orchestrator spans to evaluate`);
+
+  const spanAnnotations = await Promise.all(
+    toEvaluate.map(async ({ spanId, input, output }) => {
+      const { label, score, explanation } = await evaluator.evaluate({
+        input,
+        output,
+      });
+      return {
+        spanId,
+        name: EVAL_NAME as "completeness",
+        label,
+        score,
+        explanation,
+        annotatorKind: "LLM" as const,
+        metadata: { evaluator: EVAL_NAME, input, output },
+      };
+    }),
+  );
+
+  await logSpanAnnotations({ spanAnnotations, sync: true });
+  console.log(
+    `Logged ${spanAnnotations.length} ${EVAL_NAME} evaluations to Phoenix`,
+  );
 }
 
-// Step 5: Evaluate each span and create annotations
-const spanAnnotations = await Promise.all(
-  parentSpans.map(async (parentSpan) => {
-    const evaluationResult = await evaluator.evaluate({
-      input: parentSpan.input,
-      output: parentSpan.output,
-    });
-    console.log(evaluationResult.explanation);
-
-    return {
-      spanId: parentSpan.spanId,
-      name: "completeness" as const,
-      label: evaluationResult.label,
-      score: evaluationResult.score,
-      explanation: evaluationResult.explanation || undefined,
-      annotatorKind: "LLM" as const,
-      metadata: {
-        evaluator: "completeness",
-        input: parentSpan.input,
-        output: parentSpan.output,
-      },
-    };
-  }),
-);
-
-// Step 6: Send annotations back to Phoenix
-await logSpanAnnotations({
-  spanAnnotations,
-  sync: true,
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
 });
-
-console.log(
-  `Logged ${spanAnnotations.length} completeness evaluations to Phoenix`,
-);
