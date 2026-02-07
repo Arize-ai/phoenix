@@ -184,7 +184,9 @@ export function PlaygroundEvaluatorSelect(
       <EditBuiltInDatasetEvaluatorSlideover
         datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId}
         datasetId={datasetId}
-        isOpen={editingEvaluator !== null && editingEvaluator.isBuiltIn}
+        isOpen={
+          editingEvaluator !== null && editingEvaluator.kind === "BUILTIN"
+        }
         onOpenChange={(open) => {
           if (!open) {
             setEditingEvaluator(null);
