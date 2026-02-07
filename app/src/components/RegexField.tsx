@@ -16,6 +16,7 @@ type RegexFieldProps = {
   value: string;
   onChange: (value: string) => void;
   isInvalid?: boolean;
+  isPending?: boolean;
   error?: string;
   description?: string;
   label?: string;
@@ -28,6 +29,7 @@ export const RegexField = ({
   onChange,
   error,
   isInvalid,
+  isPending,
   description,
   label,
   ariaLabel,
@@ -46,8 +48,8 @@ export const RegexField = ({
       <Input placeholder={placeholder} />
       {!error && description && <Text slot="description">{description}</Text>}
       {error && <FieldError>{error}</FieldError>}
-      {isInvalid && value && <FieldDangerIcon />}
-      {!isInvalid && value && <FieldSuccessIcon />}
+      {!isPending && isInvalid && value && <FieldDangerIcon />}
+      {!isPending && !isInvalid && value && <FieldSuccessIcon />}
     </TextField>
   );
 };
