@@ -1649,6 +1649,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     def _adapt_invocation_parameters_for_claude_46(self, params: dict[str, Any]) -> dict[str, Any]:
         """Adapt invocation parameters for Claude 4.6: thinking -> adaptive, default output_config."""
+        # thinking: {type: "enabled", budget_tokens: N} is deprecated on Opus 4.6
         params = dict(params)
         thinking = params.get("thinking")
         if isinstance(thinking, dict) and thinking.get("type") == "enabled":
