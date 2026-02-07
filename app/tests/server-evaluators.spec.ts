@@ -488,4 +488,42 @@ test.describe.serial("Server Evaluators", () => {
       evaluatorsList.getByRole("row", { name: new RegExp(customEvaluatorName) })
     ).toBeVisible();
   });
+
+  test("can navigate to evaluator details pages", async ({ page }) => {
+    // Navigate to the dataset's evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Navigate to the LLM evaluator details page
+    await page
+      .getByRole("link", { name: prebuiltLLMEvaluatorName, exact: true })
+      .click();
+    await page.waitForURL("**/evaluators/**");
+
+    // Verify the LLM evaluator details page loaded
+    await expect(
+      page.getByRole("heading", { name: prebuiltLLMEvaluatorName })
+    ).toBeVisible();
+
+    // Navigate back to the evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Navigate to the built-in code evaluator details page
+    await page
+      .getByRole("link", { name: prebuiltCodeEvaluatorName, exact: true })
+      .click();
+    await page.waitForURL("**/evaluators/**");
+
+    // Verify the built-in evaluator details page loaded
+    await expect(
+      page.getByRole("heading", { name: prebuiltCodeEvaluatorName })
+    ).toBeVisible();
+  });
 });
