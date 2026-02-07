@@ -31,6 +31,7 @@ from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -295,9 +296,7 @@ class LLMEvaluator(BaseEvaluator):
                     },
                 ) as prompt_span:
                     template_formatter = get_template_formatter(self._template_format)
-                    messages: list[
-                        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]
-                    ] = []
+                    messages: list[PlaygroundMessage] = []
                     for msg in self._template.messages:
                         role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
                         if isinstance(msg.content, str):
@@ -313,11 +312,11 @@ class LLMEvaluator(BaseEvaluator):
                                     )
                                     text_parts.append(formatted_text)
                             formatted_content = "".join(text_parts)
-                        messages.append((role, formatted_content, None, None))
+                        messages.append(create_playground_message(role, formatted_content))
 
                     formatted_messages = [
-                        oi.Message(role=role.value.lower(), content=content)
-                        for role, content, _, _ in messages
+                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                        for msg in messages
                     ]
                     prompt_span.set_attributes(
                         oi.get_output_attributes(
@@ -345,8 +344,8 @@ class LLMEvaluator(BaseEvaluator):
                         **oi.get_llm_model_name_attributes(model_name=self._llm_client.model_name),
                         **oi.get_llm_input_message_attributes(
                             [
-                                oi.Message(role=role.value.lower(), content=content)
-                                for role, content, _, _ in messages
+                                oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                                for msg in messages
                             ]
                         ),
                     },

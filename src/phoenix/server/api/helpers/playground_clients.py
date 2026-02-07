@@ -64,6 +64,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.GenerativeModelInput import (
@@ -248,9 +249,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     @abstractmethod
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -386,9 +385,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -410,7 +407,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         # Convert standard messages to OpenAI messages
         openai_messages = []
         for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
+            openai_message = self.to_openai_chat_completion_param(message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
@@ -481,10 +478,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -492,6 +486,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -721,9 +720,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -733,9 +730,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     async def _handle_converse_api(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -887,9 +882,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     async def _handle_invoke_api(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         invocation_parameters: dict[str, Any],
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1010,13 +1003,13 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     def _build_bedrock_messages(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list[dict[str, Any]], str]:
         bedrock_messages = []
         system_prompt = ""
-        for role, content, _, _ in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
                 bedrock_messages.append(
                     {
@@ -1037,36 +1030,38 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     def _extract_system_prompt(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> str:
         """Extract system prompt from messages."""
         system_prompts = []
-        for role, content, _, _ in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
         return "\n".join(system_prompts)
 
     def _build_converse_messages(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> list[dict[str, Any]]:
         """Convert messages to Converse API format."""
         converse_messages: list[dict[str, Any]] = []
-        for role, content, _id, tool_calls in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({"role": "user", "content": [{"text": content}]})
-            elif role == ChatCompletionMessageRole.TOOL:
+            elif role == ChatCompletionMessageRole.TOOL and tool_call_id:
                 converse_messages.append(
                     {
                         "role": "user",
                         "content": [
                             {
                                 "toolResult": {
-                                    "toolUseId": _id,
+                                    "toolUseId": tool_call_id,
                                     "content": [{"json": json.loads(content)}],
                                 }
                             }
@@ -1198,10 +1193,7 @@ class OpenAIReasoningNonStreamingClient(
 ):
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -1209,6 +1201,11 @@ class OpenAIReasoningNonStreamingClient(
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -1281,9 +1278,7 @@ class AzureOpenAIReasoningNonStreamingClient(
     @override
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -1294,7 +1289,7 @@ class AzureOpenAIReasoningNonStreamingClient(
         # Convert standard messages to OpenAI messages
         openai_messages = []
         for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
+            openai_message = self.to_openai_chat_completion_param(message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
@@ -1337,10 +1332,7 @@ class AzureOpenAIReasoningNonStreamingClient(
 
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -1348,6 +1340,11 @@ class AzureOpenAIReasoningNonStreamingClient(
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -1457,9 +1454,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -1550,12 +1545,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
     def _build_anthropic_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list["MessageParam"], str]:
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
-        for role, content, _tool_call_id, _tool_calls in messages:
-            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
+            tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
                 anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
@@ -1569,7 +1568,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                         "content": [
                             {
                                 "type": "tool_result",
-                                "tool_use_id": _tool_call_id or "",
+                                "tool_use_id": tool_call_id or "",
                                 "content": content or "",
                             }
                         ],
@@ -1581,7 +1580,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(
-        self, content: str, tool_calls: Optional[list[JSONScalarType]]
+        self, content: str, tool_calls: Optional[Sequence[JSONScalarType]]
     ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
         if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
@@ -1710,9 +1709,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -1766,12 +1763,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     def _build_google_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list["ContentType"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
         google_messages: list["ContentType"] = []
         system_prompts = []
-        for role, content, _tool_call_id, _tool_calls in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
                 google_messages.append({"role": "user", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.AI:
@@ -1857,9 +1856,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
@@ -2519,11 +2516,13 @@ def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
 
 
 def llm_input_messages(
-    messages: Iterable[
-        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-    ],
+    messages: Iterable[PlaygroundMessage],
 ) -> Iterator[tuple[str, Any]]:
-    for i, (role, content, tool_call_id, tool_calls) in enumerate(messages):
+    for i, msg in enumerate(messages):
+        role = msg["role"]
+        content = msg["content"]
+        tool_call_id = msg.get("tool_call_id")
+        tool_calls = msg.get("tool_calls")
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
         if role == ChatCompletionMessageRole.TOOL and tool_call_id:

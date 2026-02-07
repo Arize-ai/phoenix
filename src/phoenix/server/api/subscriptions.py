@@ -45,8 +45,9 @@ from phoenix.server.api.helpers.annotation_configs import (
     get_annotation_config_override,
 )
 from phoenix.server.api.helpers.message_helpers import (
-    ChatCompletionMessage,
+    PlaygroundMessage,
     build_template_variables,
+    create_playground_message,
     extract_and_convert_example_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
@@ -118,8 +119,8 @@ async def _stream_single_chat_completion(
     results: asyncio.Queue[tuple[Tracer, int]],
     span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
-    messages = [
-        (
+    messages: list[PlaygroundMessage] = [
+        create_playground_message(
             message.role,
             message.content,
             message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -816,8 +817,8 @@ async def _stream_chat_completion_over_dataset_example(
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    messages = [
-        (
+    messages: list[PlaygroundMessage] = [
+        create_playground_message(
             message.role,
             message.content,
             message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -1015,30 +1016,29 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
 
 def _formatted_messages(
     *,
-    messages: Iterable[ChatCompletionMessage],
+    messages: Iterable[PlaygroundMessage],
     template_format: PromptTemplateFormat,
     template_variables: Mapping[str, Any],
-) -> Iterator[ChatCompletionMessage]:
+) -> Iterator[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
     """
-    # Convert to list to check if empty and allow multiple iterations
     messages_list = list(messages)
     if not messages_list:
         return iter([])
     template_formatter = _template_formatter(template_format=template_format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages_list)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
+    result: list[PlaygroundMessage] = []
+    for msg in messages_list:
+        formatted_content = template_formatter.format(msg["content"], **template_variables)
+        result.append(
+            create_playground_message(
+                msg["role"],
+                formatted_content,
+                msg.get("tool_call_id"),
+                msg.get("tool_calls"),
+            )
+        )
+    return iter(result)
 
 
 def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:

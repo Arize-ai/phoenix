@@ -17,6 +17,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Tracer
 
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import OpenAIBaseStreamingClient
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
@@ -58,12 +59,10 @@ class TestOpenAIBaseStreamingClient:
             provider="openai",
         )
 
-        messages: list[tuple[ChatCompletionMessageRole, str, str | None, list[Any] | None]] = [
-            (
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
                 ChatCompletionMessageRole.USER,
                 "Who won the World Cup in 2018? Answer in one word",
-                None,
-                None,
             )
         ]
 
@@ -181,12 +180,10 @@ class TestOpenAIBaseStreamingClient:
             },
         }
 
-        messages: list[tuple[ChatCompletionMessageRole, str, str | None, list[Any] | None]] = [
-            (
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
                 ChatCompletionMessageRole.USER,
                 "How's the weather in San Francisco?",
-                None,
-                None,
             )
         ]
 

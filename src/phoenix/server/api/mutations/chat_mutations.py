@@ -57,7 +57,9 @@ from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_config,
 )
 from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
     build_template_variables,
+    create_playground_message,
     extract_and_convert_example_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
@@ -95,7 +97,6 @@ from phoenix.server.api.mutations.annotation_config_mutations import (
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
@@ -122,8 +123,6 @@ initialize_playground_clients()
 
 ExampleRowID: TypeAlias = int
 RepetitionNumber: TypeAlias = int
-
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]
 
 
 @strawberry.type
@@ -304,7 +303,7 @@ class ChatCompletionMutationMixin:
         ]
 
         # Pre-extract appended messages for each revision if path is specified
-        appended_messages_by_revision: dict[int, list[ChatCompletionMessage]] = {}
+        appended_messages_by_revision: dict[int, list[PlaygroundMessage]] = {}
         if input.appended_messages_path:
             for revision in revisions:
                 try:
@@ -745,13 +744,13 @@ class ChatCompletionMutationMixin:
         repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
-        appended_messages: Optional[list[ChatCompletionMessage]] = None,
+        appended_messages: Optional[list[PlaygroundMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
         attributes: dict[str, Any] = {}
         attributes.update(dict(prompt_metadata(input.prompt_name)))
 
-        messages = [
-            (
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
                 message.role,
                 message.content,
                 message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -928,29 +927,28 @@ class ChatCompletionMutationMixin:
 
 
 def _formatted_messages(
-    messages: Iterable[ChatCompletionMessage],
+    messages: Iterable[PlaygroundMessage],
     template_options: PromptTemplateOptions,
-) -> Iterator[ChatCompletionMessage]:
+) -> Iterator[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
     """
-    # Convert to list to check if empty and allow multiple iterations
     messages_list = list(messages)
     if not messages_list:
         return iter([])
     template_formatter = get_template_formatter(template_format=template_options.format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages_list)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
+    result: list[PlaygroundMessage] = []
+    for msg in messages_list:
+        formatted_content = template_formatter.format(msg["content"], **template_options.variables)
+        result.append(
+            create_playground_message(
+                msg["role"],
+                formatted_content,
+                msg.get("tool_call_id"),
+                msg.get("tool_calls"),
+            )
+        )
+    return iter(result)
 
 
 def _output_value_and_mime_type(
