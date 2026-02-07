@@ -27,6 +27,7 @@ import {
   areInvocationParamsEqual,
   areRequiredInvocationParametersConfigured,
   extractVariablesFromInstances,
+  applyProviderInvocationParameterConstraints,
   getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
   getChatRole,
@@ -37,6 +38,7 @@ import {
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
+  isClaude4Model,
   mergeInvocationParametersWithDefaults,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
@@ -1782,5 +1784,103 @@ describe("getAzureConfigFromAttributes", () => {
       apiVersion: null,
       endpoint: null,
     });
+  });
+});
+
+describe("isClaude4Model", () => {
+  it.each([
+    "claude-opus-4-5",
+    "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5",
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4-1",
+    "claude-opus-4-1-20250805",
+  ])("should return true for Claude 4.x model: %s", (model) => {
+    expect(isClaude4Model(model)).toBe(true);
+  });
+
+  it.each([
+    "claude-3-5-sonnet-20240620",
+    "claude-3-opus-20240229",
+    "claude-3-haiku-20240307",
+    "gpt-4",
+    "gemini-pro",
+  ])("should return false for non-Claude 4.x model: %s", (model) => {
+    expect(isClaude4Model(model)).toBe(false);
+  });
+});
+
+describe("applyProviderInvocationParameterConstraints", () => {
+  const temperatureParam = {
+    invocationName: "temperature",
+    canonicalName: "TEMPERATURE" as const,
+    valueFloat: 0.7,
+  };
+
+  const topPParam = {
+    invocationName: "top_p",
+    canonicalName: "TOP_P" as const,
+    valueFloat: 0.9,
+  };
+
+  const maxTokensParam = {
+    invocationName: "max_tokens",
+    canonicalName: "MAX_TOKENS" as const,
+    valueInt: 1024,
+  };
+
+  it("should drop top_p when both temperature and top_p are set for Claude 4.x models", () => {
+    const result = applyProviderInvocationParameterConstraints(
+      [temperatureParam, topPParam, maxTokensParam],
+      "ANTHROPIC",
+      "claude-sonnet-4-5"
+    );
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ canonicalName: "TEMPERATURE" }),
+        expect.objectContaining({ canonicalName: "MAX_TOKENS" }),
+      ])
+    );
+    expect(result.find((p) => p.canonicalName === "TOP_P")).toBeUndefined();
+  });
+
+  it("should keep top_p when temperature is not set for Claude 4.x models", () => {
+    const result = applyProviderInvocationParameterConstraints(
+      [topPParam, maxTokensParam],
+      "ANTHROPIC",
+      "claude-opus-4-1"
+    );
+    expect(result.find((p) => p.canonicalName === "TOP_P")).toBeDefined();
+  });
+
+  it("should keep temperature when top_p is not set for Claude 4.x models", () => {
+    const result = applyProviderInvocationParameterConstraints(
+      [temperatureParam, maxTokensParam],
+      "ANTHROPIC",
+      "claude-haiku-4-5"
+    );
+    expect(result.find((p) => p.canonicalName === "TEMPERATURE")).toBeDefined();
+  });
+
+  it("should allow both temperature and top_p for Claude 3.x models", () => {
+    const result = applyProviderInvocationParameterConstraints(
+      [temperatureParam, topPParam, maxTokensParam],
+      "ANTHROPIC",
+      "claude-3-5-sonnet-20240620"
+    );
+    expect(result.find((p) => p.canonicalName === "TEMPERATURE")).toBeDefined();
+    expect(result.find((p) => p.canonicalName === "TOP_P")).toBeDefined();
+  });
+
+  it("should allow both temperature and top_p for non-Anthropic providers", () => {
+    const result = applyProviderInvocationParameterConstraints(
+      [temperatureParam, topPParam, maxTokensParam],
+      "OPENAI",
+      "gpt-4"
+    );
+    expect(result.find((p) => p.canonicalName === "TEMPERATURE")).toBeDefined();
+    expect(result.find((p) => p.canonicalName === "TOP_P")).toBeDefined();
   });
 });
