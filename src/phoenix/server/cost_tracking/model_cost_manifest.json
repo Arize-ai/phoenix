@@ -479,7 +479,7 @@
     {
       "name": "claude-opus-4-6",
       "name_pattern": "claude-opus-4-6",
-      "source": "litellm",
+      "source": "manual",
       "token_prices": [
         {
           "base_rate": 5e-6,
