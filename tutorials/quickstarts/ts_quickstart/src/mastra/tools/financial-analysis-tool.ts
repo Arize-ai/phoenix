@@ -26,7 +26,6 @@ export const financialAnalysisTool = createTool({
       throw new Error("Mastra instance not available in tool context");
     }
 
-    // Step 1: Research phase
     const researcher = mastra.getAgent("financialResearcherAgent");
     if (!researcher) {
       throw new Error("Financial researcher agent not found");
@@ -36,7 +35,6 @@ export const financialAnalysisTool = createTool({
       { role: "user", content: `Research ${tickers} focusing on ${focus}` },
     ]);
 
-    // Step 2: Writing phase
     const writer = mastra.getAgent("financialWriterAgent");
     if (!writer) {
       throw new Error("Financial writer agent not found");

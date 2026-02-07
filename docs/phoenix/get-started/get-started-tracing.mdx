@@ -1,8 +1,11 @@
 ---
 title: "Send Traces From Your App"
 ---
+This guide walks through a complete workflow for understanding and improving an agent application using Phoenix. The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
 
-In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows. 
+
+In this guide, you’ll set up tracing in Phoenix Cloud and instrument an application: we’ll create a Phoenix Cloud instance, build a simple agent, and send a single trace so you can see the full flow end to end.
 
 We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page. ](https://arize.com/docs/phoenix/integrations)
 
