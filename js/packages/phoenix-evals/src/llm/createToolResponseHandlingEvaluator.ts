@@ -5,14 +5,12 @@ import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface ToolResponseHandlingEvaluatorArgs<
-  RecordType extends Record<
-    string,
-    unknown
-  > = ToolResponseHandlingEvaluationRecord,
+  RecordType extends Record<string, unknown> =
+    ToolResponseHandlingEvaluationRecord,
 > extends Omit<
-    CreateClassificationEvaluatorArgs<RecordType>,
-    "promptTemplate" | "choices" | "optimizationDirection" | "name"
-  > {
+  CreateClassificationEvaluatorArgs<RecordType>,
+  "promptTemplate" | "choices" | "optimizationDirection" | "name"
+> {
   optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
   name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
   choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
@@ -89,10 +87,8 @@ export type ToolResponseHandlingEvaluationRecord = {
  * ```
  */
 export function createToolResponseHandlingEvaluator<
-  RecordType extends Record<
-    string,
-    unknown
-  > = ToolResponseHandlingEvaluationRecord,
+  RecordType extends Record<string, unknown> =
+    ToolResponseHandlingEvaluationRecord,
 >(
   args: ToolResponseHandlingEvaluatorArgs<RecordType>
 ): ClassificationEvaluator<RecordType> {
