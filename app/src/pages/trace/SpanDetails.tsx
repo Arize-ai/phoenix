@@ -1756,13 +1756,16 @@ function MessageContentListItem({
 }) {
   const { message_content } = messageContentAttribute;
   const text = message_content?.text;
+  const normalizedText = text ? formatContentAsString(text) : undefined;
   const image = message_content?.image;
   const imageUrl = image?.image?.url;
 
   return (
-    <li css={text ? messageContentTextListItemCSS : null}>
-      {text ? (
-        <ConnectedMarkdownBlock margin="none">{text}</ConnectedMarkdownBlock>
+    <li css={normalizedText ? messageContentTextListItemCSS : null}>
+      {normalizedText ? (
+        <ConnectedMarkdownBlock margin="none">
+          {normalizedText}
+        </ConnectedMarkdownBlock>
       ) : null}
       {imageUrl ? <SpanImage url={imageUrl} /> : null}
     </li>
