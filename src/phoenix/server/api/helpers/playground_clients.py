@@ -1648,11 +1648,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     assert_never(event)
 
     def _adapt_invocation_parameters_for_claude_46(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive."""
+        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive, default output_config."""
         params = dict(params)
         thinking = params.get("thinking")
         if isinstance(thinking, dict) and thinking.get("type") == "enabled":
             params["thinking"] = {"type": "adaptive"}
+        if "output_config" not in params:
+            params["output_config"] = {"effort": "high"}
         return params
 
     def _anthropic_content_to_context_str(
