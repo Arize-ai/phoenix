@@ -136,6 +136,7 @@ export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
     ],
   },
   reference: {},
+  metadata: {},
 };
 
 /**
