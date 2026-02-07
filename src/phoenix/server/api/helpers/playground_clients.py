@@ -1648,23 +1648,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     assert_never(event)
 
     def _adapt_invocation_parameters_for_claude_46(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive, remove GA betas."""
+        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive."""
         params = dict(params)
         thinking = params.get("thinking")
         if isinstance(thinking, dict) and thinking.get("type") == "enabled":
             params["thinking"] = {"type": "adaptive"}
-        betas = params.get("betas")
-        if isinstance(betas, list):
-            ga_on_46 = {
-                "interleaved-thinking-2025-05-14",
-                "effort-2025-11-24",
-                "fine-grained-tool-streaming-2025-05-14",
-            }
-            filtered = [b for b in betas if b not in ga_on_46]
-            if filtered:
-                params["betas"] = filtered
-            else:
-                params.pop("betas", None)
         return params
 
     def _anthropic_content_to_context_str(
