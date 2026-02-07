@@ -402,11 +402,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 llm_span_kind(),
                 llm_model_name(self.model_name),
                 self._attributes.items(),
-                # llm_tools(input.tools or []),
+                llm_tools(tools),
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
-                # TODO: add tools
-                # TODO: add input_value_and_mime_type(input),
             )
         )
         # Convert standard messages to OpenAI messages

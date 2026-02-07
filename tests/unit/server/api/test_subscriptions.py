@@ -542,10 +542,8 @@ class TestChatCompletionSubscription:
         assert (function := tool_call["function"])
         assert function["name"] == "get_current_weather"
         assert json.loads(function["arguments"]) == {"location": "San Francisco"}
-        # TODO: Re-enable once span attributes are properly set by playground clients
-        # assert (llm_tools := attributes.pop(LLM_TOOLS))
-        # assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
-        attributes.pop(LLM_TOOLS, None)
+        assert (llm_tools := attributes.pop(LLM_TOOLS))
+        assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"

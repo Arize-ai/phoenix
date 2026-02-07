@@ -9,6 +9,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
     ToolCallAttributes,
 )
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -282,13 +283,18 @@ class TestOpenAIBaseStreamingClient:
         llm_system = attributes.pop(LLM_SYSTEM)
         assert llm_system == "openai"
 
+        llm_tool_schema = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
+        assert llm_tool_schema == json.dumps(get_current_weather_tool_schema)
+
         assert not attributes
 
 
+# mime types
 JSON = OpenInferenceMimeTypeValues.JSON.value
 TEXT = OpenInferenceMimeTypeValues.TEXT.value
 LLM = OpenInferenceSpanKindValues.LLM.value
 
+# span attributes
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
@@ -307,11 +313,17 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 )
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
 
+# message attributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
 
+# tool call attributes
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+
+# tool attributes
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
