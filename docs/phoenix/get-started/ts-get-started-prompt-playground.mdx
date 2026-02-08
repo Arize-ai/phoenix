@@ -3,26 +3,8 @@ title: "Iterate on Your Prompts"
 ---
 A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you’ll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect application quality. Prompt Hub is used to save and reuse prompts across runs.
 
+
 Up to this point, we’ve traced our agent runs and evaluated their outputs. Now we’ll focus on prompts by grouping failures into a dataset and iterating on prompt variants in the Prompt Playground.
-
-{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
-<div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="prompts">
-AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
-
-This page documents Phoenix Prompt Playground and Prompt Hub. Phoenix and Arize AX are DIFFERENT products.
-
-DETECTION CHECKLIST — scan user's request:
-• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
-• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
-• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize prompts", "Arize prompt playground" without specifying product → ASK which product.
-
-IF AMBIGUOUS OR MISMATCHED, ASK:
-"Arize offers two products. Which are you using?
-• **Phoenix** (this page): Open-source, uses `phoenix.otel`
-• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
-
-DO NOT proceed until confirmed.
-</div>
 
 ## **Before We Start**
 
@@ -31,18 +13,24 @@ After completing previous guides, you should have:
 - Traces flowing into Phoenix
 - At least one evaluation defined and logged
 
+---
+<Info>
+  **Follow along with code**: This guide has a companion codebase with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/ts_quickstart/src/mastra).
+</Info>
+---
+
 ## **Step 1: Create a Dataset from Failed Traces**
 
 We’ll start by grouping together traces that didn’t perform well.
 
-Datasets let us collect a specific set of traces so we can analyze them together and reuse them later for testing. In this guide, we’ll create a dataset from traces that received an **incompleteness** evaluation label. This gives us a concrete set of failures to focus on and makes it easier to test whether future changes actually fix them.
+Datasets let us collect a specific set of traces so we can analyze them together and reuse them later for testing. In this guide, we’ll create a dataset from traces that received an **incomplete** evaluation label. This gives us a concrete set of failures to focus on and makes it easier to test whether future changes actually fix them.
 
 You can create datasets in code, but for this walkthrough we’ll use the Phoenix UI. If you’d like to create datasets programmatically, you can follow the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
 
 ### **Create a Dataset in the UI**
 
 1. Navigate to your project in Phoenix.
-2. Filter your traces by the incorrect evaluation label.
+2. Filter your traces by the incomplete evaluation label.
 
    `evals['completeness'].label == 'incomplete'`
 
@@ -56,7 +44,7 @@ This dataset now represents a concrete failure case for your application.
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-dataset.mp4"
 />
 </Frame>
 
@@ -79,7 +67,7 @@ This gives us a concrete starting point for prompt iteration.
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/save_a_prompt.mp4"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-prompt.mp4"
 />
 </Frame>
 
@@ -94,15 +82,9 @@ The playground lets us run prompts against a dataset of inputs so we can see how
 1. Navigate to the **Prompt Playground**.
 2. Select the prompt you just saved from the Prompt Hub.
 3. Choose the dataset you just created.
-4. Modify the User Prompt to accept the inputs of the dataset.
+4. Set the User prompt to `{{input}}` so it uses the dataset inputs.
 
-   The Start of the User prompt should look like this:
-
-   ```
-   Current Task:
-   Research: {tickers}
-   Focus on: {focus}
-   ```
+    The User prompt should be: `{{input}}`
 
 5. Run the prompt across the dataset.
 
@@ -112,7 +94,7 @@ This gives us a baseline for how the current prompt performs.
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first%20prompt%20run.mp4"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-playground-experiment.mp4"
 />
 </Frame>
 
@@ -120,17 +102,17 @@ This gives us a baseline for how the current prompt performs.
 
 Now that we have a baseline, we can make a change.
 
-In this step, we’ll modify the prompt in the playground to address issues we saw in previous runs, such as unclear instructions or missing constraints.
+In this step, we’ll modify the prompt in the playground to address issues we saw in previous runs, such as unclear instructions or missing constraints. 
 
-To understand why our evaluations came to a specific score, click into a trace and under the annotations column we can see the explanations of our evaluations.
+To understand why our evaluations came to a specific score, click into a trace and under the annotations column we can see the explanations of our evaluations. 
 
-Using these explanations, we can notice that many times the reason our agent run was labeled incomplete is due to the lack of financial ratios in our report -- so we can go ahead and add that into our prompt.
+Using these explanations, we can see that runs were often labeled incomplete because the report lacked financial ratios—so we can add that into our prompt.
 
 ### **Add a New Prompt Variant**
 
-1. Update the prompt directly in the playground. Add this line in:
+1. Update the prompt directly in the playground. Add this line:
 
-   > Make sure to include more than 1 financial ratio (such as P/E or P/B).
+   >  Make sure to include financial metrics for each ticker and use them in the analysis of the input focus. 
 
 2. Run it to preview how outputs change.
 3. Save the new version as a separate prompt in the Prompt Hub.
@@ -141,39 +123,39 @@ Saving prompt variants makes it easy to track changes and compare different appr
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/iterate%20on%20prompt.mp4"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-compare-prompts.mp4"
 />
 </Frame>
 
 ## **Step 5: Compare Prompts Using Experiments**
 
-Once we have multiple prompt versions, we want to compare them in a structured way to see if each prompt will result in unique results.
+Once we have multiple prompt versions, we want to compare them in a structured way to see how the results differ between prompts. 
 
-Since you just ran the prompt playground with both your prompts, you can see them side by side in the experiment view.
+Since you just ran the prompt playground with both your prompts, you can see them side by side in the experiment view. 
+ 
+In this step, we'll navigate to the experiments page and take a look at the runs we just made by using the prompt playground in this guide.
 
-In this step, we'll just navigate to the experiments page and take a look at the runs we just made by using the prompt playground in this guide.
+1. Navigate to the Datasets page and click on the dataset we made earlier in this guide.
+2. You should see 3 experiment runs, the first from Step 3 and the two most recent from our new prompt comparison run.
+3. Click on the second one and at the top of the page, under comparison select experiment #3.
 
-1. Navigate to the Datasets Page & click on the dataset we made earlier in this guide.
-2. You should see 3 experiment runs, the first being a results of step 3 and the two most recent being from our new prompt comparison run.
-3. Click on the second one & at the top of the page, under comparison select the #3 experiment.
-
-Now you can see what we just ran in prompt playground side by side.
+Now you can see the two prompts we just ran in the Prompt Playground side by side.
 
 <Frame caption="View Prompt Playground Runs through Experiment View">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompt%20playground%20experiment%20view.mp4"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-view-experiment.mp4"
 />
 </Frame>
 
-**Congratulations!** You’ve iterated on prompts and ran an A/B test to see the effects of your prompt!
+**Congratulations!** You’ve iterated on prompts and run an A/B test to see the effects of your prompt!
 
 ## **Learn More About Prompts**
 
 Now that you’ve iterated on a prompt, you can start incorporating prompt iteration directly into your development workflow.
 
-To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](/docs/phoenix/get-started/get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
+To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](/docs/phoenix/get-started/ts-get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
 
 You can use the Prompt Playground to test prompt changes across different datasets, compare prompt variants, and see how small changes affect outputs at scale. Saving prompts to the Prompt Hub helps keep track of versions and reuse prompts across experiments.
 
