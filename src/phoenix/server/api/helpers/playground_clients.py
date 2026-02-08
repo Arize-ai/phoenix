@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union, cast
 
 import wrapt
 from openinference.instrumentation import safe_json_dumps
@@ -1648,7 +1648,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     assert_never(event)
 
     def _adapt_invocation_parameters_for_claude_46(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Adapt invocation parameters for Claude 4.6: thinking -> adaptive, default output_config."""
+        """Adapt invocation parameters for Claude 4.6"""
         # thinking: {type: "enabled", budget_tokens: N} is deprecated on Opus 4.6
         params = dict(params)
         thinking = params.get("thinking")
@@ -1669,8 +1669,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         for block in content:
             if isinstance(block, dict):
                 if block.get("type") == "text":
-                    parts.append(block.get("text", ""))
-                elif block.get("type") == "tool_use":
+                    parts.append(str(block.get("text", "")))
+                elif cast(Optional[str], block.get("type")) == "tool_use":
                     parts.append(f"[Tool: {block.get('name', '')}]")
         return "\n".join(parts)
 
