@@ -256,9 +256,13 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
 
     Args:
         df (pd.DataFrame): A pandas DataFrame typically returned by get_spans_dataframe.
+            Timestamps in 'start_time' and 'end_time' columns must be timezone-aware.
 
     Returns:
         list[v1.Span]: A list of Span objects reconstructed from the DataFrame.
+
+    Raises:
+        ValueError: If start_time or end_time columns contain timezone-naive timestamps.
 
     Examples:
         Basic usage::
@@ -287,6 +291,23 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
             )
     """
     import pandas as pd
+
+    # Validate timezone-aware timestamps before processing
+    for time_column in ["start_time", "end_time"]:
+        if time_column in df.columns:
+            # Check if column has datetime dtype and if any values are timezone-naive
+            time_values = df[time_column].dropna()  # pyright: ignore
+            if len(time_values) > 0:  # pyright: ignore
+                # Check first non-null value to determine if timestamps are timezone-aware
+                first_value = time_values.iloc[0]  # pyright: ignore
+                if hasattr(first_value, "tzinfo"):  # pyright: ignore
+                    if first_value.tzinfo is None:  # pyright: ignore
+                        raise ValueError(
+                            f"Column '{time_column}' contains timezone-naive timestamps. "
+                            f"All timestamps must be timezone-aware (e.g., use UTC). "
+                            f"Convert naive timestamps to timezone-aware using: "
+                            f"df['{time_column}'] = df['{time_column}'].dt.tz_localize('UTC')"
+                        )
 
     spans: list[Span] = []
 
