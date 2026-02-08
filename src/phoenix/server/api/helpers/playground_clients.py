@@ -1609,9 +1609,31 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                                 cache_read_tokens
                             )
                     self._attributes.update(output_token_counts)
+                elif isinstance(event, anthropic_streaming.ParsedMessageStopEvent):
+                    usage = event.message.usage
+                    output_token_counts: dict[str, Any] = {}
+                    if usage.output_tokens:
+                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                        if cache_read_tokens is not None:
+                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                cache_read_tokens
+                            )
+                    self._attributes.update(output_token_counts)
                 elif (
                     isinstance(event, anthropic_streaming.ContentBlockStopEvent)
                     and event.content_block.type == "tool_use"
+                ):
+                    tool_call_chunk = ToolCallChunk(
+                        id=event.content_block.id,
+                        function=FunctionCallChunk(
+                            name=event.content_block.name,
+                            arguments=json.dumps(event.content_block.input),
+                        ),
+                    )
+                    yield tool_call_chunk
+                elif isinstance(event, anthropic_streaming.ParsedContentBlockStopEvent) and (
+                    getattr(event.content_block, "type", None) == "tool_use"
                 ):
                     tool_call_chunk = ToolCallChunk(
                         id=event.content_block.id,
@@ -1628,6 +1650,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                         anthropic_types.RawContentBlockDeltaEvent,
                         anthropic_types.RawMessageDeltaEvent,
                         anthropic_streaming.ContentBlockStopEvent,
+                        anthropic_streaming.ParsedContentBlockStopEvent,
                         anthropic_streaming.InputJsonEvent,
                     ),
                 ):
