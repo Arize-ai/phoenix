@@ -43,12 +43,14 @@ const InvocationParameterFormField = ({
   onChange,
   errors,
   control,
+  isDisabled,
 }: {
   field: InvocationParameter;
   value: unknown;
   onChange: (value: unknown) => void;
   errors: FieldErrors<Record<string, unknown>>;
   control: Control<Record<string, unknown>>;
+  isDisabled?: boolean;
 }) => {
   const invocationName = field.invocationName;
   if (!invocationName) {
@@ -106,6 +108,7 @@ const InvocationParameterFormField = ({
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
+          isDisabled={isDisabled}
           onChange={(value) => {
             // NB: the type inference here is wrong. In the case
             // that the defaultValue is undefined, an array is returned here
@@ -307,6 +310,14 @@ export const InvocationParametersFormFields = ({
     instance.model.supportedInvocationParameters;
   const instanceInvocationParameters = instance.model.invocationParameters;
 
+  // Claude 4.x: only one of temperature or top_p may be set; setting one clears the other
+  const isClaude4 =
+    model.provider === "ANTHROPIC" &&
+    model.modelName != null &&
+    (model.modelName.startsWith("claude-opus-4") ||
+      model.modelName.startsWith("claude-sonnet-4") ||
+      model.modelName.startsWith("claude-haiku-4"));
+
   // Handle changes to the form state, either deleting or upserting an invocation parameter
   const onChange = useCallback(
     (field: InvocationParameter, value: unknown) => {
@@ -319,13 +330,31 @@ export const InvocationParametersFormFields = ({
           invocationParameterInputInvocationName: field.invocationName,
         });
       } else {
+        if (isClaude4) {
+          if (field.invocationName === "temperature") {
+            deleteInvocationParameterInput({
+              instanceId,
+              invocationParameterInputInvocationName: "top_p",
+            });
+          } else if (field.invocationName === "top_p") {
+            deleteInvocationParameterInput({
+              instanceId,
+              invocationParameterInputInvocationName: "temperature",
+            });
+          }
+        }
         upsertInvocationParameterInput({
           instanceId,
           invocationParameterInput: makeInvocationParameterInput(field, value),
         });
       }
     },
-    [instanceId, upsertInvocationParameterInput, deleteInvocationParameterInput]
+    [
+      instanceId,
+      isClaude4,
+      upsertInvocationParameterInput,
+      deleteInvocationParameterInput,
+    ]
   );
 
   // Reduce our invocation parameters array into a form state object

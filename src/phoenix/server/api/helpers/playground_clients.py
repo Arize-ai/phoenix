@@ -1479,6 +1479,17 @@ class AzureOpenAIReasoningNonStreamingClient(
         assert_never(role)
 
 
+def _is_claude_4_model(model_name: Optional[str]) -> bool:
+    """True if the model is a Claude 4.x variant (opus/sonnet/haiku-4)."""
+    if not model_name:
+        return False
+    return (
+        model_name.startswith("claude-opus-4")
+        or model_name.startswith("claude-sonnet-4")
+        or model_name.startswith("claude-haiku-4")
+    )
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
@@ -1567,6 +1578,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
+
+        # Claude 4.x does not allow both temperature and top_p; prefer temperature
+        invocation_parameters = dict(invocation_parameters)
+        if _is_claude_4_model(self.model_name):
+            has_temp = invocation_parameters.get("temperature") is not None
+            has_top_p = invocation_parameters.get("top_p") is not None
+            if has_temp and has_top_p:
+                invocation_parameters.pop("top_p", None)
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
