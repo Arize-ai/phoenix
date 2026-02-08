@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
+    from IPython.display import IFrame
+
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
