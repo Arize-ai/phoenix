@@ -3831,6 +3831,84 @@
           "token_type": "output"
         }
       ]
+    },
+    {
+      "name": "sonar",
+      "name_pattern": "sonar(?!-)",
+      "source": "perplexity",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "sonar-pro",
+      "name_pattern": "sonar-pro",
+      "source": "perplexity",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "sonar-reasoning-pro",
+      "name_pattern": "sonar-reasoning-pro",
+      "source": "perplexity",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "sonar-deep-research",
+      "name_pattern": "sonar-deep-research",
+      "source": "perplexity",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": false,
+          "token_type": "citation"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
     }
   ]
 }
