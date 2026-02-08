@@ -268,6 +268,7 @@ export function ToolChoiceSelector<
             case "AZURE_OPENAI":
             case "DEEPSEEK":
             case "XAI":
+            case "PERPLEXITY":
             case "OLLAMA":
             case "OPENAI":
               onChange(
@@ -313,6 +314,7 @@ export function ToolChoiceSelector<
             case "AZURE_OPENAI":
             case "DEEPSEEK":
             case "XAI":
+            case "PERPLEXITY":
             case "OLLAMA":
             case "OPENAI":
               onChange(

@@ -958,7 +958,6 @@ export const getToolName = (tool: Tool): string | null => {
   switch (provider) {
     case "OPENAI":
     case "AZURE_OPENAI":
-    case "PERPLEXITY":
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
