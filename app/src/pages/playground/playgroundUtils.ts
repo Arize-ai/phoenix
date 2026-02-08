@@ -1429,6 +1429,22 @@ const anthropicForcedToolUseSchema = z
   .passthrough();
 
 /**
+ * Returns true if the model is a Claude 4.x variant (opus/sonnet/haiku-4).
+ * Claude 4.x does not allow both temperature and top_p to be set.
+ */
+const isClaude4Model = (model: string | null): boolean => {
+  if (!model) return false;
+  return (
+    model.startsWith("claude-opus-4") ||
+    model.startsWith("claude-sonnet-4") ||
+    model.startsWith("claude-haiku-4")
+  );
+};
+
+const hasFloatValue = (param: InvocationParameterInput): boolean =>
+  param.valueFloat != null && typeof param.valueFloat === "number";
+
+/**
  * Applies Anthropic-specific constraints to the invocation parameters.
  *
  * @param invocationParameters - The invocation parameters to be constrained.
@@ -1449,6 +1465,15 @@ const applyAnthropicInvocationParameterConstraints = (
       param.valueJson &&
       anthropicExtendedThinkingEnabledSchema.safeParse(param.valueJson).success
   );
+  // Claude 4.x: only one of temperature or top_p may be set; prefer temperature
+  const isClaude4 = isClaude4Model(model);
+  const hasTemperature = invocationParameters.some(
+    (p) => p.canonicalName === "TEMPERATURE" && hasFloatValue(p)
+  );
+  const hasTopP = invocationParameters.some(
+    (p) => p.canonicalName === "TOP_P" && hasFloatValue(p)
+  );
+  const dropTopPForClaude4 = isClaude4 && hasTemperature && hasTopP;
   // Filter parameters in a single pass
   return invocationParameters.filter((param) => {
     // Skip null/undefined valueJson for extended thinking
@@ -1471,6 +1496,10 @@ const applyAnthropicInvocationParameterConstraints = (
       if (param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME) {
         return !anthropicForcedToolUseSchema.safeParse(param.valueJson).success;
       }
+    }
+    // Claude 4.x: omit top_p when both temperature and top_p are set
+    if (dropTopPForClaude4 && param.canonicalName === "TOP_P") {
+      return false;
     }
     // Keep all other parameters
     return true;
