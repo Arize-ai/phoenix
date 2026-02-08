@@ -117,7 +117,7 @@ def test_dataframe_to_spans_rejects_naive_end_time() -> None:
     error_message = str(exc_info.value)
     assert "timezone-naive" in error_message
     # Could be either column depending on which is checked first
-    assert ("start_time" in error_message or "end_time" in error_message)
+    assert "start_time" in error_message or "end_time" in error_message
 
 
 def test_dataframe_to_spans_with_null_timestamps() -> None:
