@@ -602,6 +602,47 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.PERPLEXITY,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "sonar",
+        "sonar-pro",
+        "sonar-reasoning-pro",
+        "sonar-deep-research",
+    ],
+)
+class PerplexityStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        credentials: Optional[list[PlaygroundClientCredential]] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        base_url = model.base_url or getenv("PERPLEXITY_BASE_URL")
+
+        # Try to get API key from credentials first, then fallback to env
+        api_key = _get_credential_value(credentials, "PERPLEXITY_API_KEY") or getenv(
+            "PERPLEXITY_API_KEY"
+        )
+
+        if not api_key:
+            if not base_url:
+                raise BadRequest("An API key is required for Perplexity models")
+            api_key = "sk-fake-api-key"
+
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url or "https://api.perplexity.ai",
+            default_headers=model.custom_headers or None,
+        )
+        super().__init__(client=client, model=model, credentials=credentials)
+        # Perplexity uses OpenAI-compatible API but we track it as a separate provider
+        self._attributes[LLM_PROVIDER] = "perplexity"
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.OLLAMA,
     model_names=[
         PROVIDER_DEFAULT,

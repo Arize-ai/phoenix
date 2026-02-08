@@ -10,6 +10,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   XAI: "xAI",
   OLLAMA: "Ollama",
   AWS: "AWS Bedrock",
+  PERPLEXITY: "Perplexity",
 };
 
 /**
@@ -79,6 +80,7 @@ export const ProviderToCredentialsConfigMap: Record<
   GOOGLE: [{ envVarName: "GEMINI_API_KEY", isRequired: true }],
   DEEPSEEK: [{ envVarName: "DEEPSEEK_API_KEY", isRequired: true }],
   XAI: [{ envVarName: "XAI_API_KEY", isRequired: true }],
+  PERPLEXITY: [{ envVarName: "PERPLEXITY_API_KEY", isRequired: true }],
   OLLAMA: [],
   AWS: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },

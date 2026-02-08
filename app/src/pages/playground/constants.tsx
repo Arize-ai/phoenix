@@ -33,6 +33,7 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   XAI: ["grok"],
   OLLAMA: [],
   AWS: ["nova", "titan"],
+  PERPLEXITY: ["sonar"],
 };
 
 export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<

@@ -347,6 +347,7 @@ type ProviderToToolDefinitionMap = {
   GOOGLE: GeminiToolDefinition;
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
+  PERPLEXITY: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
   AWS: AwsToolDefinition;
 };
@@ -391,6 +392,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
     case "OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "PERPLEXITY":
     case "OLLAMA":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":

@@ -34,6 +34,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   AZURE_OPENAI: ["required", "auto", "none"] as const,
   DEEPSEEK: ["required", "auto", "none"] as const,
   XAI: ["required", "auto", "none"] as const,
+  PERPLEXITY: ["required", "auto", "none"] as const,
   OLLAMA: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
@@ -59,6 +60,7 @@ export const findToolChoiceType = (
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "PERPLEXITY":
     case "OLLAMA":
     case "OPENAI":
       if (

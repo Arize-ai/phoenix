@@ -160,6 +160,7 @@ export function processAttributeToolCalls({
         case "AZURE_OPENAI":
         case "DEEPSEEK":
         case "XAI":
+        case "PERPLEXITY":
         case "AWS":
         case "OLLAMA":
           return {
@@ -351,6 +352,8 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
+    case "perplexity":
+      return "PERPLEXITY";
     default:
       return null;
   }
@@ -955,6 +958,7 @@ export const getToolName = (tool: Tool): string | null => {
   switch (provider) {
     case "OPENAI":
     case "AZURE_OPENAI":
+    case "PERPLEXITY":
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
@@ -986,6 +990,7 @@ export const createToolForProvider = ({
     case "OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "PERPLEXITY":
     case "OLLAMA":
     case "AZURE_OPENAI":
       return {
@@ -1025,6 +1030,7 @@ export const createToolCallForProvider = (
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "PERPLEXITY":
     case "AWS":
     case "OLLAMA":
       return createOpenAIToolCall();

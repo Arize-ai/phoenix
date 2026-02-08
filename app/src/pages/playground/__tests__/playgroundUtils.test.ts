@@ -794,6 +794,11 @@ describe("getModelProviderFromModelName", () => {
     );
   });
 
+  it("should return PERPLEXITY if the model name includes 'sonar'", () => {
+    expect(getModelProviderFromModelName("sonar")).toEqual("PERPLEXITY");
+    expect(getModelProviderFromModelName("sonar-pro")).toEqual("PERPLEXITY");
+  });
+
   it(`should return ${DEFAULT_MODEL_PROVIDER} if the model name does not match any known models`, () => {
     expect(getModelProviderFromModelName("test-my-model")).toEqual(
       DEFAULT_MODEL_PROVIDER
@@ -818,6 +823,7 @@ describe("processAttributeToolCalls", () => {
     AWS: ["AWS", testSpanToolCall, expectedTestOpenAIToolCall],
     DEEPSEEK: ["DEEPSEEK", testSpanToolCall, expectedTestOpenAIToolCall],
     XAI: ["XAI", testSpanToolCall, expectedTestOpenAIToolCall],
+    PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     OLLAMA: ["OLLAMA", testSpanToolCall, expectedTestOpenAIToolCall],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
@@ -1356,6 +1362,11 @@ describe("getToolsFromAttributes", () => {
     AWS: ["AWS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    PERPLEXITY: [
+      "PERPLEXITY",
+      testSpanOpenAITool,
+      testSpanOpenAIToolJsonSchema,
+    ],
     OLLAMA: ["OLLAMA", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
