@@ -10,6 +10,7 @@ from llama_index.core.tools import FunctionTool, ToolMetadata, ToolSelection
 from llama_index.core.workflow import Event, StartEvent, StopEvent, Workflow, step
 from openinference.instrumentation import using_prompt_template
 from prompt_templates.router_template import SYSTEM_PROMPT
+
 from skills.skill_map import SkillMap
 
 load_dotenv()

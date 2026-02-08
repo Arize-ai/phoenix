@@ -20,6 +20,9 @@ Don't see an integration you need? We'd love to [hear from you!](https://github.
 Phoenix offers several types of integrations to support your AI development workflow:
 
 <CardGroup cols={2}>
+  <Card title="Developer Tools" icon="code" href="#developer-tools">
+    Integrate Phoenix with AI coding assistants like Claude Code and Cursor for debugging and analysis.
+  </Card>
   <Card title="Tracing Integrations" icon="route" href="#tracing-integrations">
     Automatically capture traces from your AI applications built with popular frameworks and LLM providers.
   </Card>
@@ -34,6 +37,21 @@ Phoenix offers several types of integrations to support your AI development work
   </Card>
   <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
+  </Card>
+</CardGroup>
+
+---
+
+## Developer Tools
+
+Integrate Phoenix with AI coding assistants to debug and analyze your LLM applications directly from your development environment.
+
+<CardGroup cols={2}>
+  <Card title="Coding Agents" icon="terminal" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+    Install Phoenix debugging skills and CLI for Claude Code, Cursor, and other AI coding assistants.
+  </Card>
+  <Card title="Phoenix MCP Server" icon="plug" href="/docs/phoenix/integrations/phoenix-mcp-server">
+    Connect AI assistants directly to your Phoenix instance via the Model Context Protocol.
   </Card>
 </CardGroup>
 
@@ -171,10 +189,3 @@ Normalize and convert data from other instrumentation libraries by adding span p
   <Card title="OpenLLMetry (Traceloop)" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" />
 </CardGroup>
 
----
-
-## Phoenix MCP Server
-
-Phoenix provides a Model Context Protocol (MCP) server that enables AI assistants to interact directly with your Phoenix instance:
-
-<Card title="Phoenix MCP Server" href="/docs/phoenix/integrations/phoenix-mcp-server" />

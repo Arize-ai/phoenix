@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.8.0...arize-phoenix-evals-v2.9.0) (2026-02-02)
+
+
+### Features
+
+* add FaithfulnessEvaluator and deprecate HallucinationEvaluator ([#10962](https://github.com/Arize-ai/phoenix/issues/10962)) ([fc8b1b5](https://github.com/Arize-ai/phoenix/commit/fc8b1b5eaeadbd4e23ed684f0f2286f5a55d00a2))
+* add tool invocation accuracy metric ([#10988](https://github.com/Arize-ai/phoenix/issues/10988)) ([d1c89bf](https://github.com/Arize-ai/phoenix/commit/d1c89bf80e6460efa6ee5ae94ee94972f95ab0ea))
+* **evals:** add missing tool_selection evaluator to both libraries ([#11167](https://github.com/Arize-ai/phoenix/issues/11167)) ([d6d1953](https://github.com/Arize-ai/phoenix/commit/d6d19530e319e215695e418c99e706d2c270dc4a))
+* **evals:** add neutral optimization direction option ([#10932](https://github.com/Arize-ai/phoenix/issues/10932)) ([5768a14](https://github.com/Arize-ai/phoenix/commit/5768a146950821ac5ba28bc4f0cbb7ac1cf34e2d))
+* return trace_id in Scores and improve trace decorator ([#10954](https://github.com/Arize-ai/phoenix/issues/10954)) ([a8dfb54](https://github.com/Arize-ai/phoenix/commit/a8dfb54da77c084733876440d441a0f462fcf751))
+
+
+### Bug Fixes
+
+* Use non-deprecated pandas na checking ([#11069](https://github.com/Arize-ai/phoenix/issues/11069)) ([383ac2a](https://github.com/Arize-ai/phoenix/commit/383ac2a0fdf6e65bf3aa3e383616675200067a79))
+
 ## [2.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.7.1...arize-phoenix-evals-v2.8.0) (2026-01-08)
 
 

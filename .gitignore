@@ -80,13 +80,12 @@ js/examples/notebooks/**/deno.lock
 .pnpm-store
 
 # scrtach work
-/.scratch/
+.scratch
 
 # git worktrees
 /.worktrees/
 
-# uv
-uv.lock
+# builds
 packages/phoenix-otel/docs/build/
 packages/phoenix-client/docs/build/
 packages/phoenix-evals/docs/build/
@@ -95,3 +94,4 @@ packages/phoenix-evals/docs/build/
 helm/charts/*.tgz
 # mypy
 .mypy_cache
+.hypothesis

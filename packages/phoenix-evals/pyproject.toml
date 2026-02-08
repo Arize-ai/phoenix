@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "2.8.0"
+version = "2.9.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -57,7 +57,7 @@ test = [
   "vertexai",
   "respx",
   "nest_asyncio",
-  "pandas-stubs<=2.0.2.230605",
+  "pandas-stubs==2.0.3.230814",
   "types-tqdm",
   "lameenc"
 ]

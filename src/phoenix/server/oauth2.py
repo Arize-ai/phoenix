@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterable, Mapping
+from functools import cached_property
 from typing import Any, Iterator, Optional, get_args
 
 import jmespath
@@ -11,6 +12,9 @@ from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAu
 from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
 
 logger = logging.getLogger(__name__)
+
+# Pre-compiled default JMESPath for email extraction (standard OIDC "email" claim)
+DEFAULT_EMAIL_PATH = jmespath.compile("email")
 
 
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
@@ -35,6 +39,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         role_attribute_path: Optional[str] = None,
         role_mapping: Optional[Mapping[str, AssignableUserRoleName]] = None,
         role_attribute_strict: bool = False,
+        email_attribute_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self._display_name = display_name
@@ -82,6 +87,18 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             self._role_attribute_path, "ROLE_ATTRIBUTE_PATH"
         )
 
+        # Email extraction configuration
+        email_attribute_path = (
+            email_attribute_path.strip()
+            if email_attribute_path and email_attribute_path.strip()
+            else None
+        )
+        # Compile custom path if configured, otherwise use default
+        self._compiled_email_path = (
+            self._compile_jmespath_expression(email_attribute_path, "EMAIL_ATTRIBUTE_PATH")
+            or DEFAULT_EMAIL_PATH
+        )
+
         super().__init__(framework=None, *args, **kwargs)
 
     @staticmethod
@@ -102,21 +119,26 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "Examples: '\"cognito:groups\"', '\"https://myapp.com/groups\"'"
             ) from e
 
-    @property
+    @cached_property
     def allow_sign_up(self) -> bool:
         return self._allow_sign_up
 
-    @property
+    @cached_property
     def auto_login(self) -> bool:
         return self._auto_login
 
-    @property
+    @cached_property
     def display_name(self) -> str:
         return self._display_name
 
-    @property
+    @cached_property
     def use_pkce(self) -> bool:
         return self._use_pkce
+
+    @cached_property
+    def email_path(self) -> jmespath.parser.ParsedResult:
+        """Compiled JMESPath expression for email extraction. Defaults to 'email'."""
+        return self._compiled_email_path
 
     def has_sufficient_claims(self, claims: dict[str, Any]) -> bool:
         """
@@ -128,7 +150,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         need to call UserInfo.
 
         Application-required claims:
-        - email: Required for user identification and account creation
+        - email: Required for user identification (extracted via email_attribute_path)
         - groups: Required if group-based access control is configured
         - roles: Required if role mapping is configured
 
@@ -142,7 +164,8 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             False if additional claims must be fetched from UserInfo endpoint
         """
         # Check for email claim (required by application)
-        email = claims.get("email")
+        # Use configured email_path (defaults to "email" claim)
+        email = self._compiled_email_path.search(claims)
         if not email or not isinstance(email, str) or not email.strip():
             # Email missing or invalid, need UserInfo
             return False
@@ -395,6 +418,7 @@ class OAuth2Clients:
             role_attribute_path=config.role_attribute_path,
             role_mapping=config.role_mapping,
             role_attribute_strict=config.role_attribute_strict,
+            email_attribute_path=config.email_attribute_path,
         )
 
         if config.auto_login:

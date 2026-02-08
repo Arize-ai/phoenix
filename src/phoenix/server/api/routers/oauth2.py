@@ -6,6 +6,7 @@ from random import randrange
 from typing import Any, Optional, TypedDict
 from urllib.parse import unquote, urlparse
 
+import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
 from authlib.jose import jwt
@@ -45,7 +46,7 @@ from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.ldap import is_ldap_user
-from phoenix.server.oauth2 import OAuth2Client
+from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -230,7 +231,10 @@ async def create_tokens(
         )
 
     try:
-        user_info = _parse_user_info(user_claims)
+        user_info = _parse_user_info(
+            user_claims,
+            email_path=oauth2_client.email_path,
+        )
     except (MissingEmailScope, InvalidUserInfo) as e:
         logger.error("Error parsing user info for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="missing_email_scope")
@@ -370,7 +374,10 @@ def _validate_token_data(token_data: dict[str, Any]) -> None:
     assert token_type.lower() == "bearer"
 
 
-def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
+def _parse_user_info(
+    user_info: dict[str, Any],
+    email_path: jmespath.parser.ParsedResult = DEFAULT_EMAIL_PATH,
+) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
 
@@ -379,6 +386,8 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
 
     Args:
         user_info: Claims from the ID token (validated JWT payload)
+        email_path: JMESPath expression to extract email from claims.
+            Defaults to standard OIDC "email" claim.
 
     Returns:
         UserInfo object with validated user data
@@ -397,6 +406,7 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
 
     Application-Required Claims:
         - email: Required by this application for user identification
+          (extracted via email_attribute_path, defaults to "email" claim)
 
     Optional Standard Claims (OIDC Core §5.1):
         - name: Full name
@@ -427,14 +437,18 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     if not idp_user_id:
         raise InvalidUserInfo("The 'sub' claim cannot be empty.")
 
-    # Validate 'email' claim (application requirement)
-    email = user_info.get("email")
-    if not isinstance(email, str) or not email.strip():
+    # Extract 'email' claim using JMESPath (application requirement)
+    email_value = email_path.search(user_info)
+
+    if not isinstance(email_value, str) or not email_value.strip():
+        # Get the expression string for the error message
+        path = getattr(email_path, "expression", "email")
         raise MissingEmailScope(
-            "Missing or invalid 'email' claim. "
-            "Please ensure your OIDC provider is configured to include the 'email' scope."
+            f"Missing or invalid '{path}' claim. "
+            "Please ensure your OIDC provider includes this claim, "
+            "or configure PHOENIX_OAUTH2_{IDP}_EMAIL_ATTRIBUTE_PATH."
         )
-    email = email.strip()
+    email = sanitize_email(email_value)
 
     # Optional: 'name' claim (Full name)
     username = user_info.get("name")

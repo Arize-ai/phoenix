@@ -1,6 +1,7 @@
 from secrets import token_hex
 from typing import Any, Optional, cast
 
+import jmespath
 import pytest
 from sqlalchemy import insert, select
 from starlette.types import ASGIApp
@@ -537,3 +538,96 @@ class TestParseUserInfo:
         assert result.claims["https://myapp.com/groups"] == ["admin", "users"]
         assert result.claims["cognito:groups"] == ["Administrators"]
         assert result.claims["resource_access"]["my-app"]["roles"] == ["developer"]
+
+    def test_email_attribute_path_default(self) -> None:
+        """Test that default behavior uses 'email' claim."""
+        token = {
+            "sub": "user-123",
+            "email": "user@example.com",
+        }
+
+        result = _parse_user_info(token)
+
+        assert result.email == "user@example.com"
+
+    def test_email_attribute_path_preferred_username(self) -> None:
+        """Test extracting email from preferred_username (Azure AD scenario)."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "user@company.onmicrosoft.com",
+            # email claim is missing/null
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@company.onmicrosoft.com"
+
+    def test_email_attribute_path_upn(self) -> None:
+        """Test extracting email from upn claim."""
+        token = {
+            "sub": "user-123",
+            "upn": "user@company.com",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("upn"))
+
+        assert result.email == "user@company.com"
+
+    def test_email_attribute_path_nested(self) -> None:
+        """Test extracting email from nested path."""
+        token = {
+            "sub": "user-123",
+            "attributes": {
+                "email": "user@example.com",
+            },
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("attributes.email"))
+
+        assert result.email == "user@example.com"
+
+    def test_email_attribute_path_missing_claim(self) -> None:
+        """Test that missing claim with custom path raises MissingEmailScope."""
+        token = {
+            "sub": "user-123",
+            "email": "user@example.com",  # Standard claim exists
+        }
+
+        with pytest.raises(
+            MissingEmailScope, match="Missing or invalid 'preferred_username' claim"
+        ):
+            _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+    def test_email_attribute_path_empty_value(self) -> None:
+        """Test that empty value with custom path raises MissingEmailScope."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "   ",  # Empty whitespace
+        }
+
+        with pytest.raises(
+            MissingEmailScope, match="Missing or invalid 'preferred_username' claim"
+        ):
+            _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+    def test_email_attribute_path_case_handling(self) -> None:
+        """Test that extracted values are lowercased."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "User@Company.COM",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@company.com"
+
+    def test_email_attribute_path_whitespace_trimmed(self) -> None:
+        """Test that whitespace is trimmed from extracted values."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "  user@example.com  ",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@example.com"

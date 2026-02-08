@@ -40,11 +40,8 @@ jobs:
           python-version: '3.14'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Install tox
-        run: pip install tox-uv
+        uses: astral-sh/setup-uv@v7
 
       - name: Run Helm chart tests
-        run: tox r -e helm_tests
+        run: uvx --with uv==0.9.30 tox r -e helm_tests
 

@@ -5,5 +5,7 @@ export * from "./createCorrectnessEvaluator";
 export * from "./createDocumentRelevanceEvaluator";
 export * from "./createFaithfulnessEvaluator";
 export * from "./createHallucinationEvaluator"; // Deprecated: use createFaithfulnessEvaluator
+export * from "./createToolInvocationEvaluator";
+export * from "./createToolSelectionEvaluator";
 export * from "./generateClassification";
 export * from "./LLMEvaluator";

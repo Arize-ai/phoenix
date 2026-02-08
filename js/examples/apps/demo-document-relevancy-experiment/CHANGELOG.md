@@ -1,5 +1,13 @@
 # demo-document-relevancy-experiment
 
+## 1.0.9
+
+### Patch Changes
+
+- Updated dependencies [d1c89bf]
+  - @arizeai/phoenix-evals@0.8.0
+  - @arizeai/phoenix-client@5.8.0
+
 ## 1.0.8
 
 ### Patch Changes

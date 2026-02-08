@@ -71,44 +71,90 @@ dynamic = ["version"]
 arize-phoenix = "phoenix.server.main:main"
 phoenix = "phoenix.server.main:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-  "gcsfs",
-  "hatch",
-  "tox==4.18.1",
-  "tox-uv==1.11.3",
-  "uv==0.7.12",
-  "jupyter",
-  "nbqa",
-  "ruff==0.6.9",
-  "mypy==1.12.1",
-  "pandas>=1.0",
-  "tabulate",  # used by DataFrame.to_markdown()
-  "types-tabulate",
-  "pandas-stubs==2.2.2.240603",
-  "pytest==8.3.3",
-  "pytest-xdist",
-  "pytest-asyncio",
-  "pytest-cov",
-  "pytest-postgresql",
-  "asyncpg",
-  "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.287.3",
-  "pre-commit",
-  "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.10.3",
-  "langchain>=0.0.334",
-  "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
-  "google-cloud-aiplatform>=1.3",
-  "anthropic>=0.49.0",
+  "aiosqlite<0.22.0",  # new version is causing tests to hang
+  "anthropic",
+  "arize",
   "asgi-lifespan",
+  "asyncpg",
+  "azure-identity",
+  "beautifulsoup4",
+  "boto3",
+  "debugpy",
+  "deepdiff==8.6.1",
   "Faker>=30.1.0",
-  "portpicker",
-  "uvloop; platform_system != 'Windows'",
+  "fast-hdbscan",
+  "freezegun",
+  "google-genai>=1.0.0",
   "grpc-interceptor[testing]",
+  "grpcio",
+  "httpx",
+  "httpx-ws",
+  "jsonpath-ng",
+  "ldap3",
+  "litellm>1.61.15",
+  "mypy==1.15.0",
+  "mypy-boto3-bedrock-runtime",
+  "nest-asyncio",  # for executor testing
+  "numpy",
+  "openai",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-instrumentation-fastapi",
+  "opentelemetry-instrumentation-grpc",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-sdk>=1.35.0",
+  "opentelemetry-semantic-conventions",
+  "pandas>=1.0",
+  "pandas-stubs==2.0.3.230814",
+  "portpicker",
+  "prometheus_client",
+  "protobuf",
+  "psutil",
+  "psycopg[binary,pool]",
+  "py-grpc-prometheus",
+  "pyarrow-stubs",
+  "pydantic>=1.0,!=2.0.*,<3",
+  "pyjwt",
+  "pypistats",  # this is needed to type-check third-party packages
+  "pyright[nodejs]==1.1.394",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-postgresql",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-smtpd",
+  "pytest-xdist",
+  "requests",  # this is needed to type-check third-party packages
+  "responses",
+  "respx>=0.22.0",
+  "strawberry-graphql[opentelemetry]==0.287.3",
+  "syrupy",
+  "tenacity",
+  "tiktoken",
+  "ty",
+  "types-beautifulsoup4",
+  "types-cachetools",
+  "types-jmespath",
   "types-jsonschema",
+  "types-ldap3",
+  "types-protobuf",
+  "types-psutil",
   "types-python-dateutil",
+  "types-requests",
+  "types-setuptools",
+  "types-tabulate",
+  "types-tqdm",
+  "typing-extensions",
+  "umap-learn",
+  "uvloop; platform_system != 'Windows'",
+  "vcrpy",
 ]
+
+[project.optional-dependencies]
 embeddings = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
@@ -132,14 +178,14 @@ container = [
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.33.1/0.54b1) to ensure compatibility.
-  "opentelemetry-sdk==1.33.1",
-  "opentelemetry-proto==1.33.1",
-  "opentelemetry-exporter-otlp==1.33.1",
-  "opentelemetry-semantic-conventions==0.54b1",
-  "opentelemetry-instrumentation-fastapi==0.54b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
-  "opentelemetry-instrumentation-sqlalchemy==0.54b1",
-  "opentelemetry-instrumentation-grpc==0.54b1",
+  # released on the same date (e.g., 1.39.1/0.60b1) to ensure compatibility.
+  "opentelemetry-sdk==1.39.1",
+  "opentelemetry-proto==1.39.1",
+  "opentelemetry-exporter-otlp==1.39.1",
+  "opentelemetry-semantic-conventions==0.60b1",
+  "opentelemetry-instrumentation-fastapi==0.60b1",  # https://github.com/open-telemetry/opentelemetry-python-contrib/issues/3637
+  "opentelemetry-instrumentation-sqlalchemy==0.60b1",
+  "opentelemetry-instrumentation-grpc==0.60b1",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.287.3",
   "uvloop; platform_system != 'Windows'",
@@ -208,23 +254,6 @@ addopts = [
 ]
 testpaths = [
   "tests",
-]
-
-[tool.coverage.run]
-branch = true
-parallel = true
-omit = [
-  "**/__init__.py",
-]
-
-[tool.coverage.report]
-fail_under=30
-show_missing=true
-sort="cover"
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
 ]
 
 [tool.hatch.envs.publish]
@@ -312,3 +341,14 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
+
+[tool.uv]
+required-version = "==0.9.30"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+arize-phoenix-client = { workspace = true }
+arize-phoenix-evals = { workspace = true }
+arize-phoenix-otel = { workspace = true }

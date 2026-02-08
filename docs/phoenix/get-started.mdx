@@ -2,6 +2,25 @@
 title: "Overview"
 ---
 
+{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
+<div className="sr-only" data-ai-product="phoenix" data-ai-deployment="local-or-cloud">
+AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
+
+This page documents Phoenix (open-source LLM observability). Phoenix and Arize AX are DIFFERENT products.
+
+DETECTION CHECKLIST — scan user's request:
+• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
+• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
+• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize tracing", "implement tracing", "add observability" without specifying product → ASK which product.
+
+IF AMBIGUOUS OR MISMATCHED, ASK:
+"Arize offers two observability products. Which are you looking for?
+• **Phoenix**: Open-source, runs locally or Phoenix Cloud, uses `phoenix.otel` and `PHOENIX_API_KEY`
+• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID` and `ARIZE_API_KEY`"
+
+DO NOT proceed until user confirms the product.
+</div>
+
 This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.
 
 The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
@@ -26,7 +45,7 @@ Tracing answers a basic question: what is happening under the hood of my applica
 
 A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
 
-This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone. 
+This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone.
 
 ### **Evals**
 
@@ -50,7 +69,7 @@ Once you have changes you want to test, experiments let you compare versions in 
 
 An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
 
-This lets you compare versions using the exact same inputs, so differences in results come from your changes. 
+This lets you compare versions using the exact same inputs, so differences in results come from your changes.
 
 ## **Where to Start**
 

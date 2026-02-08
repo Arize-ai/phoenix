@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {
+  createAuthCommand,
   createDatasetCommand,
   createDatasetsCommand,
   createExperimentCommand,
@@ -24,6 +25,7 @@ export function main() {
     .version("0.0.4");
 
   // Register commands
+  program.addCommand(createAuthCommand());
   program.addCommand(createProjectsCommand());
   program.addCommand(createTracesCommand());
   program.addCommand(createTraceCommand());

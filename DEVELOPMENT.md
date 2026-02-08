@@ -23,30 +23,12 @@
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-**First**, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
+We recommend installing the project version of `uv` (found in `pyproject.toml` under `tool.uv.required-version`) by using the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer). This will enable you to upgrade `uv` using the `uv self update` command when the project `uv` version is updated.
 
-```
-brew install uv
-```
-
-For non-mac users, you can follow the instruction [here](https://docs.astral.sh/uv/getting-started/installation/) to install `uv` for your particular operating system.
-
-Create a new virtual environment. In general, we recommend developing on the lowest Python version compatible with Phoenix (currently 3.10) to make it easier to write code that is compatible across all supported versions.
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibilty with all supported Python versions.
 
 ```bash
-uv venv --python 3.10
-```
-
-Activate your virtual environment before continuing.
-
-```bash
-source ./.venv/bin/activate
-```
-
-From the root of the repository, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
-
-```bash
-uv pip install -e ".[dev]"
+uv sync --python 3.10
 ```
 
 Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
@@ -102,13 +84,7 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we are using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
-
-You can install `tox-uv` globally with
-
-```bash
-pip install tox-uv
-```
+Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. 
 
 `tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
 
@@ -133,7 +109,13 @@ Check the output of `tox list` to find commands for type-checks, linters, format
 
 ## Installing Pre-Commit Hooks
 
-We recommend to install project pre-commit hooks with
+First, install `pre-commit` globally. It is recommended to accomplish this using `uv`.
+
+```bash
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Then install the project pre-commit hooks with
 
 ```bash
 pre-commit install

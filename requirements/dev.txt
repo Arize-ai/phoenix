@@ -9,4 +9,3 @@ umap-learn
 boto3
 jsonpath-ng
 debugpy
-pre-commit

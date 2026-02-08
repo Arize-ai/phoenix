@@ -9,6 +9,7 @@ from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from prompt_templates.data_analysis_template import PROMPT_TEMPLATE, SYSTEM_PROMPT
+
 from skills.skill import Skill
 
 load_dotenv()

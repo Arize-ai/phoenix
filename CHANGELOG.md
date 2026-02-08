@@ -1,5 +1,73 @@
 # Changelog
 
+## [12.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.1...arize-phoenix-v12.34.0) (2026-02-06)
+
+
+### Features
+
+* **evals:** add missing tool_selection evaluator to both libraries ([#11167](https://github.com/Arize-ai/phoenix/issues/11167)) ([d6d1953](https://github.com/Arize-ai/phoenix/commit/d6d19530e319e215695e418c99e706d2c270dc4a))
+
+
+### Bug Fixes
+
+* add enum for new prompt span kind ([#11212](https://github.com/Arize-ai/phoenix/issues/11212)) ([b93abc5](https://github.com/Arize-ai/phoenix/commit/b93abc5d696cb9a74da09058ce12246775762317))
+* **cost:** update built-in model token prices ([#11198](https://github.com/Arize-ai/phoenix/issues/11198)) ([860f703](https://github.com/Arize-ai/phoenix/commit/860f70320f422a4b086cd893fca51bb80ac2cb74))
+* normalize message_content.text to string before rendering in MessageContentListItem ([#11258](https://github.com/Arize-ai/phoenix/issues/11258)) ([d0908aa](https://github.com/Arize-ai/phoenix/commit/d0908aa35d020648b0ab7756d90d17eae967a740))
+
+
+### Documentation
+
+* **evals:** update built-in metric pages ([#11168](https://github.com/Arize-ai/phoenix/issues/11168)) ([27b5557](https://github.com/Arize-ai/phoenix/commit/27b555796a7ed884a438e38fbeb1916c1c5c889f))
+* python & ts narrative tutorial for evals  ([#11185](https://github.com/Arize-ai/phoenix/issues/11185)) ([f449846](https://github.com/Arize-ai/phoenix/commit/f449846225fc8f70b06346a7b435788234068f77))
+* update developer guide with new uv install and upgrade instructions ([#11256](https://github.com/Arize-ai/phoenix/issues/11256)) ([c6d43ea](https://github.com/Arize-ai/phoenix/commit/c6d43ea0bb4766be4d25bb1f6187907ab0822988))
+
+## [12.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.0...arize-phoenix-v12.33.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* **graphql:** access ORM attributes directly in asExampleRevision ([#11165](https://github.com/Arize-ai/phoenix/issues/11165)) ([0cd63c5](https://github.com/Arize-ai/phoenix/commit/0cd63c594f3659278efd1386f13b8d100be14035))
+
+## [12.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.32.0...arize-phoenix-v12.33.0) (2026-01-28)
+
+
+### Features
+
+* **oauth2:** add EMAIL_ATTRIBUTE_PATH for configurable email extraction ([#11139](https://github.com/Arize-ai/phoenix/issues/11139)) ([90ab5ca](https://github.com/Arize-ai/phoenix/commit/90ab5cad3b286c1abf460efcbe5cd495ed355165))
+
+
+### Bug Fixes
+
+* move namespace package discovery before imports ([#11130](https://github.com/Arize-ai/phoenix/issues/11130)) ([e12fa87](https://github.com/Arize-ai/phoenix/commit/e12fa872405f8892f6f5c8f04e00e489d475ebe1))
+
+
+### Documentation
+
+* updating phoenix nav  ([#11119](https://github.com/Arize-ai/phoenix/issues/11119)) ([1e2ae4d](https://github.com/Arize-ai/phoenix/commit/1e2ae4d1992e20bce8cd32d5eb38e41dccaa4e75))
+
+## [12.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.2...arize-phoenix-v12.32.0) (2026-01-27)
+
+
+### Features
+
+* add phoenix-ci/SKILL.md ([#11074](https://github.com/Arize-ai/phoenix/issues/11074)) ([3686228](https://github.com/Arize-ai/phoenix/commit/36862286060ccd47d563ef13923b1798a6bb5d4b))
+* add tool invocation accuracy metric ([#10988](https://github.com/Arize-ai/phoenix/issues/10988)) ([d1c89bf](https://github.com/Arize-ai/phoenix/commit/d1c89bf80e6460efa6ee5ae94ee94972f95ab0ea))
+* evals skill ([68ac6fb](https://github.com/Arize-ai/phoenix/commit/68ac6fb558329b417f3007ca8f575908974fbf9f))
+* tracing skill ([d91a52b](https://github.com/Arize-ai/phoenix/commit/d91a52bd4b401026f8356b0ddfb71e260abcf5f3))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#11088](https://github.com/Arize-ai/phoenix/issues/11088)) ([422250a](https://github.com/Arize-ai/phoenix/commit/422250aa1fc5a765d34ee861640f4ef8e98320b2))
+* keyboard form submission of dataset creation ([#11109](https://github.com/Arize-ai/phoenix/issues/11109)) ([7b5b680](https://github.com/Arize-ai/phoenix/commit/7b5b68082cba8e4fe84e94dfec6d3da1594602ad))
+* update links to typescript documentation ([#11086](https://github.com/Arize-ai/phoenix/issues/11086)) ([5c7664d](https://github.com/Arize-ai/phoenix/commit/5c7664d228d373575a68c19dd5ded8a4f6f1eba2))
+
+
+### Documentation
+
+* coding agents ([#11075](https://github.com/Arize-ai/phoenix/issues/11075)) ([4389afd](https://github.com/Arize-ai/phoenix/commit/4389afd599adcc1736b9d8a89c6531b34ba141c7))
+* replace hallucination page with faithfulness ([#11070](https://github.com/Arize-ai/phoenix/issues/11070)) ([5cfd86f](https://github.com/Arize-ai/phoenix/commit/5cfd86f67859f9284a1774e431488edb4212aa89))
+
 ## [12.31.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.31.1...arize-phoenix-v12.31.2) (2026-01-22)
 
 
