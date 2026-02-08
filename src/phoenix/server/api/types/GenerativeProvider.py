@@ -49,11 +49,12 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
-        OpenInferenceLLMProviderValues.PERPLEXITY.value: GenerativeProviderKey.PERPLEXITY,
         OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
+        # The provider will be determined through model name prefix matching instead
+        # Note: Perplexity uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: Ollama uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
