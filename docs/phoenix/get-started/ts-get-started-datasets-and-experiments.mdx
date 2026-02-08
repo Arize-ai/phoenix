@@ -2,73 +2,91 @@
 title: "Optimize Your App with Experiments"
 ---
 
-In this guide, we’ll run experiments in Phoenix to systematically improve an application.
+An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. 
 
-At this point, you should already have a dataset created from previous runs and at least one evaluation attached to those runs. Experiments let you rerun the same dataset through an updated version of your application and compare results side by side.
+In this guide, you'll pull down an existing dataset and run experiments in code to compare different versions and verify whether changes actually improve quality. At this point, you should already have a dataset from previous runs and at least one evaluation attached to those runs; experiments let you rerun that dataset through an updated version of your application and compare results side by side. 
 
 ## **Before We Start**
 
 To follow along, you should already have:
 
-- Traces & Evals attached to a project in Phoenix
+- Traces and Evals attached to a project in Phoenix
 - A dataset created from previous runs, such as failed traces
 
-## **Step 1: Pull Down your Dataset**
+## **Step 1: Use Explanations to Identify Improvements**
 
-We’ll first pull down the dataset we created previously. This ensures we’re testing the new version of the agent on the exact same inputs that previously failed.
+We'll use our dataset to group application failures together. The next step is deciding which issues to fix. 
 
-# __**TODO: add in correct imports **__
+Using the explanations from the evals we ran previously and the trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+
+The easiest way to see these is to go back into the trace view for these failed runs and read the explanations for why they were each labeled as "incomplete" answers.
+
+In this example, we'll improve the agent by strengthening the agent's instructions so the model has clearer guidance on what a good response looks like.
+
+First, let's set up our imports:
 
 ```typescript
 import "dotenv/config";
+import { getDataset } from "@arizeai/phoenix-client/datasets";
+import type { Example } from "@arizeai/phoenix-client/types/datasets";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
-import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
-import assert from "assert";
-import { getDataset } from "@arizeai/phoenix-client/datasets";
-import { asEvaluator, runExperiment } from "@phoenix/client/experiments";
 import { Agent } from "@mastra/core/agent";
-
-async function main() {
-  const dataset = await getDataset({
-    dataset: { datasetName: "ts-quickstart" },
-  });
-  console.log(dataset);
-}
+import { Mastra } from "@mastra/core/mastra";
+import { financialSearchTool } from "../tools/financial-search-tool";
+import { financialOrchestratorAgent } from "../agents/financial-orchestrator-agent";
+import { financialWriterAgent } from "../agents/financial-writer-agent";
+import { financialCompletenessTemplate } from "../evals/evals";
 ```
-
-## **Step 2: Use Explanations to Identify Improvements**
-
-Since we'll our dataset is grouping application failures, the next step is deciding which issues to fix. 
-
-Using the explanations from the evals we ran previously & trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
-
-The easiest way to see these is to go back into the trace view for these failed runs & read the explanations for why they were each labeled as "incomplete" answers.
-
-In this example, we’ll improve the agent by strengthening the agents' backstory instructions so the model has clearer guidance on what a good response looks like.
 
 ### **Update the Agent Instructions**
 
-Below is an example of tightening the agent backstory to be more explicit about the expected output.
-
-# __**TODO: add in code snip **__
-```typescript
-```
-
-# __**TODO: might need to add this vvvvv **__
-
-Create an updated agent workflow with this new, modified agent. 
+Below is an example of tightening the agent instructions to be more explicit about the expected output.
 
 ```typescript
+const financialResearcherAgent = new Agent({
+  id: "financial-researcher-agent",
+  name: "Financial Research Analyst",
+  instructions: `You are a Senior Financial Research Analyst. Your job is to collect accurate, up-to-date financial information so a report writer can turn it into a polished analysis.
+
+What to do:
+- Use the financialSearch tool to look up each company or ticker mentioned in the request.
+- For every ticker, pull: current or recent prices, key ratios (P/E, P/B, debt-to-equity, ROE), revenue and earnings, and notable news or events from the last 6 months.
+- If the user asks for a specific focus (e.g. valuation, growth, dividends), prioritize that in your search and summary.
+- For multiple tickers, run research per ticker and then summarize in one coherent research brief.
+
+Output:
+- Produce a single research summary that covers all requested tickers and focus areas.
+- Be specific: use numbers and sources, not vague statements.
+- Write so the Financial Report Writer can use this summary directly to draft the final report.
+
+Make sure to report financial data for all tickers mentioned in the request. Use that financial data for the specific focus area mentioned in the request.`,
+  model: "openai/gpt-4o",
+  tools: { financialSearchTool },
+});
 ```
 
-At this point, we’ve made a targeted change based on the explanations for why traces were classified as real failures.
+Create an updated Mastra instance with this new, modified agent:
 
-## **Step 3: Define an Experiment**
+```typescript
+async function main() {
+  const mastra = new Mastra({
+    agents: {
+      financialResearcherAgent,
+      financialWriterAgent,
+      financialOrchestratorAgent,
+    },
+  });
+```
 
-Now that we’ve updated the agent, we will run this new agent flow to test whether the changes actually made an impact on response completeness. 
+At this point, we’ve made a targeted change based on the explanations for why traces were classified as failures.
 
-Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This approach makes sure that any improvements are measured and easily able to be compared to previous runs.
+## **Step 2: Define an Experiment**
+
+Now that we've updated the agent, we'll run this new agent flow to test whether the changes actually improve quality. 
+
+Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This helps ensure that improvements are measured. 
 
 To define an experiment, we need to specify:
 
@@ -80,55 +98,79 @@ To define an experiment, we need to specify:
 
   An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
 
-In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we are re-running our agent system on these inputs and getting new outputs, we will rerun the same evaluation to directly compare results.
+In this guide, the task for the experiment is simply to rerun the agent using the updated instructions to see improvements. Since we're re-running our agent system on these inputs and getting new outputs, we'll rerun the same evaluation to directly compare results.
 
-task:
+### **Define the Task**
+
 ```typescript
-
+  const task = async (example: Example): Promise<string> => {
+    const raw = example.input as unknown as
+      | { role: "user"; content: string }[]
+      | { input: { role: "user"; content: string }[] };
+    const messages = Array.isArray(raw) ? raw : raw.input;
+    const response = await mastra
+      .getAgent("financialOrchestratorAgent")
+      .generate(messages);
+    return response.text ?? "";
+  };
 ```
-eval:
+
+### **Define the Evaluator**
 
 ```typescript
-
+  const completenessEvaluator = createClassificationEvaluator({
+    model: openai("gpt-4o-mini"),
+    promptTemplate: financialCompletenessTemplate,
+    choices: { complete: 1, incomplete: 0 },
+    name: "completeness",
+  });
 ```
 
-## **Step 4: Run the Experiment on the Dataset**
+## **Step 3: Run the Experiment on the Dataset**
 
-Now we can run our experiment!
+Next, we'll specify the dataset we created earlier and run the experiment on it.
+
+This ensures we're testing the new version of the agent on the exact same inputs that previously failed.
 
 ```typescript
-run_experiment
+  const datasetSelector = { datasetName: "ts quickstart fails" };
+
+  await runExperiment({
+    dataset: datasetSelector,
+    task,
+    evaluators: [completenessEvaluator],
+    experimentName: "new-experiment",
+  });
+}
 ```
 
 Once this completes, Phoenix logs the experiment results automatically.
 
-## **Step 5: View Experiment Results in Phoenix**
+## **Step 4: View Experiment Results in Phoenix**
 
 Head back to Phoenix and open the **Experiments** view.
 
 Here, you can see:
 
-- The original runs compared against the new ones under 'reference output' 
-- New application runs as a reults of our task  
+- The original runs compared against the new ones under 'reference output'
+- New application runs as a result of our task
 - Evaluation results for each version
 
-In this example, we should see more traces receiving a **correct** label, indicating that the changes improved performance.
-
-# __**TODO: add in new video **__
+In this example, we should see more traces receiving a **complete** label, indicating that the changes improved performance.
 
 <Frame caption="View Experiment Results">
 <video
   controls
   className="w-full aspect-video rounded-xl"
-  src=""
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-experiment.mp4"
 />
 </Frame>
 
-**Congratulations!** You’ve created your first dataset and ran your first experiment in Phoenix.
+**Congratulations!** You’ve created your first dataset and run your first experiment in Phoenix.
 
 ## **Learn More About Datasets and Experiments**
 
-This was a simple example, but datasets and experiments can support much more advanced workflows.
+This was a simple example, but datasets and experiments support much more advanced workflows.
 
 If you want to test prompt changes to a specific part of your application and keep track of different prompt versions, the [Prompt Playground](/docs/phoenix/get-started/ts-get-started-prompt-playground) guide walks through how to do that.
 

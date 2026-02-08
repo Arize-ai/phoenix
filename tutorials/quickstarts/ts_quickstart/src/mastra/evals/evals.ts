@@ -8,7 +8,7 @@ const AGENT_SPAN_NAME = "invoke_agent Financial Analysis Orchestrator";
 const PROJECT_NAME =
   process.env.PHOENIX_PROJECT_NAME ?? "mastra-tracing-quickstart";
 
-const financialCompletenessTemplate = `
+export const financialCompletenessTemplate = `
 You are evaluating whether a financial research report correctly completes ALL parts of the user's task.
 
 User input: {{input}}

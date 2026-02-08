@@ -51,7 +51,6 @@
                   {
                     "group": "Get Started with Phoenix",
                     "pages": [
-                      "docs/phoenix/get-started",
                       {
                         "group": "Python",
                         "pages": [
