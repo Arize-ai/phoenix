@@ -239,6 +239,8 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.DEEPSEEK
     if semconv_provider == OpenInferenceLLMProviderValues.XAI:
         return GenerativeProviderKey.XAI
+    if semconv_provider == OpenInferenceLLMProviderValues.PERPLEXITY:
+        return GenerativeProviderKey.PERPLEXITY
     if semconv_provider == OpenInferenceLLMProviderValues.AWS:
         return GenerativeProviderKey.AWS
     if semconv_provider == OpenInferenceLLMProviderValues.COHERE:

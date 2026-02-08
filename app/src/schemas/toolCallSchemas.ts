@@ -245,6 +245,7 @@ type ProviderToToolCallMap = {
   AZURE_OPENAI: OpenAIToolCall;
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
+  PERPLEXITY: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
   AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
@@ -294,6 +295,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "OPENAI":
     case "DEEPSEEK":
     case "XAI":
+    case "PERPLEXITY":
     case "OLLAMA":
       return toolCall as ProviderToToolCallMap[T];
     case "AWS":

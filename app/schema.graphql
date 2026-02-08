@@ -1626,6 +1626,7 @@ enum GenerativeProviderKey {
   XAI
   OLLAMA
   AWS
+  PERPLEXITY
 }
 
 """
@@ -1792,6 +1793,7 @@ enum ModelProvider {
   XAI
   OLLAMA
   AWS
+  PERPLEXITY
 }
 
 input ModelsInput {

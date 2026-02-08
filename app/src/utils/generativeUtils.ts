@@ -13,6 +13,7 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "GOOGLE" ||
     provider === "DEEPSEEK" ||
     provider === "XAI" ||
+    provider === "PERPLEXITY" ||
     provider === "OLLAMA" ||
     provider === "AWS"
   );
@@ -32,6 +33,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "DeepSeek";
     case "XAI":
       return "XAI";
+    case "PERPLEXITY":
+      return "Perplexity";
     case "OLLAMA":
       return "Ollama";
     case "AWS":
@@ -62,6 +65,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "deepseek"; // TODO: Add support for DeepSeek to semantic conventions
     case "XAI":
       return "xai"; // TODO: Add support for XAI to semantic conventions
+    case "PERPLEXITY":
+      return "perplexity";
     case "OLLAMA":
       throw new Error(`Ollama is not supported`);
     default:
