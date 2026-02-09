@@ -5,10 +5,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/get-started</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/get-started/get-started-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -25,6 +21,22 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-tracing</loc>
+    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-evaluations</loc>
+    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground</loc>
+    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments</loc>
+    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/end-to-end-features-notebook</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -34,19 +46,19 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial/annotations-and-evaluations</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial/sessions</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/llm-traces</loc>
