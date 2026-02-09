@@ -7,8 +7,8 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
@@ -48,6 +48,7 @@ export function LLMDatasetEvaluatorDetails({
                 definition
               }
               ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+              ...PromptChatMessagesCard__main
             }
             promptVersionTag {
               name
@@ -167,7 +168,9 @@ export function LLMDatasetEvaluatorDetails({
                   />
                 )}
               </Flex>
-              <EvaluatorPromptPreview />
+              {evaluator.promptVersion && (
+                <PromptChatMessages promptVersion={evaluator.promptVersion} />
+              )}
             </Flex>
             <LLMEvaluatorInputMapping inputMapping={inputMapping} />
           </Flex>
