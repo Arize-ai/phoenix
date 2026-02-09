@@ -292,23 +292,6 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
     """
     import pandas as pd
 
-    # Validate timezone-aware timestamps before processing
-    for time_column in ["start_time", "end_time"]:
-        if time_column in df.columns:
-            # Check if column has datetime dtype and if any values are timezone-naive
-            time_values = df[time_column].dropna()  # pyright: ignore
-            if len(time_values) > 0:  # pyright: ignore
-                # Check first non-null value to determine if timestamps are timezone-aware
-                first_value = time_values.iloc[0]  # pyright: ignore
-                if hasattr(first_value, "tzinfo"):  # pyright: ignore
-                    if first_value.tzinfo is None:  # pyright: ignore
-                        raise ValueError(
-                            f"Column '{time_column}' contains timezone-naive timestamps. "
-                            f"All timestamps must be timezone-aware (e.g., use UTC). "
-                            f"Convert naive timestamps to timezone-aware using: "
-                            f"df['{time_column}'] = df['{time_column}'].dt.tz_localize('UTC')"
-                        )
-
     spans: list[Span] = []
 
     for idx, row in df.iterrows():  # pyright: ignore
@@ -354,6 +337,13 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
             if field in row and pd.notna(row[field]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
                 value = row[field]  # pyright: ignore
                 if field in ["start_time", "end_time"]:
+                    if hasattr(value, "tzinfo") and value.tzinfo is None:  # pyright: ignore
+                        raise ValueError(
+                            f"Row {idx}: column '{field}' contains a timezone-naive timestamp. "
+                            f"All timestamps must be timezone-aware (e.g., use UTC). "
+                            f"Convert naive timestamps using: "
+                            f"df['{field}'] = df['{field}'].dt.tz_localize('UTC')"
+                        )
                     if hasattr(value, "isoformat"):  # pyright: ignore
                         value = value.isoformat()  # pyright: ignore
                     else:
