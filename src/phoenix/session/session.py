@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
-    from IPython.display import IFrame
+    from IPython.display import IFrame  # type: ignore[import-not-found]
 
     _BaseList = UserList[pd.DataFrame]
 else:
@@ -269,7 +269,7 @@ class Session(TraceDataExtractor, ABC):
             IFrame: the iFrame will be rendered in the notebook
         """
         try:
-            from IPython.display import IFrame  # type: ignore
+            from IPython.display import IFrame
         except ImportError as e:
             raise ImportError(
                 "IPython is required to use the view() method. "
