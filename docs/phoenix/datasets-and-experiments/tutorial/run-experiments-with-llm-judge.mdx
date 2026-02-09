@@ -90,7 +90,7 @@ Return only one label: "correct" or "incorrect".
 actionability_judge = create_classifier(
     name="actionability-judge",
     prompt_template=support_response_actionability_judge,
-    llm=LLM(model="gpt-4o-mini", provider="openai"),
+    llm=LLM(model="gpt-5", provider="openai"),
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 
