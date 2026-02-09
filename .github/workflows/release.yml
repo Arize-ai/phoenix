@@ -56,6 +56,15 @@ jobs:
         env:
           TWINE_USERNAME: "__token__"
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: slackapi/slack-github-action@v1
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "FAILED Publish Package: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
 
   publish-phoenix:
     name: Publish Phoenix
@@ -84,3 +93,12 @@ jobs:
       - name: Check wheel contents
         run: uvx --with uv==0.9.30 check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: slackapi/slack-github-action@v1
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "FAILED Publish Phoenix: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
