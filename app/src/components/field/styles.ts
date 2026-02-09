@@ -47,7 +47,7 @@ export const fieldBaseCSS = css`
       opacity: var(--ac-global-opacity-disabled);
     }
     &[data-invalid="true"] {
-      border-color: var(--ac-global-color-danger);
+      border: 1px solid var(--ac-global-color-danger);
     }
     &::placeholder {
       color: var(--ac-text-color-placeholder);
@@ -149,6 +149,9 @@ export const textFieldCSS = css`
     outline: var(--ac-global-border-size-thin) solid transparent;
     &[data-focused]:not([data-invalid]) {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
+    }
+    &[data-focused][data-invalid] {
+      outline: 1px solid var(--ac-global-color-danger);
     }
   }
 
