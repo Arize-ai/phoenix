@@ -17,7 +17,6 @@ import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
 import { type AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
-  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
