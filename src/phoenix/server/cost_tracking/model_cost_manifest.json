@@ -477,33 +477,6 @@
       ]
     },
     {
-      "name": "claude-opus-4-6",
-      "name_pattern": "claude-opus-4-6",
-      "source": "manual",
-      "token_prices": [
-        {
-          "base_rate": 5e-6,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 0.000025,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 5e-7,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 6.25e-6,
-          "is_prompt": true,
-          "token_type": "cache_write"
-        }
-      ]
-    },
-    {
       "name": "claude-opus-4-5",
       "name_pattern": "claude-opus-4-5",
       "source": "litellm",
