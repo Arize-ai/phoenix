@@ -647,10 +647,15 @@ class DatasetEvaluator(Node):
         self,
         info: Info[Context, None],
     ) -> Annotated["Dataset", strawberry.lazy(".Dataset")]:
-        record = await self._get_record(info)
+        if self.db_record:
+            dataset_id = self.db_record.dataset_id
+        else:
+            dataset_id = await info.context.data_loaders.dataset_evaluator_fields.load(
+                (self.id, models.DatasetEvaluators.dataset_id),
+            )
         from .Dataset import Dataset
 
-        return Dataset(id=record.dataset_id)
+        return Dataset(id=dataset_id)
 
     @strawberry.field
     async def evaluator(
@@ -756,12 +761,17 @@ class DatasetEvaluator(Node):
     async def user(
         self, info: Info[Context, None]
     ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        record = await self._get_record(info)
-        if record.user_id is None:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.dataset_evaluator_fields.load(
+                (self.id, models.DatasetEvaluators.user_id),
+            )
+        if user_id is None:
             return None
         from .User import User
 
-        return User(id=record.user_id)
+        return User(id=user_id)
 
     @strawberry.field
     async def project(

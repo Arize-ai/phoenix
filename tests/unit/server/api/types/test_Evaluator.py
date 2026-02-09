@@ -761,9 +761,9 @@ class TestBuiltInEvaluatorMultiOutput:
             for evaluator in evaluators:
                 assert evaluator.output_configs is not None
                 assert isinstance(evaluator.output_configs, list)
-                assert len(evaluator.output_configs) >= 1, (
-                    f"Evaluator {evaluator.key} should have at least one output config"
-                )
+                assert (
+                    len(evaluator.output_configs) >= 1
+                ), f"Evaluator {evaluator.key} should have at least one output config"
                 # Verify each config is a valid annotation config type
                 for config in evaluator.output_configs:
                     assert hasattr(config, "type")
@@ -1195,3 +1195,130 @@ class TestLLMEvaluatorOutputConfigs:
         scores_2 = {v["label"]: v["score"] for v in second["values"]}
         assert scores_2["relevant"] == 1.0
         assert scores_2["irrelevant"] == 0.0
+
+
+class TestDatasetEvaluatorFields:
+    """Tests for DatasetEvaluator field resolution."""
+
+    @pytest.fixture
+    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+        """Create test data: dataset evaluators with and without a user."""
+        async with db() as session:
+            dataset = models.Dataset(
+                name=f"test-dataset-{token_hex(4)}",
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+
+            prompt = models.Prompt(name=Identifier(token_hex(4)))
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = _create_prompt_version(prompt.id, "Test: {input}", "gpt-4")
+            session.add(prompt_version)
+            await session.flush()
+
+            llm_evaluator = models.LLMEvaluator(
+                name=Identifier(token_hex(4)),
+                prompt_id=prompt.id,
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+
+            user_role = models.UserRole(name="MEMBER")
+            session.add(user_role)
+            await session.flush()
+
+            user = models.User(
+                user_role_id=user_role.id,
+                username=f"test-user-{token_hex(4)}",
+                email=f"{token_hex(4)}@test.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+            session.add(user)
+            await session.flush()
+
+            de_with_user = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=llm_evaluator.id,
+                name=Identifier("eval_with_user"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                user_id=user.id,
+                project=models.Project(name=f"{dataset.name}/eval_with_user"),
+            )
+            session.add(de_with_user)
+            await session.flush()
+
+            de_without_user = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=llm_evaluator.id,
+                name=Identifier("eval_without_user"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name=f"{dataset.name}/eval_without_user"),
+            )
+            session.add(de_without_user)
+            await session.flush()
+
+        yield {
+            "dataset": dataset.id,
+            "user": user.id,
+            "de_with_user": de_with_user.id,
+            "de_without_user": de_without_user.id,
+        }
+
+    async def test_dataset_evaluator_resolves_dataset(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that DatasetEvaluator.dataset returns the associated dataset."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { dataset { id } }
+                }
+            }""",
+            variables={
+                "id": str(GlobalID(DatasetEvaluator.__name__, str(_test_data["de_with_user"])))
+            },
+        )
+        assert not resp.errors and resp.data
+        expected_dataset_id = str(GlobalID("Dataset", str(_test_data["dataset"])))
+        assert resp.data["node"]["dataset"]["id"] == expected_dataset_id
+
+    async def test_dataset_evaluator_resolves_user_when_present(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that DatasetEvaluator.user returns the user when user_id is set."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { user { id } }
+                }
+            }""",
+            variables={
+                "id": str(GlobalID(DatasetEvaluator.__name__, str(_test_data["de_with_user"])))
+            },
+        )
+        assert not resp.errors and resp.data
+        expected_user_id = str(GlobalID("User", str(_test_data["user"])))
+        assert resp.data["node"]["user"]["id"] == expected_user_id
+
+    async def test_dataset_evaluator_returns_null_user_when_not_set(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test that DatasetEvaluator.user returns null when user_id is not set."""
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator { user { id } }
+                }
+            }""",
+            variables={
+                "id": str(GlobalID(DatasetEvaluator.__name__, str(_test_data["de_without_user"])))
+            },
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["user"] is None
