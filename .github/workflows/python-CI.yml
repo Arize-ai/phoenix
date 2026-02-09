@@ -111,6 +111,8 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - run: uvx --with uv==0.9.30 tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -133,6 +135,8 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - run: uvx --with uv==0.9.30 tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -154,6 +158,8 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - run: uvx --with uv==0.9.30 tox run -e phoenix_otel -- -ra -x
 
   clean-jupyter-notebooks:
@@ -175,6 +181,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -203,6 +210,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -231,6 +239,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -258,6 +267,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -285,6 +295,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - name: Compile Prompts
         run: uvx --with uv==0.9.30 tox run -e compile_prompts
       - name: Check for changes
@@ -309,6 +321,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -329,6 +343,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - name: Run `ruff`
         run: uvx --with uv==0.9.30 tox run -e ruff
       - run: git diff --exit-code
@@ -359,6 +375,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -399,6 +416,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -436,6 +454,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -482,6 +501,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -538,6 +558,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -640,6 +661,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.30"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
