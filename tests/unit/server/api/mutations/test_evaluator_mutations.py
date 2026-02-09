@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    FreeformAnnotationConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -3950,6 +3951,7 @@ class TestMultiOutputEvaluators:
             assert len(db_dataset_evaluator.output_configs) == 1
             config = db_dataset_evaluator.output_configs[0]
             assert config.name == base_config_name
+            assert not isinstance(config, FreeformAnnotationConfig)
             # The config can be stored as either a string or an enum
             config_direction = config.optimization_direction
             assert config_direction in (
