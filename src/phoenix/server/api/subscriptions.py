@@ -174,13 +174,13 @@ async def _stream_single_chat_completion(
         for evaluator, evaluator_input in zip(evaluators, input.evaluators):
             name = str(evaluator_input.name)
             configs = get_evaluator_output_configs(evaluator_input, evaluator)
-            for config in configs:
-                result: EvaluationResult = await evaluator.evaluate(
-                    context=context_dict,
-                    input_mapping=evaluator_input.input_mapping,
-                    name=name,
-                    output_config=config,  # type: ignore[arg-type]
-                )
+            results: list[EvaluationResult] = await evaluator.evaluate(
+                context=context_dict,
+                input_mapping=evaluator_input.input_mapping,
+                name=name,
+                output_configs=configs,  # type: ignore[arg-type]
+            )
+            for result in results:
                 if result["error"] is not None:
                     yield EvaluationChunk(
                         evaluator_name=name,
@@ -808,31 +808,29 @@ class Subscription:
                     ):
                         name = str(evaluator_input.name)
                         configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        for config in configs:
-                            tracer: Tracer | None = None
-                            if input.tracing_enabled:
-                                tracer = Tracer(
-                                    span_cost_calculator=info.context.span_cost_calculator
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+
+                        eval_results: list[EvaluationResult] = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_configs=configs,  # type: ignore[arg-type]
+                            tracer=tracer,
+                        )
+
+                        trace: Trace | None = None
+                        if tracer is not None:
+                            async with info.context.db() as session:
+                                db_traces = await tracer.save_db_traces(
+                                    session=session, project_id=project_id
                                 )
+                            if db_traces:
+                                db_trace = db_traces[0]
+                                trace = Trace(id=db_trace.id, db_record=db_trace)
 
-                            result: EvaluationResult = await evaluator.evaluate(
-                                context=context_dict,
-                                input_mapping=evaluator_input.input_mapping,
-                                name=name,
-                                output_config=config,  # type: ignore[arg-type]
-                                tracer=tracer,
-                            )
-
-                            trace: Trace | None = None
-                            if tracer is not None:
-                                async with info.context.db() as session:
-                                    db_traces = await tracer.save_db_traces(
-                                        session=session, project_id=project_id
-                                    )
-                                if db_traces:
-                                    db_trace = db_traces[0]
-                                    trace = Trace(id=db_trace.id, db_record=db_trace)
-
+                        for result in eval_results:
                             if result["error"] is not None:
                                 yield EvaluationChunk(
                                     evaluator_name=name,

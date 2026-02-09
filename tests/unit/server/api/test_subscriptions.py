@@ -2214,7 +2214,9 @@ class TestChatCompletionOverDatasetSubscription:
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
             output_value = json.loads(raw_output_value)
-            assert set(output_value.keys()) == {"score", "label", "explanation"}
+            assert set(output_value.keys()) == {"results"}
+            assert len(output_value["results"]) == 1
+            assert set(output_value["results"][0].keys()) == {"name", "label", "score"}
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events
@@ -2336,7 +2338,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert tool_call.pop("id") == "call_aABUz9QoikDpYXHXhUkahsNF"
             function = tool_call.pop("function")
             assert not tool_call
-            assert function.pop("name") == "evaluate_correctness"
+            assert function.pop("name") == "correctness"
             tool_call_arguments = function.pop("arguments")
             assert tool_call_arguments is not None
             assert json.loads(tool_call_arguments) == {
@@ -2354,7 +2356,7 @@ class TestChatCompletionOverDatasetSubscription:
                 attributes.pop(
                     f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}"
                 )
-                == "evaluate_correctness"
+                == "correctness"
             )
             arguments = attributes.pop(
                 f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS}"
@@ -2424,20 +2426,31 @@ class TestChatCompletionOverDatasetSubscription:
             attributes = dict(flatten(llm_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
-            assert set(input_value.keys()) == {"tool_calls", "output_config"}
+            assert set(input_value.keys()) == {"tool_calls", "output_configs"}
             tool_calls = input_value["tool_calls"]
             assert len(tool_calls) == 1
             tool_call = next(iter(tool_calls.values()))
-            assert tool_call["name"] == "evaluate_correctness"
-            assert input_value["output_config"] == {
-                "values": [
-                    {"label": "correct", "score": 1.0},
-                    {"label": "incorrect", "score": 0.0},
-                ]
+            assert tool_call["name"] == "correctness"
+            assert input_value["output_configs"] == {
+                "correctness": {
+                    "values": [
+                        {"label": "correct", "score": 1.0},
+                        {"label": "incorrect", "score": 0.0},
+                    ]
+                }
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
-            assert output_value == {"label": "incorrect", "score": 0.0, "explanation": None}
+            assert output_value == {
+                "results": [
+                    {
+                        "name": "correctness",
+                        "label": "incorrect",
+                        "score": 0.0,
+                        "explanation": None,
+                    }
+                ]
+            }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 

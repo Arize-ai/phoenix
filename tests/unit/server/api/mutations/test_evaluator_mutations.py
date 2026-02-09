@@ -43,12 +43,12 @@ class TestDatasetLLMEvaluatorMutations:
             name
             description
             outputConfigs {
-              ... on CategoricalAnnotationConfig {
+              ... on EmbeddedCategoricalAnnotationConfig {
                 name
                 description
                 values { label score }
               }
-              ... on ContinuousAnnotationConfig {
+              ... on EmbeddedContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -123,7 +123,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.0,
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test-evaluator"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -131,7 +131,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test-evaluator",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -220,13 +220,13 @@ class TestDatasetLLMEvaluatorMutations:
                     max_tokens=50,
                     tool_choice=dict(
                         type="tool",
-                        name="anthropic",
+                        name="correctness",
                     ),
                 ),
                 tools=[
                     dict(
                         definition=dict(
-                            name="anthropic",
+                            name="correctness",
                             description="anthropic",
                             input_schema=dict(
                                 type="object",
@@ -282,13 +282,13 @@ class TestDatasetLLMEvaluatorMutations:
                     max_tokens=100,
                     tool_choice=dict(
                         type="tool",
-                        name="second",
+                        name="correctness",
                     ),
                 ),
                 tools=[
                     dict(
                         definition=dict(
-                            name="second",
+                            name="correctness",
                             description="second",
                             input_schema=dict(
                                 type="object",
@@ -348,7 +348,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.5,
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -356,7 +356,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test",
+                                name="correctness",
                                 description="test",
                                 parameters=dict(
                                     type="object",
@@ -461,7 +461,7 @@ class TestDatasetLLMEvaluatorMutations:
                                 {
                                     "type": "function",
                                     "function": {
-                                        "name": "original-evaluator",
+                                        "name": "correctness",
                                         "description": "original description",
                                         "parameters": {
                                             "type": "object",
@@ -479,7 +479,7 @@ class TestDatasetLLMEvaluatorMutations:
                             ModelProvider.OPENAI,
                             tool_choice={
                                 "type": "function",
-                                "function": {"name": "original-evaluator"},
+                                "function": {"name": "correctness"},
                             },
                         ),
                         response_format=None,
@@ -516,7 +516,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.5,  # Different temperature
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test-evaluator-different"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -524,7 +524,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test-evaluator-different",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -625,7 +625,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.0,
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test-evaluator-new"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -633,7 +633,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test-evaluator-new",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -738,7 +738,7 @@ class TestDatasetLLMEvaluatorMutations:
                                 {
                                     "type": "function",
                                     "function": {
-                                        "name": "test-evaluator-identical",
+                                        "name": "correctness",
                                         "description": "test description",
                                         "parameters": {
                                             "type": "object",
@@ -757,7 +757,7 @@ class TestDatasetLLMEvaluatorMutations:
                             ModelProvider.OPENAI,
                             tool_choice={
                                 "type": "function",
-                                "function": {"name": "test-evaluator-identical"},
+                                "function": {"name": "correctness"},
                             },
                         ),
                         response_format=None,
@@ -794,7 +794,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.5,  # Same temperature as existing
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test-evaluator-identical"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -802,7 +802,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test-evaluator-identical",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -885,14 +885,14 @@ class TestDatasetLLMEvaluatorMutations:
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="x"))])]),
                 invocationParameters=dict(
-                    tool_choice=dict(type="function", function=dict(name="label-test"))
+                    tool_choice=dict(type="function", function=dict(name="out"))
                 ),
                 tools=[
                     dict(
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="label-test",
+                                name="out",
                                 description="desc",
                                 parameters=dict(
                                     type="object",
@@ -970,7 +970,7 @@ class TestDatasetLLMEvaluatorMutations:
                     temperature=0.0,
                     tool_choice=dict(
                         type="function",
-                        function=dict(name="test-evaluator-error"),
+                        function=dict(name="correctness"),
                     ),
                 ),
                 tools=[
@@ -978,7 +978,7 @@ class TestDatasetLLMEvaluatorMutations:
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="test-evaluator-error",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -1040,14 +1040,14 @@ class TestDatasetLLMEvaluatorMutations:
                 ),
                 invocationParameters=dict(
                     temperature=0.0,
-                    tool_choice=dict(type="function", function=dict(name="my-evaluator")),
+                    tool_choice=dict(type="function", function=dict(name="correctness")),
                 ),
                 tools=[
                     dict(
                         definition=dict(
                             type="function",
                             function=dict(
-                                name="my-evaluator",
+                                name="correctness",
                                 description="test description",
                                 parameters=dict(
                                     type="object",
@@ -1219,14 +1219,14 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         ),
                         invocationParameters=dict(
                             temperature=0.5,
-                            tool_choice=dict(type="function", function=dict(name="updated-tool")),
+                            tool_choice=dict(type="function", function=dict(name="result")),
                         ),
                         tools=[
                             dict(
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="updated-tool",
+                                        name="result",
                                         description="updated description",
                                         parameters=dict(
                                             type="object",
@@ -1341,7 +1341,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="updated-evaluator",
+                                        name="result",
                                         description="updated description",
                                         parameters=dict(
                                             type="object",
@@ -1454,7 +1454,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 {
                                     "type": "function",
                                     "function": {
-                                        "name": "different-tool",
+                                        "name": "result",
                                         "description": "different",
                                         "parameters": {
                                             "type": "object",
@@ -1526,7 +1526,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="updated-evaluator",
+                                        name="result",
                                         description="updated description",
                                         parameters=dict(
                                             type="object",
@@ -1642,7 +1642,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="updated-evaluator",
+                                        name="result",
                                         description="updated description",
                                         parameters=dict(
                                             type="object",
@@ -1861,7 +1861,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         {
                             "type": "function",
                             "function": {
-                                "name": "updated-evaluator",
+                                "name": "correctness",
                                 "description": "updated description",
                                 "parameters": {
                                     "type": "object",
@@ -1930,7 +1930,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="updated-evaluator",
+                                        name="correctness",
                                         description="updated description",
                                         parameters=dict(
                                             type="object",
@@ -1997,7 +1997,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             id
             name
             outputConfigs {
-              ... on CategoricalAnnotationConfig {
+              ... on EmbeddedCategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
@@ -2071,7 +2071,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                             temperature=0.5,
                             tool_choice=dict(
                                 type="function",
-                                function=dict(name="multi-output-evaluator"),
+                                function=dict(name="quality"),
                             ),
                         ),
                         tools=[
@@ -2079,7 +2079,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="multi-output-evaluator",
+                                        name="quality",
                                         description="multi output description",
                                         parameters=dict(
                                             type="object",
@@ -2094,7 +2094,27 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         ),
                                     ),
                                 )
-                            )
+                            ),
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="relevance",
+                                        description="multi output description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["relevant", "irrelevant"],
+                                                    description="relevance",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            ),
                         ],
                         modelProvider="OPENAI",
                         modelName="gpt-4",
@@ -2833,7 +2853,7 @@ async def llm_evaluator(
     tool_schema = {
         "type": "function",
         "function": {
-            "name": evaluator_name.root,
+            "name": annotation_name,
             "description": evaluator_description,
             "parameters": {
                 "type": "object",
@@ -3533,13 +3553,13 @@ class TestMultiOutputEvaluators:
             name
             description
             outputConfigs {
-              ... on CategoricalAnnotationConfig {
+              ... on EmbeddedCategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
                 values { label score }
               }
-              ... on ContinuousAnnotationConfig {
+              ... on EmbeddedContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -3567,13 +3587,13 @@ class TestMultiOutputEvaluators:
             id
             name
             outputConfigs {
-              ... on CategoricalAnnotationConfig {
+              ... on EmbeddedCategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
                 values { label score }
               }
-              ... on ContinuousAnnotationConfig {
+              ... on EmbeddedContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -3587,12 +3607,12 @@ class TestMultiOutputEvaluators:
                 name
                 kind
                 outputConfigs {
-                  ... on CategoricalAnnotationConfig {
+                  ... on EmbeddedCategoricalAnnotationConfig {
                     name
                     description
                     values { label score }
                   }
-                  ... on ContinuousAnnotationConfig {
+                  ... on EmbeddedContinuousAnnotationConfig {
                     name
                     description
                     lowerBound
@@ -3642,7 +3662,7 @@ class TestMultiOutputEvaluators:
                             temperature=0.0,
                             tool_choice=dict(
                                 type="function",
-                                function=dict(name="multi-output-evaluator"),
+                                function=dict(name="quality"),
                             ),
                         ),
                         tools=[
@@ -3650,24 +3670,42 @@ class TestMultiOutputEvaluators:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="multi-output-evaluator",
+                                        name="quality",
                                         description="multi-output evaluator description",
                                         parameters=dict(
                                             type="object",
                                             properties=dict(
-                                                # The 'label' property is required by validation
-                                                # Its description must match the first output config name
                                                 label=dict(
                                                     type="string",
                                                     enum=["good", "bad"],
-                                                    description="quality",  # Must match first config name
+                                                    description="quality",
                                                 ),
                                             ),
                                             required=["label"],
                                         ),
                                     ),
                                 )
-                            )
+                            ),
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="relevance",
+                                        description="multi-output evaluator description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["relevant", "irrelevant"],
+                                                    description="relevance",
+                                                ),
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            ),
                         ],
                         modelProvider="OPENAI",
                         modelName="gpt-4",
@@ -3675,7 +3713,7 @@ class TestMultiOutputEvaluators:
                     "outputConfigs": [
                         dict(
                             categorical=dict(
-                                name="quality",  # Must match label description above
+                                name="quality",
                                 description="Quality assessment",
                                 optimizationDirection="MAXIMIZE",
                                 values=[
@@ -3767,7 +3805,7 @@ class TestMultiOutputEvaluators:
                             temperature=0.0,
                             tool_choice=dict(
                                 type="function",
-                                function=dict(name="duplicate-config-evaluator"),
+                                function=dict(name="quality"),
                             ),
                         ),
                         tools=[
@@ -3775,22 +3813,42 @@ class TestMultiOutputEvaluators:
                                 definition=dict(
                                     type="function",
                                     function=dict(
-                                        name="duplicate-config-evaluator",
+                                        name="quality",
                                         description="duplicate config evaluator description",
                                         parameters=dict(
                                             type="object",
                                             properties=dict(
-                                                quality=dict(
+                                                label=dict(
                                                     type="string",
                                                     enum=["good", "bad"],
-                                                    description="quality assessment",
+                                                    description="quality",
                                                 ),
                                             ),
-                                            required=["quality"],
+                                            required=["label"],
                                         ),
                                     ),
                                 )
-                            )
+                            ),
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="quality",
+                                        description="duplicate config evaluator description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["high", "low"],
+                                                    description="quality",
+                                                ),
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            ),
                         ],
                         modelProvider="OPENAI",
                         modelName="gpt-4",

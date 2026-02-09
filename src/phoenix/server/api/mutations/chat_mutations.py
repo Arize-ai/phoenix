@@ -33,7 +33,6 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
-    ContinuousAnnotationConfig,
 )
 from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
@@ -55,7 +54,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
 from phoenix.server.api.helpers.evaluators import (
     get_evaluator_output_configs,
-    validate_evaluator_prompt_and_config,
+    validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
@@ -434,31 +433,30 @@ class ChatCompletionMutationMixin:
                     ):
                         name = str(evaluator_input.name)
                         configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        for config in configs:
-                            tracer: Tracer | None = None
-                            if input.tracing_enabled:
-                                tracer = Tracer(
-                                    span_cost_calculator=info.context.span_cost_calculator
-                                )
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
-                            eval_result: EvaluationResultDict = await evaluator.evaluate(
-                                context=context_dict,
-                                input_mapping=evaluator_input.input_mapping,
-                                name=name,
-                                output_config=config,  # type: ignore[arg-type]
-                                tracer=tracer,
+                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_configs=configs,  # type: ignore[arg-type]
+                            tracer=tracer,
+                        )
+
+                        trace: Trace | None = None
+                        if tracer is not None:
+                            db_traces = await tracer.save_db_traces(
+                                session=session, project_id=project_id
                             )
-
-                            trace: Trace | None = None
-                            if tracer is not None:
-                                db_traces = await tracer.save_db_traces(
-                                    session=session, project_id=project_id
-                                )
-                                if db_traces:
-                                    db_trace = db_traces[0]
-                                    trace = Trace(id=db_trace.id, db_record=db_trace)
+                            if db_traces:
+                                db_trace = db_traces[0]
+                                trace = Trace(id=db_trace.id, db_record=db_trace)
+                                for eval_result in eval_results:
                                     eval_result["trace_id"] = db_trace.trace_id
 
+                        for eval_result in eval_results:
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_model(
                                     eval_result,
@@ -553,14 +551,14 @@ class ChatCompletionMutationMixin:
                     for evaluator, evaluator_input in zip(evaluators, input.evaluators):
                         name = str(evaluator_input.name)
                         configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        for config in configs:
-                            eval_result: EvaluationResultDict = await evaluator.evaluate(
-                                context=context_dict,
-                                input_mapping=evaluator_input.input_mapping,
-                                name=name,
-                                output_config=config,  # type: ignore[arg-type]
-                            )
+                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_configs=configs,  # type: ignore[arg-type]
+                        )
 
+                        for eval_result in eval_results:
                             if eval_result["error"] is None:
                                 annotation_model = evaluation_result_to_span_annotation(
                                     eval_result,
@@ -622,14 +620,14 @@ class ChatCompletionMutationMixin:
                     raise BadRequest(f"Built-in evaluator class for key '{key}' not found")
                 builtin_evaluator = builtin_evaluator_cls()
 
-                for config in builtin_evaluator.output_configs:
-                    eval_result = await builtin_evaluator.evaluate(
-                        context=context,
-                        input_mapping=input_mapping,
-                        name=builtin_evaluator.name,
-                        output_config=config,
-                    )
-                    all_results.append(_to_evaluation_result(eval_result, builtin_evaluator.name))
+                eval_results = await builtin_evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping,
+                    name=builtin_evaluator.name,
+                    output_configs=builtin_evaluator.output_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 prompt_version = inline_llm_evaluator.prompt_version
                 model_name = prompt_version.model_name
@@ -694,52 +692,40 @@ class ChatCompletionMutationMixin:
                 all_configs = _convert_annotation_config_inputs_to_pydantic(
                     inline_llm_evaluator.output_configs
                 )
-                output_configs: list[CategoricalAnnotationConfig | ContinuousAnnotationConfig] = []
+                categorical_configs: list[CategoricalAnnotationConfig] = []
                 for config in all_configs:
-                    if not isinstance(
-                        config, (CategoricalAnnotationConfig, ContinuousAnnotationConfig)
-                    ):
+                    if not isinstance(config, CategoricalAnnotationConfig):
                         raise BadRequest(
-                            "Only categorical and continuous annotation configs "
-                            "are supported for evaluator previews"
+                            "Only categorical annotation configs "
+                            "are supported for LLM evaluator previews"
                         )
-                    output_configs.append(config)
+                    categorical_configs.append(config)
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
-                    output_configs=output_configs,
+                    output_configs=categorical_configs,
                     description=inline_llm_evaluator.description,
                 )
 
-                # Only validate the first (primary) config against the prompt tool
-                # definition. The prompt tool's label enum and description are tied
-                # to the primary config. Additional configs are independent annotation
-                # outputs that don't need to match the prompt tool structure.
-                primary_config = output_configs[0]
-                if isinstance(primary_config, CategoricalAnnotationConfig):
-                    assert primary_config.name is not None
-                    try:
-                        validate_evaluator_prompt_and_config(
-                            prompt_tools=prompt_version_orm.tools,
-                            prompt_response_format=prompt_version_orm.response_format,
-                            evaluator_annotation_name=primary_config.name,
-                            evaluator_output_config=primary_config,
-                            evaluator_description=inline_llm_evaluator.description,
-                        )
-                    except ValueError as error:
-                        raise BadRequest(str(error))
+                try:
+                    validate_evaluator_prompt_and_configs(
+                        prompt_tools=prompt_version_orm.tools,
+                        prompt_response_format=prompt_version_orm.response_format,
+                        evaluator_output_configs=categorical_configs,
+                        evaluator_description=inline_llm_evaluator.description,
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error))
 
-                for config in output_configs:
-                    eval_result = await evaluator.evaluate(
-                        context=context,
-                        input_mapping=input_mapping,
-                        name=config.name or evaluator.name,
-                        output_config=config,
-                    )
-                    all_results.append(
-                        _to_evaluation_result(eval_result, config.name or evaluator.name)
-                    )
+                eval_results = await evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping,
+                    name=evaluator.name,
+                    output_configs=categorical_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
             else:
                 raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")

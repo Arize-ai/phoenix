@@ -36,7 +36,7 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
-    validate_evaluator_prompt_and_config,
+    validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
 from phoenix.server.api.helpers.prompts.models import (
@@ -71,15 +71,13 @@ from tests.unit.vcr import CustomVCR
 def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
     output_config: CategoricalAnnotationConfig,
-    annotation_name: str,
     description: Optional[str] = None,
 ) -> None:
-    """Test helper that wraps validate_evaluator_prompt_and_config."""
-    validate_evaluator_prompt_and_config(
+    """Test helper that wraps validate_evaluator_prompt_and_configs."""
+    validate_evaluator_prompt_and_configs(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=annotation_name,
-        evaluator_output_config=output_config,
+        evaluator_output_configs=[output_config],
         evaluator_description=description,
     )
 
@@ -91,7 +89,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version: models.PromptVersion,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness", description=None
+            prompt_version, output_config, description=None
         )
 
     def test_both_descriptions_strings_do_not_raise(
@@ -103,7 +101,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         assert prompt_version.tools is not None
         prompt_version.tools.tools[0].function.description = description
         validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness", description=description
+            prompt_version, output_config, description=description
         )
 
     def test_string_evaluator_description_and_null_function_description_raises(
@@ -118,7 +116,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             validate_consistent_llm_evaluator_and_prompt_version(
                 prompt_version,
                 output_config,
-                annotation_name="correctness",
                 description="a string description",
             )
 
@@ -136,7 +133,6 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             validate_consistent_llm_evaluator_and_prompt_version(
                 prompt_version,
                 output_config,
-                annotation_name="correctness",
                 description="my different description",
             )
 
@@ -156,9 +152,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_null_tools_raises(
         self,
@@ -170,9 +164,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_empty_tools_list_raises(
         self,
@@ -185,11 +177,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         ] = []  # skips validation for empty tools list on PromptTools type
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_multiple_tools_raises(
         self,
@@ -219,11 +209,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         )
         with pytest.raises(
             ValueError,
-            match=_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED,
+            match=_LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_null_tool_choice_raises(
         self,
@@ -236,9 +224,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_zero_or_more_tool_choice_raises(
         self,
@@ -251,9 +237,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_specific_function_tool_choice_with_matching_name_does_not_raise(
         self,
@@ -262,11 +246,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
     ) -> None:
         assert prompt_version.tools is not None
         prompt_version.tools.tool_choice = PromptToolChoiceSpecificFunctionTool(
-            type="specific_function", function_name="correctness_evaluator"
+            type="specific_function", function_name="correctness"
         )
-        validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness"
-        )
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_specific_function_tool_choice_with_mismatched_name_raises(
         self,
@@ -281,9 +263,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_function_parameters_type_not_object_raises(
         self,
@@ -294,11 +274,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters["type"] = "array"
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'type': Input should be 'object'.$",
+            match="^'correctness' function has errors. At 'type': Input should be 'object'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_empty_function_parameters_properties_raises(
         self,
@@ -309,11 +287,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         prompt_version.tools.tools[0].function.parameters["properties"] = {}
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
+            match="^'correctness' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_missing_label_property_raises(
         self,
@@ -334,11 +310,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label': Field required.$",
+            match="^'correctness' function has errors. At 'properties.label': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_property_type_not_string_raises(
         self,
@@ -359,11 +333,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label.type': Input should be 'string'.$",
+            match="^'correctness' function has errors. At 'properties.label.type': Input should be 'string'.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_enum_less_than_two_items_raises(
         self,
@@ -384,11 +356,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label.enum': List should have at least 2 items after validation, not 1.$",
+            match="^'correctness' function has errors. At 'properties.label.enum': List should have at least 2 items after validation, not 1.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_missing_enum_field_raises(
         self,
@@ -408,11 +378,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label.enum': Field required.$",
+            match="^'correctness' function has errors. At 'properties.label.enum': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_missing_description_field_raises(
         self,
@@ -432,11 +400,9 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
         }
         with pytest.raises(
             ValueError,
-            match="^'correctness_evaluator' function has errors. At 'properties.label.description': Field required.$",
+            match="^'correctness' function has errors. At 'properties.label.description': Field required.$",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_duplicate_function_parameters_required_values_raises(
         self,
@@ -452,9 +418,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.REQUIRED_VALUES_MUST_BE_UNIQUE,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_defined_but_not_required_raises(
         self,
@@ -479,9 +443,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="label",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_and_explanation_defined_but_only_label_required_raises(
         self,
@@ -510,9 +472,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
                 properties="explanation",
             ),
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_unexpected_required_property_raises(
         self,
@@ -535,9 +495,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match="Found unexpected required properties: confidence",
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_label_description_mismatch_raises(
         self,
@@ -560,9 +518,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_ANNOTATION_NAME_MUST_MATCH_FUNCTION_LABEL_PROPERTY_DESCRIPTION,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_choices_mismatch_raises(
         self,
@@ -577,9 +533,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EVALUATOR_CHOICES_MUST_MATCH_TOOL_FUNCTION_LABELS,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_with_explanation_property_does_not_raise(
         self,
@@ -602,9 +556,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             },
             "required": ["label", "explanation"],
         }
-        validate_consistent_llm_evaluator_and_prompt_version(
-            prompt_version, output_config, annotation_name="correctness"
-        )
+        validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
     def test_explanation_property_explicitly_set_to_none_raises(
         self,
@@ -628,9 +580,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             ValueError,
             match=_LLMEvaluatorPromptErrorMessage.EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED,
         ):
-            validate_consistent_llm_evaluator_and_prompt_version(
-                prompt_version, output_config, annotation_name="correctness"
-            )
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
 
 
 class TestMultiConfigValidation:
@@ -641,21 +591,19 @@ class TestMultiConfigValidation:
     the prompt tool structure. These tests document that behaviour.
     """
 
-    def test_multi_config_with_inconsistent_second_config_does_not_raise(
+    def test_multi_config_with_matching_tools_does_not_raise(
         self,
         output_config: CategoricalAnnotationConfig,
         prompt_version: models.PromptVersion,
     ) -> None:
-        """When the first config is consistent but a subsequent config would
-        be inconsistent (different labels), validation should still pass
-        because only the primary config is checked against the prompt tool."""
+        """When each config has a matching tool definition (by name), validation
+        should pass. Each config's name must match a tool function name."""
         from phoenix.server.api.helpers.evaluators import (
             validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
         )
 
-        # Build an LLMEvaluator model instance with two configs.
-        # The first config matches the tool; the second has mismatched labels.
-        inconsistent_second_config = CategoricalAnnotationConfig(
+        # Build a second config that matches a second tool
+        second_config = CategoricalAnnotationConfig(
             type="CATEGORICAL",
             name="hallucination",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -665,13 +613,35 @@ class TestMultiConfigValidation:
                 CategoricalAnnotationValue(label="factual", score=0.0),
             ],
         )
+        # Add a second tool matching the second config name
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools.append(
+            PromptToolFunction(
+                type="function",
+                function=PromptToolFunctionDefinition(
+                    name="hallucination",
+                    description=UNDEFINED,
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "enum": ["hallucinated", "factual"],
+                                "description": "hallucination",
+                            }
+                        },
+                        "required": ["label"],
+                    },
+                ),
+            )
+        )
         llm_evaluator = models.LLMEvaluator(
             prompt_id=1,
             name="test",
             description=None,
-            output_configs=[output_config, inconsistent_second_config],
+            output_configs=[output_config, second_config],
         )
-        # Should not raise because only the primary config is validated
+        # Should not raise because each config has a matching tool
         validate_fn(prompt_version, llm_evaluator)
 
     def test_multi_config_all_categorical_required(
@@ -1397,12 +1367,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[0].message.content"},
             literal_mapping={"words": "France,capital"},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1426,12 +1398,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.messages[0].content"},
             literal_mapping={"words": "Paris"},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
 
@@ -1452,12 +1426,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="exact_match",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="exact_match",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1480,12 +1456,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="exact_match",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="exact_match",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 0.0
         assert result["explanation"] is not None
@@ -1517,12 +1495,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="json_distance",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         # Distance is 1 because one element differs
         assert result["score"] == 1.0
@@ -1542,12 +1522,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={},
             literal_mapping={},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
 
@@ -1568,12 +1550,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
             literal_mapping={},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="levenshtein_distance",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="levenshtein_distance",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         # Distance between "Hello" and "Hallo" is 1
         assert result["score"] == 1.0
@@ -1595,12 +1579,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.response.content"},
             literal_mapping={"pattern": r"\d+"},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="regex",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="regex",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
         assert result["explanation"] is not None
@@ -1623,12 +1609,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output[*].message.content"},
             literal_mapping={"words": "keyword"},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         # The list gets stringified and searched
         assert result["score"] == 1.0
@@ -1647,12 +1635,14 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             path_mapping={"text": "$.output.nested"},
             literal_mapping={"words": "target"},
         )
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["error"] is None
         assert result["score"] == 1.0
 
@@ -1668,12 +1658,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="My Custom Contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="My Custom Contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["name"] == "My Custom Contains"
         assert result["error"] is None
 
@@ -1685,12 +1677,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["label"] == "true"
         assert result["score"] == 1.0
 
@@ -1702,12 +1696,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "goodbye world"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="contains",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["label"] == "false"
         assert result["score"] == 0.0
 
@@ -1728,12 +1724,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         context = {"expected": "Paris", "actual": "Paris"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="Exact Match Custom",
-            output_config=custom_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="Exact Match Custom",
+                output_configs=[custom_config],
+            )
+        )[0]
         assert result["name"] == "Exact Match Custom"
         assert result["label"] == "match"
         assert result["score"] == 1.0
@@ -1755,12 +1753,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         context = {"pattern": r"\d+", "text": "The answer is 42"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="Regex Custom",
-            output_config=custom_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="Regex Custom",
+                output_configs=[custom_config],
+            )
+        )[0]
         assert result["name"] == "Regex Custom"
         assert result["label"] == "pattern_found"
         assert result["score"] == 1.0
@@ -1781,21 +1781,25 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         )
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
 
-        result_match = await evaluator.evaluate(
-            context={"words": "hello", "text": "hello world"},
-            input_mapping=input_mapping,
-            name="Contains Custom",
-            output_config=custom_config,
-        )
+        result_match = (
+            await evaluator.evaluate(
+                context={"words": "hello", "text": "hello world"},
+                input_mapping=input_mapping,
+                name="Contains Custom",
+                output_configs=[custom_config],
+            )
+        )[0]
         assert result_match["label"] == "Pass"
         assert result_match["score"] == 100.0
 
-        result_no_match = await evaluator.evaluate(
-            context={"words": "goodbye", "text": "hello world"},
-            input_mapping=input_mapping,
-            name="Contains Custom",
-            output_config=custom_config,
-        )
+        result_no_match = (
+            await evaluator.evaluate(
+                context={"words": "goodbye", "text": "hello world"},
+                input_mapping=input_mapping,
+                name="Contains Custom",
+                output_configs=[custom_config],
+            )
+        )[0]
         assert result_no_match["label"] == "Fail"
         assert result_no_match["score"] == -50.0
 
@@ -1807,12 +1811,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         output_config = evaluator.output_configs[0]
         context = {"expected": "hello", "actual": "hallo"}
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="Edit Distance",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="Edit Distance",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["name"] == "Edit Distance"
         assert result["score"] == 1.0
         assert result["label"] is None
@@ -1830,12 +1836,14 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             "actual": json.dumps({"a": 1}),
         }
         input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
-        result = await evaluator.evaluate(
-            context=context,
-            input_mapping=input_mapping,
-            name="JSON Diff",
-            output_config=output_config,
-        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="JSON Diff",
+                output_configs=[output_config],
+            )
+        )[0]
         assert result["name"] == "JSON Diff"
         assert result["score"] == 0.0
         assert result["label"] is None
@@ -1942,7 +1950,7 @@ class TestLLMEvaluator:
                     PromptToolFunction(
                         type="function",
                         function=PromptToolFunctionDefinition(
-                            name="correctness_evaluator",
+                            name="correctness",
                             description="Evaluates the correctness of the output",
                             parameters={
                                 "type": "object",
@@ -2045,7 +2053,7 @@ class TestLLMEvaluator:
                     PromptToolFunction(
                         type="function",
                         function=PromptToolFunctionDefinition(
-                            name="correctness_evaluator",
+                            name="correctness",
                             description="Evaluates the correctness of the output",
                             parameters={
                                 "type": "object",
@@ -2110,13 +2118,15 @@ class TestLLMEvaluator:
         gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         with custom_vcr.use_cassette():
-            evaluation_result = await llm_evaluator.evaluate(
-                context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
-                name="correctness",
-                output_config=output_config,
-                tracer=tracer,
-            )
+            evaluation_result = (
+                await llm_evaluator.evaluate(
+                    context={"input": "What is 2 + 2?", "output": "4"},
+                    input_mapping=input_mapping,
+                    name="correctness",
+                    output_configs=[output_config],
+                    tracer=tracer,
+                )
+            )[0]
 
         result = dict(evaluation_result)
         assert result.pop("error") is None
@@ -2185,9 +2195,11 @@ class TestLLMEvaluator:
         raw_output_value = attributes.pop(OUTPUT_VALUE)
         assert raw_output_value is not None
         output_value = json.loads(raw_output_value)
-        assert set(output_value.keys()) == {"score", "label", "explanation"}
-        assert output_value["label"] == "correct"
-        assert output_value["score"] == 1.0
+        assert set(output_value.keys()) == {"results"}
+        assert len(output_value["results"]) == 1
+        assert output_value["results"][0]["name"] == "correctness"
+        assert output_value["results"][0]["label"] == "correct"
+        assert output_value["results"][0]["score"] == 1.0
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
@@ -2282,7 +2294,7 @@ class TestLLMEvaluator:
         assert isinstance(tool_call.pop("id"), str)
         function = tool_call.pop("function")
         assert isinstance(function, dict)
-        assert function.pop("name") == "correctness_evaluator"
+        assert function.pop("name") == "correctness"
         raw_arguments = function.pop("arguments")
         assert isinstance(raw_arguments, str)
         arguments = json.loads(raw_arguments)
@@ -2301,7 +2313,7 @@ class TestLLMEvaluator:
             attributes.pop(
                 f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}"
             )
-            == "correctness_evaluator"
+            == "correctness"
         )
         raw_arguments = attributes.pop(
             f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS}"
@@ -2328,22 +2340,29 @@ class TestLLMEvaluator:
             iter(tool_calls.values())
         )  # the key is a random tool call ID from the LLM response
         assert tool_call == {
-            "name": "correctness_evaluator",
+            "name": "correctness",
             "arguments": '{"label":"correct","explanation":"The output correctly states that 2 + 2 equals 4."}',
         }
         assert input_value == {
-            "output_config": {
-                "values": [
-                    {"label": "correct", "score": 1.0},
-                    {"label": "incorrect", "score": 0.0},
-                ],
+            "output_configs": {
+                "correctness": {
+                    "values": [
+                        {"label": "correct", "score": 1.0},
+                        {"label": "incorrect", "score": 0.0},
+                    ],
+                }
             },
         }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-            "label": "correct",
-            "score": 1.0,
-            "explanation": "The output correctly states that 2 + 2 equals 4.",
+            "results": [
+                {
+                    "name": "correctness",
+                    "label": "correct",
+                    "score": 1.0,
+                    "explanation": "The output correctly states that 2 + 2 equals 4.",
+                }
+            ],
         }
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
@@ -2426,13 +2445,15 @@ class TestLLMEvaluator:
             path_mapping={"output": "nonexistent.path"},
             literal_mapping={},
         )
-        evaluation_result = await llm_evaluator.evaluate(
-            context={"input": "What is 2 + 2?", "output": "4"},
-            input_mapping=input_mapping,
-            name="correctness",
-            output_config=output_config,
-            tracer=tracer,
-        )
+        evaluation_result = (
+            await llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_configs=[output_config],
+                tracer=tracer,
+            )
+        )[0]
 
         result = dict(evaluation_result)
         error = result.pop("error")
@@ -2529,13 +2550,15 @@ class TestLLMEvaluator:
         custom_vcr: CustomVCR,
     ) -> None:
         with custom_vcr.use_cassette():
-            evaluation_result = await llm_evaluator.evaluate(
-                context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
-                name="correctness",
-                output_config=output_config,
-                tracer=tracer,
-            )
+            evaluation_result = (
+                await llm_evaluator.evaluate(
+                    context={"input": "What is 2 + 2?", "output": "4"},
+                    input_mapping=input_mapping,
+                    name="correctness",
+                    output_configs=[output_config],
+                    tracer=tracer,
+                )
+            )[0]
 
         result = dict(evaluation_result)
         error = result.pop("error")
@@ -2709,13 +2732,15 @@ class TestLLMEvaluator:
             llm_evaluator._llm_client, "chat_completion_create", mock_chat_completion
         )
 
-        evaluation_result = await llm_evaluator.evaluate(
-            context={"input": "What is 2 + 2?", "output": "4"},
-            input_mapping=input_mapping,
-            name="correctness",
-            output_config=output_config,
-            tracer=tracer,
-        )
+        evaluation_result = (
+            await llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_configs=[output_config],
+                tracer=tracer,
+            )
+        )[0]
 
         # Check evaluation result
         result = dict(evaluation_result)
@@ -2809,11 +2834,13 @@ class TestLLMEvaluator:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
         assert json.loads(attributes.pop(INPUT_VALUE)) == {
             "tool_calls": {},
-            "output_config": {
-                "values": [
-                    {"label": "correct", "score": 1.0},
-                    {"label": "incorrect", "score": 0.0},
-                ]
+            "output_configs": {
+                "correctness": {
+                    "values": [
+                        {"label": "correct", "score": 1.0},
+                        {"label": "incorrect", "score": 0.0},
+                    ]
+                }
             },
         }
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
@@ -2852,13 +2879,15 @@ class TestLLMEvaluator:
         gpt_4o_mini_generative_model: models.GenerativeModel,
     ) -> None:
         with custom_vcr.use_cassette():
-            evaluation_result = await multipart_llm_evaluator.evaluate(
-                context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
-                name="correctness",
-                output_config=output_config,
-                tracer=tracer,
-            )
+            evaluation_result = (
+                await multipart_llm_evaluator.evaluate(
+                    context={"input": "What is 2 + 2?", "output": "4"},
+                    input_mapping=input_mapping,
+                    name="correctness",
+                    output_configs=[output_config],
+                    tracer=tracer,
+                )
+            )[0]
 
         result = dict(evaluation_result)
         assert result.pop("error") is None
@@ -3169,7 +3198,7 @@ def prompt_version() -> models.PromptVersion:
                 PromptToolFunction(
                     type="function",
                     function=PromptToolFunctionDefinition(
-                        name="correctness_evaluator",
+                        name="correctness",
                         description=UNDEFINED,
                         parameters={
                             "type": "object",

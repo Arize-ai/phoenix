@@ -27,20 +27,26 @@ if TYPE_CHECKING:
     from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
-def validate_evaluator_prompt_and_config(
+def validate_evaluator_prompt_and_configs(
     *,
     prompt_tools: Optional[PromptTools],
     prompt_response_format: Optional[PromptResponseFormat],
-    evaluator_annotation_name: str,
-    evaluator_output_config: CategoricalAnnotationConfig,
+    evaluator_output_configs: list[CategoricalAnnotationConfig],
     evaluator_description: Optional[str] = None,
 ) -> None:
+    """
+    Validate that prompt tool definitions are consistent with evaluator output configs.
+
+    Each output config must have a corresponding tool definition matched by name.
+    The tool's label enum must match the config's values, and the tool's label
+    description must match the config's name (annotation name).
+    """
     if prompt_response_format is not None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.RESPONSE_FORMAT_NOT_SUPPORTED)
     if prompt_tools is None:
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOLS_REQUIRED)
-    if len(prompt_tools.tools) != 1:
-        raise ValueError(_LLMEvaluatorPromptErrorMessage.EXACTLY_ONE_TOOL_REQUIRED)
+    if len(prompt_tools.tools) != len(evaluator_output_configs):
+        raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_COUNT_MUST_MATCH_CONFIG_COUNT)
     if not isinstance(
         prompt_tools.tool_choice, (PromptToolChoiceOneOrMore, PromptToolChoiceSpecificFunctionTool)
     ):
@@ -50,9 +56,38 @@ def validate_evaluator_prompt_and_config(
             raise ValueError(
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME
             )
-    prompt_tool = prompt_tools.tools[0]
-    if not isinstance(prompt_tool, PromptToolFunction):
-        assert_never(prompt_tool)
+
+    # Build a lookup of tool definitions by function name
+    tools_by_name: dict[str, PromptToolFunction] = {}
+    for tool in prompt_tools.tools:
+        if not isinstance(tool, PromptToolFunction):
+            assert_never(tool)
+        tools_by_name[tool.function.name] = tool
+
+    # Validate each config against its matched tool
+    for config in evaluator_output_configs:
+        config_name = config.name or ""
+        prompt_tool = tools_by_name.get(config_name)
+        if prompt_tool is None:
+            raise ValueError(
+                f"No tool definition found matching output config name '{config_name}'"
+            )
+        _validate_tool_and_config(
+            prompt_tool=prompt_tool,
+            evaluator_annotation_name=config_name,
+            evaluator_output_config=config,
+            evaluator_description=evaluator_description,
+        )
+
+
+def _validate_tool_and_config(
+    *,
+    prompt_tool: PromptToolFunction,
+    evaluator_annotation_name: str,
+    evaluator_output_config: CategoricalAnnotationConfig,
+    evaluator_description: Optional[str] = None,
+) -> None:
+    """Validate a single tool definition against its matched output config."""
     prompt_tool_function_definition = prompt_tool.function
     prompt_tool_function_definition_description = (
         prompt_tool_function_definition.description
@@ -114,20 +149,15 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     if not output_configs:
         raise ValueError("LLM evaluator must have at least one output config")
     # Validate all configs are categorical
+    categorical_configs: list[CategoricalAnnotationConfig] = []
     for output_config in output_configs:
         if not isinstance(output_config, CategoricalAnnotationConfig):
             raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
-    # Only validate the first (primary) config against the prompt tool definition.
-    # The prompt tool's label enum and description are tied to the primary config.
-    # Additional configs are independent annotation outputs that don't need to
-    # match the prompt tool structure.
-    primary_config = output_configs[0]
-    assert isinstance(primary_config, CategoricalAnnotationConfig)
-    validate_evaluator_prompt_and_config(
+        categorical_configs.append(output_config)
+    validate_evaluator_prompt_and_configs(
         prompt_tools=prompt_version.tools,
         prompt_response_format=prompt_version.response_format,
-        evaluator_annotation_name=primary_config.name or "",
-        evaluator_output_config=primary_config,
+        evaluator_output_configs=categorical_configs,
         evaluator_description=llm_evaluator.description,
     )
 
@@ -197,6 +227,9 @@ class _LLMEvaluatorPromptErrorMessage:
     RESPONSE_FORMAT_NOT_SUPPORTED = "Response format is not supported for evaluator prompts"
     TOOLS_REQUIRED = "Evaluator prompts require tools"
     EXACTLY_ONE_TOOL_REQUIRED = "Evaluator prompts require exactly one tool"
+    TOOL_COUNT_MUST_MATCH_CONFIG_COUNT = (
+        "Number of prompt tool definitions must match number of output configs"
+    )
     TOOL_CHOICE_REQUIRED = "Evaluator prompts must require a tool choice"
     TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME = (
         "Evaluator tool choice specific function name must match defined function name"

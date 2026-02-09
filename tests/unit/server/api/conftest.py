@@ -859,7 +859,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                             PromptToolFunction(
                                 type="function",
                                 function=PromptToolFunctionDefinition(
-                                    name="evaluate_correctness",
+                                    name="correctness",
                                     description="evaluates the correctness of the output",
                                     parameters={
                                         "type": "object",
