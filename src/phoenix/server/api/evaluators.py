@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar
@@ -121,7 +122,7 @@ class BaseEvaluator(ABC):
 
     @property
     @abstractmethod
-    def output_configs(self) -> list[EvaluatorOutputConfig]:
+    def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
         """Returns the output configurations for this evaluator."""
         ...
 
@@ -132,7 +133,7 @@ class BaseEvaluator(ABC):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_configs: list[EvaluatorOutputConfig],
+        output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         """
@@ -169,7 +170,7 @@ class LLMEvaluator(BaseEvaluator):
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient[Any],
-        output_configs: list[EvaluatorOutputConfig],
+        output_configs: Sequence[EvaluatorOutputConfig],
         prompt_name: str,
     ):
         self._name = name
@@ -192,7 +193,7 @@ class LLMEvaluator(BaseEvaluator):
         return self._description
 
     @property
-    def output_configs(self) -> list[EvaluatorOutputConfig]:
+    def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
         return self._output_configs
 
     @property
@@ -237,7 +238,7 @@ class LLMEvaluator(BaseEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_configs: list[EvaluatorOutputConfig],
+        output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
@@ -568,7 +569,7 @@ class BuiltInEvaluator(BaseEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_configs: list[EvaluatorOutputConfig],
+        output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         multi_output = len(output_configs) > 1
@@ -1158,7 +1159,7 @@ def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
     llm_client: "PlaygroundStreamingClient[Any]",
-    output_configs: list[EvaluatorOutputConfig],
+    output_configs: Sequence[EvaluatorOutputConfig],
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """

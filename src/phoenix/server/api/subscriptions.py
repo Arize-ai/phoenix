@@ -174,13 +174,13 @@ async def _stream_single_chat_completion(
         for evaluator, evaluator_input in zip(evaluators, input.evaluators):
             name = str(evaluator_input.name)
             configs = get_evaluator_output_configs(evaluator_input, evaluator)
-            results: list[EvaluationResult] = await evaluator.evaluate(
+            eval_results: list[EvaluationResult] = await evaluator.evaluate(
                 context=context_dict,
                 input_mapping=evaluator_input.input_mapping,
                 name=name,
                 output_configs=configs,  # type: ignore[arg-type]
             )
-            for result in results:
+            for result in eval_results:
                 if result["error"] is not None:
                     yield EvaluationChunk(
                         evaluator_name=name,
