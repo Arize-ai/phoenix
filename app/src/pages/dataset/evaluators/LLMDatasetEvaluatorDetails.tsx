@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
@@ -6,13 +5,10 @@ import { css } from "@emotion/react";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
-import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
-import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
-import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 export function LLMDatasetEvaluatorDetails({
   datasetEvaluatorRef,
@@ -25,7 +21,6 @@ export function LLMDatasetEvaluatorDetails({
   isEditSlideoverOpen: boolean;
   onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
-  const [promptRefreshKey, setPromptRefreshKey] = useState(0);
   // this is so evaluator name updates are reflected in the breadcrumbs
   const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
@@ -48,6 +43,7 @@ export function LLMDatasetEvaluatorDetails({
                 definition
               }
               ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+              ...PromptChatMessagesCard__main
             }
             promptVersionTag {
               name
@@ -81,109 +77,85 @@ export function LLMDatasetEvaluatorDetails({
   );
 
   return (
-    <EvaluatorPlaygroundProvider
-      promptId={evaluator.prompt?.id}
-      promptName={evaluator.prompt?.name}
-      promptVersionRef={evaluator.promptVersion ?? undefined}
-      promptVersionTag={evaluator.promptVersionTag?.name}
-      // force remount when the evaluator prompt is updated in the slideover,
-      // so that the prompt preview is updated
-      key={promptRefreshKey}
-    >
-      <EvaluatorStoreProvider
-        initialState={{
-          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
-          evaluator: {
-            ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-            inputMapping: {
-              literalMapping: {
-                ...inputMapping?.literalMapping,
-                // this is so that mapped paths get rendered in the prompt preview
-                ...inputMapping?.pathMapping,
-              },
-              pathMapping: {},
-            },
-          },
-        }}
-      >
-        <View padding="size-200" overflow="auto" maxWidth={1000}>
-          <Flex direction="column" gap="size-300">
-            {datasetEvaluator.outputConfig && (
-              <Flex direction="column" gap="size-100">
-                <Heading level={2}>Evaluator Annotation</Heading>
-                <div
-                  css={css`
-                    background-color: var(--ac-global-background-color-dark);
-                    border-radius: var(--ac-global-rounding-medium);
-                    padding: var(--ac-global-dimension-static-size-200);
-                    margin-top: var(--ac-global-dimension-static-size-50);
-                    border: 1px solid var(--ac-global-border-color-default);
-                  `}
-                >
-                  <Flex direction="column" gap="size-100">
+    <>
+      <View padding="size-200" overflow="auto" maxWidth={1000}>
+        <Flex direction="column" gap="size-300">
+          {datasetEvaluator.outputConfig && (
+            <Flex direction="column" gap="size-100">
+              <Heading level={2}>Evaluator Annotation</Heading>
+              <div
+                css={css`
+                  background-color: var(--ac-global-background-color-dark);
+                  border-radius: var(--ac-global-rounding-medium);
+                  padding: var(--ac-global-dimension-static-size-200);
+                  margin-top: var(--ac-global-dimension-static-size-50);
+                  border: 1px solid var(--ac-global-border-color-default);
+                `}
+              >
+                <Flex direction="column" gap="size-100">
+                  <Text size="S">
+                    <Text weight="heavy">Name:</Text>{" "}
+                    {datasetEvaluator.outputConfig.name}
+                  </Text>
+                  {datasetEvaluator.outputConfig.optimizationDirection && (
                     <Text size="S">
-                      <Text weight="heavy">Name:</Text>{" "}
-                      {datasetEvaluator.outputConfig.name}
+                      <Text weight="heavy">Optimization Direction:</Text>{" "}
+                      {datasetEvaluator.outputConfig.optimizationDirection}
                     </Text>
-                    {datasetEvaluator.outputConfig.optimizationDirection && (
-                      <Text size="S">
-                        <Text weight="heavy">Optimization Direction:</Text>{" "}
-                        {datasetEvaluator.outputConfig.optimizationDirection}
+                  )}
+                  {datasetEvaluator.outputConfig.values &&
+                    datasetEvaluator.outputConfig.values.length > 0 && (
+                      <Text>
+                        <Text size="S" weight="heavy">
+                          Values:{" "}
+                        </Text>
+                        {datasetEvaluator.outputConfig.values.map(
+                          (v, idx, arr) => (
+                            <Text key={idx} size="S">
+                              {v.label}
+                              {v.score != null ? ` (${v.score})` : ""}
+                              {idx < arr.length - 1 ? ", " : ""}
+                            </Text>
+                          )
+                        )}
                       </Text>
                     )}
-                    {datasetEvaluator.outputConfig.values &&
-                      datasetEvaluator.outputConfig.values.length > 0 && (
-                        <Text>
-                          <Text size="S" weight="heavy">
-                            Values:{" "}
-                          </Text>
-                          {datasetEvaluator.outputConfig.values.map(
-                            (v, idx, arr) => (
-                              <Text key={idx} size="S">
-                                {v.label}
-                                {v.score != null ? ` (${v.score})` : ""}
-                                {idx < arr.length - 1 ? ", " : ""}
-                              </Text>
-                            )
-                          )}
-                        </Text>
-                      )}
-                    <Text size="S">
-                      <Text weight="heavy">Explanations:</Text>{" "}
-                      {includeExplanation ? "Enabled" : "Disabled"}
-                    </Text>
-                  </Flex>
-                </div>
-              </Flex>
-            )}
-            <Flex direction="column" gap="size-100">
-              <Flex justifyContent="space-between">
-                <Heading level={2}>Prompt</Heading>
-                {evaluator.prompt?.id && evaluator.prompt?.name && (
-                  <PromptLink
-                    promptId={evaluator.prompt.id}
-                    promptName={evaluator.prompt.name}
-                    promptVersionTag={evaluator.promptVersionTag?.name}
-                  />
-                )}
-              </Flex>
-              <EvaluatorPromptPreview />
+                  <Text size="S">
+                    <Text weight="heavy">Explanations:</Text>{" "}
+                    {includeExplanation ? "Enabled" : "Disabled"}
+                  </Text>
+                </Flex>
+              </div>
             </Flex>
-            <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+          )}
+          <Flex direction="column" gap="size-100">
+            <Flex justifyContent="space-between">
+              <Heading level={2}>Prompt</Heading>
+              {evaluator.prompt?.id && evaluator.prompt?.name && (
+                <PromptLink
+                  promptId={evaluator.prompt.id}
+                  promptName={evaluator.prompt.name}
+                  promptVersionTag={evaluator.promptVersionTag?.name}
+                />
+              )}
+            </Flex>
+            {evaluator.promptVersion && (
+              <PromptChatMessages promptVersion={evaluator.promptVersion} />
+            )}
           </Flex>
-        </View>
-      </EvaluatorStoreProvider>
+          <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+        </Flex>
+      </View>
       <EditLLMDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}
         datasetId={datasetId}
         isOpen={isEditSlideoverOpen}
         onOpenChange={onEditSlideoverOpenChange}
         onUpdate={() => {
-          setPromptRefreshKey((prev) => prev + 1);
           revalidate();
         }}
       />
-    </EvaluatorPlaygroundProvider>
+    </>
   );
 }
 
