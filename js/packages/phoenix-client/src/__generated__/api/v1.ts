@@ -2543,13 +2543,13 @@ export interface components {
             /**
              * Start Time
              * Format: date-time
-             * @description Start time of the span
+             * @description Start time of the span (must be timezone-aware)
              */
             start_time: string;
             /**
              * End Time
              * Format: date-time
-             * @description End time of the span
+             * @description End time of the span (must be timezone-aware)
              */
             end_time: string;
             /**
@@ -2732,7 +2732,7 @@ export interface components {
             /**
              * Timestamp
              * Format: date-time
-             * @description When the event occurred
+             * @description When the event occurred (must be timezone-aware)
              */
             timestamp: string;
             /**

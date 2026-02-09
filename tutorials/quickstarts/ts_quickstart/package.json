@@ -1,0 +1,43 @@
+{
+  "name": "ts_quickstart",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "pnpx mastra dev",
+    "build": "mastra build",
+    "start": "mastra start",
+    "evals": "tsx src/mastra/evals/evals.ts",
+    "add_traces": "tsx src/mastra/evals/add_traces.ts",
+    "experiments": "tsx src/mastra/experiments/experiment.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.0",
+    "@arizeai/phoenix-client": "5.7.0",
+    "@arizeai/phoenix-evals": "0.7.0",
+    "@mastra/arize": "latest",
+    "@mastra/client-js": "1.2.0",
+    "@mastra/core": "latest",
+    "@mastra/evals": "latest",
+    "@mastra/libsql": "latest",
+    "@mastra/loggers": "latest",
+    "@mastra/memory": "latest",
+    "@mastra/observability": "1.2.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "mastra": "latest",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
