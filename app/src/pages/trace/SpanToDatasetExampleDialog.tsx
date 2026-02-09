@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -95,6 +95,8 @@ export function SpanToDatasetExampleDialog({
     },
   });
 
+  const datasetId = useWatch({ control, name: "datasetId" });
+
   const onSubmit = useCallback(
     (newExample: ExampleToAdd) => {
       setSubmitError(null);
@@ -148,7 +150,7 @@ export function SpanToDatasetExampleDialog({
               <Button
                 variant="primary"
                 size="S"
-                isDisabled={!isValid || isCommitting}
+                isDisabled={!isValid || isCommitting || !datasetId}
                 onPress={() => {
                   handleSubmit(onSubmit)();
                   close();
