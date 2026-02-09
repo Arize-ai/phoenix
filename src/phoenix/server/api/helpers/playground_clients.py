@@ -1625,7 +1625,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     # non-tool_use case; tool_use already yielded above
                     pass
                 elif event.type == "input_json":
-                    raise NotImplementedError
+                    # Incremental tool-call JSON; we use the complete block at content_block_stop
+                    pass
                 elif event.type == "citation":
                     raise NotImplementedError
                 elif event.type == "thinking":
