@@ -2,6 +2,7 @@ import strawberry
 from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
@@ -154,12 +155,12 @@ def _annotation_config_input_to_pydantic(
     input: AnnotationConfigInput,
 ) -> AnnotationConfigType:
     """Convert an AnnotationConfigInput to its corresponding pydantic model."""
-    if categorical_input := input.categorical:
-        return _to_pydantic_categorical_annotation_config(categorical_input)
-    elif continuous_input := input.continuous:
-        return _to_pydantic_continuous_annotation_config(continuous_input)
-    elif freeform_input := input.freeform:
-        return _to_pydantic_freeform_annotation_config(freeform_input)
+    if input.categorical is not None and input.categorical is not UNSET:
+        return _to_pydantic_categorical_annotation_config(input.categorical)
+    elif input.continuous is not None and input.continuous is not UNSET:
+        return _to_pydantic_continuous_annotation_config(input.continuous)
+    elif input.freeform is not None and input.freeform is not UNSET:
+        return _to_pydantic_freeform_annotation_config(input.freeform)
     else:
         raise BadRequest("No annotation config provided")
 

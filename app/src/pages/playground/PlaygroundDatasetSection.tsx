@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import { Flex } from "@phoenix/components";
-import { type AnnotationConfig } from "@phoenix/components/annotation";
 import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { Mutable } from "@phoenix/typeUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
@@ -128,49 +128,11 @@ export function PlaygroundDatasetSection({
         >
       );
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
-  const evaluatorOutputConfigs: AnnotationConfig[] = useMemo(() => {
-    return datasetEvaluators
-      .filter((datasetEvaluator) =>
-        selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
-      )
-      .flatMap((datasetEvaluator) => {
-        const outputConfigs = datasetEvaluator.outputConfigs;
-        if (!outputConfigs || outputConfigs.length === 0) {
-          // TODO: all evaluators should have an output config eventually
-          return [
-            {
-              name: datasetEvaluator.name,
-              annotationType: "FREEFORM",
-            } satisfies AnnotationConfig,
-          ];
-        }
-        return outputConfigs.map((outputConfig) => {
-          // Handle CategoricalAnnotationConfig from the union
-          if ("values" in outputConfig && outputConfig.values) {
-            return {
-              name: outputConfig.name ?? datasetEvaluator.name,
-              optimizationDirection: outputConfig.optimizationDirection,
-              values: outputConfig.values,
-              annotationType: "CATEGORICAL",
-            } satisfies AnnotationConfig;
-          }
-          // Handle ContinuousAnnotationConfig from the union
-          if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
-            return {
-              name: outputConfig.name ?? datasetEvaluator.name,
-              optimizationDirection: outputConfig.optimizationDirection,
-              lowerBound: outputConfig.lowerBound,
-              upperBound: outputConfig.upperBound,
-              annotationType: "CONTINUOUS",
-            } satisfies AnnotationConfig;
-          }
-          // Fallback for freeform or unknown types
-          return {
-            name: datasetEvaluator.name,
-            annotationType: "FREEFORM",
-          } satisfies AnnotationConfig;
-        });
-      });
+  const evaluatorOutputConfigs = useMemo(() => {
+    const selectedEvaluators = datasetEvaluators.filter((datasetEvaluator) =>
+      selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
+    );
+    return datasetEvaluatorsToAnnotationConfigs(selectedEvaluators);
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
 
   // We want to re-mount the context when the dataset or the splits change
