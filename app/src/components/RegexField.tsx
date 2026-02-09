@@ -115,14 +115,6 @@ export const RegexField = ({
     };
   }, [validateRegex, debouncedValue, environment]);
 
-  // Validate on mount if there's an initial value
-  useEffect(() => {
-    if (validateRegex && value) {
-      setDebouncedValue(value);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const error = externalError || internalError;
   const hasError = externalIsInvalid || !!externalError || !!internalError;
 
