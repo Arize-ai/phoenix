@@ -124,7 +124,7 @@ export const RegexField = ({
   }, []);
 
   const error = externalError || internalError;
-  const hasError = externalIsInvalid || !!internalError;
+  const hasError = externalIsInvalid || !!externalError || !!internalError;
 
   const renderValidationIcon = () => {
     if (!value) {
