@@ -1628,7 +1628,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     # Incremental tool-call JSON; we use the complete block at content_block_stop
                     pass
                 elif event.type == "citation":
-                    raise NotImplementedError
+                    pass
                 elif event.type == "thinking":
                     pass
                 elif event.type == "signature":
