@@ -1,4 +1,4 @@
-import merge from "lodash/merge";
+import mergeWith from "lodash/mergeWith";
 import invariant from "tiny-invariant";
 import { createStore } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -232,7 +232,7 @@ export const createEvaluatorStore = (
   return createStore<EvaluatorStore>()(
     devtools(
       (set, get) => {
-        const properties = merge(
+        const properties = mergeWith(
           {},
           DEFAULT_STORE_VALUES,
           props.evaluator.kind === "LLM"
@@ -241,7 +241,9 @@ export const createEvaluatorStore = (
           props.evaluator.kind === "BUILTIN"
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
-          props
+          props,
+          (_objValue: unknown, srcValue: unknown) =>
+            Array.isArray(srcValue) ? srcValue : undefined
         ) satisfies EvaluatorStoreProps;
         const actions = {
           setEvaluatorGlobalName(globalName) {

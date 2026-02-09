@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b6c0327bdc6c275d1608e4d3b07c81b4>>
+ * @generated SignedSource<<dcb8efdc62deb2d799b46de1efd6501c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -348,7 +348,7 @@ return {
                                   "storageKey": null
                                 }
                               ],
-                              "type": "CategoricalAnnotationConfig",
+                              "type": "EmbeddedCategoricalAnnotationConfig",
                               "abstractKey": null
                             },
                             {
@@ -371,7 +371,7 @@ return {
                                   "storageKey": null
                                 }
                               ],
-                              "type": "ContinuousAnnotationConfig",
+                              "type": "EmbeddedContinuousAnnotationConfig",
                               "abstractKey": null
                             }
                           ],
@@ -399,6 +399,6 @@ return {
 };
 })();
 
-(node as any).hash = "606a036b714fb5743999f3b76cf0eaee";
+(node as any).hash = "44708eb49507cf2695183f337b4242eb";
 
 export default node;

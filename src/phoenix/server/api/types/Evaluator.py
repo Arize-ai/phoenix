@@ -1,4 +1,3 @@
-import zlib
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Optional, Union
@@ -13,6 +12,10 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    OptimizationDirection,
+)
+from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
@@ -21,9 +24,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
-    CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
-    ContinuousAnnotationConfig,
 )
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -55,6 +56,35 @@ class EvaluatorInputMapping:
     """Direct key-value mappings to evaluator inputs."""
     path_mapping: JSON = strawberry.field(default_factory=dict)
     """JSONPath expressions to extract values from the evaluation context."""
+
+
+@strawberry.type
+class EmbeddedCategoricalAnnotationConfig:
+    """Lightweight categorical annotation config for inline embedding (no Node interface)."""
+
+    name: str
+    description: Optional[str]
+    annotation_type: AnnotationType
+    optimization_direction: OptimizationDirection
+    values: list[CategoricalAnnotationValue]
+
+
+@strawberry.type
+class EmbeddedContinuousAnnotationConfig:
+    """Lightweight continuous annotation config for inline embedding (no Node interface)."""
+
+    name: str
+    description: Optional[str]
+    annotation_type: AnnotationType
+    optimization_direction: OptimizationDirection
+    lower_bound: Optional[float]
+    upper_bound: Optional[float]
+
+
+BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
+    Union[EmbeddedCategoricalAnnotationConfig, EmbeddedContinuousAnnotationConfig],
+    strawberry.union("BuiltInEvaluatorOutputConfig"),
+]
 
 
 @strawberry.interface
@@ -287,7 +317,7 @@ class LLMEvaluator(Evaluator, Node):
     async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> list[CategoricalAnnotationConfig]:
+    ) -> list[EmbeddedCategoricalAnnotationConfig]:
         if self.db_record:
             configs = self.db_record.output_configs
         else:
@@ -295,11 +325,9 @@ class LLMEvaluator(Evaluator, Node):
                 (self.id, models.LLMEvaluator.output_configs),
             )
         return [
-            _to_gql_categorical_annotation_config(
+            _to_gql_embedded_categorical_config(
                 config=config,
                 annotation_name=config.name or "",
-                id_prefix="Evaluator",
-                evaluator_id=self.id,
             )
             for config in configs
             if isinstance(config, CategoricalAnnotationConfigModel)
@@ -532,8 +560,6 @@ class BuiltInEvaluator(Evaluator, Node):
             _to_gql_builtin_output_config(
                 config,
                 config.name or evaluator_class.name,  # type: ignore[attr-defined]
-                id_prefix="Evaluator",
-                evaluator_id=self.id,
             )
             for config in base_configs
             if isinstance(
@@ -542,23 +568,10 @@ class BuiltInEvaluator(Evaluator, Node):
         ]
 
 
-def _generate_output_config_id(id_prefix: str, evaluator_id: int, config_name: str) -> int:
-    """
-    Generate a stable negative ID for evaluator output configs.
-
-    The id_prefix ensures different contexts (e.g., "Evaluator" vs "DatasetEvaluator")
-    produce distinct IDs even when referencing the same underlying evaluator_id.
-    The config_name ensures multi-output evaluators produce unique IDs per config.
-    """
-    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}:{config_name}".encode("utf-8")))
-
-
-def _to_gql_categorical_annotation_config(
+def _to_gql_embedded_categorical_config(
     config: CategoricalAnnotationConfigModel,
     annotation_name: str,
-    id_prefix: str,
-    evaluator_id: int,
-) -> CategoricalAnnotationConfig:
+) -> EmbeddedCategoricalAnnotationConfig:
     values = [
         CategoricalAnnotationValue(
             label=val.label,
@@ -566,8 +579,7 @@ def _to_gql_categorical_annotation_config(
         )
         for val in config.values
     ]
-    return CategoricalAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
+    return EmbeddedCategoricalAnnotationConfig(
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -576,14 +588,11 @@ def _to_gql_categorical_annotation_config(
     )
 
 
-def _to_gql_continuous_annotation_config(
+def _to_gql_embedded_continuous_config(
     config: ContinuousAnnotationConfigModel,
     annotation_name: str,
-    id_prefix: str,
-    evaluator_id: int,
-) -> ContinuousAnnotationConfig:
-    return ContinuousAnnotationConfig(
-        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
+) -> EmbeddedContinuousAnnotationConfig:
+    return EmbeddedContinuousAnnotationConfig(
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -593,26 +602,14 @@ def _to_gql_continuous_annotation_config(
     )
 
 
-BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
-    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig],
-    strawberry.union("BuiltInEvaluatorOutputConfig"),
-]
-
-
 def _to_gql_builtin_output_config(
     config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
     annotation_name: str,
-    id_prefix: str,
-    evaluator_id: int,
 ) -> BuiltInEvaluatorOutputConfig:
     if isinstance(config, CategoricalAnnotationConfigModel):
-        return _to_gql_categorical_annotation_config(
-            config, annotation_name, id_prefix, evaluator_id
-        )
+        return _to_gql_embedded_categorical_config(config, annotation_name)
     else:
-        return _to_gql_continuous_annotation_config(
-            config, annotation_name, id_prefix, evaluator_id
-        )
+        return _to_gql_embedded_continuous_config(config, annotation_name)
 
 
 @strawberry.type
@@ -710,8 +707,6 @@ class DatasetEvaluator(Node):
             _to_gql_builtin_output_config(
                 config,
                 config.name or "",
-                id_prefix="DatasetEvaluator",
-                evaluator_id=self.id,
             )
             for config in record.output_configs
             if isinstance(

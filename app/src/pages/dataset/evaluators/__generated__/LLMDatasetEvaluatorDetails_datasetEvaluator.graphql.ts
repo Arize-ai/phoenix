@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e25068aae5449c8479d65bdbbfd8bb8d>>
+ * @generated SignedSource<<5fa8322efe3fef348e9428196c832fd7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly tools: ReadonlyArray<{
         readonly definition: any;
       }>;
-      readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
+      readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
     };
     readonly promptVersionTag?: {
       readonly name: string;
@@ -381,11 +381,6 @@ return {
                   ],
                   "args": null,
                   "argumentDefinitions": []
-                },
-                {
-                  "args": null,
-                  "kind": "FragmentSpread",
-                  "name": "PromptChatMessagesCard__main"
                 }
               ],
               "storageKey": null
@@ -448,7 +443,7 @@ return {
               "storageKey": null
             }
           ],
-          "type": "CategoricalAnnotationConfig",
+          "type": "EmbeddedCategoricalAnnotationConfig",
           "abstractKey": null
         },
         {
@@ -471,7 +466,7 @@ return {
               "storageKey": null
             }
           ],
-          "type": "ContinuousAnnotationConfig",
+          "type": "EmbeddedContinuousAnnotationConfig",
           "abstractKey": null
         }
       ],
@@ -483,6 +478,6 @@ return {
 };
 })();
 
-(node as any).hash = "051c66d20aa8d761dce080fa38bc10e1";
+(node as any).hash = "9c4893f8f74821ae8c8a2d22fb06a30d";
 
 export default node;

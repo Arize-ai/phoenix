@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15e2c628dbedff6d21b33a764f40cfa3>>
+ * @generated SignedSource<<1789c9bcabc7507be6058fe9e17bdbe4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -107,19 +107,11 @@ v5 = {
   "storageKey": null
 },
 v6 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v3/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "annotationType",
-      "storageKey": null
-    }
-  ],
-  "type": "AnnotationConfigBase",
-  "abstractKey": "__isAnnotationConfigBase"
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationType",
+  "storageKey": null
 },
 v7 = {
   "alias": null,
@@ -131,6 +123,8 @@ v7 = {
 v8 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*: any*/),
+    (v6/*: any*/),
     (v7/*: any*/),
     {
       "alias": null,
@@ -158,12 +152,14 @@ v8 = {
       "storageKey": null
     }
   ],
-  "type": "CategoricalAnnotationConfig",
+  "type": "EmbeddedCategoricalAnnotationConfig",
   "abstractKey": null
 },
 v9 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*: any*/),
+    (v6/*: any*/),
     (v7/*: any*/),
     {
       "alias": null,
@@ -180,7 +176,7 @@ v9 = {
       "storageKey": null
     }
   ],
-  "type": "ContinuousAnnotationConfig",
+  "type": "EmbeddedContinuousAnnotationConfig",
   "abstractKey": null
 },
 v10 = {
@@ -219,7 +215,6 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v6/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/)
                 ],
@@ -266,17 +261,8 @@ return {
                 "plural": true,
                 "selections": [
                   (v10/*: any*/),
-                  (v6/*: any*/),
                   (v8/*: any*/),
-                  (v9/*: any*/),
-                  {
-                    "kind": "InlineFragment",
-                    "selections": [
-                      (v2/*: any*/)
-                    ],
-                    "type": "Node",
-                    "abstractKey": "__isNode"
-                  }
+                  (v9/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -290,16 +276,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "38e59b9ced61ca3f9e1dc8564837ad64",
+    "cacheID": "5c5634b85585600846251982ea83b16d",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on EmbeddedCategoricalAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on EmbeddedContinuousAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "84c068b0a88a949008577c352646fe88";
+(node as any).hash = "841666136c7ab2b2e69acf156b62a962";
 
 export default node;

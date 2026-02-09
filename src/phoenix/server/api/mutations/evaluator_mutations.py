@@ -786,8 +786,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
         # Validate output configs if provided
-        if input.output_configs:
+        if input.output_configs is not None:
             try:
+                validate_min_one_config(input.output_configs)
                 validate_unique_config_names(input.output_configs)
             except ValueError as e:
                 raise BadRequest(str(e))
@@ -805,7 +806,7 @@ class EvaluatorMutationMixin:
                     raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
 
                 # If output_configs provided, convert them; otherwise copy base evaluator's configs
-                if input.output_configs:
+                if input.output_configs is not None:
                     output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
                 else:
                     output_configs = list(builtin_evaluator().output_configs)

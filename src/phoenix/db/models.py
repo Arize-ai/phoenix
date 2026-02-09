@@ -2291,7 +2291,7 @@ class LLMEvaluator(Evaluator):
         index=True,
     )
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        "output_config", _AnnotationConfigList, nullable=False
+        _AnnotationConfigList, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2360,7 +2360,7 @@ class BuiltinEvaluator(Evaluator):
     key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        "output_config", _AnnotationConfigList, nullable=False
+        _AnnotationConfigList, nullable=False
     )
 
     # Track when this was last synced from the registry
@@ -2396,7 +2396,7 @@ class DatasetEvaluators(HasId):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        "output_config", _AnnotationConfigList, nullable=False
+        _AnnotationConfigList, nullable=False
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

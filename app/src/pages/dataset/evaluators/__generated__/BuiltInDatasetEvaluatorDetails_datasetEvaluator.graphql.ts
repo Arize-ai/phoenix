@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8bbc2f22a62b117863aa568c025df66d>>
+ * @generated SignedSource<<17d23a8372c83fa835dda8927a84a584>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,14 +75,7 @@ v2 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v0/*: any*/)
-      ],
-      "type": "AnnotationConfigBase",
-      "abstractKey": "__isAnnotationConfigBase"
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": [
+        (v0/*: any*/),
         (v1/*: any*/),
         {
           "alias": null,
@@ -110,12 +103,13 @@ v2 = {
           "storageKey": null
         }
       ],
-      "type": "CategoricalAnnotationConfig",
+      "type": "EmbeddedCategoricalAnnotationConfig",
       "abstractKey": null
     },
     {
       "kind": "InlineFragment",
       "selections": [
+        (v0/*: any*/),
         (v1/*: any*/),
         {
           "alias": null,
@@ -132,7 +126,7 @@ v2 = {
           "storageKey": null
         }
       ],
-      "type": "ContinuousAnnotationConfig",
+      "type": "EmbeddedContinuousAnnotationConfig",
       "abstractKey": null
     }
   ],
@@ -210,6 +204,6 @@ return {
 };
 })();
 
-(node as any).hash = "8bc7826f19541f5618e6a9a29b0d3d09";
+(node as any).hash = "0f47076d79714dcac99a0b020843f011";
 
 export default node;

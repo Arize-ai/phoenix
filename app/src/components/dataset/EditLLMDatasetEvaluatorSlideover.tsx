@@ -161,17 +161,16 @@ const EditEvaluatorDialog = ({
             pathMapping
           }
           outputConfigs {
-            ... on AnnotationConfigBase {
+            ... on EmbeddedCategoricalAnnotationConfig {
               name
-            }
-            ... on CategoricalAnnotationConfig {
               optimizationDirection
               values {
                 label
                 score
               }
             }
-            ... on ContinuousAnnotationConfig {
+            ... on EmbeddedContinuousAnnotationConfig {
+              name
               optimizationDirection
               lowerBound
               upperBound
@@ -183,10 +182,8 @@ const EditEvaluatorDialog = ({
             name
             ... on LLMEvaluator {
               outputConfigs {
-                ... on AnnotationConfigBase {
+                ... on EmbeddedCategoricalAnnotationConfig {
                   name
-                }
-                ... on CategoricalAnnotationConfig {
                   optimizationDirection
                   values {
                     label

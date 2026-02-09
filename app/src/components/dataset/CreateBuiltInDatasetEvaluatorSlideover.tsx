@@ -108,18 +108,18 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
             ... on BuiltInEvaluator {
               inputSchema
               outputConfigs {
-                ... on AnnotationConfigBase {
+                ... on EmbeddedCategoricalAnnotationConfig {
                   name
                   annotationType
-                }
-                ... on CategoricalAnnotationConfig {
                   optimizationDirection
                   values {
                     label
                     score
                   }
                 }
-                ... on ContinuousAnnotationConfig {
+                ... on EmbeddedContinuousAnnotationConfig {
+                  name
+                  annotationType
                   optimizationDirection
                   lowerBound
                   upperBound

@@ -31,7 +31,10 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.types.annotation_configs import CategoricalAnnotationConfig
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    ContinuousAnnotationConfig,
+)
 from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
@@ -688,31 +691,46 @@ class ChatCompletionMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                output_configs = _convert_annotation_config_inputs_to_pydantic(
+                all_configs = _convert_annotation_config_inputs_to_pydantic(
                     inline_llm_evaluator.output_configs
                 )
+                output_configs: list[CategoricalAnnotationConfig | ContinuousAnnotationConfig] = []
+                for config in all_configs:
+                    if not isinstance(
+                        config, (CategoricalAnnotationConfig, ContinuousAnnotationConfig)
+                    ):
+                        raise BadRequest(
+                            "Only categorical and continuous annotation configs "
+                            "are supported for evaluator previews"
+                        )
+                    output_configs.append(config)
 
                 evaluator = create_llm_evaluator_from_inline(
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
-                    output_configs=output_configs,  # type: ignore[arg-type]
+                    output_configs=output_configs,
                     description=inline_llm_evaluator.description,
                 )
 
-                for config in output_configs:  # type: ignore[assignment]
-                    if isinstance(config, CategoricalAnnotationConfig):
-                        assert config.name is not None
-                        try:
-                            validate_evaluator_prompt_and_config(
-                                prompt_tools=prompt_version_orm.tools,
-                                prompt_response_format=prompt_version_orm.response_format,
-                                evaluator_annotation_name=config.name,
-                                evaluator_output_config=config,
-                                evaluator_description=inline_llm_evaluator.description,
-                            )
-                        except ValueError as error:
-                            raise BadRequest(str(error))
+                # Only validate the first (primary) config against the prompt tool
+                # definition. The prompt tool's label enum and description are tied
+                # to the primary config. Additional configs are independent annotation
+                # outputs that don't need to match the prompt tool structure.
+                primary_config = output_configs[0]
+                if isinstance(primary_config, CategoricalAnnotationConfig):
+                    assert primary_config.name is not None
+                    try:
+                        validate_evaluator_prompt_and_config(
+                            prompt_tools=prompt_version_orm.tools,
+                            prompt_response_format=prompt_version_orm.response_format,
+                            evaluator_annotation_name=primary_config.name,
+                            evaluator_output_config=primary_config,
+                            evaluator_description=inline_llm_evaluator.description,
+                        )
+                    except ValueError as error:
+                        raise BadRequest(str(error))
 
+                for config in output_configs:
                     eval_result = await evaluator.evaluate(
                         context=context,
                         input_mapping=input_mapping,

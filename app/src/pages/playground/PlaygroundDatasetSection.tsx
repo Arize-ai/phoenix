@@ -71,7 +71,7 @@ export function PlaygroundDatasetSection({
                   isBuiltin
                 }
                 outputConfigs {
-                  ... on CategoricalAnnotationConfig {
+                  ... on EmbeddedCategoricalAnnotationConfig {
                     name
                     optimizationDirection
                     values {
@@ -79,7 +79,7 @@ export function PlaygroundDatasetSection({
                       score
                     }
                   }
-                  ... on ContinuousAnnotationConfig {
+                  ... on EmbeddedContinuousAnnotationConfig {
                     name
                     optimizationDirection
                     lowerBound

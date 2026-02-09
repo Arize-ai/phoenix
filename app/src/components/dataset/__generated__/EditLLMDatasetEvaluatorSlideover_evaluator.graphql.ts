@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d2960fdefb471eb5d10b231f984f345>>
+ * @generated SignedSource<<5c24ee1177979dd881e8811b5db667b5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly name?: string;
+      readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
       readonly values: ReadonlyArray<{
         readonly label: string;
@@ -75,50 +75,46 @@ v1 = {
   "storageKey": null
 },
 v2 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v1/*: any*/)
-  ],
-  "type": "AnnotationConfigBase",
-  "abstractKey": "__isAnnotationConfigBase"
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v4 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "CategoricalAnnotationValue",
-  "kind": "LinkedField",
-  "name": "values",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "score",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v5 = [
+v3 = [
+  (v1/*: any*/),
+  (v2/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "CategoricalAnnotationValue",
+    "kind": "LinkedField",
+    "name": "values",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "label",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "score",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v4 = [
   (v0/*: any*/),
   (v1/*: any*/)
 ],
-v6 = [
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -127,24 +123,24 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": (v6/*: any*/),
+  "selections": (v5/*: any*/),
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -192,20 +188,17 @@ return {
       "name": "outputConfigs",
       "plural": true,
       "selections": [
-        (v2/*: any*/),
         {
           "kind": "InlineFragment",
-          "selections": [
-            (v3/*: any*/),
-            (v4/*: any*/)
-          ],
-          "type": "CategoricalAnnotationConfig",
+          "selections": (v3/*: any*/),
+          "type": "EmbeddedCategoricalAnnotationConfig",
           "abstractKey": null
         },
         {
           "kind": "InlineFragment",
           "selections": [
-            (v3/*: any*/),
+            (v1/*: any*/),
+            (v2/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -221,7 +214,7 @@ return {
               "storageKey": null
             }
           ],
-          "type": "ContinuousAnnotationConfig",
+          "type": "EmbeddedContinuousAnnotationConfig",
           "abstractKey": null
         }
       ],
@@ -256,15 +249,11 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "CategoricalAnnotationConfig",
+              "concreteType": "EmbeddedCategoricalAnnotationConfig",
               "kind": "LinkedField",
               "name": "outputConfigs",
               "plural": true,
-              "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/),
-                (v4/*: any*/)
-              ],
+              "selections": (v3/*: any*/),
               "storageKey": null
             },
             {
@@ -274,7 +263,7 @@ return {
               "kind": "LinkedField",
               "name": "prompt",
               "plural": false,
-              "selections": (v5/*: any*/),
+              "selections": (v4/*: any*/),
               "storageKey": null
             },
             {
@@ -285,7 +274,7 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
-                (v7/*: any*/),
+                (v6/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -319,7 +308,7 @@ return {
                       "kind": "LinkedField",
                       "name": "customProvider",
                       "plural": false,
-                      "selections": (v5/*: any*/),
+                      "selections": (v4/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -329,7 +318,7 @@ return {
                       "kind": "LinkedField",
                       "name": "responseFormat",
                       "plural": false,
-                      "selections": (v6/*: any*/),
+                      "selections": (v5/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -340,7 +329,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v8/*: any*/),
+                        (v7/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -367,7 +356,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v8/*: any*/),
+                                    (v7/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -404,7 +393,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v9/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -442,7 +431,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v9/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -484,7 +473,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v7/*: any*/)
+                    (v6/*: any*/)
                   ],
                   "args": null,
                   "argumentDefinitions": []
@@ -505,6 +494,6 @@ return {
 };
 })();
 
-(node as any).hash = "2e11a9182fcbf96872fb4c59e8aa5bcc";
+(node as any).hash = "5616edf7bd4f58babae390b9e9839895";
 
 export default node;

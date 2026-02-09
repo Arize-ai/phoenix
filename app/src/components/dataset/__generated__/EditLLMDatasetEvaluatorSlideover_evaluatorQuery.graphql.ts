@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c65649d9740203015da4590c1d1d7bd7>>
+ * @generated SignedSource<<5caabdbfb327c610e1e9bca892c8147c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -326,47 +326,42 @@ v18 = {
   "selections": (v13/*: any*/),
   "storageKey": null
 },
-v19 = [
-  (v5/*: any*/)
-],
-v20 = {
-  "kind": "InlineFragment",
-  "selections": (v19/*: any*/),
-  "type": "AnnotationConfigBase",
-  "abstractKey": "__isAnnotationConfigBase"
-},
-v21 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v22 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "CategoricalAnnotationValue",
-  "kind": "LinkedField",
-  "name": "values",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "score",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
+v20 = [
+  (v5/*: any*/),
+  (v19/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "CategoricalAnnotationValue",
+    "kind": "LinkedField",
+    "name": "values",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "label",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "score",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -443,7 +438,9 @@ return {
                             "kind": "LinkedField",
                             "name": "promptVersionTag",
                             "plural": false,
-                            "selections": (v19/*: any*/),
+                            "selections": [
+                              (v5/*: any*/)
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -550,16 +547,11 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "CategoricalAnnotationConfig",
+                            "concreteType": "EmbeddedCategoricalAnnotationConfig",
                             "kind": "LinkedField",
                             "name": "outputConfigs",
                             "plural": true,
-                            "selections": [
-                              (v20/*: any*/),
-                              (v21/*: any*/),
-                              (v22/*: any*/),
-                              (v4/*: any*/)
-                            ],
+                            "selections": (v20/*: any*/),
                             "storageKey": null
                           }
                         ],
@@ -621,20 +613,17 @@ return {
                     "plural": true,
                     "selections": [
                       (v15/*: any*/),
-                      (v20/*: any*/),
                       {
                         "kind": "InlineFragment",
-                        "selections": [
-                          (v21/*: any*/),
-                          (v22/*: any*/)
-                        ],
-                        "type": "CategoricalAnnotationConfig",
+                        "selections": (v20/*: any*/),
+                        "type": "EmbeddedCategoricalAnnotationConfig",
                         "abstractKey": null
                       },
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v21/*: any*/),
+                          (v5/*: any*/),
+                          (v19/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -650,16 +639,8 @@ return {
                             "storageKey": null
                           }
                         ],
-                        "type": "ContinuousAnnotationConfig",
+                        "type": "EmbeddedContinuousAnnotationConfig",
                         "abstractKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v4/*: any*/)
-                        ],
-                        "type": "Node",
-                        "abstractKey": "__isNode"
                       }
                     ],
                     "storageKey": null
@@ -678,12 +659,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4d697b8c507b23583893fd62eb566788",
+    "cacheID": "c8f283e634273ce0d97a90aca9ea6611",
     "id": null,
     "metadata": {},
     "name": "EditLLMDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query EditLLMDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        evaluator {\n          __typename\n          ... on LLMEvaluator {\n            prompt {\n              id\n              name\n            }\n            promptVersion {\n              templateFormat\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n            promptVersionTag {\n              name\n              id\n            }\n          }\n          id\n        }\n        ...EditLLMDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on AnnotationConfigBase {\n      __isAnnotationConfigBase: __typename\n      name\n    }\n    ... on CategoricalAnnotationConfig {\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      outputConfigs {\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        optimizationDirection\n        values {\n          label\n          score\n        }\n        id\n      }\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query EditLLMDatasetEvaluatorSlideover_evaluatorQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        evaluator {\n          __typename\n          ... on LLMEvaluator {\n            prompt {\n              id\n              name\n            }\n            promptVersion {\n              templateFormat\n              ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n              id\n            }\n            promptVersionTag {\n              name\n              id\n            }\n          }\n          id\n        }\n        ...EditLLMDatasetEvaluatorSlideover_evaluator\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on EmbeddedCategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on EmbeddedContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      outputConfigs {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

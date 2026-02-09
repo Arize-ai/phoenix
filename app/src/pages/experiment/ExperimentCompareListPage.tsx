@@ -196,7 +196,7 @@ export function ExperimentCompareListPage({
                   node {
                     name
                     outputConfigs {
-                      ... on CategoricalAnnotationConfig {
+                      ... on EmbeddedCategoricalAnnotationConfig {
                         name
                         optimizationDirection
                         values {
@@ -204,7 +204,7 @@ export function ExperimentCompareListPage({
                           score
                         }
                       }
-                      ... on ContinuousAnnotationConfig {
+                      ... on EmbeddedContinuousAnnotationConfig {
                         name
                         optimizationDirection
                         lowerBound
