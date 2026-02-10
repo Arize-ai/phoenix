@@ -18,15 +18,19 @@ export type PromptParam = {
 };
 
 /**
+ * The resolved result of a single prompt fetch.
+ */
+type FetchedPromptResult = NonNullable<
+  Awaited<ReturnType<typeof fetchPlaygroundPromptAsInstance>>
+>;
+
+/**
  * The data returned by the playground page loader.
+ * `null` when no prompt params are present in the URL.
  */
 export type PlaygroundPageLoaderData = {
   promptParams: PromptParam[];
-  instances: Awaited<
-    ReturnType<typeof fetchPlaygroundPromptAsInstance>
-  > extends infer R
-    ? NonNullable<R>["instance"][]
-    : never;
+  instances: FetchedPromptResult["instance"][];
   templateFormat: TemplateFormat;
 } | null;
 
