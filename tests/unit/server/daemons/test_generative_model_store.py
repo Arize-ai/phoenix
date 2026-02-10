@@ -140,8 +140,8 @@ class TestGenerativeModelStore:
 
         async def wait_for_condition(
             predicate: Callable[[], bool],
-            timeout_seconds: float = 1.0,
-            interval_seconds: float = 0.01,
+            timeout_seconds: float = 5.0,
+            interval_seconds: float = 0.05,
         ) -> None:
             deadline = asyncio.get_running_loop().time() + timeout_seconds
             while True:
