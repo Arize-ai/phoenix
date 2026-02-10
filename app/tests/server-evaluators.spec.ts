@@ -307,7 +307,8 @@ test.describe.serial("Server Evaluators", () => {
     const userTextbox = userSection
       .locator("..")
       .locator("..")
-      .getByRole("textbox");
+      .getByRole("textbox")
+      .first();
     await userTextbox.fill(
       "Please evaluate this output: {{output}}\n\nReference: {{reference}}"
     );
