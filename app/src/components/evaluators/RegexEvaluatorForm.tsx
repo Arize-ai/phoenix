@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
@@ -39,10 +39,34 @@ const useRegexEvaluatorForm = () => {
 };
 
 export const RegexEvaluatorForm = () => {
-  const { control, getValues, setValue } = useRegexEvaluatorForm();
+  const form = useRegexEvaluatorForm();
+  const { control, getValues, setValue, trigger } = form;
+  const store = useEvaluatorStoreInstance();
   const [textPath, setTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
+
+  // Cache for the latest async regex validation result from RegexField.
+  // Read by the validate rule so trigger() returns the correct validity.
+  const regexValidCache = useRef(false);
+
+  // Updates the cache and re-syncs RHF error state via trigger().
+  const handleRegexValidationChange = useCallback(
+    (valid: boolean) => {
+      regexValidCache.current = valid;
+      trigger("literalMapping.pattern");
+    },
+    [trigger]
+  );
+
+  const triggerValidation = useCallback(async () => {
+    return trigger("literalMapping.pattern");
+  }, [trigger]);
+  useEffect(() => {
+    return store
+      .getState()
+      .registerValidator("regexPattern", triggerValidation);
+  }, [store, triggerValidation]);
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
@@ -58,6 +82,10 @@ export const RegexEvaluatorForm = () => {
         <Controller
           control={control}
           name="literalMapping.pattern"
+          rules={{
+            required: "Regex pattern is required",
+            validate: () => regexValidCache.current || "Invalid regex pattern",
+          }}
           render={({ field, fieldState: { error } }) => (
             <RegexField
               {...field}
@@ -67,6 +95,7 @@ export const RegexEvaluatorForm = () => {
               description="The regex pattern to match against the text. e.g. ^[0-9]+$"
               label="Pattern*"
               placeholder="e.g. ^[0-9]+$"
+              onValidationChange={handleRegexValidationChange}
             />
           )}
         />

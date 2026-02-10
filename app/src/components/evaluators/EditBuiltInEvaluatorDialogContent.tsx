@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { css } from "@emotion/react";
 
 import { Alert } from "@phoenix/components/alert";
@@ -10,6 +11,7 @@ import {
 } from "@phoenix/components/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditBuiltInEvaluatorDialogContent = ({
   onSubmit,
@@ -25,6 +27,17 @@ export const EditBuiltInEvaluatorDialogContent = ({
   error?: string;
   evaluatorInputSchema: unknown;
 }) => {
+  const store = useEvaluatorStoreInstance();
+  const [showValidationError, setShowValidationError] = useState(false);
+  const handleSubmit = async () => {
+    const isValid = await store.getState().validateAll();
+    if (!isValid) {
+      setShowValidationError(true);
+      return;
+    }
+    setShowValidationError(false);
+    onSubmit();
+  };
   return (
     <DialogContent>
       <DialogHeader>
@@ -39,7 +52,7 @@ export const EditBuiltInEvaluatorDialogContent = ({
             variant="primary"
             isDisabled={isSubmitting}
             isPending={isSubmitting}
-            onPress={onSubmit}
+            onPress={handleSubmit}
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>
@@ -57,6 +70,12 @@ export const EditBuiltInEvaluatorDialogContent = ({
           overflow: auto;
         `}
       >
+        {showValidationError && (
+          <Alert
+            variant="danger"
+            title="Please fix the highlighted errors before submitting."
+          />
+        )}
         {error && (
           <Alert
             variant="danger"

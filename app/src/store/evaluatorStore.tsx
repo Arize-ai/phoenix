@@ -117,6 +117,13 @@ export type EvaluatorStoreActions = {
     index: number,
     values: ClassificationChoice[]
   ) => void;
+  /** Registers a sub-form's trigger function for validation on submit. Returns an unregister callback. */
+  registerValidator: (
+    key: string,
+    trigger: () => Promise<boolean>
+  ) => () => void;
+  /** Triggers validation on all registered sub-forms. Returns true if all are valid. */
+  validateAll: () => Promise<boolean>;
 };
 
 export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
@@ -229,6 +236,14 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
 export const createEvaluatorStore = (
   props: Partial<EvaluatorStoreProps> & { evaluator: { kind: EvaluatorKind } }
 ) => {
+  /**
+   * Registry of sub-form trigger functions for validation on submit.
+   * Stored outside Zustand's reactive state so that registering/unregistering
+   * validators (which happens on every sub-form mount/unmount) does not cause
+   * re-renders in consuming components.
+   */
+  const validators = new Map<string, () => Promise<boolean>>();
+
   return createStore<EvaluatorStore>()(
     devtools(
       (set, get) => {
@@ -514,6 +529,18 @@ export const createEvaluatorStore = (
                 "setOutputConfigValuesAtIndex"
               );
             }
+          },
+          registerValidator(key, trigger) {
+            validators.set(key, trigger);
+            return () => {
+              validators.delete(key);
+            };
+          },
+          async validateAll() {
+            const results = await Promise.all(
+              Array.from(validators.values()).map((trigger) => trigger())
+            );
+            return results.every(Boolean);
           },
         } satisfies EvaluatorStoreActions;
         return {

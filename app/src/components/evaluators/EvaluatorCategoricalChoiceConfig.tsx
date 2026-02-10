@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect } from "react";
+import { PropsWithChildren, useCallback, useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
@@ -80,6 +80,13 @@ const useEvaluatorLLMChoiceForm = () => {
       },
     });
   }, [subscribe, store]);
+
+  const triggerValidation = useCallback(async () => {
+    return form.trigger();
+  }, [form]);
+  useEffect(() => {
+    return store.getState().registerValidator("choices", triggerValidation);
+  }, [store, triggerValidation]);
 
   return form;
 };

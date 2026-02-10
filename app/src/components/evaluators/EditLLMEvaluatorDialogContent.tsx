@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { css } from "@emotion/react";
 
 import { Alert } from "@phoenix/components/alert";
@@ -10,6 +11,7 @@ import {
 } from "@phoenix/components/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 /**
  * Embed this DialogContent component within a DatasetEvaluatorSlideover or an EvaluatorSlideover.
@@ -27,6 +29,17 @@ export const EditLLMEvaluatorDialogContent = ({
   mode: "create" | "update";
   error?: string;
 }) => {
+  const store = useEvaluatorStoreInstance();
+  const [showValidationError, setShowValidationError] = useState(false);
+  const handleSubmit = async () => {
+    const isValid = await store.getState().validateAll();
+    if (!isValid) {
+      setShowValidationError(true);
+      return;
+    }
+    setShowValidationError(false);
+    onSubmit();
+  };
   return (
     <DialogContent>
       <DialogHeader>
@@ -41,7 +54,7 @@ export const EditLLMEvaluatorDialogContent = ({
             variant="primary"
             isDisabled={isSubmitting}
             isPending={isSubmitting}
-            onPress={onSubmit}
+            onPress={handleSubmit}
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>
@@ -59,6 +72,12 @@ export const EditLLMEvaluatorDialogContent = ({
           overflow: auto;
         `}
       >
+        {showValidationError && (
+          <Alert
+            variant="danger"
+            title="Please fix the highlighted errors before submitting."
+          />
+        )}
         {error && (
           <Alert
             variant="danger"
