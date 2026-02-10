@@ -104,6 +104,60 @@ def _tools_chat_completions_to_responses_api(
     return result
 
 
+# Parameters accepted by OpenAI Responses API responses.create (GPT 5.1/5.2).
+# Chat Completions uses different names; this mapping converts mixin params to Responses API.
+_RESPONSES_API_PARAM_NAMES = frozenset(
+    {
+        "max_output_tokens",
+        "reasoning",
+        "temperature",
+        "top_p",
+        "tool_choice",
+        "extra_body",
+    }
+)
+
+
+def _invocation_parameters_to_responses_api(
+    invocation_parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Map Chat Completions-style invocation parameters (from OpenAIReasoningReasoningModelsMixin)
+    to OpenAI Responses API parameter names and shapes. responses.create() rejects unknown
+    keyword arguments, so we only pass known params and map names where they differ.
+    """
+    out: dict[str, Any] = {}
+    extra_body: dict[str, Any] = {}
+
+    for key, value in invocation_parameters.items():
+        if value is None:
+            continue
+        if key == "max_completion_tokens":
+            out["max_output_tokens"] = value
+        elif key == "reasoning_effort":
+            out["reasoning"] = {"effort": value}
+        elif key == "temperature":
+            out["temperature"] = value
+        elif key == "top_p":
+            out["top_p"] = value
+        elif key == "tool_choice":
+            out["tool_choice"] = value
+        elif key == "extra_body":
+            if isinstance(value, dict):
+                extra_body.update(value)
+            else:
+                extra_body["extra_body"] = value
+        elif key in ("seed", "response_format"):
+            # Responses API may support these via body; pass through extra_body to avoid rejection
+            extra_body[key] = value
+        elif key in _RESPONSES_API_PARAM_NAMES:
+            out[key] = value
+
+    if extra_body:
+        out["extra_body"] = extra_body
+    return out
+
+
 @dataclass
 class PlaygroundClientCredential:
     """
@@ -673,13 +727,15 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         # Convert tools from Chat Completions format (nested function) to Responses API
         # flat format (type, name, description, parameters at top level)
         responses_tools = _tools_chat_completions_to_responses_api(tools) if tools else NOT_GIVEN
+        # Map Chat Completions param names to Responses API.
+        responses_params = _invocation_parameters_to_responses_api(dict(invocation_parameters))
         throttled_create = self.rate_limiter._alimit(self.client.responses.create)
         async for event in await throttled_create(
             input=input_text,
             model=self.model_name,
             stream=True,
             tools=responses_tools,
-            **invocation_parameters,
+            **responses_params,
         ):
             # Parse events using event.type for event-driven streaming
             event_type = getattr(event, "type", None)
