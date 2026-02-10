@@ -1577,9 +1577,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import anthropic.lib.streaming as anthropic_streaming
-        import anthropic.types as anthropic_types
-
         # Claude 4.x does not allow both temperature and top_p; prefer temperature
         invocation_parameters = dict(invocation_parameters)
         if _is_claude_4_model(self.model_name):
