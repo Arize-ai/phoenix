@@ -110,7 +110,7 @@ export function EvaluatorMappingSourceEditor({
           label={label}
           description={description}
           tooltip={tooltip}
-          value={value[field] ?? {}}
+          value={value[field]}
           onChange={fieldCallbacks[field]}
           editorKey={`${editorKeyPrefix}-${field}`}
         />
