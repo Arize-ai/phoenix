@@ -9,6 +9,8 @@ should be appended to prompt templates when running experiments.
 from collections.abc import Sequence
 from typing import Any, Optional, TypedDict
 
+from typing_extensions import Required
+
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
 # These types are based loosely on the openinference.instrumentation.Message type.
@@ -27,8 +29,8 @@ class PlaygroundToolCall(TypedDict, total=False):
 
 
 class PlaygroundMessage(TypedDict, total=False):
-    role: ChatCompletionMessageRole
-    content: str
+    role: Required[ChatCompletionMessageRole]
+    content: Required[str]
     tool_call_id: str
     tool_calls: Sequence[PlaygroundToolCall]
 
