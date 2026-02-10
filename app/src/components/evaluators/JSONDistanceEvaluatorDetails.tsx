@@ -16,6 +16,7 @@ export function JSONDistanceEvaluatorDetails({
   const actualLiteral = inputMapping?.literalMapping?.actual as
     | string
     | undefined;
+  const parseStrings = inputMapping?.literalMapping?.parse_strings;
 
   return (
     <Flex direction="column" gap="size-100">
@@ -27,6 +28,10 @@ export function JSONDistanceEvaluatorDetails({
       <Text size="S">
         <Text weight="heavy">Actual:</Text>{" "}
         {actualPath || (actualLiteral ? `"${actualLiteral}"` : "Not mapped")}
+      </Text>
+      <Text size="S">
+        <Text weight="heavy">Parse strings:</Text>{" "}
+        {parseStrings === false || parseStrings === "false" ? "No" : "Yes"}
       </Text>
     </Flex>
   );

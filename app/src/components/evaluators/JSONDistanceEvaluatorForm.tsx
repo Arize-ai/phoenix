@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
-import { Flex } from "@phoenix/components";
+import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
 import { useFlattenedEvaluatorInputKeys } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { JSONDistanceEvaluatorCodeBlock } from "@phoenix/components/evaluators/JSONDistanceEvaluatorCodeBlock";
@@ -38,7 +38,9 @@ const useJSONDistanceEvaluatorForm = () => {
 };
 
 export const JSONDistanceEvaluatorForm = () => {
-  const { control, getValues, setValue } = useJSONDistanceEvaluatorForm();
+  const { control, getValues, setValue, watch } =
+    useJSONDistanceEvaluatorForm();
+  const parseStrings = watch("literalMapping.parse_strings") ?? true;
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
   );
@@ -85,9 +87,34 @@ export const JSONDistanceEvaluatorForm = () => {
           pathInputValue={actualPath}
           onPathInputChange={setActualPath}
         />
+        <Controller
+          name="literalMapping.parse_strings"
+          control={control}
+          defaultValue={true}
+          render={({ field }) => (
+            <Switch
+              {...field}
+              value={String(field.value ?? "")}
+              onChange={(value) => field.onChange(value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : true
+              )}
+            >
+              <Label>Parse strings as JSON</Label>
+              <Text slot="description">
+                When enabled, string inputs are parsed as JSON before
+                comparison. When disabled, inputs are compared as-is.
+              </Text>
+            </Switch>
+          )}
+        />
       </Flex>
       <BuiltInEvaluatorOutputConfig />
-      <JSONDistanceEvaluatorCodeBlock />
+      <JSONDistanceEvaluatorCodeBlock parseStrings={Boolean(parseStrings)} />
     </Flex>
   );
 };

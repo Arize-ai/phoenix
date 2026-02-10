@@ -220,6 +220,12 @@ export function BuiltInDatasetEvaluatorDetails({
       throw new Error(`Unknown built-in evaluator: ${evaluator.name}`);
   }
 
+  const literalMapping = inputMapping.literalMapping as Record<
+    string,
+    unknown
+  > | null;
+  const parseStrings = literalMapping?.parse_strings !== false;
+
   return (
     <>
       <View padding="size-200" overflow="auto" maxWidth={1000}>
@@ -228,7 +234,11 @@ export function BuiltInDatasetEvaluatorDetails({
             <DetailsComponent inputMapping={inputMapping} />
           </Section>
           <OutputConfigsSection configs={outputConfigs} />
-          <CodeBlockComponent />
+          {name === "json_distance" ? (
+            <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
+          ) : (
+            <CodeBlockComponent />
+          )}
         </Flex>
       </View>
       <EditBuiltInDatasetEvaluatorSlideover
