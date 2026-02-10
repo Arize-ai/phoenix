@@ -577,6 +577,8 @@ jobs:
           python-version: 3.13
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
