@@ -700,14 +700,14 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
             elif event_type == OpenAIResponsesStreamEventType.OUTPUT_ITEM_ADDED:
                 item = getattr(event, "item", None)
                 if item is not None:
-                    tool_call_id = getattr(item, "id", None)
+                    item_id = getattr(item, "id", None)
+                    call_id = getattr(item, "call_id", None) or item_id
                     function_name = getattr(item, "name", None)
-                    # Check if this is a function call item (has a name)
-                    if tool_call_id and function_name:
-                        # Initialize tool call tracking with the function name
-                        active_tool_calls[tool_call_id] = {
+                    if item_id and function_name:
+                        active_tool_calls[item_id] = {
                             "name": function_name,
                             "arguments_buffer": "",
+                            "call_id": call_id,
                         }
 
             # Handle tool call streaming: accumulate arguments across deltas
@@ -729,6 +729,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                         active_tool_calls[tool_call_id] = {
                             "name": "",
                             "arguments_buffer": "",
+                            "call_id": tool_call_id,
                         }
                     # Accumulate arguments (ensure it's a string)
                     if arguments_delta:
@@ -748,8 +749,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 tool_call_id = getattr(event, "item_id", None)
                 if tool_call_id and tool_call_id in active_tool_calls:
                     tool_call_data = active_tool_calls[tool_call_id]
+                    # Use call_id (Responses API tool call identifier) for the chunk id
+                    chunk_id = tool_call_data.get("call_id", tool_call_id)
                     yield ToolCallChunk(
-                        id=tool_call_id,
+                        id=chunk_id,
                         function=FunctionCallChunk(
                             name=tool_call_data["name"],
                             arguments=tool_call_data["arguments_buffer"],
