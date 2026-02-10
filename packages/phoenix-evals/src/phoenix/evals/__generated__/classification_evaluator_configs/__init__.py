@@ -16,6 +16,9 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 from ._tool_invocation_classification_evaluator_config import (
     TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ._tool_response_handling_classification_evaluator_config import (
+    TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._tool_selection_classification_evaluator_config import (
     TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
@@ -28,5 +31,6 @@ __all__ = [
     "FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",
+    "TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG",
 ]

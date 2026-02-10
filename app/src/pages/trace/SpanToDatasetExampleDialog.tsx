@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -95,6 +95,8 @@ export function SpanToDatasetExampleDialog({
     },
   });
 
+  const datasetId = useWatch({ control, name: "datasetId" });
+
   const onSubmit = useCallback(
     (newExample: ExampleToAdd) => {
       setSubmitError(null);
@@ -112,9 +114,6 @@ export function SpanToDatasetExampleDialog({
         return setError("metadata", {
           message: "Metadata must be a valid JSON object",
         });
-      }
-      if (!newExample?.datasetId) {
-        return setError("datasetId", { message: "Dataset is required" });
       }
       commit({
         variables: {
@@ -151,7 +150,7 @@ export function SpanToDatasetExampleDialog({
               <Button
                 variant="primary"
                 size="S"
-                isDisabled={!isValid || isCommitting}
+                isDisabled={!isValid || isCommitting || !datasetId}
                 onPress={() => {
                   handleSubmit(onSubmit)();
                   close();
@@ -193,8 +192,9 @@ export function SpanToDatasetExampleDialog({
                   <Controller
                     control={control}
                     name="datasetId"
+                    rules={{ required: "Dataset is required" }}
                     render={({
-                      field: { onChange, onBlur },
+                      field: { onChange, onBlur, value },
                       fieldState: { invalid, error },
                     }) => (
                       <Flex direction="row" gap="size-100" alignItems="end">
@@ -205,8 +205,13 @@ export function SpanToDatasetExampleDialog({
                           validationState={invalid ? "invalid" : "valid"}
                           errorMessage={error?.message}
                           label="Dataset"
+                          value={value}
                         />
-                        <NewDatasetButton />
+                        <NewDatasetButton
+                          onDatasetCreated={(id) => {
+                            onChange(id);
+                          }}
+                        />
                       </Flex>
                     )}
                   />

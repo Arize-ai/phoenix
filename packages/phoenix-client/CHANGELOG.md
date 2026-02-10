@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.28.0...arize-phoenix-client-v1.28.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* add timezone validation to log_spans_dataframe ([#11283](https://github.com/Arize-ai/phoenix/issues/11283)) ([45a07bb](https://github.com/Arize-ai/phoenix/commit/45a07bb37c81dfd993d36172adc20ecbf01f9937))
+
 ## [1.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.27.2...arize-phoenix-client-v1.28.0) (2026-01-21)
 
 

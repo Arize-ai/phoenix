@@ -40,7 +40,7 @@ jobs:
             requirements/ci.txt
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: uv tool install tox --with tox-uv
+      - run: uv tool install tox
       - run: tox run -e ci_integration_tests
       - uses: slackapi/slack-github-action@v1
         if: failure()

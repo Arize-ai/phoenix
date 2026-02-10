@@ -1000,7 +1000,50 @@ class TestClientForSpanCreation:
         assert error.total_invalid == 1
         assert error.total_queued == 0
 
-        # Test 4: Non-existent project name is accepted (may be auto-created)
+        # Test 4: Timezone-naive timestamps are rejected by the server
+        naive_span = self._create_test_span(
+            "naive_timestamps",
+            context={"trace_id": f"trace_{token_hex(16)}", "span_id": f"span_{token_hex(8)}"},
+            start_time=datetime.now().isoformat(),
+            end_time=(datetime.now() + timedelta(seconds=1)).isoformat(),
+        )
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[naive_span],
+            )
+        err = exc_info.value
+        assert err.total_invalid == 1
+        assert err.total_queued == 0
+        assert any("timezone-naive" in (inv.get("error") or "") for inv in err.invalid_spans), (
+            "Expected timezone-naive error message"
+        )
+
+        # Test 5: Timezone-naive event timestamp is rejected by the server
+        span_with_naive_event = self._create_test_span(
+            "naive_event_timestamp",
+            context={"trace_id": f"trace_{token_hex(16)}", "span_id": f"span_{token_hex(8)}"},
+            events=[
+                {
+                    "name": "test_event",
+                    "timestamp": datetime.now().isoformat(),
+                    "attributes": {},
+                }
+            ],
+        )
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[span_with_naive_event],
+            )
+        err = exc_info.value
+        assert err.total_invalid == 1
+        assert err.total_queued == 0
+        assert any("timezone-naive" in (inv.get("error") or "") for inv in err.invalid_spans), (
+            "Expected timezone-naive error for event timestamp"
+        )
+
+        # Test 6: Non-existent project name is accepted (may be auto-created)
         # Only GlobalIDs are validated for existence
         result_nonexistent = client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
             project_identifier="non_existent_project_xyz",
@@ -1009,7 +1052,7 @@ class TestClientForSpanCreation:
         assert result_nonexistent["total_received"] == 1
         assert result_nonexistent["total_queued"] == 1
 
-        # Test 5: Error handling for non-existent project by GlobalID
+        # Test 7: Error handling for non-existent project by GlobalID
         import httpx
 
         with pytest.raises(httpx.HTTPStatusError) as http_exc_info:

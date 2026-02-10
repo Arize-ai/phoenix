@@ -10,7 +10,7 @@ from typing import Annotated, Any, Optional, Union
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, Field, model_validator
 from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -18,7 +18,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
-from phoenix.datetime_utils import normalize_datetime
+from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
@@ -404,8 +404,17 @@ class SpanContext(V1RoutesBaseModel):
 
 class SpanEvent(V1RoutesBaseModel):
     name: str = Field(description="Name of the event")
-    timestamp: datetime = Field(description="When the event occurred")
+    timestamp: datetime = Field(description="When the event occurred (must be timezone-aware)")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
+
+    @model_validator(mode="after")
+    def _require_timezone_aware_timestamp(self) -> "SpanEvent":
+        if self.timestamp is not None and not is_timezone_aware(self.timestamp):
+            raise ValueError(
+                "timestamp: timezone-naive timestamp is not allowed; "
+                "all timestamps must be timezone-aware (e.g., use UTC)."
+            )
+        return self
 
 
 class Span(V1RoutesBaseModel):
@@ -418,12 +427,23 @@ class Span(V1RoutesBaseModel):
     parent_id: Optional[str] = Field(
         default=None, description="OpenTelemetry span ID of the parent span"
     )
-    start_time: datetime = Field(description="Start time of the span")
-    end_time: datetime = Field(description="End time of the span")
+    start_time: datetime = Field(description="Start time of the span (must be timezone-aware)")
+    end_time: datetime = Field(description="End time of the span (must be timezone-aware)")
     status_code: str = Field(description="Status code of the span")
     status_message: str = Field(default="", description="Status message")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
     events: list[SpanEvent] = Field(default_factory=list, description="Span events")
+
+    @model_validator(mode="after")
+    def _require_timezone_aware_timestamps(self) -> "Span":
+        for field in ("start_time", "end_time"):
+            value = getattr(self, field)
+            if value is not None and not is_timezone_aware(value):
+                raise ValueError(
+                    f"{field}: timezone-naive timestamp is not allowed; "
+                    "all timestamps must be timezone-aware (e.g., use UTC)."
+                )
+        return self
 
 
 class SpansResponseBody(PaginatedResponseBody[Span]):

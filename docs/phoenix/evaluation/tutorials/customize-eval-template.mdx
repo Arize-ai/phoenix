@@ -1,0 +1,307 @@
+---
+title: "Customize Your Evaluation Template" 
+---
+Built-in eval templates cover many common evaluation patterns, but they can’t capture every application-specific requirement. When evaluation depends on domain knowledge, task constraints, or product expectations, defining a custom evaluator lets you make those criteria explicit.
+
+This guide shows how to customize an evaluation template in Phoenix by refining the judge prompt, controlling what the judge sees, and defining outputs that remain consistent and actionable across runs.
+
+Follow along with the following code assets:
+
+<Columns cols={2}>
+  <Card title="Python Tutorial" icon="python" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/agno_agent_for_evals.ipynb">
+    Companion Python project with runnable examples
+  </Card>
+  <Card title="TypeScript Tutorial" icon="js" href="https://github.com/Arize-ai/phoenix/tree/main/tutorials/quickstarts/langchain-ts-quickstart">
+    Companion TypeScript project with runnable examples
+  </Card>
+</Columns>
+--- 
+
+## How Custom Evaluators Work
+
+A custom evaluator is defined by a prompt template that guides the judge model through a specific decision. The most effective templates follow the same order the judge reads and reasons about information.
+
+**Start by defining the judge’s role and task.**
+
+Rather than asking an open-ended question, the prompt should act like a rubric. It should clearly state what is being evaluated and which criteria the judge should apply. Explicit instructions make judgments easier to reproduce, while vague language leads to inconsistent results.
+
+**Next, present the data to be evaluated.**
+
+In most cases, this includes the input that produced the output and the output itself. Some evaluations require additional context, such as retrieved documents or reference material, but this should be included only when necessary. Clearly labeling each part of the data and using consistent formatting helps reduce ambiguity. Many templates use a delimited section (such as BEGIN DATA / END DATA) to make boundaries explicit.
+
+**Finally, constrain the allowed outputs.**
+
+Most custom evaluators use classification-style outputs that return a single label per example. Labels like correct / incorrect or relevant / irrelevant are easy to compare across runs and integrate cleanly with Phoenix’s logging and analysis tools. While other output formats are possible, categorical labels are generally the most stable and interpretable starting point.
+
+## Define a Custom Evaluator
+
+The example below shows a customized version of the built-in correctness evaluation, adapted for a travel planning agent. Compared to the generic template, this version encodes application-specific expectations around essential information, budget clarity, and local context.
+
+By making these criteria explicit, the resulting evaluation signal is more informative and more useful for identifying concrete areas for improvement.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    CUSTOM_CORRECTNESS_TEMPLATE = """You are an expert evaluator judging whether a travel planner agent's response is correct. The agent is a friendly travel planner that must combine multiple tools to create a trip plan with: (1) essential info, (2) budget breakdown, and (3) local flavor/experiences.
+
+    CORRECT - The response:
+    - Accurately addresses the user's destination, duration, and stated interests
+    - Includes essential travel info (e.g., weather, best time to visit, key attractions, etiquette) for the destination
+    - Includes a budget or cost breakdown appropriate to the destination and trip duration
+    - Includes local experiences, cultural highlights, or authentic recommendations matching the user's interests
+    - Is factually accurate, logically consistent, and helpful for planning the trip
+    - Uses precise, travel-appropriate terminology
+
+    INCORRECT - The response contains any of:
+    - Factual errors about the destination, costs, or local info
+    - Missing essential info when the user asked for a full trip plan
+    - Missing or irrelevant budget information for the given destination/duration
+    - Missing or generic local experiences that do not match the user's interests
+    - Wrong destination, duration, or interests addressed
+    - Contradictions, misleading statements, or unhelpful/off-topic content
+
+    [BEGIN DATA]
+    ************
+    [User Input]:
+    {{input}}
+
+    ************
+    [Travel Plan]:
+    {{output}}
+    ************
+    [END DATA]
+
+    Focus on factual accuracy and completeness of the trip plan (essentials, budget, local flavor). Is the output correct or incorrect?"""
+    ```
+  </Tab>
+    <Tab title="TypeScript">
+    ```typescript
+    const correctnessTemplate = `
+    You are an expert evaluator judging whether a travel planner agent's response is correct. The agent is a friendly travel planner that must combine multiple tools to create a trip plan with: (1) essential info, (2) budget breakdown, and (3) local flavor/experiences.
+
+    CORRECT - The response:
+    - Accurately addresses the user's destination, duration, and stated interests
+    - Includes essential travel info (e.g., weather, best time to visit, key attractions, etiquette) for the destination
+    - Includes a budget or cost breakdown appropriate to the destination and trip duration
+    - Includes local experiences, cultural highlights, or authentic recommendations matching the user's interests
+    - Is factually accurate, logically consistent, and helpful for planning the trip
+    - Uses precise, travel-appropriate terminology
+
+    INCORRECT - The response contains any of:
+    - Factual errors about the destination, costs, or local info
+    - Missing essential info when the user asked for a full trip plan
+    - Missing or irrelevant budget information for the given destination/duration
+    - Missing or generic local experiences that do not match the user's interests
+    - Wrong destination, duration, or interests addressed
+    - Contradictions, misleading statements, or unhelpful/off-topic content
+
+    [BEGIN DATA]
+    ************
+    [User Input]:
+    {{input}}
+
+    ************
+    [Travel Plan]:
+    {{output}}
+    ************
+    [END DATA]
+
+    Focus on factual accuracy and completeness of the trip plan (essentials, budget, local flavor). Is the output correct or incorrect?
+    `;
+    ```
+    </Tab>
+</Tabs>
+
+## Create the Custom Evaluator
+
+Once the template is defined, you can create a custom evaluator using any supported judge model. This example uses a built in, classic OpenAI LLM model, but you can use any judge model. 
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from phoenix.evals import ClassificationEvaluator
+    from phoenix.evals.llm import LLM
+
+    llm = LLM(
+        provider="openai",
+        model="gpt-4o",
+        client="openai",
+    )
+
+    custom_correctness_evaluator = ClassificationEvaluator(
+        name = "custom_correctness",
+        llm = llm,
+        prompt_template=CUSTOM_CORRECTNESS_TEMPLATE,
+        choices={"correct": 1, "incorrect": 0}
+    )
+    ```
+  </Tab>
+    <Tab title="TypeScript">
+    ```typescript
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const base_model = openai("gpt-4o-mini");
+    const EVAL_NAME = "custom_correctness";
+    const evaluator = createClassificationEvaluator({
+      model: base_model as Parameters<typeof createClassificationEvaluator>[0]["model"],
+      promptTemplate: correctnessTemplate,
+      choices: { correct: 1, incorrect: 0 },
+      name: EVAL_NAME,
+    });
+    ```
+    </Tab>
+</Tabs>
+
+## Run the Evaluator on Traced Data
+
+Once defined, custom evaluators can be run the same way as built-in templates, either on individual examples or in batch over trace-derived data.
+
+**1. Export trace spans**
+
+Start by exporting spans from a Phoenix project: 
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.client import Client
+
+  client = Client()
+  spans_df = client.spans.get_spans_dataframe(project_identifier="agno_travel_agent")
+  agent_spans = spans_df[spans_df['span_kind'] == 'AGENT']
+  agent_spans
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript 
+  import { getSpans } from "@arizeai/phoenix-client/spans";
+
+  const projectName =
+    process.env.PHOENIX_PROJECT_NAME || "langchain-travel-agent";
+  const { spans } = await getSpans({ project: { projectName }, limit: 500 });
+  ```
+  </Tab>
+</Tabs>
+Each row represents a span and includes identifiers and attributes captured during execution.
+
+**2. Prepare Evaluator Inputs**
+Next, select or transform fields from the exported spans so they match the evaluator’s expected inputs. This often involves extracting nested attributes such as:
+
+Ex. `attributes.input.value` & `attributes.output.value`
+
+Input mappings help bridge differences between how data is stored in traces and what evaluators expect.
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals import bind_evaluator
+
+  bound_evaluator = bind_evaluator(
+      evaluator=custom_correctness_eval,
+      input_mapping={
+          "input": "attributes.input.value",
+          "output": "attributes.output.value",
+      }
+  )
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  We may need to manipulate the data a little bit here to make it easier to pass into the evaluator. We can first define some helper functions. 
+  ```typescript
+  const toStr = (v: unknown) =>
+  typeof v === "string" ? v : v != null ? JSON.stringify(v) : null;
+
+  function getInputOutput(span: any) {
+    const attrs = span.attributes ?? {};
+    const input = toStr(attrs["input.value"] ?? attrs["input"]);
+    const output = toStr(attrs["output.value"] ?? attrs["output"]);
+    return { input, output };
+  }
+
+  const parentSpans: { spanId: string; input: string; output: string }[] = [];
+  for (const s of spans) {
+    const name = (s as any).name ?? (s as any).span_name;
+    if (name !== "LangGraph") continue;
+    const { input, output } = getInputOutput(s);
+    const spanId =
+      (s as any).context?.span_id ?? (s as any).span_id ?? (s as any).id;
+    if (input && output && spanId) {
+      parentSpans.push({ spanId: String(spanId), input, output });
+    }
+  }
+  ```
+  </Tab>
+</Tabs>
+
+**3. Run evals on the prepared data**
+
+Once the evaluation dataframe is prepared, you can run evals in batch using the same APIs used for any tabular data.
+
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals import evaluate_dataframe
+  from phoenix.trace import suppress_tracing
+
+  with suppress_tracing():
+    results_df = evaluate_dataframe(agent_spans, [bound_evaluator])
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  const spanAnnotations = await Promise.all(
+    parentSpans.map(async ({ spanId, input, output }) => {
+      const r = await evaluator.evaluate({ input, output });
+      console.log(r.explanation);
+      return {
+        spanId,
+        name: "custom_correctness" as const,
+        label: r.label,
+        score: r.score,
+        explanation: r.explanation ?? undefined,
+        annotatorKind: "LLM" as const,
+        metadata: { evaluator: "custom_correctness", input, output },
+      };
+    }),
+  );
+  ```
+  </Tab>
+</Tabs>
+
+**4. Log results back to Phoenix**
+
+Finally, log evaluation results back to Phoenix as span annotations. Phoenix uses span identifiers to associate eval outputs with the correct execution.
+<Tabs>
+  <Tab title="Python">
+  ```python
+  from phoenix.evals.utils import to_annotation_dataframe
+
+  evaluations = to_annotation_dataframe(dataframe=results_df)
+  Client().spans.log_span_annotations_dataframe(dataframe=evaluations)
+  ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```typescript
+  import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+  await logSpanAnnotations({ spanAnnotations, sync: true });
+  ```
+  </Tab>
+</Tabs>
+Once logged, eval results appear alongside traces in the Phoenix UI, making it possible to analyze execution behavior and quality together.
+
+---
+
+## Best Practices
+
+Custom evaluators are sensitive to wording. Small changes can significantly affect evaluation behavior, so prompts should be written deliberately and kept focused.
+
+Be explicit about what the judge should evaluate and what it should ignore. If correctness depends on specific facts, constraints, or assumptions, include them directly in the template.
+
+For most tasks, categorical judgments are more reliable than numeric scores. Numeric ratings require reasoning about scale and relative magnitude, which often introduces additional variability. If numeric outputs are used, each value must have a clear, unambiguous definition.
+
+## Next Steps
+
+Congratulations! You’ve now seen how to move beyond built-in evals by defining a custom evaluation template that reflects how your application actually defines success.
+
+If you want to keep going and explore more evaluation patterns or APIs, you can dive deeper in the [full evaluation feature documentation](https://arize.com/docs/phoenix/evaluation/how-to-evals). 

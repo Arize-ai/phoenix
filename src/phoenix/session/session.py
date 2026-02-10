@@ -51,16 +51,13 @@ from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
 
-try:
-    from IPython.display import IFrame  # type: ignore
-except:  # noqa
-    pass
-
 logger = logging.getLogger(__name__)
 
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
+    from IPython.display import IFrame  # type: ignore[import-not-found]
+
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -271,6 +268,13 @@ class Session(TraceDataExtractor, ABC):
         Returns:
             IFrame: the iFrame will be rendered in the notebook
         """
+        try:
+            from IPython.display import IFrame
+        except ImportError as e:
+            raise ImportError(
+                "IPython is required to use the view() method. "
+                "Please install it with: pip install ipython"
+            ) from e
         url_to_view = urljoin(self.url, slug)
         print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
         return IFrame(src=url_to_view, width="100%", height=height)

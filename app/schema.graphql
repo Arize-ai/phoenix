@@ -2889,6 +2889,7 @@ enum SpanKind {
   reranker
   evaluator
   guardrail
+  prompt
   unknown
 }
 

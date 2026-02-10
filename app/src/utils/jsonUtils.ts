@@ -104,13 +104,24 @@ export function jsonStringToFlatObject(
 /**
  * Formats content of any type into a string suitable for rendering.
  *
- * Handles double-stringified JSON, pretty-prints objects and arrays,
- * and preserves valid top-level JSON values.
+ * By default returns valid JSON (plain strings are JSON-quoted). Use unquotePlainString for readable display.
+ *
+ * - Strings: Unwraps double-stringified JSON (e.g. "\"{\\"foo\\":1}\"") and pretty-prints;
+ *   otherwise returns plain string JSON-quoted (valid JSON) or unquoted when unquotePlainString is true.
+ * - Objects/arrays: Pretty-printed JSON.
+ * - Primitives (number, boolean, null): String form (e.g. "123", "true", "null").
+ * - undefined: Returns the string "undefined".
  *
  * @param content - the content to format
+ * @param options.unquotePlainString - when true, plain string content is returned as-is (unquoted) for readable display; default false returns valid JSON (quoted)
  * @returns a formatted string representation of the content
  */
-export function formatContentAsString(content?: unknown): string {
+export function formatContentAsString(
+  content?: unknown,
+  options?: { unquotePlainString?: boolean }
+): string {
+  const unquotePlainString = options?.unquotePlainString ?? false;
+
   if (typeof content === "string") {
     const isDoubleStringified =
       content.startsWith('"{') ||
@@ -130,16 +141,19 @@ export function formatContentAsString(content?: unknown): string {
     } catch {
       // If parsing fails, fall through
     }
-    // If the content is a valid non-string top level json value, return it as-is
-    // https://datatracker.ietf.org/doc/html/rfc7159#section-3
-    // 0-9 { [ null false true
-    // a regex that matches possible top level json values, besides strings
-    const nonStringStart = /^\s*[0-9{[]|true|false|null/.test(content);
-    if (nonStringStart) {
+    // Plain text string or unparseable content
+    if (unquotePlainString) {
       return content;
     }
+    return JSON.stringify(content);
   }
 
-  // For any content that doesn't match the json spec for a top level value, stringify it with pretty printing
-  return JSON.stringify(content, null, 2);
+  // Objects, arrays, and primitives: pretty-print as JSON when possible
+  try {
+    const out = JSON.stringify(content, null, 2);
+    if (out !== undefined) return out;
+  } catch {
+    // BigInt and other non-serializable values
+  }
+  return String(content);
 }

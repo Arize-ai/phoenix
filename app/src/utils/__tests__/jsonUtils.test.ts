@@ -108,4 +108,11 @@ describe("formatContentAsString", () => {
     const content = `"\\"Hello, world!\\""`;
     expect(formatContentAsString(content)).toBe(`"Hello, world!"`);
   });
+
+  it("should return 'undefined' when content is undefined", () => {
+    expect(formatContentAsString(undefined)).toBe("undefined");
+    expect(formatContentAsString(undefined, { unquotePlainString: true })).toBe(
+      "undefined"
+    );
+  });
 });

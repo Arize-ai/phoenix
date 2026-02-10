@@ -51,25 +51,6 @@ importers:
         specifier: ^4.0.17
         version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@24.9.1)(jiti@2.6.1)(msw@2.11.6(@types/node@24.9.1)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.1)
 
-  benchmarks/evals-benchmarks:
-    dependencies:
-      '@ai-sdk/openai':
-        specifier: ^2.0.0
-        version: 2.0.76(zod@4.1.13)
-      '@arizeai/phoenix-client':
-        specifier: workspace:*
-        version: link:../../packages/phoenix-client
-      '@arizeai/phoenix-evals':
-        specifier: workspace:*
-        version: link:../../packages/phoenix-evals
-    devDependencies:
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   examples/apps/demo-document-relevancy-experiment:
     dependencies:
       '@ai-sdk/openai':
@@ -350,8 +331,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       '@arizeai/openinference-vercel':
-        specifier: ^2.5.0
-        version: 2.5.0(@opentelemetry/api@1.9.0)
+        specifier: ^2.7.0
+        version: 2.7.0(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.37.0)
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -441,6 +422,15 @@ packages:
   '@arizeai/openinference-core@2.0.0':
     resolution: {integrity: sha512-H0INw5Yy0zHUe0HG0ZMVoexrBX/B1W6FJODmnIP7vbXHXOzzMtlBdjg0evxFY2HTSk+MRpVpDP05Ty+OSqfd0w==}
 
+  '@arizeai/openinference-core@2.0.5':
+    resolution: {integrity: sha512-BnufYaFqmG9twkz/9DHX9WTcOs7YvVAYaufau5tdjOT1c0Y8niJwmNWzV36phNPg3c7SmdD5OYLuzeAUN0T3pQ==}
+
+  '@arizeai/openinference-genai@0.1.6':
+    resolution: {integrity: sha512-SYXKe/wKS5rrXfq2nrxvNqy3qtJzZeIp3AWAMWzmkKqd5e0R/jAquuAawhIY8Jxof0jhuhYm/QBsE+tqEg8fkg==}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.9.0'
+      '@opentelemetry/semantic-conventions': '>=1.37.0'
+
   '@arizeai/openinference-instrumentation-openai@2.3.1':
     resolution: {integrity: sha512-8z5TEPwhj8fE7+6li2ufLP2jknkPTV7KAQwiNLj4/9IIz0o0dbFltm5O834bpE7LjzkGAqPt8CMVRDhpnw82IA==}
 
@@ -459,13 +449,16 @@ packages:
   '@arizeai/openinference-semantic-conventions@2.1.2':
     resolution: {integrity: sha512-u7UeuU9bJ1LxzHk0MPWb+1ZcotCcJwPnKDXi7Rl2cPs1pWMFg9Ogq7zzYZX+sDcibD2AEa1U+ElyOD8DwZc9gw==}
 
+  '@arizeai/openinference-semantic-conventions@2.1.7':
+    resolution: {integrity: sha512-KyBfwxkSusPvxHBaW/TJ0japEbXCNziW9o6/IRKiPu+gp5TMKIagV2NKvt47rWYa4Jc0Nl+SvAPm+yxkdJqVbg==}
+
   '@arizeai/openinference-vercel@2.3.4':
     resolution: {integrity: sha512-oQY5dhXMmJev37yziHhTnzQaI2DO8YfRVQWsarh2o26EBKOdOir8rfOm0IjQXJuR9fGNj5sSiQ45obia7EdXXw==}
     peerDependencies:
       '@opentelemetry/api': '>=1.7.0 <2.0.0'
 
-  '@arizeai/openinference-vercel@2.5.0':
-    resolution: {integrity: sha512-7bAQnx6Gfr2mzSTcVFeErDyWQklVBRNOxz8B4izSnqxx5koNVgf035KMRmHAXHO5sKIfA4Z5gwtf6+Q3L9cYJw==}
+  '@arizeai/openinference-vercel@2.7.0':
+    resolution: {integrity: sha512-UoRh3tenlsxhCK5fw8YrPpMfiBfhG49XOQOZTZul/iGWWKPbBEhrlEfxB8jLZYGh2iCIJLx+F3Vhx0Ojn3LvPQ==}
     peerDependencies:
       '@opentelemetry/api': '>=1.7.0 <2.0.0'
 
@@ -3737,6 +3730,18 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
 
+  '@arizeai/openinference-core@2.0.5':
+    dependencies:
+      '@arizeai/openinference-semantic-conventions': 2.1.7
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+
+  '@arizeai/openinference-genai@0.1.6(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.37.0)':
+    dependencies:
+      '@arizeai/openinference-semantic-conventions': 2.1.7
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/semantic-conventions': 1.37.0
+
   '@arizeai/openinference-instrumentation-openai@2.3.1':
     dependencies:
       '@arizeai/openinference-core': 1.0.3
@@ -3773,6 +3778,8 @@ snapshots:
 
   '@arizeai/openinference-semantic-conventions@2.1.2': {}
 
+  '@arizeai/openinference-semantic-conventions@2.1.7': {}
+
   '@arizeai/openinference-vercel@2.3.4(@opentelemetry/api@1.9.0)':
     dependencies:
       '@arizeai/openinference-core': 1.0.7
@@ -3780,12 +3787,15 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
 
-  '@arizeai/openinference-vercel@2.5.0(@opentelemetry/api@1.9.0)':
+  '@arizeai/openinference-vercel@2.7.0(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.37.0)':
     dependencies:
-      '@arizeai/openinference-core': 2.0.0
-      '@arizeai/openinference-semantic-conventions': 2.1.2
+      '@arizeai/openinference-core': 2.0.5
+      '@arizeai/openinference-genai': 0.1.6(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.37.0)
+      '@arizeai/openinference-semantic-conventions': 2.1.7
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/semantic-conventions'
 
   '@asteasolutions/zod-to-openapi@6.4.0(zod@3.25.76)':
     dependencies:

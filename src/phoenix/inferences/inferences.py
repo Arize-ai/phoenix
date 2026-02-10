@@ -677,10 +677,22 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     Compatibility function for converting from arize.utils.types.Schema to phoenix.inferences.Schema
     """
     try:
-        from arize.utils.types import (
-            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # fmt: off type: ignore
-        )
-        from arize.utils.types import Schema as ArizeSchema
+        from importlib.metadata import version
+
+        if int(version("arize").split(".")[0]) >= 8:
+            from arize.ml.types import (
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+            )
+            from arize.ml.types import Schema as ArizeSchema
+            from arize.ml.types import TypedColumns
+        else:
+            from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+            )
+            from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
+                Schema as ArizeSchema,
+            )
+            from arize.utils.types import TypedColumns  # type: ignore[attr-defined,no-redef]
 
         if not isinstance(schemaLike, ArizeSchema):
             raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
@@ -715,9 +727,22 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
                 raw_data_column_name=schemaLike.response_column_names.data_column_name,
                 link_to_data_column_name=schemaLike.response_column_names.link_to_data_column_name,
             )
+        # Convert TypedColumns to list[str] for feature and tag columns
+        feature_column_names: Optional[list[str]] = None
+        if schemaLike.feature_column_names is not None:
+            if isinstance(schemaLike.feature_column_names, TypedColumns):
+                feature_column_names = schemaLike.feature_column_names.get_all_column_names()
+            else:
+                feature_column_names = schemaLike.feature_column_names
+        tag_column_names: Optional[list[str]] = None
+        if schemaLike.tag_column_names is not None:
+            if isinstance(schemaLike.tag_column_names, TypedColumns):
+                tag_column_names = schemaLike.tag_column_names.get_all_column_names()
+            else:
+                tag_column_names = schemaLike.tag_column_names
         return Schema(
-            feature_column_names=schemaLike.feature_column_names,
-            tag_column_names=schemaLike.tag_column_names,
+            feature_column_names=feature_column_names,
+            tag_column_names=tag_column_names,
             prediction_label_column_name=schemaLike.prediction_label_column_name,
             actual_label_column_name=schemaLike.actual_label_column_name,
             prediction_id_column_name=schemaLike.prediction_id_column_name,
