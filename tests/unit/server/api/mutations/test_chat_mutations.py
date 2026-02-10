@@ -1174,7 +1174,7 @@ class TestChatCompletionMutationMixin:
             raw_input_value = attributes.pop(INPUT_VALUE)
             assert raw_input_value is not None
             input_value = json.loads(raw_input_value)
-            assert set(input_value.keys()) == {"input", "output", "reference"}
+            assert set(input_value.keys()) == {"input", "output", "reference", "metadata"}
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
@@ -1206,6 +1206,7 @@ class TestChatCompletionMutationMixin:
                         "messages": [{"content": "France", "role": "assistant"}],
                     },
                     "reference": {"country": "France"},
+                    "metadata": {},
                 },
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
@@ -1464,6 +1465,7 @@ class TestChatCompletionMutationMixin:
                     "available_tools": [],
                 },
                 "reference": {"country": "France"},
+                "metadata": {},
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
@@ -1496,6 +1498,7 @@ class TestChatCompletionMutationMixin:
                         "available_tools": [],
                     },
                     "reference": {"country": "France"},
+                    "metadata": {},
                 },
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON

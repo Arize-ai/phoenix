@@ -80,6 +80,7 @@ const EvaluatorExampleSelectContent = ({
                   revision {
                     input
                     output
+                    metadata
                   }
                 }
               }
@@ -101,6 +102,7 @@ const EvaluatorExampleSelectContent = ({
       const combined = {
         input: example.revision?.input,
         output: example.revision?.output,
+        metadata: example.revision?.metadata,
       };
       const snippet = JSON.stringify(combined);
       return {
