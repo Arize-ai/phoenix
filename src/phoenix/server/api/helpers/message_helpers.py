@@ -11,27 +11,33 @@ from typing import Any, Optional, TypedDict
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 
+# These types are based loosely on the openinference.instrumentation.Message type.
+# This makes it easier to leverage openinference.instrumentation helpers
+# for extracting OpenInference attributes.
 
-class PlaygroundMessageToolCall(TypedDict, total=False):
-    id: str
-    function: dict[str, Any]
-    type: str
+
+class PlaygroundToolCallFunction(TypedDict, total=False):
     name: str
-    input: dict[str, Any]
+    arguments: dict[str, Any]
+
+
+class PlaygroundToolCall(TypedDict, total=False):
+    id: str
+    function: PlaygroundToolCallFunction
 
 
 class PlaygroundMessage(TypedDict, total=False):
     role: ChatCompletionMessageRole
     content: str
     tool_call_id: str
-    tool_calls: Sequence[dict[str, Any]]
+    tool_calls: Sequence[PlaygroundToolCall]
 
 
 def create_playground_message(
     role: ChatCompletionMessageRole,
     content: str,
     tool_call_id: Optional[str] = None,
-    tool_calls: Optional[Sequence[dict[str, Any]]] = None,
+    tool_calls: Optional[Sequence[PlaygroundToolCall]] = None,
 ) -> PlaygroundMessage:
     msg: PlaygroundMessage = {"role": role, "content": content}
     if tool_call_id is not None:

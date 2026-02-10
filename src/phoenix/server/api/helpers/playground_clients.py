@@ -26,6 +26,7 @@ from typing import (
     cast,
 )
 
+import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import (
@@ -67,7 +68,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.GenerativeModelInput import (
@@ -2451,49 +2452,38 @@ def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
 def llm_input_messages(
     messages: Iterable[PlaygroundMessage],
 ) -> Iterator[tuple[str, Any]]:
-    for i, msg in enumerate(messages):
-        role = msg["role"]
-        content = msg["content"]
-        tool_call_id = msg.get("tool_call_id")
-        tool_calls = msg.get("tool_calls")
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
-        if role == ChatCompletionMessageRole.TOOL and tool_call_id:
-            # Anthropic tool result spans
-            yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALL_ID}", tool_call_id
+    oi_messages = [_playground_message_to_oi_message(message) for message in messages]
+    yield from oi.get_llm_input_message_attributes(oi_messages).items()
 
-        if tool_calls is not None:
-            for tool_call_index, tool_call in enumerate(tool_calls):
-                if tool_call.get("type") == "tool_use":
-                    # Anthropic tool call spans
-                    yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-                        tool_call["name"],
-                    )
-                    yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                        safe_json_dumps(jsonify(tool_call["input"])),
-                    )
-                    yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
-                        tool_call["id"],
-                    )
-                elif tool_call_function := tool_call.get("function"):
-                    # OpenAI tool call spans
-                    yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-                        tool_call_function["name"],
-                    )
-                    if arguments := tool_call_function["arguments"]:
-                        yield (
-                            f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                            safe_json_dumps(jsonify(arguments)),
-                        )
-                    if tool_call_id := tool_call.get("id"):
-                        yield (
-                            f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
-                            tool_call_id,
-                        )
+
+def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
+    oi_message = oi.Message()
+    if (role := message.get("role")) is not None:
+        oi_message["role"] = role.value.lower()
+    if (content := message.get("content")) is not None:
+        oi_message["content"] = content
+    if (tool_call_id := message.get("tool_call_id")) is not None:
+        oi_message["tool_call_id"] = tool_call_id
+    if (tool_calls := message.get("tool_calls")) is not None:
+        oi_message["tool_calls"] = [
+            _playground_tool_call_to_oi_tool_call(tool_call) for tool_call in tool_calls
+        ]
+    return oi_message
+
+
+def _playground_tool_call_to_oi_tool_call(tool_call: PlaygroundToolCall) -> oi.ToolCall:
+    oi_tool_call = oi.ToolCall()
+    if (id := tool_call.get("id")) is not None:
+        oi_tool_call["id"] = id
+    if (function := tool_call.get("function")) is not None:
+        oi_tool_call_function = oi.ToolCallFunction()
+        if (name := function.get("name")) is not None:
+            oi_tool_call_function["name"] = name
+        if (arguments := function.get("arguments")) is not None:
+            oi_tool_call_function["arguments"] = json.dumps(arguments)
+        if oi_tool_call_function:
+            oi_tool_call["function"] = oi_tool_call_function
+    return oi_tool_call
 
 
 def _merge_tool_call_chunks_for_output(
