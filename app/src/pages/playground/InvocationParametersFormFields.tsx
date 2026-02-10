@@ -423,6 +423,12 @@ export const InvocationParametersFormFields = ({
         return null;
       }
 
+      // Claude 4.x: disable the other of temperature/top_p when one is set (visual feedback for mutual exclusion)
+      const isDisabled =
+        isClaude4 &&
+        ((field.invocationName === "temperature" && values["top_p"] != null) ||
+          (field.invocationName === "top_p" && values["temperature"] != null));
+
       // Remount the field when the provider changes so that we don't hang on to stale values
       const key = `${model.provider ?? "model"}-${field.invocationName}`;
 
@@ -434,6 +440,7 @@ export const InvocationParametersFormFields = ({
           onChange={(value) => onChange(field, value)}
           control={form.control}
           errors={form.formState.errors}
+          isDisabled={isDisabled}
         />
       );
     }
