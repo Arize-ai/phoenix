@@ -73,6 +73,7 @@ import {
   LoggedOutPage,
   LoginPage,
   PlaygroundPage,
+  playgroundPageLoader,
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
@@ -279,7 +280,11 @@ const router = createBrowserRouter(
               crumb: () => "Playground", // TODO: add playground name
             }}
           >
-            <Route index element={<PlaygroundPage />} />
+            <Route
+              index
+              element={<PlaygroundPage />}
+              loader={playgroundPageLoader}
+            />
             <Route
               path="spans/:spanId"
               element={<SpanPlaygroundPage />}
