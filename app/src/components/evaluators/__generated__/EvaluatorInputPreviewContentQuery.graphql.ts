@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76c053c9a5345939d064fb7950f0298a>>
+ * @generated SignedSource<<b2c59ebdac40b66c582cebcf8aeee037>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -84,6 +84,13 @@ v6 = [
     "args": null,
     "kind": "ScalarField",
     "name": "output",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "metadata",
     "storageKey": null
   }
 ];
@@ -269,12 +276,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6aab3e3b24fc3df0aa273cfefaea4b41",
+    "cacheID": "47f9143e469209f557ce04bf9673a335",
     "id": null,
     "metadata": {},
     "name": "EvaluatorInputPreviewContentQuery",
     "operationKind": "query",
-    "text": "query EvaluatorInputPreviewContentQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(splitIds: $splitIds) {\n        edges {\n          example: node {\n            id\n            revision {\n              ...utils_datasetExampleToEvaluatorInput_example\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision {\n  input\n  output\n}\n"
+    "text": "query EvaluatorInputPreviewContentQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(splitIds: $splitIds) {\n        edges {\n          example: node {\n            id\n            revision {\n              ...utils_datasetExampleToEvaluatorInput_example\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision {\n  input\n  output\n  metadata\n}\n"
   }
 };
 })();

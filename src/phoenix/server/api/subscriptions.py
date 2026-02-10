@@ -808,6 +808,7 @@ class Subscription:
                         "input": revision.input,
                         "reference": revision.output,
                         "output": run.output.get("task_output", run.output),
+                        "metadata": revision.metadata_,
                     }
                     for evaluator, evaluator_input, project_id in zip(
                         evaluators, input.evaluators, project_ids
