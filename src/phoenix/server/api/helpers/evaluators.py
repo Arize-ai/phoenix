@@ -305,22 +305,6 @@ def validate_unique_config_names(
         raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
 
 
-def validate_min_one_config(
-    configs: "list[AnnotationConfigInput]",
-) -> None:
-    """
-    Validate that at least one config exists in the list.
-
-    Args:
-        configs: List of annotation config inputs to validate.
-
-    Raises:
-        ValueError: If the config list is empty.
-    """
-    if not configs:
-        raise ValueError("At least one output config is required")
-
-
 class LLMEvaluatorOutputConfigs(BaseModel):
     """Validated output configs for LLM evaluators (categorical only)."""
 

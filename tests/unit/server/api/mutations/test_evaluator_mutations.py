@@ -1163,27 +1163,6 @@ class TestUpdateDatasetLLMEvaluatorMutation:
           evaluator {
             id
             name
-            evaluator {
-              ... on LLMEvaluator {
-                id
-                name
-                description
-                kind
-                promptVersion { id }
-              }
-            }
-          }
-          query { __typename }
-        }
-      }
-    """
-
-    _UPDATE_MUTATION_WITH_OUTPUT_CONFIGS = """
-      mutation($input: UpdateDatasetLLMEvaluatorInput!) {
-        updateDatasetLlmEvaluator(input: $input) {
-          evaluator {
-            id
-            name
             outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
@@ -1322,7 +1301,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
 
         # Second update: from 1 output config to 2 (multi-output)
         result = await gql_client.execute(
-            self._UPDATE_MUTATION_WITH_OUTPUT_CONFIGS,
+            self._UPDATE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
@@ -2154,35 +2133,6 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             )
             assert len(prompt_versions.all()) == 2
 
-    _UPDATE_MUTATION_WITH_OUTPUT_CONFIGS = """
-      mutation($input: UpdateDatasetLLMEvaluatorInput!) {
-        updateDatasetLlmEvaluator(input: $input) {
-          evaluator {
-            id
-            name
-            outputConfigs {
-              ... on CategoricalAnnotationConfig {
-                name
-                description
-                optimizationDirection
-                values { label score }
-              }
-            }
-            evaluator {
-              ... on LLMEvaluator {
-                id
-                name
-                description
-                kind
-                promptVersion { id }
-              }
-            }
-          }
-          query { __typename }
-        }
-      }
-    """
-
 
 class TestCreateDatasetBuiltinEvaluatorMutation:
     _MUTATION = """
@@ -2449,6 +2399,42 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
             ],
         )
         assert result.data and not result.errors
+
+    async def test_create_builtin_evaluator_without_output_configs_stores_none(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """
+        When creating a builtin dataset evaluator without specifying output_configs,
+        the DB should store None (no eager copy of base configs).
+        """
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None
+        builtin_evaluator_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
+
+        # Create without outputConfigs
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            evaluatorId=builtin_evaluator_gid,
+            name="no-override-builtin",
+        )
+        assert result.data and not result.errors
+
+        dataset_evaluator = result.data["createDatasetBuiltinEvaluator"]["evaluator"]
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+
+        # DB level: output_configs should be None (no eager copy)
+        async with db() as session:
+            db_record = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_record is not None
+            assert db_record.output_configs is None
 
 
 class TestUpdateDatasetBuiltinEvaluatorMutation:

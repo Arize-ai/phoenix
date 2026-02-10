@@ -25,7 +25,6 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
     validate_consistent_llm_evaluator_and_prompt_version,
-    validate_min_one_config,
     validate_unique_config_names,
 )
 from phoenix.server.api.input_types.AnnotationConfigInput import (
@@ -773,7 +772,6 @@ class EvaluatorMutationMixin:
         # Validate output configs if provided
         if input.output_configs is not None:
             try:
-                validate_min_one_config(input.output_configs)
                 validate_unique_config_names(input.output_configs)
             except ValueError as e:
                 raise BadRequest(str(e))
@@ -790,13 +788,11 @@ class EvaluatorMutationMixin:
                 if builtin_evaluator is None:
                     raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
 
-                # If output_configs provided, convert them; otherwise copy base configs
+                # If output_configs provided, convert them; otherwise store None
+                # (resolver falls back to base evaluator configs at runtime)
+                output_configs: Optional[list[AnnotationConfigType]] = None
                 if input.output_configs is not None:
-                    output_configs: list[AnnotationConfigType] = (
-                        _convert_output_config_inputs_to_pydantic(input.output_configs)
-                    )
-                else:
-                    output_configs = list(builtin_evaluator().output_configs)
+                    output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
@@ -826,6 +822,12 @@ class EvaluatorMutationMixin:
                 f"DatasetEvaluator with name {input.name} already exists"
                 f"for dataset {input.dataset_id}"
             )
+
+        # Populate in-memory output_configs for the GQL response so the resolver
+        # doesn't need a DB fallback (which would open a concurrent session).
+        # The DB retains None, meaning "use base evaluator configs at runtime."
+        if output_configs is None:
+            dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
@@ -900,8 +902,8 @@ class EvaluatorMutationMixin:
                             _convert_output_config_inputs_to_pydantic(input.output_configs)
                         )
                     else:
-                        # Reset to base evaluator's configs
-                        dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
+                        # Reset to None = fall back to base evaluator configs at runtime
+                        dataset_evaluator.output_configs = None
 
                 if input.description is not UNSET:
                     dataset_evaluator.description = input.description
@@ -909,6 +911,11 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
+
+        # Populate in-memory output_configs for the GQL response so the resolver
+        # doesn't need a DB fallback (which would open a concurrent session).
+        if dataset_evaluator.output_configs is None:
+            dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
